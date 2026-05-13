@@ -39,6 +39,8 @@ Then stop and wait for confirmation.
 | 11 | RAG assistant | knowledge base, embeddings, retrieval logging |
 | 12 | Recommendations/automation | events, ranking, notifications, stale listing jobs |
 
+The foundation may start with only `apps/web`, `apps/api`, `packages/shared`, and `packages/config`. Later apps and packages remain planned final-scope components and should be added only when their roadmap step needs them.
+
 ## Verification Discipline
 
 Each step should include the smallest meaningful verification:

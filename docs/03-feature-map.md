@@ -31,6 +31,8 @@ These are intentionally outside the first public-beta MVP:
 - collaborative filtering or learning-to-rank recommendations
 - fully autonomous bans or irreversible AI decisions
 
+These exclusions are schedule boundaries, not product-scope removals. Admin tooling is part of the public-beta MVP through moderation and analytics views. Mobile remains a core final product surface, but native Expo implementation starts only after the web and API contracts are stable.
+
 ## Phase 2 Features
 
 | Area | Features |

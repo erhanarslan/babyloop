@@ -3,6 +3,8 @@
 ## Roadmap Principles
 
 - The first public-beta MVP is complete only after the core marketplace, moderation, AI logging, listing helper, valuation, and messaging slices work together.
+- Admin is a core product surface for the final platform and enters once moderation/admin workflows begin.
+- Mobile is a core final product surface, but native Expo implementation is intentionally delayed until web/API contracts are stable.
 - Build in small, testable phases.
 - Do not create the mobile app before web and API contracts are stable.
 - Do not build all AI modules at once.
@@ -40,7 +42,20 @@ Scope:
 - shared TypeScript config
 - lint/format baseline
 - environment variable conventions
-- only the minimal app/package directories needed for the next slice
+- only the minimal app/package directories needed for the next slice: `apps/web`, `apps/api`, `packages/shared`, and `packages/config`
+
+Delayed but still in final scope:
+
+- `apps/admin`
+- `apps/mobile`
+- `apps/worker`
+- `packages/database`
+- `packages/ai-core`
+- `packages/pricing-engine`
+- `packages/recommendation-engine`
+- `packages/moderation-engine`
+- `packages/notification-engine`
+- `packages/ui`
 
 Done criteria:
 

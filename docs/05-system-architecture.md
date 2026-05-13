@@ -27,6 +27,17 @@ babyloop/
 
 This is the target structure, not a requirement to create every app and package immediately. Phase 1 should create only the workspace/config files and directories needed for the next verified slice; future apps/packages can be added when a phase actually uses them.
 
+## Current Foundation vs Final Scope
+
+The initial foundation intentionally contains only:
+
+- `apps/web`
+- `apps/api`
+- `packages/shared`
+- `packages/config`
+
+This does not remove the remaining target apps and packages from scope. `apps/admin`, `apps/mobile`, `apps/worker`, `packages/database`, `packages/ai-core`, `packages/pricing-engine`, `packages/recommendation-engine`, `packages/moderation-engine`, `packages/notification-engine`, and `packages/ui` are core parts of the final architecture. They are delayed so the base monorepo can be verified before more surfaces and ownership boundaries are introduced.
+
 ## Apps
 
 | App | Responsibility |

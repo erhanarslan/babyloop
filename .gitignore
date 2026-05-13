@@ -1,0 +1,300 @@
+# =========================================================
+# babyloop - monorepo .gitignore
+# pnpm + Turborepo + Node.js API + Next.js Web + TypeScript
+# =========================================================
+
+
+# =========================================================
+# Dependencies
+# =========================================================
+node_modules/
+**/node_modules/
+
+.pnpm-store/
+.pnpm-debug.log*
+
+# npm / yarn lock dosyalarını istemiyorsan ignore et.
+# Bu projede pnpm kullanıldığı için pnpm-lock.yaml COMMIT EDİLMELİ.
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json
+
+# pnpm lock dosyasını ignore ETME
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+
+
+# =========================================================
+# Build outputs
+# =========================================================
+dist/
+**/dist/
+
+build/
+**/build/
+
+out/
+**/out/
+
+.next/
+**/.next/
+
+.vercel/output/
+.netlify/
+.output/
+.nuxt/
+
+storybook-static/
+public/storybook/
+
+
+# =========================================================
+# Turborepo / TypeScript cache
+# =========================================================
+.turbo/
+**/.turbo/
+
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+.vite/
+**/.vite/
+
+.cache/
+**/.cache/
+
+.swc/
+**/.swc/
+
+.eslintcache
+.stylelintcache
+
+
+# =========================================================
+# Test / coverage
+# =========================================================
+coverage/
+**/coverage/
+
+.nyc_output/
+**/.nyc_output/
+
+test-results/
+playwright-report/
+blob-report/
+
+junit.xml
+coverage-final.json
+
+
+# =========================================================
+# Environment files
+# =========================================================
+.env
+.env.*
+*.env
+
+# Example env dosyaları commit edilebilir.
+!.env.example
+!.env.local.example
+!.env.development.example
+!.env.production.example
+!.env.test.example
+
+
+# =========================================================
+# Logs
+# =========================================================
+logs/
+*.log
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+lerna-debug.log*
+turbo-debug.log*
+
+debug.log
+error.log
+
+
+# =========================================================
+# Runtime files
+# =========================================================
+.pid
+*.pid
+*.seed
+*.pid.lock
+
+pids/
+*.tgz
+
+
+# =========================================================
+# Next.js
+# =========================================================
+.next/
+out/
+next-env.d.ts
+
+# Normalde next-env.d.ts commit edilebilir ama Next yeniden üretir.
+# Eğer type hatası yaşarsan bu satırı kaldırabilirsin.
+
+
+# =========================================================
+# API / Node server artifacts
+# =========================================================
+apps/api/dist/
+apps/api/build/
+apps/api/.env
+apps/api/.env.*
+
+apps/api/logs/
+apps/api/*.log
+
+
+# =========================================================
+# Web app artifacts
+# =========================================================
+apps/web/.next/
+apps/web/out/
+apps/web/dist/
+apps/web/build/
+
+apps/web/.env
+apps/web/.env.*
+
+apps/web/next-env.d.ts
+
+
+# =========================================================
+# Packages artifacts
+# =========================================================
+packages/*/dist/
+packages/*/build/
+packages/*/*.tsbuildinfo
+
+
+# =========================================================
+# Database / ORM generated local files
+# =========================================================
+*.db
+*.sqlite
+*.sqlite3
+
+dev.db
+local.db
+
+# Prisma kullanırsan migration'lar commit edilmeli.
+# Ama local generated db dosyaları commit edilmemeli.
+prisma/dev.db
+prisma/dev.db-journal
+
+# Drizzle local artifacts varsa
+drizzle/meta/_journal.json
+
+
+# =========================================================
+# Uploads / local storage
+# =========================================================
+uploads/
+tmp/
+temp/
+
+.storage/
+.local-storage/
+
+*.tmp
+*.temp
+
+
+# =========================================================
+# IDE / Editor
+# =========================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.iml
+
+.history/
+.cursor/
+.cursorignore
+
+
+# =========================================================
+# OS files
+# =========================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+Icon?
+._*
+
+
+# =========================================================
+# Mac / Windows trash
+# =========================================================
+.Trashes
+.Spotlight-V100
+.fseventsd
+
+$RECYCLE.BIN/
+
+
+# =========================================================
+# Docker / local infra
+# =========================================================
+docker-compose.override.yml
+
+.docker/
+docker-data/
+postgres-data/
+redis-data/
+
+
+# =========================================================
+# Certificates / secrets
+# =========================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+certs/
+secrets/
+
+*.secret
+*.secrets
+
+
+# =========================================================
+# Generated docs / reports
+# =========================================================
+reports/
+lint-results/
+dependency-check-report.html
+
+
+# =========================================================
+# Misc
+# =========================================================
+*.bak
+*.backup
+*.orig
+*.rej
+
+*.swp
+*.swo
+*~
