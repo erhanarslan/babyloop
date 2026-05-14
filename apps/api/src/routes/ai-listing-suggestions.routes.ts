@@ -1,11 +1,17 @@
 import {
+  LISTING_SUGGESTION_PROMPT_VERSION,
   suggestListing,
   type ListingSuggestionInput,
   type ListingSuggestionOutput
 } from "@babyloop/ai-core";
+import { aiModelRuns } from "@babyloop/database/schema";
 import type { ApiResponse } from "@babyloop/shared";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+
+const AI_LISTING_SUGGESTION_FEATURE = "listing_suggestion";
+const MOCK_AI_MODEL_NAME = "mock-model";
+const MOCK_AI_PROVIDER_NAME = "mock-listing-suggestion";
 
 const createListingSuggestionBodySchema = z
   .object({
@@ -42,7 +48,17 @@ export function registerAiListingSuggestionRoutes(app: FastifyInstance): void {
       }
 
       try {
-        const suggestion = await suggestListing(toListingSuggestionInput(parsedBody.data));
+        const input = toListingSuggestionInput(parsedBody.data);
+        const suggestion = await suggestListing(input);
+
+        await logAiModelRun(app, request, {
+          input,
+          output: suggestion,
+          providerName: suggestion.providerName,
+          promptVersion: suggestion.promptVersion,
+          confidenceScore: suggestion.confidenceScore,
+          status: "success"
+        });
 
         return {
           ok: true,
@@ -52,6 +68,14 @@ export function registerAiListingSuggestionRoutes(app: FastifyInstance): void {
         };
       } catch (error) {
         request.log.error(error);
+
+        await logAiModelRun(app, request, {
+          input: toListingSuggestionInput(parsedBody.data),
+          providerName: MOCK_AI_PROVIDER_NAME,
+          promptVersion: LISTING_SUGGESTION_PROMPT_VERSION,
+          status: "error",
+          errorMessage: getSafeErrorMessage(error)
+        });
 
         return reply.status(503).send({
           ok: false,
@@ -96,4 +120,53 @@ function toListingSuggestionInput(
   }
 
   return input;
+}
+
+type AiModelRunLogInput = {
+  input: ListingSuggestionInput;
+  output?: ListingSuggestionOutput;
+  providerName: string;
+  promptVersion: string;
+  confidenceScore?: number;
+  status: "success" | "error";
+  errorMessage?: string;
+};
+
+async function logAiModelRun(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  run: AiModelRunLogInput
+): Promise<void> {
+  const appWithOptionalDb = app as FastifyInstance & {
+    db?: FastifyInstance["db"];
+  };
+
+  if (!appWithOptionalDb.db) {
+    return;
+  }
+
+  try {
+    await appWithOptionalDb.db.insert(aiModelRuns).values({
+      feature: AI_LISTING_SUGGESTION_FEATURE,
+      providerName: run.providerName,
+      modelName: MOCK_AI_MODEL_NAME,
+      promptVersion: run.promptVersion,
+      input: { ...run.input },
+      output: run.output ? { ...run.output } : null,
+      confidenceScore:
+        typeof run.confidenceScore === "number" ? run.confidenceScore.toFixed(4) : null,
+      status: run.status,
+      errorMessage: run.errorMessage ?? null
+    });
+  } catch (error) {
+    request.log.error(error, "Failed to persist AI model run.");
+  }
+}
+
+function getSafeErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.slice(0, 500);
+  }
+
+  return "Listing suggestion failed.";
 }

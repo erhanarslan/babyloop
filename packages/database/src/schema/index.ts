@@ -35,6 +35,14 @@ export const listingConditionEnum = pgEnum("listing_condition", [
   "needs_repair"
 ]);
 
+export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
+  "success",
+  "error",
+  "validation_failed",
+  "provider_failed",
+  "skipped"
+]);
+
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   displayName: varchar("display_name", { length: 120 }).notNull(),
@@ -146,7 +154,34 @@ export const events = pgTable(
   ]
 );
 
+export const aiModelRuns = pgTable(
+  "ai_model_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    feature: varchar("feature", { length: 120 }).notNull(),
+    providerName: varchar("provider_name", { length: 120 }).notNull(),
+    modelName: varchar("model_name", { length: 160 }),
+    promptVersion: varchar("prompt_version", { length: 160 }).notNull(),
+    input: jsonb("input")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    confidenceScore: numeric("confidence_score", { precision: 5, scale: 4 }),
+    riskScore: numeric("risk_score", { precision: 5, scale: 4 }),
+    status: aiModelRunStatusEnum("status").notNull(),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("ai_model_runs_feature_idx").on(table.feature),
+    index("ai_model_runs_status_idx").on(table.status),
+    index("ai_model_runs_created_at_idx").on(table.createdAt)
+  ]
+);
+
 export const schema = {
+  aiModelRuns,
   events,
   favorites,
   listingImages,

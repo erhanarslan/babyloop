@@ -6,6 +6,7 @@ import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
+import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 
@@ -59,6 +60,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       databaseUrl: config.databaseUrl
     });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
+    app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
