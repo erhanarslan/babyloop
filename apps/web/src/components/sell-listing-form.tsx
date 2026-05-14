@@ -39,6 +39,27 @@ type CreateListingPayload = {
   listing: ListingSummary;
 };
 
+type ListingSuggestionRequest = {
+  title?: string;
+  description?: string;
+  categoryName?: string;
+  condition?: string;
+};
+
+type ListingSuggestion = {
+  suggestedTitle: string;
+  suggestedDescription: string;
+  suggestedTags: string[];
+  missingInfoQuestions: string[];
+  confidenceScore: number;
+  providerName: string;
+  promptVersion: string;
+};
+
+type ListingSuggestionPayload = {
+  suggestion: ListingSuggestion;
+};
+
 type SellListingFormProps = {
   categories: Category[];
   apiBaseUrl: string;
@@ -47,6 +68,9 @@ type SellListingFormProps = {
 export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps) {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<ListingSuggestion | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -106,6 +130,57 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       setErrorMessage("BabyLoop API is unavailable.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleGenerateSuggestion(form: HTMLFormElement | null) {
+    if (!form) {
+      return;
+    }
+
+    setAiErrorMessage(null);
+
+    const formData = new FormData(form);
+    const title = getString(formData, "title");
+    const description = getString(formData, "description");
+    const categoryName = getSelectedOptionText(form, "categoryId");
+    const condition = getString(formData, "condition");
+    const payload: ListingSuggestionRequest = {
+      ...(title ? { title } : {}),
+      ...(description ? { description } : {}),
+      ...(categoryName ? { categoryName } : {}),
+      ...(condition ? { condition } : {})
+    };
+
+    if (Object.keys(payload).length === 0) {
+      setAiErrorMessage("Add at least one listing detail before requesting a suggestion.");
+      return;
+    }
+
+    setIsSuggesting(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/ai/listing-suggestions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const body = (await response.json()) as ApiResponse<ListingSuggestionPayload>;
+
+      if (!response.ok || !body.ok) {
+        const message = body.ok ? "AI suggestion could not be generated." : body.error.message;
+        setAiErrorMessage(message);
+        return;
+      }
+
+      setSuggestion(body.data.suggestion);
+      fillSuggestionFields(form, body.data.suggestion);
+    } catch {
+      setAiErrorMessage("AI suggestion is unavailable. You can continue manually.");
+    } finally {
+      setIsSuggesting(false);
     }
   }
 
@@ -199,11 +274,35 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         </p>
       ) : null}
 
+      {aiErrorMessage ? (
+        <p className="form-error" role="status">
+          {aiErrorMessage}
+        </p>
+      ) : null}
+
+      {suggestion ? <SuggestionPanel suggestion={suggestion} /> : null}
+
       <div className="form-actions">
         <p className="form-note">Local dev seller: Ayse Demir</p>
-        <button className="submit-button" type="submit" disabled={isSubmitting || !hasCategories}>
-          {isSubmitting ? "Creating..." : "Create listing"}
-        </button>
+        <div className="form-button-row">
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={isSuggesting}
+            onClick={(event) => {
+              void handleGenerateSuggestion(event.currentTarget.form);
+            }}
+          >
+            {isSuggesting ? "Generating..." : "Generate with AI"}
+          </button>
+          <button
+            className="submit-button"
+            type="submit"
+            disabled={isSubmitting || !hasCategories}
+          >
+            {isSubmitting ? "Creating..." : "Create listing"}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -212,4 +311,57 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 function getString(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getSelectedOptionText(form: HTMLFormElement, key: string): string {
+  const field = form.elements.namedItem(key);
+
+  if (!(field instanceof HTMLSelectElement)) {
+    return "";
+  }
+
+  return field.selectedOptions[0]?.textContent?.trim() ?? "";
+}
+
+function fillSuggestionFields(form: HTMLFormElement, suggestion: ListingSuggestion): void {
+  const titleField = form.elements.namedItem("title");
+  const descriptionField = form.elements.namedItem("description");
+
+  if (titleField instanceof HTMLInputElement) {
+    titleField.value = suggestion.suggestedTitle;
+  }
+
+  if (descriptionField instanceof HTMLTextAreaElement) {
+    descriptionField.value = suggestion.suggestedDescription;
+  }
+}
+
+function SuggestionPanel({ suggestion }: { suggestion: ListingSuggestion }) {
+  return (
+    <section className="ai-suggestion-panel" aria-label="AI listing suggestion">
+      <div>
+        <h2>AI suggestion</h2>
+        <p>{suggestion.suggestedDescription}</p>
+      </div>
+
+      <div className="tag-list" aria-label="Suggested tags">
+        {suggestion.suggestedTags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+
+      {suggestion.missingInfoQuestions.length > 0 ? (
+        <ul className="question-list">
+          {suggestion.missingInfoQuestions.map((question) => (
+            <li key={question}>{question}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      <p className="ai-debug">
+        {suggestion.providerName} · {suggestion.promptVersion} · confidence{" "}
+        {suggestion.confidenceScore}
+      </p>
+    </section>
+  );
 }
