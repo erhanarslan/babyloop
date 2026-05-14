@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
+import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
@@ -51,6 +52,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   });
 
   registerHealthRoutes(app);
+  app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
 
   if (config.databaseUrl) {
     registerDatabasePlugin(app, {

@@ -26,6 +26,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@babyloop/ai-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-core
       '@babyloop/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -62,6 +65,8 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.2.6(react@19.2.6)
+
+  packages/ai-core: {}
 
   packages/config: {}
 

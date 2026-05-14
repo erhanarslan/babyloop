@@ -12,6 +12,7 @@
   "dependencies": {
     "@babyloop/config": "workspace:*",
     "@babyloop/database": "workspace:*",
+    "@babyloop/ai-core": "workspace:*",
     "@babyloop/shared": "workspace:*",
     "@fastify/cors": "^11.2.0",
     "drizzle-orm": "^0.39.0",
