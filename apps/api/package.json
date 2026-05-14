@@ -10,6 +10,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@babyloop/config": "workspace:*",
+    "@babyloop/database": "workspace:*",
+    "@babyloop/shared": "workspace:*",
+    "drizzle-orm": "^0.39.0",
     "fastify": "^5.0.0"
   }
 }

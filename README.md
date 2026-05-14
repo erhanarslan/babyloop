@@ -72,3 +72,12 @@ Expected API response:
   "service": "babyloop-api"
 }
 ```
+
+Marketplace API routes require PostgreSQL:
+
+```bash
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/babyloop_dev"
+pnpm --filter @babyloop/database db:migrate
+pnpm --filter @babyloop/database db:seed
+pnpm --filter @babyloop/api dev
+```

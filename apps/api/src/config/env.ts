@@ -1,13 +1,20 @@
 export type ApiRuntimeConfig = {
+  databaseUrl?: string;
   host: string;
   port: number;
 };
 
 export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiRuntimeConfig {
-  return {
+  const config: ApiRuntimeConfig = {
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT)
   };
+
+  if (env.DATABASE_URL) {
+    config.databaseUrl = env.DATABASE_URL;
+  }
+
+  return config;
 }
 
 function readPort(value: string | undefined): number {
