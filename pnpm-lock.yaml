@@ -41,6 +41,9 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.8.5
+      zod:
+        specifier: ^3.25.0
+        version: 3.25.76
 
   apps/web:
     dependencies:
@@ -1096,6 +1099,9 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
@@ -1858,3 +1864,5 @@ snapshots:
       isexe: 3.1.5
 
   xtend@4.0.2: {}
+
+  zod@3.25.76: {}

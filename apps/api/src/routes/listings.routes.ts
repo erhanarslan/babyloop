@@ -1,4 +1,5 @@
 import {
+  events,
   listingImages,
   listings,
   productCategories,
@@ -7,10 +8,39 @@ import {
 import type { ApiResponse } from "@babyloop/shared";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 
 const LISTING_LIMIT = 20;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DECIMAL_PRICE_PATTERN = /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/;
+const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+
+const createListingBodySchema = z.object({
+  seller_profile_id: z.string().uuid(),
+  category_id: z.string().uuid(),
+  title: z.string().trim().min(4).max(160),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((value) => value && value.length > 0 ? value : null),
+  price_amount: z
+    .union([z.literal(""), z.string().trim().regex(DECIMAL_PRICE_PATTERN)])
+    .optional()
+    .transform((value) => value && value.length > 0 ? value : null),
+  currency: z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => CURRENCY_PATTERN.test(value), "Currency must be a 3-letter code.")
+    .optional()
+    .default("TRY"),
+  listing_type: z.enum(["sale", "swap", "donation", "rent"]),
+  condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]),
+  image_urls: z.array(z.string().trim().url().max(1000)).max(5).optional().default([])
+});
 
 type CategoryBasicResponse = {
   id: string;
@@ -57,6 +87,10 @@ type ListingsResponse = ApiResponse<{
   listings: ListingSummaryResponse[];
 }>;
 
+type CreateListingResponse = ApiResponse<{
+  listing: ListingSummaryResponse;
+}>;
+
 type ListingDetailApiResponse = ApiResponse<{
   listing: ListingDetailResponse;
 }>;
@@ -66,6 +100,144 @@ type ListingParams = {
 };
 
 export function registerListingRoutes(app: FastifyInstance): void {
+  app.post<{ Body: unknown; Reply: CreateListingResponse }>("/listings", async (request, reply) => {
+    const parsedBody = createListingBodySchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_REQUEST",
+          message: "Listing request body is invalid."
+        }
+      });
+    }
+
+    const body = parsedBody.data;
+
+    const [category] = await app.db
+      .select({
+        id: productCategories.id,
+        name: productCategories.name,
+        slug: productCategories.slug
+      })
+      .from(productCategories)
+      .where(eq(productCategories.id, body.category_id))
+      .limit(1);
+
+    if (!category) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_CATEGORY",
+          message: "Category does not exist."
+        }
+      });
+    }
+
+    const [seller] = await app.db
+      .select({
+        id: profiles.id
+      })
+      .from(profiles)
+      .where(eq(profiles.id, body.seller_profile_id))
+      .limit(1);
+
+    if (!seller) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_SELLER_PROFILE",
+          message: "Seller profile does not exist."
+        }
+      });
+    }
+
+    const created = await app.db.transaction(async (tx) => {
+      const [createdListing] = await tx
+        .insert(listings)
+        .values({
+          sellerProfileId: body.seller_profile_id,
+          categoryId: body.category_id,
+          title: body.title,
+          description: body.description,
+          priceAmount: body.price_amount,
+          currency: body.currency,
+          status: "active",
+          listingType: body.listing_type,
+          condition: body.condition
+        })
+        .returning({
+          id: listings.id,
+          title: listings.title,
+          priceAmount: listings.priceAmount,
+          currency: listings.currency,
+          status: listings.status,
+          listingType: listings.listingType,
+          condition: listings.condition,
+          createdAt: listings.createdAt
+        });
+
+      if (!createdListing) {
+        throw new Error("Listing insert failed.");
+      }
+
+      const imageValues = body.image_urls.map((url, index) => ({
+        listingId: createdListing.id,
+        url,
+        sortOrder: index
+      }));
+
+      const createdImages = imageValues.length > 0
+        ? await tx
+          .insert(listingImages)
+          .values(imageValues)
+          .returning({
+            id: listingImages.id,
+            url: listingImages.url,
+            sortOrder: listingImages.sortOrder
+          })
+        : [];
+
+      await tx.insert(events).values({
+        actorProfileId: body.seller_profile_id,
+        eventType: "listing_created",
+        entityType: "listing",
+        entityId: createdListing.id,
+        metadata: {
+          source: "api_manual",
+          categoryId: body.category_id,
+          listingType: body.listing_type,
+          hasImages: body.image_urls.length > 0
+        }
+      });
+
+      return {
+        listing: createdListing,
+        images: createdImages
+      };
+    });
+
+    const firstImage = created.images[0] ?? null;
+
+    return reply.status(201).send({
+      ok: true,
+      data: {
+        listing: {
+          id: created.listing.id,
+          title: created.listing.title,
+          price: buildPrice(created.listing.priceAmount, created.listing.currency),
+          status: created.listing.status,
+          listingType: created.listing.listingType,
+          condition: created.listing.condition,
+          category,
+          firstImage,
+          createdAt: created.listing.createdAt.toISOString()
+        }
+      }
+    });
+  });
+
   app.get<{ Reply: ListingsResponse }>("/listings", async () => {
     const rows = await app.db
       .select({

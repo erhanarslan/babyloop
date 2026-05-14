@@ -14,6 +14,7 @@
     "@babyloop/database": "workspace:*",
     "@babyloop/shared": "workspace:*",
     "drizzle-orm": "^0.39.0",
-    "fastify": "^5.0.0"
+    "fastify": "^5.0.0",
+    "zod": "^3.25.0"
   }
 }
