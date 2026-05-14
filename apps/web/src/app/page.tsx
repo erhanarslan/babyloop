@@ -1,5 +1,7 @@
+import Link from "next/link";
+import { SiteHeader } from "../components/site-header";
+
 export default function HomePage() {
-  const navItems = ["Home", "Browse", "Sell", "AI Valuation", "Login"];
   const aiFeatures = [
     "Price guidance",
     "Listing suggestions",
@@ -8,18 +10,7 @@ export default function HomePage() {
 
   return (
     <main>
-      <header className="site-header" aria-label="Main navigation">
-        <a className="brand" href="#home" aria-label="BabyLoop home">
-          BabyLoop
-        </a>
-        <nav className="nav-links">
-          {navItems.map((item) => (
-            <a key={item} href={`#${item.toLowerCase().replaceAll(" ", "-")}`}>
-              {item}
-            </a>
-          ))}
-        </nav>
-      </header>
+      <SiteHeader />
 
       <section className="hero section" id="home" aria-labelledby="page-title">
         <div className="hero-copy">
@@ -29,6 +20,9 @@ export default function HomePage() {
             A focused marketplace shell for buying, selling, swapping,
             donating, renting, and evaluating baby-related products.
           </p>
+          <Link className="primary-link" href="/browse">
+            Browse sample listings
+          </Link>
         </div>
         <div className="hero-panel" aria-label="Marketplace preview">
           <div className="panel-row strong">
@@ -81,6 +75,15 @@ export default function HomePage() {
           <li>Human review for high-impact actions</li>
           <li>Warnings instead of safety guarantees</li>
         </ul>
+      </section>
+
+      <section className="section login-preview" id="login" aria-labelledby="login-title">
+        <p className="eyebrow">Account access</p>
+        <h2 id="login-title">Login is intentionally delayed.</h2>
+        <p>
+          The current web slice only reads public marketplace data. Authentication,
+          seller actions, and saved items will come after the read path is stable.
+        </p>
       </section>
     </main>
   );
