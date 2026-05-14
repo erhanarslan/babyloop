@@ -1,23 +1,10 @@
-import Fastify from "fastify";
+import { createApp } from "./app.js";
+import { readApiRuntimeConfig } from "./config/env.js";
 
-export function buildServer() {
-  const server = Fastify({
-    logger: true
-  });
+const app = createApp();
+const config = readApiRuntimeConfig();
 
-  server.get("/health", async () => ({
-    ok: true,
-    service: "babyloop-api" as const
-  }));
-
-  return server;
-}
-
-const server = buildServer();
-const port = Number(process.env.PORT ?? 4000);
-const host = process.env.HOST ?? "127.0.0.1";
-
-server.listen({ port, host }).catch((error) => {
-  server.log.error(error);
+app.listen(config).catch((error) => {
+  app.log.error(error);
   process.exit(1);
 });

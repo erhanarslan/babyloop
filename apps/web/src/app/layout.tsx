@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BabyLoop",
-  description: "Minimal technical foundation for BabyLoop."
+  description: "AI-powered baby and family marketplace shell."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
