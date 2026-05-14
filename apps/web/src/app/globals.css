@@ -388,6 +388,15 @@ p {
   line-height: 1.6;
 }
 
+.favorite-action {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-action .form-error {
+  margin: 0;
+}
+
 .detail-facts {
   display: grid;
   gap: 12px;
