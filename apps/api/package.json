@@ -13,6 +13,7 @@
     "@babyloop/config": "workspace:*",
     "@babyloop/database": "workspace:*",
     "@babyloop/shared": "workspace:*",
+    "@fastify/cors": "^11.2.0",
     "drizzle-orm": "^0.39.0",
     "fastify": "^5.0.0",
     "zod": "^3.25.0"

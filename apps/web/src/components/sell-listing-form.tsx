@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import type { ApiResponse } from "@babyloop/shared";
 import type { Category, ListingSummary } from "../lib/api";
 
-const LOCAL_DEV_SELLER_PROFILE_ID = "10000000-0000-4000-8000-000000000001";
-
 const listingTypes = [
   { value: "sale", label: "For sale" },
   { value: "swap", label: "Swap" },
@@ -27,15 +25,14 @@ type ListingType = (typeof listingTypes)[number]["value"];
 type ListingCondition = (typeof conditions)[number]["value"];
 
 type CreateListingRequest = {
-  seller_profile_id: string;
-  category_id: string;
+  categoryId: string;
   title: string;
   description?: string;
-  price_amount?: string;
+  priceAmount?: string;
   currency?: string;
-  listing_type: ListingType;
+  listingType: ListingType;
   condition: ListingCondition;
-  image_urls?: string[];
+  imageUrls?: string[];
 };
 
 type CreateListingPayload = {
@@ -57,14 +54,14 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     setErrorMessage(null);
 
     const formData = new FormData(event.currentTarget);
-    const categoryId = getString(formData, "category_id");
+    const categoryId = getString(formData, "categoryId");
     const title = getString(formData, "title");
     const description = getString(formData, "description");
-    const priceAmount = getString(formData, "price_amount");
+    const priceAmount = getString(formData, "priceAmount");
     const currency = getString(formData, "currency").toUpperCase() || "TRY";
-    const listingType = getString(formData, "listing_type") as ListingType;
+    const listingType = getString(formData, "listingType") as ListingType;
     const condition = getString(formData, "condition") as ListingCondition;
-    const imageUrls = getString(formData, "image_urls")
+    const imageUrls = getString(formData, "imageUrls")
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
@@ -75,15 +72,14 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
 
     const payload: CreateListingRequest = {
-      seller_profile_id: LOCAL_DEV_SELLER_PROFILE_ID,
-      category_id: categoryId,
+      categoryId,
       title,
       currency,
-      listing_type: listingType,
+      listingType,
       condition,
       ...(description ? { description } : {}),
-      ...(priceAmount ? { price_amount: priceAmount } : {}),
-      ...(imageUrls.length > 0 ? { image_urls: imageUrls } : {})
+      ...(priceAmount ? { priceAmount } : {}),
+      ...(imageUrls.length > 0 ? { imageUrls } : {})
     };
 
     setIsSubmitting(true);
@@ -120,7 +116,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       <div className="form-grid">
         <label className="form-field">
           <span>Category</span>
-          <select name="category_id" required disabled={!hasCategories}>
+          <select name="categoryId" required disabled={!hasCategories}>
             {hasCategories ? (
               categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -135,7 +131,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <label className="form-field">
           <span>Listing type</span>
-          <select name="listing_type" defaultValue="sale" required>
+          <select name="listingType" defaultValue="sale" required>
             {listingTypes.map((type) => (
               <option key={type.value} value={type.value}>
                 {type.label}
@@ -168,7 +164,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <label className="form-field">
           <span>Price amount</span>
-          <input name="price_amount" type="text" inputMode="decimal" placeholder="6500.00" />
+          <input name="priceAmount" type="text" inputMode="decimal" placeholder="6500.00" />
         </label>
 
         <label className="form-field">
@@ -190,7 +186,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         <label className="form-field form-field-wide">
           <span>Image URLs</span>
           <textarea
-            name="image_urls"
+            name="imageUrls"
             rows={3}
             placeholder="https://example.com/stroller-front.jpg"
           />

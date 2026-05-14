@@ -15,21 +15,22 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL_PRICE_PATTERN = /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+// Temporary local seller until authentication provides the seller profile id.
+const LOCAL_DEV_SELLER_PROFILE_ID = "10000000-0000-4000-8000-000000000001";
 
 const createListingBodySchema = z.object({
-  seller_profile_id: z.string().uuid(),
-  category_id: z.string().uuid(),
+  categoryId: z.string().uuid(),
   title: z.string().trim().min(4).max(160),
   description: z
     .string()
     .trim()
     .max(2000)
     .optional()
-    .transform((value) => value && value.length > 0 ? value : null),
-  price_amount: z
+    .transform((value) => (value && value.length > 0 ? value : null)),
+  priceAmount: z
     .union([z.literal(""), z.string().trim().regex(DECIMAL_PRICE_PATTERN)])
     .optional()
-    .transform((value) => value && value.length > 0 ? value : null),
+    .transform((value) => (value && value.length > 0 ? value : null)),
   currency: z
     .string()
     .trim()
@@ -37,10 +38,10 @@ const createListingBodySchema = z.object({
     .refine((value) => CURRENCY_PATTERN.test(value), "Currency must be a 3-letter code.")
     .optional()
     .default("TRY"),
-  listing_type: z.enum(["sale", "swap", "donation", "rent"]),
+  listingType: z.enum(["sale", "swap", "donation", "rent"]),
   condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]),
-  image_urls: z.array(z.string().trim().url().max(1000)).max(5).optional().default([])
-});
+  imageUrls: z.array(z.string().trim().url().max(1000)).max(5).optional().default([])
+}).strict();
 
 type CategoryBasicResponse = {
   id: string;
@@ -122,7 +123,7 @@ export function registerListingRoutes(app: FastifyInstance): void {
         slug: productCategories.slug
       })
       .from(productCategories)
-      .where(eq(productCategories.id, body.category_id))
+      .where(eq(productCategories.id, body.categoryId))
       .limit(1);
 
     if (!category) {
@@ -140,7 +141,7 @@ export function registerListingRoutes(app: FastifyInstance): void {
         id: profiles.id
       })
       .from(profiles)
-      .where(eq(profiles.id, body.seller_profile_id))
+      .where(eq(profiles.id, LOCAL_DEV_SELLER_PROFILE_ID))
       .limit(1);
 
     if (!seller) {
@@ -157,14 +158,14 @@ export function registerListingRoutes(app: FastifyInstance): void {
       const [createdListing] = await tx
         .insert(listings)
         .values({
-          sellerProfileId: body.seller_profile_id,
-          categoryId: body.category_id,
+          sellerProfileId: LOCAL_DEV_SELLER_PROFILE_ID,
+          categoryId: body.categoryId,
           title: body.title,
           description: body.description,
-          priceAmount: body.price_amount,
+          priceAmount: body.priceAmount,
           currency: body.currency,
           status: "active",
-          listingType: body.listing_type,
+          listingType: body.listingType,
           condition: body.condition
         })
         .returning({
@@ -182,7 +183,7 @@ export function registerListingRoutes(app: FastifyInstance): void {
         throw new Error("Listing insert failed.");
       }
 
-      const imageValues = body.image_urls.map((url, index) => ({
+      const imageValues = body.imageUrls.map((url, index) => ({
         listingId: createdListing.id,
         url,
         sortOrder: index
@@ -200,15 +201,15 @@ export function registerListingRoutes(app: FastifyInstance): void {
         : [];
 
       await tx.insert(events).values({
-        actorProfileId: body.seller_profile_id,
+        actorProfileId: LOCAL_DEV_SELLER_PROFILE_ID,
         eventType: "listing_created",
         entityType: "listing",
         entityId: createdListing.id,
         metadata: {
           source: "api_manual",
-          categoryId: body.category_id,
-          listingType: body.listing_type,
-          hasImages: body.image_urls.length > 0
+          categoryId: body.categoryId,
+          listingType: body.listingType,
+          hasImages: body.imageUrls.length > 0
         }
       });
 

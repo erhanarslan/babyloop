@@ -1,4 +1,5 @@
 import { API_PREFIX } from "@babyloop/config";
+import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
@@ -11,10 +12,16 @@ type CreateAppOptions = {
   config?: ApiRuntimeConfig;
 };
 
+const LOCAL_WEB_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
+
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
   const app = Fastify({
     logger: true
+  });
+
+  app.register(cors, {
+    origin: LOCAL_WEB_ORIGINS
   });
 
   app.setErrorHandler((error, request, reply) => {
