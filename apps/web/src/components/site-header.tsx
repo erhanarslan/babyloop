@@ -1,12 +1,13 @@
 import Link from "next/link";
+import { getApiBaseUrl } from "../lib/api";
+import { AuthNav } from "./auth-nav";
 
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/browse", label: "Browse" },
   { href: "/sell", label: "Sell" },
   { href: "/favorites", label: "Favorites" },
-  { href: "/#ai-valuation", label: "AI Valuation" },
-  { href: "/#login", label: "Login" }
+  { href: "/#ai-valuation", label: "AI Valuation" }
 ];
 
 export function SiteHeader() {
@@ -21,6 +22,7 @@ export function SiteHeader() {
             {item.label}
           </Link>
         ))}
+        <AuthNav apiBaseUrl={getApiBaseUrl()} />
       </nav>
     </header>
   );

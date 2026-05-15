@@ -7,7 +7,8 @@ import {
 } from "@babyloop/database/schema";
 import type { ApiResponse } from "@babyloop/shared";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { CurrentUser } from "../plugins/auth.plugin.js";
 import { z } from "zod";
 
 const LISTING_LIMIT = 20;
@@ -15,8 +16,6 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL_PRICE_PATTERN = /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
-// Temporary local seller until authentication provides the seller profile id.
-const LOCAL_DEV_SELLER_PROFILE_ID = "10000000-0000-4000-8000-000000000001";
 
 const createListingBodySchema = z.object({
   categoryId: z.string().uuid(),
@@ -102,6 +101,12 @@ type ListingParams = {
 
 export function registerListingRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Reply: CreateListingResponse }>("/listings", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
     const parsedBody = createListingBodySchema.safeParse(request.body);
 
     if (!parsedBody.success) {
@@ -136,29 +141,11 @@ export function registerListingRoutes(app: FastifyInstance): void {
       });
     }
 
-    const [seller] = await app.db
-      .select({
-        id: profiles.id
-      })
-      .from(profiles)
-      .where(eq(profiles.id, LOCAL_DEV_SELLER_PROFILE_ID))
-      .limit(1);
-
-    if (!seller) {
-      return reply.status(400).send({
-        ok: false,
-        error: {
-          code: "INVALID_SELLER_PROFILE",
-          message: "Seller profile does not exist."
-        }
-      });
-    }
-
     const created = await app.db.transaction(async (tx) => {
       const [createdListing] = await tx
         .insert(listings)
         .values({
-          sellerProfileId: LOCAL_DEV_SELLER_PROFILE_ID,
+          sellerProfileId: currentUser.profile.id,
           categoryId: body.categoryId,
           title: body.title,
           description: body.description,
@@ -201,7 +188,7 @@ export function registerListingRoutes(app: FastifyInstance): void {
         : [];
 
       await tx.insert(events).values({
-        actorProfileId: LOCAL_DEV_SELLER_PROFILE_ID,
+        actorProfileId: currentUser.profile.id,
         eventType: "listing_created",
         entityType: "listing",
         entityId: createdListing.id,
@@ -440,4 +427,36 @@ function buildPrice(amount: string | null, currency: string): PriceResponse {
 
 function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
+}
+
+async function requireCurrentUser(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<CurrentUser | null> {
+  if (typeof app.authenticate !== "function") {
+    reply.status(503).send({
+      ok: false,
+      error: {
+        code: "AUTH_UNAVAILABLE",
+        message: "Authentication is unavailable."
+      }
+    });
+    return null;
+  }
+
+  const currentUser = await app.authenticate(request);
+
+  if (!currentUser) {
+    reply.status(401).send({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication is required."
+      }
+    });
+    return null;
+  }
+
+  return currentUser;
 }

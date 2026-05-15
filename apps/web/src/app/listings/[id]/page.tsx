@@ -5,8 +5,6 @@ import { SiteHeader } from "../../../components/site-header";
 import {
   fetchApi,
   getApiBaseUrl,
-  LOCAL_DEV_PROFILE_ID,
-  type FavoritesPayload,
   type ListingDetailPayload
 } from "../../../lib/api";
 
@@ -20,10 +18,7 @@ type ListingDetailPageProps = {
 
 export default async function ListingDetailPage({ params }: ListingDetailPageProps) {
   const { id } = await params;
-  const [result, favoritesResult] = await Promise.all([
-    fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`),
-    fetchApi<FavoritesPayload>(`/api/v1/profiles/${LOCAL_DEV_PROFILE_ID}/favorites`)
-  ]);
+  const result = await fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`);
 
   if (!result.ok) {
     if (result.error.code === "NOT_FOUND") {
@@ -46,8 +41,6 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
   }
 
   const { listing } = result.data;
-  const isFavorited =
-    favoritesResult.ok && favoritesResult.data.favorites.some((favorite) => favorite.id === id);
 
   return (
     <main>
@@ -82,9 +75,8 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
           </p>
           <FavoriteButton
             apiBaseUrl={getApiBaseUrl()}
-            initiallyFavorited={isFavorited}
+            initiallyFavorited={false}
             listingId={listing.id}
-            profileId={LOCAL_DEV_PROFILE_ID}
           />
 
           <dl className="detail-facts">

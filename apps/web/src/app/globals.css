@@ -43,11 +43,28 @@ a {
 .nav-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px 18px;
   color: #44515c;
   font-size: 14px;
   font-weight: 700;
+}
+
+.auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #197278;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
 }
 
 .section {
@@ -424,6 +441,14 @@ p {
 
 .sell-layout {
   padding-top: 0;
+}
+
+.auth-layout {
+  padding-top: 0;
+}
+
+.auth-panel {
+  max-width: 620px;
 }
 
 .form-panel {

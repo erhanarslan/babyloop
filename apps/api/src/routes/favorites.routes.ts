@@ -2,17 +2,16 @@ import {
   events,
   favorites,
   listings,
-  productCategories,
-  profiles
+  productCategories
 } from "@babyloop/database/schema";
 import type { ApiResponse } from "@babyloop/shared";
 import { and, desc, eq } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { CurrentUser } from "../plugins/auth.plugin.js";
 import { z } from "zod";
 
 const favoriteBodySchema = z
   .object({
-    profile_id: z.string().uuid(),
     listing_id: z.string().uuid()
   })
   .strict();
@@ -56,6 +55,12 @@ type ProfileParams = {
 
 export function registerFavoriteRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Reply: FavoriteActionResponse }>("/favorites", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
     const parsedBody = favoriteBodySchema.safeParse(request.body);
 
     if (!parsedBody.success) {
@@ -71,7 +76,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       const [createdFavorite] = await tx
         .insert(favorites)
         .values({
-          profileId: parsedBody.data.profile_id,
+          profileId: currentUser.profile.id,
           listingId: parsedBody.data.listing_id
         })
         .onConflictDoNothing({
@@ -83,7 +88,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
 
       if (createdFavorite) {
         await tx.insert(events).values({
-          actorProfileId: parsedBody.data.profile_id,
+          actorProfileId: currentUser.profile.id,
           eventType: "favorite_added",
           entityType: "listing",
           entityId: parsedBody.data.listing_id,
@@ -100,7 +105,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       ok: true,
       data: {
         favorite: {
-          profileId: parsedBody.data.profile_id,
+          profileId: currentUser.profile.id,
           listingId: parsedBody.data.listing_id
         },
         created
@@ -109,6 +114,12 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
   });
 
   app.delete<{ Body: unknown; Reply: FavoriteActionResponse }>("/favorites", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
     const parsedBody = favoriteBodySchema.safeParse(request.body);
 
     if (!parsedBody.success) {
@@ -120,7 +131,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
         .delete(favorites)
         .where(
           and(
-            eq(favorites.profileId, parsedBody.data.profile_id),
+            eq(favorites.profileId, currentUser.profile.id),
             eq(favorites.listingId, parsedBody.data.listing_id)
           )
         )
@@ -130,7 +141,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
 
       if (removedFavorite) {
         await tx.insert(events).values({
-          actorProfileId: parsedBody.data.profile_id,
+          actorProfileId: currentUser.profile.id,
           eventType: "favorite_removed",
           entityType: "listing",
           entityId: parsedBody.data.listing_id,
@@ -147,7 +158,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       ok: true,
       data: {
         favorite: {
-          profileId: parsedBody.data.profile_id,
+          profileId: currentUser.profile.id,
           listingId: parsedBody.data.listing_id
         },
         removed
@@ -217,22 +228,6 @@ async function validateFavoriteReferences(
   app: FastifyInstance,
   body: FavoriteBody
 ): Promise<ApiResponse<never> | null> {
-  const [profile] = await app.db
-    .select({ id: profiles.id })
-    .from(profiles)
-    .where(eq(profiles.id, body.profile_id))
-    .limit(1);
-
-  if (!profile) {
-    return {
-      ok: false,
-      error: {
-        code: "INVALID_PROFILE",
-        message: "Profile does not exist."
-      }
-    };
-  }
-
   const [listing] = await app.db
     .select({ id: listings.id })
     .from(listings)
@@ -271,4 +266,36 @@ function buildPrice(amount: string | null, currency: string): FavoriteListingRes
     amount,
     currency
   };
+}
+
+async function requireCurrentUser(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<CurrentUser | null> {
+  if (typeof app.authenticate !== "function") {
+    reply.status(503).send({
+      ok: false,
+      error: {
+        code: "AUTH_UNAVAILABLE",
+        message: "Authentication is unavailable."
+      }
+    });
+    return null;
+  }
+
+  const currentUser = await app.authenticate(request);
+
+  if (!currentUser) {
+    reply.status(401).send({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication is required."
+      }
+    });
+    return null;
+  }
+
+  return currentUser;
 }

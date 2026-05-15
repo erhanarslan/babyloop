@@ -2,9 +2,6 @@ import type { ApiResponse } from "@babyloop/shared";
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:4000";
 
-// Temporary local profile until authentication owns the current user identity.
-export const LOCAL_DEV_PROFILE_ID = "10000000-0000-4000-8000-000000000001";
-
 export type Category = {
   id: string;
   name: string;

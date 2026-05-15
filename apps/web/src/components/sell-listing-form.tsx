@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ApiResponse } from "@babyloop/shared";
+import { authHeader, getAuthToken } from "../lib/auth-client";
 import type { Category, ListingSummary } from "../lib/api";
 
 const listingTypes = [
@@ -105,6 +106,12 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       ...(priceAmount ? { priceAmount } : {}),
       ...(imageUrls.length > 0 ? { imageUrls } : {})
     };
+    const token = getAuthToken();
+
+    if (!token) {
+      setErrorMessage("Please log in before creating a listing.");
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -112,6 +119,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       const response = await fetch(`${apiBaseUrl}/api/v1/listings`, {
         method: "POST",
         headers: {
+          ...authHeader(),
           "content-type": "application/json"
         },
         body: JSON.stringify(payload)
@@ -283,7 +291,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       {suggestion ? <SuggestionPanel suggestion={suggestion} /> : null}
 
       <div className="form-actions">
-        <p className="form-note">Local dev seller: Ayse Demir</p>
+        <p className="form-note">Seller profile comes from your login token.</p>
         <div className="form-button-row">
           <button
             className="secondary-button"
