@@ -2,18 +2,19 @@
 
 BabyLoop is a long-term full-stack AI marketplace project for baby and family products.
 
-This repository currently contains only the minimal technical foundation:
+This repository currently contains a small verified product foundation:
 
 - pnpm workspaces
 - Turborepo
 - TypeScript
-- `apps/web`: minimal Next.js app
-- `apps/api`: minimal Fastify API with read-only marketplace endpoints
+- `apps/web`: minimal Next.js app with browse, detail, sell, and favorites pages
+- `apps/api`: Fastify API with health, marketplace read endpoints, manual listing creation, mock AI listing suggestions, and favorites
 - `packages/shared`: shared API response type
 - `packages/config`: shared app constants
-- `packages/database`: Drizzle/PostgreSQL schema, migration, and local seed data
+- `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
+- `packages/ai-core`: deterministic mock listing suggestion provider
 
-Auth, write actions, AI modules, admin, worker, and mobile app are intentionally not implemented yet.
+Auth, admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
 
 ## Install
 
@@ -155,3 +156,22 @@ Expected seed data:
 - listing image metadata
 - 1 favorite
 - basic events
+
+Current local feature checks:
+
+```bash
+curl http://127.0.0.1:4000/health
+curl http://127.0.0.1:4000/api/v1/categories
+curl http://127.0.0.1:4000/api/v1/listings
+curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
+  -H 'content-type: application/json' \
+  -d '{"title":"Chicco stroller","categoryName":"Strollers","condition":"good"}'
+```
+
+The mock AI endpoint writes to `ai_model_runs` when `DATABASE_URL` is configured. If database logging is unavailable, the suggestion response should still work.
+
+Optional API CORS override:
+
+```bash
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 pnpm --filter @babyloop/api dev
+```

@@ -14,8 +14,6 @@ type CreateAppOptions = {
   config?: ApiRuntimeConfig;
 };
 
-const LOCAL_WEB_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
-
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
   const app = Fastify({
@@ -23,7 +21,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   });
 
   app.register(cors, {
-    origin: LOCAL_WEB_ORIGINS
+    origin: config.corsOrigins
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -53,17 +51,18 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   });
 
   registerHealthRoutes(app);
-  app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
 
   if (config.databaseUrl) {
     registerDatabasePlugin(app, {
       databaseUrl: config.databaseUrl
     });
+    app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
+    app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
 

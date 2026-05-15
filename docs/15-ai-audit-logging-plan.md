@@ -8,25 +8,24 @@ AI logs should never make core marketplace actions depend on AI. Manual listing 
 
 ## Minimal Table: `ai_model_runs`
 
-First database slice should add one small table:
+The first implemented database slice adds one small table:
 
 | Column | Purpose |
 | --- | --- |
 | `id` | Run id. |
-| `task_type` | Example: `listing_suggestion`. |
-| `entity_type` | Nullable; later `listing`, `message`, `knowledge_chunk`. |
-| `entity_id` | Nullable entity id. |
-| `input_snapshot` | Sanitized task input JSON. |
-| `output_snapshot` | Validated AI output JSON, when available. |
+| `feature` | Example: `listing_suggestion`. |
 | `provider_name` | Example: `mock-listing-suggestion`. |
-| `model_name` | Nullable for mock; real provider model later. |
+| `model_name` | Nullable, currently `mock-model` for mock suggestion logs. |
 | `prompt_version` | Prompt/version used for the run. |
-| `status` | `success`, `validation_failed`, `provider_failed`, `skipped`. |
-| `error_code` | Safe internal error category. |
-| `error_message` | Safe short message, no stack trace. |
-| `latency_ms` | Runtime duration. |
+| `input` | Sanitized task input JSON. |
+| `output` | Validated AI output JSON, when available. |
 | `confidence_score` | Nullable numeric confidence. |
+| `risk_score` | Nullable numeric risk score for future moderation/risk uses. |
+| `status` | Current endpoint uses `success` or `error`; enum also allows future statuses. |
+| `error_message` | Safe short message, no stack trace. |
 | `created_at` | Timestamp. |
+
+Entity references, latency, token usage, cost, and retrieved context ids are intentionally delayed until a feature needs them.
 
 ## What To Log
 
@@ -37,7 +36,6 @@ First database slice should add one small table:
 - prompt version
 - status and safe error details
 - confidence score when available
-- latency
 - related entity reference when available
 
 ## What Not To Log
@@ -68,7 +66,7 @@ Prompt updates should create new versions instead of overwriting previous behavi
 Mock runs should record:
 
 - `provider_name`: `mock-listing-suggestion`
-- `model_name`: `null` or `mock`
+- `model_name`: `mock-model`
 
 Real provider runs later should record provider, model, token usage, and cost metadata where available.
 
@@ -79,6 +77,7 @@ AI logging failures should not block the original user flow. For the first slice
 Use safe statuses:
 
 - `success`
+- `error`
 - `validation_failed`
 - `provider_failed`
 - `skipped`
