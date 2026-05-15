@@ -1,4 +1,6 @@
 export type ApiRuntimeConfig = {
+  authSecret?: string;
+  authTokenTtlSeconds: number;
   corsOrigins: string[];
   databaseUrl?: string;
   host: string;
@@ -9,10 +11,15 @@ const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 
 export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiRuntimeConfig {
   const config: ApiRuntimeConfig = {
+    authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 60 * 24 * 7),
     corsOrigins: readCorsOrigins(env.CORS_ORIGINS),
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT)
   };
+
+  if (env.AUTH_SECRET) {
+    config.authSecret = env.AUTH_SECRET;
+  }
 
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;
@@ -46,4 +53,18 @@ function readPort(value: string | undefined): number {
   }
 
   return port;
+}
+
+function readPositiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid positive integer value: ${value}`);
+  }
+
+  return parsed;
 }

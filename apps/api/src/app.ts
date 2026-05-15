@@ -2,8 +2,11 @@ import { API_PREFIX } from "@babyloop/config";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
+import { registerAuthPlugin } from "./plugins/auth.plugin.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
+import { registerAuthRoutes } from "./routes/auth.routes.js";
+import { registerAuthUnavailableRoutes } from "./routes/auth-unavailable.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
@@ -56,6 +59,19 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     registerDatabasePlugin(app, {
       databaseUrl: config.databaseUrl
     });
+    if (config.authSecret) {
+      registerAuthPlugin(app, {
+        authSecret: config.authSecret
+      });
+      app.register(registerAuthRoutes, {
+        authSecret: config.authSecret,
+        authTokenTtlSeconds: config.authTokenTtlSeconds,
+        prefix: API_PREFIX
+      });
+    } else {
+      app.log.warn("AUTH_SECRET is not set. Auth API routes will return 503.");
+      app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
+    }
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
@@ -63,6 +79,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
+    app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
 

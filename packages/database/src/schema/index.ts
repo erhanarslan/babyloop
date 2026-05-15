@@ -43,14 +43,36 @@ export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "skipped"
 ]);
 
-export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  displayName: varchar("display_name", { length: 120 }).notNull(),
-  avatarUrl: text("avatar_url"),
-  locationCity: varchar("location_city", { length: 120 }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: varchar("email", { length: 320 }).notNull(),
+    passwordHash: text("password_hash").notNull(),
+    role: varchar("role", { length: 40 }).notNull().default("user"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("users_email_unique").on(table.email)
+  ]
+);
+
+export const profiles = pgTable(
+  "profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    displayName: varchar("display_name", { length: 120 }).notNull(),
+    avatarUrl: text("avatar_url"),
+    locationCity: varchar("location_city", { length: 120 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("profiles_user_id_unique").on(table.userId)
+  ]
+);
 
 export const productCategories = pgTable(
   "product_categories",
@@ -187,7 +209,8 @@ export const schema = {
   listingImages,
   listings,
   productCategories,
-  profiles
+  profiles,
+  users
 };
 
 export type DatabaseSchema = typeof schema;
