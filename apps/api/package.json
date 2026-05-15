@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm build && node dist/server.js",
-    "build": "tsc -p tsconfig.json",
+    "build:deps": "pnpm --filter '@babyloop/api^...' build",
+    "dev": "pnpm build:deps && pnpm build && node dist/server.js",
+    "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@babyloop/config": "workspace:*",

@@ -37,12 +37,16 @@ pnpm --filter @babyloop/web dev
 pnpm --filter @babyloop/api dev
 ```
 
+Single-app `dev`, `build`, and `typecheck` scripts build required internal workspace packages first, so these commands are safe after a fresh clone.
+
 ## Typecheck and Build
 
 ```bash
 pnpm typecheck
 pnpm build
 ```
+
+The root commands use Turborepo and build package dependencies before apps.
 
 ## Verification
 
