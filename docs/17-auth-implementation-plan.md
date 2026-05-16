@@ -2,8 +2,9 @@
 
 ## Goal
 
-Implementation note: The completed first auth slice currently uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies and Argon2id remain production hardening options for a later phase.
-BabyLoop currently uses temporary local profile ids for listing creation and favorites. Auth must replace all user-facing client-controlled `profile_id` behavior before adding more user-owned features.
+Implementation note: The completed first auth slice uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies and Argon2id remain production hardening options for a later phase.
+
+Auth now removes user-facing client-controlled profile ids from protected listing and favorite writes. The API derives ownership from the verified token.
 
 Public read endpoints stay public:
 
@@ -22,7 +23,7 @@ Recommendation:
 - `users` table owns login identity.
 - `profiles` table owns marketplace display identity.
 - API creates a profile during registration.
-- Web stores the session token in an HTTP-only cookie.
+- Web stores a signed Bearer access token in `localStorage` for the current local-first slice.
 - Protected API routes derive the current user/profile from the verified session, never from request body ids.
 
 This keeps the implementation portfolio-friendly, auditable, and small without introducing OAuth, external auth vendors, or admin RBAC too early.
@@ -35,7 +36,7 @@ Add a `users` table first:
 | --- | --- |
 | `id` | UUID primary key. |
 | `email` | Unique, normalized lowercase. |
-| `password_hash` | Argon2id hash. |
+| `password_hash` | `scrypt` hash for the current implementation; Argon2id is delayed hardening. |
 | `created_at` | Timestamp. |
 | `updated_at` | Timestamp. |
 
@@ -49,14 +50,7 @@ Update `profiles` later in the same auth slice:
 
 ## Session/Token Strategy
 
-First slice should use a signed stateless session token stored in an HTTP-only cookie.
-
-Recommended cookie settings:
-
-- `httpOnly: true`
-- `sameSite: lax`
-- `secure: false` in local dev, `true` in production
-- short but usable expiry, for example 7 days
+First slice uses a signed stateless Bearer access token returned by `register` and `login`.
 
 Token payload should stay small:
 
@@ -67,11 +61,11 @@ Token payload should stay small:
 
 Use a server-only `AUTH_SECRET` environment variable. Do not expose it to Next.js client code.
 
-Refresh tokens are delayed. A single signed cookie is enough for the first local auth slice and avoids extra tables.
+`AUTH_SECRET` must be at least 32 characters. Refresh tokens and HTTP-only cookie transport are delayed.
 
 ## Password Hashing
 
-Use Argon2id for password hashing.
+Use `scrypt` for password hashing in the first slice.
 
 Rules:
 
@@ -85,7 +79,7 @@ Rules:
 
 Create a small auth utility/plugin in `apps/api`:
 
-- parse auth cookie
+- parse `Authorization: Bearer <token>`
 - verify token signature and expiry
 - load user/profile reference when needed
 - decorate request with `currentUser`
@@ -95,6 +89,8 @@ Protected routes:
 - `POST /api/v1/listings`
 - `POST /api/v1/favorites`
 - `DELETE /api/v1/favorites`
+- `GET /api/v1/favorites`
+- `GET /api/v1/profiles/:profileId/favorites` as self-only compatibility
 - `GET /api/v1/auth/me`
 
 Route behavior changes:
@@ -133,7 +129,7 @@ Keep UI small and practical. Do not add OAuth, password reset, or email verifica
 
 ## Removing Temporary Profile Id Usage
 
-Remove user-facing usage of:
+Confirmed removed from user-facing flows:
 
 - `LOCAL_DEV_PROFILE_ID` in `apps/web`
 - request body `profile_id` in favorites UI calls
@@ -147,13 +143,9 @@ Keep seed data:
 
 ## Protecting Listing Creation
 
-Current:
+Implemented:
 
-- API uses a temporary seeded seller profile id.
-
-First auth slice:
-
-- require auth cookie
+- require Bearer token
 - derive seller profile from session
 - keep request body camelCase listing fields
 - reject unauthenticated requests with `401`
@@ -161,29 +153,26 @@ First auth slice:
 
 ## Protecting Favorites
 
-Current:
+Implemented:
 
-- API accepts `profile_id` and `listing_id`.
-
-First auth slice:
-
-- require auth cookie for add/remove
-- request body only includes `listing_id` or camelCase `listingId`
+- require Bearer token for add/remove/list
+- request body only includes `listing_id`
 - derive `profileId` from session
 - keep duplicate favorite behavior idempotent
 - keep favorite events with actor profile from session
-
-`GET /api/v1/profiles/:profileId/favorites` can remain public temporarily for local verification, but a later privacy pass should add current-user-only favorites or visibility rules.
+- prefer `GET /api/v1/favorites` for web UI
+- keep `GET /api/v1/profiles/:profileId/favorites` protected and self-only for compatibility
 
 ## Security Risks
 
 | Risk | First-slice mitigation |
 | --- | --- |
 | Client spoofing another profile id | Remove client-controlled profile ids from write endpoints. |
-| Stolen token | HTTP-only cookie, expiry, `AUTH_SECRET`. |
-| Password leakage | Argon2id, no password logging, generic login errors. |
+| Stolen token | Expiry, `AUTH_SECRET`, and future HTTP-only cookie hardening. |
+| Password leakage | `scrypt`, no password logging, generic login errors. |
 | Seed data breakage | Make `profiles.user_id` nullable initially. |
-| CSRF | `sameSite: lax`; add CSRF token later if cross-site writes become a concern. |
+| XSS/localStorage exposure | Keep UI small, avoid unsafe HTML, move to HTTP-only cookies later. |
+| CSRF | Lower risk with Bearer header; revisit if cookies are introduced. |
 | Brute force login | Delay full rate limiting, but document and add soon after auth works. |
 | Overexposed user data | `GET /auth/me` returns only safe user/profile fields. |
 
@@ -205,11 +194,13 @@ Implement in small follow-up steps:
 Done criteria:
 
 - register creates user and linked profile
-- login sets HTTP-only session cookie
-- `/auth/me` returns current user/profile
+- login returns signed access token
+- `/auth/me` returns current user/profile with Bearer token
 - unauthenticated listing/favorite writes return `401`
 - authenticated listing creation still works
 - authenticated favorite/unfavorite still works
+- authenticated `GET /api/v1/favorites` works
+- `GET /api/v1/profiles/:profileId/favorites` is self-only
 - public read endpoints still work
 - seeded data remains usable locally
 
@@ -237,9 +228,9 @@ Do not include in the first auth slice:
 - migration generation
 - migration run on local database
 - register request creates user/profile
-- login request sets cookie
-- `/api/v1/auth/me` works with cookie
-- protected listing creation works with cookie
-- protected favorites add/remove works with cookie
+- login request returns token
+- `/api/v1/auth/me` works with Bearer token
+- protected listing creation works with Bearer token
+- protected favorites add/remove/list works with Bearer token
 - unauthenticated protected writes return `401`
 - `/browse` and listing detail remain public

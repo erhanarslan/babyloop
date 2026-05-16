@@ -14,7 +14,7 @@ This repository currently contains a small verified product foundation:
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
 - `packages/ai-core`: deterministic mock listing suggestion provider
 
-The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, token-protected listing creation, and token-protected favorite add/remove flows.
+The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, token-protected listing creation, and token-protected favorite add/remove/list flows.
 
 Admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
 
@@ -95,7 +95,7 @@ pnpm --filter @babyloop/api dev
 
 ## Local Full-Stack Dev
 
-Use this flow to run the read-only marketplace path locally.
+Use this flow to run the current marketplace path locally.
 
 1. Start or confirm PostgreSQL is running:
 
@@ -113,6 +113,7 @@ createdb -h 127.0.0.1 -p 5432 -U postgres babyloop_dev
 
 ```bash
 export DATABASE_URL="postgresql://postgres@127.0.0.1:5432/babyloop_dev"
+export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
 pnpm --filter @babyloop/database db:migrate
 pnpm --filter @babyloop/database db:seed
 ```
@@ -121,6 +122,7 @@ pnpm --filter @babyloop/database db:seed
 
 ```bash
 export DATABASE_URL="postgresql://postgres@127.0.0.1:5432/babyloop_dev"
+export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
 PORT=4000 pnpm --filter @babyloop/api dev
 ```
 
@@ -150,11 +152,15 @@ curl http://127.0.0.1:4000/api/v1/listings
 curl http://127.0.0.1:4000/api/v1/listings/30000000-0000-4000-8000-000000000001
 ```
 
-7. Verify the web pages:
+7. Verify the web pages and auth-owned flows:
 
 ```text
 http://localhost:3000/browse
 http://localhost:3000/listings/30000000-0000-4000-8000-000000000001
+http://localhost:3000/register
+http://localhost:3000/login
+http://localhost:3000/sell
+http://localhost:3000/favorites
 ```
 
 Expected seed data:
@@ -172,6 +178,7 @@ Current local feature checks:
 curl http://127.0.0.1:4000/health
 curl http://127.0.0.1:4000/api/v1/categories
 curl http://127.0.0.1:4000/api/v1/listings
+curl -i http://127.0.0.1:4000/api/v1/favorites
 curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
   -H 'content-type: application/json' \
   -d '{"title":"Chicco stroller","categoryName":"Strollers","condition":"good"}'

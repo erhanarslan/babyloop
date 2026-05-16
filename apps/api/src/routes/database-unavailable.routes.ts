@@ -30,6 +30,10 @@ export function registerDatabaseUnavailableRoutes(app: FastifyInstance): void {
     return reply.status(503).send(databaseUnavailableResponse);
   });
 
+  app.get<{ Reply: ApiFailure }>("/favorites", async (_request, reply) => {
+    return reply.status(503).send(databaseUnavailableResponse);
+  });
+
   app.get<{ Reply: ApiFailure }>("/profiles/:profileId/favorites", async (_request, reply) => {
     return reply.status(503).send(databaseUnavailableResponse);
   });
