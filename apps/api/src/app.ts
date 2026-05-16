@@ -12,6 +12,7 @@ import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
+import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
@@ -76,6 +77,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX });
+    app.register(registerMessagingRoutes, { prefix: API_PREFIX });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
