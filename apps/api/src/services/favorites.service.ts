@@ -7,7 +7,7 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { FavoriteBody } from "../schemas/favorites.schemas.js";
-import type { PriceResponse } from "./listings.service.js";
+import { buildPrice, type PriceResponse } from "./listing-response.mapper.js";
 
 export type FavoriteActionResult = {
   favorite: {
@@ -171,15 +171,3 @@ async function validateListingExists(app: FastifyInstance, listingId: string): P
 
   return Boolean(listing);
 }
-
-function buildPrice(amount: string | null, currency: string): PriceResponse {
-  if (amount === null) {
-    return null;
-  }
-
-  return {
-    amount,
-    currency
-  };
-}
-

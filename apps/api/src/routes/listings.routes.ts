@@ -5,10 +5,12 @@ import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createListing,
   getListingDetail,
-  listActiveListings,
-  type ListingDetailResponse,
-  type ListingSummaryResponse
+  listActiveListings
 } from "../services/listings.service.js";
+import type {
+  ListingDetailResponse,
+  ListingSummaryResponse
+} from "../services/listing-response.mapper.js";
 
 type ListingsResponse = ApiResponse<{
   listings: ListingSummaryResponse[];
@@ -113,4 +115,3 @@ export function registerListingRoutes(app: FastifyInstance): void {
     }
   );
 }
-
