@@ -1,18 +1,8 @@
 "use client";
 
-import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState } from "react";
-import { authHeader, getAuthToken } from "../lib/auth-client";
-import type { FavoritesPayload } from "../lib/api";
-
-type FavoriteActionPayload = {
-  favorite: {
-    profileId: string;
-    listingId: string;
-  };
-  created?: boolean;
-  removed?: boolean;
-};
+import { getAuthToken } from "../../lib/auth-client";
+import { fetchFavorites, saveFavorite } from "./api";
 
 type FavoriteButtonProps = {
   apiBaseUrl: string;
@@ -33,23 +23,16 @@ export function FavoriteButton({
     let isActive = true;
 
     async function loadFavoriteState() {
-      const token = getAuthToken();
-
-      if (!token) {
+      if (!getAuthToken()) {
         setIsFavorited(false);
         return;
       }
 
       try {
-        const favoritesResponse = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
-          headers: authHeader()
-        });
-        const favoritesBody = (await favoritesResponse.json()) as ApiResponse<FavoritesPayload>;
+        const body = await fetchFavorites(apiBaseUrl);
 
-        if (isActive && favoritesResponse.ok && favoritesBody.ok) {
-          setIsFavorited(
-            favoritesBody.data.favorites.some((favorite) => favorite.id === listingId)
-          );
+        if (isActive && body.ok) {
+          setIsFavorited(body.data.favorites.some((favorite) => favorite.id === listingId));
         }
       } catch {
         if (isActive) {
@@ -69,29 +52,17 @@ export function FavoriteButton({
     setIsPending(true);
     setErrorMessage(null);
 
-    const token = getAuthToken();
-
-    if (!token) {
+    if (!getAuthToken()) {
       setErrorMessage("Please log in before saving favorites.");
       setIsPending(false);
       return;
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
-        method: isFavorited ? "DELETE" : "POST",
-        headers: {
-          ...authHeader(),
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          listing_id: listingId
-        })
-      });
-      const body = (await response.json()) as ApiResponse<FavoriteActionPayload>;
+      const body = await saveFavorite(apiBaseUrl, listingId, isFavorited);
 
-      if (!response.ok || !body.ok) {
-        setErrorMessage(body.ok ? "Favorite request failed." : body.error.message);
+      if (!body.ok) {
+        setErrorMessage(body.error.message);
         return;
       }
 
@@ -117,3 +88,4 @@ export function FavoriteButton({
     </div>
   );
 }
+

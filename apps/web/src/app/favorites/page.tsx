@@ -1,4 +1,4 @@
-import { FavoritesList } from "../../components/favorites-list";
+import { FavoritesList } from "../../features/favorites/favorites-list";
 import { SiteHeader } from "../../components/site-header";
 import { getApiBaseUrl } from "../../lib/api";
 

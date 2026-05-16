@@ -1,5 +1,5 @@
 import { SiteHeader } from "../../components/site-header";
-import { SellListingForm } from "../../components/sell-listing-form";
+import { SellListingForm } from "../../features/listings/sell-listing-form";
 import { fetchApi, getApiBaseUrl, type CategoriesPayload } from "../../lib/api";
 
 export const dynamic = "force-dynamic";

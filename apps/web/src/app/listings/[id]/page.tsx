@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FavoriteButton } from "../../../components/favorite-button";
+import { FavoriteButton } from "../../../features/favorites/favorite-button";
 import { SiteHeader } from "../../../components/site-header";
 import {
   fetchApi,

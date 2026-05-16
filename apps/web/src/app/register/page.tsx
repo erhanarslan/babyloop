@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AuthForm } from "../../components/auth-form";
+import { AuthForm } from "../../features/auth/auth-form";
 import { SiteHeader } from "../../components/site-header";
 import { getApiBaseUrl } from "../../lib/api";
 
