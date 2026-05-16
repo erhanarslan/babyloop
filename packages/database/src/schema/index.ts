@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  check,
   index,
   integer,
   jsonb,
@@ -153,6 +154,74 @@ export const favorites = pgTable(
   ]
 );
 
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    buyerProfileId: uuid("buyer_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("conversations_listing_buyer_unique").on(
+      table.listingId,
+      table.buyerProfileId
+    ),
+    index("conversations_listing_id_idx").on(table.listingId),
+    index("conversations_buyer_profile_id_idx").on(table.buyerProfileId)
+  ]
+);
+
+export const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("conversation_participants_conversation_profile_unique").on(
+      table.conversationId,
+      table.profileId
+    ),
+    index("conversation_participants_conversation_id_idx").on(table.conversationId),
+    index("conversation_participants_profile_id_idx").on(table.profileId)
+  ]
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderProfileId: uuid("sender_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true })
+  },
+  (table) => [
+    index("messages_conversation_id_idx").on(table.conversationId),
+    index("messages_conversation_created_at_idx").on(table.conversationId, table.createdAt),
+    index("messages_sender_profile_id_idx").on(table.senderProfileId),
+    check("messages_body_not_blank_check", sql`length(trim(${table.body})) > 0`),
+    check("messages_body_max_length_check", sql`char_length(${table.body}) <= 5000`)
+  ]
+);
+
 export const events = pgTable(
   "events",
   {
@@ -204,10 +273,13 @@ export const aiModelRuns = pgTable(
 
 export const schema = {
   aiModelRuns,
+  conversationParticipants,
+  conversations,
   events,
   favorites,
   listingImages,
   listings,
+  messages,
   productCategories,
   profiles,
   users
