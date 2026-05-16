@@ -17,8 +17,10 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     port: readPort(env.PORT)
   };
 
-  if (env.AUTH_SECRET) {
-    config.authSecret = env.AUTH_SECRET;
+  const authSecret = readAuthSecret(env.AUTH_SECRET);
+
+  if (authSecret) {
+    config.authSecret = authSecret;
   }
 
   if (env.DATABASE_URL) {
@@ -26,6 +28,17 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+function readAuthSecret(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length < 32) {
+    throw new Error("AUTH_SECRET must be at least 32 characters.");
+  }
+
+  return value;
 }
 
 function readCorsOrigins(value: string | undefined): string[] {

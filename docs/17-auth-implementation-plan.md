@@ -2,6 +2,7 @@
 
 ## Goal
 
+Implementation note: The completed first auth slice currently uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies and Argon2id remain production hardening options for a later phase.
 BabyLoop currently uses temporary local profile ids for listing creation and favorites. Auth must replace all user-facing client-controlled `profile_id` behavior before adding more user-owned features.
 
 Public read endpoints stay public:

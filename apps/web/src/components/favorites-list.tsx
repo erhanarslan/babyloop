@@ -3,7 +3,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { authHeader, getAuthToken, type AuthMe } from "../lib/auth-client";
+import { authHeader, getAuthToken } from "../lib/auth-client";
 import type { FavoriteListing, FavoritesPayload } from "../lib/api";
 
 type FavoritesListProps = {
@@ -28,23 +28,9 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
       }
 
       try {
-        const meResponse = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
+        const favoritesResponse = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
           headers: authHeader()
         });
-        const meBody = (await meResponse.json()) as ApiResponse<AuthMe>;
-
-        if (!meResponse.ok || !meBody.ok) {
-          setMessage(meBody.ok ? "Please log in to view favorites." : meBody.error.message);
-          setIsLoading(false);
-          return;
-        }
-
-        const favoritesResponse = await fetch(
-          `${apiBaseUrl}/api/v1/profiles/${meBody.data.profile.id}/favorites`,
-          {
-            headers: authHeader()
-          }
-        );
         const favoritesBody = (await favoritesResponse.json()) as ApiResponse<FavoritesPayload>;
 
         if (!isActive) {

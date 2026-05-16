@@ -79,11 +79,19 @@ export default function HomePage() {
 
       <section className="section login-preview" id="login" aria-labelledby="login-title">
         <p className="eyebrow">Account access</p>
-        <h2 id="login-title">Login is intentionally delayed.</h2>
+        <h2 id="login-title">Accounts are available for selling and saving listings.</h2>
         <p>
-          The current web slice only reads public marketplace data. Authentication,
-          seller actions, and saved items will come after the read path is stable.
+          Register or log in to create listings, save favorites, and prepare for
+          future messaging, recommendations, and AI-assisted marketplace flows.
         </p>
+        <div className="hero-actions">
+          <Link className="primary-link" href="/register">
+            Create account
+          </Link>
+          <Link className="secondary-link" href="/login">
+            Login
+          </Link>
+        </div>
       </section>
     </main>
   );

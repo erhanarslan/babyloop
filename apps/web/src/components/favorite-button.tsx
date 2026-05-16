@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ApiResponse } from "@babyloop/shared";
-import { authHeader, getAuthToken, type AuthMe } from "../lib/auth-client";
+import { useEffect, useState } from "react";
+import { authHeader, getAuthToken } from "../lib/auth-client";
 import type { FavoritesPayload } from "../lib/api";
 
 type FavoriteActionPayload = {
@@ -41,21 +41,9 @@ export function FavoriteButton({
       }
 
       try {
-        const meResponse = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
+        const favoritesResponse = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
           headers: authHeader()
         });
-        const meBody = (await meResponse.json()) as ApiResponse<AuthMe>;
-
-        if (!meResponse.ok || !meBody.ok) {
-          return;
-        }
-
-        const favoritesResponse = await fetch(
-          `${apiBaseUrl}/api/v1/profiles/${meBody.data.profile.id}/favorites`,
-          {
-            headers: authHeader()
-          }
-        );
         const favoritesBody = (await favoritesResponse.json()) as ApiResponse<FavoritesPayload>;
 
         if (isActive && favoritesResponse.ok && favoritesBody.ok) {
@@ -80,6 +68,7 @@ export function FavoriteButton({
   async function handleClick() {
     setIsPending(true);
     setErrorMessage(null);
+
     const token = getAuthToken();
 
     if (!token) {

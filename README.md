@@ -14,7 +14,9 @@ This repository currently contains a small verified product foundation:
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
 - `packages/ai-core`: deterministic mock listing suggestion provider
 
-Auth, admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
+The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, token-protected listing creation, and token-protected favorite add/remove flows.
+
+Admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
 
 ## Install
 
@@ -83,6 +85,9 @@ Marketplace API routes require PostgreSQL:
 
 ```bash
 export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/babyloop_dev"
+export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
+export AUTH_TOKEN_TTL_SECONDS=604800
+pnpm --filter @babyloop/api dev
 pnpm --filter @babyloop/database db:migrate
 pnpm --filter @babyloop/database db:seed
 pnpm --filter @babyloop/api dev

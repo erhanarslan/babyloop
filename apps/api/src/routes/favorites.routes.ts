@@ -68,6 +68,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
     }
 
     const validationError = await validateFavoriteReferences(app, parsedBody.data);
+
     if (validationError) {
       return reply.status(400).send(validationError);
     }
@@ -166,9 +167,32 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
     };
   });
 
+  app.get<{ Reply: FavoritesResponse }>("/favorites", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    const favoriteListings = await listFavoritesForProfile(app, currentUser.profile.id);
+
+    return {
+      ok: true,
+      data: {
+        favorites: favoriteListings
+      }
+    };
+  });
+
   app.get<{ Params: ProfileParams; Reply: FavoritesResponse }>(
     "/profiles/:profileId/favorites",
     async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
       const parsedParams = z.object({ profileId: z.string().uuid() }).safeParse(request.params);
 
       if (!parsedParams.success) {
@@ -181,47 +205,66 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
         });
       }
 
-      const rows = await app.db
-        .select({
-          favoritedAt: favorites.createdAt,
-          listingId: listings.id,
-          title: listings.title,
-          priceAmount: listings.priceAmount,
-          currency: listings.currency,
-          status: listings.status,
-          listingType: listings.listingType,
-          condition: listings.condition,
-          categoryId: productCategories.id,
-          categoryName: productCategories.name,
-          categorySlug: productCategories.slug
-        })
-        .from(favorites)
-        .innerJoin(listings, eq(favorites.listingId, listings.id))
-        .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
-        .where(eq(favorites.profileId, parsedParams.data.profileId))
-        .orderBy(desc(favorites.createdAt));
+      if (parsedParams.data.profileId !== currentUser.profile.id) {
+        return reply.status(403).send({
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You can only view your own favorites."
+          }
+        });
+      }
+
+      const favoriteListings = await listFavoritesForProfile(app, currentUser.profile.id);
 
       return {
         ok: true,
         data: {
-          favorites: rows.map((row) => ({
-            id: row.listingId,
-            title: row.title,
-            price: buildPrice(row.priceAmount, row.currency),
-            status: row.status,
-            listingType: row.listingType,
-            condition: row.condition,
-            category: {
-              id: row.categoryId,
-              name: row.categoryName,
-              slug: row.categorySlug
-            },
-            favoritedAt: row.favoritedAt.toISOString()
-          }))
+          favorites: favoriteListings
         }
       };
     }
   );
+}
+
+async function listFavoritesForProfile(
+  app: FastifyInstance,
+  profileId: string
+): Promise<FavoriteListingResponse[]> {
+  const rows = await app.db
+    .select({
+      favoritedAt: favorites.createdAt,
+      listingId: listings.id,
+      title: listings.title,
+      priceAmount: listings.priceAmount,
+      currency: listings.currency,
+      status: listings.status,
+      listingType: listings.listingType,
+      condition: listings.condition,
+      categoryId: productCategories.id,
+      categoryName: productCategories.name,
+      categorySlug: productCategories.slug
+    })
+    .from(favorites)
+    .innerJoin(listings, eq(favorites.listingId, listings.id))
+    .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .where(eq(favorites.profileId, profileId))
+    .orderBy(desc(favorites.createdAt));
+
+  return rows.map((row) => ({
+    id: row.listingId,
+    title: row.title,
+    price: buildPrice(row.priceAmount, row.currency),
+    status: row.status,
+    listingType: row.listingType,
+    condition: row.condition,
+    category: {
+      id: row.categoryId,
+      name: row.categoryName,
+      slug: row.categorySlug
+    },
+    favoritedAt: row.favoritedAt.toISOString()
+  }));
 }
 
 async function validateFavoriteReferences(
