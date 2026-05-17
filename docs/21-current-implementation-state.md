@@ -56,6 +56,14 @@ Messaging web UI is not implemented yet.
 - mock AI listing suggestions
 - authenticated messaging backend endpoints
 
+Current listing/favorite API behavior:
+
+- public listing list/detail endpoints return active listings only
+- listing creation derives the seller profile from the authenticated token
+- favorite writes derive the profile from the authenticated token
+- users cannot favorite their own listings or inactive listings
+- duplicate favorite creation and missing favorite removal are idempotent
+
 ## Messaging State
 
 The implemented messaging model is profile-pair based:

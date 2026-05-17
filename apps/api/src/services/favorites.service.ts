@@ -37,11 +37,24 @@ export async function addFavorite(
   app: FastifyInstance,
   profileId: string,
   body: FavoriteBody
-): Promise<{ status: "added"; result: FavoriteActionResult } | { status: "invalid_listing" }> {
-  const listingExists = await validateListingExists(app, body.listingId);
+): Promise<
+  | { status: "added"; result: FavoriteActionResult }
+  | { status: "inactive_listing" }
+  | { status: "invalid_listing" }
+  | { status: "own_listing" }
+> {
+  const listing = await findFavoriteableListing(app, body.listingId);
 
-  if (!listingExists) {
+  if (!listing) {
     return { status: "invalid_listing" };
+  }
+
+  if (listing.status !== "active") {
+    return { status: "inactive_listing" };
+  }
+
+  if (listing.sellerProfileId === profileId) {
+    return { status: "own_listing" };
   }
 
   const created = await app.db.transaction(async (tx) => {
@@ -162,12 +175,16 @@ export async function listFavoritesForProfile(
   }));
 }
 
-async function validateListingExists(app: FastifyInstance, listingId: string): Promise<boolean> {
+async function findFavoriteableListing(app: FastifyInstance, listingId: string) {
   const [listing] = await app.db
-    .select({ id: listings.id })
+    .select({
+      id: listings.id,
+      sellerProfileId: listings.sellerProfileId,
+      status: listings.status
+    })
     .from(listings)
     .where(eq(listings.id, listingId))
     .limit(1);
 
-  return Boolean(listing);
+  return listing ?? null;
 }

@@ -65,9 +65,26 @@ Messaging create requests use `listingId` as listing context input only.
 
 `listingId` must not become the conversation uniqueness basis. The conversation itself is unique by normalized profile pair, and listing context is stored through `conversation_listing_contexts`.
 
+## Listing And Favorite Rules
+
+Public listing reads return active listings only:
+
+- `GET /api/v1/listings`
+- `GET /api/v1/listings/:id`
+
+Favorite writes are token-owned and must follow these rules:
+
+- request body uses `{ "listingId": "uuid" }`
+- users cannot favorite their own listings
+- users can only favorite active listings
+- duplicate favorite creation remains idempotent
+- removing a missing favorite remains idempotent
+- `favorite_added` and `favorite_removed` events are written only when the database state actually changes
+
 ## Do Not Regress
 
 - Do not reintroduce snake_case request bodies such as `listing_id`.
+- Do not accept user-facing `sellerProfileId` or `profileId` in protected write bodies.
 - Do not revert messaging to listing-based conversations.
 - Do not create separate conversations per listing.
 - Do not remove `conversation_listing_contexts`.

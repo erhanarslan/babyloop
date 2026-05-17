@@ -165,8 +165,10 @@ Implemented:
 - require Bearer token for add/remove/list
 - request body only includes `listingId`
 - derive `profileId` from session
+- reject favoriting the current user's own listing with `CANNOT_FAVORITE_OWN_LISTING`
+- reject favoriting inactive listings
 - keep duplicate favorite behavior idempotent
-- keep favorite events with actor profile from session
+- keep favorite events with actor profile from session, and only log add/remove events when state actually changes
 - prefer `GET /api/v1/favorites` for web UI
 - keep `GET /api/v1/profiles/:profileId/favorites` protected and self-only for compatibility
 

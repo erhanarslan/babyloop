@@ -1,5 +1,5 @@
-import { aiModelRuns, conversations } from "@babyloop/database/schema";
-import { eq } from "drizzle-orm";
+import { aiModelRuns, conversations, events, listings } from "@babyloop/database/schema";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -231,6 +231,26 @@ describe("listings API", () => {
     );
   });
 
+  it("does not publicly list inactive listings", async () => {
+    const seller = await createUser(app);
+    const activeListing = await createListing(app, seller.accessToken);
+    const archivedListing = await createListing(app, seller.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, archivedListing.id));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings"
+    });
+    const listingIds = response.json().data.listings.map((listing: { id: string }) => listing.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(listingIds).toContain(activeListing.id);
+    expect(listingIds).not.toContain(archivedListing.id);
+  });
+
   it("publicly returns active listing detail", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
@@ -251,6 +271,22 @@ describe("listings API", () => {
         }
       }
     });
+  });
+
+  it("does not publicly return inactive listing detail", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, listing.id));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("returns 401 for unauthenticated listing creation", async () => {
@@ -344,6 +380,57 @@ describe("favorites API", () => {
     expect(oldContractResponse.statusCode).toBe(400);
   });
 
+  it("rejects favoriting own listing without logging an event", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    const response = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+    const favoriteAddedEvents = await countEvents("favorite_added", listing.id);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "CANNOT_FAVORITE_OWN_LISTING"
+      }
+    });
+    expect(favoriteAddedEvents).toBe(0);
+  });
+
+  it("rejects favoriting inactive listings", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, listing.id));
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "LISTING_NOT_ACTIVE"
+      }
+    });
+  });
+
   it("handles duplicate favorite idempotently and removes favorite", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
@@ -373,12 +460,26 @@ describe("favorites API", () => {
         listingId: listing.id
       }
     });
+    const removedAgain = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "DELETE",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+    const favoriteAddedEvents = await countEvents("favorite_added", listing.id);
+    const favoriteRemovedEvents = await countEvents("favorite_removed", listing.id);
 
     expect(first.statusCode).toBe(201);
     expect(duplicate.statusCode).toBe(200);
     expect(duplicate.json().data.created).toBe(false);
     expect(removed.statusCode).toBe(200);
     expect(removed.json().data.removed).toBe(true);
+    expect(removedAgain.statusCode).toBe(200);
+    expect(removedAgain.json().data.removed).toBe(false);
+    expect(favoriteAddedEvents).toBe(1);
+    expect(favoriteRemovedEvents).toBe(1);
   });
 });
 
@@ -559,4 +660,15 @@ async function createConversation(token: string, listingId: string) {
       listingId
     }
   });
+}
+
+async function countEvents(eventType: string, entityId: string): Promise<number> {
+  const rows = await app.db
+    .select({
+      id: events.id
+    })
+    .from(events)
+    .where(and(eq(events.eventType, eventType), eq(events.entityId, entityId)));
+
+  return rows.length;
 }

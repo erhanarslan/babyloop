@@ -46,6 +46,26 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       });
     }
 
+    if (result.status === "inactive_listing") {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "LISTING_NOT_ACTIVE",
+          message: "Only active listings can be favorited."
+        }
+      });
+    }
+
+    if (result.status === "own_listing") {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "CANNOT_FAVORITE_OWN_LISTING",
+          message: "You cannot favorite your own listing."
+        }
+      });
+    }
+
     return reply.status(result.result.created ? 201 : 200).send({
       ok: true,
       data: result.result
@@ -138,4 +158,3 @@ function invalidFavoriteRequest(): ApiResponse<never> {
     }
   };
 }
-
