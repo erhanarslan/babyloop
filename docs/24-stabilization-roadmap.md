@@ -4,11 +4,7 @@
 
 BabyLoop has reached a point where continuing to add features without stabilization will create architectural drift.
 
-This roadmap defines how the current gaps will be fixed step by step.
-
-The goal is not to slow the project down. The goal is to prevent the project from becoming unmaintainable.
-
----
+This roadmap defines how the current gaps should be fixed step by step.
 
 ## Current Situation
 
@@ -18,27 +14,23 @@ BabyLoop currently has a working local full-stack foundation:
 - Drizzle schema and migrations
 - Fastify API
 - Next.js web app
-- Auth foundation
-- Listings
-- Favorites
-- Mock AI listing suggestions
-- Messaging backend foundation
+- auth foundation
+- listings
+- favorites
+- mock AI listing suggestions
+- messaging backend foundation
 
-However, several areas are not yet mature enough for continued large feature expansion:
+Current stabilization concerns:
 
-- API contract naming is inconsistent in some routes
-- Messaging uniqueness model is not aligned with product intent
-- Test infrastructure is missing
-- Auth is local-MVP level, not production-grade
-- DB schema needs hardening before admin/mobile/AI expansion
-- Web UI is functional but not polished
-- Production readiness is low
-
----
+- test infrastructure is missing.
+- auth is local-MVP level, not production-grade.
+- web UI is functional but not polished.
+- production readiness is low.
+- messaging docs must stay aligned with the profile-pair model.
 
 ## Stabilization Rule
 
-Until this roadmap reaches the first stable checkpoint, do not add:
+Until the current foundation is stable, do not add:
 
 - admin panel
 - mobile app
@@ -51,37 +43,55 @@ Until this roadmap reaches the first stable checkpoint, do not add:
 - realtime messaging
 - background workers
 
-The project must first stabilize the existing foundation.
+## Phase 1: Contract Stabilization
 
----
+Public API request/response keys use `camelCase`.
 
-# Phase 1: Contract Stabilization
+Confirmed current direction:
 
-## Problem
-
-The project currently mixes `camelCase` and `snake_case` in public API request bodies.
-
-Known issues:
-
-- favorites API uses `listing_id`
-- messaging API uses `listing_id`
-- listing create API already uses `camelCase`
-
-This creates inconsistent frontend/API contracts.
-
-## Decision
-
-Public API request/response keys must use `camelCase`.
+- listing creation uses `categoryId`, `priceAmount`, `listingType`, `imageUrls`.
+- favorites use `listingId`.
+- messaging uses `listingId` only as listing context input.
 
 Database table and column names remain `snake_case`.
 
-## Required Changes
+## Phase 2: Messaging Stabilization
 
-### Favorites
+Canonical model:
 
-Current request body:
+- exactly one conversation channel between two profiles.
+- `conversations` uses normalized profile-pair columns: `profile_low_id`, `profile_high_id`.
+- listings are attached through `conversation_listing_contexts`.
+- `conversation_participants` remains for access checks and future flexibility.
+- `messages` stores plain text messages.
 
-```json
-{
-  "listing_id": "..."
-}
+The old listing-based conversation model is deprecated.
+
+## Phase 3: Validation and Tests
+
+Recommended next stabilizers:
+
+- add lightweight API tests for auth-protected writes.
+- add messaging API tests for participant-only access.
+- add migration safety notes before shared DB usage.
+- document local dev verification flows.
+
+## Do Not Regress
+
+- Do not revert messaging to listing-based conversations.
+- Do not create separate conversations per listing.
+- Do not remove `conversation_listing_contexts`.
+- Do not reintroduce snake_case API request bodies such as `listing_id`.
+
+## Delayed Work
+
+Do not include in stabilization-only tasks:
+
+- realtime messaging
+- message moderation
+- reporting/blocking
+- notifications
+- admin UI
+- mobile UI
+- real AI providers
+- payments
