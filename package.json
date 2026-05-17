@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "turbo dev --filter=@babyloop/web --filter=@babyloop/api",
     "build": "turbo build",
+    "test": "turbo test",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {

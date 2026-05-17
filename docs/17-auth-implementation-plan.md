@@ -2,7 +2,14 @@
 
 ## Goal
 
-Implementation note: The completed first auth slice uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies and Argon2id remain production hardening options for a later phase.
+Implementation note: The completed first auth slice uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies, refresh tokens, a session table, email verification, password reset, and Argon2id remain production hardening options for a later phase.
+
+Auth hardening step 1 is implemented:
+
+- `AUTH_SECRET` is required when `DATABASE_URL` is configured, unless `ALLOW_AUTH_UNAVAILABLE=true` is explicitly set for local unavailable-mode testing.
+- Default access token TTL is 15 minutes. `AUTH_TOKEN_TTL_SECONDS` remains available for local dev overrides.
+- Register/login emails are trimmed and lowercased before duplicate checks or credential lookup.
+- Register/login endpoints have simple configurable rate limiting.
 
 Auth now removes user-facing client-controlled profile ids from protected listing and favorite writes. The API derives ownership from the verified token.
 
@@ -61,7 +68,7 @@ Token payload should stay small:
 
 Use a server-only `AUTH_SECRET` environment variable. Do not expose it to Next.js client code.
 
-`AUTH_SECRET` must be at least 32 characters. Refresh tokens and HTTP-only cookie transport are delayed.
+`AUTH_SECRET` must be at least 32 characters. Refresh tokens, a server-side session table, and HTTP-only cookie transport are delayed.
 
 ## Password Hashing
 
@@ -73,7 +80,7 @@ Rules:
 - Validate password length before hashing.
 - Return generic login errors.
 - Do not log passwords or password hashes.
-- Consider rate limiting after the basic slice is stable.
+- Keep auth rate limiting enabled for register/login endpoints.
 
 ## API Protection Strategy
 
@@ -156,7 +163,7 @@ Implemented:
 Implemented:
 
 - require Bearer token for add/remove/list
-- request body only includes `listing_id`
+- request body only includes `listingId`
 - derive `profileId` from session
 - keep duplicate favorite behavior idempotent
 - keep favorite events with actor profile from session
@@ -173,7 +180,7 @@ Implemented:
 | Seed data breakage | Make `profiles.user_id` nullable initially. |
 | XSS/localStorage exposure | Keep UI small, avoid unsafe HTML, move to HTTP-only cookies later. |
 | CSRF | Lower risk with Bearer header; revisit if cookies are introduced. |
-| Brute force login | Delay full rate limiting, but document and add soon after auth works. |
+| Brute force login | Basic register/login rate limiting is implemented; stronger IP/account risk controls are delayed. |
 | Overexposed user data | `GET /auth/me` returns only safe user/profile fields. |
 
 ## First Auth Slice
@@ -213,13 +220,14 @@ Do not include in the first auth slice:
 - password reset
 - email verification
 - refresh tokens
+- user/session table
 - admin RBAC
 - payments
 - account deletion
 - multi-profile households
 - child profiles
 - device/session management UI
-- rate limiting beyond minimal follow-up planning
+- advanced rate limiting, account lockout, and abuse analytics
 
 ## Verification Checklist
 

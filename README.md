@@ -8,7 +8,7 @@ This repository currently contains a small verified product foundation:
 - Turborepo
 - TypeScript
 - `apps/web`: minimal Next.js app with browse, detail, sell, and favorites pages
-- `apps/api`: Fastify API with health, marketplace read endpoints, manual listing creation, mock AI listing suggestions, and favorites
+- `apps/api`: Fastify API with health, marketplace read endpoints, manual listing creation, mock AI listing suggestions, favorites, and messaging backend endpoints
 - `packages/shared`: shared API response type
 - `packages/config`: shared app constants
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
@@ -86,7 +86,9 @@ Marketplace API routes require PostgreSQL:
 ```bash
 export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/babyloop_dev"
 export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
-export AUTH_TOKEN_TTL_SECONDS=604800
+export AUTH_TOKEN_TTL_SECONDS=900
+export AUTH_RATE_LIMIT_MAX=10
+export AUTH_RATE_LIMIT_WINDOW_SECONDS=60
 pnpm --filter @babyloop/api dev
 pnpm --filter @babyloop/database db:migrate
 pnpm --filter @babyloop/database db:seed
@@ -114,6 +116,7 @@ createdb -h 127.0.0.1 -p 5432 -U postgres babyloop_dev
 ```bash
 export DATABASE_URL="postgresql://postgres@127.0.0.1:5432/babyloop_dev"
 export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
+export AUTH_TOKEN_TTL_SECONDS=900
 pnpm --filter @babyloop/database db:migrate
 pnpm --filter @babyloop/database db:seed
 ```
@@ -123,6 +126,7 @@ pnpm --filter @babyloop/database db:seed
 ```bash
 export DATABASE_URL="postgresql://postgres@127.0.0.1:5432/babyloop_dev"
 export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
+export AUTH_TOKEN_TTL_SECONDS=900
 PORT=4000 pnpm --filter @babyloop/api dev
 ```
 
@@ -165,12 +169,68 @@ http://localhost:3000/favorites
 
 Expected seed data:
 
+- 2 local QA users linked to seeded profiles
 - 4 product categories
 - 2 profiles
 - 3 listings
 - listing image metadata
 - 1 favorite
 - basic events
+
+## Local QA Accounts
+
+These accounts are seeded for local development only:
+
+| Profile | Email | Password |
+| --- | --- | --- |
+| Ayse Demir | `ayse@example.com` | `Test123456` |
+| Mehmet Kaya | `mehmet@example.com` | `Test123456` |
+
+Passwords are stored as local seed hashes, not plaintext database values.
+
+## Manual QA Flow
+
+This flow resets the local `babyloop_dev` database. Use it only for disposable local data.
+
+1. Reset local schemas:
+
+```bash
+psql "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_dev" \
+  -c "DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+```
+
+2. Migrate and seed:
+
+```bash
+export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/babyloop_dev"
+pnpm --filter @babyloop/database db:migrate
+pnpm --filter @babyloop/database db:seed
+```
+
+3. Start the API:
+
+```bash
+export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/babyloop_dev"
+export AUTH_SECRET="local-dev-auth-secret-change-me-please-32chars"
+export AUTH_TOKEN_TTL_SECONDS=900
+PORT=4000 pnpm --filter @babyloop/api dev
+```
+
+4. Start the web app:
+
+```bash
+BABYLOOP_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web dev
+```
+
+5. Browser QA:
+
+- Open `http://localhost:3000/login`.
+- Login as `ayse@example.com` / `Test123456`.
+- Open Mehmet's car seat listing: `/listings/30000000-0000-4000-8000-000000000002`.
+- Favorite Mehmet's listing.
+- Start a conversation with Mehmet from a listing once messaging UI exists.
+- Logout, then login as `mehmet@example.com` / `Test123456`.
+- Verify the conversation can be listed and replied to once messaging UI exists.
 
 Current local feature checks:
 
@@ -183,6 +243,38 @@ curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
   -H 'content-type: application/json' \
   -d '{"title":"Chicco stroller","categoryName":"Strollers","condition":"good"}'
 ```
+
+## API Integration Tests
+
+API integration tests use Vitest with `fastify.inject`, so they do not open a real HTTP port.
+They require a separate disposable PostgreSQL database and must never point at `DATABASE_URL`.
+
+Create the local test database once:
+
+```bash
+createdb -h 127.0.0.1 -p 5432 -U postgres babyloop_test
+```
+
+Run the API integration suite:
+
+```bash
+export TEST_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test"
+pnpm --filter @babyloop/api test
+```
+
+The test setup resets the `drizzle` and `public` schemas inside `babyloop_test`, runs migrations,
+and creates its own data for auth, listings, favorites, messaging, and mock AI audit logging checks.
+
+## Auth Notes
+
+Current auth is a local-first email/password implementation:
+
+- `AUTH_SECRET` is required when `DATABASE_URL` is configured and must be at least 32 characters.
+- Default access token TTL is 15 minutes; set `AUTH_TOKEN_TTL_SECONDS` only for local dev overrides.
+- `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW_SECONDS` apply to register/login endpoints.
+- Web token storage currently uses `localStorage`; HTTP-only cookies, refresh tokens, session tables,
+  email verification, and password reset are intentionally delayed production hardening items.
+- `ALLOW_AUTH_UNAVAILABLE=true` is only for local unavailable-mode testing.
 
 The mock AI endpoint writes to `ai_model_runs` when `DATABASE_URL` is configured. If database logging is unavailable, the suggestion response should still work.
 

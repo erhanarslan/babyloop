@@ -1,4 +1,7 @@
 export type ApiRuntimeConfig = {
+  allowAuthUnavailable: boolean;
+  authRateLimitMax: number;
+  authRateLimitWindowSeconds: number;
   authSecret?: string;
   authTokenTtlSeconds: number;
   corsOrigins: string[];
@@ -10,8 +13,12 @@ export type ApiRuntimeConfig = {
 const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 
 export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiRuntimeConfig {
+  const allowAuthUnavailable = readBoolean(env.ALLOW_AUTH_UNAVAILABLE, false);
   const config: ApiRuntimeConfig = {
-    authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 60 * 24 * 7),
+    allowAuthUnavailable,
+    authRateLimitMax: readPositiveInteger(env.AUTH_RATE_LIMIT_MAX, 10),
+    authRateLimitWindowSeconds: readPositiveInteger(env.AUTH_RATE_LIMIT_WINDOW_SECONDS, 60),
+    authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 15),
     corsOrigins: readCorsOrigins(env.CORS_ORIGINS),
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT)
@@ -27,8 +34,15 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     config.databaseUrl = env.DATABASE_URL;
   }
 
+  if (config.databaseUrl && !config.authSecret && !config.allowAuthUnavailable) {
+    throw new Error(
+      "AUTH_SECRET is required when DATABASE_URL is configured. Set ALLOW_AUTH_UNAVAILABLE=true only for local unavailable-mode testing."
+    );
+  }
+
   return config;
 }
+
 function readAuthSecret(value: string | undefined): string | undefined {
   if (!value) {
     return undefined;
@@ -39,6 +53,14 @@ function readAuthSecret(value: string | undefined): string | undefined {
   }
 
   return value;
+}
+
+function readBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (!value) {
+    return fallback;
+  }
+
+  return ["1", "true", "yes"].includes(value.trim().toLowerCase());
 }
 
 function readCorsOrigins(value: string | undefined): string[] {

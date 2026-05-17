@@ -5,7 +5,8 @@ const authUnavailableResponse: ApiFailure = {
   ok: false,
   error: {
     code: "AUTH_UNAVAILABLE",
-    message: "Authentication is unavailable. Set DATABASE_URL and AUTH_SECRET to enable auth."
+    message:
+      "Authentication is unavailable. Set DATABASE_URL and AUTH_SECRET to enable auth, or ALLOW_AUTH_UNAVAILABLE=true for local unavailable-mode testing."
   }
 };
 

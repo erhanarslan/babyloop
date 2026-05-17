@@ -20,6 +20,8 @@ export type SafeAuthProfile = {
 };
 
 export type AuthTokenOptions = {
+  authRateLimitMax: number;
+  authRateLimitWindowSeconds: number;
   authSecret: string;
   authTokenTtlSeconds: number;
 };

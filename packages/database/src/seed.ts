@@ -1,3 +1,6 @@
+import { scrypt as scryptCallback } from "node:crypto";
+import { promisify } from "node:util";
+import { eq } from "drizzle-orm";
 import { createDatabaseClient } from "./client.js";
 import {
   events,
@@ -5,10 +8,20 @@ import {
   listingImages,
   listings,
   productCategories,
-  profiles
+  profiles,
+  users
 } from "./schema/index.js";
 
+const scrypt = promisify(scryptCallback);
+const DEV_PASSWORD = "Test123456";
+const KEY_LENGTH = 64;
+const PASSWORD_HASH_VERSION = "scrypt-v1";
+
 const ids = {
+  users: {
+    ayse: "70000000-0000-4000-8000-000000000001",
+    mehmet: "70000000-0000-4000-8000-000000000002"
+  },
   profiles: {
     ayse: "10000000-0000-4000-8000-000000000001",
     mehmet: "10000000-0000-4000-8000-000000000002"
@@ -41,22 +54,62 @@ const ids = {
 
 async function seed() {
   const client = createDatabaseClient();
+  const passwordHash = await hashSeedPassword(DEV_PASSWORD);
 
   try {
+    await client.db.insert(users).values([
+      {
+        id: ids.users.ayse,
+        email: "ayse@example.com",
+        passwordHash,
+        role: "user"
+      },
+      {
+        id: ids.users.mehmet,
+        email: "mehmet@example.com",
+        passwordHash,
+        role: "user"
+      }
+    ]).onConflictDoUpdate({
+      target: users.email,
+      set: {
+        passwordHash,
+        role: "user"
+      }
+    });
+
+    const devUsers = await getDevUsers(client.db);
+
     await client.db.insert(profiles).values([
       {
         id: ids.profiles.ayse,
+        userId: devUsers.ayse,
         displayName: "Ayse Demir",
         avatarUrl: null,
         locationCity: "Istanbul"
       },
       {
         id: ids.profiles.mehmet,
+        userId: devUsers.mehmet,
         displayName: "Mehmet Kaya",
         avatarUrl: null,
         locationCity: "Ankara"
       }
     ]).onConflictDoNothing();
+
+    await client.db.update(profiles).set({
+      avatarUrl: null,
+      displayName: "Ayse Demir",
+      locationCity: "Istanbul",
+      userId: devUsers.ayse
+    }).where(eq(profiles.id, ids.profiles.ayse));
+
+    await client.db.update(profiles).set({
+      avatarUrl: null,
+      displayName: "Mehmet Kaya",
+      locationCity: "Ankara",
+      userId: devUsers.mehmet
+    }).where(eq(profiles.id, ids.profiles.mehmet));
 
     await client.db.insert(productCategories).values([
       {
@@ -200,3 +253,42 @@ seed().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+
+async function hashSeedPassword(password: string): Promise<string> {
+  const salt = "babyloop-local-dev-seed-v1";
+  const derivedKey = (await scrypt(password, salt, KEY_LENGTH)) as Buffer;
+
+  return `${PASSWORD_HASH_VERSION}:${salt}:${derivedKey.toString("base64url")}`;
+}
+
+async function getDevUsers(db: ReturnType<typeof createDatabaseClient>["db"]): Promise<{
+  ayse: string;
+  mehmet: string;
+}> {
+  const rows = await db
+    .select({
+      email: users.email,
+      id: users.id
+    })
+    .from(users)
+    .where(eq(users.email, "ayse@example.com"));
+
+  const ayse = rows.find((row) => row.email === "ayse@example.com")?.id;
+
+  const [mehmetRow] = await db
+    .select({
+      id: users.id
+    })
+    .from(users)
+    .where(eq(users.email, "mehmet@example.com"))
+    .limit(1);
+
+  if (!ayse || !mehmetRow) {
+    throw new Error("Dev user seed failed.");
+  }
+
+  return {
+    ayse,
+    mehmet: mehmetRow.id
+  };
+}

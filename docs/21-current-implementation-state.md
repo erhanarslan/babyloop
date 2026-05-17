@@ -26,6 +26,7 @@ Implemented stack:
 - mock AI listing suggestions
 - AI model run audit table
 - messaging backend foundation
+- API integration test foundation with Vitest
 
 Current maturity level:
 
@@ -71,7 +72,7 @@ The old listing-based conversation model is deprecated and should not be restore
 - no web messaging UI
 - no realtime delivery
 - no message moderation
-- no rate limiting
-- auth token storage is local-MVP level
-- no automated test suite
+- basic register/login rate limiting exists
+- auth token storage is local-MVP level (`localStorage`); production session transport is not complete
+- no web or end-to-end browser test suite yet
 - no admin/mobile/worker apps yet

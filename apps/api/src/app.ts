@@ -1,5 +1,6 @@
 import { API_PREFIX } from "@babyloop/config";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
 import { registerAuthPlugin } from "./plugins/auth.plugin.js";
@@ -20,12 +21,24 @@ type CreateAppOptions = {
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
+  assertAuthConfig(config);
   const app = Fastify({
     logger: true
   });
 
   app.register(cors, {
     origin: config.corsOrigins
+  });
+  app.register(rateLimit, {
+    errorResponseBuilder: (_request, context) => {
+      const error = new Error("Too many auth attempts. Try again later.") as Error & {
+        statusCode: number;
+      };
+      error.statusCode = context.statusCode;
+      return error;
+    },
+    global: false,
+    hook: "preHandler"
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -65,6 +78,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
         authSecret: config.authSecret
       });
       app.register(registerAuthRoutes, {
+        authRateLimitMax: config.authRateLimitMax,
+        authRateLimitWindowSeconds: config.authRateLimitWindowSeconds,
         authSecret: config.authSecret,
         authTokenTtlSeconds: config.authTokenTtlSeconds,
         prefix: API_PREFIX
@@ -81,11 +96,21 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
-    app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
+    if (config.allowAuthUnavailable) {
+      app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
+    }
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
 
   return app;
+}
+
+function assertAuthConfig(config: ApiRuntimeConfig): void {
+  if (config.databaseUrl && !config.authSecret && !config.allowAuthUnavailable) {
+    throw new Error(
+      "AUTH_SECRET is required when DATABASE_URL is configured. Set ALLOW_AUTH_UNAVAILABLE=true only for local unavailable-mode testing."
+    );
+  }
 }
 
 function getPublicErrorCode(statusCode: number, isDatabaseUnavailable: boolean): string {
@@ -95,6 +120,10 @@ function getPublicErrorCode(statusCode: number, isDatabaseUnavailable: boolean):
 
   if (statusCode === 500) {
     return "INTERNAL_SERVER_ERROR";
+  }
+
+  if (statusCode === 429) {
+    return "RATE_LIMITED";
   }
 
   return "REQUEST_ERROR";

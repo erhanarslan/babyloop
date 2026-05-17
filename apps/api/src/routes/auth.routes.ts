@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, RouteShorthandOptions } from "fastify";
 import { loginBodySchema, registerBodySchema } from "../schemas/auth.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
@@ -13,37 +13,45 @@ import {
 } from "../services/auth.service.js";
 
 export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptions): void {
-  app.post<{ Body: unknown; Reply: AuthResponse }>("/auth/register", async (request, reply) => {
-    const parsedBody = registerBodySchema.safeParse(request.body);
+  app.post<{ Body: unknown; Reply: AuthResponse }>(
+    "/auth/register",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = registerBodySchema.safeParse(request.body);
 
-    if (!parsedBody.success) {
-      return reply.status(400).send(invalidAuthRequest());
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await registerUser(app, parsedBody.data);
+
+      if (result.status === "duplicate") {
+        return reply.status(409).send(result.response);
+      }
+
+      return reply.status(201).send(attachAccessToken(result.response, options));
     }
+  );
 
-    const result = await registerUser(app, parsedBody.data);
+  app.post<{ Body: unknown; Reply: AuthResponse }>(
+    "/auth/login",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = loginBodySchema.safeParse(request.body);
 
-    if (result.status === "duplicate") {
-      return reply.status(409).send(result.response);
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await loginUser(app, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      return attachAccessToken(result.response, options);
     }
-
-    return reply.status(201).send(attachAccessToken(result.response, options));
-  });
-
-  app.post<{ Body: unknown; Reply: AuthResponse }>("/auth/login", async (request, reply) => {
-    const parsedBody = loginBodySchema.safeParse(request.body);
-
-    if (!parsedBody.success) {
-      return reply.status(400).send(invalidAuthRequest());
-    }
-
-    const result = await loginUser(app, parsedBody.data);
-
-    if (result.status === "invalid") {
-      return reply.status(401).send(result.response);
-    }
-
-    return attachAccessToken(result.response, options);
-  });
+  );
 
   app.get<{ Reply: AuthMeResponse }>("/auth/me", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
@@ -56,3 +64,13 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptio
   });
 }
 
+function authRateLimitOptions(options: AuthTokenOptions): RouteShorthandOptions {
+  return {
+    config: {
+      rateLimit: {
+        max: options.authRateLimitMax,
+        timeWindow: options.authRateLimitWindowSeconds * 1000
+      }
+    }
+  };
+}

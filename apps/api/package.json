@@ -8,16 +8,22 @@
     "dev": "pnpm build:deps && pnpm build && node dist/server.js",
     "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@babyloop/ai-core": "workspace:*",
     "@babyloop/config": "workspace:*",
     "@babyloop/database": "workspace:*",
-    "@babyloop/ai-core": "workspace:*",
     "@babyloop/shared": "workspace:*",
     "@fastify/cors": "^11.2.0",
+    "@fastify/rate-limit": "^10.3.0",
     "drizzle-orm": "^0.39.0",
     "fastify": "^5.0.0",
     "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.6"
   }
 }
