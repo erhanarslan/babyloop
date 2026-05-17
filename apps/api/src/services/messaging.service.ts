@@ -1,12 +1,13 @@
 import {
+  conversationListingContexts,
   conversationParticipants,
   conversations,
   listings,
   messages,
   profiles
 } from "@babyloop/database/schema";
-import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -14,24 +15,22 @@ import type {
   SendMessageBody
 } from "../schemas/messaging.schemas.js";
 
-const buyerProfiles = alias(profiles, "buyer_profiles");
-const sellerProfiles = alias(profiles, "seller_profiles");
+const profileLowProfiles = alias(profiles, "profile_low_profiles");
+const profileHighProfiles = alias(profiles, "profile_high_profiles");
 const senderProfiles = alias(profiles, "sender_profiles");
 
 export type ConversationSummaryResponse = {
   id: string;
-  listing: {
+  otherProfile: {
+    id: string;
+    displayName: string;
+  };
+  contextListing: {
     id: string;
     title: string;
-  };
-  buyer: {
-    id: string;
-    displayName: string;
-  };
-  seller: {
-    id: string;
-    displayName: string;
-  };
+  } | null;
+  status: string;
+  lastMessageAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -50,15 +49,21 @@ export type MessageResponse = {
 
 type ConversationSummaryRow = {
   id: string;
-  listingId: string;
-  listingTitle: string;
-  buyerProfileId: string;
-  buyerDisplayName: string;
-  sellerProfileId: string;
-  sellerDisplayName: string;
+  profileLowId: string;
+  profileLowDisplayName: string;
+  profileHighId: string;
+  profileHighDisplayName: string;
+  createdByProfileId: string;
+  status: string;
+  lastMessageAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+type ListingContextResponse = {
+  id: string;
+  title: string;
+} | null;
 
 export async function createOrGetConversation(
   app: FastifyInstance,
@@ -68,7 +73,7 @@ export async function createOrGetConversation(
   | { status: "created" | "existing"; conversation: ConversationSummaryResponse }
   | { status: "invalid_listing" | "cannot_message_self" }
 > {
-  const listing = await getListingForConversation(app, body.listing_id);
+  const listing = await getListingForConversation(app, body.listingId);
 
   if (!listing) {
     return { status: "invalid_listing" };
@@ -78,31 +83,40 @@ export async function createOrGetConversation(
     return { status: "cannot_message_self" };
   }
 
+  const { profileLowId, profileHighId } = normalizeProfilePair(
+    currentUser.profile.id,
+    listing.sellerProfileId
+  );
+
   const result = await app.db.transaction(async (tx) => {
     const [createdConversation] = await tx
       .insert(conversations)
       .values({
-        listingId: listing.id,
-        buyerProfileId: currentUser.profile.id
+        profileLowId,
+        profileHighId,
+        createdByProfileId: currentUser.profile.id
       })
       .onConflictDoNothing({
-        target: [conversations.listingId, conversations.buyerProfileId]
+        target: [conversations.profileLowId, conversations.profileHighId]
       })
       .returning({
         id: conversations.id
       });
 
-    const conversationId = createdConversation?.id
-      ?? (await tx
-        .select({ id: conversations.id })
-        .from(conversations)
-        .where(
-          and(
-            eq(conversations.listingId, listing.id),
-            eq(conversations.buyerProfileId, currentUser.profile.id)
+    const conversationId =
+      createdConversation?.id ??
+      (
+        await tx
+          .select({ id: conversations.id })
+          .from(conversations)
+          .where(
+            and(
+              eq(conversations.profileLowId, profileLowId),
+              eq(conversations.profileHighId, profileHighId)
+            )
           )
-        )
-        .limit(1))[0]?.id;
+          .limit(1)
+      )[0]?.id;
 
     if (!conversationId) {
       throw new Error("Conversation lookup failed.");
@@ -127,13 +141,31 @@ export async function createOrGetConversation(
         ]
       });
 
+    await tx
+      .insert(conversationListingContexts)
+      .values({
+        conversationId,
+        listingId: listing.id,
+        addedByProfileId: currentUser.profile.id
+      })
+      .onConflictDoNothing({
+        target: [
+          conversationListingContexts.conversationId,
+          conversationListingContexts.listingId
+        ]
+      });
+
     return {
       conversationId,
       created: Boolean(createdConversation)
     };
   });
 
-  const conversation = await getConversationSummary(app, result.conversationId);
+  const conversation = await getConversationSummary(
+    app,
+    result.conversationId,
+    currentUser.profile.id
+  );
 
   if (!conversation) {
     throw new Error("Conversation summary lookup failed.");
@@ -153,13 +185,18 @@ export async function listConversationsForProfile(
     .select(conversationSummarySelection)
     .from(conversationParticipants)
     .innerJoin(conversations, eq(conversationParticipants.conversationId, conversations.id))
-    .innerJoin(listings, eq(conversations.listingId, listings.id))
-    .innerJoin(buyerProfiles, eq(conversations.buyerProfileId, buyerProfiles.id))
-    .innerJoin(sellerProfiles, eq(listings.sellerProfileId, sellerProfiles.id))
+    .innerJoin(profileLowProfiles, eq(conversations.profileLowId, profileLowProfiles.id))
+    .innerJoin(profileHighProfiles, eq(conversations.profileHighId, profileHighProfiles.id))
     .where(eq(conversationParticipants.profileId, profileId))
     .orderBy(desc(conversations.updatedAt));
 
-  return rows.map(mapConversationSummary);
+  return Promise.all(
+    rows.map(async (row) => {
+      const contextListing = await getLatestListingContext(app, row.id);
+
+      return mapConversationSummary(row, profileId, contextListing);
+    })
+  );
 }
 
 export async function listMessagesForConversation(
@@ -212,25 +249,40 @@ export async function sendMessage(
     return access;
   }
 
-  const [createdMessage] = await app.db
-    .insert(messages)
-    .values({
-      conversationId,
-      senderProfileId: currentUser.profile.id,
-      body: body.body
-    })
-    .returning({
-      id: messages.id,
-      conversationId: messages.conversationId,
-      senderProfileId: messages.senderProfileId,
-      body: messages.body,
-      createdAt: messages.createdAt,
-      deletedAt: messages.deletedAt
-    });
+  const now = new Date();
 
-  if (!createdMessage) {
-    throw new Error("Message insert failed.");
-  }
+  const createdMessage = await app.db.transaction(async (tx) => {
+    const [insertedMessage] = await tx
+      .insert(messages)
+      .values({
+        conversationId,
+        senderProfileId: currentUser.profile.id,
+        body: body.body,
+        createdAt: now
+      })
+      .returning({
+        id: messages.id,
+        conversationId: messages.conversationId,
+        senderProfileId: messages.senderProfileId,
+        body: messages.body,
+        createdAt: messages.createdAt,
+        deletedAt: messages.deletedAt
+      });
+
+    if (!insertedMessage) {
+      throw new Error("Message insert failed.");
+    }
+
+    await tx
+      .update(conversations)
+      .set({
+        lastMessageAt: now,
+        updatedAt: now
+      })
+      .where(eq(conversations.id, conversationId));
+
+    return insertedMessage;
+  });
 
   return {
     status: "sent",
@@ -243,12 +295,13 @@ export async function sendMessage(
 
 const conversationSummarySelection = {
   id: conversations.id,
-  listingId: listings.id,
-  listingTitle: listings.title,
-  buyerProfileId: buyerProfiles.id,
-  buyerDisplayName: buyerProfiles.displayName,
-  sellerProfileId: sellerProfiles.id,
-  sellerDisplayName: sellerProfiles.displayName,
+  profileLowId: conversations.profileLowId,
+  profileLowDisplayName: profileLowProfiles.displayName,
+  profileHighId: conversations.profileHighId,
+  profileHighDisplayName: profileHighProfiles.displayName,
+  createdByProfileId: conversations.createdByProfileId,
+  status: conversations.status,
+  lastMessageAt: conversations.lastMessageAt,
   createdAt: conversations.createdAt,
   updatedAt: conversations.updatedAt
 };
@@ -263,7 +316,7 @@ async function getListingForConversation(
       sellerProfileId: listings.sellerProfileId
     })
     .from(listings)
-    .where(eq(listings.id, listingId))
+    .where(and(eq(listings.id, listingId), eq(listings.status, "active")))
     .limit(1);
 
   return listing ?? null;
@@ -271,18 +324,42 @@ async function getListingForConversation(
 
 async function getConversationSummary(
   app: FastifyInstance,
-  conversationId: string
+  conversationId: string,
+  viewerProfileId: string
 ): Promise<ConversationSummaryResponse | null> {
   const [row] = await app.db
     .select(conversationSummarySelection)
     .from(conversations)
-    .innerJoin(listings, eq(conversations.listingId, listings.id))
-    .innerJoin(buyerProfiles, eq(conversations.buyerProfileId, buyerProfiles.id))
-    .innerJoin(sellerProfiles, eq(listings.sellerProfileId, sellerProfiles.id))
+    .innerJoin(profileLowProfiles, eq(conversations.profileLowId, profileLowProfiles.id))
+    .innerJoin(profileHighProfiles, eq(conversations.profileHighId, profileHighProfiles.id))
     .where(eq(conversations.id, conversationId))
     .limit(1);
 
-  return row ? mapConversationSummary(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  const contextListing = await getLatestListingContext(app, conversationId);
+
+  return mapConversationSummary(row, viewerProfileId, contextListing);
+}
+
+async function getLatestListingContext(
+  app: FastifyInstance,
+  conversationId: string
+): Promise<ListingContextResponse> {
+  const [row] = await app.db
+    .select({
+      id: listings.id,
+      title: listings.title
+    })
+    .from(conversationListingContexts)
+    .innerJoin(listings, eq(conversationListingContexts.listingId, listings.id))
+    .where(eq(conversationListingContexts.conversationId, conversationId))
+    .orderBy(desc(conversationListingContexts.createdAt))
+    .limit(1);
+
+  return row ?? null;
 }
 
 async function getConversationAccess(
@@ -314,21 +391,37 @@ async function getConversationAccess(
   return participant ? { status: "ok" } : { status: "forbidden" };
 }
 
-function mapConversationSummary(row: ConversationSummaryRow): ConversationSummaryResponse {
+function normalizeProfilePair(
+  firstProfileId: string,
+  secondProfileId: string
+): { profileLowId: string; profileHighId: string } {
+  return firstProfileId < secondProfileId
+    ? { profileLowId: firstProfileId, profileHighId: secondProfileId }
+    : { profileLowId: secondProfileId, profileHighId: firstProfileId };
+}
+
+function mapConversationSummary(
+  row: ConversationSummaryRow,
+  viewerProfileId: string,
+  contextListing: ListingContextResponse
+): ConversationSummaryResponse {
+  const otherProfile =
+    row.profileLowId === viewerProfileId
+      ? {
+          id: row.profileHighId,
+          displayName: row.profileHighDisplayName
+        }
+      : {
+          id: row.profileLowId,
+          displayName: row.profileLowDisplayName
+        };
+
   return {
     id: row.id,
-    listing: {
-      id: row.listingId,
-      title: row.listingTitle
-    },
-    buyer: {
-      id: row.buyerProfileId,
-      displayName: row.buyerDisplayName
-    },
-    seller: {
-      id: row.sellerProfileId,
-      displayName: row.sellerDisplayName
-    },
+    otherProfile,
+    contextListing,
+    status: row.status,
+    lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };

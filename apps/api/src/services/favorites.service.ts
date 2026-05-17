@@ -38,7 +38,7 @@ export async function addFavorite(
   profileId: string,
   body: FavoriteBody
 ): Promise<{ status: "added"; result: FavoriteActionResult } | { status: "invalid_listing" }> {
-  const listingExists = await validateListingExists(app, body.listing_id);
+  const listingExists = await validateListingExists(app, body.listingId);
 
   if (!listingExists) {
     return { status: "invalid_listing" };
@@ -49,7 +49,7 @@ export async function addFavorite(
       .insert(favorites)
       .values({
         profileId,
-        listingId: body.listing_id
+        listingId: body.listingId
       })
       .onConflictDoNothing({
         target: [favorites.profileId, favorites.listingId]
@@ -63,7 +63,7 @@ export async function addFavorite(
         actorProfileId: profileId,
         eventType: "favorite_added",
         entityType: "listing",
-        entityId: body.listing_id,
+        entityId: body.listingId,
         metadata: {
           source: "api_manual"
         }
@@ -78,7 +78,7 @@ export async function addFavorite(
     result: {
       favorite: {
         profileId,
-        listingId: body.listing_id
+        listingId: body.listingId
       },
       created
     }
@@ -93,7 +93,7 @@ export async function removeFavorite(
   const removed = await app.db.transaction(async (tx) => {
     const [removedFavorite] = await tx
       .delete(favorites)
-      .where(and(eq(favorites.profileId, profileId), eq(favorites.listingId, body.listing_id)))
+      .where(and(eq(favorites.profileId, profileId), eq(favorites.listingId, body.listingId)))
       .returning({
         id: favorites.id
       });
@@ -103,7 +103,7 @@ export async function removeFavorite(
         actorProfileId: profileId,
         eventType: "favorite_removed",
         entityType: "listing",
-        entityId: body.listing_id,
+        entityId: body.listingId,
         metadata: {
           source: "api_manual"
         }
@@ -116,7 +116,7 @@ export async function removeFavorite(
   return {
     favorite: {
       profileId,
-      listingId: body.listing_id
+      listingId: body.listingId
     },
     removed
   };

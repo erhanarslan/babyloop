@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createConversationBodySchema = z
   .object({
-    listing_id: z.string().uuid()
+    listingId: z.string().uuid()
   })
   .strict();
 

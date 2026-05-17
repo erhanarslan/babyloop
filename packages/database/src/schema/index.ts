@@ -158,22 +158,27 @@ export const conversations = pgTable(
   "conversations",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    listingId: uuid("listing_id")
-      .notNull()
-      .references(() => listings.id, { onDelete: "cascade" }),
-    buyerProfileId: uuid("buyer_profile_id")
+    profileLowId: uuid("profile_low_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "restrict" }),
+    profileHighId: uuid("profile_high_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    createdByProfileId: uuid("created_by_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    status: varchar("status", { length: 40 }).notNull().default("active"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
-    uniqueIndex("conversations_listing_buyer_unique").on(
-      table.listingId,
-      table.buyerProfileId
-    ),
-    index("conversations_listing_id_idx").on(table.listingId),
-    index("conversations_buyer_profile_id_idx").on(table.buyerProfileId)
+    uniqueIndex("conversations_profile_pair_unique").on(table.profileLowId, table.profileHighId),
+    index("conversations_profile_low_id_idx").on(table.profileLowId),
+    index("conversations_profile_high_id_idx").on(table.profileHighId),
+    index("conversations_created_by_profile_id_idx").on(table.createdByProfileId),
+    index("conversations_last_message_at_idx").on(table.lastMessageAt),
+    check("conversations_profiles_not_same_check", sql`${table.profileLowId} <> ${table.profileHighId}`)
   ]
 );
 
@@ -196,6 +201,32 @@ export const conversationParticipants = pgTable(
     ),
     index("conversation_participants_conversation_id_idx").on(table.conversationId),
     index("conversation_participants_profile_id_idx").on(table.profileId)
+  ]
+);
+
+export const conversationListingContexts = pgTable(
+  "conversation_listing_contexts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    addedByProfileId: uuid("added_by_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("conversation_listing_contexts_conversation_listing_unique").on(
+      table.conversationId,
+      table.listingId
+    ),
+    index("conversation_listing_contexts_conversation_id_idx").on(table.conversationId),
+    index("conversation_listing_contexts_listing_id_idx").on(table.listingId),
+    index("conversation_listing_contexts_added_by_profile_id_idx").on(table.addedByProfileId)
   ]
 );
 
@@ -273,6 +304,7 @@ export const aiModelRuns = pgTable(
 
 export const schema = {
   aiModelRuns,
+  conversationListingContexts,
   conversationParticipants,
   conversations,
   events,

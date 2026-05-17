@@ -33,7 +33,7 @@ export async function saveFavorite(
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      listing_id: listingId
+      listingId
     })
   });
 

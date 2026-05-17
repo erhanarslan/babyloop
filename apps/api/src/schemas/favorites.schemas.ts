@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const favoriteBodySchema = z
   .object({
-    listing_id: z.string().uuid()
+    listingId: z.string().uuid()
   })
   .strict();
 

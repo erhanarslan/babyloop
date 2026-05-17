@@ -29,6 +29,13 @@
       "when": 1778971663339,
       "tag": "0003_empty_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778999424790,
+      "tag": "0004_curly_longshot",
+      "breakpoints": true
     }
   ]
 }
