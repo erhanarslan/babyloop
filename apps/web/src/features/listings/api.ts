@@ -20,6 +20,10 @@ export type CreateListingPayload = {
   listing: ListingSummary;
 };
 
+export type MyListingsPayload = {
+  listings: ListingSummary[];
+};
+
 export type ListingSuggestionRequest = {
   title?: string;
   description?: string;
@@ -57,6 +61,14 @@ export async function createListingRequest(
   return response.json() as Promise<ApiResponse<CreateListingPayload>>;
 }
 
+export async function fetchMyListings(apiBaseUrl: string): Promise<ApiResponse<MyListingsPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/me/listings`, {
+    headers: authHeader()
+  });
+
+  return response.json() as Promise<ApiResponse<MyListingsPayload>>;
+}
+
 export async function requestListingSuggestion(
   apiBaseUrl: string,
   payload: ListingSuggestionRequest
@@ -71,4 +83,3 @@ export async function requestListingSuggestion(
 
   return response.json() as Promise<ApiResponse<ListingSuggestionPayload>>;
 }
-

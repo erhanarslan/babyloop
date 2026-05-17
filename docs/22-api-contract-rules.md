@@ -72,6 +72,12 @@ Public listing reads return active listings only:
 - `GET /api/v1/listings`
 - `GET /api/v1/listings/:id`
 
+Authenticated seller listing reads are scoped to the current token profile:
+
+- `GET /api/v1/me/listings`
+- no request body or query profile id is accepted
+- response may include owned listings with `active`, `draft`, or `archived` status
+
 Favorite writes are token-owned and must follow these rules:
 
 - request body uses `{ "listingId": "uuid" }`

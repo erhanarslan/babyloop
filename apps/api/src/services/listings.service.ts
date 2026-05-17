@@ -11,6 +11,7 @@ import {
   getFirstImages,
   getImages,
   selectActiveListingRows,
+  selectListingsBySellerProfileId,
   selectListingDetailRow
 } from "./listing-queries.service.js";
 import {
@@ -107,6 +108,33 @@ export async function createListing(
 
 export async function listActiveListings(app: FastifyInstance): Promise<ListingSummaryResponse[]> {
   const rows = await selectActiveListingRows(app);
+  return mapListingRows(app, rows);
+}
+
+export async function listListingsForCurrentUser(
+  app: FastifyInstance,
+  currentUser: CurrentUser
+): Promise<ListingSummaryResponse[]> {
+  const rows = await selectListingsBySellerProfileId(app, currentUser.profile.id);
+  return mapListingRows(app, rows);
+}
+
+async function mapListingRows(
+  app: FastifyInstance,
+  rows: Array<{
+    categoryId: string;
+    categoryName: string;
+    categorySlug: string;
+    condition: string;
+    createdAt: Date;
+    currency: string;
+    id: string;
+    listingType: string;
+    priceAmount: string | null;
+    status: string;
+    title: string;
+  }>
+): Promise<ListingSummaryResponse[]> {
   const firstImages = await getFirstImages(
     app,
     rows.map((row) => row.id)

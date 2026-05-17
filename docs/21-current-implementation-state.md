@@ -52,6 +52,7 @@ Messaging web UI is not implemented yet.
 - auth register/login/me
 - public categories/listings reads
 - protected listing creation
+- protected current-user listing list via `GET /api/v1/me/listings`
 - protected favorites add/remove/list
 - mock AI listing suggestions
 - authenticated messaging backend endpoints
@@ -60,6 +61,7 @@ Current listing/favorite API behavior:
 
 - public listing list/detail endpoints return active listings only
 - listing creation derives the seller profile from the authenticated token
+- current-user listing list returns only listings owned by the authenticated profile, including non-public statuses
 - favorite writes derive the profile from the authenticated token
 - users cannot favorite their own listings or inactive listings
 - duplicate favorite creation and missing favorite removal are idempotent

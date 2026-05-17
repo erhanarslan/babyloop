@@ -5,7 +5,8 @@ import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createListing,
   getListingDetail,
-  listActiveListings
+  listActiveListings,
+  listListingsForCurrentUser
 } from "../services/listings.service.js";
 import type {
   ListingDetailResponse,
@@ -75,6 +76,21 @@ export function registerListingRoutes(app: FastifyInstance): void {
       ok: true,
       data: {
         listings
+      }
+    };
+  });
+
+  app.get<{ Reply: ListingsResponse }>("/me/listings", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return {
+      ok: true,
+      data: {
+        listings: await listListingsForCurrentUser(app, currentUser)
       }
     };
   });

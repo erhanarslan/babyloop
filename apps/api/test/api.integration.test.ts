@@ -336,6 +336,39 @@ describe("listings API", () => {
       }
     });
   });
+
+  it("returns 401 for unauthenticated current user listings", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/me/listings"
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("returns only listings owned by the authenticated user", async () => {
+    const owner = await createUser(app);
+    const otherUser = await createUser(app);
+    const ownerActiveListing = await createListing(app, owner.accessToken);
+    const ownerArchivedListing = await createListing(app, owner.accessToken);
+    const otherListing = await createListing(app, otherUser.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, ownerArchivedListing.id));
+
+    const response = await app.inject({
+      headers: authHeader(owner.accessToken),
+      method: "GET",
+      url: "/api/v1/me/listings"
+    });
+    const ownedListingIds = response.json().data.listings.map((listing: { id: string }) => listing.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(ownedListingIds).toContain(ownerActiveListing.id);
+    expect(ownedListingIds).toContain(ownerArchivedListing.id);
+    expect(ownedListingIds).not.toContain(otherListing.id);
+  });
 });
 
 describe("favorites API", () => {

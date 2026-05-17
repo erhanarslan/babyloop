@@ -52,6 +52,28 @@ export async function selectActiveListingRows(app: FastifyInstance) {
     .limit(LISTING_LIMIT);
 }
 
+export async function selectListingsBySellerProfileId(app: FastifyInstance, sellerProfileId: string) {
+  return app.db
+    .select({
+      id: listings.id,
+      title: listings.title,
+      priceAmount: listings.priceAmount,
+      currency: listings.currency,
+      status: listings.status,
+      listingType: listings.listingType,
+      condition: listings.condition,
+      createdAt: listings.createdAt,
+      categoryId: productCategories.id,
+      categoryName: productCategories.name,
+      categorySlug: productCategories.slug
+    })
+    .from(listings)
+    .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .where(eq(listings.sellerProfileId, sellerProfileId))
+    .orderBy(desc(listings.createdAt))
+    .limit(LISTING_LIMIT);
+}
+
 export async function selectListingDetailRow(app: FastifyInstance, id: string) {
   const [row] = await app.db
     .select({
@@ -132,4 +154,3 @@ export async function getImages(
     .where(eq(listingImages.listingId, listingId))
     .orderBy(asc(listingImages.sortOrder));
 }
-

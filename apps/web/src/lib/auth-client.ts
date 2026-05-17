@@ -19,16 +19,30 @@ export function getAuthToken(): string | null {
     return null;
   }
 
-  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  try {
+    return window.localStorage?.getItem(AUTH_TOKEN_STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function setAuthToken(token: string): void {
-  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  try {
+    window.localStorage?.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  } catch {
+    return;
+  }
+
   window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
 export function clearAuthToken(): void {
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  try {
+    window.localStorage?.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  } catch {
+    return;
+  }
+
   window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
