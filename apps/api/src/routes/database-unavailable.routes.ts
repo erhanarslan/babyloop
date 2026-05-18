@@ -46,6 +46,10 @@ export function registerDatabaseUnavailableRoutes(app: FastifyInstance): void {
     return reply.status(503).send(databaseUnavailableResponse);
   });
 
+  app.get<{ Reply: ApiFailure }>("/conversations/:id", async (_request, reply) => {
+    return reply.status(503).send(databaseUnavailableResponse);
+  });
+
   app.get<{ Reply: ApiFailure }>("/conversations/:id/messages", async (_request, reply) => {
     return reply.status(503).send(databaseUnavailableResponse);
   });

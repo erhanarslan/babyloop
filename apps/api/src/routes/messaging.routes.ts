@@ -8,6 +8,7 @@ import {
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createOrGetConversation,
+  getConversationForProfile,
   listConversationsForProfile,
   listMessagesForConversation,
   sendMessage,
@@ -106,6 +107,40 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       }
     };
   });
+
+  app.get<{ Params: ConversationParams; Reply: ConversationResponse }>(
+    "/conversations/:id",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedParams = conversationParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply.status(400).send(invalidMessagingRequest("Conversation id must be a valid UUID."));
+      }
+
+      const result = await getConversationForProfile(
+        app,
+        parsedParams.data.id,
+        currentUser.profile.id
+      );
+
+      if (result.status !== "ok") {
+        return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
+      }
+
+      return {
+        ok: true,
+        data: {
+          conversation: result.conversation
+        }
+      };
+    }
+  );
 
   app.get<{ Params: ConversationParams; Reply: MessagesResponse }>(
     "/conversations/:id/messages",

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
+import { authHeader, type AuthMe } from "../../lib/auth-client";
 
 export type AuthMode = "login" | "register";
 
@@ -41,3 +42,10 @@ export async function submitAuthRequest(
   return response.json() as Promise<ApiResponse<AuthPayload>>;
 }
 
+export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
+    headers: authHeader()
+  });
+
+  return response.json() as Promise<ApiResponse<AuthMe>>;
+}

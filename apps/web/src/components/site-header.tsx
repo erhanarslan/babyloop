@@ -7,6 +7,7 @@ const navItems = [
   { href: "/browse", label: "Browse" },
   { href: "/sell", label: "Sell" },
   { href: "/favorites", label: "Favorites" },
+  { href: "/conversations", label: "Messages" },
   { href: "/#ai-valuation", label: "AI Valuation" }
 ];
 

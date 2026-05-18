@@ -199,6 +199,32 @@ export async function listConversationsForProfile(
   );
 }
 
+export async function getConversationForProfile(
+  app: FastifyInstance,
+  conversationId: string,
+  profileId: string
+): Promise<
+  | { status: "ok"; conversation: ConversationSummaryResponse }
+  | { status: "not_found" | "forbidden" }
+> {
+  const access = await getConversationAccess(app, conversationId, profileId);
+
+  if (access.status !== "ok") {
+    return access;
+  }
+
+  const conversation = await getConversationSummary(app, conversationId, profileId);
+
+  if (!conversation) {
+    return { status: "not_found" };
+  }
+
+  return {
+    status: "ok",
+    conversation
+  };
+}
+
 export async function listMessagesForConversation(
   app: FastifyInstance,
   currentUser: CurrentUser,

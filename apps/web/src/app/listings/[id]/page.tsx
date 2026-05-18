@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FavoriteButton } from "../../../features/favorites/favorite-button";
+import { MessageSellerButton } from "../../../features/messaging/message-seller-button";
 import { SiteHeader } from "../../../components/site-header";
 import {
   fetchApi,
@@ -77,6 +78,11 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
             apiBaseUrl={getApiBaseUrl()}
             initiallyFavorited={false}
             listingId={listing.id}
+          />
+          <MessageSellerButton
+            apiBaseUrl={getApiBaseUrl()}
+            listingId={listing.id}
+            sellerProfileId={listing.seller.id}
           />
 
           <dl className="detail-facts">

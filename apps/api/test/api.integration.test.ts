@@ -576,6 +576,45 @@ describe("messaging API", () => {
     expect(second.json().data.conversation.id).toBe(first.json().data.conversation.id);
   });
 
+  it("returns one conversation summary for participants only", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const outsider = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(buyer.accessToken, listing.id)).json().data.conversation;
+
+    const participant = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}`
+    });
+    const nonParticipant = await app.inject({
+      headers: authHeader(outsider.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}`
+    });
+    const missing = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: "/api/v1/conversations/99999999-9999-4999-8999-999999999999"
+    });
+
+    expect(participant.statusCode).toBe(200);
+    expect(participant.json()).toMatchObject({
+      ok: true,
+      data: {
+        conversation: {
+          id: conversation.id,
+          contextListing: {
+            id: listing.id
+          }
+        }
+      }
+    });
+    expect(nonParticipant.statusCode).toBe(403);
+    expect(missing.statusCode).toBe(404);
+  });
+
   it("allows participants to send messages and blocks non-participants", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
