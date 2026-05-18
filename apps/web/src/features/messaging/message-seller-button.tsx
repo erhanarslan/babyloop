@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Button, EmptyState } from "../../components/ui";
 import { fetchCurrentUser } from "../auth/api";
 import { getAuthToken } from "../../lib/auth-client";
 import { createOrGetConversation } from "./api";
@@ -94,9 +95,9 @@ export function MessageSellerButton({
   if (isLoadingUser) {
     return (
       <div className="message-seller-action">
-        <button className="secondary-button" disabled type="button">
+        <Button variant="secondary" disabled>
           Checking seller
-        </button>
+        </Button>
       </div>
     );
   }
@@ -104,24 +105,19 @@ export function MessageSellerButton({
   if (currentProfileId === sellerProfileId) {
     return (
       <div className="message-seller-action">
-        <button className="secondary-button" disabled type="button">
+        <Button variant="secondary" disabled>
           This is your listing
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="message-seller-action">
-      <button
-        className="submit-button"
-        disabled={isPending}
-        type="button"
-        onClick={handleMessageSeller}
-      >
+      <Button disabled={isPending} onClick={handleMessageSeller}>
         {isPending ? "Opening..." : "Message seller"}
-      </button>
-      {message ? <p className="form-error">{message}</p> : null}
+      </Button>
+      {message ? <EmptyState title="Messaging unavailable" message={message} /> : null}
     </div>
   );
 }

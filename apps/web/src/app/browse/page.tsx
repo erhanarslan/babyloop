@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { SiteHeader } from "../../components/site-header";
+import {
+  Alert,
+  Card,
+  EmptyState,
+  PageContainer,
+  PageHeading,
+  SiteShell
+} from "../../components/ui";
 import {
   fetchApi,
   type CategoriesPayload,
@@ -24,20 +31,15 @@ export default async function BrowsePage() {
       : null;
 
   return (
-    <main>
-      <SiteHeader />
+    <SiteShell>
+      <PageHeading
+        eyebrow="Browse marketplace"
+        title="BabyLoop listings"
+        description="Read-only marketplace data from the BabyLoop API. Search, favorites, and seller actions are intentionally not enabled yet."
+      />
 
-      <section className="section page-heading">
-        <p className="eyebrow">Browse marketplace</p>
-        <h1>BabyLoop listings</h1>
-        <p>
-          Read-only marketplace data from the BabyLoop API. Search, favorites,
-          and seller actions are intentionally not enabled yet.
-        </p>
-      </section>
-
-      <section className="section browse-layout" aria-label="Browse listings">
-        <aside className="filter-panel" aria-label="Category filter placeholder">
+      <PageContainer className="browse-layout" ariaLabel="Browse listings">
+        <Card as="aside" className="filter-panel" aria-label="Category filter placeholder">
           <h2>Categories</h2>
           {categories.length > 0 ? (
             <ul className="category-list">
@@ -51,16 +53,16 @@ export default async function BrowsePage() {
           ) : (
             <p className="muted">Categories will appear when the API is available.</p>
           )}
-        </aside>
+        </Card>
 
         <div className="listing-column">
           {errorMessage ? <ErrorNotice message={errorMessage} /> : null}
 
           {!errorMessage && listings.length === 0 ? (
-            <div className="empty-state">
-              <h2>No active listings yet.</h2>
-              <p>Seed the local database to see sample marketplace listings.</p>
-            </div>
+            <EmptyState
+              title="No active listings yet."
+              message="Seed the local database to see sample marketplace listings."
+            />
           ) : null}
 
           <div className="listing-grid">
@@ -69,8 +71,8 @@ export default async function BrowsePage() {
             ))}
           </div>
         </div>
-      </section>
-    </main>
+      </PageContainer>
+    </SiteShell>
   );
 }
 
@@ -99,12 +101,7 @@ function ListingCard({ listing }: { listing: ListingSummary }) {
 }
 
 function ErrorNotice({ message }: { message: string }) {
-  return (
-    <div className="error-state" role="status">
-      <h2>Marketplace API is not ready.</h2>
-      <p>{message}</p>
-    </div>
-  );
+  return <Alert title="Marketplace API is not ready." message={message} />;
 }
 
 function formatPrice(price: ListingSummary["price"]): string {

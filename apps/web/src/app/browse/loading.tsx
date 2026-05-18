@@ -1,14 +1,15 @@
-import { SiteHeader } from "../../components/site-header";
+import { LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../components/ui";
 
 export default function BrowseLoading() {
   return (
-    <main>
-      <SiteHeader />
-      <section className="section page-heading">
-        <p className="eyebrow">Browse marketplace</p>
-        <h1>Loading listings</h1>
-        <p>Fetching read-only marketplace data from the BabyLoop API.</p>
-      </section>
-    </main>
+    <SiteShell>
+      <PageHeading eyebrow="Browse marketplace" title="Loading listings" />
+      <PageContainer>
+        <LoadingBlock
+          title="Fetching marketplace data"
+          message="Reading active listings and categories from the BabyLoop API."
+        />
+      </PageContainer>
+    </SiteShell>
   );
 }

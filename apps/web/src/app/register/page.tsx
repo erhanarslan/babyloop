@@ -1,27 +1,25 @@
 import Link from "next/link";
+import { Card, PageContainer, PageHeading, SiteShell } from "../../components/ui";
 import { AuthForm } from "../../features/auth/auth-form";
-import { SiteHeader } from "../../components/site-header";
 import { getApiBaseUrl } from "../../lib/api";
 
 export default function RegisterPage() {
   return (
-    <main>
-      <SiteHeader />
+    <SiteShell>
+      <PageHeading
+        eyebrow="Account"
+        title="Create account"
+        description="Create a local BabyLoop user and linked marketplace profile."
+      />
 
-      <section className="section page-heading">
-        <p className="eyebrow">Account</p>
-        <h1>Create account</h1>
-        <p>Create a local BabyLoop user and linked marketplace profile.</p>
-      </section>
-
-      <section className="section auth-layout" aria-label="Register form">
-        <div className="form-panel auth-panel">
+      <PageContainer className="auth-layout" ariaLabel="Register form">
+        <Card className="form-panel auth-panel">
           <AuthForm apiBaseUrl={getApiBaseUrl()} mode="register" />
           <p className="form-note">
             Already registered? <Link href="/login">Login</Link>
           </p>
-        </div>
-      </section>
-    </main>
+        </Card>
+      </PageContainer>
+    </SiteShell>
   );
 }

@@ -1,18 +1,19 @@
 import Link from "next/link";
-import { SiteHeader } from "../../../components/site-header";
+import { PageContainer, PageHeading, SiteShell } from "../../../components/ui";
 
 export default function ListingNotFound() {
   return (
-    <main>
-      <SiteHeader />
-      <section className="section page-heading">
-        <p className="eyebrow">Listing detail</p>
-        <h1>Listing not found</h1>
-        <p>The listing may be inactive, removed, or not available in the current seed data.</p>
+    <SiteShell>
+      <PageHeading
+        eyebrow="Listing detail"
+        title="Listing not found"
+        description="The listing may be inactive, removed, or not available in the current seed data."
+      />
+      <PageContainer>
         <Link className="primary-link" href="/browse">
           Back to browse
         </Link>
-      </section>
-    </main>
+      </PageContainer>
+    </SiteShell>
   );
 }

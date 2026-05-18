@@ -1,14 +1,12 @@
-import { SiteHeader } from "../../../components/site-header";
+import { LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../../components/ui";
 
 export default function ListingDetailLoading() {
   return (
-    <main>
-      <SiteHeader />
-      <section className="section page-heading">
-        <p className="eyebrow">Listing detail</p>
-        <h1>Loading listing</h1>
-        <p>Fetching listing detail from the BabyLoop API.</p>
-      </section>
-    </main>
+    <SiteShell>
+      <PageHeading eyebrow="Listing detail" title="Loading listing" />
+      <PageContainer>
+        <LoadingBlock title="Fetching listing detail" message="Reading this listing from the BabyLoop API." />
+      </PageContainer>
+    </SiteShell>
   );
 }

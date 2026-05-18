@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Alert, Button } from "../../components/ui";
 import { getAuthToken } from "../../lib/auth-client";
 import type { Category } from "../../lib/api";
 import { AiSuggestionPanel } from "./ai-suggestion-panel";
@@ -102,15 +103,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       <SellListingFields categories={categories} />
 
       {errorMessage ? (
-        <p className="form-error" role="alert">
-          {errorMessage}
-        </p>
+        <Alert title="Listing could not be created" message={errorMessage} />
       ) : null}
 
       {aiErrorMessage ? (
-        <p className="form-error" role="status">
-          {aiErrorMessage}
-        </p>
+        <Alert title="AI suggestion unavailable" message={aiErrorMessage} />
       ) : null}
 
       {suggestion ? <AiSuggestionPanel suggestion={suggestion} /> : null}
@@ -118,8 +115,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       <div className="form-actions">
         <p className="form-note">Seller profile comes from your login token.</p>
         <div className="form-button-row">
-          <button
-            className="secondary-button"
+          <Button
+            variant="secondary"
             type="button"
             disabled={isSuggesting}
             onClick={(event) => {
@@ -127,14 +124,10 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
             }}
           >
             {isSuggesting ? "Generating..." : "Generate with AI"}
-          </button>
-          <button
-            className="submit-button"
-            type="submit"
-            disabled={isSubmitting || !hasCategories}
-          >
+          </Button>
+          <Button type="submit" disabled={isSubmitting || !hasCategories}>
             {isSubmitting ? "Creating..." : "Create listing"}
-          </button>
+          </Button>
         </div>
       </div>
     </form>
@@ -212,4 +205,3 @@ function fillSuggestionFields(form: HTMLFormElement, suggestion: ListingSuggesti
     descriptionField.value = suggestion.suggestedDescription;
   }
 }
-

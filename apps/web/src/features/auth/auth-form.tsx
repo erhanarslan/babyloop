@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Alert, Button } from "../../components/ui";
 import { setAuthToken } from "../../lib/auth-client";
 import { AuthFields } from "./auth-fields";
 import { submitAuthRequest, type AuthMode } from "./api";
@@ -54,18 +55,16 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       <AuthFields mode={mode} />
 
       {errorMessage ? (
-        <p className="form-error" role="alert">
-          {errorMessage}
-        </p>
+        <Alert title="Account request failed" message={errorMessage} />
       ) : null}
 
       <div className="form-actions">
         <p className="form-note">
           {isRegister ? "Creates a user and marketplace profile." : "Uses your BabyLoop token."}
         </p>
-        <button className="submit-button" type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Submitting..." : isRegister ? "Create account" : "Login"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -93,4 +92,3 @@ function getString(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
 }
-

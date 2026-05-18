@@ -674,6 +674,11 @@ describe("messaging API", () => {
     expect(blank.statusCode).toBe(400);
     expect(sent.statusCode).toBe(201);
     expect(listed.json().data.conversations[0].lastMessageAt).toEqual(expect.any(String));
+    expect(listed.json().data.conversations[0].latestMessage).toMatchObject({
+      body: "Can we arrange pickup?",
+      senderProfileId: buyer.profile.id,
+      createdAt: expect.any(String)
+    });
 
     const [row] = await app.db
       .select({

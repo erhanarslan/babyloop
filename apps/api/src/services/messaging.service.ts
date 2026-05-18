@@ -29,6 +29,11 @@ export type ConversationSummaryResponse = {
     id: string;
     title: string;
   } | null;
+  latestMessage: {
+    body: string;
+    senderProfileId: string;
+    createdAt: string;
+  } | null;
   status: string;
   lastMessageAt: string | null;
   createdAt: string;
@@ -63,6 +68,12 @@ type ConversationSummaryRow = {
 type ListingContextResponse = {
   id: string;
   title: string;
+} | null;
+
+type LatestMessageResponse = {
+  body: string;
+  senderProfileId: string;
+  createdAt: string;
 } | null;
 
 export async function createOrGetConversation(
@@ -192,9 +203,12 @@ export async function listConversationsForProfile(
 
   return Promise.all(
     rows.map(async (row) => {
-      const contextListing = await getLatestListingContext(app, row.id);
+      const [contextListing, latestMessage] = await Promise.all([
+        getLatestListingContext(app, row.id),
+        getLatestMessage(app, row.id)
+      ]);
 
-      return mapConversationSummary(row, profileId, contextListing);
+      return mapConversationSummary(row, profileId, contextListing, latestMessage);
     })
   );
 }
@@ -365,9 +379,12 @@ async function getConversationSummary(
     return null;
   }
 
-  const contextListing = await getLatestListingContext(app, conversationId);
+  const [contextListing, latestMessage] = await Promise.all([
+    getLatestListingContext(app, conversationId),
+    getLatestMessage(app, conversationId)
+  ]);
 
-  return mapConversationSummary(row, viewerProfileId, contextListing);
+  return mapConversationSummary(row, viewerProfileId, contextListing, latestMessage);
 }
 
 async function getLatestListingContext(
@@ -386,6 +403,30 @@ async function getLatestListingContext(
     .limit(1);
 
   return row ?? null;
+}
+
+async function getLatestMessage(
+  app: FastifyInstance,
+  conversationId: string
+): Promise<LatestMessageResponse> {
+  const [row] = await app.db
+    .select({
+      body: messages.body,
+      senderProfileId: messages.senderProfileId,
+      createdAt: messages.createdAt
+    })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+
+  return row
+    ? {
+        body: row.body,
+        senderProfileId: row.senderProfileId,
+        createdAt: row.createdAt.toISOString()
+      }
+    : null;
 }
 
 async function getConversationAccess(
@@ -429,7 +470,8 @@ function normalizeProfilePair(
 function mapConversationSummary(
   row: ConversationSummaryRow,
   viewerProfileId: string,
-  contextListing: ListingContextResponse
+  contextListing: ListingContextResponse,
+  latestMessage: LatestMessageResponse
 ): ConversationSummaryResponse {
   const otherProfile =
     row.profileLowId === viewerProfileId
@@ -446,6 +488,7 @@ function mapConversationSummary(
     id: row.id,
     otherProfile,
     contextListing,
+    latestMessage,
     status: row.status,
     lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

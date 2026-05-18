@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EmptyState, PageContainer, PageHeading, SiteShell } from "../../../components/ui";
 import { FavoriteButton } from "../../../features/favorites/favorite-button";
 import { MessageSellerButton } from "../../../features/messaging/message-seller-button";
-import { SiteHeader } from "../../../components/site-header";
 import {
   fetchApi,
   getApiBaseUrl,
@@ -27,27 +27,26 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
     }
 
     return (
-      <main>
-        <SiteHeader />
-        <section className="section page-heading">
-          <p className="eyebrow">Listing detail</p>
-          <h1>Listing unavailable</h1>
-          <p>{result.error.message}</p>
+      <SiteShell>
+        <PageHeading
+          eyebrow="Listing detail"
+          title="Listing unavailable"
+          description={result.error.message}
+        />
+        <PageContainer>
           <Link className="primary-link" href="/browse">
             Back to browse
           </Link>
-        </section>
-      </main>
+        </PageContainer>
+      </SiteShell>
     );
   }
 
   const { listing } = result.data;
 
   return (
-    <main>
-      <SiteHeader />
-
-      <section className="section detail-layout">
+    <SiteShell>
+      <PageContainer className="detail-layout">
         <div className="detail-media">
           {listing.images.length > 0 ? (
             listing.images.map((image) => (
@@ -57,10 +56,10 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
               </div>
             ))
           ) : (
-            <div className="empty-state">
-              <h2>No images yet.</h2>
-              <p>Image upload and processing will come in a later phase.</p>
-            </div>
+            <EmptyState
+              title="No images yet."
+              message="Image upload and processing will come in a later phase."
+            />
           )}
         </div>
 
@@ -104,8 +103,8 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
             </div>
           </dl>
         </article>
-      </section>
-    </main>
+      </PageContainer>
+    </SiteShell>
   );
 }
 

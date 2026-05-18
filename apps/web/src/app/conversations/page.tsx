@@ -1,19 +1,18 @@
-import { SiteHeader } from "../../components/site-header";
+import { PageContainer, PageHeading, SiteShell } from "../../components/ui";
 import { ConversationList } from "../../features/messaging/conversation-list";
 import { getApiBaseUrl } from "../../lib/api";
 
 export default function ConversationsPage() {
   return (
-    <main>
-      <SiteHeader />
-      <section className="section page-heading">
-        <p className="eyebrow">Messages</p>
-        <h1>Conversations</h1>
-        <p>Keep buyer and seller messages in one conversation per profile pair.</p>
-      </section>
-      <section className="section conversations-layout">
+    <SiteShell>
+      <PageHeading
+        eyebrow="Messages"
+        title="Conversations"
+        description="Keep buyer and seller messages in one conversation per profile pair."
+      />
+      <PageContainer className="conversations-layout">
         <ConversationList apiBaseUrl={getApiBaseUrl()} />
-      </section>
-    </main>
+      </PageContainer>
+    </SiteShell>
   );
 }

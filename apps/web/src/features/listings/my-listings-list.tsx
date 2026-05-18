@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Badge, EmptyState, LoadingBlock } from "../../components/ui";
 import { getAuthToken } from "../../lib/auth-client";
 import type { ListingSummary } from "../../lib/api";
 import { fetchMyListings } from "./api";
@@ -57,34 +58,23 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   }, [apiBaseUrl]);
 
   if (isLoading) {
-    return (
-      <div className="empty-state">
-        <h2>Loading your listings</h2>
-      </div>
-    );
+    return <LoadingBlock title="Loading your listings" />;
   }
 
   if (message) {
     return (
-      <div className="empty-state">
-        <h2>Listings unavailable</h2>
-        <p>{message}</p>
-        <Link className="primary-link" href="/login">
-          Login
-        </Link>
-      </div>
+      <EmptyState title="Listings unavailable" message={message} actionHref="/login" actionLabel="Login" />
     );
   }
 
   if (listings.length === 0) {
     return (
-      <div className="empty-state">
-        <h2>No listings yet.</h2>
-        <p>Create your first BabyLoop listing from the sell page.</p>
-        <Link className="primary-link" href="/sell">
-          Sell an item
-        </Link>
-      </div>
+      <EmptyState
+        title="No listings yet."
+        message="Create your first BabyLoop listing from the sell page."
+        actionHref="/sell"
+        actionLabel="Sell an item"
+      />
     );
   }
 
@@ -99,7 +89,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
             <div>
               <p className="listing-meta">{listing.category.name}</p>
               <h2>{listing.title}</h2>
-              <p className="muted">Status: {listing.status}</p>
+              <Badge tone={listing.status === "active" ? "success" : "neutral"}>
+                {listing.status}
+              </Badge>
             </div>
             <div className="listing-card-footer">
               <strong>{formatPrice(listing.price)}</strong>

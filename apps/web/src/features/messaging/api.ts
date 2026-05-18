@@ -13,6 +13,11 @@ export type ConversationSummary = {
     id: string;
     title: string;
   } | null;
+  latestMessage: {
+    body: string;
+    senderProfileId: string;
+    createdAt: string;
+  } | null;
   status: string;
   lastMessageAt: string | null;
   createdAt: string;

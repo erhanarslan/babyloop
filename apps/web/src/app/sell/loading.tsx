@@ -1,13 +1,12 @@
-import { SiteHeader } from "../../components/site-header";
+import { LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../components/ui";
 
 export default function SellLoading() {
   return (
-    <main>
-      <SiteHeader />
-      <section className="section page-heading">
-        <p className="eyebrow">Sell on BabyLoop</p>
-        <h1>Loading listing form...</h1>
-      </section>
-    </main>
+    <SiteShell>
+      <PageHeading eyebrow="Sell on BabyLoop" title="Loading listing form" />
+      <PageContainer>
+        <LoadingBlock title="Preparing form" message="Loading categories and form options." />
+      </PageContainer>
+    </SiteShell>
   );
 }

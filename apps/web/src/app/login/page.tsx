@@ -1,27 +1,25 @@
 import Link from "next/link";
+import { Card, PageContainer, PageHeading, SiteShell } from "../../components/ui";
 import { AuthForm } from "../../features/auth/auth-form";
-import { SiteHeader } from "../../components/site-header";
 import { getApiBaseUrl } from "../../lib/api";
 
 export default function LoginPage() {
   return (
-    <main>
-      <SiteHeader />
+    <SiteShell>
+      <PageHeading
+        eyebrow="Account"
+        title="Login"
+        description="Use your BabyLoop account to create listings and save favorites."
+      />
 
-      <section className="section page-heading">
-        <p className="eyebrow">Account</p>
-        <h1>Login</h1>
-        <p>Use your BabyLoop account to create listings and save favorites.</p>
-      </section>
-
-      <section className="section auth-layout" aria-label="Login form">
-        <div className="form-panel auth-panel">
+      <PageContainer className="auth-layout" ariaLabel="Login form">
+        <Card className="form-panel auth-panel">
           <AuthForm apiBaseUrl={getApiBaseUrl()} mode="login" />
           <p className="form-note">
             No account yet? <Link href="/register">Create one</Link>
           </p>
-        </div>
-      </section>
-    </main>
+        </Card>
+      </PageContainer>
+    </SiteShell>
   );
 }

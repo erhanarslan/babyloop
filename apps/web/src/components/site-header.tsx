@@ -14,17 +14,19 @@ const navItems = [
 export function SiteHeader() {
   return (
     <header className="site-header" aria-label="Main navigation">
-      <Link className="brand" href="/" aria-label="BabyLoop home">
-        BabyLoop
-      </Link>
-      <nav className="nav-links">
-        {navItems.map((item) => (
-          <Link key={item.href} href={item.href}>
-            {item.label}
-          </Link>
-        ))}
-        <AuthNav apiBaseUrl={getApiBaseUrl()} />
-      </nav>
+      <div className="site-header-inner">
+        <Link className="brand" href="/" aria-label="BabyLoop home">
+          BabyLoop
+        </Link>
+        <nav className="nav-links">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
+          <AuthNav apiBaseUrl={getApiBaseUrl()} />
+        </nav>
+      </div>
     </header>
   );
 }

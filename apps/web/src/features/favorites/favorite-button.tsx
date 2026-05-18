@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Alert, Button } from "../../components/ui";
 import { getAuthToken } from "../../lib/auth-client";
 import { fetchFavorites, saveFavorite } from "./api";
 
@@ -76,16 +77,14 @@ export function FavoriteButton({
 
   return (
     <div className="favorite-action">
-      <button
-        className={isFavorited ? "secondary-button" : "submit-button"}
+      <Button
+        variant={isFavorited ? "secondary" : "primary"}
         disabled={isPending}
-        type="button"
         onClick={handleClick}
       >
         {isPending ? "Saving..." : isFavorited ? "Unfavorite" : "Favorite"}
-      </button>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+      </Button>
+      {errorMessage ? <Alert title="Favorite action failed" message={errorMessage} /> : null}
     </div>
   );
 }
-

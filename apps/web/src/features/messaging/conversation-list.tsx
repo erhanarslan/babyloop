@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EmptyState, LoadingBlock } from "../../components/ui";
 import { getAuthToken } from "../../lib/auth-client";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
@@ -14,12 +14,14 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [state, setState] = useState<"auth" | "error" | null>(null);
 
   useEffect(() => {
     let isActive = true;
 
     async function loadConversations() {
       if (!getAuthToken()) {
+        setState("auth");
         setMessage("Please log in to view your conversations.");
         setIsLoading(false);
         return;
@@ -33,6 +35,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
         }
 
         if (!body.ok) {
+          setState(body.error.code === "FORBIDDEN" || body.error.code === "UNAUTHORIZED" ? "auth" : "error");
           setMessage(body.error.message);
           return;
         }
@@ -40,6 +43,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
         setConversations(body.data.conversations);
       } catch {
         if (isActive) {
+          setState("error");
           setMessage("BabyLoop API is unavailable.");
         }
       } finally {
@@ -57,34 +61,28 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   }, [apiBaseUrl]);
 
   if (isLoading) {
-    return (
-      <div className="empty-state">
-        <h2>Loading conversations</h2>
-      </div>
-    );
+    return <LoadingBlock title="Loading conversations" />;
   }
 
   if (message) {
     return (
-      <div className="empty-state">
-        <h2>Messages unavailable</h2>
-        <p>{message}</p>
-        <Link className="primary-link" href="/login">
-          Login
-        </Link>
-      </div>
+      <EmptyState
+        title={state === "auth" ? "Login required" : "Messages unavailable"}
+        message={message}
+        actionHref={state === "auth" ? "/login" : undefined}
+        actionLabel={state === "auth" ? "Login" : undefined}
+      />
     );
   }
 
   if (conversations.length === 0) {
     return (
-      <div className="empty-state">
-        <h2>No conversations yet.</h2>
-        <p>Start from a listing detail page by messaging a seller.</p>
-        <Link className="primary-link" href="/browse">
-          Browse listings
-        </Link>
-      </div>
+      <EmptyState
+        title="No conversations yet."
+        message="Start from a listing detail page by messaging a seller."
+        actionHref="/browse"
+        actionLabel="Browse listings"
+      />
     );
   }
 

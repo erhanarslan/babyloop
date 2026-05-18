@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Alert, Button, Textarea } from "../../components/ui";
 import { sendMessage } from "./api";
 
 type MessageComposerProps = {
@@ -46,20 +47,22 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
 
   return (
     <form className="message-composer" onSubmit={handleSubmit}>
-      <label className="form-field">
-        Message
-        <textarea
-          rows={3}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Write a short message"
-        />
-      </label>
+      <Textarea
+        label="Message"
+        rows={3}
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        placeholder="Write a short message"
+      />
       <div className="form-actions">
-        {errorMessage ? <p className="form-error">{errorMessage}</p> : <p className="form-note">Messages are visible to conversation participants only.</p>}
-        <button className="submit-button" disabled={isPending} type="submit">
+        {errorMessage ? (
+          <Alert title="Message was not sent" message={errorMessage} />
+        ) : (
+          <p className="form-note">Messages are visible to conversation participants only.</p>
+        )}
+        <Button disabled={isPending || body.trim().length === 0} type="submit">
           {isPending ? "Sending..." : "Send message"}
-        </button>
+        </Button>
       </div>
     </form>
   );

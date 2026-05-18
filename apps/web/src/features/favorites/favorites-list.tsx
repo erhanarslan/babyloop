@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EmptyState, LoadingBlock } from "../../components/ui";
 import { getAuthToken } from "../../lib/auth-client";
 import type { FavoriteListing } from "../../lib/api";
 import { fetchFavorites } from "./api";
@@ -58,34 +58,23 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
   }, [apiBaseUrl]);
 
   if (isLoading) {
-    return (
-      <div className="empty-state">
-        <h2>Loading saved listings</h2>
-      </div>
-    );
+    return <LoadingBlock title="Loading saved listings" />;
   }
 
   if (message) {
     return (
-      <div className="empty-state">
-        <h2>Favorites unavailable</h2>
-        <p>{message}</p>
-        <Link className="primary-link" href="/login">
-          Login
-        </Link>
-      </div>
+      <EmptyState title="Favorites unavailable" message={message} actionHref="/login" actionLabel="Login" />
     );
   }
 
   if (favorites.length === 0) {
     return (
-      <div className="empty-state">
-        <h2>No saved listings yet.</h2>
-        <p>Open a listing detail page and save it with your logged-in account.</p>
-        <Link className="primary-link" href="/browse">
-          Browse listings
-        </Link>
-      </div>
+      <EmptyState
+        title="No saved listings yet."
+        message="Open a listing detail page and save it with your logged-in account."
+        actionHref="/browse"
+        actionLabel="Browse listings"
+      />
     );
   }
 
@@ -97,4 +86,3 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
     </div>
   );
 }
-

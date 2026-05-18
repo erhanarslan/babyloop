@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "../components/site-header";
+import { Card, SiteShell } from "../components/ui";
 
 export default function HomePage() {
   const aiFeatures = [
@@ -9,9 +9,7 @@ export default function HomePage() {
   ];
 
   return (
-    <main>
-      <SiteHeader />
-
+    <SiteShell>
       <section className="hero section" id="home" aria-labelledby="page-title">
         <div className="hero-copy">
           <p className="eyebrow">Baby and family marketplace</p>
@@ -24,7 +22,7 @@ export default function HomePage() {
             Browse sample listings
           </Link>
         </div>
-        <div className="hero-panel" aria-label="Marketplace preview">
+        <Card className="hero-panel" aria-label="Marketplace preview">
           <div className="panel-row strong">
             <span>Stroller set</span>
             <strong>AI price range</strong>
@@ -37,7 +35,7 @@ export default function HomePage() {
             <span>6-9 month stage</span>
             <strong>Next picks</strong>
           </div>
-        </div>
+        </Card>
       </section>
 
       <section className="section split" id="browse" aria-labelledby="concept-title">
@@ -93,6 +91,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-    </main>
+    </SiteShell>
   );
 }

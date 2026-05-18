@@ -1,4 +1,4 @@
-import { SiteHeader } from "../../components/site-header";
+import { Alert, Card, PageContainer, PageHeading, SiteShell } from "../../components/ui";
 import { SellListingForm } from "../../features/listings/sell-listing-form";
 import { fetchApi, getApiBaseUrl, type CategoriesPayload } from "../../lib/api";
 
@@ -10,30 +10,22 @@ export default async function SellPage() {
   const errorMessage = categoriesResult.ok ? null : categoriesResult.error.message;
 
   return (
-    <main>
-      <SiteHeader />
+    <SiteShell>
+      <PageHeading
+        eyebrow="Sell on BabyLoop"
+        title="Create a manual listing"
+        description="Add a local development listing with the read-only marketplace API now connected to a minimal create flow."
+      />
 
-      <section className="section page-heading">
-        <p className="eyebrow">Sell on BabyLoop</p>
-        <h1>Create a manual listing</h1>
-        <p>
-          Add a local development listing with the read-only marketplace API now connected
-          to a minimal create flow.
-        </p>
-      </section>
-
-      <section className="section sell-layout" aria-label="Create listing form">
+      <PageContainer className="sell-layout" ariaLabel="Create listing form">
         {errorMessage ? (
-          <div className="error-state" role="status">
-            <h2>Marketplace API is not ready.</h2>
-            <p>{errorMessage}</p>
-          </div>
+          <Alert title="Marketplace API is not ready." message={errorMessage} />
         ) : null}
 
-        <div className="form-panel">
+        <Card className="form-panel">
           <SellListingForm categories={categories} apiBaseUrl={getApiBaseUrl()} />
-        </div>
-      </section>
-    </main>
+        </Card>
+      </PageContainer>
+    </SiteShell>
   );
 }
