@@ -2,21 +2,64 @@
 
 BabyLoop is a long-term full-stack AI marketplace project for baby and family products.
 
-This repository currently contains a small verified product foundation:
+This repository currently contains a verified local MVP foundation:
 
 - pnpm workspaces
 - Turborepo
 - TypeScript
-- `apps/web`: minimal Next.js app with browse, detail, sell, and favorites pages
-- `apps/api`: Fastify API with health, marketplace read endpoints, manual listing creation, mock AI listing suggestions, favorites, and messaging backend endpoints
+- `apps/web`: Next.js app with home, browse, listing detail, sell, favorites, my listings, auth, and messaging pages
+- `apps/api`: Fastify API with health, auth, marketplace listings, favorites, mock AI listing suggestions, and messaging endpoints
 - `packages/shared`: shared API response type
 - `packages/config`: shared app constants
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
 - `packages/ai-core`: deterministic mock listing suggestion provider
 
-The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, token-protected listing creation, and token-protected favorite add/remove/list flows.
+The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, access-token protected listing creation, favorites, my listings, and messaging flows.
 
 Admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
+
+## Current Implemented Features
+
+Implemented:
+
+| Area | Current state |
+| --- | --- |
+| Auth | Email/password register and login, `GET /api/v1/auth/me`, signed access tokens, basic auth rate limiting. |
+| Listings | Public active listing list/detail, authenticated listing creation, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
+| Listing images | Optional image URL metadata can be stored and rendered with graceful fallback. Real upload/storage is not implemented. |
+| Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. |
+| Messaging | Authenticated conversation API, web conversations list, web thread page, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
+| Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
+| Tests | API integration tests with Vitest and `fastify.inject`. |
+
+Partially implemented:
+
+| Area | Current limitation |
+| --- | --- |
+| Auth/session | Access-token auth exists, but browser storage is still local-MVP level. No refresh/session table or HTTP-only cookie flow yet. |
+| Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
+| Messaging | List/thread/send works, but no realtime delivery, unread counts, reporting, blocking, attachments, notifications, or moderation. |
+| AI | Mock suggestion flow exists. No real LLM provider, price recommendation, RAG, moderation, or recommendation engine yet. |
+
+Not implemented:
+
+- Google OAuth
+- password reset and email verification
+- real image upload/storage
+- listing edit/archive/delete lifecycle as user-facing API/UI
+- admin panel
+- mobile app
+- payments
+- realtime messaging
+- moderation/trust and safety workflows
+- production observability/deployment pipeline
+
+Intentionally deferred:
+
+- admin, worker, and mobile apps
+- real AI providers, pricing, RAG, recommendations, and AI moderation
+- notifications and background automation
+- production-grade auth/session hardening
 
 ## Install
 
@@ -49,6 +92,21 @@ pnpm build
 ```
 
 The root commands use Turborepo and build package dependencies before apps.
+
+## Validation Commands
+
+Currently available validation commands:
+
+```bash
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm --filter @babyloop/api test
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/web typecheck
+pnpm --filter @babyloop/database typecheck
+pnpm --filter @babyloop/database db:check
+```
 
 ## Verification
 
@@ -165,6 +223,8 @@ http://localhost:3000/register
 http://localhost:3000/login
 http://localhost:3000/sell
 http://localhost:3000/favorites
+http://localhost:3000/my-listings
+http://localhost:3000/conversations
 ```
 
 Expected seed data:
@@ -226,11 +286,20 @@ BABYLOOP_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web dev
 
 - Open `http://localhost:3000/login`.
 - Login as `ayse@example.com` / `Test123456`.
+- Browse listings at `/browse`.
 - Open Mehmet's car seat listing: `/listings/30000000-0000-4000-8000-000000000002`.
+- Confirm listing detail shows seller, image/fallback, condition, listing type, favorite action, and message action.
 - Favorite Mehmet's listing.
-- Start a conversation with Mehmet from a listing once messaging UI exists.
+- Open `/favorites` and confirm the saved listing appears.
+- Open `/sell`, create a manual listing, and confirm redirect to its detail page.
+- Open `/my-listings` and confirm the created listing appears.
+- From Mehmet's listing detail, start a conversation with Mehmet.
+- Confirm redirect to `/conversations/:id`.
+- Send a plain text message.
+- Open `/conversations` and confirm the conversation appears.
+- Reopen the conversation thread and confirm the message appears.
 - Logout, then login as `mehmet@example.com` / `Test123456`.
-- Verify the conversation can be listed and replied to once messaging UI exists.
+- Open `/conversations`, open the conversation thread, and reply.
 
 Current local feature checks:
 
@@ -243,6 +312,18 @@ curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
   -H 'content-type: application/json' \
   -d '{"title":"Chicco stroller","categoryName":"Strollers","condition":"good"}'
 ```
+
+## Productization Blockers
+
+- production-grade auth/session transport
+- Google OAuth
+- listing edit/archive/delete lifecycle
+- image upload/storage and media validation
+- search/filter/pagination
+- messaging unread state, realtime delivery, report, and block flows
+- admin/moderation tools
+- trust and safety policy enforcement
+- CI, deployment, and observability
 
 ## API Integration Tests
 

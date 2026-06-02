@@ -18,11 +18,13 @@ BabyLoop currently has a working local full-stack foundation:
 - listings
 - favorites
 - mock AI listing suggestions
-- messaging backend foundation
+- messaging API foundation
+- messaging web UI foundation
+- API integration tests with Vitest
 
 Current stabilization concerns:
 
-- test infrastructure is missing.
+- API integration tests exist, but web/E2E/CI coverage is still missing.
 - auth is local-MVP level, not production-grade.
 - web UI is functional but not polished.
 - production readiness is low.
@@ -69,12 +71,58 @@ The old listing-based conversation model is deprecated.
 
 ## Phase 3: Validation and Tests
 
+Already present:
+
+- API integration tests under `apps/api/test`.
+- Vitest API tests use `fastify.inject`.
+- Auth, listings, favorites, messaging, and mock AI have API-level coverage.
+
 Recommended next stabilizers:
 
-- add lightweight API tests for auth-protected writes.
-- add messaging API tests for participant-only access.
+- add CI execution for existing validation commands.
+- add web component or E2E tests for browser-owned flows.
 - add migration safety notes before shared DB usage.
 - document local dev verification flows.
+
+## Productization Blockers
+
+- production-grade auth/session transport
+- Google OAuth
+- listing edit/archive/delete lifecycle
+- image upload/storage
+- search/filter/pagination
+- messaging unread/realtime/report/block flows
+- admin/moderation
+- trust and safety
+- CI/deployment/observability
+
+## Validation Commands
+
+```bash
+pnpm typecheck
+pnpm build
+pnpm test
+pnpm --filter @babyloop/api test
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/web typecheck
+pnpm --filter @babyloop/database typecheck
+pnpm --filter @babyloop/database db:check
+```
+
+## Manual QA Baseline
+
+- register
+- login
+- browse listings
+- listing detail
+- create listing
+- favorite/unfavorite
+- view favorites
+- my listings
+- start conversation from listing detail
+- open conversations list
+- open conversation thread
+- send message
 
 ## Do Not Regress
 

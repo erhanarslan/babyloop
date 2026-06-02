@@ -133,6 +133,7 @@ Endpoints:
 | --- | --- | --- |
 | `POST` | `/api/v1/conversations` | Create or return profile-pair conversation and attach listing context. |
 | `GET` | `/api/v1/conversations` | List my conversations. |
+| `GET` | `/api/v1/conversations/:id` | Read one conversation summary as a participant. |
 | `GET` | `/api/v1/conversations/:id/messages` | List messages in a conversation. |
 | `POST` | `/api/v1/conversations/:id/messages` | Send plain text message. |
 
@@ -141,12 +142,21 @@ Request contracts:
 - `POST /conversations`: `{ "listingId": "uuid" }`
 - `POST /conversations/:id/messages`: `{ "body": "plain text" }`
 
-First web flow:
+Implemented web flow:
 
-- listing detail can later show a "Message seller" action for logged-in non-sellers.
-- conversations page can later list threads and messages.
+- listing detail shows a "Message seller" action for logged-in non-sellers.
+- listing detail prevents or redirects unauthenticated users to login.
+- `/conversations` lists authenticated user's conversations.
+- `/conversations/[id]` shows the conversation thread.
+- the thread page includes a plain text message composer.
 
-Do not build web UI until explicitly requested.
+Not implemented in the web flow yet:
+
+- realtime updates
+- unread state
+- report/block actions
+- attachments
+- AI moderation indicators
 
 ## Future AI Moderation Hook
 
