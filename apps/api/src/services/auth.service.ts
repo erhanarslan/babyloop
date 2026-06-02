@@ -48,71 +48,71 @@ export async function registerUser(
   const existingUser = await findUserByEmail(app, body.email);
 
   if (existingUser) {
-    return {
-      status: "duplicate",
-      response: {
-        ok: false,
-        error: {
-          code: "EMAIL_ALREADY_REGISTERED",
-          message: "Email is already registered."
-        }
-      }
-    };
+    return duplicateEmailRegistration();
   }
 
   const passwordHash = await hashPassword(body.password);
-  const created = await app.db.transaction(async (tx) => {
-    const [createdUser] = await tx
-      .insert(users)
-      .values({
-        email: body.email,
-        passwordHash,
-        role: "user"
-      })
-      .returning({
-        id: users.id,
-        email: users.email,
-        role: users.role
+
+  try {
+    const created = await app.db.transaction(async (tx) => {
+      const [createdUser] = await tx
+        .insert(users)
+        .values({
+          email: body.email,
+          passwordHash,
+          role: "user"
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          role: users.role
+        });
+
+      if (!createdUser) {
+        throw new Error("User insert failed.");
+      }
+
+      const [createdProfile] = await tx
+        .insert(profiles)
+        .values({
+          userId: createdUser.id,
+          displayName: body.displayName,
+          locationCity: body.locationCity
+        })
+        .returning({
+          id: profiles.id,
+          displayName: profiles.displayName,
+          locationCity: profiles.locationCity
+        });
+
+      if (!createdProfile) {
+        throw new Error("Profile insert failed.");
+      }
+
+      await tx.insert(authAccounts).values({
+        email: createdUser.email,
+        provider: "password",
+        providerAccountId: createdUser.email,
+        userId: createdUser.id
       });
 
-    if (!createdUser) {
-      throw new Error("User insert failed.");
-    }
-
-    const [createdProfile] = await tx
-      .insert(profiles)
-      .values({
-        userId: createdUser.id,
-        displayName: body.displayName,
-        locationCity: body.locationCity
-      })
-      .returning({
-        id: profiles.id,
-        displayName: profiles.displayName,
-        locationCity: profiles.locationCity
-      });
-
-    if (!createdProfile) {
-      throw new Error("Profile insert failed.");
-    }
-
-    await tx.insert(authAccounts).values({
-      email: createdUser.email,
-      provider: "password",
-      providerAccountId: createdUser.email,
-      userId: createdUser.id
+      return {
+        profile: createdProfile,
+        user: createdUser
+      };
     });
 
     return {
-      profile: createdProfile,
-      user: createdUser
+      status: "created",
+      response: buildAuthResponse(created)
     };
-  });
+  } catch (error) {
+    if (isDuplicateRegistrationConstraint(error)) {
+      return duplicateEmailRegistration();
+    }
 
-  return {
-    status: "created",
-    response: buildAuthResponse(created)
-  };
+    throw error;
+  }
 }
 
 export async function loginUser(
@@ -189,6 +189,33 @@ export function invalidAuthRequest(): ApiFailure {
       message: "Auth request body is invalid."
     }
   };
+}
+
+function duplicateEmailRegistration(): { status: "duplicate"; response: ApiFailure } {
+  return {
+    status: "duplicate",
+    response: {
+      ok: false,
+      error: {
+        code: "EMAIL_ALREADY_REGISTERED",
+        message: "Email is already registered."
+      }
+    }
+  };
+}
+
+function isDuplicateRegistrationConstraint(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+
+  const dbError = error as { code?: unknown; constraint?: unknown };
+
+  return (
+    dbError.code === "23505" &&
+    (dbError.constraint === "users_email_unique" ||
+      dbError.constraint === "auth_accounts_provider_account_unique")
+  );
 }
 
 function buildAuthResponse(value: { user: SafeAuthUser; profile: SafeAuthProfile }): AuthSuccess {

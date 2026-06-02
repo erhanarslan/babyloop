@@ -58,8 +58,10 @@ describe("auth API", () => {
         }
       }
     });
+
     expect(response.json().data.accessToken).toEqual(expect.any(String));
     expect(response.body).not.toContain("passwordHash");
+    expect(response.body).not.toContain("password_hash");
   });
 
   it("trims and normalizes registered email", async () => {
@@ -89,8 +91,11 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(201);
+
     const registeredUser = response.json().data.user;
+
     const login = await loginUser(app, "account.linked@example.com", "Password123!");
+
     const accountRows = await app.db
       .select({
         email: authAccounts.email,
@@ -113,8 +118,12 @@ describe("auth API", () => {
   });
 
   it("rolls back user and profile when password auth account creation fails", async () => {
-    const existingUser = await createUser(app, { email: "existing-account-owner@example.com" });
+    const existingUser = await createUser(app, {
+      email: "existing-account-owner@example.com"
+    });
+
     const conflictEmail = "conflict@example.com";
+
     await app.db.insert(authAccounts).values({
       email: conflictEmail,
       provider: "password",
@@ -131,15 +140,32 @@ describe("auth API", () => {
         password: "Password123!"
       }
     });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "EMAIL_ALREADY_REGISTERED"
+      }
+    });
+
+    expect(response.body).not.toContain("auth_accounts_provider_account_unique");
+    expect(response.body).not.toContain("users_email_unique");
+    expect(response.body).not.toContain("23505");
+    expect(response.body).not.toContain("duplicate key");
+    expect(response.body).not.toContain("violates unique constraint");
+
     const userRows = await app.db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, conflictEmail));
+
     const profileRows = await app.db
       .select({ id: profiles.id })
       .from(profiles)
       .innerJoin(users, eq(profiles.userId, users.id))
       .where(eq(users.email, conflictEmail));
+
     const accountRows = await app.db
       .select({
         provider: authAccounts.provider,
@@ -154,7 +180,6 @@ describe("auth API", () => {
         )
       );
 
-    expect(response.statusCode).toBeGreaterThanOrEqual(400);
     expect(userRows).toHaveLength(0);
     expect(profileRows).toHaveLength(0);
     expect(accountRows).toEqual([
@@ -207,7 +232,10 @@ describe("auth API", () => {
   });
 
   it("rejects duplicate email", async () => {
-    const user = await createUser(app, { email: "duplicate@example.com" });
+    const user = await createUser(app, {
+      email: "duplicate@example.com"
+    });
+
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/auth/register",
@@ -226,16 +254,34 @@ describe("auth API", () => {
       }
     });
 
+    expect(response.body).not.toContain("users_email_unique");
+    expect(response.body).not.toContain("auth_accounts_provider_account_unique");
+    expect(response.body).not.toContain("23505");
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "duplicate@example.com"));
+
     const accountRows = await app.db
       .select({ id: authAccounts.id })
       .from(authAccounts)
-      .where(eq(authAccounts.email, "duplicate@example.com"));
+      .where(
+        and(
+          eq(authAccounts.provider, "password"),
+          eq(authAccounts.providerAccountId, "duplicate@example.com")
+        )
+      );
 
+    expect(userRows).toHaveLength(1);
     expect(accountRows).toHaveLength(1);
   });
 
   it("rejects duplicate normalized email", async () => {
-    await createUser(app, { email: "Parent@Example.com" });
+    await createUser(app, {
+      email: "Parent@Example.com"
+    });
+
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/auth/register",
@@ -254,11 +300,26 @@ describe("auth API", () => {
       }
     });
 
+    expect(response.body).not.toContain("users_email_unique");
+    expect(response.body).not.toContain("auth_accounts_provider_account_unique");
+    expect(response.body).not.toContain("23505");
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "parent@example.com"));
+
     const accountRows = await app.db
       .select({ id: authAccounts.id })
       .from(authAccounts)
-      .where(eq(authAccounts.email, "parent@example.com"));
+      .where(
+        and(
+          eq(authAccounts.provider, "password"),
+          eq(authAccounts.providerAccountId, "parent@example.com")
+        )
+      );
 
+    expect(userRows).toHaveLength(1);
     expect(accountRows).toHaveLength(1);
   });
 
@@ -311,6 +372,7 @@ describe("auth API", () => {
 
   it("returns auth/me with a valid token", async () => {
     const user = await createUser(app);
+
     const response = await app.inject({
       headers: authHeader(user.accessToken),
       method: "GET",
@@ -318,11 +380,16 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(200);
+
     expect(response.body).not.toContain("passwordHash");
     expect(response.body).not.toContain("password_hash");
     expect(response.body).not.toContain("authAccounts");
+    expect(response.body).not.toContain("auth_accounts");
     expect(response.body).not.toContain("providerAccountId");
     expect(response.body).not.toContain("provider_account_id");
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("refresh_token");
+
     expect(response.json()).toMatchObject({
       ok: true,
       data: {
@@ -343,6 +410,12 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
   });
 
   it("returns 401 for auth/me with an invalid token", async () => {
@@ -363,6 +436,7 @@ describe("auth API", () => {
 
   it("rate limits auth login attempts", async () => {
     await app?.close();
+
     app = await createTestApp({
       authRateLimitMax: 1,
       authRateLimitWindowSeconds: 60
@@ -376,6 +450,7 @@ describe("auth API", () => {
         password: "Password123!"
       }
     });
+
     const limited = await app.inject({
       method: "POST",
       url: "/api/v1/auth/login",
