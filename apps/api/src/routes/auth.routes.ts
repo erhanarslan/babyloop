@@ -9,19 +9,23 @@ import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   attachAccessToken,
   buildAuthMeResponse,
+  buildLogoutAuthResponse,
   createAuthSession,
   invalidAuthRequest,
   loginUser,
   refreshAuthSession,
   registerUser,
+  revokeAuthSession,
   unauthorizedAuthRequest,
   type AuthMeResponse,
   type AuthResponse,
+  type LogoutAuthResponse,
   type AuthSessionRequestMeta,
   type AuthTokenOptions
 } from "../services/auth.service.js";
 import {
   readRefreshTokenCookie,
+  serializeExpiredRefreshTokenCookie,
   serializeRefreshTokenCookie
 } from "../utils/refresh-token.js";
 
@@ -112,6 +116,18 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptio
     }
   );
 
+  app.post<{ Reply: LogoutAuthResponse }>("/auth/logout", async (request, reply) => {
+    const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+
+    if (refreshToken) {
+      await revokeAuthSession(app, refreshToken);
+    }
+
+    clearRefreshTokenCookie(reply);
+
+    return reply.status(200).send(buildLogoutAuthResponse());
+  });
+
   app.get<{ Reply: AuthMeResponse }>("/auth/me", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 
@@ -156,4 +172,8 @@ function setRefreshTokenCookie(reply: FastifyReply, refreshToken: string, expire
       expiresAt
     })
   );
+}
+
+function clearRefreshTokenCookie(reply: FastifyReply): void {
+  reply.header("set-cookie", serializeExpiredRefreshTokenCookie());
 }

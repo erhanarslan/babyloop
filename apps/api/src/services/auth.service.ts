@@ -51,6 +51,10 @@ export type AuthMeResponse = ApiResponse<{
   profile: SafeAuthProfile;
 }>;
 
+export type LogoutAuthResponse = ApiSuccess<{
+  loggedOut: true;
+}>;
+
 type AuthSessionCreation = {
   expiresAt: Date;
   refreshToken: string;
@@ -276,6 +280,32 @@ export async function refreshAuthSession(
         role: sessionRow.role
       }
     })
+  };
+}
+
+export async function revokeAuthSession(app: FastifyInstance, refreshToken: string): Promise<void> {
+  const now = new Date();
+
+  await app.db
+    .update(sessions)
+    .set({
+      revokedAt: now,
+      updatedAt: now
+    })
+    .where(
+      and(
+        eq(sessions.refreshTokenHash, hashRefreshToken(refreshToken)),
+        isNull(sessions.revokedAt)
+      )
+    );
+}
+
+export function buildLogoutAuthResponse(): LogoutAuthResponse {
+  return {
+    ok: true,
+    data: {
+      loggedOut: true
+    }
   };
 }
 

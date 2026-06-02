@@ -417,6 +417,158 @@ describe("auth API", () => {
     });
   });
 
+  it("logs out without a refresh cookie and clears the refresh cookie", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        loggedOut: true
+      }
+    });
+
+    const clearCookie = getRefreshSetCookie(response);
+
+    expect(clearCookie).toContain("HttpOnly");
+    expect(clearCookie).toContain("SameSite=Lax");
+    expect(clearCookie).toContain("Path=/api/v1/auth");
+    expect(clearCookie).toContain("Max-Age=0");
+    expect(clearCookie).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+  });
+
+  it("logout clears the refresh cookie", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Cookie Logout Parent",
+        email: "cookie-logout-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const refreshCookie = getRefreshSetCookie(registerResponse);
+
+    const logoutResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(logoutResponse.statusCode).toBe(200);
+
+    const clearCookie = getRefreshSetCookie(logoutResponse);
+
+    expect(clearCookie).toContain("Max-Age=0");
+    expect(clearCookie).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+    expect(clearCookie).toContain("HttpOnly");
+    expect(clearCookie).toContain("SameSite=Lax");
+    expect(clearCookie).toContain("Path=/api/v1/auth");
+  });
+
+  it("logout revokes the current refresh session", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Revoked Logout Parent",
+        email: "revoked-logout-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const refreshCookie = getRefreshSetCookie(registerResponse);
+    const refreshToken = getCookieValue(refreshCookie);
+
+    const logoutResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(logoutResponse.statusCode).toBe(200);
+
+    const [sessionRow] = await app.db
+      .select({
+        revokedAt: sessions.revokedAt
+      })
+      .from(sessions)
+      .where(eq(sessions.refreshTokenHash, hashRefreshToken(refreshToken)))
+      .limit(1);
+
+    expect(sessionRow?.revokedAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects refresh after logout", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Refresh After Logout Parent",
+        email: "refresh-after-logout-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const refreshCookie = getRefreshSetCookie(registerResponse);
+
+    const logoutResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(logoutResponse.statusCode).toBe(200);
+
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(refreshResponse.statusCode).toBe(401);
+    expect(refreshResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
+  it("logout with an invalid refresh cookie still returns 200", async () => {
+    const response = await app.inject({
+      headers: {
+        cookie: `${REFRESH_TOKEN_COOKIE_NAME}=not-a-valid-refresh-token`
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        loggedOut: true
+      }
+    });
+
+    const clearCookie = getRefreshSetCookie(response);
+
+    expect(clearCookie).toContain("Max-Age=0");
+  });
+
   it("rolls back user and profile when password auth account creation fails", async () => {
     const existingUser = await createUser(app, {
       email: "existing-account-owner@example.com"
