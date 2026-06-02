@@ -1,10 +1,15 @@
-import { authAccounts, profiles, users } from "@babyloop/database/schema";
+import { authAccounts, profiles, sessions, users } from "@babyloop/database/schema";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type { LoginBody, RegisterBody } from "../schemas/auth.schemas.js";
 import { signAccessToken } from "../utils/access-token.js";
+import {
+  createRefreshToken,
+  createRefreshTokenExpiresAt,
+  hashRefreshToken
+} from "../utils/refresh-token.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 
 export type SafeAuthUser = {
@@ -26,6 +31,11 @@ export type AuthTokenOptions = {
   authTokenTtlSeconds: number;
 };
 
+export type AuthSessionRequestMeta = {
+  ipAddress: string | null;
+  userAgent: string | null;
+};
+
 type AuthPayload = {
   accessToken: string;
   user: SafeAuthUser;
@@ -40,6 +50,23 @@ export type AuthMeResponse = ApiResponse<{
   user: SafeAuthUser;
   profile: SafeAuthProfile;
 }>;
+
+type AuthSessionCreation = {
+  expiresAt: Date;
+  refreshToken: string;
+};
+
+type RefreshAuthSessionResult =
+  | {
+      status: "ok";
+      response: AuthSuccess;
+      expiresAt: Date;
+      refreshToken: string;
+    }
+  | {
+      status: "invalid";
+      response: ApiFailure;
+    };
 
 export async function registerUser(
   app: FastifyInstance,
@@ -145,6 +172,113 @@ export async function loginUser(
   };
 }
 
+export async function createAuthSession(
+  app: FastifyInstance,
+  userId: string,
+  requestMeta: AuthSessionRequestMeta
+): Promise<AuthSessionCreation> {
+  const refreshToken = createRefreshToken();
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+  const expiresAt = createRefreshTokenExpiresAt();
+
+  await app.db.insert(sessions).values({
+    expiresAt,
+    ipAddress: requestMeta.ipAddress,
+    refreshTokenHash,
+    userAgent: requestMeta.userAgent,
+    userId
+  });
+
+  return {
+    expiresAt,
+    refreshToken
+  };
+}
+
+export async function refreshAuthSession(
+  app: FastifyInstance,
+  refreshToken: string,
+  requestMeta: AuthSessionRequestMeta
+): Promise<RefreshAuthSessionResult> {
+  const now = new Date();
+  const currentRefreshTokenHash = hashRefreshToken(refreshToken);
+
+  const [sessionRow] = await app.db
+    .select({
+      sessionId: sessions.id,
+      userId: users.id,
+      email: users.email,
+      role: users.role,
+      profileId: profiles.id,
+      displayName: profiles.displayName,
+      locationCity: profiles.locationCity,
+      expiresAt: sessions.expiresAt,
+      revokedAt: sessions.revokedAt
+    })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.userId))
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(sessions.refreshTokenHash, currentRefreshTokenHash))
+    .limit(1);
+
+  if (!sessionRow || sessionRow.revokedAt || sessionRow.expiresAt <= now) {
+    return {
+      status: "invalid",
+      response: unauthorizedAuthRequest()
+    };
+  }
+
+  const nextRefreshToken = createRefreshToken();
+  const nextRefreshTokenHash = hashRefreshToken(nextRefreshToken);
+  const nextExpiresAt = createRefreshTokenExpiresAt(now);
+
+  const [updatedSession] = await app.db
+    .update(sessions)
+    .set({
+      expiresAt: nextExpiresAt,
+      ipAddress: requestMeta.ipAddress,
+      refreshTokenHash: nextRefreshTokenHash,
+      updatedAt: now,
+      userAgent: requestMeta.userAgent
+    })
+    .where(
+      and(
+        eq(sessions.id, sessionRow.sessionId),
+        eq(sessions.refreshTokenHash, currentRefreshTokenHash),
+        isNull(sessions.revokedAt),
+        gt(sessions.expiresAt, now)
+      )
+    )
+    .returning({
+      id: sessions.id
+    });
+
+  if (!updatedSession) {
+    return {
+      status: "invalid",
+      response: unauthorizedAuthRequest()
+    };
+  }
+
+  return {
+    status: "ok",
+    expiresAt: nextExpiresAt,
+    refreshToken: nextRefreshToken,
+    response: buildAuthResponse({
+      profile: {
+        id: sessionRow.profileId,
+        displayName: sessionRow.displayName,
+        locationCity: sessionRow.locationCity
+      },
+      user: {
+        id: sessionRow.userId,
+        email: sessionRow.email,
+        role: sessionRow.role
+      }
+    })
+  };
+}
+
 export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   return {
     ok: true,
@@ -159,10 +293,7 @@ export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   };
 }
 
-export function attachAccessToken(
-  response: AuthSuccess,
-  options: AuthTokenOptions
-): AuthSuccess {
+export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptions): AuthSuccess {
   return {
     ok: true,
     data: {
@@ -187,6 +318,16 @@ export function invalidAuthRequest(): ApiFailure {
     error: {
       code: "INVALID_REQUEST",
       message: "Auth request body is invalid."
+    }
+  };
+}
+
+export function unauthorizedAuthRequest(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "UNAUTHORIZED",
+      message: "Unauthorized."
     }
   };
 }

@@ -1,16 +1,29 @@
-import type { FastifyInstance, RouteShorthandOptions } from "fastify";
+import type {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  RouteShorthandOptions
+} from "fastify";
 import { loginBodySchema, registerBodySchema } from "../schemas/auth.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   attachAccessToken,
   buildAuthMeResponse,
+  createAuthSession,
   invalidAuthRequest,
   loginUser,
+  refreshAuthSession,
   registerUser,
+  unauthorizedAuthRequest,
   type AuthMeResponse,
   type AuthResponse,
+  type AuthSessionRequestMeta,
   type AuthTokenOptions
 } from "../services/auth.service.js";
+import {
+  readRefreshTokenCookie,
+  serializeRefreshTokenCookie
+} from "../utils/refresh-token.js";
 
 export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptions): void {
   app.post<{ Body: unknown; Reply: AuthResponse }>(
@@ -29,7 +42,16 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptio
         return reply.status(409).send(result.response);
       }
 
-      return reply.status(201).send(attachAccessToken(result.response, options));
+      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+
+      return reply.status(201).send(response);
     }
   );
 
@@ -49,7 +71,44 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptio
         return reply.status(401).send(result.response);
       }
 
-      return attachAccessToken(result.response, options);
+      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+
+      return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Reply: AuthResponse }>(
+    "/auth/refresh",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+
+      if (!refreshToken) {
+        return reply.status(401).send(unauthorizedAuthRequest());
+      }
+
+      const result = await refreshAuthSession(
+        app,
+        refreshToken,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      const response = attachAccessToken(result.response, options);
+
+      setRefreshTokenCookie(reply, result.refreshToken, result.expiresAt);
+
+      return reply.status(200).send(response);
     }
   );
 
@@ -73,4 +132,28 @@ function authRateLimitOptions(options: AuthTokenOptions): RouteShorthandOptions 
       }
     }
   };
+}
+
+function buildAuthSessionRequestMeta(request: FastifyRequest): AuthSessionRequestMeta {
+  return {
+    ipAddress: request.ip ?? null,
+    userAgent: normalizeHeaderValue(request.headers["user-agent"])
+  };
+}
+
+function normalizeHeaderValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return value ?? null;
+}
+
+function setRefreshTokenCookie(reply: FastifyReply, refreshToken: string, expiresAt: Date): void {
+  reply.header(
+    "set-cookie",
+    serializeRefreshTokenCookie(refreshToken, {
+      expiresAt
+    })
+  );
 }

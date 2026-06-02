@@ -7,10 +7,15 @@ import {
   listingImages,
   listings,
   profiles,
+  sessions,
   users
 } from "@babyloop/database/schema";
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import {
+  REFRESH_TOKEN_COOKIE_NAME,
+  hashRefreshToken
+} from "../src/utils/refresh-token.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   authHeader,
@@ -62,6 +67,10 @@ describe("auth API", () => {
     expect(response.json().data.accessToken).toEqual(expect.any(String));
     expect(response.body).not.toContain("passwordHash");
     expect(response.body).not.toContain("password_hash");
+    expect(response.body).not.toContain("authAccounts");
+    expect(response.body).not.toContain("auth_accounts");
+    expect(response.body).not.toContain("providerAccountId");
+    expect(response.body).not.toContain("provider_account_id");
   });
 
   it("trims and normalizes registered email", async () => {
@@ -115,6 +124,297 @@ describe("auth API", () => {
         userId: registeredUser.id
       }
     ]);
+  });
+
+  it("register creates a session and sets an httpOnly refresh cookie", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Session Parent",
+        email: "session-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.accessToken).toEqual(expect.any(String));
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("refresh_token");
+
+    const refreshCookie = getRefreshSetCookie(response);
+    const refreshToken = getCookieValue(refreshCookie);
+
+    expect(refreshCookie).toContain("HttpOnly");
+    expect(refreshCookie).toContain("SameSite=Lax");
+    expect(refreshCookie).toContain("Path=/api/v1/auth");
+    expect(refreshToken).toEqual(expect.any(String));
+
+    const sessionRows = await app.db
+      .select({
+        refreshTokenHash: sessions.refreshTokenHash,
+        revokedAt: sessions.revokedAt,
+        userId: sessions.userId
+      })
+      .from(sessions)
+      .where(eq(sessions.userId, response.json().data.user.id));
+
+    expect(sessionRows).toEqual([
+      {
+        refreshTokenHash: hashRefreshToken(refreshToken),
+        revokedAt: null,
+        userId: response.json().data.user.id
+      }
+    ]);
+    expect(sessionRows[0]?.refreshTokenHash).not.toBe(refreshToken);
+  });
+
+  it("login creates a session and sets an httpOnly refresh cookie", async () => {
+    const user = await createUser(app, {
+      email: "login-session@example.com",
+      password: "Password123!"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "login-session@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.accessToken).toEqual(expect.any(String));
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("refresh_token");
+
+    const refreshCookie = getRefreshSetCookie(response);
+    const refreshToken = getCookieValue(refreshCookie);
+
+    expect(refreshCookie).toContain("HttpOnly");
+    expect(refreshCookie).toContain("SameSite=Lax");
+    expect(refreshCookie).toContain("Path=/api/v1/auth");
+    expect(refreshToken).toEqual(expect.any(String));
+
+    const sessionRows = await app.db
+      .select({
+        refreshTokenHash: sessions.refreshTokenHash,
+        userId: sessions.userId
+      })
+      .from(sessions)
+      .where(eq(sessions.userId, user.user.id));
+
+    expect(sessionRows).toHaveLength(2);
+    expect(sessionRows.some((row) => row.refreshTokenHash === hashRefreshToken(refreshToken))).toBe(true);
+  });
+
+  it("returns 401 for auth refresh without a refresh cookie", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
+  it("returns 401 for auth refresh with an invalid refresh cookie", async () => {
+    const response = await app.inject({
+      headers: {
+        cookie: `${REFRESH_TOKEN_COOKIE_NAME}=not-a-valid-refresh-token`
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
+  it("refreshes access token with a valid refresh cookie", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Refresh Parent",
+        email: "refresh-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const firstRefreshCookie = getRefreshSetCookie(registerResponse);
+
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(firstRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(refreshResponse.statusCode).toBe(200);
+    expect(refreshResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        user: {
+          email: "refresh-parent@example.com"
+        },
+        profile: {
+          displayName: "Refresh Parent"
+        }
+      }
+    });
+    expect(refreshResponse.json().data.accessToken).toEqual(expect.any(String));
+    expect(refreshResponse.body).not.toContain("refreshToken");
+    expect(refreshResponse.body).not.toContain("refresh_token");
+
+    const nextRefreshCookie = getRefreshSetCookie(refreshResponse);
+
+    expect(nextRefreshCookie).toContain("HttpOnly");
+    expect(nextRefreshCookie).toContain("SameSite=Lax");
+    expect(nextRefreshCookie).toContain("Path=/api/v1/auth");
+  });
+
+  it("rotates refresh token and rejects the old refresh cookie", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Rotated Parent",
+        email: "rotated-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const firstRefreshCookie = getRefreshSetCookie(registerResponse);
+
+    const firstRefreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(firstRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(firstRefreshResponse.statusCode).toBe(200);
+
+    const secondRefreshCookie = getRefreshSetCookie(firstRefreshResponse);
+
+    expect(getCookieValue(secondRefreshCookie)).not.toBe(getCookieValue(firstRefreshCookie));
+
+    const oldTokenResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(firstRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(oldTokenResponse.statusCode).toBe(401);
+    expect(oldTokenResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+
+    const newTokenResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(secondRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(newTokenResponse.statusCode).toBe(200);
+    expect(newTokenResponse.json().data.accessToken).toEqual(expect.any(String));
+  });
+
+  it("rejects refresh for a revoked session", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Revoked Parent",
+        email: "revoked-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const refreshCookie = getRefreshSetCookie(registerResponse);
+
+    await app.db
+      .update(sessions)
+      .set({
+        revokedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(sessions.userId, registerResponse.json().data.user.id));
+
+    const response = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
+  it("rejects refresh for an expired session", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Expired Parent",
+        email: "expired-parent@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const refreshCookie = getRefreshSetCookie(registerResponse);
+
+    await app.db
+      .update(sessions)
+      .set({
+        expiresAt: new Date(Date.now() - 60 * 1000),
+        updatedAt: new Date()
+      })
+      .where(eq(sessions.userId, registerResponse.json().data.user.id));
+
+    const response = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
   });
 
   it("rolls back user and profile when password auth account creation fails", async () => {
@@ -1557,4 +1857,56 @@ async function countEvents(eventType: string, entityId: string): Promise<number>
     .where(and(eq(events.eventType, eventType), eq(events.entityId, entityId)));
 
   return rows.length;
+}
+
+
+type ResponseWithHeaders = {
+  headers: Record<string, string | string[] | number | undefined>;
+};
+
+function getRefreshSetCookie(response: ResponseWithHeaders): string {
+  const refreshCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${REFRESH_TOKEN_COOKIE_NAME}=`)
+  );
+
+  if (!refreshCookie) {
+    throw new Error(`Missing ${REFRESH_TOKEN_COOKIE_NAME} Set-Cookie header.`);
+  }
+
+  return refreshCookie;
+}
+
+function getSetCookieHeaders(response: ResponseWithHeaders): string[] {
+  const setCookieHeader = response.headers["set-cookie"];
+
+  if (!setCookieHeader) {
+    return [];
+  }
+
+  if (Array.isArray(setCookieHeader)) {
+    return setCookieHeader;
+  }
+
+  return [String(setCookieHeader)];
+}
+
+function toCookieHeader(setCookieHeader: string): string {
+  const [cookiePair] = setCookieHeader.split(";");
+
+  if (!cookiePair) {
+    throw new Error("Invalid Set-Cookie header.");
+  }
+
+  return cookiePair;
+}
+
+function getCookieValue(setCookieHeader: string): string {
+  const cookiePair = toCookieHeader(setCookieHeader);
+  const [, value] = cookiePair.split("=");
+
+  if (!value) {
+    throw new Error("Invalid refresh cookie value.");
+  }
+
+  return decodeURIComponent(value);
 }

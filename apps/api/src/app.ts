@@ -27,6 +27,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   });
 
   app.register(cors, {
+    credentials: true,
     origin: config.corsOrigins
   });
   app.register(rateLimit, {
