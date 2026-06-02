@@ -1,12 +1,14 @@
 import Link from "next/link";
 import {
   Alert,
+  Badge,
   Card,
   EmptyState,
   PageContainer,
   PageHeading,
   SiteShell
 } from "../../components/ui";
+import { ListingImageFrame } from "../../features/listings/listing-image-frame";
 import {
   fetchApi,
   type CategoriesPayload,
@@ -41,6 +43,7 @@ export default async function BrowsePage() {
       <PageContainer className="browse-layout" ariaLabel="Browse listings">
         <Card as="aside" className="filter-panel" aria-label="Category filter placeholder">
           <h2>Categories</h2>
+          <p className="filter-note">Preview only. Real filtering will come later.</p>
           {categories.length > 0 ? (
             <ul className="category-list">
               {categories.map((category) => (
@@ -79,17 +82,20 @@ export default async function BrowsePage() {
 function ListingCard({ listing }: { listing: ListingSummary }) {
   return (
     <article className="listing-card">
-      <div className="listing-image" aria-label={`${listing.title} image preview`}>
-        {listing.firstImage ? (
-          <span>Image metadata</span>
-        ) : (
-          <span>No image</span>
-        )}
-      </div>
+      <ListingImageFrame
+        alt={`${listing.title} product image`}
+        className="listing-card-image"
+        fallbackLabel="No product image"
+        url={listing.firstImage?.url ?? null}
+      />
       <div className="listing-card-body">
         <div>
-          <p className="listing-meta">{listing.category.name}</p>
+          <div className="listing-card-badges">
+            <Badge>{listing.category.name}</Badge>
+            <Badge tone="success">{formatLabel(listing.listingType)}</Badge>
+          </div>
           <h2>{listing.title}</h2>
+          <p className="muted">Condition: {formatLabel(listing.condition)}</p>
         </div>
         <div className="listing-card-footer">
           <strong>{formatPrice(listing.price)}</strong>
@@ -98,6 +104,10 @@ function ListingCard({ listing }: { listing: ListingSummary }) {
       </div>
     </article>
   );
+}
+
+function formatLabel(value: string): string {
+  return value.replaceAll("_", " ");
 }
 
 function ErrorNotice({ message }: { message: string }) {
