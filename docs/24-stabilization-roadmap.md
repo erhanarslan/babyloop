@@ -29,6 +29,7 @@ Current stabilization concerns:
 - web UI is functional but not polished.
 - production readiness is low.
 - messaging docs must stay aligned with the profile-pair model.
+- local validation requires Node.js `>=22`; Node `v20.11.0` is too old for the current Vitest/Rolldown test toolchain.
 
 ## Stabilization Rule
 
@@ -52,6 +53,7 @@ Public API request/response keys use `camelCase`.
 Confirmed current direction:
 
 - listing creation uses `categoryId`, `priceAmount`, `listingType`, `imageUrls`.
+- `imageUrls` is temporary development-only image metadata until real upload exists.
 - favorites use `listingId`.
 - messaging uses `listingId` only as listing context input.
 
@@ -82,7 +84,11 @@ Recommended next stabilizers:
 - add CI execution for existing validation commands.
 - add web component or E2E tests for browser-owned flows.
 - add migration safety notes before shared DB usage.
+- resolve the production migration risk documented in `docs/26-database-migration-safety-audit.md`, especially the messaging profile-pair backfill path.
+- use `docs/27-messaging-migration-backfill-plan.md` to choose between pre-production baseline cleanup and forward-only staged migration before any shared production-like data is migrated.
 - document local dev verification flows.
+
+Use `docs/25-validation-and-regression-checklist.md` as the detailed regression gate for stabilization work.
 
 ## Productization Blockers
 
@@ -90,6 +96,7 @@ Recommended next stabilizers:
 - Google OAuth
 - listing edit/archive/delete lifecycle
 - image upload/storage
+- signed upload URLs, storage, file type validation, and file size limits
 - search/filter/pagination
 - messaging unread/realtime/report/block flows
 - admin/moderation
@@ -98,7 +105,10 @@ Recommended next stabilizers:
 
 ## Validation Commands
 
+Run validation under Node.js `>=22` with pnpm `10.33.0`. Use `pnpm preflight` before validation to fail fast on unsupported local tooling.
+
 ```bash
+pnpm preflight
 pnpm typecheck
 pnpm build
 pnpm test
@@ -108,6 +118,12 @@ pnpm --filter @babyloop/web typecheck
 pnpm --filter @babyloop/database typecheck
 pnpm --filter @babyloop/database db:check
 ```
+
+`pnpm validate` runs the local gate in order: preflight, typecheck, build, then tests.
+
+Because it runs tests, `pnpm validate` requires `TEST_DATABASE_URL`.
+
+Do not run root/API tests in parallel against the same `TEST_DATABASE_URL`; they reset the shared test database.
 
 ## Manual QA Baseline
 

@@ -28,11 +28,10 @@ export const createListingBodySchema = z
       .refine((value) => CURRENCY_PATTERN.test(value), "Currency must be a 3-letter code.")
       .optional()
       .default("TRY"),
-    listingType: z.enum(["sale", "swap", "donation", "rent"]),
+    listingType: z.enum(["sale", "swap", "donation"]),
     condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]),
     imageUrls: z.array(z.string().trim().url().max(1000)).max(5).optional().default([])
   })
   .strict();
 
 export type CreateListingBody = z.infer<typeof createListingBodySchema>;
-

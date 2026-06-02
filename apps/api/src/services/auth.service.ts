@@ -1,4 +1,4 @@
-import { profiles, users } from "@babyloop/database/schema";
+import { authAccounts, profiles, users } from "@babyloop/database/schema";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -95,6 +95,13 @@ export async function registerUser(
     if (!createdProfile) {
       throw new Error("Profile insert failed.");
     }
+
+    await tx.insert(authAccounts).values({
+      email: createdUser.email,
+      provider: "password",
+      providerAccountId: createdUser.email,
+      userId: createdUser.id
+    });
 
     return {
       profile: createdProfile,

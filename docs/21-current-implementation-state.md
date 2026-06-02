@@ -55,8 +55,8 @@ Implemented:
 | Area | Current state |
 | --- | --- |
 | Auth | Email/password register/login, `GET /api/v1/auth/me`, signed access tokens, basic register/login rate limiting. |
-| Listings | Public active listing list/detail, authenticated listing creation, authenticated current-user listing list, web browse/detail/sell/my-listings pages. |
-| Listing image metadata | Optional image URLs can be stored and rendered. Real upload/storage is not implemented. |
+| Listings | Public active listing list/detail, authenticated current-user listing list, and authenticated listing creation for `sale`, `donation`, and `swap`. Web browse/detail/sell/my-listings pages exist. |
+| Listing image metadata | Optional manual image URLs can be stored and rendered as a temporary development bridge. Real upload/storage is not implemented. |
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. |
 | Messaging | Authenticated API routes, web conversations list, web conversation thread page, and plain text send UI. |
 | Mock AI | Deterministic listing suggestion provider, API route, sell-page integration, and `ai_model_runs` logging when DB is configured. |
@@ -78,6 +78,7 @@ Not implemented:
 - email verification
 - real image upload/storage
 - listing edit/archive/delete lifecycle as user-facing API/UI
+- rental listing flows
 - admin panel
 - mobile app
 - payments
@@ -106,6 +107,11 @@ Current listing/favorite API behavior:
 
 - public listing list/detail endpoints return active listings only
 - listing creation derives the seller profile from the authenticated token
+- listing creation accepts only MVP listing types: `sale`, `donation`, and `swap`
+- `rent` is intentionally deferred from active product scope
+- the PostgreSQL enum may still contain `rent` for legacy/internal compatibility until a safe enum migration plan exists
+- `imageUrls` remains supported for development-only listing image metadata until real upload exists
+- manual image URL entry is not production-acceptable
 - current-user listing list returns only listings owned by the authenticated profile, including non-public statuses
 - favorite writes derive the profile from the authenticated token
 - users cannot favorite their own listings or inactive listings
@@ -152,7 +158,9 @@ Messaging not implemented yet:
 - production-grade auth/session transport
 - Google OAuth
 - listing edit/archive/delete lifecycle
+- rental listing deposit/date range/return/damage/contract flows
 - image upload/storage and validation
+- signed upload URLs, file type validation, file size limits, and image storage pipeline
 - search/filter/pagination
 - messaging unread/realtime/report/block flows
 - admin/moderation tools

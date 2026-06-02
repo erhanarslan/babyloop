@@ -70,12 +70,16 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
       </Select>
 
       <Textarea
-        label="Image URLs"
+        label="Image URLs (temporary until upload is implemented)"
         name="imageUrls"
         rows={3}
         placeholder="https://example.com/stroller-front.jpg"
         wide
       />
+      <p className="muted form-field-wide">
+        Development-only bridge: production listings will use real photo upload with storage,
+        file type checks, and size limits.
+      </p>
     </div>
   );
 }

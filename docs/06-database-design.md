@@ -48,6 +48,8 @@ Do not create every target-state table in the first database phase. Start with t
 
 Defer rentals, payments, swaps, RAG chunks, recommendation results, aggregate analytics tables, and advanced fraud tables until their roadmap phase starts.
 
+Migration safety is tracked separately in `docs/26-database-migration-safety-audit.md`. Before production, review that audit for backfill-sensitive migrations, especially messaging and future enum changes.
+
 ## Ownership and Access Rules
 
 | Area | Owner |

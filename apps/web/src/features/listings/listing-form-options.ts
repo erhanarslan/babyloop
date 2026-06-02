@@ -1,8 +1,7 @@
 export const listingTypes = [
   { value: "sale", label: "For sale" },
   { value: "swap", label: "Swap" },
-  { value: "donation", label: "Donation" },
-  { value: "rent", label: "Rent" }
+  { value: "donation", label: "Donation" }
 ] as const;
 
 export const conditions = [
@@ -15,4 +14,3 @@ export const conditions = [
 
 export type ListingType = (typeof listingTypes)[number]["value"];
 export type ListingCondition = (typeof conditions)[number]["value"];
-

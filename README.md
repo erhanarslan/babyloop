@@ -25,8 +25,8 @@ Implemented:
 | Area | Current state |
 | --- | --- |
 | Auth | Email/password register and login, `GET /api/v1/auth/me`, signed access tokens, basic auth rate limiting. |
-| Listings | Public active listing list/detail, authenticated listing creation, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
-| Listing images | Optional image URL metadata can be stored and rendered with graceful fallback. Real upload/storage is not implemented. |
+| Listings | Public active listing list/detail, authenticated listing creation for `sale`, `donation`, and `swap`, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
+| Listing images | Optional manual image URL metadata can be stored and rendered as a temporary development bridge. Real upload/storage is not implemented. |
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. |
 | Messaging | Authenticated conversation API, web conversations list, web thread page, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
@@ -47,6 +47,7 @@ Not implemented:
 - password reset and email verification
 - real image upload/storage
 - listing edit/archive/delete lifecycle as user-facing API/UI
+- rental listing flows
 - admin panel
 - mobile app
 - payments
@@ -62,6 +63,21 @@ Intentionally deferred:
 - production-grade auth/session hardening
 
 ## Install
+
+BabyLoop requires:
+
+- Node.js `>=22` (recommended local version: `22.13.1`)
+- pnpm `10.33.0` via `packageManager`
+
+Verify your local tooling:
+
+```bash
+node -v
+pnpm -v
+pnpm preflight
+```
+
+Known tooling issue: Node `v20.11.0` is too old for the current Vitest/Rolldown test toolchain. If tests fail before running with `node:util.styleText`, Vitest, or Rolldown startup errors, switch to Node `>=22` and reinstall if needed.
 
 ```bash
 pnpm install
@@ -97,7 +113,10 @@ The root commands use Turborepo and build package dependencies before apps.
 
 Currently available validation commands:
 
+Run these under Node.js `>=22`. Start with `pnpm preflight` so unsupported local tooling fails before typecheck/build/test.
+
 ```bash
+pnpm preflight
 pnpm typecheck
 pnpm build
 pnpm test
@@ -107,6 +126,18 @@ pnpm --filter @babyloop/web typecheck
 pnpm --filter @babyloop/database typecheck
 pnpm --filter @babyloop/database db:check
 ```
+
+You can run the full local gate with:
+
+```bash
+pnpm validate
+```
+
+Because `pnpm validate` runs tests, export `TEST_DATABASE_URL` before using it.
+
+Do not run root/API test commands in parallel when they share the same `TEST_DATABASE_URL`; the test suite resets that database.
+
+Use [docs/25-validation-and-regression-checklist.md](/Users/erhan-pc-mac/Desktop/babyloop/docs/25-validation-and-regression-checklist.md) as the merge-safety checklist for API, web, and database regression checks.
 
 ## Verification
 
@@ -318,6 +349,7 @@ curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
 - production-grade auth/session transport
 - Google OAuth
 - listing edit/archive/delete lifecycle
+- rental deposit/date range/return/damage/contract flows
 - image upload/storage and media validation
 - search/filter/pagination
 - messaging unread state, realtime delivery, report, and block flows
@@ -358,6 +390,20 @@ Current auth is a local-first email/password implementation:
 - `ALLOW_AUTH_UNAVAILABLE=true` is only for local unavailable-mode testing.
 
 The mock AI endpoint writes to `ai_model_runs` when `DATABASE_URL` is configured. If database logging is unavailable, the suggestion response should still work.
+
+## Image Upload Status
+
+Manual `imageUrls` are currently supported only as a temporary local-development bridge.
+They are not a production listing image flow.
+
+Future production upload work should add:
+
+- signed upload URLs
+- durable object storage
+- file type validation
+- file size limits
+- image metadata persistence
+- moderation/safety checks before broad marketplace distribution
 
 Optional API CORS override:
 

@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": "10.33.0"
+  },
   "scripts": {
     "dev": "turbo dev --filter=@babyloop/web --filter=@babyloop/api",
     "build": "turbo build",
+    "preflight": "node scripts/check-tooling.mjs",
     "test": "turbo test",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "validate": "pnpm preflight && pnpm typecheck && pnpm build && pnpm test"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
