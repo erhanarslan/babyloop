@@ -7,6 +7,7 @@ export type AuthMe = {
   user: {
     id: string;
     email: string;
+    emailVerifiedAt?: string | null;
     role: string;
   };
   profile: {
@@ -18,6 +19,7 @@ export type AuthMe = {
 
 export type AuthPayload = AuthMe & {
   accessToken: string;
+  devEmailVerificationToken?: string;
 };
 
 let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;

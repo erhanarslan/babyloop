@@ -25,6 +25,15 @@ export type PasswordChangePayload = {
   passwordChanged: true;
 };
 
+export type EmailVerificationRequestPayload = {
+  requested: true;
+  devEmailVerificationToken?: string;
+};
+
+export type EmailVerificationConfirmPayload = {
+  emailVerified: true;
+};
+
 export async function submitAuthRequest(
   apiBaseUrl: string,
   mode: AuthMode,
@@ -116,4 +125,36 @@ export async function changePassword(
   });
 
   return response.json() as Promise<ApiResponse<PasswordChangePayload>>;
+}
+
+export async function requestEmailVerification(
+  apiBaseUrl: string,
+  email: string
+): Promise<ApiResponse<EmailVerificationRequestPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/email-verification/request`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ email })
+  });
+
+  return response.json() as Promise<ApiResponse<EmailVerificationRequestPayload>>;
+}
+
+export async function confirmEmailVerification(
+  apiBaseUrl: string,
+  token: string
+): Promise<ApiResponse<EmailVerificationConfirmPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/email-verification/confirm`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ token })
+  });
+
+  return response.json() as Promise<ApiResponse<EmailVerificationConfirmPayload>>;
 }

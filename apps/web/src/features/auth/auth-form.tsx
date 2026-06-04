@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
@@ -15,14 +16,18 @@ type AuthFormProps = {
 
 export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const router = useRouter();
+  const [devEmailVerificationToken, setDevEmailVerificationToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
   const isRegister = mode === "register";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setDevEmailVerificationToken(null);
     setErrorMessage(null);
+    setRegistrationComplete(false);
 
     const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister);
 
@@ -42,6 +47,14 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       }
 
       setAuthToken(body.data.accessToken);
+
+      if (isRegister) {
+        setDevEmailVerificationToken(body.data.devEmailVerificationToken ?? null);
+        setRegistrationComplete(true);
+        router.refresh();
+        return;
+      }
+
       router.push("/browse");
       router.refresh();
     } catch {
@@ -89,6 +102,28 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
       {errorMessage ? (
         <Alert title="Account request failed" message={errorMessage} />
+      ) : null}
+
+      {registrationComplete ? (
+        <div className="dev-token-panel">
+          <h2>Registration successful</h2>
+          {devEmailVerificationToken ? (
+            <>
+              <p>
+                Real email delivery is not implemented yet. Use this local development link to
+                verify the account.
+              </p>
+              <Link href={`/auth/verify-email?token=${encodeURIComponent(devEmailVerificationToken)}`}>
+                Verify email locally
+              </Link>
+            </>
+          ) : (
+            <p>
+              Registration successful. Email verification will be required when email delivery is
+              configured.
+            </p>
+          )}
+        </div>
       ) : null}
 
       <div className="form-actions">
