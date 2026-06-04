@@ -6,12 +6,12 @@ import {
   favorites,
   listingImages,
   listings,
+  passwordResetTokens,
   profiles,
   sessions,
   users
 } from "@babyloop/database/schema";
-import { and, asc, eq } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
   REFRESH_TOKEN_COOKIE_NAME,
   hashRefreshToken
@@ -29,10 +29,10 @@ import {
   createUser,
   loginUser
 } from "./api-helpers.js";
-import { createTestApp } from "./test-app.js";
+import { createTestApp, type TestApp } from "./test-app.js";
 import { resetTestDatabase } from "./test-db.js";
 
-let app: FastifyInstance | undefined;
+let app!: TestApp;
 
 beforeEach(async () => {
   await resetTestDatabase();
@@ -40,8 +40,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await app?.close();
-  app = undefined;
+  await app.close();
 });
 
 describe("auth API", () => {
@@ -572,6 +571,283 @@ describe("auth API", () => {
     const clearCookie = getRefreshSetCookie(response);
 
     expect(clearCookie).toContain("Max-Age=0");
+  });
+
+  it("password reset request returns generic success and stores only a token hash", async () => {
+    const user = await createUser(app, {
+      email: "reset-existing@example.com"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: " RESET-EXISTING@Example.COM "
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        requested: true
+      }
+    });
+
+    const resetToken = getDevResetToken(response);
+    const tokenRows = await app.db
+      .select({
+        consumedAt: passwordResetTokens.consumedAt,
+        tokenHash: passwordResetTokens.tokenHash,
+        userId: passwordResetTokens.userId
+      })
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.userId, user.user.id));
+
+    expect(tokenRows).toHaveLength(1);
+    expect(tokenRows[0]!.consumedAt).toBeNull();
+    expect(tokenRows[0]!.tokenHash).toEqual(expect.any(String));
+    expect(tokenRows[0]!.tokenHash).not.toBe(resetToken);
+    expect(tokenRows[0]!.userId).toBe(user.user.id);
+  });
+
+  it("password reset request returns the same generic success for a missing email", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: "missing@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      data: {
+        requested: true
+      }
+    });
+
+    const tokenRows = await app.db
+      .select({ id: passwordResetTokens.id })
+      .from(passwordResetTokens);
+
+    expect(tokenRows).toHaveLength(0);
+  });
+
+  it("password reset confirm changes password, revokes sessions, and prevents token reuse", async () => {
+    const user = await createUser(app, {
+      email: "reset-confirm@example.com",
+      password: "OldPassword123!"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "reset-confirm@example.com",
+        password: "OldPassword123!"
+      }
+    });
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+
+    const requestResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: "reset-confirm@example.com"
+      }
+    });
+    const resetToken = getDevResetToken(requestResponse);
+
+    const confirmResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/confirm",
+      payload: {
+        newPassword: "NewPassword123!",
+        token: resetToken
+      }
+    });
+
+    expect(confirmResponse.statusCode).toBe(200);
+    expect(confirmResponse.json()).toEqual({
+      ok: true,
+      data: {
+        passwordReset: true
+      }
+    });
+
+    const reusedTokenResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/confirm",
+      payload: {
+        newPassword: "AnotherPassword123!",
+        token: resetToken
+      }
+    });
+    const oldPasswordLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "reset-confirm@example.com",
+        password: "OldPassword123!"
+      }
+    });
+    const newPasswordLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "reset-confirm@example.com",
+        password: "NewPassword123!"
+      }
+    });
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+    const activeSessions = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(and(eq(sessions.userId, user.user.id), isNull(sessions.revokedAt)));
+
+    expect(reusedTokenResponse.statusCode).toBe(400);
+    expect(reusedTokenResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_PASSWORD_RESET_TOKEN"
+      }
+    });
+    expect(oldPasswordLogin.statusCode).toBe(401);
+    expect(newPasswordLogin.statusCode).toBe(200);
+    expect(refreshResponse.statusCode).toBe(401);
+    expect(activeSessions).toHaveLength(1);
+  });
+
+  it("password reset confirm rejects expired tokens", async () => {
+    const user = await createUser(app, {
+      email: "expired-reset@example.com"
+    });
+    const requestResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: "expired-reset@example.com"
+      }
+    });
+    const resetToken = getDevResetToken(requestResponse);
+
+    await app.db
+      .update(passwordResetTokens)
+      .set({
+        expiresAt: new Date(Date.now() - 60 * 1000)
+      })
+      .where(eq(passwordResetTokens.userId, user.user.id));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/confirm",
+      payload: {
+        newPassword: "NewPassword123!",
+        token: resetToken
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_PASSWORD_RESET_TOKEN"
+      }
+    });
+  });
+
+  it("authenticated password change requires current password, updates password, and revokes sessions", async () => {
+    const user = await createUser(app, {
+      email: "change-password@example.com",
+      password: "OldPassword123!"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "change-password@example.com",
+        password: "OldPassword123!"
+      }
+    });
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+    const token = loginResponse.json().data.accessToken;
+
+    const wrongPasswordResponse = await app.inject({
+      headers: authHeader(token),
+      method: "POST",
+      url: "/api/v1/auth/password/change",
+      payload: {
+        currentPassword: "WrongPassword123!",
+        newPassword: "NewPassword123!"
+      }
+    });
+
+    expect(wrongPasswordResponse.statusCode).toBe(401);
+    expect(wrongPasswordResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_CREDENTIALS"
+      }
+    });
+
+    const changeResponse = await app.inject({
+      headers: authHeader(token),
+      method: "POST",
+      url: "/api/v1/auth/password/change",
+      payload: {
+        currentPassword: "OldPassword123!",
+        newPassword: "NewPassword123!"
+      }
+    });
+
+    expect(changeResponse.statusCode).toBe(200);
+    expect(changeResponse.json()).toEqual({
+      ok: true,
+      data: {
+        passwordChanged: true
+      }
+    });
+    expect(getRefreshSetCookie(changeResponse)).toContain("Max-Age=0");
+
+    const oldPasswordLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "change-password@example.com",
+        password: "OldPassword123!"
+      }
+    });
+    const newPasswordLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "change-password@example.com",
+        password: "NewPassword123!"
+      }
+    });
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+    const activeSessions = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(and(eq(sessions.userId, user.user.id), isNull(sessions.revokedAt)));
+
+    expect(oldPasswordLogin.statusCode).toBe(401);
+    expect(newPasswordLogin.statusCode).toBe(200);
+    expect(refreshResponse.statusCode).toBe(401);
+    expect(activeSessions).toHaveLength(1);
   });
 
   it("google start redirects to Google and sets an httpOnly oauth state cookie", async () => {
@@ -1222,7 +1498,7 @@ describe("auth API", () => {
   });
 
   it("rate limits auth login attempts", async () => {
-    await app?.close();
+    await app.close();
 
     app = await createTestApp({
       authRateLimitMax: 1,
@@ -2347,7 +2623,7 @@ async function countEvents(eventType: string, entityId: string): Promise<number>
 }
 
 async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserInfo>): Promise<void> {
-  await app?.close();
+  await app.close();
   app = await createTestApp({
     googleOAuthClient: createFakeGoogleOAuthClient(profilesByCode)
   });
@@ -2437,4 +2713,21 @@ function getCookieValue(setCookieHeader: string): string {
   }
 
   return decodeURIComponent(value);
+}
+
+function getDevResetToken(response: { json: () => unknown }): string {
+  const body = response.json() as {
+    ok?: boolean;
+    data?: {
+      devResetToken?: unknown;
+    };
+  };
+
+  const token = body.data?.devResetToken;
+
+  if (body.ok !== true || typeof token !== "string" || !token) {
+    throw new Error("Missing dev password reset token.");
+  }
+
+  return token;
 }

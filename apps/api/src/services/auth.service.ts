@@ -1,10 +1,22 @@
-import { authAccounts, profiles, sessions, users } from "@babyloop/database/schema";
+import {
+  authAccounts,
+  passwordResetTokens,
+  profiles,
+  sessions,
+  users
+} from "@babyloop/database/schema";
 import type { Database } from "@babyloop/database";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
-import type { LoginBody, RegisterBody } from "../schemas/auth.schemas.js";
+import type {
+  LoginBody,
+  PasswordChangeBody,
+  PasswordResetConfirmBody,
+  PasswordResetRequestBody,
+  RegisterBody
+} from "../schemas/auth.schemas.js";
 import { signAccessToken } from "../utils/access-token.js";
 import {
   createRefreshToken,
@@ -12,6 +24,11 @@ import {
   hashRefreshToken
 } from "../utils/refresh-token.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
+import {
+  createPasswordResetToken,
+  createPasswordResetTokenExpiresAt,
+  hashPasswordResetToken
+} from "../utils/password-reset-token.js";
 import type { GoogleUserInfo } from "./google-oauth.service.js";
 
 export type SafeAuthUser = {
@@ -55,6 +72,19 @@ export type AuthMeResponse = ApiResponse<{
 
 export type LogoutAuthResponse = ApiSuccess<{
   loggedOut: true;
+}>;
+
+export type PasswordResetRequestResponse = ApiSuccess<{
+  requested: true;
+  devResetToken?: string;
+}>;
+
+export type PasswordResetConfirmResponse = ApiResponse<{
+  passwordReset: true;
+}>;
+
+export type PasswordChangeResponse = ApiResponse<{
+  passwordChanged: true;
 }>;
 
 type AuthSessionCreation = {
@@ -289,6 +319,150 @@ export async function authenticateGoogleUser(
   return buildAuthResponse(createdOrLinked);
 }
 
+export async function requestPasswordReset(
+  app: FastifyInstance,
+  body: PasswordResetRequestBody
+): Promise<{ response: PasswordResetRequestResponse; devResetToken?: string }> {
+  const now = new Date();
+  const user = await findUserByEmail(app, body.email);
+
+  if (!user) {
+    return {
+      response: buildPasswordResetRequestResponse()
+    };
+  }
+
+  const resetToken = createPasswordResetToken();
+
+  await app.db.transaction(async (tx) => {
+    await tx
+      .update(passwordResetTokens)
+      .set({
+        consumedAt: now
+      })
+      .where(
+        and(
+          eq(passwordResetTokens.userId, user.id),
+          isNull(passwordResetTokens.consumedAt)
+        )
+      );
+
+    await tx.insert(passwordResetTokens).values({
+      expiresAt: createPasswordResetTokenExpiresAt(now),
+      tokenHash: hashPasswordResetToken(resetToken),
+      userId: user.id
+    });
+  });
+
+  return {
+    devResetToken: resetToken,
+    response: buildPasswordResetRequestResponse()
+  };
+}
+
+export async function confirmPasswordReset(
+  app: FastifyInstance,
+  body: PasswordResetConfirmBody
+): Promise<{ status: "ok"; response: PasswordResetConfirmResponse } | { status: "invalid"; response: ApiFailure }> {
+  const now = new Date();
+  const tokenHash = hashPasswordResetToken(body.token);
+  const newPasswordHash = await hashPassword(body.newPassword);
+
+  const updated = await app.db.transaction(async (tx) => {
+    const [resetToken] = await tx
+      .select({
+        id: passwordResetTokens.id,
+        userId: passwordResetTokens.userId
+      })
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          isNull(passwordResetTokens.consumedAt),
+          gt(passwordResetTokens.expiresAt, now)
+        )
+      )
+      .limit(1);
+
+    if (!resetToken) {
+      return null;
+    }
+
+    await tx
+      .update(users)
+      .set({
+        passwordHash: newPasswordHash,
+        updatedAt: now
+      })
+      .where(eq(users.id, resetToken.userId));
+
+    await tx
+      .update(passwordResetTokens)
+      .set({
+        consumedAt: now
+      })
+      .where(eq(passwordResetTokens.id, resetToken.id));
+
+    await revokeActiveSessionsForUserTx(tx, resetToken.userId, now);
+
+    return resetToken;
+  });
+
+  if (!updated) {
+    return {
+      status: "invalid",
+      response: invalidPasswordResetToken()
+    };
+  }
+
+  return {
+    status: "ok",
+    response: buildPasswordResetConfirmResponse()
+  };
+}
+
+export async function changePassword(
+  app: FastifyInstance,
+  userId: string,
+  body: PasswordChangeBody
+): Promise<{ status: "ok"; response: PasswordChangeResponse } | { status: "invalid"; response: ApiFailure }> {
+  const [user] = await app.db
+    .select({
+      id: users.id,
+      passwordHash: users.passwordHash
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+    return {
+      status: "invalid",
+      response: invalidCredentials()
+    };
+  }
+
+  const now = new Date();
+  const passwordHash = await hashPassword(body.newPassword);
+
+  await app.db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        passwordHash,
+        updatedAt: now
+      })
+      .where(eq(users.id, userId));
+
+    await revokeActiveSessionsForUserTx(tx, userId, now);
+  });
+
+  return {
+    status: "ok",
+    response: buildPasswordChangeResponse()
+  };
+}
+
 export async function createAuthSession(
   app: FastifyInstance,
   userId: string,
@@ -418,6 +592,36 @@ export function buildLogoutAuthResponse(): LogoutAuthResponse {
     ok: true,
     data: {
       loggedOut: true
+    }
+  };
+}
+
+function buildPasswordResetRequestResponse(
+  devResetToken?: string
+): PasswordResetRequestResponse {
+  return {
+    ok: true,
+    data: {
+      requested: true,
+      ...(devResetToken ? { devResetToken } : {})
+    }
+  };
+}
+
+function buildPasswordResetConfirmResponse(): PasswordResetConfirmResponse {
+  return {
+    ok: true,
+    data: {
+      passwordReset: true
+    }
+  };
+}
+
+function buildPasswordChangeResponse(): PasswordChangeResponse {
+  return {
+    ok: true,
+    data: {
+      passwordChanged: true
     }
   };
 }
@@ -622,4 +826,28 @@ function invalidCredentials(): ApiFailure {
       message: "Email or password is incorrect."
     }
   };
+}
+
+function invalidPasswordResetToken(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "INVALID_PASSWORD_RESET_TOKEN",
+      message: "Password reset token is invalid or expired."
+    }
+  };
+}
+
+async function revokeActiveSessionsForUserTx(
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  userId: string,
+  now: Date
+): Promise<void> {
+  await tx
+    .update(sessions)
+    .set({
+      revokedAt: now,
+      updatedAt: now
+    })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
 }

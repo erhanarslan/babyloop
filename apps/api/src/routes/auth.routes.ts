@@ -4,23 +4,35 @@ import type {
   FastifyRequest,
   RouteShorthandOptions
 } from "fastify";
-import { loginBodySchema, registerBodySchema } from "../schemas/auth.schemas.js";
+import {
+  loginBodySchema,
+  passwordChangeSchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
+  registerBodySchema
+} from "../schemas/auth.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   attachAccessToken,
   authenticateGoogleUser,
   buildAuthMeResponse,
   buildLogoutAuthResponse,
+  changePassword,
+  confirmPasswordReset,
   createAuthSession,
   invalidAuthRequest,
   loginUser,
   refreshAuthSession,
   registerUser,
+  requestPasswordReset,
   revokeAuthSession,
   unauthorizedAuthRequest,
   type AuthMeResponse,
   type AuthResponse,
   type LogoutAuthResponse,
+  type PasswordChangeResponse,
+  type PasswordResetConfirmResponse,
+  type PasswordResetRequestResponse,
   type AuthSessionRequestMeta,
   type AuthTokenOptions
 } from "../services/auth.service.js";
@@ -44,6 +56,10 @@ type AuthRouteOptions = AuthTokenOptions & {
   googleOAuth?: GoogleOAuthConfig;
   googleOAuthClient?: GoogleOAuthClient;
 };
+
+type PasswordResetRequestRouteResponse =
+  | PasswordResetRequestResponse
+  | ReturnType<typeof invalidAuthRequest>;
 
 export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptions): void {
   app.post<{ Body: unknown; Reply: AuthResponse }>(
@@ -143,6 +159,79 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
     return reply.status(200).send(buildLogoutAuthResponse());
   });
+
+  app.post<{ Body: unknown; Reply: PasswordResetRequestRouteResponse }>(
+    "/auth/password-reset/request",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = passwordResetRequestSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await requestPasswordReset(app, parsedBody.data);
+
+      if (shouldExposeDevResetToken() && result.devResetToken) {
+        return reply.status(200).send({
+          ok: true,
+          data: {
+            ...result.response.data,
+            devResetToken: result.devResetToken
+          }
+        });
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: PasswordResetConfirmResponse }>(
+    "/auth/password-reset/confirm",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = passwordResetConfirmSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await confirmPasswordReset(app, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(400).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: PasswordChangeResponse }>(
+    "/auth/password/change",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = passwordChangeSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await changePassword(app, currentUser.userId, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      clearRefreshTokenCookie(reply);
+
+      return reply.status(200).send(result.response);
+    }
+  );
 
   app.get("/auth/google/start", async (_request, reply) => {
     if (!options.googleOAuth) {
@@ -280,4 +369,8 @@ function googleOAuthUnavailableResponse() {
       message: "Google OAuth is not configured."
     }
   };
+}
+
+function shouldExposeDevResetToken() {
+  return process.env.NODE_ENV === "test";
 }

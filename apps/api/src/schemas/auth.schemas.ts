@@ -21,6 +21,28 @@ export const loginBodySchema = z
   })
   .strict();
 
+export const passwordResetRequestSchema = z
+  .object({
+    email: z.string().trim().email().max(320).transform((value) => value.toLowerCase())
+  })
+  .strict();
+
+export const passwordResetConfirmSchema = z
+  .object({
+    token: z.string().trim().min(1).max(512),
+    newPassword: z.string().min(8).max(128)
+  })
+  .strict();
+
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: z.string().min(8).max(128)
+  })
+  .strict();
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
-
+export type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordResetConfirmBody = z.infer<typeof passwordResetConfirmSchema>;
+export type PasswordChangeBody = z.infer<typeof passwordChangeSchema>;

@@ -1,3 +1,5 @@
+import type { Database } from "@babyloop/database";
+import type { FastifyInstance } from "fastify";
 import { createApp } from "../src/app.js";
 import type {
   GoogleOAuthClient,
@@ -20,7 +22,11 @@ type TestAppOptions = Partial<{
   googleOAuthClient: GoogleOAuthClient;
 }>;
 
-export async function createTestApp(options: TestAppOptions = {}) {
+export type TestApp = FastifyInstance & {
+  db: Database;
+};
+
+export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const googleOAuth =
     options.googleOAuthClient ? options.googleOAuth ?? TEST_GOOGLE_OAUTH_CONFIG : options.googleOAuth;
 
@@ -42,5 +48,5 @@ export async function createTestApp(options: TestAppOptions = {}) {
 
   await app.ready();
 
-  return app;
+  return app as TestApp;
 }
