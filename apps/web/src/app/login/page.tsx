@@ -23,6 +23,9 @@ export default function LoginPage() {
           <p className="form-note">
             No account yet? <Link href="/register">Create one</Link>
           </p>
+          <p className="form-note">
+            Forgot your password? <Link href="/forgot-password">Request a reset</Link>
+          </p>
         </Card>
       </PageContainer>
     </SiteShell>

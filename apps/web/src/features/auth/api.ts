@@ -12,6 +12,19 @@ type AuthRequest = {
   locationCity?: string;
 };
 
+export type PasswordResetRequestPayload = {
+  requested: true;
+  devResetToken?: string;
+};
+
+export type PasswordResetConfirmPayload = {
+  passwordReset: true;
+};
+
+export type PasswordChangePayload = {
+  passwordChanged: true;
+};
+
 export async function submitAuthRequest(
   apiBaseUrl: string,
   mode: AuthMode,
@@ -37,4 +50,53 @@ export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<
 
 export function startGoogleLogin(apiBaseUrl: string): void {
   window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+}
+
+export async function requestPasswordReset(
+  apiBaseUrl: string,
+  email: string
+): Promise<ApiResponse<PasswordResetRequestPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/password-reset/request`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ email })
+  });
+
+  return response.json() as Promise<ApiResponse<PasswordResetRequestPayload>>;
+}
+
+export async function confirmPasswordReset(
+  apiBaseUrl: string,
+  token: string,
+  newPassword: string
+): Promise<ApiResponse<PasswordResetConfirmPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/password-reset/confirm`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ token, newPassword })
+  });
+
+  return response.json() as Promise<ApiResponse<PasswordResetConfirmPayload>>;
+}
+
+export async function changePassword(
+  apiBaseUrl: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<ApiResponse<PasswordChangePayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/auth/password/change", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ currentPassword, newPassword })
+  });
+
+  return response.json() as Promise<ApiResponse<PasswordChangePayload>>;
 }

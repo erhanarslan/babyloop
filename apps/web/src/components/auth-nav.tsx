@@ -86,6 +86,7 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   return (
     <span className="auth-status">
       <Link href="/my-listings">My Listings</Link>
+      <Link href="/account/password">Password</Link>
       <span>{currentAuth.profile.displayName}</span>
       <button
         className="nav-button"

@@ -660,6 +660,33 @@ p {
   font-weight: 700;
 }
 
+.dev-token-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed #c69a28;
+  border-radius: 8px;
+  background: #fff9e8;
+  color: #4f3b0a;
+}
+
+.dev-token-panel h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.dev-token-panel p {
+  margin: 0;
+  color: #6b5a2a;
+  font-size: 14px;
+}
+
+.dev-token-panel code {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+
 .form-actions {
   display: flex;
   align-items: center;
