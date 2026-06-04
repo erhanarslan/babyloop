@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
-  clearAuthToken,
+  authFetch,
   getAuthToken,
+  logout,
+  refreshSession,
   type AuthMe
 } from "../lib/auth-client";
 
@@ -24,16 +26,26 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       const token = getAuthToken();
 
       if (!token) {
+        const refreshed = await refreshSession(apiBaseUrl);
+
+        if (!isActive) {
+          return;
+        }
+
+        if (refreshed.ok) {
+          setCurrentAuth({
+            profile: refreshed.data.profile,
+            user: refreshed.data.user
+          });
+          return;
+        }
+
         setCurrentAuth(null);
         return;
       }
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
-          headers: {
-            authorization: `Bearer ${token}`
-          }
-        });
+        const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
         const body = (await response.json()) as ApiResponse<AuthMe>;
 
         if (!isActive) {
@@ -41,7 +53,6 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
         }
 
         if (!response.ok || !body.ok) {
-          clearAuthToken();
           setCurrentAuth(null);
           return;
         }
@@ -80,7 +91,9 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
         className="nav-button"
         type="button"
         onClick={() => {
-          clearAuthToken();
+          void logout(apiBaseUrl).finally(() => {
+            setCurrentAuth(null);
+          });
         }}
       >
         Logout

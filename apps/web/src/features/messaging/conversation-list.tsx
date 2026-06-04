@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
 
@@ -20,7 +20,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
     let isActive = true;
 
     async function loadConversations() {
-      if (!getAuthToken()) {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
         setState("auth");
         setMessage("Please log in to view your conversations.");
         setIsLoading(false);

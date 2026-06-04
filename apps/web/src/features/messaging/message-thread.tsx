@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { fetchCurrentUser } from "../auth/api";
 import {
   fetchConversation,
@@ -28,7 +28,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const [reloadKey, setReloadKey] = useState(0);
 
   const loadThread = useCallback(async () => {
-    if (!getAuthToken()) {
+    if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
       setState("auth");
       setMessage("Please log in to view this conversation.");
       setIsLoading(false);

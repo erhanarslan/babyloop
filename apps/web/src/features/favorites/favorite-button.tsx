@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Alert, Button } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { fetchFavorites, saveFavorite } from "./api";
 
 type FavoriteButtonProps = {
@@ -24,7 +24,7 @@ export function FavoriteButton({
     let isActive = true;
 
     async function loadFavoriteState() {
-      if (!getAuthToken()) {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
         setIsFavorited(false);
         return;
       }
@@ -53,7 +53,7 @@ export function FavoriteButton({
     setIsPending(true);
     setErrorMessage(null);
 
-    if (!getAuthToken()) {
+    if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
       setErrorMessage("Please log in before saving favorites.");
       setIsPending(false);
       return;

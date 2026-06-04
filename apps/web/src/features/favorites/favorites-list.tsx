@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import type { FavoriteListing } from "../../lib/api";
 import { fetchFavorites } from "./api";
 import { FavoriteCard } from "./favorite-card";
@@ -20,7 +20,7 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
     let isActive = true;
 
     async function loadFavorites() {
-      if (!getAuthToken()) {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
         setIsLoading(false);
         setMessage("Please log in to view your saved listings.");
         return;

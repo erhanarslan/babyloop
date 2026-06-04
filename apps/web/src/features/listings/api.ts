@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
-import { authHeader } from "../../lib/auth-client";
+import { authFetch } from "../../lib/auth-client";
 import type { ListingSummary } from "../../lib/api";
 import type { ListingCondition, ListingType } from "./listing-form-options";
 
@@ -49,10 +49,9 @@ export async function createListingRequest(
   apiBaseUrl: string,
   payload: CreateListingRequest
 ): Promise<ApiResponse<CreateListingPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/listings`, {
+  const response = await authFetch(apiBaseUrl, "/api/v1/listings", {
     method: "POST",
     headers: {
-      ...authHeader(),
       "content-type": "application/json"
     },
     body: JSON.stringify(payload)
@@ -62,9 +61,7 @@ export async function createListingRequest(
 }
 
 export async function fetchMyListings(apiBaseUrl: string): Promise<ApiResponse<MyListingsPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/me/listings`, {
-    headers: authHeader()
-  });
+  const response = await authFetch(apiBaseUrl, "/api/v1/me/listings");
 
   return response.json() as Promise<ApiResponse<MyListingsPayload>>;
 }

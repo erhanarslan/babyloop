@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import type { Category } from "../../lib/api";
 import { AiSuggestionPanel } from "./ai-suggestion-panel";
 import {
@@ -42,7 +42,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       return;
     }
 
-    if (!getAuthToken()) {
+    if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
       setErrorMessage("Please log in before creating a listing.");
       return;
     }

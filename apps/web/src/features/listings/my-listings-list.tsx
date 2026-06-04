@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge, EmptyState, LoadingBlock } from "../../components/ui";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import type { ListingSummary } from "../../lib/api";
 import { fetchMyListings } from "./api";
 
@@ -20,7 +20,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
     let isActive = true;
 
     async function loadListings() {
-      if (!getAuthToken()) {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
         setIsLoading(false);
         setMessage("Please log in to view your listings.");
         return;

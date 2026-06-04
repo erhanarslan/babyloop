@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, EmptyState } from "../../components/ui";
 import { fetchCurrentUser } from "../auth/api";
-import { getAuthToken } from "../../lib/auth-client";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { createOrGetConversation } from "./api";
 
 type MessageSellerButtonProps = {
@@ -21,6 +21,7 @@ export function MessageSellerButton({
 }: MessageSellerButtonProps) {
   const router = useRouter();
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,7 +30,8 @@ export function MessageSellerButton({
     let isActive = true;
 
     async function loadCurrentUser() {
-      if (!getAuthToken()) {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
+        setIsAuthenticated(false);
         setIsLoadingUser(false);
         return;
       }
@@ -42,7 +44,11 @@ export function MessageSellerButton({
         }
 
         if (body.ok) {
+          setIsAuthenticated(true);
           setCurrentProfileId(body.data.profile.id);
+        } else {
+          setIsAuthenticated(false);
+          setMessage(body.error.message);
         }
       } catch {
         if (isActive) {
@@ -82,7 +88,7 @@ export function MessageSellerButton({
     }
   }
 
-  if (!getAuthToken()) {
+  if (!isLoadingUser && isAuthenticated === false) {
     return (
       <div className="message-seller-action">
         <Link className="primary-link compact-link" href="/login">

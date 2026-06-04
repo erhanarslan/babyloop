@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
-import { authHeader } from "../../lib/auth-client";
+import { authFetch } from "../../lib/auth-client";
 import type { FavoritesPayload } from "../../lib/api";
 
 type FavoriteActionPayload = {
@@ -14,9 +14,7 @@ type FavoriteActionPayload = {
 };
 
 export async function fetchFavorites(apiBaseUrl: string): Promise<ApiResponse<FavoritesPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
-    headers: authHeader()
-  });
+  const response = await authFetch(apiBaseUrl, "/api/v1/favorites");
 
   return response.json() as Promise<ApiResponse<FavoritesPayload>>;
 }
@@ -26,10 +24,9 @@ export async function saveFavorite(
   listingId: string,
   isFavorited: boolean
 ): Promise<ApiResponse<FavoriteActionPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/favorites`, {
+  const response = await authFetch(apiBaseUrl, "/api/v1/favorites", {
     method: isFavorited ? "DELETE" : "POST",
     headers: {
-      ...authHeader(),
       "content-type": "application/json"
     },
     body: JSON.stringify({
@@ -39,4 +36,3 @@ export async function saveFavorite(
 
   return response.json() as Promise<ApiResponse<FavoriteActionPayload>>;
 }
-
