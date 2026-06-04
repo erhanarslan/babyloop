@@ -41,7 +41,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       databaseUrl: getTestDatabaseUrl(),
       ...(googleOAuth ? { googleOAuth } : {}),
       host: "127.0.0.1",
-      port: 0
+      port: 0,
+      webAppUrl: "http://localhost:3000"
     },
     ...(options.googleOAuthClient ? { googleOAuthClient: options.googleOAuthClient } : {})
   });

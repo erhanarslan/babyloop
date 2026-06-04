@@ -58,9 +58,23 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
           type="button"
           variant="secondary"
           disabled={isSubmitting || isGoogleRedirecting}
-          onClick={() => {
+          onClick={async () => {
+            setErrorMessage(null);
             setIsGoogleRedirecting(true);
-            startGoogleLogin(apiBaseUrl);
+            try {
+              const response = await startGoogleLogin(apiBaseUrl);
+
+              if (!response.ok) {
+                setErrorMessage(
+                  response.error.code === "GOOGLE_AUTH_UNAVAILABLE"
+                    ? "Google sign-in is not configured in this environment."
+                    : response.error.message
+                );
+                setIsGoogleRedirecting(false);
+              }
+            } catch {
+              window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+            }
           }}
         >
           {isGoogleRedirecting ? "Opening Google..." : "Continue with Google"}

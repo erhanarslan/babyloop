@@ -880,6 +880,34 @@ describe("auth API", () => {
     expect(getCookieValue(stateCookie)).toBe(redirectUrl.searchParams.get("state"));
   });
 
+  it("google start returns a controlled unavailable error when Google OAuth is not configured", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/start"
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "GOOGLE_AUTH_UNAVAILABLE",
+        message: "Google OAuth is not configured."
+      }
+    });
+  });
+
+  it("google callback redirects to login unavailable error when Google OAuth is not configured", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-a&code=google-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/login?error=google_auth_unavailable"
+    );
+  });
+
   it("google callback rejects missing state", async () => {
     await useGoogleOAuthTestApp({});
 

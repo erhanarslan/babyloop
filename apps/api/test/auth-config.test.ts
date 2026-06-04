@@ -39,4 +39,14 @@ describe("auth runtime config", () => {
     expect(config.allowAuthUnavailable).toBe(true);
     expect(config.authSecret).toBeUndefined();
   });
+
+  it("does not require partial Google OAuth config for normal startup", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+      GOOGLE_CLIENT_ID: "local-client-id"
+    });
+
+    expect(config.googleOAuth).toBeUndefined();
+  });
 });

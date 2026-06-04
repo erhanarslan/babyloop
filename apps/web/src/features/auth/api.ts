@@ -48,8 +48,25 @@ export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<
   return response.json() as Promise<ApiResponse<AuthMe>>;
 }
 
-export function startGoogleLogin(apiBaseUrl: string): void {
-  window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+export async function startGoogleLogin(apiBaseUrl: string): Promise<ApiResponse<{ started: true }>> {
+  const startUrl = `${apiBaseUrl}/api/v1/auth/google/start`;
+  const response = await fetch(startUrl, {
+    credentials: "include",
+    redirect: "manual"
+  });
+
+  if (response.status === 503) {
+    return response.json() as Promise<ApiResponse<{ started: true }>>;
+  }
+
+  window.location.assign(startUrl);
+
+  return {
+    ok: true,
+    data: {
+      started: true
+    }
+  };
 }
 
 export async function requestPasswordReset(

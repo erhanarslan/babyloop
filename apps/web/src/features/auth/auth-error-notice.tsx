@@ -27,5 +27,14 @@ export function AuthErrorNotice() {
     );
   }
 
+  if (error === "google_auth_unavailable") {
+    return (
+      <Alert
+        title="Google sign-in unavailable"
+        message="Google sign-in is not configured in this environment. Please use email and password."
+      />
+    );
+  }
+
   return null;
 }

@@ -85,7 +85,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
         authRateLimitWindowSeconds: config.authRateLimitWindowSeconds,
         authSecret: config.authSecret,
         authTokenTtlSeconds: config.authTokenTtlSeconds,
-        prefix: API_PREFIX
+        prefix: API_PREFIX,
+        webAppUrl: config.webAppUrl
       };
 
       app.register(registerAuthRoutes, {

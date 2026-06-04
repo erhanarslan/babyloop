@@ -40,6 +40,7 @@ import {
   buildGoogleAuthorizationUrl,
   defaultGoogleOAuthClient,
   generateOAuthState,
+  isGoogleOAuthConfigured,
   readGoogleOAuthStateCookie,
   serializeExpiredGoogleOAuthStateCookie,
   serializeGoogleOAuthStateCookie,
@@ -55,6 +56,7 @@ import {
 type AuthRouteOptions = AuthTokenOptions & {
   googleOAuth?: GoogleOAuthConfig;
   googleOAuthClient?: GoogleOAuthClient;
+  webAppUrl: string;
 };
 
 type PasswordResetRequestRouteResponse =
@@ -234,7 +236,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
   );
 
   app.get("/auth/google/start", async (_request, reply) => {
-    if (!options.googleOAuth) {
+    if (!isGoogleOAuthConfigured(options.googleOAuth)) {
       return reply.status(503).send(googleOAuthUnavailableResponse());
     }
 
@@ -247,8 +249,8 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
   });
 
   app.get<{ Querystring: Record<string, unknown> }>("/auth/google/callback", async (request, reply) => {
-    if (!options.googleOAuth) {
-      return reply.status(503).send(googleOAuthUnavailableResponse());
+    if (!isGoogleOAuthConfigured(options.googleOAuth)) {
+      return redirectToGoogleAuthUnavailable(reply, options.webAppUrl);
     }
 
     const cookieState = readGoogleOAuthStateCookie(request.headers.cookie);
@@ -351,6 +353,11 @@ function readQueryStringValue(value: unknown): string | null {
 function redirectToGoogleAuthFailure(reply: FastifyReply, webAppUrl: string): void {
   reply.header("set-cookie", serializeExpiredGoogleOAuthStateCookie());
   return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_failed`);
+}
+
+function redirectToGoogleAuthUnavailable(reply: FastifyReply, webAppUrl: string): void {
+  reply.header("set-cookie", serializeExpiredGoogleOAuthStateCookie());
+  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_unavailable`);
 }
 
 function buildGoogleAuthSuccessRedirect(webAppUrl: string): string {

@@ -11,6 +11,7 @@ export type ApiRuntimeConfig = {
   googleOAuth?: GoogleOAuthConfig;
   host: string;
   port: number;
+  webAppUrl: string;
 };
 
 const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
@@ -24,7 +25,8 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 15),
     corsOrigins: readCorsOrigins(env.CORS_ORIGINS),
     host: env.HOST ?? "127.0.0.1",
-    port: readPort(env.PORT)
+    port: readPort(env.PORT),
+    webAppUrl: readWebAppUrl(env.WEB_APP_URL)
   };
   const googleOAuth = readGoogleOAuthConfig(env);
 
@@ -65,9 +67,7 @@ function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | unde
   }
 
   if (providedValues.length !== Object.values(values).length) {
-    throw new Error(
-      "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, and WEB_APP_URL must be configured together."
-    );
+    return undefined;
   }
 
   return {
@@ -76,6 +76,10 @@ function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | unde
     redirectUri: values.redirectUri!,
     webAppUrl: values.webAppUrl!.replace(/\/$/, "")
   };
+}
+
+function readWebAppUrl(value: string | undefined): string {
+  return (value ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
 function readAuthSecret(value: string | undefined): string | undefined {

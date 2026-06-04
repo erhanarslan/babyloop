@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { LoadingBlock } from "../../components/ui";
-import { clearAuthToken, refreshSession } from "../../lib/auth-client";
+import { clearAuthToken, getAuthToken, refreshSession } from "../../lib/auth-client";
 
 type AuthCallbackProps = {
   apiBaseUrl: string;
@@ -32,6 +32,12 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
       const refreshed = await refreshSession(apiBaseUrl);
 
       if (!refreshed.ok) {
+        if (getAuthToken()) {
+          router.replace("/");
+          router.refresh();
+          return;
+        }
+
         clearAuthToken();
         router.replace("/login?error=google_auth_failed");
         return;

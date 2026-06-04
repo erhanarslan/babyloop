@@ -20,6 +20,8 @@ export type AuthPayload = AuthMe & {
   accessToken: string;
 };
 
+let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;
+
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -64,6 +66,18 @@ export function authHeader(): HeadersInit {
 }
 
 export async function refreshSession(apiBaseUrl: string): Promise<ApiResponse<AuthPayload>> {
+  if (refreshSessionPromise) {
+    return refreshSessionPromise;
+  }
+
+  refreshSessionPromise = doRefreshSession(apiBaseUrl).finally(() => {
+    refreshSessionPromise = null;
+  });
+
+  return refreshSessionPromise;
+}
+
+async function doRefreshSession(apiBaseUrl: string): Promise<ApiResponse<AuthPayload>> {
   try {
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/refresh`, {
       method: "POST",

@@ -55,6 +55,12 @@ export function buildGoogleAuthorizationUrl(
   return url.toString();
 }
 
+export function isGoogleOAuthConfigured(
+  config: GoogleOAuthConfig | undefined
+): config is GoogleOAuthConfig {
+  return Boolean(config);
+}
+
 export async function exchangeCodeForTokens(
   code: string,
   config: GoogleOAuthConfig

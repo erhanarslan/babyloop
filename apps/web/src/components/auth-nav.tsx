@@ -2,6 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
@@ -18,11 +19,16 @@ type AuthNavProps = {
 
 export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     let isActive = true;
 
     async function loadCurrentAuth() {
+      if (pathname === "/auth/callback") {
+        return;
+      }
+
       const token = getAuthToken();
 
       if (!token) {
@@ -72,7 +78,7 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       isActive = false;
       window.removeEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, pathname]);
 
   if (!currentAuth) {
     return (
