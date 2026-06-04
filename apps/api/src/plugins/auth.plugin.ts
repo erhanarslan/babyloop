@@ -9,6 +9,7 @@ type AuthPluginOptions = {
 
 export type CurrentUser = {
   email: string;
+  emailVerifiedAt: string | null;
   profile: {
     displayName: string;
     id: string;
@@ -40,6 +41,7 @@ export function registerAuthPlugin(app: FastifyInstance, options: AuthPluginOpti
       .select({
         userId: users.id,
         email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
         role: users.role,
         profileId: profiles.id,
         displayName: profiles.displayName,
@@ -56,6 +58,7 @@ export function registerAuthPlugin(app: FastifyInstance, options: AuthPluginOpti
 
     const currentUser: CurrentUser = {
       email: row.email,
+      emailVerifiedAt: row.emailVerifiedAt ? row.emailVerifiedAt.toISOString() : null,
       profile: {
         displayName: row.displayName,
         id: row.profileId,

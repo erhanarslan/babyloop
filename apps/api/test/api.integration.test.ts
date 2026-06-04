@@ -2,6 +2,7 @@ import {
   aiModelRuns,
   authAccounts,
   conversations,
+  emailVerificationTokens,
   events,
   favorites,
   listingImages,
@@ -16,6 +17,7 @@ import {
   REFRESH_TOKEN_COOKIE_NAME,
   hashRefreshToken
 } from "../src/utils/refresh-token.js";
+import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import {
   GOOGLE_OAUTH_STATE_COOKIE_NAME,
   type GoogleOAuthClient,
@@ -128,6 +130,258 @@ describe("auth API", () => {
         userId: registeredUser.id
       }
     ]);
+  });
+
+  it("register creates an email verification token and returns a dev token in test", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Needs Verification",
+        email: "needs-verification@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.user.emailVerifiedAt).toBeNull();
+    expect(response.json().data.devEmailVerificationToken).toEqual(expect.any(String));
+
+    const tokenRows = await app.db
+      .select({
+        consumedAt: emailVerificationTokens.consumedAt,
+        tokenHash: emailVerificationTokens.tokenHash,
+        userId: emailVerificationTokens.userId
+      })
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, response.json().data.user.id));
+
+    expect(tokenRows).toHaveLength(1);
+    expect(tokenRows[0]!.consumedAt).toBeNull();
+    expect(tokenRows[0]!.tokenHash).not.toBe(response.json().data.devEmailVerificationToken);
+  });
+
+  it("confirms a valid email verification token", async () => {
+    const register = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Verify Me",
+        email: "verify-me@example.com",
+        password: "Password123!"
+      }
+    });
+    const registerBody = register.json();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/confirm",
+      payload: {
+        token: registerBody.data.devEmailVerificationToken
+      }
+    });
+
+    const [userRow] = await app.db
+      .select({
+        emailVerifiedAt: users.emailVerifiedAt
+      })
+      .from(users)
+      .where(eq(users.id, registerBody.data.user.id));
+    const [accountRow] = await app.db
+      .select({
+        emailVerifiedAt: authAccounts.emailVerifiedAt
+      })
+      .from(authAccounts)
+      .where(
+        and(
+          eq(authAccounts.userId, registerBody.data.user.id),
+          eq(authAccounts.provider, "password")
+        )
+      );
+    const [tokenRow] = await app.db
+      .select({
+        consumedAt: emailVerificationTokens.consumedAt
+      })
+      .from(emailVerificationTokens)
+      .where(
+        eq(
+          emailVerificationTokens.tokenHash,
+          hashEmailVerificationToken(registerBody.data.devEmailVerificationToken)
+        )
+      );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        emailVerified: true
+      }
+    });
+    expect(userRow?.emailVerifiedAt).toBeInstanceOf(Date);
+    expect(accountRow?.emailVerifiedAt).toBeInstanceOf(Date);
+    expect(tokenRow?.consumedAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects invalid email verification tokens safely", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/confirm",
+      payload: {
+        token: "not-a-real-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "EMAIL_VERIFICATION_TOKEN_INVALID"
+      }
+    });
+  });
+
+  it("rejects expired email verification tokens safely", async () => {
+    const user = await createUser(app, {
+      email: "expired-verification@example.com"
+    });
+    const expiredToken = "expired-email-verification-token";
+
+    await app.db.insert(emailVerificationTokens).values({
+      expiresAt: new Date(Date.now() - 60_000),
+      tokenHash: hashEmailVerificationToken(expiredToken),
+      userId: user.user.id
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/confirm",
+      payload: {
+        token: expiredToken
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "EMAIL_VERIFICATION_TOKEN_INVALID"
+      }
+    });
+  });
+
+  it("rejects consumed email verification tokens safely", async () => {
+    const register = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Consumed Verification",
+        email: "consumed-verification@example.com",
+        password: "Password123!"
+      }
+    });
+    const token = register.json().data.devEmailVerificationToken;
+
+    const firstConfirm = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/confirm",
+      payload: {
+        token
+      }
+    });
+    const secondConfirm = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/confirm",
+      payload: {
+        token
+      }
+    });
+
+    expect(firstConfirm.statusCode).toBe(200);
+    expect(secondConfirm.statusCode).toBe(400);
+    expect(secondConfirm.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "EMAIL_VERIFICATION_TOKEN_INVALID"
+      }
+    });
+  });
+
+  it("email verification request is enumeration-safe for missing emails", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/request",
+      payload: {
+        email: "missing-verification@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      data: {
+        requested: true
+      }
+    });
+  });
+
+  it("email verification request creates a fresh token for an existing unverified user", async () => {
+    const user = await createUser(app, {
+      email: "request-verification@example.com"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/request",
+      payload: {
+        email: "request-verification@example.com"
+      }
+    });
+
+    const tokenRows = await app.db
+      .select({
+        consumedAt: emailVerificationTokens.consumedAt,
+        tokenHash: emailVerificationTokens.tokenHash
+      })
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, user.user.id));
+    const activeTokenRows = tokenRows.filter((row) => row.consumedAt === null);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.requested).toBe(true);
+    expect(response.json().data.devEmailVerificationToken).toEqual(expect.any(String));
+    expect(activeTokenRows).toHaveLength(1);
+    expect(activeTokenRows[0]!.tokenHash).toBe(
+      hashEmailVerificationToken(response.json().data.devEmailVerificationToken)
+    );
+  });
+
+  it("email verification request for an already verified user remains generic", async () => {
+    const user = await createUser(app, {
+      email: "already-verified@example.com"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        emailVerifiedAt: new Date()
+      })
+      .where(eq(users.id, user.user.id));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/request",
+      payload: {
+        email: "already-verified@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      data: {
+        requested: true
+      }
+    });
   });
 
   it("register creates a session and sets an httpOnly refresh cookie", async () => {
@@ -980,12 +1234,14 @@ describe("auth API", () => {
     const [userRow] = await app.db
       .select({
         email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
         id: users.id
       })
       .from(users)
       .where(eq(users.email, "google.parent@example.com"));
 
     expect(userRow).toBeDefined();
+    expect(userRow?.emailVerifiedAt).toBeInstanceOf(Date);
 
     const profileRows = await app.db
       .select({
@@ -1052,7 +1308,7 @@ describe("auth API", () => {
     expect(response.headers.location).toBe("http://localhost:3000/auth/callback?status=success");
 
     const userRows = await app.db
-      .select({ id: users.id })
+      .select({ emailVerifiedAt: users.emailVerifiedAt, id: users.id })
       .from(users)
       .where(eq(users.email, "linked@example.com"));
 
@@ -1070,7 +1326,9 @@ describe("auth API", () => {
         )
       );
 
-    expect(userRows).toEqual([{ id: existingUser.user.id }]);
+    expect(userRows).toHaveLength(1);
+    expect(userRows[0]!.id).toBe(existingUser.user.id);
+    expect(userRows[0]!.emailVerifiedAt).toBeInstanceOf(Date);
     expect(googleAccountRows).toEqual([
       {
         provider: "google",

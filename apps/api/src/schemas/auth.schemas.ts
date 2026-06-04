@@ -41,8 +41,22 @@ export const passwordChangeSchema = z
   })
   .strict();
 
+export const emailVerificationRequestSchema = z
+  .object({
+    email: z.string().trim().email().max(320).transform((value) => value.toLowerCase())
+  })
+  .strict();
+
+export const emailVerificationConfirmSchema = z
+  .object({
+    token: z.string().trim().min(1).max(512)
+  })
+  .strict();
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmBody = z.infer<typeof passwordResetConfirmSchema>;
 export type PasswordChangeBody = z.infer<typeof passwordChangeSchema>;
+export type EmailVerificationRequestBody = z.infer<typeof emailVerificationRequestSchema>;
+export type EmailVerificationConfirmBody = z.infer<typeof emailVerificationConfirmSchema>;

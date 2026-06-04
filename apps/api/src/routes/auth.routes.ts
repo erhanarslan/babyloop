@@ -5,6 +5,8 @@ import type {
   RouteShorthandOptions
 } from "fastify";
 import {
+  emailVerificationConfirmSchema,
+  emailVerificationRequestSchema,
   loginBodySchema,
   passwordChangeSchema,
   passwordResetConfirmSchema,
@@ -18,6 +20,7 @@ import {
   buildAuthMeResponse,
   buildLogoutAuthResponse,
   changePassword,
+  confirmEmailVerification,
   confirmPasswordReset,
   createAuthSession,
   invalidAuthRequest,
@@ -25,10 +28,13 @@ import {
   refreshAuthSession,
   registerUser,
   requestPasswordReset,
+  requestEmailVerification,
   revokeAuthSession,
   unauthorizedAuthRequest,
   type AuthMeResponse,
   type AuthResponse,
+  type EmailVerificationConfirmResponse,
+  type EmailVerificationRequestResponse,
   type LogoutAuthResponse,
   type PasswordChangeResponse,
   type PasswordResetConfirmResponse,
@@ -63,6 +69,10 @@ type PasswordResetRequestRouteResponse =
   | PasswordResetRequestResponse
   | ReturnType<typeof invalidAuthRequest>;
 
+type EmailVerificationRequestRouteResponse =
+  | EmailVerificationRequestResponse
+  | ReturnType<typeof invalidAuthRequest>;
+
 export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptions): void {
   app.post<{ Body: unknown; Reply: AuthResponse }>(
     "/auth/register",
@@ -81,6 +91,16 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       const response = attachAccessToken(result.response, options);
+      const responseWithDevVerificationToken =
+        shouldExposeDevEmailVerificationToken() && result.devEmailVerificationToken
+          ? {
+              ok: true as const,
+              data: {
+                ...response.data,
+                devEmailVerificationToken: result.devEmailVerificationToken
+              }
+            }
+          : response;
       const session = await createAuthSession(
         app,
         response.data.user.id,
@@ -89,7 +109,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
 
-      return reply.status(201).send(response);
+      return reply.status(201).send(responseWithDevVerificationToken);
     }
   );
 
@@ -230,6 +250,52 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       clearRefreshTokenCookie(reply);
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: EmailVerificationRequestRouteResponse }>(
+    "/auth/email-verification/request",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = emailVerificationRequestSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await requestEmailVerification(app, parsedBody.data);
+
+      if (shouldExposeDevEmailVerificationToken() && result.devEmailVerificationToken) {
+        return reply.status(200).send({
+          ok: true,
+          data: {
+            ...result.response.data,
+            devEmailVerificationToken: result.devEmailVerificationToken
+          }
+        });
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: EmailVerificationConfirmResponse }>(
+    "/auth/email-verification/confirm",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = emailVerificationConfirmSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await confirmEmailVerification(app, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(400).send(result.response);
+      }
 
       return reply.status(200).send(result.response);
     }
@@ -379,5 +445,9 @@ function googleOAuthUnavailableResponse() {
 }
 
 function shouldExposeDevResetToken() {
+  return process.env.NODE_ENV === "test";
+}
+
+function shouldExposeDevEmailVerificationToken() {
   return process.env.NODE_ENV === "test";
 }

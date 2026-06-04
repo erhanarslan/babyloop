@@ -1,5 +1,6 @@
 import {
   authAccounts,
+  emailVerificationTokens,
   passwordResetTokens,
   profiles,
   sessions,
@@ -12,6 +13,8 @@ import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
   LoginBody,
+  EmailVerificationConfirmBody,
+  EmailVerificationRequestBody,
   PasswordChangeBody,
   PasswordResetConfirmBody,
   PasswordResetRequestBody,
@@ -29,11 +32,17 @@ import {
   createPasswordResetTokenExpiresAt,
   hashPasswordResetToken
 } from "../utils/password-reset-token.js";
+import {
+  createEmailVerificationToken,
+  createEmailVerificationTokenExpiresAt,
+  hashEmailVerificationToken
+} from "../utils/email-verification-token.js";
 import type { GoogleUserInfo } from "./google-oauth.service.js";
 
 export type SafeAuthUser = {
   id: string;
   email: string;
+  emailVerifiedAt: string | null;
   role: string;
 };
 
@@ -87,6 +96,15 @@ export type PasswordChangeResponse = ApiResponse<{
   passwordChanged: true;
 }>;
 
+export type EmailVerificationRequestResponse = ApiSuccess<{
+  requested: true;
+  devEmailVerificationToken?: string;
+}>;
+
+export type EmailVerificationConfirmResponse = ApiResponse<{
+  emailVerified: true;
+}>;
+
 type AuthSessionCreation = {
   expiresAt: Date;
   refreshToken: string;
@@ -107,7 +125,10 @@ type RefreshAuthSessionResult =
 export async function registerUser(
   app: FastifyInstance,
   body: RegisterBody
-): Promise<{ status: "created"; response: AuthSuccess } | { status: "duplicate"; response: ApiFailure }> {
+): Promise<
+  | { status: "created"; response: AuthSuccess; devEmailVerificationToken: string }
+  | { status: "duplicate"; response: ApiFailure }
+> {
   const existingUser = await findUserByEmail(app, body.email);
 
   if (existingUser) {
@@ -117,6 +138,7 @@ export async function registerUser(
   const passwordHash = await hashPassword(body.password);
 
   try {
+    const emailVerificationToken = createEmailVerificationToken();
     const created = await app.db.transaction(async (tx) => {
       const [createdUser] = await tx
         .insert(users)
@@ -128,6 +150,7 @@ export async function registerUser(
         .returning({
           id: users.id,
           email: users.email,
+          emailVerifiedAt: users.emailVerifiedAt,
           role: users.role
         });
 
@@ -159,14 +182,24 @@ export async function registerUser(
         userId: createdUser.id
       });
 
+      await tx.insert(emailVerificationTokens).values({
+        expiresAt: createEmailVerificationTokenExpiresAt(),
+        tokenHash: hashEmailVerificationToken(emailVerificationToken),
+        userId: createdUser.id
+      });
+
       return {
         profile: createdProfile,
-        user: createdUser
+        user: {
+          ...createdUser,
+          emailVerifiedAt: serializeDate(createdUser.emailVerifiedAt)
+        }
       };
     });
 
     return {
       status: "created",
+      devEmailVerificationToken: emailVerificationToken,
       response: buildAuthResponse(created)
     };
   } catch (error) {
@@ -202,6 +235,7 @@ export async function loginUser(
       user: {
         id: userWithProfile.id,
         email: userWithProfile.email,
+        emailVerifiedAt: serializeDate(userWithProfile.emailVerifiedAt),
         role: userWithProfile.role
       }
     })
@@ -231,6 +265,7 @@ export async function authenticateGoogleUser(
       user: {
         id: existingGoogleAccount.id,
         email: existingGoogleAccount.email,
+        emailVerifiedAt: serializeDate(existingGoogleAccount.emailVerifiedAt),
         role: existingGoogleAccount.role
       }
     });
@@ -243,6 +278,7 @@ export async function authenticateGoogleUser(
       .select({
         id: users.id,
         email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
         role: users.role,
         profileId: profiles.id,
         displayName: profiles.displayName,
@@ -254,6 +290,7 @@ export async function authenticateGoogleUser(
       .limit(1);
 
     if (existingUser) {
+      const now = new Date();
       const profile =
         existingUser.profileId && existingUser.displayName
           ? {
@@ -263,9 +300,17 @@ export async function authenticateGoogleUser(
             }
           : await createProfileForGoogleUser(tx, existingUser.id, displayName);
 
+      await tx
+        .update(users)
+        .set({
+          emailVerifiedAt: existingUser.emailVerifiedAt ?? now,
+          updatedAt: now
+        })
+        .where(eq(users.id, existingUser.id));
+
       await tx.insert(authAccounts).values({
         email,
-        emailVerifiedAt: new Date(),
+        emailVerifiedAt: now,
         provider: "google",
         providerAccountId,
         userId: existingUser.id
@@ -276,6 +321,7 @@ export async function authenticateGoogleUser(
         user: {
           id: existingUser.id,
           email: existingUser.email,
+          emailVerifiedAt: serializeDate(existingUser.emailVerifiedAt ?? now),
           role: existingUser.role
         }
       };
@@ -287,12 +333,14 @@ export async function authenticateGoogleUser(
       .insert(users)
       .values({
         email,
+        emailVerifiedAt: new Date(),
         passwordHash: unusablePasswordHash,
         role: "user"
       })
       .returning({
         id: users.id,
         email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
         role: users.role
       });
 
@@ -312,7 +360,10 @@ export async function authenticateGoogleUser(
 
     return {
       profile,
-      user: createdUser
+      user: {
+        ...createdUser,
+        emailVerifiedAt: serializeDate(createdUser.emailVerifiedAt)
+      }
     };
   });
 
@@ -463,6 +514,120 @@ export async function changePassword(
   };
 }
 
+export async function requestEmailVerification(
+  app: FastifyInstance,
+  body: EmailVerificationRequestBody
+): Promise<{ response: EmailVerificationRequestResponse; devEmailVerificationToken?: string }> {
+  const now = new Date();
+  const user = await findUserByEmail(app, body.email);
+
+  if (!user || user.emailVerifiedAt) {
+    return {
+      response: buildEmailVerificationRequestResponse()
+    };
+  }
+
+  const verificationToken = createEmailVerificationToken();
+
+  await app.db.transaction(async (tx) => {
+    await tx
+      .update(emailVerificationTokens)
+      .set({
+        consumedAt: now
+      })
+      .where(
+        and(
+          eq(emailVerificationTokens.userId, user.id),
+          isNull(emailVerificationTokens.consumedAt)
+        )
+      );
+
+    await tx.insert(emailVerificationTokens).values({
+      expiresAt: createEmailVerificationTokenExpiresAt(now),
+      tokenHash: hashEmailVerificationToken(verificationToken),
+      userId: user.id
+    });
+  });
+
+  return {
+    devEmailVerificationToken: verificationToken,
+    response: buildEmailVerificationRequestResponse()
+  };
+}
+
+export async function confirmEmailVerification(
+  app: FastifyInstance,
+  body: EmailVerificationConfirmBody
+): Promise<
+  { status: "ok"; response: EmailVerificationConfirmResponse } | { status: "invalid"; response: ApiFailure }
+> {
+  const now = new Date();
+  const tokenHash = hashEmailVerificationToken(body.token);
+
+  const verified = await app.db.transaction(async (tx) => {
+    const [verificationToken] = await tx
+      .select({
+        id: emailVerificationTokens.id,
+        userId: emailVerificationTokens.userId
+      })
+      .from(emailVerificationTokens)
+      .where(
+        and(
+          eq(emailVerificationTokens.tokenHash, tokenHash),
+          isNull(emailVerificationTokens.consumedAt),
+          gt(emailVerificationTokens.expiresAt, now)
+        )
+      )
+      .limit(1);
+
+    if (!verificationToken) {
+      return null;
+    }
+
+    await tx
+      .update(users)
+      .set({
+        emailVerifiedAt: now,
+        updatedAt: now
+      })
+      .where(eq(users.id, verificationToken.userId));
+
+    await tx
+      .update(authAccounts)
+      .set({
+        emailVerifiedAt: now,
+        updatedAt: now
+      })
+      .where(
+        and(
+          eq(authAccounts.userId, verificationToken.userId),
+          eq(authAccounts.provider, "password")
+        )
+      );
+
+    await tx
+      .update(emailVerificationTokens)
+      .set({
+        consumedAt: now
+      })
+      .where(eq(emailVerificationTokens.id, verificationToken.id));
+
+    return verificationToken;
+  });
+
+  if (!verified) {
+    return {
+      status: "invalid",
+      response: invalidEmailVerificationToken()
+    };
+  }
+
+  return {
+    status: "ok",
+    response: buildEmailVerificationConfirmResponse()
+  };
+}
+
 export async function createAuthSession(
   app: FastifyInstance,
   userId: string,
@@ -499,6 +664,7 @@ export async function refreshAuthSession(
       sessionId: sessions.id,
       userId: users.id,
       email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
       role: users.role,
       profileId: profiles.id,
       displayName: profiles.displayName,
@@ -564,6 +730,7 @@ export async function refreshAuthSession(
       user: {
         id: sessionRow.userId,
         email: sessionRow.email,
+        emailVerifiedAt: serializeDate(sessionRow.emailVerifiedAt),
         role: sessionRow.role
       }
     })
@@ -626,6 +793,27 @@ function buildPasswordChangeResponse(): PasswordChangeResponse {
   };
 }
 
+function buildEmailVerificationRequestResponse(
+  devEmailVerificationToken?: string
+): EmailVerificationRequestResponse {
+  return {
+    ok: true,
+    data: {
+      requested: true,
+      ...(devEmailVerificationToken ? { devEmailVerificationToken } : {})
+    }
+  };
+}
+
+function buildEmailVerificationConfirmResponse(): EmailVerificationConfirmResponse {
+  return {
+    ok: true,
+    data: {
+      emailVerified: true
+    }
+  };
+}
+
 export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   return {
     ok: true,
@@ -633,6 +821,7 @@ export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
       user: {
         id: currentUser.userId,
         email: currentUser.email,
+        emailVerifiedAt: currentUser.emailVerifiedAt,
         role: currentUser.role
       },
       profile: currentUser.profile
@@ -692,6 +881,16 @@ function duplicateEmailRegistration(): { status: "duplicate"; response: ApiFailu
   };
 }
 
+function invalidEmailVerificationToken(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "EMAIL_VERIFICATION_TOKEN_INVALID",
+      message: "Email verification token is invalid or expired."
+    }
+  };
+}
+
 function isDuplicateRegistrationConstraint(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("code" in error)) {
     return false;
@@ -719,7 +918,7 @@ function buildAuthResponse(value: { user: SafeAuthUser; profile: SafeAuthProfile
 
 async function findUserByEmail(app: FastifyInstance, email: string) {
   const [user] = await app.db
-    .select({ id: users.id })
+    .select({ id: users.id, emailVerifiedAt: users.emailVerifiedAt })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
@@ -732,6 +931,7 @@ async function findUserWithProfileByEmail(app: FastifyInstance, email: string) {
     .select({
       id: users.id,
       email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
       role: users.role,
       passwordHash: users.passwordHash,
       profileId: profiles.id,
@@ -755,6 +955,7 @@ async function findUserWithProfileByAuthAccount(
     .select({
       id: users.id,
       email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
       role: users.role,
       profileId: profiles.id,
       displayName: profiles.displayName,
@@ -816,6 +1017,10 @@ function buildGoogleProfileDisplayName(googleProfile: GoogleUserInfo, email: str
   }
 
   return "BabyLoop User";
+}
+
+function serializeDate(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
 }
 
 function invalidCredentials(): ApiFailure {
