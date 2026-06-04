@@ -53,6 +53,13 @@ export const emailVerificationConfirmSchema = z
   })
   .strict();
 
+export const mfaVerifySchema = z
+  .object({
+    challengeId: z.string().uuid(),
+    code: z.string().trim().regex(/^\d{6}$/)
+  })
+  .strict();
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
@@ -60,3 +67,4 @@ export type PasswordResetConfirmBody = z.infer<typeof passwordResetConfirmSchema
 export type PasswordChangeBody = z.infer<typeof passwordChangeSchema>;
 export type EmailVerificationRequestBody = z.infer<typeof emailVerificationRequestSchema>;
 export type EmailVerificationConfirmBody = z.infer<typeof emailVerificationConfirmSchema>;
+export type MfaVerifyBody = z.infer<typeof mfaVerifySchema>;

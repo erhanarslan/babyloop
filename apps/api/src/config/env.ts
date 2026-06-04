@@ -8,6 +8,8 @@ export type ApiRuntimeConfig = {
   authTokenTtlSeconds: number;
   corsOrigins: string[];
   databaseUrl?: string;
+  emailDeliveryMode: "noop";
+  emailFrom?: string;
   googleOAuth?: GoogleOAuthConfig;
   host: string;
   port: number;
@@ -24,6 +26,7 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     authRateLimitWindowSeconds: readPositiveInteger(env.AUTH_RATE_LIMIT_WINDOW_SECONDS, 60),
     authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 15),
     corsOrigins: readCorsOrigins(env.CORS_ORIGINS),
+    emailDeliveryMode: readEmailDeliveryMode(env.EMAIL_DELIVERY_MODE),
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT),
     webAppUrl: readWebAppUrl(env.WEB_APP_URL)
@@ -44,6 +47,10 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     config.databaseUrl = env.DATABASE_URL;
   }
 
+  if (env.EMAIL_FROM?.trim()) {
+    config.emailFrom = env.EMAIL_FROM.trim();
+  }
+
   if (config.databaseUrl && !config.authSecret && !config.allowAuthUnavailable) {
     throw new Error(
       "AUTH_SECRET is required when DATABASE_URL is configured. Set ALLOW_AUTH_UNAVAILABLE=true only for local unavailable-mode testing."
@@ -51,6 +58,14 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+
+function readEmailDeliveryMode(value: string | undefined): "noop" {
+  if (!value || value.trim().toLowerCase() === "noop") {
+    return "noop";
+  }
+
+  throw new Error("EMAIL_DELIVERY_MODE must be noop until a real email provider is implemented.");
 }
 
 function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | undefined {

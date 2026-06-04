@@ -14,16 +14,28 @@ import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
+import {
+  createEmailDeliveryService,
+  type EmailDeliveryService
+} from "./services/email-delivery.service.js";
 import type { GoogleOAuthClient } from "./services/google-oauth.service.js";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
+  emailDelivery?: EmailDeliveryService;
   googleOAuthClient?: GoogleOAuthClient;
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
   assertAuthConfig(config);
+  const emailDelivery =
+    options.emailDelivery ??
+    createEmailDeliveryService({
+      ...(config.emailFrom ? { emailFrom: config.emailFrom } : {}),
+      mode: config.emailDeliveryMode,
+      webAppUrl: config.webAppUrl
+    });
   const app = Fastify({
     logger: true
   });
@@ -85,6 +97,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
         authRateLimitWindowSeconds: config.authRateLimitWindowSeconds,
         authSecret: config.authSecret,
         authTokenTtlSeconds: config.authTokenTtlSeconds,
+        emailDelivery,
         prefix: API_PREFIX,
         webAppUrl: config.webAppUrl
       };

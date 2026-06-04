@@ -1,6 +1,7 @@
 import type { Database } from "@babyloop/database";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../src/app.js";
+import type { EmailDeliveryService } from "../src/services/email-delivery.service.js";
 import type {
   GoogleOAuthClient,
   GoogleOAuthConfig
@@ -18,6 +19,7 @@ const TEST_GOOGLE_OAUTH_CONFIG: GoogleOAuthConfig = {
 type TestAppOptions = Partial<{
   authRateLimitMax: number;
   authRateLimitWindowSeconds: number;
+  emailDelivery: EmailDeliveryService;
   googleOAuth: GoogleOAuthConfig;
   googleOAuthClient: GoogleOAuthClient;
 }>;
@@ -39,11 +41,13 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       authTokenTtlSeconds: 60 * 60,
       corsOrigins: ["http://localhost:3000"],
       databaseUrl: getTestDatabaseUrl(),
+      emailDeliveryMode: "noop",
       ...(googleOAuth ? { googleOAuth } : {}),
       host: "127.0.0.1",
       port: 0,
       webAppUrl: "http://localhost:3000"
     },
+    ...(options.emailDelivery ? { emailDelivery: options.emailDelivery } : {}),
     ...(options.googleOAuthClient ? { googleOAuthClient: options.googleOAuthClient } : {})
   });
 

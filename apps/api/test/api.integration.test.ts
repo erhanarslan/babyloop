@@ -7,6 +7,7 @@ import {
   favorites,
   listingImages,
   listings,
+  mfaOtpChallenges,
   passwordResetTokens,
   profiles,
   sessions,
@@ -23,6 +24,13 @@ import {
   type GoogleOAuthClient,
   type GoogleUserInfo
 } from "../src/services/google-oauth.service.js";
+import type {
+  EmailDeliveryService,
+  SendEmailVerificationEmailParams,
+  SendMfaOtpEmailParams,
+  SendPasswordResetEmailParams
+} from "../src/services/email-delivery.service.js";
+import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   authHeader,
@@ -159,6 +167,31 @@ describe("auth API", () => {
     expect(tokenRows).toHaveLength(1);
     expect(tokenRows[0]!.consumedAt).toBeNull();
     expect(tokenRows[0]!.tokenHash).not.toBe(response.json().data.devEmailVerificationToken);
+  });
+
+  it("register invokes the email verification delivery abstraction", async () => {
+    const emailDelivery = await useEmailDeliveryTestApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Delivery Verification",
+        email: "delivery-verification@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(emailDelivery.emailVerificationEmails).toHaveLength(1);
+    expect(emailDelivery.emailVerificationEmails[0]).toMatchObject({
+      displayName: "Delivery Verification",
+      expiresInSeconds: 60 * 60 * 24,
+      recipientEmail: "delivery-verification@example.com"
+    });
+    expect(emailDelivery.emailVerificationEmails[0]!.verificationUrl).toContain(
+      "http://localhost:3000/auth/verify-email?token="
+    );
   });
 
   it("confirms a valid email verification token", async () => {
@@ -352,6 +385,32 @@ describe("auth API", () => {
     expect(activeTokenRows).toHaveLength(1);
     expect(activeTokenRows[0]!.tokenHash).toBe(
       hashEmailVerificationToken(response.json().data.devEmailVerificationToken)
+    );
+  });
+
+  it("email verification request invokes the email delivery abstraction", async () => {
+    const emailDelivery = await useEmailDeliveryTestApp();
+
+    await createUser(app, {
+      email: "verification-delivery-request@example.com"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/email-verification/request",
+      payload: {
+        email: "verification-delivery-request@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(emailDelivery.emailVerificationEmails).toHaveLength(2);
+    expect(emailDelivery.emailVerificationEmails[1]).toMatchObject({
+      expiresInSeconds: 60 * 60 * 24,
+      recipientEmail: "verification-delivery-request@example.com"
+    });
+    expect(emailDelivery.emailVerificationEmails[1]!.verificationUrl).toContain(
+      "http://localhost:3000/auth/verify-email?token="
     );
   });
 
@@ -863,6 +922,32 @@ describe("auth API", () => {
     expect(tokenRows[0]!.tokenHash).toEqual(expect.any(String));
     expect(tokenRows[0]!.tokenHash).not.toBe(resetToken);
     expect(tokenRows[0]!.userId).toBe(user.user.id);
+  });
+
+  it("password reset request invokes the email delivery abstraction", async () => {
+    const emailDelivery = await useEmailDeliveryTestApp();
+
+    await createUser(app, {
+      email: "reset-delivery@example.com"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: "reset-delivery@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(emailDelivery.passwordResetEmails).toHaveLength(1);
+    expect(emailDelivery.passwordResetEmails[0]).toMatchObject({
+      expiresInSeconds: 60 * 30,
+      recipientEmail: "reset-delivery@example.com"
+    });
+    expect(emailDelivery.passwordResetEmails[0]!.resetUrl).toContain(
+      "http://localhost:3000/reset-password?token="
+    );
   });
 
   it("password reset request returns the same generic success for a missing email", async () => {
@@ -1717,6 +1802,221 @@ describe("auth API", () => {
         code: "INVALID_CREDENTIALS"
       }
     });
+  });
+
+  it("normal login is unchanged when MFA is disabled", async () => {
+    const user = await createUser(app, {
+      email: "mfa-disabled@example.com"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "mfa-disabled@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.accessToken).toEqual(expect.any(String));
+    expect(response.json().data.user.id).toBe(user.user.id);
+    expect(getRefreshSetCookie(response)).toContain("HttpOnly");
+  });
+
+  it("MFA enabled login returns a challenge without issuing a session", async () => {
+    const emailDelivery = await useEmailDeliveryTestApp();
+    const user = await createUser(app, {
+      email: "mfa-enabled@example.com"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        mfaEnabled: true
+      })
+      .where(eq(users.id, user.user.id));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "mfa-enabled@example.com",
+        password: "Password123!"
+      }
+    });
+    const sessionRows = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.userId, user.user.id));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        challengeId: expect.any(String),
+        devOtpCode: expect.stringMatching(/^\d{6}$/),
+        mfaRequired: true
+      }
+    });
+    expect(response.body).not.toContain("accessToken");
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    expect(sessionRows).toHaveLength(1);
+    expect(emailDelivery.mfaOtpEmails).toHaveLength(1);
+    expect(emailDelivery.mfaOtpEmails[0]).toMatchObject({
+      code: response.json().data.devOtpCode,
+      expiresInSeconds: 60 * 10,
+      recipientEmail: "mfa-enabled@example.com"
+    });
+  });
+
+  it("MFA verify accepts a valid OTP and creates an auth session", async () => {
+    const user = await createUser(app, {
+      email: "mfa-verify@example.com"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        mfaEnabled: true
+      })
+      .where(eq(users.id, user.user.id));
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "mfa-verify@example.com",
+        password: "Password123!"
+      }
+    });
+    const verify = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: login.json().data.challengeId,
+        code: login.json().data.devOtpCode
+      }
+    });
+
+    const [challengeRow] = await app.db
+      .select({ consumedAt: mfaOtpChallenges.consumedAt })
+      .from(mfaOtpChallenges)
+      .where(eq(mfaOtpChallenges.id, login.json().data.challengeId));
+
+    expect(verify.statusCode).toBe(200);
+    expect(verify.json().data.accessToken).toEqual(expect.any(String));
+    expect(getRefreshSetCookie(verify)).toContain("HttpOnly");
+    expect(challengeRow?.consumedAt).toBeInstanceOf(Date);
+  });
+
+  it("MFA verify rejects invalid, expired, and reused OTP codes", async () => {
+    const user = await createUser(app, {
+      email: "mfa-invalid@example.com"
+    });
+    const validCode = "123456";
+    const expiredCode = "654321";
+
+    await app.db.insert(mfaOtpChallenges).values([
+      {
+        codeHash: hashMfaOtpCode(validCode),
+        expiresAt: new Date(Date.now() + 60_000),
+        purpose: "login",
+        userId: user.user.id
+      },
+      {
+        codeHash: hashMfaOtpCode(expiredCode),
+        expiresAt: new Date(Date.now() - 60_000),
+        purpose: "login",
+        userId: user.user.id
+      }
+    ]);
+
+    const [validChallenge] = await app.db
+      .select({ id: mfaOtpChallenges.id })
+      .from(mfaOtpChallenges)
+      .where(eq(mfaOtpChallenges.codeHash, hashMfaOtpCode(validCode)));
+    const [expiredChallenge] = await app.db
+      .select({ id: mfaOtpChallenges.id })
+      .from(mfaOtpChallenges)
+      .where(eq(mfaOtpChallenges.codeHash, hashMfaOtpCode(expiredCode)));
+
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: validChallenge!.id,
+        code: "000000"
+      }
+    });
+    const expired = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: expiredChallenge!.id,
+        code: expiredCode
+      }
+    });
+    const firstUse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: validChallenge!.id,
+        code: validCode
+      }
+    });
+    const reused = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: validChallenge!.id,
+        code: validCode
+      }
+    });
+
+    expect(invalid.statusCode).toBe(400);
+    expect(expired.statusCode).toBe(400);
+    expect(firstUse.statusCode).toBe(200);
+    expect(reused.statusCode).toBe(400);
+    expect(reused.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "MFA_CODE_INVALID"
+      }
+    });
+  });
+
+  it("MFA challenge response does not expose devOtpCode outside test mode", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const user = await createUser(app, {
+        email: "mfa-production@example.com"
+      });
+
+      await app.db
+        .update(users)
+        .set({
+          mfaEnabled: true
+        })
+        .where(eq(users.id, user.user.id));
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: {
+          email: "mfa-production@example.com",
+          password: "Password123!"
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.mfaRequired).toBe(true);
+      expect(response.body).not.toContain("devOtpCode");
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
   });
 
   it("returns auth/me with a valid token", async () => {
@@ -2913,6 +3213,44 @@ async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserIn
   app = await createTestApp({
     googleOAuthClient: createFakeGoogleOAuthClient(profilesByCode)
   });
+}
+
+async function useEmailDeliveryTestApp(): Promise<RecordingEmailDeliveryService> {
+  const emailDelivery = createRecordingEmailDeliveryService();
+
+  await app.close();
+  app = await createTestApp({
+    emailDelivery
+  });
+
+  return emailDelivery;
+}
+
+type RecordingEmailDeliveryService = EmailDeliveryService & {
+  emailVerificationEmails: SendEmailVerificationEmailParams[];
+  mfaOtpEmails: SendMfaOtpEmailParams[];
+  passwordResetEmails: SendPasswordResetEmailParams[];
+};
+
+function createRecordingEmailDeliveryService(): RecordingEmailDeliveryService {
+  const emailVerificationEmails: SendEmailVerificationEmailParams[] = [];
+  const mfaOtpEmails: SendMfaOtpEmailParams[] = [];
+  const passwordResetEmails: SendPasswordResetEmailParams[] = [];
+
+  return {
+    emailVerificationEmails,
+    mfaOtpEmails,
+    passwordResetEmails,
+    async sendEmailVerificationEmail(params) {
+      emailVerificationEmails.push(params);
+    },
+    async sendMfaOtpEmail(params) {
+      mfaOtpEmails.push(params);
+    },
+    async sendPasswordResetEmail(params) {
+      passwordResetEmails.push(params);
+    }
+  };
 }
 
 function createFakeGoogleOAuthClient(

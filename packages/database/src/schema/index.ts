@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  boolean,
   check,
   index,
   integer,
@@ -50,6 +51,7 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: varchar("email", { length: 320 }).notNull(),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    mfaEnabled: boolean("mfa_enabled").notNull().default(false),
     passwordHash: text("password_hash").notNull(),
     role: varchar("role", { length: 40 }).notNull().default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -121,6 +123,26 @@ export const sessions = pgTable(
     index("sessions_user_id_idx").on(table.userId),
     index("sessions_expires_at_idx").on(table.expiresAt),
     index("sessions_revoked_at_idx").on(table.revokedAt)
+  ]
+);
+
+export const mfaOtpChallenges = pgTable(
+  "mfa_otp_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    purpose: varchar("purpose", { length: 40 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("mfa_otp_challenges_code_hash_idx").on(table.codeHash),
+    index("mfa_otp_challenges_user_id_idx").on(table.userId),
+    index("mfa_otp_challenges_expires_at_idx").on(table.expiresAt)
   ]
 );
 
@@ -401,6 +423,7 @@ export const schema = {
   listingImages,
   listings,
   messages,
+  mfaOtpChallenges,
   passwordResetTokens,
   productCategories,
   profiles,

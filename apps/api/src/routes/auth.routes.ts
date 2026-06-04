@@ -8,6 +8,7 @@ import {
   emailVerificationConfirmSchema,
   emailVerificationRequestSchema,
   loginBodySchema,
+  mfaVerifySchema,
   passwordChangeSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
@@ -31,11 +32,14 @@ import {
   requestEmailVerification,
   revokeAuthSession,
   unauthorizedAuthRequest,
+  verifyMfaLogin,
   type AuthMeResponse,
   type AuthResponse,
   type EmailVerificationConfirmResponse,
   type EmailVerificationRequestResponse,
   type LogoutAuthResponse,
+  type MfaChallengeResponse,
+  type MfaVerifyResponse,
   type PasswordChangeResponse,
   type PasswordResetConfirmResponse,
   type PasswordResetRequestResponse,
@@ -53,6 +57,7 @@ import {
   type GoogleOAuthClient,
   type GoogleOAuthConfig
 } from "../services/google-oauth.service.js";
+import type { EmailDeliveryService } from "../services/email-delivery.service.js";
 import {
   readRefreshTokenCookie,
   serializeExpiredRefreshTokenCookie,
@@ -60,6 +65,7 @@ import {
 } from "../utils/refresh-token.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
+  emailDelivery: EmailDeliveryService;
   googleOAuth?: GoogleOAuthConfig;
   googleOAuthClient?: GoogleOAuthClient;
   webAppUrl: string;
@@ -68,6 +74,8 @@ type AuthRouteOptions = AuthTokenOptions & {
 type PasswordResetRequestRouteResponse =
   | PasswordResetRequestResponse
   | ReturnType<typeof invalidAuthRequest>;
+
+type LoginRouteResponse = AuthResponse | MfaChallengeResponse;
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -84,7 +92,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await registerUser(app, parsedBody.data);
+      const result = await registerUser(app, parsedBody.data, {
+        emailDelivery: options.emailDelivery,
+        webAppUrl: options.webAppUrl
+      });
 
       if (result.status === "duplicate") {
         return reply.status(409).send(result.response);
@@ -113,7 +124,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     }
   );
 
-  app.post<{ Body: unknown; Reply: AuthResponse }>(
+  app.post<{ Body: unknown; Reply: LoginRouteResponse }>(
     "/auth/login",
     authRateLimitOptions(options),
     async (request, reply) => {
@@ -123,10 +134,57 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await loginUser(app, parsedBody.data);
+      const result = await loginUser(app, parsedBody.data, {
+        emailDelivery: options.emailDelivery,
+        webAppUrl: options.webAppUrl
+      });
 
       if (result.status === "invalid") {
         return reply.status(401).send(result.response);
+      }
+
+      if (result.status === "mfa_required") {
+        const response =
+          shouldExposeDevOtpCode() && result.devOtpCode
+            ? {
+                ok: true as const,
+                data: {
+                  ...result.response.data,
+                  devOtpCode: result.devOtpCode
+                }
+              }
+            : result.response;
+
+        return reply.status(200).send(response);
+      }
+
+      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+
+      return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: MfaVerifyResponse }>(
+    "/auth/mfa/verify",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = mfaVerifySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await verifyMfaLogin(app, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(400).send(result.response);
       }
 
       const response = attachAccessToken(result.response, options);
@@ -192,7 +250,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await requestPasswordReset(app, parsedBody.data);
+      const result = await requestPasswordReset(app, parsedBody.data, {
+        emailDelivery: options.emailDelivery,
+        webAppUrl: options.webAppUrl
+      });
 
       if (shouldExposeDevResetToken() && result.devResetToken) {
         return reply.status(200).send({
@@ -265,7 +326,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await requestEmailVerification(app, parsedBody.data);
+      const result = await requestEmailVerification(app, parsedBody.data, {
+        emailDelivery: options.emailDelivery,
+        webAppUrl: options.webAppUrl
+      });
 
       if (shouldExposeDevEmailVerificationToken() && result.devEmailVerificationToken) {
         return reply.status(200).send({
@@ -449,5 +513,9 @@ function shouldExposeDevResetToken() {
 }
 
 function shouldExposeDevEmailVerificationToken() {
+  return process.env.NODE_ENV === "test";
+}
+
+function shouldExposeDevOtpCode() {
   return process.env.NODE_ENV === "test";
 }

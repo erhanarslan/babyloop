@@ -1,6 +1,7 @@
 import {
   authAccounts,
   emailVerificationTokens,
+  mfaOtpChallenges,
   passwordResetTokens,
   profiles,
   sessions,
@@ -15,6 +16,7 @@ import type {
   LoginBody,
   EmailVerificationConfirmBody,
   EmailVerificationRequestBody,
+  MfaVerifyBody,
   PasswordChangeBody,
   PasswordResetConfirmBody,
   PasswordResetRequestBody,
@@ -30,14 +32,27 @@ import { hashPassword, verifyPassword } from "../utils/password.js";
 import {
   createPasswordResetToken,
   createPasswordResetTokenExpiresAt,
-  hashPasswordResetToken
+  hashPasswordResetToken,
+  PASSWORD_RESET_TOKEN_TTL_SECONDS
 } from "../utils/password-reset-token.js";
 import {
   createEmailVerificationToken,
+  EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
   createEmailVerificationTokenExpiresAt,
   hashEmailVerificationToken
 } from "../utils/email-verification-token.js";
+import {
+  buildEmailVerificationUrl,
+  buildPasswordResetUrl,
+  type EmailDeliveryService
+} from "./email-delivery.service.js";
 import type { GoogleUserInfo } from "./google-oauth.service.js";
+import {
+  createMfaOtpCode,
+  createMfaOtpExpiresAt,
+  hashMfaOtpCode,
+  MFA_OTP_TTL_SECONDS
+} from "../utils/mfa-otp.js";
 
 export type SafeAuthUser = {
   id: string;
@@ -74,6 +89,12 @@ type AuthSuccess = ApiSuccess<AuthPayload>;
 
 export type AuthResponse = ApiResponse<AuthPayload>;
 
+export type MfaChallengeResponse = ApiSuccess<{
+  challengeId: string;
+  devOtpCode?: string;
+  mfaRequired: true;
+}>;
+
 export type AuthMeResponse = ApiResponse<{
   user: SafeAuthUser;
   profile: SafeAuthProfile;
@@ -105,9 +126,16 @@ export type EmailVerificationConfirmResponse = ApiResponse<{
   emailVerified: true;
 }>;
 
+export type MfaVerifyResponse = ApiResponse<AuthPayload>;
+
 type AuthSessionCreation = {
   expiresAt: Date;
   refreshToken: string;
+};
+
+type EmailDeliveryOptions = {
+  emailDelivery: EmailDeliveryService;
+  webAppUrl: string;
 };
 
 type RefreshAuthSessionResult =
@@ -124,7 +152,8 @@ type RefreshAuthSessionResult =
 
 export async function registerUser(
   app: FastifyInstance,
-  body: RegisterBody
+  body: RegisterBody,
+  options: EmailDeliveryOptions
 ): Promise<
   | { status: "created"; response: AuthSuccess; devEmailVerificationToken: string }
   | { status: "duplicate"; response: ApiFailure }
@@ -197,6 +226,13 @@ export async function registerUser(
       };
     });
 
+    await options.emailDelivery.sendEmailVerificationEmail({
+      displayName: created.profile.displayName,
+      expiresInSeconds: EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
+      recipientEmail: created.user.email,
+      verificationUrl: buildEmailVerificationUrl(options.webAppUrl, emailVerificationToken)
+    });
+
     return {
       status: "created",
       devEmailVerificationToken: emailVerificationToken,
@@ -213,14 +249,51 @@ export async function registerUser(
 
 export async function loginUser(
   app: FastifyInstance,
-  body: LoginBody
-): Promise<{ status: "ok"; response: AuthSuccess } | { status: "invalid"; response: ApiFailure }> {
+  body: LoginBody,
+  options: EmailDeliveryOptions
+): Promise<
+  | { status: "ok"; response: AuthSuccess }
+  | { status: "mfa_required"; response: MfaChallengeResponse; devOtpCode: string }
+  | { status: "invalid"; response: ApiFailure }
+> {
   const userWithProfile = await findUserWithProfileByEmail(app, body.email);
 
   if (!userWithProfile || !(await verifyPassword(body.password, userWithProfile.passwordHash))) {
     return {
       status: "invalid",
       response: invalidCredentials()
+    };
+  }
+
+  if (userWithProfile.mfaEnabled) {
+    const otpCode = createMfaOtpCode();
+    const [challenge] = await app.db
+      .insert(mfaOtpChallenges)
+      .values({
+        codeHash: hashMfaOtpCode(otpCode),
+        expiresAt: createMfaOtpExpiresAt(),
+        purpose: "login",
+        userId: userWithProfile.id
+      })
+      .returning({
+        id: mfaOtpChallenges.id
+      });
+
+    if (!challenge) {
+      throw new Error("MFA challenge insert failed.");
+    }
+
+    await options.emailDelivery.sendMfaOtpEmail({
+      displayName: userWithProfile.displayName,
+      expiresInSeconds: MFA_OTP_TTL_SECONDS,
+      recipientEmail: userWithProfile.email,
+      code: otpCode
+    });
+
+    return {
+      status: "mfa_required",
+      devOtpCode: otpCode,
+      response: buildMfaChallengeResponse(challenge.id)
     };
   }
 
@@ -237,6 +310,78 @@ export async function loginUser(
         email: userWithProfile.email,
         emailVerifiedAt: serializeDate(userWithProfile.emailVerifiedAt),
         role: userWithProfile.role
+      }
+    })
+  };
+}
+
+export async function verifyMfaLogin(
+  app: FastifyInstance,
+  body: MfaVerifyBody
+): Promise<{ status: "ok"; response: AuthSuccess } | { status: "invalid"; response: ApiFailure }> {
+  const now = new Date();
+  const codeHash = hashMfaOtpCode(body.code);
+
+  const verified = await app.db.transaction(async (tx) => {
+    const [challenge] = await tx
+      .select({
+        id: mfaOtpChallenges.id,
+        userId: mfaOtpChallenges.userId,
+        email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
+        role: users.role,
+        profileId: profiles.id,
+        displayName: profiles.displayName,
+        locationCity: profiles.locationCity
+      })
+      .from(mfaOtpChallenges)
+      .innerJoin(users, eq(users.id, mfaOtpChallenges.userId))
+      .innerJoin(profiles, eq(profiles.userId, users.id))
+      .where(
+        and(
+          eq(mfaOtpChallenges.id, body.challengeId),
+          eq(mfaOtpChallenges.codeHash, codeHash),
+          eq(mfaOtpChallenges.purpose, "login"),
+          isNull(mfaOtpChallenges.consumedAt),
+          gt(mfaOtpChallenges.expiresAt, now)
+        )
+      )
+      .limit(1);
+
+    if (!challenge) {
+      return null;
+    }
+
+    await tx
+      .update(mfaOtpChallenges)
+      .set({
+        consumedAt: now
+      })
+      .where(eq(mfaOtpChallenges.id, challenge.id));
+
+    return challenge;
+  });
+
+  if (!verified) {
+    return {
+      status: "invalid",
+      response: invalidMfaCode()
+    };
+  }
+
+  return {
+    status: "ok",
+    response: buildAuthResponse({
+      profile: {
+        id: verified.profileId,
+        displayName: verified.displayName,
+        locationCity: verified.locationCity
+      },
+      user: {
+        id: verified.userId,
+        email: verified.email,
+        emailVerifiedAt: serializeDate(verified.emailVerifiedAt),
+        role: verified.role
       }
     })
   };
@@ -372,7 +517,8 @@ export async function authenticateGoogleUser(
 
 export async function requestPasswordReset(
   app: FastifyInstance,
-  body: PasswordResetRequestBody
+  body: PasswordResetRequestBody,
+  options: EmailDeliveryOptions
 ): Promise<{ response: PasswordResetRequestResponse; devResetToken?: string }> {
   const now = new Date();
   const user = await findUserByEmail(app, body.email);
@@ -403,6 +549,12 @@ export async function requestPasswordReset(
       tokenHash: hashPasswordResetToken(resetToken),
       userId: user.id
     });
+  });
+
+  await options.emailDelivery.sendPasswordResetEmail({
+    expiresInSeconds: PASSWORD_RESET_TOKEN_TTL_SECONDS,
+    recipientEmail: body.email,
+    resetUrl: buildPasswordResetUrl(options.webAppUrl, resetToken)
   });
 
   return {
@@ -516,7 +668,8 @@ export async function changePassword(
 
 export async function requestEmailVerification(
   app: FastifyInstance,
-  body: EmailVerificationRequestBody
+  body: EmailVerificationRequestBody,
+  options: EmailDeliveryOptions
 ): Promise<{ response: EmailVerificationRequestResponse; devEmailVerificationToken?: string }> {
   const now = new Date();
   const user = await findUserByEmail(app, body.email);
@@ -547,6 +700,12 @@ export async function requestEmailVerification(
       tokenHash: hashEmailVerificationToken(verificationToken),
       userId: user.id
     });
+  });
+
+  await options.emailDelivery.sendEmailVerificationEmail({
+    expiresInSeconds: EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
+    recipientEmail: body.email,
+    verificationUrl: buildEmailVerificationUrl(options.webAppUrl, verificationToken)
   });
 
   return {
@@ -814,6 +973,17 @@ function buildEmailVerificationConfirmResponse(): EmailVerificationConfirmRespon
   };
 }
 
+function buildMfaChallengeResponse(challengeId: string, devOtpCode?: string): MfaChallengeResponse {
+  return {
+    ok: true,
+    data: {
+      challengeId,
+      mfaRequired: true,
+      ...(devOtpCode ? { devOtpCode } : {})
+    }
+  };
+}
+
 export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   return {
     ok: true,
@@ -891,6 +1061,16 @@ function invalidEmailVerificationToken(): ApiFailure {
   };
 }
 
+function invalidMfaCode(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "MFA_CODE_INVALID",
+      message: "MFA code is invalid or expired."
+    }
+  };
+}
+
 function isDuplicateRegistrationConstraint(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("code" in error)) {
     return false;
@@ -932,6 +1112,7 @@ async function findUserWithProfileByEmail(app: FastifyInstance, email: string) {
       id: users.id,
       email: users.email,
       emailVerifiedAt: users.emailVerifiedAt,
+      mfaEnabled: users.mfaEnabled,
       role: users.role,
       passwordHash: users.passwordHash,
       profileId: profiles.id,
