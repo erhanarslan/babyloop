@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Alert, Button } from "../../components/ui";
 import { setAuthToken } from "../../lib/auth-client";
 import { AuthFields } from "./auth-fields";
-import { submitAuthRequest, type AuthMode } from "./api";
+import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
 
 type AuthFormProps = {
   apiBaseUrl: string;
@@ -16,6 +16,7 @@ type AuthFormProps = {
 export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isRegister = mode === "register";
 
@@ -52,6 +53,24 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
   return (
     <form className="listing-form" onSubmit={handleSubmit}>
+      <div className="google-auth-actions">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isSubmitting || isGoogleRedirecting}
+          onClick={() => {
+            setIsGoogleRedirecting(true);
+            startGoogleLogin(apiBaseUrl);
+          }}
+        >
+          {isGoogleRedirecting ? "Opening Google..." : "Continue with Google"}
+        </Button>
+      </div>
+
+      <div className="auth-divider" aria-hidden="true">
+        <span>or</span>
+      </div>
+
       <AuthFields mode={mode} />
 
       {errorMessage ? (

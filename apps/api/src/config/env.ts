@@ -1,3 +1,5 @@
+import type { GoogleOAuthConfig } from "../services/google-oauth.service.js";
+
 export type ApiRuntimeConfig = {
   allowAuthUnavailable: boolean;
   authRateLimitMax: number;
@@ -6,6 +8,7 @@ export type ApiRuntimeConfig = {
   authTokenTtlSeconds: number;
   corsOrigins: string[];
   databaseUrl?: string;
+  googleOAuth?: GoogleOAuthConfig;
   host: string;
   port: number;
 };
@@ -23,6 +26,11 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT)
   };
+  const googleOAuth = readGoogleOAuthConfig(env);
+
+  if (googleOAuth) {
+    config.googleOAuth = googleOAuth;
+  }
 
   const authSecret = readAuthSecret(env.AUTH_SECRET);
 
@@ -41,6 +49,33 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+
+function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | undefined {
+  const values = {
+    clientId: env.GOOGLE_CLIENT_ID,
+    clientSecret: env.GOOGLE_CLIENT_SECRET,
+    redirectUri: env.GOOGLE_REDIRECT_URI,
+    webAppUrl: env.WEB_APP_URL
+  };
+  const providedValues = Object.values(values).filter(Boolean);
+
+  if (providedValues.length === 0) {
+    return undefined;
+  }
+
+  if (providedValues.length !== Object.values(values).length) {
+    throw new Error(
+      "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, and WEB_APP_URL must be configured together."
+    );
+  }
+
+  return {
+    clientId: values.clientId!,
+    clientSecret: values.clientSecret!,
+    redirectUri: values.redirectUri!,
+    webAppUrl: values.webAppUrl!.replace(/\/$/, "")
+  };
 }
 
 function readAuthSecret(value: string | undefined): string | undefined {

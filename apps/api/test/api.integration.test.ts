@@ -16,6 +16,11 @@ import {
   REFRESH_TOKEN_COOKIE_NAME,
   hashRefreshToken
 } from "../src/utils/refresh-token.js";
+import {
+  GOOGLE_OAUTH_STATE_COOKIE_NAME,
+  type GoogleOAuthClient,
+  type GoogleUserInfo
+} from "../src/services/google-oauth.service.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   authHeader,
@@ -567,6 +572,336 @@ describe("auth API", () => {
     const clearCookie = getRefreshSetCookie(response);
 
     expect(clearCookie).toContain("Max-Age=0");
+  });
+
+  it("google start redirects to Google and sets an httpOnly oauth state cookie", async () => {
+    await useGoogleOAuthTestApp({});
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/start"
+    });
+
+    expect(response.statusCode).toBe(302);
+
+    const location = String(response.headers.location);
+    const redirectUrl = new URL(location);
+
+    expect(redirectUrl.origin).toBe("https://accounts.google.com");
+    expect(redirectUrl.searchParams.get("client_id")).toBe("test-google-client-id");
+    expect(redirectUrl.searchParams.get("redirect_uri")).toBe(
+      "http://localhost:4000/api/v1/auth/google/callback"
+    );
+    expect(redirectUrl.searchParams.get("response_type")).toBe("code");
+    expect(redirectUrl.searchParams.get("scope")).toBe("openid email profile");
+    expect(redirectUrl.searchParams.get("state")).toEqual(expect.any(String));
+
+    const stateCookie = getGoogleOAuthStateSetCookie(response);
+
+    expect(stateCookie).toContain("HttpOnly");
+    expect(stateCookie).toContain("SameSite=Lax");
+    expect(stateCookie).toContain("Path=/api/v1/auth/google");
+    expect(getCookieValue(stateCookie)).toBe(redirectUrl.searchParams.get("state"));
+  });
+
+  it("google callback rejects missing state", async () => {
+    await useGoogleOAuthTestApp({});
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/google/callback?code=google-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+  });
+
+  it("google callback rejects mismatched state", async () => {
+    await useGoogleOAuthTestApp({});
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-from-cookie`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=query-state&code=google-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+  });
+
+  it("google callback rejects missing code", async () => {
+    await useGoogleOAuthTestApp({});
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-a`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-a"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+  });
+
+  it("google callback creates a new verified Google user, profile, auth account, and session", async () => {
+    await useGoogleOAuthTestApp({
+      "new-user-code": {
+        email: "  Google.Parent@Example.COM  ",
+        email_verified: true,
+        name: "Google Parent",
+        sub: "google-sub-new-user"
+      }
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-new`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-new&code=new-user-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/auth/callback?status=success");
+
+    const refreshCookie = getRefreshSetCookie(response);
+    const stateCookie = getGoogleOAuthStateSetCookie(response);
+
+    expect(refreshCookie).toContain("HttpOnly");
+    expect(stateCookie).toContain("Max-Age=0");
+
+    const [userRow] = await app.db
+      .select({
+        email: users.email,
+        id: users.id
+      })
+      .from(users)
+      .where(eq(users.email, "google.parent@example.com"));
+
+    expect(userRow).toBeDefined();
+
+    const profileRows = await app.db
+      .select({
+        displayName: profiles.displayName,
+        userId: profiles.userId
+      })
+      .from(profiles)
+      .where(eq(profiles.userId, userRow!.id));
+
+    const accountRows = await app.db
+      .select({
+        email: authAccounts.email,
+        provider: authAccounts.provider,
+        providerAccountId: authAccounts.providerAccountId,
+        userId: authAccounts.userId
+      })
+      .from(authAccounts)
+      .where(eq(authAccounts.userId, userRow!.id));
+
+    const sessionRows = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.userId, userRow!.id));
+
+    expect(profileRows).toEqual([
+      {
+        displayName: "Google Parent",
+        userId: userRow!.id
+      }
+    ]);
+    expect(accountRows).toEqual([
+      {
+        email: "google.parent@example.com",
+        provider: "google",
+        providerAccountId: "google-sub-new-user",
+        userId: userRow!.id
+      }
+    ]);
+    expect(sessionRows).toHaveLength(1);
+  });
+
+  it("google callback links an existing password user by normalized email", async () => {
+    await useGoogleOAuthTestApp({
+      "link-code": {
+        email: " LINKED@Example.COM ",
+        email_verified: true,
+        name: "Linked Google",
+        sub: "google-sub-linked"
+      }
+    });
+    const existingUser = await createUser(app, {
+      email: "linked@example.com"
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-link`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-link&code=link-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/auth/callback?status=success");
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "linked@example.com"));
+
+    const googleAccountRows = await app.db
+      .select({
+        provider: authAccounts.provider,
+        providerAccountId: authAccounts.providerAccountId,
+        userId: authAccounts.userId
+      })
+      .from(authAccounts)
+      .where(
+        and(
+          eq(authAccounts.provider, "google"),
+          eq(authAccounts.providerAccountId, "google-sub-linked")
+        )
+      );
+
+    expect(userRows).toEqual([{ id: existingUser.user.id }]);
+    expect(googleAccountRows).toEqual([
+      {
+        provider: "google",
+        providerAccountId: "google-sub-linked",
+        userId: existingUser.user.id
+      }
+    ]);
+  });
+
+  it("google callback reuses an existing Google auth account", async () => {
+    await useGoogleOAuthTestApp({
+      "first-code": {
+        email: "reuse@example.com",
+        email_verified: true,
+        name: "Reuse Parent",
+        sub: "google-sub-reuse"
+      },
+      "second-code": {
+        email: "reuse@example.com",
+        email_verified: true,
+        name: "Reuse Parent",
+        sub: "google-sub-reuse"
+      }
+    });
+
+    for (const code of ["first-code", "second-code"]) {
+      const response = await app.inject({
+        headers: {
+          cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-${code}`
+        },
+        method: "GET",
+        url: `/api/v1/auth/google/callback?state=state-${code}&code=${code}`
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("http://localhost:3000/auth/callback?status=success");
+    }
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "reuse@example.com"));
+
+    expect(userRows).toHaveLength(1);
+
+    const accountRows = await app.db
+      .select({ id: authAccounts.id, userId: authAccounts.userId })
+      .from(authAccounts)
+      .where(
+        and(
+          eq(authAccounts.provider, "google"),
+          eq(authAccounts.providerAccountId, "google-sub-reuse")
+        )
+      );
+
+    const sessionRows = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.userId, userRows[0]!.id));
+
+    expect(accountRows).toHaveLength(1);
+    expect(accountRows[0]!.userId).toBe(userRows[0]!.id);
+    expect(sessionRows).toHaveLength(2);
+  });
+
+  it("google callback rejects unverified email without creating account state", async () => {
+    await useGoogleOAuthTestApp({
+      "unverified-code": {
+        email: "unverified@example.com",
+        email_verified: false,
+        name: "Unverified",
+        sub: "google-sub-unverified"
+      }
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-unverified`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-unverified&code=unverified-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "unverified@example.com"));
+    const accountRows = await app.db
+      .select({ id: authAccounts.id })
+      .from(authAccounts)
+      .where(
+        and(
+          eq(authAccounts.provider, "google"),
+          eq(authAccounts.providerAccountId, "google-sub-unverified")
+        )
+      );
+
+    expect(userRows).toHaveLength(0);
+    expect(accountRows).toHaveLength(0);
+  });
+
+  it("google callback rejects profile without email", async () => {
+    await useGoogleOAuthTestApp({
+      "no-email-code": {
+        email_verified: true,
+        name: "No Email",
+        sub: "google-sub-no-email"
+      }
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-no-email`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-no-email&code=no-email-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+
+    const accountRows = await app.db
+      .select({ id: authAccounts.id })
+      .from(authAccounts)
+      .where(
+        and(
+          eq(authAccounts.provider, "google"),
+          eq(authAccounts.providerAccountId, "google-sub-no-email")
+        )
+      );
+
+    expect(accountRows).toHaveLength(0);
   });
 
   it("rolls back user and profile when password auth account creation fails", async () => {
@@ -2011,6 +2346,35 @@ async function countEvents(eventType: string, entityId: string): Promise<number>
   return rows.length;
 }
 
+async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserInfo>): Promise<void> {
+  await app?.close();
+  app = await createTestApp({
+    googleOAuthClient: createFakeGoogleOAuthClient(profilesByCode)
+  });
+}
+
+function createFakeGoogleOAuthClient(
+  profilesByCode: Record<string, GoogleUserInfo>
+): GoogleOAuthClient {
+  return {
+    async exchangeCodeForTokens(code) {
+      return {
+        accessToken: `fake-google-access-token:${code}`
+      };
+    },
+    async fetchUserInfo(accessToken) {
+      const code = accessToken.replace("fake-google-access-token:", "");
+      const profile = profilesByCode[code];
+
+      if (!profile) {
+        throw new Error(`Missing fake Google profile for code ${code}.`);
+      }
+
+      return profile;
+    }
+  };
+}
+
 
 type ResponseWithHeaders = {
   headers: Record<string, string | string[] | number | undefined>;
@@ -2026,6 +2390,18 @@ function getRefreshSetCookie(response: ResponseWithHeaders): string {
   }
 
   return refreshCookie;
+}
+
+function getGoogleOAuthStateSetCookie(response: ResponseWithHeaders): string {
+  const stateCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${GOOGLE_OAUTH_STATE_COOKIE_NAME}=`)
+  );
+
+  if (!stateCookie) {
+    throw new Error(`Missing ${GOOGLE_OAUTH_STATE_COOKIE_NAME} Set-Cookie header.`);
+  }
+
+  return stateCookie;
 }
 
 function getSetCookieHeaders(response: ResponseWithHeaders): string[] {

@@ -1,4 +1,5 @@
 import { authAccounts, profiles, sessions, users } from "@babyloop/database/schema";
+import type { Database } from "@babyloop/database";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -11,6 +12,7 @@ import {
   hashRefreshToken
 } from "../utils/refresh-token.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
+import type { GoogleUserInfo } from "./google-oauth.service.js";
 
 export type SafeAuthUser = {
   id: string;
@@ -174,6 +176,117 @@ export async function loginUser(
       }
     })
   };
+}
+
+export async function authenticateGoogleUser(
+  app: FastifyInstance,
+  googleProfile: GoogleUserInfo
+): Promise<AuthSuccess> {
+  const email = normalizeEmail(googleProfile.email ?? "");
+  const providerAccountId = googleProfile.sub;
+
+  const existingGoogleAccount = await findUserWithProfileByAuthAccount(
+    app,
+    "google",
+    providerAccountId
+  );
+
+  if (existingGoogleAccount) {
+    return buildAuthResponse({
+      profile: {
+        id: existingGoogleAccount.profileId,
+        displayName: existingGoogleAccount.displayName,
+        locationCity: existingGoogleAccount.locationCity
+      },
+      user: {
+        id: existingGoogleAccount.id,
+        email: existingGoogleAccount.email,
+        role: existingGoogleAccount.role
+      }
+    });
+  }
+
+  const displayName = buildGoogleProfileDisplayName(googleProfile, email);
+
+  const createdOrLinked = await app.db.transaction(async (tx) => {
+    const [existingUser] = await tx
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        profileId: profiles.id,
+        displayName: profiles.displayName,
+        locationCity: profiles.locationCity
+      })
+      .from(users)
+      .leftJoin(profiles, eq(profiles.userId, users.id))
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingUser) {
+      const profile =
+        existingUser.profileId && existingUser.displayName
+          ? {
+              id: existingUser.profileId,
+              displayName: existingUser.displayName,
+              locationCity: existingUser.locationCity
+            }
+          : await createProfileForGoogleUser(tx, existingUser.id, displayName);
+
+      await tx.insert(authAccounts).values({
+        email,
+        emailVerifiedAt: new Date(),
+        provider: "google",
+        providerAccountId,
+        userId: existingUser.id
+      });
+
+      return {
+        profile,
+        user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          role: existingUser.role
+        }
+      };
+    }
+
+    const unusablePasswordHash = await hashPassword(createRefreshToken());
+
+    const [createdUser] = await tx
+      .insert(users)
+      .values({
+        email,
+        passwordHash: unusablePasswordHash,
+        role: "user"
+      })
+      .returning({
+        id: users.id,
+        email: users.email,
+        role: users.role
+      });
+
+    if (!createdUser) {
+      throw new Error("User insert failed.");
+    }
+
+    const profile = await createProfileForGoogleUser(tx, createdUser.id, displayName);
+
+    await tx.insert(authAccounts).values({
+      email,
+      emailVerifiedAt: new Date(),
+      provider: "google",
+      providerAccountId,
+      userId: createdUser.id
+    });
+
+    return {
+      profile,
+      user: createdUser
+    };
+  });
+
+  return buildAuthResponse(createdOrLinked);
 }
 
 export async function createAuthSession(
@@ -427,6 +540,78 @@ async function findUserWithProfileByEmail(app: FastifyInstance, email: string) {
     .limit(1);
 
   return user ?? null;
+}
+
+async function findUserWithProfileByAuthAccount(
+  app: FastifyInstance,
+  provider: string,
+  providerAccountId: string
+) {
+  const [user] = await app.db
+    .select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      profileId: profiles.id,
+      displayName: profiles.displayName,
+      locationCity: profiles.locationCity
+    })
+    .from(authAccounts)
+    .innerJoin(users, eq(users.id, authAccounts.userId))
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(
+      and(
+        eq(authAccounts.provider, provider),
+        eq(authAccounts.providerAccountId, providerAccountId)
+      )
+    )
+    .limit(1);
+
+  return user ?? null;
+}
+
+async function createProfileForGoogleUser(
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  userId: string,
+  displayName: string
+): Promise<SafeAuthProfile> {
+  const [createdProfile] = await tx
+    .insert(profiles)
+    .values({
+      displayName,
+      userId
+    })
+    .returning({
+      id: profiles.id,
+      displayName: profiles.displayName,
+      locationCity: profiles.locationCity
+    });
+
+  if (!createdProfile) {
+    throw new Error("Profile insert failed.");
+  }
+
+  return createdProfile;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function buildGoogleProfileDisplayName(googleProfile: GoogleUserInfo, email: string): string {
+  const name = googleProfile.name?.trim();
+
+  if (name && name.length >= 2) {
+    return name.slice(0, 120);
+  }
+
+  const [emailPrefix] = email.split("@");
+
+  if (emailPrefix && emailPrefix.length >= 2) {
+    return emailPrefix.slice(0, 120);
+  }
+
+  return "BabyLoop User";
 }
 
 function invalidCredentials(): ApiFailure {

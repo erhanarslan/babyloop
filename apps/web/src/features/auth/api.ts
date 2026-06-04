@@ -34,3 +34,7 @@ export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<
 
   return response.json() as Promise<ApiResponse<AuthMe>>;
 }
+
+export function startGoogleLogin(apiBaseUrl: string): void {
+  window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+}

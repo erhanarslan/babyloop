@@ -8,6 +8,7 @@ import { loginBodySchema, registerBodySchema } from "../schemas/auth.schemas.js"
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   attachAccessToken,
+  authenticateGoogleUser,
   buildAuthMeResponse,
   buildLogoutAuthResponse,
   createAuthSession,
@@ -24,12 +25,27 @@ import {
   type AuthTokenOptions
 } from "../services/auth.service.js";
 import {
+  buildGoogleAuthorizationUrl,
+  defaultGoogleOAuthClient,
+  generateOAuthState,
+  readGoogleOAuthStateCookie,
+  serializeExpiredGoogleOAuthStateCookie,
+  serializeGoogleOAuthStateCookie,
+  type GoogleOAuthClient,
+  type GoogleOAuthConfig
+} from "../services/google-oauth.service.js";
+import {
   readRefreshTokenCookie,
   serializeExpiredRefreshTokenCookie,
   serializeRefreshTokenCookie
 } from "../utils/refresh-token.js";
 
-export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptions): void {
+type AuthRouteOptions = AuthTokenOptions & {
+  googleOAuth?: GoogleOAuthConfig;
+  googleOAuthClient?: GoogleOAuthClient;
+};
+
+export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptions): void {
   app.post<{ Body: unknown; Reply: AuthResponse }>(
     "/auth/register",
     authRateLimitOptions(options),
@@ -128,6 +144,63 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthTokenOptio
     return reply.status(200).send(buildLogoutAuthResponse());
   });
 
+  app.get("/auth/google/start", async (_request, reply) => {
+    if (!options.googleOAuth) {
+      return reply.status(503).send(googleOAuthUnavailableResponse());
+    }
+
+    const state = generateOAuthState();
+    const authorizationUrl = buildGoogleAuthorizationUrl(options.googleOAuth, state);
+
+    reply.header("set-cookie", serializeGoogleOAuthStateCookie(state));
+
+    return redirect(reply, authorizationUrl);
+  });
+
+  app.get<{ Querystring: Record<string, unknown> }>("/auth/google/callback", async (request, reply) => {
+    if (!options.googleOAuth) {
+      return reply.status(503).send(googleOAuthUnavailableResponse());
+    }
+
+    const cookieState = readGoogleOAuthStateCookie(request.headers.cookie);
+    const queryState = readQueryStringValue(request.query.state);
+    const code = readQueryStringValue(request.query.code);
+
+    if (!cookieState || !queryState || cookieState !== queryState || !code) {
+      return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
+    }
+
+    try {
+      const googleClient = options.googleOAuthClient ?? defaultGoogleOAuthClient;
+      const tokens = await googleClient.exchangeCodeForTokens(code, options.googleOAuth);
+      const googleProfile = await googleClient.fetchUserInfo(tokens.accessToken);
+
+      if (!googleProfile.email || googleProfile.email_verified === false) {
+        return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
+      }
+
+      const result = await authenticateGoogleUser(app, googleProfile);
+      const response = attachAccessToken(result, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      reply.header("set-cookie", [
+        serializeRefreshTokenCookie(session.refreshToken, {
+          expiresAt: session.expiresAt
+        }),
+        serializeExpiredGoogleOAuthStateCookie()
+      ]);
+
+      return redirect(reply, buildGoogleAuthSuccessRedirect(options.googleOAuth.webAppUrl));
+    } catch (error) {
+      request.log.warn({ error }, "Google OAuth callback failed.");
+      return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
+    }
+  });
+
   app.get<{ Reply: AuthMeResponse }>("/auth/me", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 
@@ -176,4 +249,35 @@ function setRefreshTokenCookie(reply: FastifyReply, refreshToken: string, expire
 
 function clearRefreshTokenCookie(reply: FastifyReply): void {
   reply.header("set-cookie", serializeExpiredRefreshTokenCookie());
+}
+
+function readQueryStringValue(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  return value;
+}
+
+function redirectToGoogleAuthFailure(reply: FastifyReply, webAppUrl: string): void {
+  reply.header("set-cookie", serializeExpiredGoogleOAuthStateCookie());
+  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_failed`);
+}
+
+function buildGoogleAuthSuccessRedirect(webAppUrl: string): string {
+  return `${webAppUrl.replace(/\/$/, "")}/auth/callback?status=success`;
+}
+
+function redirect(reply: FastifyReply, location: string): void {
+  reply.status(302).header("location", location).send();
+}
+
+function googleOAuthUnavailableResponse() {
+  return {
+    ok: false,
+    error: {
+      code: "GOOGLE_AUTH_UNAVAILABLE",
+      message: "Google OAuth is not configured."
+    }
+  };
 }

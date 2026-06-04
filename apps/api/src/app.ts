@@ -14,9 +14,11 @@ import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
+import type { GoogleOAuthClient } from "./services/google-oauth.service.js";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
+  googleOAuthClient?: GoogleOAuthClient;
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
@@ -78,12 +80,18 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       registerAuthPlugin(app, {
         authSecret: config.authSecret
       });
-      app.register(registerAuthRoutes, {
+      const authRouteOptions = {
         authRateLimitMax: config.authRateLimitMax,
         authRateLimitWindowSeconds: config.authRateLimitWindowSeconds,
         authSecret: config.authSecret,
         authTokenTtlSeconds: config.authTokenTtlSeconds,
         prefix: API_PREFIX
+      };
+
+      app.register(registerAuthRoutes, {
+        ...authRouteOptions,
+        ...(config.googleOAuth ? { googleOAuth: config.googleOAuth } : {}),
+        ...(options.googleOAuthClient ? { googleOAuthClient: options.googleOAuthClient } : {})
       });
     } else {
       app.log.warn("AUTH_SECRET is not set. Auth API routes will return 503.");
