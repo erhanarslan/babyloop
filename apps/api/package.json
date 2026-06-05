@@ -9,6 +9,8 @@
     "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit"
   },
@@ -25,6 +27,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.6",
     "socket.io-client": "^4.8.3",
     "vitest": "^4.1.6"
   }

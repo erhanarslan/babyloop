@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "exports": {
@@ -12,5 +15,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "4.1.6",
+    "vitest": "^4.1.6"
   }
 }
