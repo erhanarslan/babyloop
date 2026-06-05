@@ -15,6 +15,7 @@ import {
   type ConversationSummaryResponse,
   type MessageResponse
 } from "../services/messaging.service.js";
+import { publishPersistedMessage } from "../realtime/publisher.js";
 
 type ConversationResponse = ApiResponse<{
   conversation: ConversationSummaryResponse;
@@ -203,6 +204,8 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       if (result.status !== "sent") {
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
+
+      await publishPersistedMessage(app, parsedParams.data.id, result.message);
 
       return reply.status(201).send({
         ok: true,

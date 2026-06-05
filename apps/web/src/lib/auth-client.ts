@@ -2,6 +2,7 @@ import type { ApiResponse } from "@babyloop/shared";
 
 export const AUTH_TOKEN_STORAGE_KEY = "babyloop_access_token";
 export const AUTH_CHANGED_EVENT = "babyloop-auth-changed";
+export const AUTH_SESSION_ENDED_EVENT = "babyloop-auth-session-ended";
 const AUTH_LOGGED_OUT_STORAGE_KEY = "babyloop_logged_out";
 
 export type AuthMe = {
@@ -63,6 +64,13 @@ export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
 
   if (hadToken || shouldBroadcast) {
     authSessionVersion += 1;
+  }
+
+  if (hadToken) {
+    window.dispatchEvent(new Event(AUTH_SESSION_ENDED_EVENT));
+  }
+
+  if (shouldBroadcast) {
     window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
   }
 }
@@ -125,10 +133,10 @@ async function doRefreshSession(
       return body;
     }
 
-    clearAuthToken();
+    clearAuthToken({ broadcast: true });
     return body.ok ? unauthorizedResponse() : body;
   } catch {
-    clearAuthToken();
+    clearAuthToken({ broadcast: true });
     return {
       ok: false,
       error: {

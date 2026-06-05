@@ -14,6 +14,7 @@ import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
+import { registerRealtime } from "./realtime/socket.js";
 import {
   createEmailDeliveryService,
   type EmailDeliveryService
@@ -91,6 +92,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     if (config.authSecret) {
       registerAuthPlugin(app, {
         authSecret: config.authSecret
+      });
+      registerRealtime(app, {
+        authSecret: config.authSecret,
+        corsOrigins: config.corsOrigins
       });
       const authRouteOptions = {
         authRateLimitMax: config.authRateLimitMax,

@@ -1,4 +1,9 @@
 import {
+  REALTIME_EVENTS,
+  realtimeConversationRoom,
+  realtimeProfileRoom
+} from "@babyloop/shared";
+import {
   aiModelRuns,
   authAccounts,
   conversations,
@@ -31,7 +36,7 @@ import type {
   SendPasswordResetEmailParams
 } from "../src/services/email-delivery.service.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authHeader,
   createCategory,
@@ -50,6 +55,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await app.close();
 });
 
@@ -3107,6 +3113,57 @@ describe("messaging API", () => {
       .limit(1);
 
     expect(row?.lastMessageAt).toBeInstanceOf(Date);
+  });
+
+  it("publishes realtime events after message persistence", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(buyer.accessToken, listing.id)).json().data.conversation;
+    const emit = vi.fn();
+    const to = vi.spyOn(app.realtime!.io, "to").mockReturnValue({
+      emit
+    } as never);
+
+    const sent = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "Merhaba, urun hala satilik mi?"
+      }
+    });
+    const persistedMessages = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}/messages`
+    });
+
+    expect(sent.statusCode).toBe(201);
+    expect(persistedMessages.json().data.messages).toHaveLength(1);
+    expect(to).toHaveBeenCalledWith(realtimeConversationRoom(conversation.id));
+    expect(to).toHaveBeenCalledWith(realtimeProfileRoom(seller.profile.id));
+    expect(to).toHaveBeenCalledWith(realtimeProfileRoom(buyer.profile.id));
+    expect(emit).toHaveBeenCalledWith(
+      REALTIME_EVENTS.messageCreated,
+      expect.objectContaining({
+        conversationId: conversation.id,
+        message: expect.objectContaining({
+          body: "Merhaba, urun hala satilik mi?"
+        })
+      })
+    );
+    expect(emit).toHaveBeenCalledWith(
+      REALTIME_EVENTS.conversationUpdated,
+      expect.objectContaining({
+        conversationId: conversation.id,
+        conversation: expect.objectContaining({
+          latestMessage: expect.objectContaining({
+            body: "Merhaba, urun hala satilik mi?"
+          })
+        })
+      })
+    );
   });
 
   it("trims message body and rejects overlong message body", async () => {

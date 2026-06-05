@@ -1,11 +1,14 @@
 "use client";
 
+import { REALTIME_EVENTS } from "@babyloop/shared";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
+import { getAuthToken } from "../../lib/auth-client";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
 import { formatDateTime } from "../listings/listing-display";
@@ -30,7 +33,6 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "forbidden" | "not-found" | "error" | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
   const clearProtectedState = useCallback(() => {
     setConversation(null);
     setMessages([]);
@@ -38,6 +40,29 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setMessage(null);
     setState(null);
     setIsLoading(false);
+  }, []);
+  const appendMessage = useCallback((nextMessage: Message) => {
+    setMessages((currentMessages) => {
+      if (currentMessages.some((currentMessage) => currentMessage.id === nextMessage.id)) {
+        return currentMessages;
+      }
+
+      return [...currentMessages, nextMessage];
+    });
+    setConversation((currentConversation) =>
+      currentConversation
+        ? {
+            ...currentConversation,
+            latestMessage: {
+              body: nextMessage.body,
+              createdAt: nextMessage.createdAt,
+              senderProfileId: nextMessage.sender.id
+            },
+            lastMessageAt: nextMessage.createdAt,
+            updatedAt: nextMessage.createdAt
+          }
+        : currentConversation
+    );
   }, []);
   const { isCheckingAuth, requireAuth } = useProtectedRoute({
     apiBaseUrl,
@@ -90,7 +115,53 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setMessage(null);
     setState(null);
     void loadThread();
-  }, [loadThread, reloadKey]);
+  }, [loadThread]);
+
+  useEffect(() => {
+    if (!conversation?.id || !currentProfileId || message) {
+      return;
+    }
+
+    const socket = getRealtimeSocket(apiBaseUrl, getAuthToken());
+
+    if (!socket) {
+      return;
+    }
+
+    const realtimeSocket = socket;
+
+    function joinConversation() {
+      realtimeSocket.emit(REALTIME_EVENTS.conversationJoin, {
+        conversationId
+      });
+    }
+
+    function handleMessageCreated(payload: {
+      conversationId: string;
+      message: Message;
+    }) {
+      if (payload.conversationId === conversationId) {
+        appendMessage(payload.message);
+      }
+    }
+
+    function handleReconnect() {
+      void loadThread();
+      joinConversation();
+    }
+
+    joinConversation();
+    realtimeSocket.on(REALTIME_EVENTS.messageCreated, handleMessageCreated);
+    realtimeSocket.io.on("reconnect", handleReconnect);
+
+    return () => {
+      realtimeSocket.emit(REALTIME_EVENTS.conversationLeave, {
+        conversationId
+      });
+      realtimeSocket.off(REALTIME_EVENTS.messageCreated, handleMessageCreated);
+      realtimeSocket.io.off("reconnect", handleReconnect);
+    };
+  }, [apiBaseUrl, appendMessage, conversation?.id, conversationId, currentProfileId, loadThread, message]);
 
   if (isCheckingAuth || isLoading) {
     return <LoadingBlock title={dictionary.messaging.loadingConversation} />;
@@ -170,7 +241,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         <MessageComposer
           apiBaseUrl={apiBaseUrl}
           conversationId={conversationId}
-          onSent={() => setReloadKey((current) => current + 1)}
+          onSent={appendMessage}
         />
       </section>
     </div>

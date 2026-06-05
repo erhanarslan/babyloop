@@ -128,7 +128,7 @@ function matchesTerms(normalized: NormalizedMessage, terms: readonly string[]): 
      * - "sik" inside "bisiklet" would be a false positive.
      * - "anal" inside "analiz" would be a false positive.
      */
-    if (term.length < 5) {
+    if (term.length < 5 && !COMPACT_MATCH_SHORT_TERMS.has(term)) {
       return false;
     }
 
@@ -258,6 +258,14 @@ const PROFANITY_TERMS = [
   "idiot",
   "moron"
 ] as const;
+
+const COMPACT_MATCH_SHORT_TERMS = new Set<string>([
+  "cunt",
+  "fuck",
+  "nude",
+  "porn",
+  "seks"
+]);
 
 const PROFANITY_PATTERNS = [
   // Turkish phrase variants split by spaces after punctuation normalization

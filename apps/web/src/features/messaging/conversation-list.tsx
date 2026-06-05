@@ -1,9 +1,12 @@
 "use client";
 
+import { REALTIME_EVENTS, type ConversationUpdatedPayload } from "@babyloop/shared";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
+import { getAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
@@ -29,46 +32,69 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
     onUnauthenticated: clearProtectedState
   });
 
-  useEffect(() => {
-    let isActive = true;
+  const loadConversations = useCallback(async () => {
+    if (!(await requireAuth())) {
+      return;
+    }
 
-    async function loadConversations() {
-      if (!(await requireAuth())) {
+    try {
+      const body = await fetchConversations(apiBaseUrl);
+
+      if (!body.ok) {
+        setState(body.error.code === "FORBIDDEN" || body.error.code === "UNAUTHORIZED" ? "auth" : "error");
+        setMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
-      try {
-        const body = await fetchConversations(apiBaseUrl);
+      setConversations(body.data.conversations);
+      setMessage(null);
+      setState(null);
+    } catch {
+      setState("error");
+      setMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiBaseUrl, dictionary, requireAuth]);
 
-        if (!isActive) {
-          return;
-        }
+  useEffect(() => {
+    void loadConversations();
+  }, [loadConversations]);
 
-        if (!body.ok) {
-          setState(body.error.code === "FORBIDDEN" || body.error.code === "UNAUTHORIZED" ? "auth" : "error");
-          setMessage(getApiErrorMessage(body.error, dictionary));
-          return;
-        }
-
-        setConversations(body.data.conversations);
-      } catch {
-        if (isActive) {
-          setState("error");
-          setMessage(dictionary.common.apiUnavailable);
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
+  useEffect(() => {
+    if (isCheckingAuth || isLoading || message) {
+      return;
     }
 
-    void loadConversations();
+    const socket = getRealtimeSocket(apiBaseUrl, getAuthToken());
+
+    if (!socket) {
+      return;
+    }
+
+    const realtimeSocket = socket;
+
+    function handleConversationUpdated(payload: ConversationUpdatedPayload) {
+      setConversations((currentConversations) =>
+        sortConversations([
+          payload.conversation,
+          ...currentConversations.filter((conversation) => conversation.id !== payload.conversationId)
+        ])
+      );
+    }
+
+    function handleReconnect() {
+      void loadConversations();
+    }
+
+    realtimeSocket.on(REALTIME_EVENTS.conversationUpdated, handleConversationUpdated);
+    realtimeSocket.io.on("reconnect", handleReconnect);
 
     return () => {
-      isActive = false;
+      realtimeSocket.off(REALTIME_EVENTS.conversationUpdated, handleConversationUpdated);
+      realtimeSocket.io.off("reconnect", handleReconnect);
     };
-  }, [apiBaseUrl, dictionary.common.apiUnavailable, requireAuth]);
+  }, [apiBaseUrl, isCheckingAuth, isLoading, loadConversations, message]);
 
   if (isCheckingAuth || isLoading) {
     return <LoadingBlock title={dictionary.messaging.loadingConversations} />;
@@ -103,4 +129,13 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
       ))}
     </div>
   );
+}
+
+function sortConversations(conversations: ConversationSummary[]): ConversationSummary[] {
+  return [...conversations].sort((left, right) => {
+    const leftTimestamp = left.lastMessageAt ?? left.updatedAt;
+    const rightTimestamp = right.lastMessageAt ?? right.updatedAt;
+
+    return rightTimestamp.localeCompare(leftTimestamp);
+  });
 }

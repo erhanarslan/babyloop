@@ -6,12 +6,12 @@ import { useState } from "react";
 import { Alert, Button, Textarea } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { sendMessage } from "./api";
+import { sendMessage, type Message } from "./api";
 
 type MessageComposerProps = {
   apiBaseUrl: string;
   conversationId: string;
-  onSent: () => void;
+  onSent: (message: Message) => void;
 };
 
 export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageComposerProps) {
@@ -46,7 +46,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       }
 
       setBody("");
-      onSent();
+      onSent(response.data.message);
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {

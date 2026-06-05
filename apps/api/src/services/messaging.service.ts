@@ -239,6 +239,28 @@ export async function getConversationForProfile(
   };
 }
 
+export async function getConversationSummaryForProfile(
+  app: FastifyInstance,
+  conversationId: string,
+  profileId: string
+): Promise<ConversationSummaryResponse | null> {
+  return getConversationSummary(app, conversationId, profileId);
+}
+
+export async function listConversationParticipantProfileIds(
+  app: FastifyInstance,
+  conversationId: string
+): Promise<string[]> {
+  const rows = await app.db
+    .select({
+      profileId: conversationParticipants.profileId
+    })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, conversationId));
+
+  return rows.map((row) => row.profileId);
+}
+
 export async function listMessagesForConversation(
   app: FastifyInstance,
   currentUser: CurrentUser,

@@ -18,3 +18,19 @@ export {
   type MessageModerationReason,
   type MessageModerationResult
 } from "./message-moderation.js";
+
+export {
+  REALTIME_EVENTS,
+  realtimeConversationRoom,
+  realtimeProfileRoom,
+  type ConversationUpdatedPayload,
+  type MessageCreatedPayload,
+  type RealtimeClientToServerEvents,
+  type RealtimeConversationRoomPayload,
+  type RealtimeConversationSummary,
+  type RealtimeErrorCode,
+  type RealtimeErrorPayload,
+  type RealtimeEventName,
+  type RealtimeMessage,
+  type RealtimeServerToClientEvents
+} from "./realtime.js";

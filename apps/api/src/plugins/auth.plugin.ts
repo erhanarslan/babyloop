@@ -29,49 +29,61 @@ export function registerAuthPlugin(app: FastifyInstance, options: AuthPluginOpti
       return null;
     }
 
-    const verifiedToken = verifyAccessToken(token, {
-      secret: options.authSecret
-    });
+    const currentUser = await authenticateAccessToken(app, token, options);
 
-    if (!verifiedToken) {
+    if (!currentUser) {
       return null;
     }
-
-    const [row] = await app.db
-      .select({
-        userId: users.id,
-        email: users.email,
-        emailVerifiedAt: users.emailVerifiedAt,
-        role: users.role,
-        profileId: profiles.id,
-        displayName: profiles.displayName,
-        locationCity: profiles.locationCity
-      })
-      .from(users)
-      .innerJoin(profiles, eq(profiles.userId, users.id))
-      .where(eq(users.id, verifiedToken.userId))
-      .limit(1);
-
-    if (!row || row.profileId !== verifiedToken.profileId) {
-      return null;
-    }
-
-    const currentUser: CurrentUser = {
-      email: row.email,
-      emailVerifiedAt: row.emailVerifiedAt ? row.emailVerifiedAt.toISOString() : null,
-      profile: {
-        displayName: row.displayName,
-        id: row.profileId,
-        locationCity: row.locationCity
-      },
-      role: row.role,
-      userId: row.userId
-    };
 
     request.currentUser = currentUser;
 
     return currentUser;
   });
+}
+
+export async function authenticateAccessToken(
+  app: FastifyInstance,
+  token: string,
+  options: AuthPluginOptions
+): Promise<CurrentUser | null> {
+  const verifiedToken = verifyAccessToken(token, {
+    secret: options.authSecret
+  });
+
+  if (!verifiedToken) {
+    return null;
+  }
+
+  const [row] = await app.db
+    .select({
+      userId: users.id,
+      email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
+      role: users.role,
+      profileId: profiles.id,
+      displayName: profiles.displayName,
+      locationCity: profiles.locationCity
+    })
+    .from(users)
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, verifiedToken.userId))
+    .limit(1);
+
+  if (!row || row.profileId !== verifiedToken.profileId) {
+    return null;
+  }
+
+  return {
+    email: row.email,
+    emailVerifiedAt: row.emailVerifiedAt ? row.emailVerifiedAt.toISOString() : null,
+    profile: {
+      displayName: row.displayName,
+      id: row.profileId,
+      locationCity: row.locationCity
+    },
+    role: row.role,
+    userId: row.userId
+  };
 }
 
 function readBearerToken(request: FastifyRequest): string | null {
