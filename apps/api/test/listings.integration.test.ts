@@ -123,10 +123,15 @@ describe("listings API", () => {
     const seller = await createUser(app);
     const activeListing = await createListing(app, seller.accessToken);
     const archivedListing = await createListing(app, seller.accessToken);
+    const soldListing = await createListing(app, seller.accessToken);
     await app.db
       .update(listings)
       .set({ status: "archived" })
       .where(eq(listings.id, archivedListing.id));
+    await app.db
+      .update(listings)
+      .set({ status: "sold" })
+      .where(eq(listings.id, soldListing.id));
 
     const response = await app.inject({
       method: "GET",
@@ -137,6 +142,7 @@ describe("listings API", () => {
     expect(response.statusCode).toBe(200);
     expect(listingIds).toContain(activeListing.id);
     expect(listingIds).not.toContain(archivedListing.id);
+    expect(listingIds).not.toContain(soldListing.id);
   });
 
   it("publicly returns active listing detail", async () => {
@@ -450,6 +456,208 @@ describe("listings API", () => {
     expect(ownedListingIds).toContain(ownerActiveListing.id);
     expect(ownedListingIds).toContain(ownerArchivedListing.id);
     expect(ownedListingIds).not.toContain(otherListing.id);
+  });
+
+  it("allows the owner to update editable listing fields", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const response = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}`,
+      payload: {
+        title: "Updated stroller listing",
+        priceAmount: "1250.00"
+      }
+    });
+
+    const [row] = await app.db
+      .select({
+        title: listings.title,
+        priceAmount: listings.priceAmount
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.listing).toMatchObject({
+      id: listing.id,
+      title: "Updated stroller listing",
+      price: {
+        amount: "1250.00",
+        currency: "TRY"
+      }
+    });
+    expect(row).toMatchObject({
+      title: "Updated stroller listing",
+      priceAmount: "1250.00"
+    });
+  });
+
+  it("blocks non-owner and logged-out listing updates", async () => {
+    const seller = await createUser(app);
+    const otherUser = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const unauthenticated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}`,
+      payload: {
+        title: "Logged out update"
+      }
+    });
+    const nonOwner = await app.inject({
+      headers: authHeader(otherUser.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}`,
+      payload: {
+        title: "Other user update"
+      }
+    });
+
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(nonOwner.statusCode).toBe(403);
+  });
+
+  it("allows the owner to mark a listing as sold and hides it from public listings", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const updated = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "sold"
+      }
+    });
+    const listed = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings"
+    });
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const listingIds = listed.json().data.listings.map((item: { id: string }) => item.id);
+
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json().data.listing).toMatchObject({
+      id: listing.id,
+      status: "sold"
+    });
+    expect(listingIds).not.toContain(listing.id);
+    expect(detail.statusCode).toBe(404);
+  });
+
+  it("allows the owner to archive and reactivate a listing", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const archived = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "archived"
+      }
+    });
+    const hidden = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings"
+    });
+    const reactivated = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "active"
+      }
+    });
+    const visible = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings"
+    });
+    const hiddenIds = hidden.json().data.listings.map((item: { id: string }) => item.id);
+    const visibleIds = visible.json().data.listings.map((item: { id: string }) => item.id);
+
+    expect(archived.statusCode).toBe(200);
+    expect(archived.json().data.listing.status).toBe("archived");
+    expect(hiddenIds).not.toContain(listing.id);
+    expect(reactivated.statusCode).toBe(200);
+    expect(reactivated.json().data.listing.status).toBe("active");
+    expect(visibleIds).toContain(listing.id);
+  });
+
+  it("allows reserved listings to remain public and messageable", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const reserved = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "reserved"
+      }
+    });
+    const listed = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings"
+    });
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const listingIds = listed.json().data.listings.map((item: { id: string }) => item.id);
+
+    expect(reserved.statusCode).toBe(200);
+    expect(reserved.json().data.listing.status).toBe("reserved");
+    expect(listingIds).toContain(listing.id);
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().data.listing.status).toBe("reserved");
+  });
+
+  it("rejects invalid listing status values and invalid status transitions", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const invalidStatus = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "deleted"
+      }
+    });
+    const sold = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "sold"
+      }
+    });
+    const invalidTransition = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "active"
+      }
+    });
+
+    expect(invalidStatus.statusCode).toBe(400);
+    expect(invalidStatus.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_LISTING_STATUS"
+      }
+    });
+    expect(sold.statusCode).toBe(200);
+    expect(invalidTransition.statusCode).toBe(400);
+    expect(invalidTransition.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_STATUS_TRANSITION"
+      }
+    });
   });
 
   it("does not expose internal seller user id in public listing list", async () => {

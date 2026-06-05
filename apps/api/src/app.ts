@@ -29,7 +29,9 @@ type CreateAppOptions = {
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
+
   assertAuthConfig(config);
+
   const emailDelivery =
     options.emailDelivery ??
     createEmailDeliveryService({
@@ -37,20 +39,27 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       mode: config.emailDeliveryMode,
       webAppUrl: config.webAppUrl
     });
+
   const app = Fastify({
     logger: true
   });
 
   app.register(cors, {
     credentials: true,
-    origin: config.corsOrigins
+    origin: config.corsOrigins,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Set-Cookie"]
   });
+
   app.register(rateLimit, {
     errorResponseBuilder: (_request, context) => {
       const error = new Error("Too many auth attempts. Try again later.") as Error & {
         statusCode: number;
       };
+
       error.statusCode = context.statusCode;
+
       return error;
     },
     global: false,
@@ -89,14 +98,17 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     registerDatabasePlugin(app, {
       databaseUrl: config.databaseUrl
     });
+
     if (config.authSecret) {
       registerAuthPlugin(app, {
         authSecret: config.authSecret
       });
+
       registerRealtime(app, {
         authSecret: config.authSecret,
         corsOrigins: config.corsOrigins
       });
+
       const authRouteOptions = {
         authRateLimitMax: config.authRateLimitMax,
         authRateLimitWindowSeconds: config.authRateLimitWindowSeconds,
@@ -116,6 +128,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       app.log.warn("AUTH_SECRET is not set. Auth API routes will return 503.");
       app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
     }
+
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
@@ -124,9 +137,11 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
+
     if (config.allowAuthUnavailable) {
       app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });
     }
+
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
 

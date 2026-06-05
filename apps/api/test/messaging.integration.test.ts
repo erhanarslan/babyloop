@@ -62,23 +62,53 @@ describe("messaging API", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("rejects conversation create for inactive listing", async () => {
+  it("rejects conversation create for sold and archived listings", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const archivedListing = await createListing(app, seller.accessToken);
+    const soldListing = await createListing(app, seller.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, archivedListing.id));
+    await app.db
+      .update(listings)
+      .set({ status: "sold" })
+      .where(eq(listings.id, soldListing.id));
+
+    const archivedResponse = await createConversation(app, buyer.accessToken, archivedListing.id);
+    const soldResponse = await createConversation(app, buyer.accessToken, soldListing.id);
+
+    expect(archivedResponse.statusCode).toBe(400);
+    expect(archivedResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_LISTING"
+      }
+    });
+    expect(soldResponse.statusCode).toBe(400);
+    expect(soldResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_LISTING"
+      }
+    });
+  });
+
+  it("allows conversation create for reserved listings", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
     await app.db
       .update(listings)
-      .set({ status: "archived" })
+      .set({ status: "reserved" })
       .where(eq(listings.id, listing.id));
 
     const response = await createConversation(app, buyer.accessToken, listing.id);
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "INVALID_LISTING"
-      }
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.conversation.contextListing).toMatchObject({
+      id: listing.id
     });
   });
 
@@ -372,5 +402,43 @@ describe("messaging API", () => {
     expect(outsiderList.json().data.conversations).toHaveLength(0);
     expect(outsiderList.body).not.toContain("Private latest message");
     expect(outsiderDirectRead.statusCode).toBe(403);
+  });
+
+  it("keeps existing conversations readable after the listing is sold or archived", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+
+    await app.db
+      .update(listings)
+      .set({ status: "sold" })
+      .where(eq(listings.id, listing.id));
+
+    const soldConversation = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}`
+    });
+
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, listing.id));
+
+    const archivedMessages = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}/messages`
+    });
+
+    expect(soldConversation.statusCode).toBe(200);
+    expect(soldConversation.json().data.conversation).toMatchObject({
+      id: conversation.id,
+      contextListing: {
+        id: listing.id
+      }
+    });
+    expect(archivedMessages.statusCode).toBe(200);
   });
 });

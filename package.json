@@ -9,6 +9,9 @@
   },
   "scripts": {
     "dev": "turbo dev --filter=@babyloop/web --filter=@babyloop/api",
+    "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:infra:down": "docker compose -f docker-compose.dev.yml down",
+    "dev:infra:reset": "docker compose -f docker-compose.dev.yml down -v",
     "build": "turbo build",
     "preflight": "node scripts/check-tooling.mjs",
     "test": "turbo test",

@@ -12,6 +12,22 @@
 - Prefer real vertical slices over broad unfinished scaffolding.
 - Each phase must have local verification steps and done criteria.
 
+## Completed Foundation Updates
+
+- Listing lifecycle foundation: seller-owned edit/status APIs, minimal My Listings controls, public browse/detail rules, and messaging restrictions for sold/archived listings.
+- Local Docker Compose foundation: PostgreSQL and Redis dependency services for local development.
+- CI foundation: GitHub Actions validation for typecheck, shared unit tests, API integration tests with PostgreSQL, and builds.
+
+Current follow-up items:
+
+- image upload/storage
+- Redis usage for queues, Socket.IO adapter, rate limits, and notifications
+- notification foundation
+- saved search
+- admin moderation
+- payment/secure checkout
+- AI/RAG
+
 ## Phase 0: Documentation and Architecture
 
 Scope:

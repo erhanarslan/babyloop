@@ -140,6 +140,36 @@ describe("favorites API", () => {
     });
   });
 
+  it("allows favoriting reserved listings", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    await app.db
+      .update(listings)
+      .set({ status: "reserved" })
+      .where(eq(listings.id, listing.id));
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        favorite: {
+          listingId: listing.id,
+          profileId: buyer.profile.id
+        }
+      }
+    });
+  });
+
   it("handles duplicate favorite idempotently and removes favorite", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
@@ -238,6 +268,82 @@ describe("favorites API", () => {
     expect(response.statusCode).toBe(200);
     expect(favoriteIds).toContain(buyerListing.id);
     expect(favoriteIds).not.toContain(otherBuyerListing.id);
+  });
+
+    it("hides sold and archived listings from favorites list without deleting favorite rows", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+
+    const soldListing = await createListing(app, seller.accessToken, {
+      title: "Sold favorite listing"
+    });
+    const archivedListing = await createListing(app, seller.accessToken, {
+      title: "Archived favorite listing"
+    });
+    const activeListing = await createListing(app, seller.accessToken, {
+      title: "Active favorite listing"
+    });
+
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: soldListing.id
+      }
+    });
+
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: archivedListing.id
+      }
+    });
+
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: activeListing.id
+      }
+    });
+
+    await app.db
+      .update(listings)
+      .set({ status: "sold" })
+      .where(eq(listings.id, soldListing.id));
+
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, archivedListing.id));
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: "/api/v1/favorites"
+    });
+
+    const favoriteIds = response.json().data.favorites.map((favorite: { id: string }) => favorite.id);
+
+    const favoriteRows = await app.db
+      .select({
+        id: favorites.id,
+        listingId: favorites.listingId
+      })
+      .from(favorites)
+      .where(eq(favorites.profileId, buyer.profile.id));
+
+    expect(response.statusCode).toBe(200);
+    expect(favoriteIds).toContain(activeListing.id);
+    expect(favoriteIds).not.toContain(soldListing.id);
+    expect(favoriteIds).not.toContain(archivedListing.id);
+    expect(favoriteRows.map((favorite) => favorite.listingId)).toEqual(
+      expect.arrayContaining([activeListing.id, soldListing.id, archivedListing.id])
+    );
   });
 
   it("cannot delete someone else's favorite by listingId", async () => {

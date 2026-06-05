@@ -3,16 +3,23 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
-import type { CreateListingBody } from "../schemas/listings.schemas.js";
+import type {
+  CreateListingBody,
+  ListingStatusValue,
+  UpdateListingBody
+} from "../schemas/listings.schemas.js";
 import {
   findCategory,
   getFirstImages,
   getImages,
   selectActiveListingRows,
   selectListingsBySellerProfileId,
-  selectListingDetailRow
+  selectListingDetailRow,
+  selectListingOwnerRow,
+  selectListingSummaryRow
 } from "./listing-queries.service.js";
 import {
   mapListingSummary,
@@ -114,6 +121,131 @@ export async function listActiveListings(
   return mapListingRows(app, rows);
 }
 
+export async function updateListing(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  listingId: string,
+  body: UpdateListingBody
+): Promise<
+  | { status: "updated"; listing: ListingSummaryResponse }
+  | { status: "not_found" | "forbidden" | "invalid_category" }
+> {
+  const listing = await selectListingOwnerRow(app, listingId);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  if (listing.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  if (body.categoryId) {
+    const category = await findCategory(app, body.categoryId);
+
+    if (!category) {
+      return { status: "invalid_category" };
+    }
+  }
+
+  const now = new Date();
+
+  await app.db.transaction(async (tx) => {
+    await tx
+      .update(listings)
+      .set({
+        ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
+        ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.description !== undefined ? { description: body.description } : {}),
+        ...(body.priceAmount !== undefined ? { priceAmount: body.priceAmount } : {}),
+        ...(body.currency !== undefined ? { currency: body.currency } : {}),
+        ...(body.listingType !== undefined ? { listingType: body.listingType } : {}),
+        ...(body.condition !== undefined ? { condition: body.condition } : {}),
+        updatedAt: now
+      })
+      .where(eq(listings.id, listingId));
+
+    if (body.imageUrls !== undefined) {
+      await tx.delete(listingImages).where(eq(listingImages.listingId, listingId));
+
+      if (body.imageUrls.length > 0) {
+        await tx.insert(listingImages).values(
+          body.imageUrls.map((url, index) => ({
+            listingId,
+            url,
+            sortOrder: index
+          }))
+        );
+      }
+    }
+
+    await tx.insert(events).values({
+      actorProfileId: currentUser.profile.id,
+      eventType: "listing_updated",
+      entityType: "listing",
+      entityId: listingId,
+      metadata: {
+        updatedFields: Object.keys(body)
+      }
+    });
+  });
+
+  return {
+    status: "updated",
+    listing: await getListingSummary(app, listingId)
+  };
+}
+
+export async function updateListingStatus(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  listingId: string,
+  nextStatus: ListingStatusValue
+): Promise<
+  | { status: "updated"; listing: ListingSummaryResponse }
+  | { status: "not_found" | "forbidden" | "invalid_transition" }
+> {
+  const listing = await selectListingOwnerRow(app, listingId);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  if (listing.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  if (!isAllowedStatusTransition(listing.status, nextStatus)) {
+    return { status: "invalid_transition" };
+  }
+
+  await app.db.transaction(async (tx) => {
+    await tx
+      .update(listings)
+      .set({
+        status: nextStatus,
+        updatedAt: new Date()
+      })
+      .where(eq(listings.id, listingId));
+
+    await tx.insert(events).values({
+      actorProfileId: currentUser.profile.id,
+      eventType: "listing_status_changed",
+      entityType: "listing",
+      entityId: listingId,
+      metadata: {
+        previousStatus: listing.status,
+        nextStatus
+      }
+    });
+  });
+
+  return {
+    status: "updated",
+    listing: await getListingSummary(app, listingId)
+  };
+}
+
 export async function listListingsForCurrentUser(
   app: FastifyInstance,
   currentUser: CurrentUser
@@ -154,6 +286,45 @@ async function mapListingRows(
       firstImage: firstImages.get(row.id) ?? null
     })
   );
+}
+
+async function getListingSummary(
+  app: FastifyInstance,
+  listingId: string
+): Promise<ListingSummaryResponse> {
+  const row = await selectListingSummaryRow(app, listingId);
+
+  if (!row) {
+    throw new Error("Listing summary lookup failed.");
+  }
+
+  const [firstImage] = await getImages(app, row.id);
+
+  return mapListingSummary({
+    ...row,
+    category: {
+      id: row.categoryId,
+      name: row.categoryName,
+      slug: row.categorySlug
+    },
+    firstImage: firstImage ?? null
+  });
+}
+
+function isAllowedStatusTransition(currentStatus: string, nextStatus: ListingStatusValue): boolean {
+  if (currentStatus === nextStatus) {
+    return true;
+  }
+
+  const allowedTransitions: Record<string, ListingStatusValue[]> = {
+    draft: ["active", "archived"],
+    active: ["reserved", "sold", "archived"],
+    reserved: ["active", "sold", "archived"],
+    sold: ["archived"],
+    archived: ["active"]
+  };
+
+  return allowedTransitions[currentStatus]?.includes(nextStatus) ?? false;
 }
 
 export async function getListingDetail(

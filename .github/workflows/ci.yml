@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  validate:
+    name: Validate monorepo
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: babyloop_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d babyloop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck shared
+        run: pnpm --filter @babyloop/shared typecheck
+
+      - name: Typecheck API
+        run: pnpm --filter @babyloop/api typecheck
+
+      - name: Typecheck web
+        run: pnpm --filter @babyloop/web typecheck
+
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+      - name: Shared unit tests
+        run: pnpm --filter @babyloop/shared test:unit
+
+      - name: API integration tests
+        run: pnpm --filter @babyloop/api test
+
+      - name: Build shared
+        run: pnpm --filter @babyloop/shared build
+
+      - name: Build API
+        run: pnpm --filter @babyloop/api build
+
+      - name: Build web
+        run: pnpm --filter @babyloop/web build
+
+      - name: Build workspace
+        run: pnpm build

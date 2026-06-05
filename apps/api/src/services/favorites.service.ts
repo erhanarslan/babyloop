@@ -4,10 +4,12 @@ import {
   listings,
   productCategories
 } from "@babyloop/database/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { FavoriteBody } from "../schemas/favorites.schemas.js";
 import { buildPrice, type PriceResponse } from "./listing-response.mapper.js";
+
+const FAVORITE_VISIBLE_LISTING_STATUSES = ["active", "reserved"] as const;
 
 export type FavoriteActionResult = {
   favorite: {
@@ -49,7 +51,7 @@ export async function addFavorite(
     return { status: "invalid_listing" };
   }
 
-  if (listing.status !== "active") {
+  if (!isFavoriteVisibleListingStatus(listing.status)) {
     return { status: "inactive_listing" };
   }
 
@@ -156,7 +158,12 @@ export async function listFavoritesForProfile(
     .from(favorites)
     .innerJoin(listings, eq(favorites.listingId, listings.id))
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
-    .where(eq(favorites.profileId, profileId))
+    .where(
+      and(
+        eq(favorites.profileId, profileId),
+        inArray(listings.status, [...FAVORITE_VISIBLE_LISTING_STATUSES])
+      )
+    )
     .orderBy(desc(favorites.createdAt));
 
   return rows.map((row) => ({
@@ -187,4 +194,8 @@ async function findFavoriteableListing(app: FastifyInstance, listingId: string) 
     .limit(1);
 
   return listing ?? null;
+}
+
+function isFavoriteVisibleListingStatus(status: string): boolean {
+  return FAVORITE_VISIBLE_LISTING_STATUSES.some((visibleStatus) => visibleStatus === status);
 }

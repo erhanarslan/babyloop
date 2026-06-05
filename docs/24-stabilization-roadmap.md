@@ -78,10 +78,12 @@ Already present:
 - API integration tests under `apps/api/test`.
 - Vitest API tests use `fastify.inject`.
 - Auth, listings, favorites, messaging, and mock AI have API-level coverage.
+- listing lifecycle foundation with owner edit/status APIs and minimal web controls.
+- local Docker Compose dependency stack for PostgreSQL and Redis.
+- GitHub Actions CI foundation for typecheck, shared unit tests, API integration tests, and builds.
 
 Recommended next stabilizers:
 
-- add CI execution for existing validation commands.
 - add web component or E2E tests for browser-owned flows.
 - add migration safety notes before shared DB usage.
 - resolve the production migration risk documented in `docs/26-database-migration-safety-audit.md`, especially the messaging profile-pair backfill path.
@@ -93,15 +95,23 @@ Use `docs/25-validation-and-regression-checklist.md` as the detailed regression 
 ## Productization Blockers
 
 - production-grade auth/session transport
-- Google OAuth
-- listing edit/archive/delete lifecycle
 - image upload/storage
 - signed upload URLs, storage, file type validation, and file size limits
 - search/filter/pagination
-- messaging unread/realtime/report/block flows
+- messaging unread/report/block flows
 - admin/moderation
 - trust and safety
-- CI/deployment/observability
+- deployment/observability
+
+## Current Follow-ups
+
+- image upload/storage and R2/S3-compatible integration
+- Redis usage for queues, Socket.IO adapter, rate limits, and notifications
+- notification foundation
+- saved search
+- admin moderation
+- payment/secure checkout
+- AI/RAG
 
 ## Validation Commands
 

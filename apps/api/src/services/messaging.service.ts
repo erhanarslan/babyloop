@@ -6,7 +6,7 @@ import {
   messages,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
@@ -18,6 +18,7 @@ import type {
 const profileLowProfiles = alias(profiles, "profile_low_profiles");
 const profileHighProfiles = alias(profiles, "profile_high_profiles");
 const senderProfiles = alias(profiles, "sender_profiles");
+const MESSAGEABLE_LISTING_STATUSES: Array<"active" | "reserved"> = ["active", "reserved"];
 
 export type ConversationSummaryResponse = {
   id: string;
@@ -378,7 +379,7 @@ async function getListingForConversation(
       sellerProfileId: listings.sellerProfileId
     })
     .from(listings)
-    .where(and(eq(listings.id, listingId), eq(listings.status, "active")))
+    .where(and(eq(listings.id, listingId), inArray(listings.status, MESSAGEABLE_LISTING_STATUSES)))
     .limit(1);
 
   return listing ?? null;

@@ -25,10 +25,10 @@ Implemented:
 | Area | Current state |
 | --- | --- |
 | Auth | Email/password register and login, `GET /api/v1/auth/me`, signed access tokens, basic auth rate limiting. |
-| Listings | Public active listing list/detail, authenticated listing creation for `sale`, `donation`, and `swap`, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
+| Listings | Public active/reserved listing list/detail, authenticated listing creation for `sale`, `donation`, and `swap`, seller-owned edit/status lifecycle, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
 | Listing images | Optional manual image URL metadata can be stored and rendered as a temporary development bridge. Real upload/storage is not implemented. |
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. |
-| Messaging | Authenticated conversation API, web conversations list, web thread page, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
+| Messaging | Authenticated conversation API, web conversations list, web thread page, deterministic moderation, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
 | Tests | API integration tests with Vitest and `fastify.inject`. |
 
@@ -38,7 +38,7 @@ Partially implemented:
 | --- | --- |
 | Auth/session | Access-token auth exists, but browser storage is still local-MVP level. No refresh/session table or HTTP-only cookie flow yet. |
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
-| Messaging | List/thread/send works, but no realtime delivery, unread counts, reporting, blocking, attachments, notifications, or moderation. |
+| Messaging | List/thread/send/realtime works, but unread counts, reporting, blocking, attachments, and notifications remain deferred. |
 | AI | Mock suggestion flow exists. No real LLM provider, price recommendation, RAG, moderation, or recommendation engine yet. |
 
 Not implemented:
@@ -46,12 +46,10 @@ Not implemented:
 - Google OAuth
 - password reset and email verification
 - real image upload/storage
-- listing edit/archive/delete lifecycle as user-facing API/UI
 - rental listing flows
 - admin panel
 - mobile app
 - payments
-- realtime messaging
 - moderation/trust and safety workflows
 - production observability/deployment pipeline
 
@@ -82,6 +80,30 @@ Known tooling issue: Node `v20.11.0` is too old for the current Vitest/Rolldown 
 ```bash
 pnpm install
 ```
+
+## Local Infrastructure
+
+Docker Compose runs local dependencies only. Web and API still run with pnpm on the host machine.
+
+```bash
+pnpm dev:infra
+```
+
+This starts PostgreSQL on `5432` and Redis on `6379`.
+
+Stop the dependency stack:
+
+```bash
+pnpm dev:infra:down
+```
+
+Reset local dependency volumes:
+
+```bash
+pnpm dev:infra:reset
+```
+
+Use `.env.example` for local placeholders. Do not commit real secrets.
 
 ## Development
 
@@ -188,7 +210,13 @@ pnpm --filter @babyloop/api dev
 
 Use this flow to run the current marketplace path locally.
 
-1. Start or confirm PostgreSQL is running:
+1. Start the local dependency stack or confirm PostgreSQL is running:
+
+```bash
+pnpm dev:infra
+```
+
+or:
 
 ```bash
 pg_isready -h 127.0.0.1 -p 5432
@@ -324,6 +352,10 @@ BABYLOOP_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web dev
 - Open `/favorites` and confirm the saved listing appears.
 - Open `/sell`, create a manual listing, and confirm redirect to its detail page.
 - Open `/my-listings` and confirm the created listing appears.
+- Edit the listing title or price from `/my-listings`.
+- Mark the listing reserved and confirm it remains visible in `/browse`.
+- Reactivate the reserved listing.
+- Mark the listing sold or archived and confirm it no longer appears in default browse.
 - From Mehmet's listing detail, start a conversation with Mehmet.
 - Confirm redirect to `/conversations/:id`.
 - Send a plain text message.
@@ -347,15 +379,13 @@ curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
 ## Productization Blockers
 
 - production-grade auth/session transport
-- Google OAuth
-- listing edit/archive/delete lifecycle
 - rental deposit/date range/return/damage/contract flows
 - image upload/storage and media validation
 - search/filter/pagination
-- messaging unread state, realtime delivery, report, and block flows
+- messaging unread state, report, and block flows
 - admin/moderation tools
 - trust and safety policy enforcement
-- CI, deployment, and observability
+- deployment and observability
 
 ## API Integration Tests
 
@@ -390,6 +420,14 @@ Current auth is a local-first email/password implementation:
 - `ALLOW_AUTH_UNAVAILABLE=true` is only for local unavailable-mode testing.
 
 The mock AI endpoint writes to `ai_model_runs` when `DATABASE_URL` is configured. If database logging is unavailable, the suggestion response should still work.
+
+## Listing Lifecycle
+
+Listings support `active`, `reserved`, `sold`, and `archived` seller lifecycle states.
+Default browse/detail shows `active` and `reserved` listings. Sold and archived listings are hidden from public browse/detail and block new conversation creation.
+Existing conversations remain readable for participants after a listing changes status.
+
+See [docs/28-listing-lifecycle-and-platform-foundation.md](/Users/erhan-pc-mac/Desktop/babyloop/docs/28-listing-lifecycle-and-platform-foundation.md) for lifecycle rules, endpoint contracts, Docker Compose usage, and CI scope.
 
 ## Image Upload Status
 

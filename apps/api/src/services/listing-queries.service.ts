@@ -12,6 +12,7 @@ import type {
 } from "./listing-response.mapper.js";
 
 const LISTING_LIMIT = 20;
+const PUBLIC_LISTING_STATUSES: Array<"active" | "reserved"> = ["active", "reserved"];
 
 export async function findCategory(
   app: FastifyInstance,
@@ -54,14 +55,14 @@ export async function selectActiveListingRows(app: FastifyInstance, searchQuery?
     .where(
       shouldSearch
         ? and(
-          eq(listings.status, "active"),
+          inArray(listings.status, PUBLIC_LISTING_STATUSES),
           or(
             ilike(listings.title, searchPattern),
             ilike(listings.description, searchPattern),
             ilike(productCategories.name, searchPattern)
           )
         )
-        : eq(listings.status, "active")
+        : inArray(listings.status, PUBLIC_LISTING_STATUSES)
     )
     .orderBy(desc(listings.createdAt))
     .limit(LISTING_LIMIT);
@@ -113,7 +114,44 @@ export async function selectListingDetailRow(app: FastifyInstance, id: string) {
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
     .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
-    .where(and(eq(listings.id, id), eq(listings.status, "active")))
+    .where(and(eq(listings.id, id), inArray(listings.status, PUBLIC_LISTING_STATUSES)))
+    .limit(1);
+
+  return row ?? null;
+}
+
+export async function selectListingOwnerRow(app: FastifyInstance, id: string) {
+  const [row] = await app.db
+    .select({
+      id: listings.id,
+      sellerProfileId: listings.sellerProfileId,
+      status: listings.status
+    })
+    .from(listings)
+    .where(eq(listings.id, id))
+    .limit(1);
+
+  return row ?? null;
+}
+
+export async function selectListingSummaryRow(app: FastifyInstance, id: string) {
+  const [row] = await app.db
+    .select({
+      id: listings.id,
+      title: listings.title,
+      priceAmount: listings.priceAmount,
+      currency: listings.currency,
+      status: listings.status,
+      listingType: listings.listingType,
+      condition: listings.condition,
+      createdAt: listings.createdAt,
+      categoryId: productCategories.id,
+      categoryName: productCategories.name,
+      categorySlug: productCategories.slug
+    })
+    .from(listings)
+    .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .where(eq(listings.id, id))
     .limit(1);
 
   return row ?? null;

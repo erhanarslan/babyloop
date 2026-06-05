@@ -416,9 +416,22 @@
   }
 
   .listing-card-badges,
+  .listing-card-actions,
   .form-button-row,
   .tag-list {
     @apply flex flex-wrap gap-2;
+  }
+
+  .listing-inline-form {
+    @apply grid gap-3 rounded-md border border-border bg-muted/40 p-3;
+  }
+
+  .listing-inline-form label {
+    @apply grid gap-1 text-sm font-semibold;
+  }
+
+  .listing-inline-form input {
+    @apply min-h-10 rounded-md border border-input bg-background px-3 text-sm font-normal;
   }
 
   .listing-card-footer,

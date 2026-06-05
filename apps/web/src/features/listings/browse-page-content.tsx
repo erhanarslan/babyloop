@@ -17,6 +17,7 @@ import {
   formatCategoryName,
   formatListingCondition,
   formatListingPrice,
+  formatListingStatus,
   formatListingType
 } from "./listing-display";
 
@@ -109,6 +110,9 @@ function ListingCard({ listing }: { listing: ListingSummary }) {
             <Badge tone="success">
               {dictionary.listings.typeLabel}: {formatListingType(listing.listingType, dictionary)}
             </Badge>
+            {listing.status === "reserved" ? (
+              <Badge tone="warning">{formatListingStatus(listing.status, dictionary)}</Badge>
+            ) : null}
           </div>
           <h2>{listing.title}</h2>
           <p className="muted">

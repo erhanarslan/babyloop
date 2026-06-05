@@ -19,6 +19,8 @@ import {
 export const listingStatusEnum = pgEnum("listing_status", [
   "draft",
   "active",
+  "reserved",
+  "sold",
   "archived"
 ]);
 

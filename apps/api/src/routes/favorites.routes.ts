@@ -51,7 +51,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
         ok: false,
         error: {
           code: "LISTING_NOT_ACTIVE",
-          message: "Only active listings can be favorited."
+          message: "Only active or reserved listings can be favorited."
         }
       });
     }

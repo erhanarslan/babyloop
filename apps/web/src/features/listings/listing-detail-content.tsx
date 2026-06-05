@@ -19,6 +19,7 @@ import {
   formatDateTime,
   formatListingCondition,
   formatListingPrice,
+  formatListingStatus,
   formatListingType
 } from "./listing-display";
 
@@ -69,6 +70,9 @@ export function ListingDetailContent({
           </Badge>
           <Badge>
             {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
+          </Badge>
+          <Badge tone={listing.status === "reserved" ? "warning" : "success"}>
+            {dictionary.listings.statusLabel}: {formatListingStatus(listing.status, dictionary)}
           </Badge>
         </div>
         <h1>{listing.title}</h1>
