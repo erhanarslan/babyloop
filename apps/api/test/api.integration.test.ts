@@ -3143,6 +3143,47 @@ describe("messaging API", () => {
     });
   });
 
+  it("blocks moderated message bodies before persisting them", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(buyer.accessToken, listing.id)).json().data.conversation;
+    const blockedBodies = [
+      "f.u.c.k you",
+      "send nude photos",
+      "I will kill you",
+      "buy buy buy buy buy buy"
+    ];
+
+    for (const body of blockedBodies) {
+      const response = await app.inject({
+        headers: authHeader(buyer.accessToken),
+        method: "POST",
+        url: `/api/v1/conversations/${conversation.id}/messages`,
+        payload: {
+          body
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        ok: false,
+        error: {
+          code: "MESSAGE_BLOCKED"
+        }
+      });
+    }
+
+    const messagesResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}/messages`
+    });
+
+    expect(messagesResponse.statusCode).toBe(200);
+    expect(messagesResponse.json().data.messages).toHaveLength(0);
+  });
+
   it("does not leak latestMessage conversation summaries to outsiders", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);

@@ -2,13 +2,13 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
   authFetch,
   getAuthToken,
-  logout,
+  logoutAndRedirectToHome,
   refreshSession,
   type AuthMe
 } from "../lib/auth-client";
@@ -22,7 +22,6 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   const { dictionary } = useI18n();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     let isActive = true;
@@ -101,11 +100,8 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
         className="nav-button"
         type="button"
         onClick={() => {
-          void logout(apiBaseUrl).finally(() => {
-            setCurrentAuth(null);
-            router.replace("/");
-            router.refresh();
-          });
+          setCurrentAuth(null);
+          logoutAndRedirectToHome(apiBaseUrl);
         }}
       >
         {dictionary.common.logout}

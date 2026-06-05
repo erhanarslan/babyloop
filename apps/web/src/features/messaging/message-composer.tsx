@@ -1,5 +1,6 @@
 "use client";
 
+import { moderateMessageBody } from "@babyloop/shared";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button, Textarea } from "../../components/ui";
@@ -28,8 +29,13 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       return;
     }
 
-    setIsPending(true);
+    if (!moderateMessageBody(trimmedBody).allowed) {
+      setErrorMessage(dictionary.messaging.messageBlocked);
+      return;
+    }
+
     setErrorMessage(null);
+    setIsPending(true);
 
     try {
       const response = await sendMessage(apiBaseUrl, conversationId, trimmedBody);

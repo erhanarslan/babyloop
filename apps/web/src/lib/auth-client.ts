@@ -156,9 +156,12 @@ export async function getOrRefreshAuthToken(apiBaseUrl: string): Promise<string 
   return refreshed.ok ? refreshed.data.accessToken : null;
 }
 
-export async function logout(apiBaseUrl: string): Promise<void> {
+export async function logout(
+  apiBaseUrl: string,
+  options: { broadcast?: boolean } = {}
+): Promise<void> {
   markManuallyLoggedOut();
-  clearAuthToken({ broadcast: true });
+  clearAuthToken({ broadcast: options.broadcast ?? true });
 
   try {
     await fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
@@ -168,6 +171,23 @@ export async function logout(apiBaseUrl: string): Promise<void> {
   } catch {
     return;
   }
+}
+
+export function logoutAndRedirectToHome(apiBaseUrl: string): void {
+  markManuallyLoggedOut();
+  clearAuthToken({ broadcast: false });
+
+  try {
+    void fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      keepalive: true
+    });
+  } catch {
+    // Explicit logout is a client-side session boundary even if the server is unreachable.
+  }
+
+  window.location.replace("/");
 }
 
 export async function authFetch(

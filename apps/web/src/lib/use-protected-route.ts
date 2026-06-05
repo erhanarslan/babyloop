@@ -21,11 +21,10 @@ export function useProtectedRoute({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const redirectHome = useCallback(() => {
-    onUnauthenticated?.();
-    setIsCheckingAuth(false);
-    router.replace("/");
-    router.refresh();
-  }, [onUnauthenticated, router]);
+  setIsCheckingAuth(true);
+  onUnauthenticated?.();
+  router.replace("/");
+}, [onUnauthenticated, router]);
 
   const requireAuth = useCallback(async () => {
     const token = await getOrRefreshAuthToken(apiBaseUrl);

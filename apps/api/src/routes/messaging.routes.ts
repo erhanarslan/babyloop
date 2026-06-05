@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@babyloop/shared";
+import { moderateMessageBody, type ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import {
   conversationParamsSchema,
@@ -192,6 +192,12 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         return reply.status(400).send(invalidMessagingRequest("Message body is invalid."));
       }
 
+      const moderation = moderateMessageBody(parsedBody.data.body);
+
+      if (!moderation.allowed) {
+        return reply.status(400).send(messageBlockedResponse());
+      }
+
       const result = await sendMessage(app, currentUser, parsedParams.data.id, parsedBody.data);
 
       if (result.status !== "sent") {
@@ -206,6 +212,16 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       });
     }
   );
+}
+
+function messageBlockedResponse(): ApiResponse<never> {
+  return {
+    ok: false,
+    error: {
+      code: "MESSAGE_BLOCKED",
+      message: "Message was blocked by moderation."
+    }
+  };
 }
 
 function invalidMessagingRequest(message: string): ApiResponse<never> {

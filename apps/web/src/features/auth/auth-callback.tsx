@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoadingBlock } from "../../components/ui";
 import { clearAuthToken, getAuthToken, refreshSession } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -13,9 +13,14 @@ type AuthCallbackProps = {
 export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
   const { dictionary } = useI18n();
   const hasHandledCallback = useRef(false);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const status = searchParams.get("status");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (hasHandledCallback.current) {
@@ -53,9 +58,13 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
   }, [apiBaseUrl, router, status]);
 
   return (
-    <LoadingBlock
-      title={dictionary.auth.callbackTitle}
-      message={dictionary.auth.callbackDescription}
-    />
-  );
+  <LoadingBlock
+    title={isMounted ? dictionary.auth.callbackTitle : "Signing you in"}
+    message={
+      isMounted
+        ? dictionary.auth.callbackDescription
+        : "Finalizing your BabyLoop session."
+    }
+  />
+);
 }

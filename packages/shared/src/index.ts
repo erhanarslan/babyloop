@@ -12,3 +12,9 @@ export type ApiFailure = {
 };
 
 export type ApiResponse<TData> = ApiSuccess<TData> | ApiFailure;
+
+export {
+  moderateMessageBody,
+  type MessageModerationReason,
+  type MessageModerationResult
+} from "./message-moderation.js";

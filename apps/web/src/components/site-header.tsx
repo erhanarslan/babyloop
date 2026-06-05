@@ -8,7 +8,7 @@ import {
   AUTH_CHANGED_EVENT,
   authFetch,
   getAuthToken,
-  logout,
+  logoutAndRedirectToHome,
   refreshSession,
   type AuthMe
 } from "../lib/auth-client";
@@ -26,53 +26,71 @@ import {
 
 type OpenMenu = "marketplace" | "sell" | "account" | "mobile" | null;
 
+type NavItem = {
+  description: string;
+  href: string;
+  label: string;
+};
+
+type AccountItem = {
+  href: string;
+  label: string;
+};
+
 export function SiteHeader() {
   const apiBaseUrl = getApiBaseUrl();
   const pathname = usePathname();
-  const router = useRouter();
   const headerRef = useRef<HTMLElement | null>(null);
   const { dictionary, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
 
-  const marketplaceItems = [
+  const marketplaceItems: NavItem[] = [
     {
       description: dictionary.nav.browseDescription,
       href: "/browse",
       label: dictionary.nav.browseListings
     },
-    {
-      description: dictionary.nav.favoritesDescription,
-      href: "/favorites",
-      label: dictionary.nav.favorites
-    },
-    {
-      description: dictionary.nav.messagesDescription,
-      href: "/conversations",
-      label: dictionary.nav.messages
-    }
+    ...(currentAuth
+      ? [
+          {
+            description: dictionary.nav.favoritesDescription,
+            href: "/favorites",
+            label: dictionary.nav.favorites
+          },
+          {
+            description: dictionary.nav.messagesDescription,
+            href: "/conversations",
+            label: dictionary.nav.messages
+          }
+        ]
+      : [])
   ];
 
-  const sellItems = [
-    {
-      description: dictionary.nav.myListingsDescription,
-      href: "/sell",
-      label: dictionary.common.createListing
-    },
-    {
-      description: dictionary.nav.myListingsDescription,
-      href: "/my-listings",
-      label: dictionary.nav.myListings
-    }
-  ];
+  const sellItems: NavItem[] = currentAuth
+    ? [
+        {
+          description: dictionary.nav.myListingsDescription,
+          href: "/sell",
+          label: dictionary.common.createListing
+        },
+        {
+          description: dictionary.nav.myListingsDescription,
+          href: "/my-listings",
+          label: dictionary.nav.myListings
+        }
+      ]
+    : [];
 
-  const accountItems = [
-    { href: "/favorites", label: dictionary.nav.favorites },
-    { href: "/my-listings", label: dictionary.nav.myListings },
-    { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail },
-    { href: "/account/password", label: dictionary.nav.changePassword }
-  ];
+  const accountItems: AccountItem[] = currentAuth
+    ? [
+        { href: "/favorites", label: dictionary.nav.favorites },
+        { href: "/my-listings", label: dictionary.nav.myListings },
+        { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail },
+        { href: "/account/password", label: dictionary.nav.changePassword }
+      ]
+    : [];
 
   useEffect(() => {
     let isActive = true;
@@ -91,7 +109,14 @@ export function SiteHeader() {
           return;
         }
 
-        setCurrentAuth(refreshed.ok ? { profile: refreshed.data.profile, user: refreshed.data.user } : null);
+        setCurrentAuth(
+          refreshed.ok
+            ? {
+                profile: refreshed.data.profile,
+                user: refreshed.data.user
+              }
+            : null
+        );
         return;
       }
 
@@ -146,19 +171,19 @@ export function SiteHeader() {
     setOpenMenu(null);
   }
 
-  async function handleLogout() {
-    await logout(apiBaseUrl);
-    setCurrentAuth(null);
+  function handleLogout() {
     closeMenus();
-    router.replace("/");
-    router.refresh();
+    setCurrentAuth(null);
+    logoutAndRedirectToHome(apiBaseUrl);
   }
 
   return (
     <header ref={headerRef} className="site-header" aria-label="Main navigation">
       <div className="site-header-inner">
         <Link className="brand" href="/" aria-label="BabyLoop home" onClick={closeMenus}>
-          <span className="brand-mark" aria-hidden="true">BL</span>
+          <span className="brand-mark" aria-hidden="true">
+            BL
+          </span>
           <span>
             {dictionary.common.babyloop}
             <small>{dictionary.nav.tagline}</small>
@@ -171,6 +196,7 @@ export function SiteHeader() {
           <Link href="/" onClick={closeMenus}>
             {dictionary.nav.home}
           </Link>
+
           <NavDropdown
             id="marketplace"
             label={dictionary.nav.marketplace}
@@ -178,13 +204,16 @@ export function SiteHeader() {
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
           />
-          <NavDropdown
-            id="sell"
-            label={dictionary.nav.sell}
-            items={sellItems}
-            openMenu={openMenu}
-            setOpenMenu={setOpenMenu}
-          />
+
+          {currentAuth ? (
+            <NavDropdown
+              id="sell"
+              label={dictionary.nav.sell}
+              items={sellItems}
+              openMenu={openMenu}
+              setOpenMenu={setOpenMenu}
+            />
+          ) : null}
         </nav>
 
         <div className="header-tools" aria-label="Preferences">
@@ -238,32 +267,51 @@ export function SiteHeader() {
         className={cn("mobile-nav-panel", openMenu === "mobile" && "mobile-nav-panel-open")}
       >
         <nav aria-label="Mobile navigation">
-          <Link href="/" onClick={closeMenus}>{dictionary.nav.home}</Link>
+          <Link href="/" onClick={closeMenus}>
+            {dictionary.nav.home}
+          </Link>
+
           <p>{dictionary.nav.marketplace}</p>
-          {[...marketplaceItems, ...sellItems].map((item) => (
+          {marketplaceItems.map((item) => (
             <Link key={item.href} href={item.href} onClick={closeMenus}>
               {item.label}
             </Link>
           ))}
-          <p>{dictionary.nav.account}</p>
+
           {currentAuth ? (
             <>
+              <p>{dictionary.nav.sell}</p>
+              {sellItems.map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMenus}>
+                  {item.label}
+                </Link>
+              ))}
+
+              <p>{dictionary.nav.account}</p>
               <span className="mobile-user-label">{currentAuth.profile.displayName}</span>
+
               {accountItems.map((item) => (
                 <Link key={item.href} href={item.href} onClick={closeMenus}>
                   {item.label}
                 </Link>
               ))}
+
               <button type="button" onClick={() => void handleLogout()}>
                 {dictionary.common.logout}
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" onClick={closeMenus}>{dictionary.common.login}</Link>
-              <Link href="/register" onClick={closeMenus}>{dictionary.common.register}</Link>
+              <p>{dictionary.nav.account}</p>
+              <Link href="/login" onClick={closeMenus}>
+                {dictionary.common.login}
+              </Link>
+              <Link href="/register" onClick={closeMenus}>
+                {dictionary.common.register}
+              </Link>
             </>
           )}
+
           <p>{dictionary.common.language}</p>
           <div className="mobile-preferences">
             <LanguageSwitcher locale={locale} setLocale={setLocale} />
@@ -348,9 +396,8 @@ function HeaderSearch({
   }, []);
 
   function goToBrowse() {
-    const destination = trimmedQuery.length >= 3
-      ? `/browse?q=${encodeURIComponent(trimmedQuery)}`
-      : "/browse";
+    const destination =
+      trimmedQuery.length >= 3 ? `/browse?q=${encodeURIComponent(trimmedQuery)}` : "/browse";
 
     setIsOpen(false);
     onNavigate();
@@ -393,22 +440,22 @@ function HeaderSearch({
           {!isLoading && results.length === 0 ? <p>{dictionary.nav.searchEmpty}</p> : null}
           {!isLoading
             ? results.map((listing) => (
-              <Link
-                key={listing.id}
-                href={`/listings/${listing.id}`}
-                onClick={() => {
-                  setIsOpen(false);
-                  onNavigate();
-                }}
-              >
-                <strong>{listing.title}</strong>
-                <span>
-                  {formatCategoryName(listing.category, dictionary)} ·{" "}
-                  {formatListingCondition(listing.condition, dictionary)} ·{" "}
-                  {formatListingPrice(listing.price, dictionary)}
-                </span>
-              </Link>
-            ))
+                <Link
+                  key={listing.id}
+                  href={`/listings/${listing.id}`}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onNavigate();
+                  }}
+                >
+                  <strong>{listing.title}</strong>
+                  <span>
+                    {formatCategoryName(listing.category, dictionary)} ·{" "}
+                    {formatListingCondition(listing.condition, dictionary)} ·{" "}
+                    {formatListingPrice(listing.price, dictionary)}
+                  </span>
+                </Link>
+              ))
             : null}
         </div>
       ) : null}
@@ -418,7 +465,7 @@ function HeaderSearch({
 
 type NavDropdownProps = {
   id: Exclude<OpenMenu, "account" | "mobile" | null>;
-  items: Array<{ href: string; label: string; description: string }>;
+  items: NavItem[];
   label: string;
   openMenu: OpenMenu;
   setOpenMenu: (menu: OpenMenu) => void;
@@ -451,10 +498,10 @@ function NavDropdown({ id, items, label, openMenu, setOpenMenu }: NavDropdownPro
 
 type AccountMenuProps = {
   currentAuth: AuthMe;
-  items: Array<{ href: string; label: string }>;
+  items: AccountItem[];
   label: string;
   logoutLabel: string;
-  onLogout: () => Promise<void>;
+  onLogout: () => void;
   openMenu: OpenMenu;
   setOpenMenu: (menu: OpenMenu) => void;
 };
@@ -469,6 +516,8 @@ function AccountMenu({
   setOpenMenu
 }: AccountMenuProps) {
   const isOpen = openMenu === "account";
+  const displayName = currentAuth.profile.displayName || currentAuth.user.email;
+  const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
     <div className="nav-dropdown account-dropdown">
@@ -479,8 +528,8 @@ function AccountMenu({
         aria-label={label}
         onClick={() => setOpenMenu(isOpen ? null : "account")}
       >
-        <span>{currentAuth.profile.displayName.slice(0, 1).toUpperCase()}</span>
-        <strong>{currentAuth.profile.displayName}</strong>
+        <span>{initial}</span>
+        <strong>{displayName}</strong>
         <em aria-hidden="true">⌄</em>
       </button>
       <div className={cn("nav-dropdown-menu account-menu", isOpen && "nav-dropdown-menu-open")}>
@@ -489,7 +538,7 @@ function AccountMenu({
             <strong>{item.label}</strong>
           </Link>
         ))}
-        <button type="button" onClick={() => void onLogout()}>
+        <button type="button" onClick={onLogout}>
           {logoutLabel}
         </button>
       </div>

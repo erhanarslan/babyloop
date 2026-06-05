@@ -24,5 +24,9 @@ export function getApiErrorMessage(
     return dictionary.common.notFound;
   }
 
+  if (error.code === "MESSAGE_BLOCKED") {
+    return dictionary.messaging.messageBlocked;
+  }
+
   return fallback;
 }
