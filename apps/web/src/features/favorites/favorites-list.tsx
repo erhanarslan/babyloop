@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import type { FavoriteListing } from "../../lib/api";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchFavorites } from "./api";
 import { FavoriteCard } from "./favorite-card";
 
@@ -12,17 +14,25 @@ type FavoritesListProps = {
 };
 
 export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
+  const { dictionary } = useI18n();
   const [favorites, setFavorites] = useState<FavoriteListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const clearProtectedState = useCallback(() => {
+    setFavorites([]);
+    setMessage(null);
+    setIsLoading(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   useEffect(() => {
     let isActive = true;
 
     async function loadFavorites() {
-      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-        setIsLoading(false);
-        setMessage("Please log in to view your saved listings.");
+      if (!(await requireAuth())) {
         return;
       }
 
@@ -34,14 +44,14 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
         }
 
         if (!body.ok) {
-          setMessage(body.error.message);
+          setMessage(getApiErrorMessage(body.error, dictionary));
           return;
         }
 
         setFavorites(body.data.favorites);
       } catch {
         if (isActive) {
-          setMessage("BabyLoop API is unavailable.");
+          setMessage(dictionary.common.apiUnavailable);
         }
       } finally {
         if (isActive) {
@@ -55,25 +65,30 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, dictionary.common.apiUnavailable, requireAuth]);
 
-  if (isLoading) {
-    return <LoadingBlock title="Loading saved listings" />;
+  if (isCheckingAuth || isLoading) {
+    return <LoadingBlock title={dictionary.marketplace.loadingFavorites} />;
   }
 
   if (message) {
     return (
-      <EmptyState title="Favorites unavailable" message={message} actionHref="/login" actionLabel="Login" />
+      <EmptyState
+        title={dictionary.marketplace.favoritesUnavailable}
+        message={message}
+        actionHref="/login"
+        actionLabel={dictionary.common.login}
+      />
     );
   }
 
   if (favorites.length === 0) {
     return (
       <EmptyState
-        title="No saved listings yet."
-        message="Open a listing detail page and save it with your logged-in account."
+        title={dictionary.marketplace.favoritesEmptyTitle}
+        message={dictionary.marketplace.favoritesEmptyBody}
         actionHref="/browse"
-        actionLabel="Browse listings"
+        actionLabel={dictionary.common.browseMarketplace}
       />
     );
   }

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getOrRefreshAuthToken } from "../../lib/auth-client";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
 
@@ -11,19 +13,27 @@ type ConversationListProps = {
 };
 
 export function ConversationList({ apiBaseUrl }: ConversationListProps) {
+  const { dictionary } = useI18n();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "error" | null>(null);
+  const clearProtectedState = useCallback(() => {
+    setConversations([]);
+    setMessage(null);
+    setState(null);
+    setIsLoading(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   useEffect(() => {
     let isActive = true;
 
     async function loadConversations() {
-      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-        setState("auth");
-        setMessage("Please log in to view your conversations.");
-        setIsLoading(false);
+      if (!(await requireAuth())) {
         return;
       }
 
@@ -36,7 +46,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
 
         if (!body.ok) {
           setState(body.error.code === "FORBIDDEN" || body.error.code === "UNAUTHORIZED" ? "auth" : "error");
-          setMessage(body.error.message);
+          setMessage(getApiErrorMessage(body.error, dictionary));
           return;
         }
 
@@ -44,7 +54,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
       } catch {
         if (isActive) {
           setState("error");
-          setMessage("BabyLoop API is unavailable.");
+          setMessage(dictionary.common.apiUnavailable);
         }
       } finally {
         if (isActive) {
@@ -58,19 +68,19 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, dictionary.common.apiUnavailable, requireAuth]);
 
-  if (isLoading) {
-    return <LoadingBlock title="Loading conversations" />;
+  if (isCheckingAuth || isLoading) {
+    return <LoadingBlock title={dictionary.messaging.loadingConversations} />;
   }
 
   if (message) {
     return (
       <EmptyState
-        title={state === "auth" ? "Login required" : "Messages unavailable"}
+        title={state === "auth" ? dictionary.messaging.loginRequired : dictionary.messaging.messagesUnavailable}
         message={message}
         actionHref={state === "auth" ? "/login" : undefined}
-        actionLabel={state === "auth" ? "Login" : undefined}
+        actionLabel={state === "auth" ? dictionary.common.login : undefined}
       />
     );
   }
@@ -78,10 +88,10 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   if (conversations.length === 0) {
     return (
       <EmptyState
-        title="No conversations yet."
-        message="Start from a listing detail page by messaging a seller."
+        title={dictionary.messaging.noConversationsTitle}
+        message={dictionary.messaging.noConversationsBody}
         actionHref="/browse"
-        actionLabel="Browse listings"
+        actionLabel={dictionary.listings.browseListings}
       />
     );
   }

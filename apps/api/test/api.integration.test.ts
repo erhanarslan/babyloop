@@ -2139,6 +2139,59 @@ describe("listings API", () => {
     );
   });
 
+  it("searches active listings by title", async () => {
+    const seller = await createUser(app);
+    const stroller = await createListing(app, seller.accessToken, {
+      title: "Blue Nuna stroller"
+    });
+    const puzzle = await createListing(app, seller.accessToken, {
+      title: "Wooden puzzle set"
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings?q=stroller"
+    });
+    const listingIds = response.json().data.listings.map((listing: { id: string }) => listing.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(listingIds).toContain(stroller.id);
+    expect(listingIds).not.toContain(puzzle.id);
+  });
+
+  it("searches active listings by partial case-insensitive title", async () => {
+    const seller = await createUser(app);
+    const stroller = await createListing(app, seller.accessToken, {
+      title: "Blue Nuna stroller"
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings?q=NuNa"
+    });
+    const listingIds = response.json().data.listings.map((listing: { id: string }) => listing.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(listingIds).toContain(stroller.id);
+  });
+
+  it("does not narrow listing search below three characters", async () => {
+    const seller = await createUser(app);
+    const stroller = await createListing(app, seller.accessToken, {
+      title: "Blue Nuna stroller"
+    });
+    const puzzle = await createListing(app, seller.accessToken, {
+      title: "Wooden puzzle set"
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings?q=nu"
+    });
+    const listingIds = response.json().data.listings.map((listing: { id: string }) => listing.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(listingIds).toContain(stroller.id);
+    expect(listingIds).toContain(puzzle.id);
+  });
+
   it("does not publicly list inactive listings", async () => {
     const seller = await createUser(app);
     const activeListing = await createListing(app, seller.accessToken);

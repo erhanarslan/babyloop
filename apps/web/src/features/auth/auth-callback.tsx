@@ -4,12 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { LoadingBlock } from "../../components/ui";
 import { clearAuthToken, getAuthToken, refreshSession } from "../../lib/auth-client";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 
 type AuthCallbackProps = {
   apiBaseUrl: string;
 };
 
 export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
+  const { dictionary } = useI18n();
   const hasHandledCallback = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,7 +31,7 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
         return;
       }
 
-      const refreshed = await refreshSession(apiBaseUrl);
+      const refreshed = await refreshSession(apiBaseUrl, { force: true });
 
       if (!refreshed.ok) {
         if (getAuthToken()) {
@@ -52,8 +54,8 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
 
   return (
     <LoadingBlock
-      title="Completing login"
-      message="BabyLoop is securely finishing your Google sign-in."
+      title={dictionary.auth.callbackTitle}
+      message={dictionary.auth.callbackDescription}
     />
   );
 }

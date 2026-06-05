@@ -2,7 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
@@ -12,14 +12,17 @@ import {
   refreshSession,
   type AuthMe
 } from "../lib/auth-client";
+import { useI18n } from "../lib/i18n/i18n-provider";
 
 type AuthNavProps = {
   apiBaseUrl: string;
 };
 
 export function AuthNav({ apiBaseUrl }: AuthNavProps) {
+  const { dictionary } = useI18n();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     let isActive = true;
@@ -83,16 +86,16 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   if (!currentAuth) {
     return (
       <>
-        <Link href="/login">Login</Link>
-        <Link href="/register">Register</Link>
+        <Link href="/login">{dictionary.common.login}</Link>
+        <Link href="/register">{dictionary.common.register}</Link>
       </>
     );
   }
 
   return (
     <span className="auth-status">
-      <Link href="/my-listings">My Listings</Link>
-      <Link href="/account/password">Password</Link>
+      <Link href="/my-listings">{dictionary.nav.myListings}</Link>
+      <Link href="/account/password">{dictionary.nav.changePassword}</Link>
       <span>{currentAuth.profile.displayName}</span>
       <button
         className="nav-button"
@@ -100,10 +103,12 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
         onClick={() => {
           void logout(apiBaseUrl).finally(() => {
             setCurrentAuth(null);
+            router.replace("/");
+            router.refresh();
           });
         }}
       >
-        Logout
+        {dictionary.common.logout}
       </button>
     </span>
   );

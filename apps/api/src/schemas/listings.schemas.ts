@@ -7,6 +7,11 @@ export const listingParamsSchema = z.object({
   id: z.string().uuid()
 });
 
+export const listingsQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  search: z.string().trim().max(120).optional()
+});
+
 export const createListingBodySchema = z
   .object({
     categoryId: z.string().uuid(),
@@ -35,3 +40,4 @@ export const createListingBodySchema = z
   .strict();
 
 export type CreateListingBody = z.infer<typeof createListingBodySchema>;
+export type ListingsQuery = z.infer<typeof listingsQuerySchema>;

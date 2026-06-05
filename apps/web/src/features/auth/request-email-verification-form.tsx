@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button, TextInput } from "../../components/ui";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { requestEmailVerification } from "./api";
 
 type RequestEmailVerificationFormProps = {
@@ -11,6 +13,7 @@ type RequestEmailVerificationFormProps = {
 };
 
 export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerificationFormProps) {
+  const { dictionary } = useI18n();
   const [devEmailVerificationToken, setDevEmailVerificationToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -24,7 +27,7 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
     const email = getString(new FormData(event.currentTarget), "email");
 
     if (!email) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(dictionary.auth.requiredFields);
       return;
     }
 
@@ -34,14 +37,14 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
       const response = await requestEmailVerification(apiBaseUrl, email);
 
       if (!response.ok) {
-        setErrorMessage(response.error.message);
+        setErrorMessage(getApiErrorMessage(response.error, dictionary));
         return;
       }
 
       setHasSubmitted(true);
       setDevEmailVerificationToken(response.data.devEmailVerificationToken ?? null);
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
@@ -49,34 +52,34 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
 
   return (
     <form className="listing-form" onSubmit={handleSubmit}>
-      <TextInput label="Email" name="email" type="email" maxLength={320} required wide />
+      <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
 
       {errorMessage ? (
-        <Alert title="Verification request failed" message={errorMessage} />
+        <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
 
       {hasSubmitted ? (
         <Alert
           tone="info"
-          title="Request prepared"
-          message="If an account exists and needs verification, a verification email will be sent when email delivery is configured."
+          title={dictionary.auth.resetPrepared}
+          message={dictionary.auth.verificationRequestGeneric}
         />
       ) : null}
 
       {devEmailVerificationToken ? (
         <div className="dev-token-panel">
-          <h2>Development-only email verification link</h2>
-          <p>Real email delivery is not implemented yet. Use this local link to test verification.</p>
+          <h2>{dictionary.auth.emailVerificationDevTitle}</h2>
+          <p>{dictionary.auth.emailDevLink}</p>
           <Link href={`/auth/verify-email?token=${encodeURIComponent(devEmailVerificationToken)}`}>
-            Verify email locally
+            {dictionary.auth.verifyLocally}
           </Link>
         </div>
       ) : null}
 
       <div className="form-actions">
-        <p className="form-note">This response does not reveal whether an account exists.</p>
+        <p className="form-note">{dictionary.auth.resetNoReveal}</p>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Preparing..." : "Request verification"}
+          {isSubmitting ? dictionary.auth.preparing : dictionary.auth.requestVerification}
         </Button>
       </div>
     </form>

@@ -4,6 +4,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes
 } from "react";
+import { cn } from "../../lib/utils";
 
 type FieldShellProps = {
   label: string;
@@ -13,8 +14,13 @@ type FieldShellProps = {
 
 function FieldShell({ children, label, wide = false }: FieldShellProps) {
   return (
-    <label className={`form-field ${wide ? "form-field-wide" : ""}`.trim()}>
-      <span>{label}</span>
+    <label
+      className={cn(
+        "form-field grid gap-2 text-sm font-medium text-foreground",
+        wide && "form-field-wide"
+      )}
+    >
+      <span className="text-sm font-semibold">{label}</span>
       {children}
     </label>
   );
@@ -28,7 +34,10 @@ type TextInputProps = InputHTMLAttributes<HTMLInputElement> & {
 export function TextInput({ label, wide, ...props }: TextInputProps) {
   return (
     <FieldShell label={label} wide={wide ?? false}>
-      <input {...props} />
+      <input
+        className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        {...props}
+      />
     </FieldShell>
   );
 }
@@ -41,7 +50,10 @@ type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 export function Textarea({ label, wide, ...props }: TextareaProps) {
   return (
     <FieldShell label={label} wide={wide ?? false}>
-      <textarea {...props} />
+      <textarea
+        className="min-h-28 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        {...props}
+      />
     </FieldShell>
   );
 }
@@ -54,7 +66,12 @@ type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
 export function Select({ children, label, wide, ...props }: SelectProps) {
   return (
     <FieldShell label={label} wide={wide ?? false}>
-      <select {...props}>{children}</select>
+      <select
+        className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        {...props}
+      >
+        {children}
+      </select>
     </FieldShell>
   );
 }

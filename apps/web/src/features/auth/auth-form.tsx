@@ -6,6 +6,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button } from "../../components/ui";
 import { setAuthToken } from "../../lib/auth-client";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { AuthFields } from "./auth-fields";
 import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
 
@@ -15,6 +17,7 @@ type AuthFormProps = {
 };
 
 export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [devEmailVerificationToken, setDevEmailVerificationToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister);
 
     if (!payload) {
-      setErrorMessage("Please complete the required fields.");
+      setErrorMessage(dictionary.auth.requiredFields);
       return;
     }
 
@@ -42,7 +45,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       const body = await submitAuthRequest(apiBaseUrl, mode, payload);
 
       if (!body.ok) {
-        setErrorMessage(body.error.message);
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
@@ -58,7 +61,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       router.push("/browse");
       router.refresh();
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
@@ -80,8 +83,8 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
               if (!response.ok) {
                 setErrorMessage(
                   response.error.code === "GOOGLE_AUTH_UNAVAILABLE"
-                    ? "Google sign-in is not configured in this environment."
-                    : response.error.message
+                    ? dictionary.auth.googleUnavailable
+                    : getApiErrorMessage(response.error, dictionary)
                 );
                 setIsGoogleRedirecting(false);
               }
@@ -90,51 +93,73 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
             }
           }}
         >
-          {isGoogleRedirecting ? "Opening Google..." : "Continue with Google"}
+          <GoogleIcon />
+          {isGoogleRedirecting ? dictionary.auth.openingGoogle : dictionary.auth.continueGoogle}
         </Button>
       </div>
 
       <div className="auth-divider" aria-hidden="true">
-        <span>or</span>
+        <span>{dictionary.auth.divider}</span>
       </div>
 
       <AuthFields mode={mode} />
 
       {errorMessage ? (
-        <Alert title="Account request failed" message={errorMessage} />
+        <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
 
       {registrationComplete ? (
         <div className="dev-token-panel">
-          <h2>Registration successful</h2>
+          <h2>{dictionary.auth.registrationSuccess}</h2>
           {devEmailVerificationToken ? (
             <>
-              <p>
-                Real email delivery is not implemented yet. Use this local development link to
-                verify the account.
-              </p>
+              <p>{dictionary.auth.emailDevLink}</p>
               <Link href={`/auth/verify-email?token=${encodeURIComponent(devEmailVerificationToken)}`}>
-                Verify email locally
+                {dictionary.auth.verifyLocally}
               </Link>
             </>
           ) : (
-            <p>
-              Registration successful. Email verification will be required when email delivery is
-              configured.
-            </p>
+            <p>{dictionary.auth.emailWillBeRequired}</p>
           )}
         </div>
       ) : null}
 
       <div className="form-actions">
         <p className="form-note">
-          {isRegister ? "Creates a user and marketplace profile." : "Uses your BabyLoop token."}
+          {isRegister ? dictionary.auth.registerNote : dictionary.auth.loginNote}
         </p>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : isRegister ? "Create account" : "Login"}
+          {isSubmitting
+            ? dictionary.auth.submitting
+            : isRegister
+              ? dictionary.auth.submitRegister
+              : dictionary.auth.submitLogin}
         </Button>
       </div>
     </form>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg className="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.72-.06-1.24-.19-1.77H12v3.42h5.52c-.11.85-.71 2.13-2.04 2.99l-.02.11 2.96 2.12.21.02c1.92-1.64 3.03-4.06 3.03-6.89Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 21c2.75 0 5.05-.84 6.73-2.28l-3.2-2.29c-.86.55-2.01.94-3.53.94a6.1 6.1 0 0 1-5.76-3.89l-.12.01-3.08 2.2-.04.1A10.02 10.02 0 0 0 12 21Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.24 13.48A5.55 5.55 0 0 1 5.91 12c0-.51.12-1.01.31-1.48l-.01-.12-3.12-2.24-.1.04A8.56 8.56 0 0 0 2 12c0 1.37.36 2.66.99 3.8l3.25-2.32Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.63c1.91 0 3.2.76 3.94 1.4l2.88-2.6C17.05 1.91 14.75 1 12 1a10.02 10.02 0 0 0-9 5.6l3.23 2.32A6.12 6.12 0 0 1 12 4.63Z"
+      />
+    </svg>
   );
 }
 

@@ -1,29 +1,22 @@
 import { Suspense } from "react";
-import { LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../../components/ui";
+import { SiteShell } from "../../../components/ui";
+import { AuthLoadingBlock } from "../../../features/auth/auth-loading-block";
+import { AuthPageShell } from "../../../features/auth/auth-page-shell";
 import { AuthCallback } from "../../../features/auth/auth-callback";
 import { getApiBaseUrl } from "../../../lib/api";
 
 export default function AuthCallbackPage() {
   return (
     <SiteShell>
-      <PageHeading
-        eyebrow="Account"
-        title="Signing you in"
-        description="Finalizing your BabyLoop session."
-      />
-
-      <PageContainer className="auth-layout" ariaLabel="Auth callback">
+      <AuthPageShell ariaLabel="Auth callback" kind="callback">
         <Suspense
           fallback={
-            <LoadingBlock
-              title="Completing login"
-              message="BabyLoop is securely finishing your Google sign-in."
-            />
+            <AuthLoadingBlock kind="callback" />
           }
         >
           <AuthCallback apiBaseUrl={getApiBaseUrl()} />
         </Suspense>
-      </PageContainer>
+      </AuthPageShell>
     </SiteShell>
   );
 }

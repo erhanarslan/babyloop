@@ -1,5 +1,9 @@
+"use client";
+
 import { Select, Textarea, TextInput } from "../../components/ui";
 import type { Category } from "../../lib/api";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { formatCategoryName, formatListingCondition, formatListingType } from "./listing-display";
 import { conditions, listingTypes } from "./listing-form-options";
 
 type SellListingFieldsProps = {
@@ -7,78 +11,85 @@ type SellListingFieldsProps = {
 };
 
 export function SellListingFields({ categories }: SellListingFieldsProps) {
+  const { dictionary } = useI18n();
   const hasCategories = categories.length > 0;
 
   return (
     <div className="form-grid">
-      <Select label="Category" name="categoryId" required disabled={!hasCategories}>
+      <Select label={dictionary.listings.category} name="categoryId" required disabled={!hasCategories}>
           {hasCategories ? (
             categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {formatCategoryName(category, dictionary)}
               </option>
             ))
           ) : (
-            <option value="">No categories available</option>
+            <option value="">{dictionary.listings.noCategoriesAvailable}</option>
           )}
       </Select>
 
-      <Select label="Listing type" name="listingType" defaultValue="sale" required>
+      <Select label={dictionary.listings.listingType} name="listingType" defaultValue="sale" required>
           {listingTypes.map((type) => (
             <option key={type.value} value={type.value}>
-              {type.label}
+              {formatListingType(type.value, dictionary)}
             </option>
           ))}
       </Select>
 
       <TextInput
-        label="Title"
+        label={dictionary.listings.title}
         name="title"
         type="text"
         minLength={4}
         maxLength={160}
         required
-        placeholder="Stokke stroller in good condition"
+        placeholder={dictionary.listings.titlePlaceholder}
         wide
       />
 
       <Textarea
-        label="Description"
+        label={dictionary.listings.description}
         name="description"
         maxLength={2000}
         rows={5}
-        placeholder="Add condition notes, included pieces, and pickup details."
+        placeholder={dictionary.listings.descriptionPlaceholder}
         wide
       />
 
       <TextInput
-        label="Price amount"
+        label={dictionary.listings.priceAmount}
         name="priceAmount"
         type="text"
         inputMode="decimal"
         placeholder="6500.00"
       />
 
-      <TextInput label="Currency" name="currency" type="text" defaultValue="TRY" maxLength={3} required />
+      <TextInput
+        label={dictionary.listings.currency}
+        name="currency"
+        type="text"
+        defaultValue="TRY"
+        maxLength={3}
+        required
+      />
 
-      <Select label="Condition" name="condition" defaultValue="good" required>
+      <Select label={dictionary.listings.condition} name="condition" defaultValue="good" required>
           {conditions.map((conditionOption) => (
             <option key={conditionOption.value} value={conditionOption.value}>
-              {conditionOption.label}
+              {formatListingCondition(conditionOption.value, dictionary)}
             </option>
           ))}
       </Select>
 
       <Textarea
-        label="Image URLs (temporary until upload is implemented)"
+        label={dictionary.listings.imageUrls}
         name="imageUrls"
         rows={3}
-        placeholder="https://example.com/stroller-front.jpg"
+        placeholder={dictionary.listings.imageUrlsPlaceholder}
         wide
       />
       <p className="muted form-field-wide">
-        Development-only bridge: production listings will use real photo upload with storage,
-        file type checks, and size limits.
+        {dictionary.listings.imageUrlsHelp}
       </p>
     </div>
   );

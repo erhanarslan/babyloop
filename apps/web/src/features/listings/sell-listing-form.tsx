@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
-import { Alert, Button } from "../../components/ui";
-import { getOrRefreshAuthToken } from "../../lib/auth-client";
+import { useCallback, useState } from "react";
+import { Alert, Button, LoadingBlock } from "../../components/ui";
 import type { Category } from "../../lib/api";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { AiSuggestionPanel } from "./ai-suggestion-panel";
 import {
   createListingRequest,
@@ -23,6 +25,7 @@ type SellListingFormProps = {
 };
 
 export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps) {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
@@ -30,6 +33,17 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasCategories = categories.length > 0;
+  const clearProtectedState = useCallback(() => {
+    setErrorMessage(null);
+    setAiErrorMessage(null);
+    setSuggestion(null);
+    setIsSuggesting(false);
+    setIsSubmitting(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,12 +52,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     const payload = buildCreateListingPayload(new FormData(event.currentTarget));
 
     if (!payload) {
-      setErrorMessage("Please complete the required fields.");
+      setErrorMessage(dictionary.listings.requiredFields);
       return;
     }
 
-    if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-      setErrorMessage("Please log in before creating a listing.");
+    if (!(await requireAuth())) {
       return;
     }
 
@@ -53,14 +66,14 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       const body = await createListingRequest(apiBaseUrl, payload);
 
       if (!body.ok) {
-        setErrorMessage(body.error.message);
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
       router.push(`/listings/${body.data.listing.id}`);
       router.refresh();
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
@@ -75,7 +88,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     const payload = buildSuggestionPayload(form);
 
     if (Object.keys(payload).length === 0) {
-      setAiErrorMessage("Add at least one listing detail before requesting a suggestion.");
+      setAiErrorMessage(dictionary.listings.aiNeedsDetails);
       return;
     }
 
@@ -85,17 +98,21 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       const body = await requestListingSuggestion(apiBaseUrl, payload);
 
       if (!body.ok) {
-        setAiErrorMessage(body.error.message);
+        setAiErrorMessage(getApiErrorMessage(body.error, dictionary, dictionary.listings.aiUnavailableManual));
         return;
       }
 
       setSuggestion(body.data.suggestion);
       fillSuggestionFields(form, body.data.suggestion);
     } catch {
-      setAiErrorMessage("AI suggestion is unavailable. You can continue manually.");
+      setAiErrorMessage(dictionary.listings.aiUnavailableManual);
     } finally {
       setIsSuggesting(false);
     }
+  }
+
+  if (isCheckingAuth) {
+    return <LoadingBlock title={dictionary.common.loading} />;
   }
 
   return (
@@ -103,17 +120,17 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       <SellListingFields categories={categories} />
 
       {errorMessage ? (
-        <Alert title="Listing could not be created" message={errorMessage} />
+        <Alert title={dictionary.listings.createFailed} message={errorMessage} />
       ) : null}
 
       {aiErrorMessage ? (
-        <Alert title="AI suggestion unavailable" message={aiErrorMessage} />
+        <Alert title={dictionary.listings.aiSuggestionUnavailable} message={aiErrorMessage} />
       ) : null}
 
       {suggestion ? <AiSuggestionPanel suggestion={suggestion} /> : null}
 
       <div className="form-actions">
-        <p className="form-note">Seller profile comes from your login token.</p>
+        <p className="form-note">{dictionary.listings.formTrustNote}</p>
         <div className="form-button-row">
           <Button
             variant="secondary"
@@ -123,10 +140,10 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
               void handleGenerateSuggestion(event.currentTarget.form);
             }}
           >
-            {isSuggesting ? "Generating..." : "Generate with AI"}
+            {isSuggesting ? dictionary.listings.suggesting : dictionary.listings.suggestListingDetails}
           </Button>
           <Button type="submit" disabled={isSubmitting || !hasCategories}>
-            {isSubmitting ? "Creating..." : "Create listing"}
+            {isSubmitting ? dictionary.listings.creating : dictionary.common.createListing}
           </Button>
         </div>
       </div>

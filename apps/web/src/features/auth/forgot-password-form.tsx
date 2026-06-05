@@ -3,6 +3,8 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button, TextInput } from "../../components/ui";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { requestPasswordReset } from "./api";
 
 type ForgotPasswordFormProps = {
@@ -10,6 +12,7 @@ type ForgotPasswordFormProps = {
 };
 
 export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
+  const { dictionary } = useI18n();
   const [devResetToken, setDevResetToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +26,7 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
     const email = getString(new FormData(event.currentTarget), "email");
 
     if (!email) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(dictionary.auth.requiredFields);
       return;
     }
 
@@ -33,14 +36,14 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
       const body = await requestPasswordReset(apiBaseUrl, email);
 
       if (!body.ok) {
-        setErrorMessage(body.error.message);
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
       setHasSubmitted(true);
       setDevResetToken(body.data.devResetToken ?? null);
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
@@ -48,35 +51,32 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
 
   return (
     <form className="listing-form" onSubmit={handleSubmit}>
-      <TextInput label="Email" name="email" type="email" maxLength={320} required wide />
+      <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
 
       {errorMessage ? (
-        <Alert title="Password reset request failed" message={errorMessage} />
+        <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
 
       {hasSubmitted ? (
         <Alert
           tone="info"
-          title="Request prepared"
-          message="If an account exists for this email, password reset instructions have been prepared."
+          title={dictionary.auth.resetPrepared}
+          message={dictionary.auth.resetGeneric}
         />
       ) : null}
 
       {devResetToken ? (
         <div className="dev-token-panel">
-          <h2>Development-only reset token</h2>
-          <p>
-            Real email delivery is not implemented yet. Use this local token to test the reset
-            form.
-          </p>
+          <h2>{dictionary.auth.resetDevTitle}</h2>
+          <p>{dictionary.auth.resetDevBody}</p>
           <code>{devResetToken}</code>
         </div>
       ) : null}
 
       <div className="form-actions">
-        <p className="form-note">This response does not reveal whether an account exists.</p>
+        <p className="form-note">{dictionary.auth.resetNoReveal}</p>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Preparing..." : "Request reset"}
+          {isSubmitting ? dictionary.auth.preparing : dictionary.auth.requestResetButton}
         </Button>
       </div>
     </form>

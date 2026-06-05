@@ -2,9 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
-import { Alert, Button, TextInput } from "../../components/ui";
-import { clearAuthToken, getAuthToken } from "../../lib/auth-client";
+import { useCallback, useState } from "react";
+import { Alert, Button, LoadingBlock, TextInput } from "../../components/ui";
+import { clearAuthToken } from "../../lib/auth-client";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { changePassword } from "./api";
 
 type ChangePasswordFormProps = {
@@ -12,16 +15,24 @@ type ChangePasswordFormProps = {
 };
 
 export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const clearProtectedState = useCallback(() => {
+    setErrorMessage(null);
+    setIsSubmitting(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
 
-    if (!getAuthToken()) {
-      setErrorMessage("Please login before changing your password.");
+    if (!(await requireAuth())) {
       return;
     }
 
@@ -31,17 +42,17 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
     const confirmPassword = getString(formData, "confirmPassword");
 
     if (!currentPassword) {
-      setErrorMessage("Please enter your current password.");
+      setErrorMessage(dictionary.auth.currentPasswordRequired);
       return;
     }
 
     if (newPassword.length < 8) {
-      setErrorMessage("New password must be at least 8 characters.");
+      setErrorMessage(dictionary.auth.passwordTooShort);
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
+      setErrorMessage(dictionary.auth.passwordsDoNotMatch);
       return;
     }
 
@@ -51,25 +62,29 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
       const body = await changePassword(apiBaseUrl, currentPassword, newPassword);
 
       if (!body.ok) {
-        setErrorMessage(body.error.message);
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
-      clearAuthToken();
+      clearAuthToken({ broadcast: true });
       router.replace("/login?passwordChanged=1");
       router.refresh();
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isCheckingAuth) {
+    return <LoadingBlock title={dictionary.common.loading} />;
   }
 
   return (
     <form className="listing-form" onSubmit={handleSubmit}>
       <div className="form-grid">
         <TextInput
-          label="Current password"
+          label={dictionary.auth.currentPassword}
           name="currentPassword"
           type="password"
           maxLength={128}
@@ -77,7 +92,7 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
           wide
         />
         <TextInput
-          label="New password"
+          label={dictionary.auth.newPassword}
           name="newPassword"
           type="password"
           minLength={8}
@@ -86,7 +101,7 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
           wide
         />
         <TextInput
-          label="Confirm new password"
+          label={dictionary.auth.confirmNewPassword}
           name="confirmPassword"
           type="password"
           minLength={8}
@@ -96,12 +111,12 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
         />
       </div>
 
-      {errorMessage ? <Alert title="Password change failed" message={errorMessage} /> : null}
+      {errorMessage ? <Alert title={dictionary.auth.passwordChangeFailed} message={errorMessage} /> : null}
 
       <div className="form-actions">
-        <p className="form-note">Changing your password ends active refresh sessions.</p>
+        <p className="form-note">{dictionary.auth.passwordChangeNote}</p>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Changing..." : "Change password"}
+          {isSubmitting ? dictionary.auth.changing : dictionary.auth.changePassword}
         </Button>
       </div>
     </form>

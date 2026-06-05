@@ -1,5 +1,5 @@
-import { PageContainer, PageHeading, SiteShell } from "../../../components/ui";
-import { MessageThread } from "../../../features/messaging/message-thread";
+import { SiteShell } from "../../../components/ui";
+import { ConversationPageContent } from "../../../features/messaging/conversation-page-content";
 import { getApiBaseUrl } from "../../../lib/api";
 
 type ConversationPageProps = {
@@ -13,10 +13,7 @@ export default async function ConversationPage({ params }: ConversationPageProps
 
   return (
     <SiteShell>
-      <PageHeading eyebrow="Messages" title="Conversation" />
-      <PageContainer className="conversations-layout">
-        <MessageThread apiBaseUrl={getApiBaseUrl()} conversationId={id} />
-      </PageContainer>
+      <ConversationPageContent apiBaseUrl={getApiBaseUrl()} conversationId={id} />
     </SiteShell>
   );
 }

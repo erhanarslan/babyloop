@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Alert, EmptyState, LoadingBlock } from "../../components/ui";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { confirmEmailVerification } from "./api";
 
 type VerifyEmailFormProps = {
@@ -13,6 +14,7 @@ type VerifyEmailFormProps = {
 type VerificationState = "loading" | "success" | "failure";
 
 export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
+  const { dictionary } = useI18n();
   const hasSubmitted = useRef(false);
   const searchParams = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
@@ -40,10 +42,10 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
   if (!token) {
     return (
       <EmptyState
-        title="Verification token missing"
-        message="Open the verification link generated for your account."
+        title={dictionary.auth.verificationMissing}
+        message={dictionary.auth.verificationMissingBody}
         actionHref="/auth/verify-email/request"
-        actionLabel="Request verification"
+        actionLabel={dictionary.auth.requestVerification}
       />
     );
   }
@@ -51,8 +53,8 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
   if (state === "loading") {
     return (
       <LoadingBlock
-        title="Verifying email"
-        message="BabyLoop is checking your verification token."
+        title={dictionary.auth.verifyingEmail}
+        message={dictionary.auth.verifyingEmailBody}
       />
     );
   }
@@ -62,11 +64,11 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
       <div className="listing-form">
         <Alert
           tone="info"
-          title="Email verified"
-          message="Email verified successfully."
+          title={dictionary.auth.emailVerified}
+          message={dictionary.auth.emailVerifiedBody}
         />
         <Link className="primary-link" href="/login">
-          Go to login
+          {dictionary.common.backToLogin}
         </Link>
       </div>
     );
@@ -75,11 +77,11 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
   return (
     <div className="listing-form">
       <Alert
-        title="Verification failed"
-        message="Verification link is invalid or expired."
+        title={dictionary.auth.verificationFailed}
+        message={dictionary.auth.verificationFailedBody}
       />
       <Link className="primary-link" href="/auth/verify-email/request">
-        Request a new verification link
+        {dictionary.auth.requestNewVerification}
       </Link>
     </div>
   );

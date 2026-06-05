@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import type { ListingSuggestion } from "./api";
 
 type AiSuggestionPanelProps = {
@@ -5,14 +8,16 @@ type AiSuggestionPanelProps = {
 };
 
 export function AiSuggestionPanel({ suggestion }: AiSuggestionPanelProps) {
+  const { dictionary } = useI18n();
+
   return (
-    <section className="ai-suggestion-panel" aria-label="AI listing suggestion">
+    <section className="ai-suggestion-panel" aria-label={dictionary.listings.aiSuggestionLabel}>
       <div>
-        <h2>AI suggestion</h2>
+        <h2>{dictionary.listings.aiSuggestionTitle}</h2>
         <p>{suggestion.suggestedDescription}</p>
       </div>
 
-      <div className="tag-list" aria-label="Suggested tags">
+      <div className="tag-list" aria-label={dictionary.listings.suggestedTagsLabel}>
         {suggestion.suggestedTags.map((tag) => (
           <span key={tag}>{tag}</span>
         ))}
@@ -27,10 +32,9 @@ export function AiSuggestionPanel({ suggestion }: AiSuggestionPanelProps) {
       ) : null}
 
       <p className="ai-debug">
-        {suggestion.providerName} · {suggestion.promptVersion} · confidence{" "}
+        {suggestion.providerName} · {suggestion.promptVersion} · {dictionary.listings.confidence}{" "}
         {suggestion.confidenceScore}
       </p>
     </section>
   );
 }
-

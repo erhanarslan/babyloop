@@ -1,31 +1,22 @@
 import { Suspense } from "react";
-import { Card, LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../../components/ui";
+import { SiteShell } from "../../../components/ui";
+import { AuthLoadingBlock } from "../../../features/auth/auth-loading-block";
+import { AuthPageShell } from "../../../features/auth/auth-page-shell";
 import { VerifyEmailForm } from "../../../features/auth/verify-email-form";
 import { getApiBaseUrl } from "../../../lib/api";
 
 export default function VerifyEmailPage() {
   return (
     <SiteShell>
-      <PageHeading
-        eyebrow="Account"
-        title="Verify email"
-        description="Confirm the email address linked to your BabyLoop account."
-      />
-
-      <PageContainer className="auth-layout" ariaLabel="Email verification">
-        <Card className="form-panel auth-panel">
-          <Suspense
-            fallback={
-              <LoadingBlock
-                title="Loading verification"
-                message="Checking the verification link parameters."
-              />
-            }
-          >
-            <VerifyEmailForm apiBaseUrl={getApiBaseUrl()} />
-          </Suspense>
-        </Card>
-      </PageContainer>
+      <AuthPageShell ariaLabel="Email verification" kind="verify">
+        <Suspense
+          fallback={
+            <AuthLoadingBlock kind="verify" />
+          }
+        >
+          <VerifyEmailForm apiBaseUrl={getApiBaseUrl()} />
+        </Suspense>
+      </AuthPageShell>
     </SiteShell>
   );
 }

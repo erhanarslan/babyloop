@@ -106,8 +106,11 @@ export async function createListing(
   };
 }
 
-export async function listActiveListings(app: FastifyInstance): Promise<ListingSummaryResponse[]> {
-  const rows = await selectActiveListingRows(app);
+export async function listActiveListings(
+  app: FastifyInstance,
+  searchQuery?: string
+): Promise<ListingSummaryResponse[]> {
+  const rows = await selectActiveListingRows(app, searchQuery);
   return mapListingRows(app, rows);
 }
 

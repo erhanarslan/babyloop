@@ -3,6 +3,8 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button, Textarea } from "../../components/ui";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { sendMessage } from "./api";
 
 type MessageComposerProps = {
@@ -12,6 +14,7 @@ type MessageComposerProps = {
 };
 
 export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageComposerProps) {
+  const { dictionary } = useI18n();
   const [body, setBody] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
     const trimmedBody = body.trim();
 
     if (!trimmedBody) {
-      setErrorMessage("Message cannot be empty.");
+      setErrorMessage(dictionary.messaging.emptyMessage);
       return;
     }
 
@@ -32,14 +35,14 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       const response = await sendMessage(apiBaseUrl, conversationId, trimmedBody);
 
       if (!response.ok) {
-        setErrorMessage(response.error.message);
+        setErrorMessage(getApiErrorMessage(response.error, dictionary));
         return;
       }
 
       setBody("");
       onSent();
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsPending(false);
     }
@@ -48,20 +51,20 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
   return (
     <form className="message-composer" onSubmit={handleSubmit}>
       <Textarea
-        label="Message"
+        label={dictionary.messaging.messageLabel}
         rows={3}
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder="Write a short message"
+        placeholder={dictionary.messaging.messagePlaceholder}
       />
       <div className="form-actions">
         {errorMessage ? (
-          <Alert title="Message was not sent" message={errorMessage} />
+          <Alert title={dictionary.messaging.sendFailed} message={errorMessage} />
         ) : (
-          <p className="form-note">Messages are visible to conversation participants only.</p>
+          <p className="form-note">{dictionary.messaging.participantsOnly}</p>
         )}
         <Button disabled={isPending || body.trim().length === 0} type="submit">
-          {isPending ? "Sending..." : "Send message"}
+          {isPending ? dictionary.messaging.sending : dictionary.messaging.sendMessage}
         </Button>
       </div>
     </form>

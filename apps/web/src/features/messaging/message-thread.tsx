@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
-import { getOrRefreshAuthToken } from "../../lib/auth-client";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import type { Dictionary } from "../../lib/i18n/dictionaries";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
+import { formatDateTime } from "../listings/listing-display";
 import {
   fetchConversation,
   fetchMessages,
@@ -19,6 +23,7 @@ type MessageThreadProps = {
 };
 
 export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps) {
+  const { dictionary, locale } = useI18n();
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
@@ -26,12 +31,21 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "forbidden" | "not-found" | "error" | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const clearProtectedState = useCallback(() => {
+    setConversation(null);
+    setMessages([]);
+    setCurrentProfileId(null);
+    setMessage(null);
+    setState(null);
+    setIsLoading(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   const loadThread = useCallback(async () => {
-    if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-      setState("auth");
-      setMessage("Please log in to view this conversation.");
-      setIsLoading(false);
+    if (!(await requireAuth())) {
       return;
     }
 
@@ -44,19 +58,19 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
 
       if (!currentUserBody.ok) {
         setState("auth");
-        setMessage(currentUserBody.error.message);
+        setMessage(getApiErrorMessage(currentUserBody.error, dictionary));
         return;
       }
 
       if (!conversationBody.ok) {
         setState(getErrorState(conversationBody.error.code));
-        setMessage(conversationBody.error.message);
+        setMessage(getApiErrorMessage(conversationBody.error, dictionary));
         return;
       }
 
       if (!messagesBody.ok) {
         setState(getErrorState(messagesBody.error.code));
-        setMessage(messagesBody.error.message);
+        setMessage(getApiErrorMessage(messagesBody.error, dictionary));
         return;
       }
 
@@ -65,11 +79,11 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       setMessages(messagesBody.data.messages);
     } catch {
       setState("error");
-      setMessage("BabyLoop API is unavailable.");
+      setMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsLoading(false);
     }
-  }, [apiBaseUrl, conversationId]);
+  }, [apiBaseUrl, conversationId, dictionary.common.apiUnavailable, requireAuth]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -78,17 +92,17 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     void loadThread();
   }, [loadThread, reloadKey]);
 
-  if (isLoading) {
-    return <LoadingBlock title="Loading conversation" />;
+  if (isCheckingAuth || isLoading) {
+    return <LoadingBlock title={dictionary.messaging.loadingConversation} />;
   }
 
   if (message) {
     return (
       <EmptyState
-        title={getErrorTitle(state)}
+        title={getErrorTitle(state, dictionary)}
         message={message}
         actionHref={state === "auth" ? "/login" : "/conversations"}
-        actionLabel={state === "auth" ? "Login" : "Back to messages"}
+        actionLabel={state === "auth" ? dictionary.common.login : dictionary.messaging.backToMessages}
       />
     );
   }
@@ -101,35 +115,38 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     <div className="message-thread-layout">
       <section className="thread-panel">
         <Link className="back-link" href="/conversations">
-          Back to messages
+          {dictionary.messaging.backToMessages}
         </Link>
-        <p className="listing-meta">Conversation with</p>
+        <p className="listing-meta">{dictionary.messaging.conversationWith}</p>
         <h1>{conversation.otherProfile.displayName}</h1>
         <div className="thread-meta-grid">
           <p>
-            <strong>Listing</strong>
+            <strong>{dictionary.messaging.listing}</strong>
             {conversation.contextListing ? (
               <Link href={`/listings/${conversation.contextListing.id}`}>
                 {conversation.contextListing.title}
               </Link>
             ) : (
-              <span>No listing context</span>
+              <span>{dictionary.messaging.noListingContext}</span>
             )}
           </p>
           <p>
-            <strong>Created</strong>
-            <span>{formatMessageTime(conversation.createdAt)}</span>
+            <strong>{dictionary.messaging.created}</strong>
+            <span>{formatDateTime(conversation.createdAt, locale)}</span>
           </p>
           <p>
-            <strong>{conversation.lastMessageAt ? "Last message" : "Updated"}</strong>
-            <span>{formatMessageTime(conversation.lastMessageAt ?? conversation.updatedAt)}</span>
+            <strong>{conversation.lastMessageAt ? dictionary.messaging.lastMessage : dictionary.messaging.updated}</strong>
+            <span>{formatDateTime(conversation.lastMessageAt ?? conversation.updatedAt, locale)}</span>
           </p>
         </div>
       </section>
 
       <section className="thread-panel">
         {messages.length === 0 ? (
-          <EmptyState title="No messages yet." message="Send the first message below." />
+          <EmptyState
+            title={dictionary.messaging.noMessagesYet}
+            message={dictionary.messaging.sendFirstMessage}
+          />
         ) : (
           <ol className="message-list">
             {messages.map((item) => (
@@ -142,10 +159,10 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
                 key={item.id}
               >
                 <div>
-                  <strong>{item.sender.id === currentProfileId ? "You" : item.sender.displayName}</strong>
-                  <time>{formatMessageTime(item.createdAt)}</time>
+                  <strong>{item.sender.id === currentProfileId ? dictionary.messaging.you : item.sender.displayName}</strong>
+                  <time>{formatDateTime(item.createdAt, locale)}</time>
                 </div>
-                <p>{item.deletedAt ? "This message was deleted." : item.body}</p>
+                <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
               </li>
             ))}
           </ol>
@@ -158,13 +175,6 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       </section>
     </div>
   );
-}
-
-function formatMessageTime(value: string): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
 }
 
 function getErrorState(code: string): "auth" | "forbidden" | "not-found" | "error" {
@@ -183,18 +193,21 @@ function getErrorState(code: string): "auth" | "forbidden" | "not-found" | "erro
   return "error";
 }
 
-function getErrorTitle(state: "auth" | "forbidden" | "not-found" | "error" | null): string {
+function getErrorTitle(
+  state: "auth" | "forbidden" | "not-found" | "error" | null,
+  dictionary: Dictionary
+): string {
   if (state === "auth") {
-    return "Login required";
+    return dictionary.messaging.loginRequired;
   }
 
   if (state === "forbidden") {
-    return "Access denied";
+    return dictionary.messaging.accessDenied;
   }
 
   if (state === "not-found") {
-    return "Conversation not found";
+    return dictionary.messaging.conversationNotFound;
   }
 
-  return "Conversation unavailable";
+  return dictionary.messaging.conversationUnavailable;
 }

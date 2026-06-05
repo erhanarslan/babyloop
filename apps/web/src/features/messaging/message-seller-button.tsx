@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Button, EmptyState } from "../../components/ui";
 import { fetchCurrentUser } from "../auth/api";
 import { getOrRefreshAuthToken } from "../../lib/auth-client";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { createOrGetConversation } from "./api";
 
 type MessageSellerButtonProps = {
@@ -19,6 +21,7 @@ export function MessageSellerButton({
   listingId,
   sellerProfileId
 }: MessageSellerButtonProps) {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -48,11 +51,11 @@ export function MessageSellerButton({
           setCurrentProfileId(body.data.profile.id);
         } else {
           setIsAuthenticated(false);
-          setMessage(body.error.message);
+          setMessage(getApiErrorMessage(body.error, dictionary));
         }
       } catch {
         if (isActive) {
-          setMessage("BabyLoop API is unavailable.");
+          setMessage(dictionary.common.apiUnavailable);
         }
       } finally {
         if (isActive) {
@@ -76,13 +79,13 @@ export function MessageSellerButton({
       const body = await createOrGetConversation(apiBaseUrl, listingId);
 
       if (!body.ok) {
-        setMessage(body.error.message);
+        setMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
       router.push(`/conversations/${body.data.conversation.id}`);
     } catch {
-      setMessage("BabyLoop API is unavailable.");
+      setMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsPending(false);
     }
@@ -92,7 +95,7 @@ export function MessageSellerButton({
     return (
       <div className="message-seller-action">
         <Link className="primary-link compact-link" href="/login">
-          Login to message seller
+          {dictionary.messaging.loginToMessageSeller}
         </Link>
       </div>
     );
@@ -102,7 +105,7 @@ export function MessageSellerButton({
     return (
       <div className="message-seller-action">
         <Button variant="secondary" disabled>
-          Checking seller
+          {dictionary.messaging.checkingSeller}
         </Button>
       </div>
     );
@@ -112,7 +115,7 @@ export function MessageSellerButton({
     return (
       <div className="message-seller-action">
         <Button variant="secondary" disabled>
-          This is your listing
+          {dictionary.messaging.ownListing}
         </Button>
       </div>
     );
@@ -121,9 +124,9 @@ export function MessageSellerButton({
   return (
     <div className="message-seller-action">
       <Button disabled={isPending} onClick={handleMessageSeller}>
-        {isPending ? "Opening..." : "Message seller"}
+        {isPending ? dictionary.messaging.opening : dictionary.messaging.messageSeller}
       </Button>
-      {message ? <EmptyState title="Messaging unavailable" message={message} /> : null}
+      {message ? <EmptyState title={dictionary.messaging.messagingUnavailable} message={message} /> : null}
     </div>
   );
 }

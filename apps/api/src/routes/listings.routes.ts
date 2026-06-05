@@ -1,6 +1,10 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
-import { createListingBodySchema, listingParamsSchema } from "../schemas/listings.schemas.js";
+import {
+  createListingBodySchema,
+  listingParamsSchema,
+  listingsQuerySchema
+} from "../schemas/listings.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createListing,
@@ -27,6 +31,11 @@ type ListingDetailApiResponse = ApiResponse<{
 
 type ListingParams = {
   id: string;
+};
+
+type ListingsQuery = {
+  q?: string;
+  search?: string;
 };
 
 export function registerListingRoutes(app: FastifyInstance): void {
@@ -69,8 +78,21 @@ export function registerListingRoutes(app: FastifyInstance): void {
     });
   });
 
-  app.get<{ Reply: ListingsResponse }>("/listings", async () => {
-    const listings = await listActiveListings(app);
+  app.get<{ Querystring: ListingsQuery; Reply: ListingsResponse }>("/listings", async (request, reply) => {
+    const parsedQuery = listingsQuerySchema.safeParse(request.query);
+
+    if (!parsedQuery.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_REQUEST",
+          message: "Listing query is invalid."
+        }
+      });
+    }
+
+    const searchQuery = parsedQuery.data.q ?? parsedQuery.data.search;
+    const listings = await listActiveListings(app, searchQuery);
 
     return {
       ok: true,

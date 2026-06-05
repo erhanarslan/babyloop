@@ -4,7 +4,7 @@ import {
   productCategories,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   CategoryBasicResponse,
@@ -30,7 +30,11 @@ export async function findCategory(
   return category ?? null;
 }
 
-export async function selectActiveListingRows(app: FastifyInstance) {
+export async function selectActiveListingRows(app: FastifyInstance, searchQuery?: string) {
+  const normalizedSearchQuery = searchQuery?.trim() ?? "";
+  const shouldSearch = normalizedSearchQuery.length >= 3;
+  const searchPattern = `%${normalizedSearchQuery}%`;
+
   return app.db
     .select({
       id: listings.id,
@@ -47,7 +51,18 @@ export async function selectActiveListingRows(app: FastifyInstance) {
     })
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
-    .where(eq(listings.status, "active"))
+    .where(
+      shouldSearch
+        ? and(
+          eq(listings.status, "active"),
+          or(
+            ilike(listings.title, searchPattern),
+            ilike(listings.description, searchPattern),
+            ilike(productCategories.name, searchPattern)
+          )
+        )
+        : eq(listings.status, "active")
+    )
     .orderBy(desc(listings.createdAt))
     .limit(LISTING_LIMIT);
 }

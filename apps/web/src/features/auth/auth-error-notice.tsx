@@ -2,8 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { Alert } from "../../components/ui";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 
 export function AuthErrorNotice() {
+  const { dictionary } = useI18n();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const passwordChanged = searchParams.get("passwordChanged");
@@ -12,8 +14,8 @@ export function AuthErrorNotice() {
     return (
       <Alert
         tone="info"
-        title="Password changed"
-        message="Your password was changed. Please login again with your new password."
+        title={dictionary.auth.passwordChangedTitle}
+        message={dictionary.auth.passwordChangedBody}
       />
     );
   }
@@ -21,8 +23,8 @@ export function AuthErrorNotice() {
   if (error === "google_auth_failed") {
     return (
       <Alert
-        title="Google login failed"
-        message="Google authentication could not be completed. Please try again or use email and password."
+        title={dictionary.auth.googleFailedTitle}
+        message={dictionary.auth.googleFailedBody}
       />
     );
   }
@@ -30,8 +32,8 @@ export function AuthErrorNotice() {
   if (error === "google_auth_unavailable") {
     return (
       <Alert
-        title="Google sign-in unavailable"
-        message="Google sign-in is not configured in this environment. Please use email and password."
+        title={dictionary.auth.googleUnavailableTitle}
+        message={dictionary.auth.googleUnavailableBody}
       />
     );
   }

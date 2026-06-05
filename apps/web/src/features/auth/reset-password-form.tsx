@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { Alert, Button, EmptyState, TextInput } from "../../components/ui";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
 import { confirmPasswordReset } from "./api";
 
 type ResetPasswordFormProps = {
@@ -12,6 +14,7 @@ type ResetPasswordFormProps = {
 };
 
 export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
+  const { dictionary } = useI18n();
   const searchParams = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -21,10 +24,10 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
   if (!token) {
     return (
       <EmptyState
-        title="Reset token missing"
-        message="Open the reset link generated for your account, or request a new password reset."
+        title={dictionary.auth.tokenMissing}
+        message={dictionary.auth.tokenMissingBody}
         actionHref="/forgot-password"
-        actionLabel="Request password reset"
+        actionLabel={dictionary.auth.requestResetButton}
       />
     );
   }
@@ -38,12 +41,12 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
     const confirmPassword = getString(formData, "confirmPassword");
 
     if (newPassword.length < 8) {
-      setErrorMessage("New password must be at least 8 characters.");
+      setErrorMessage(dictionary.auth.passwordTooShort);
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
+      setErrorMessage(dictionary.auth.passwordsDoNotMatch);
       return;
     }
 
@@ -53,13 +56,13 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
       const body = await confirmPasswordReset(apiBaseUrl, token, newPassword);
 
       if (!body.ok) {
-        setErrorMessage(body.error.message);
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
 
       setWasReset(true);
     } catch {
-      setErrorMessage("BabyLoop API is unavailable.");
+      setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
     }
@@ -70,11 +73,11 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
       <div className="listing-form">
         <Alert
           tone="info"
-          title="Password reset"
-          message="Your password was changed. You can now login with the new password."
+          title={dictionary.auth.passwordReset}
+          message={dictionary.auth.passwordResetBody}
         />
         <Link className="primary-link" href="/login">
-          Go to login
+          {dictionary.common.backToLogin}
         </Link>
       </div>
     );
@@ -84,7 +87,7 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
     <form className="listing-form" onSubmit={handleSubmit}>
       <div className="form-grid">
         <TextInput
-          label="New password"
+          label={dictionary.auth.newPassword}
           name="newPassword"
           type="password"
           minLength={8}
@@ -93,7 +96,7 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
           wide
         />
         <TextInput
-          label="Confirm new password"
+          label={dictionary.auth.confirmNewPassword}
           name="confirmPassword"
           type="password"
           minLength={8}
@@ -103,12 +106,12 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
         />
       </div>
 
-      {errorMessage ? <Alert title="Password reset failed" message={errorMessage} /> : null}
+      {errorMessage ? <Alert title={dictionary.auth.accountFailed} message={errorMessage} /> : null}
 
       <div className="form-actions">
-        <p className="form-note">Reset tokens are single-use and expire after a short time.</p>
+        <p className="form-note">{dictionary.auth.resetSecurityNote}</p>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Changing..." : "Change password"}
+          {isSubmitting ? dictionary.auth.changing : dictionary.auth.changePassword}
         </Button>
       </div>
     </form>

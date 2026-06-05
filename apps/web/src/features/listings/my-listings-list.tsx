@@ -1,28 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge, EmptyState, LoadingBlock } from "../../components/ui";
-import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import type { ListingSummary } from "../../lib/api";
+import { getApiErrorMessage } from "../../lib/api-error-message";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchMyListings } from "./api";
+import {
+  formatCategoryName,
+  formatListingPrice,
+  formatListingStatus
+} from "./listing-display";
 
 type MyListingsListProps = {
   apiBaseUrl: string;
 };
 
 export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
+  const { dictionary } = useI18n();
   const [listings, setListings] = useState<ListingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const clearProtectedState = useCallback(() => {
+    setListings([]);
+    setMessage(null);
+    setIsLoading(false);
+  }, []);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState
+  });
 
   useEffect(() => {
     let isActive = true;
 
     async function loadListings() {
-      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-        setIsLoading(false);
-        setMessage("Please log in to view your listings.");
+      if (!(await requireAuth())) {
         return;
       }
 
@@ -34,14 +49,14 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         }
 
         if (!body.ok) {
-          setMessage(body.error.message);
+          setMessage(getApiErrorMessage(body.error, dictionary));
           return;
         }
 
         setListings(body.data.listings);
       } catch {
         if (isActive) {
-          setMessage("BabyLoop API is unavailable.");
+          setMessage(dictionary.common.apiUnavailable);
         }
       } finally {
         if (isActive) {
@@ -55,25 +70,30 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, dictionary.common.apiUnavailable, requireAuth]);
 
-  if (isLoading) {
-    return <LoadingBlock title="Loading your listings" />;
+  if (isCheckingAuth || isLoading) {
+    return <LoadingBlock title={dictionary.listings.loadingMyListings} />;
   }
 
   if (message) {
     return (
-      <EmptyState title="Listings unavailable" message={message} actionHref="/login" actionLabel="Login" />
+      <EmptyState
+        title={dictionary.listings.myListingsUnavailable}
+        message={message}
+        actionHref="/login"
+        actionLabel={dictionary.common.login}
+      />
     );
   }
 
   if (listings.length === 0) {
     return (
       <EmptyState
-        title="No listings yet."
-        message="Create your first BabyLoop listing from the sell page."
+        title={dictionary.listings.noListingsTitle}
+        message={dictionary.listings.noListingsBody}
         actionHref="/sell"
-        actionLabel="Sell an item"
+        actionLabel={dictionary.listings.sellItem}
       />
     );
   }
@@ -83,31 +103,27 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       {listings.map((listing) => (
         <article className="listing-card" key={listing.id}>
           <div className="listing-image" aria-label={`${listing.title} image preview`}>
-            {listing.firstImage ? <span>Image metadata</span> : <span>No image</span>}
+            {listing.firstImage ? (
+              <span>{dictionary.listings.imageMetadata}</span>
+            ) : (
+              <span>{dictionary.listings.noImage}</span>
+            )}
           </div>
           <div className="listing-card-body">
             <div>
-              <p className="listing-meta">{listing.category.name}</p>
+              <p className="listing-meta">{formatCategoryName(listing.category, dictionary)}</p>
               <h2>{listing.title}</h2>
               <Badge tone={listing.status === "active" ? "success" : "neutral"}>
-                {listing.status}
+                {formatListingStatus(listing.status, dictionary)}
               </Badge>
             </div>
             <div className="listing-card-footer">
-              <strong>{formatPrice(listing.price)}</strong>
-              <Link href={`/listings/${listing.id}`}>View details</Link>
+              <strong>{formatListingPrice(listing.price, dictionary)}</strong>
+              <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>
             </div>
           </div>
         </article>
       ))}
     </div>
   );
-}
-
-function formatPrice(price: ListingSummary["price"]): string {
-  if (!price) {
-    return "Price on request";
-  }
-
-  return `${price.amount} ${price.currency}`;
 }
