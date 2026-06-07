@@ -118,7 +118,7 @@ importers:
   packages/shared:
     devDependencies:
       '@vitest/coverage-v8':
-        specifier: ^4.1.6
+        specifier: 4.1.6
         version: 4.1.6(vitest@4.1.6)
       vitest:
         specifier: ^4.1.6
