@@ -77,6 +77,9 @@ export function ListingDetailContent({
         </div>
         <h1>{listing.title}</h1>
         <strong className="detail-price">{formatListingPrice(listing.price, dictionary)}</strong>
+        <p className="listing-meta">
+          {dictionary.listings.favoriteCount.replace("{count}", String(listing.favoriteCount))}
+        </p>
         <p className="detail-description">
           {listing.description ?? dictionary.listings.noDescription}
         </p>

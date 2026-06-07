@@ -80,7 +80,7 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
         actorProfileId: null,
         type: "listing_favorited",
         title: "Listing favorited",
-        body: "A listing was favorited.",
+        body: "Someone favorited your listing.",
         entityType: "listing",
         entityId: result.result.notificationTarget.listingId,
         metadata: {

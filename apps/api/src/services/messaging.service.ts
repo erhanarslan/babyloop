@@ -78,6 +78,8 @@ type LatestMessageResponse = {
   createdAt: string;
 } | null;
 
+type MessagingTransaction = Pick<FastifyInstance["db"], "insert" | "select">;
+
 export async function createOrGetConversation(
   app: FastifyInstance,
   currentUser: CurrentUser,
@@ -102,34 +104,31 @@ export async function createOrGetConversation(
   );
 
   const result = await app.db.transaction(async (tx) => {
-    const [createdConversation] = await tx
-      .insert(conversations)
-      .values({
-        profileLowId,
-        profileHighId,
-        createdByProfileId: currentUser.profile.id
-      })
-      .onConflictDoNothing({
-        target: [conversations.profileLowId, conversations.profileHighId]
-      })
-      .returning({
-        id: conversations.id
-      });
+    const existingConversationId = await findConversationIdForProfilePair(
+      tx,
+      profileLowId,
+      profileHighId
+    );
+    const [createdConversation] = existingConversationId
+      ? []
+      : await tx
+          .insert(conversations)
+          .values({
+            profileLowId,
+            profileHighId,
+            createdByProfileId: currentUser.profile.id
+          })
+          .onConflictDoNothing({
+            target: [conversations.profileLowId, conversations.profileHighId]
+          })
+          .returning({
+            id: conversations.id
+          });
 
     const conversationId =
+      existingConversationId ??
       createdConversation?.id ??
-      (
-        await tx
-          .select({ id: conversations.id })
-          .from(conversations)
-          .where(
-            and(
-              eq(conversations.profileLowId, profileLowId),
-              eq(conversations.profileHighId, profileHighId)
-            )
-          )
-          .limit(1)
-      )[0]?.id;
+      await findConversationIdForProfilePair(tx, profileLowId, profileHighId);
 
     if (!conversationId) {
       throw new Error("Conversation lookup failed.");
@@ -154,23 +153,16 @@ export async function createOrGetConversation(
         ]
       });
 
-    await tx
-      .insert(conversationListingContexts)
-      .values({
-        conversationId,
-        listingId: listing.id,
-        addedByProfileId: currentUser.profile.id
-      })
-      .onConflictDoNothing({
-        target: [
-          conversationListingContexts.conversationId,
-          conversationListingContexts.listingId
-        ]
-      });
+    await ensureConversationListingContext(
+      tx,
+      conversationId,
+      listing.id,
+      currentUser.profile.id
+    );
 
     return {
       conversationId,
-      created: Boolean(createdConversation)
+      created: !existingConversationId && Boolean(createdConversation)
     };
   });
 
@@ -433,6 +425,61 @@ async function getListingForConversation(
     .limit(1);
 
   return listing ?? null;
+}
+
+async function findConversationIdForProfilePair(
+  tx: MessagingTransaction,
+  profileLowId: string,
+  profileHighId: string
+): Promise<string | null> {
+  const [conversation] = await tx
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.profileLowId, profileLowId),
+        eq(conversations.profileHighId, profileHighId)
+      )
+    )
+    .limit(1);
+
+  return conversation?.id ?? null;
+}
+
+async function ensureConversationListingContext(
+  tx: MessagingTransaction,
+  conversationId: string,
+  listingId: string,
+  addedByProfileId: string
+): Promise<void> {
+  const [existingContext] = await tx
+    .select({ id: conversationListingContexts.id })
+    .from(conversationListingContexts)
+    .where(
+      and(
+        eq(conversationListingContexts.conversationId, conversationId),
+        eq(conversationListingContexts.listingId, listingId)
+      )
+    )
+    .limit(1);
+
+  if (existingContext) {
+    return;
+  }
+
+  await tx
+    .insert(conversationListingContexts)
+    .values({
+      conversationId,
+      listingId,
+      addedByProfileId
+    })
+    .onConflictDoNothing({
+      target: [
+        conversationListingContexts.conversationId,
+        conversationListingContexts.listingId
+      ]
+    });
 }
 
 async function getConversationSummary(

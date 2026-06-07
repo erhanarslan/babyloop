@@ -226,6 +226,85 @@ describe("listings API", () => {
     });
   });
 
+  it("returns privacy-safe favorite counts without exposing favoriting users", async () => {
+    const seller = await createUser(app);
+    const firstBuyer = await createUser(app, {
+      displayName: "First Favorite User",
+      email: "first-favorite-user@babyloop.test"
+    });
+    const secondBuyer = await createUser(app, {
+      displayName: "Second Favorite User",
+      email: "second-favorite-user@babyloop.test"
+    });
+    const listing = await createListing(app, seller.accessToken);
+
+    await app.inject({
+      headers: authHeader(firstBuyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+    await app.inject({
+      headers: authHeader(secondBuyer.accessToken),
+      method: "POST",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+
+    const detailWithTwoFavorites = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const sellerListingsWithTwoFavorites = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/me/listings"
+    });
+
+    await app.inject({
+      headers: authHeader(firstBuyer.accessToken),
+      method: "DELETE",
+      url: "/api/v1/favorites",
+      payload: {
+        listingId: listing.id
+      }
+    });
+
+    const detailAfterUnfavorite = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+
+    expect(detailWithTwoFavorites.statusCode).toBe(200);
+    expect(detailWithTwoFavorites.json().data.listing.favoriteCount).toBe(2);
+    expect(sellerListingsWithTwoFavorites.statusCode).toBe(200);
+    expect(sellerListingsWithTwoFavorites.json().data.listings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: listing.id,
+          favoriteCount: 2
+        })
+      ])
+    );
+    expect(detailAfterUnfavorite.json().data.listing.favoriteCount).toBe(1);
+    for (const responseBody of [
+      detailWithTwoFavorites.body,
+      sellerListingsWithTwoFavorites.body,
+      detailAfterUnfavorite.body
+    ]) {
+      expect(responseBody).not.toContain(firstBuyer.profile.id);
+      expect(responseBody).not.toContain(firstBuyer.user.id);
+      expect(responseBody).not.toContain(firstBuyer.user.email);
+      expect(responseBody).not.toContain(secondBuyer.profile.id);
+      expect(responseBody).not.toContain(secondBuyer.user.id);
+      expect(responseBody).not.toContain(secondBuyer.user.email);
+    }
+  });
+
   it("does not publicly return inactive listing detail", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);

@@ -22,6 +22,7 @@ export type ListingSummary = {
     amount: string;
     currency: string;
   } | null;
+  favoriteCount: number;
   status: string;
   listingType: string;
   condition: string;
@@ -46,7 +47,7 @@ export type ListingDetail = ListingSummary & {
   updatedAt: string;
 };
 
-export type FavoriteListing = Omit<ListingSummary, "firstImage" | "createdAt"> & {
+export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "firstImage" | "createdAt"> & {
   favoritedAt: string;
 };
 

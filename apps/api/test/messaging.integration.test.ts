@@ -180,16 +180,24 @@ describe("messaging API", () => {
     });
   });
 
-  it("reuses the same conversation for the same two profiles", async () => {
-    const seller = await createUser(app);
-    const buyer = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+  it("reuses the same listing conversation when the listing context already exists", async () => {
+    const mehmet = await createUser(app, {
+      displayName: "Mehmet",
+      email: "mehmet-idempotent-message@babyloop.test"
+    });
+    await createUser(app, {
+      displayName: "Ayse",
+      email: "ayse-idempotent-message@babyloop.test"
+    });
+    const ayse = await loginUser(app, "ayse-idempotent-message@babyloop.test");
+    const listing = await createListing(app, mehmet.accessToken);
 
-    const first = await createConversation(app, buyer.accessToken, listing.id);
-    const second = await createConversation(app, buyer.accessToken, listing.id);
+    const first = await createConversation(app, ayse.accessToken, listing.id);
+    const second = await createConversation(app, ayse.accessToken, listing.id);
 
     expect(first.statusCode).toBe(201);
     expect(second.statusCode).toBe(200);
+    expect(second.statusCode).not.toBe(500);
     expect(second.json().data.conversation.id).toBe(first.json().data.conversation.id);
   });
 
@@ -496,6 +504,14 @@ describe("messaging API", () => {
         body: "javascript:alert(1)"
       }
     });
+    const javascriptAnchorResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "<a href=\"javascript:alert(1)\">click</a>"
+      }
+    });
     const persistedMessages = await app.db
       .select({ id: messages.id })
       .from(messages)
@@ -505,7 +521,12 @@ describe("messaging API", () => {
       .from(notifications)
       .where(eq(notifications.entityId, conversation.id));
 
-    for (const response of [scriptResponse, imageHandlerResponse, javascriptProtocolResponse]) {
+    for (const response of [
+      scriptResponse,
+      imageHandlerResponse,
+      javascriptProtocolResponse,
+      javascriptAnchorResponse
+    ]) {
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({
         ok: false,
@@ -519,7 +540,7 @@ describe("messaging API", () => {
     expect(emitSpy).not.toHaveBeenCalled();
   });
 
-  it("accepts valid Turkish and multiline plaintext messages", async () => {
+  it("accepts valid Turkish and multiline plaintext messages after trimming padding", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
@@ -530,7 +551,7 @@ describe("messaging API", () => {
       method: "POST",
       url: `/api/v1/conversations/${conversation.id}/messages`,
       payload: {
-        body: "Merhaba, ürün hâlâ satılık mı?\nUygunsa bugün alabilirim."
+        body: "  Merhaba, ürün hâlâ satılık mı?\nUygunsa bugün alabilirim.  "
       }
     });
 
@@ -538,6 +559,31 @@ describe("messaging API", () => {
     expect(response.json().data.message.body).toBe(
       "Merhaba, ürün hâlâ satılık mı?\nUygunsa bugün alabilirim."
     );
+  });
+
+  it("rejects overlong messages without returning 500", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "a".repeat(5001)
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).not.toBe(500);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_MESSAGE_BODY"
+      }
+    });
   });
 
   it("does not leak latestMessage conversation summaries to outsiders", async () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listings } from "@babyloop/database/schema";
+import { listings, notifications } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import {
   emitUnreadNotificationCountUpdated,
@@ -156,9 +156,10 @@ describe("notifications API", () => {
     expect(sellerNotifications.json().data.notifications).toHaveLength(1);
     expect(sellerNotifications.json().data.notifications[0]).toMatchObject({
       actorProfile: null,
-      body: "A listing was favorited.",
+      body: "Someone favorited your listing.",
       entityId: listing.id,
       entityType: "listing",
+      title: "Listing favorited",
       type: "listing_favorited"
     });
     expect(sellerNotifications.json().data.notifications[0].metadata).toMatchObject({
@@ -166,6 +167,62 @@ describe("notifications API", () => {
     });
     expect(sellerNotifications.body).not.toContain("Favorite Actor");
     expect(buyerNotifications.json().data.notifications).toHaveLength(0);
+  });
+
+  it("sanitizes legacy favorite notifications so actor identity is not exposed", async () => {
+    const seller = await createUser(app, {
+      displayName: "Seller Privacy",
+      email: "seller-privacy@babyloop.test"
+    });
+    const buyer = await createUser(app, {
+      displayName: "Ayse Private Actor",
+      email: "ayse-private-actor@babyloop.test"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Wooden Montessori toy set"
+    });
+
+    await app.db.insert(notifications).values({
+      recipientProfileId: seller.profile.id,
+      actorProfileId: buyer.profile.id,
+      type: "listing_favorited",
+      title: `${buyer.profile.displayName} favorited Wooden Montessori toy set.`,
+      body: `${buyer.user.email} favorited your listing as profile ${buyer.profile.id}.`,
+      entityType: "listing",
+      entityId: listing.id,
+      metadata: {
+        actorProfileId: buyer.profile.id,
+        actorUserId: buyer.user.id,
+        actorEmail: buyer.user.email,
+        actorDisplayName: buyer.profile.displayName,
+        source: "legacy_test"
+      }
+    });
+
+    const sellerNotifications = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications"
+    });
+    const [notification] = sellerNotifications.json().data.notifications;
+    const serializedNotification = JSON.stringify(notification);
+
+    expect(sellerNotifications.statusCode).toBe(200);
+    expect(notification).toMatchObject({
+      actorProfile: null,
+      body: "Someone favorited your listing.",
+      entityId: listing.id,
+      entityType: "listing",
+      title: "Listing favorited",
+      type: "listing_favorited"
+    });
+    expect(serializedNotification).not.toContain(buyer.profile.displayName);
+    expect(serializedNotification).not.toContain(buyer.user.email);
+    expect(serializedNotification).not.toContain(buyer.profile.id);
+    expect(serializedNotification).not.toContain(buyer.user.id);
+    expect(notification.metadata).toMatchObject({
+      source: "legacy_test"
+    });
   });
 
   it("does not store unsafe listing title text in favorite notifications", async () => {
@@ -197,7 +254,7 @@ describe("notifications API", () => {
     const [notification] = sellerNotifications.json().data.notifications;
 
     expect(favoriteResponse.statusCode).toBe(201);
-    expect(notification.body).toBe("A listing was favorited.");
+    expect(notification.body).toBe("Someone favorited your listing.");
     expect(JSON.stringify(notification.metadata)).not.toContain("<script");
     expect(sellerNotifications.body).not.toContain("<script");
   });

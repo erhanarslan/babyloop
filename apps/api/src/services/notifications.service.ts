@@ -3,7 +3,7 @@ import type { RealtimeNotification, RealtimeNotificationType } from "@babyloop/s
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { assertSafePlainText } from "./text-safety.service.js";
+import { assertSafePlainText, safePlainTextFallback } from "./text-safety.service.js";
 
 const actorProfiles = alias(profiles, "notification_actor_profiles");
 
@@ -211,6 +211,22 @@ const notificationSelection = {
 };
 
 function mapNotification(row: NotificationRow): NotificationResponse {
+  if (row.type === "listing_favorited") {
+    return {
+      id: row.id,
+      recipientProfileId: row.recipientProfileId,
+      actorProfile: null,
+      type: row.type,
+      title: "Listing favorited",
+      body: "Someone favorited your listing.",
+      entityType: row.entityType,
+      entityId: row.entityId,
+      metadata: sanitizeFavoriteNotificationMetadata(row.metadata),
+      readAt: row.readAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString()
+    };
+  }
+
   return {
     id: row.id,
     recipientProfileId: row.recipientProfileId,
@@ -229,4 +245,21 @@ function mapNotification(row: NotificationRow): NotificationResponse {
     readAt: row.readAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString()
   };
+}
+
+function sanitizeFavoriteNotificationMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const sanitizedMetadata: Record<string, unknown> = {};
+
+  if (typeof metadata.source === "string") {
+    sanitizedMetadata.source = metadata.source;
+  }
+
+  if (typeof metadata.listingTitle === "string") {
+    sanitizedMetadata.listingTitle = safePlainTextFallback(metadata.listingTitle, "Listing", {
+      maxLength: 160,
+      minLength: 1
+    });
+  }
+
+  return sanitizedMetadata;
 }

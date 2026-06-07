@@ -19,6 +19,7 @@ export type ListingSummaryResponse = {
   id: string;
   title: string;
   price: PriceResponse;
+  favoriteCount: number;
   status: string;
   listingType: string;
   condition: string;
@@ -44,6 +45,7 @@ export function mapListingSummary(value: {
   title: string;
   priceAmount: string | null;
   currency: string;
+  favoriteCount?: number;
   status: string;
   listingType: string;
   condition: string;
@@ -55,6 +57,7 @@ export function mapListingSummary(value: {
     id: value.id,
     title: value.title,
     price: buildPrice(value.priceAmount, value.currency),
+    favoriteCount: value.favoriteCount ?? 0,
     status: value.status,
     listingType: value.listingType,
     condition: value.condition,
@@ -74,4 +77,3 @@ export function buildPrice(amount: string | null, currency: string): PriceRespon
     currency
   };
 }
-

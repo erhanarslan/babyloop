@@ -305,6 +305,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   <Badge tone={getListingStatusTone(listing.status)}>
                     {formatListingStatus(listing.status, dictionary)}
                   </Badge>
+                  <p className="listing-meta">
+                    {dictionary.listings.favoriteCount.replace("{count}", String(listing.favoriteCount))}
+                  </p>
                 </div>
 
                 {isEditing ? (

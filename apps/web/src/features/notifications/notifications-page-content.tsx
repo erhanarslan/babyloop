@@ -267,14 +267,15 @@ function NotificationItem({
   const { dictionary } = useI18n();
   const destination = getNotificationDestination(notification);
   const actionLabel = getNotificationActionLabel(notification, dictionary);
+  const displayText = getNotificationDisplayText(notification, dictionary);
   const isUnread = !notification.readAt;
 
   return (
     <li className={isUnread ? "notification-item notification-item-unread" : "notification-item"}>
       <div>
         <p className="listing-meta">{dictionary.notifications.typeLabels[notification.type]}</p>
-        <h2>{notification.title}</h2>
-        <p className="notification-body">{notification.body}</p>
+        <h2>{displayText.title}</h2>
+        <p className="notification-body">{displayText.body}</p>
         <time>{formatDateTime(notification.createdAt, locale)}</time>
       </div>
       <div className="notification-actions">
@@ -291,6 +292,23 @@ function NotificationItem({
       </div>
     </li>
   );
+}
+
+function getNotificationDisplayText(
+  notification: Notification,
+  dictionary: Dictionary
+): { title: string; body: string } {
+  if (notification.type === "listing_favorited") {
+    return {
+      title: dictionary.notifications.listingFavorited,
+      body: dictionary.notifications.listingFavoritedBody
+    };
+  }
+
+  return {
+    title: notification.title,
+    body: notification.body
+  };
 }
 
 function getNotificationDestination(notification: Notification): string | null {

@@ -13,6 +13,7 @@ import type {
 } from "../schemas/listings.schemas.js";
 import {
   findCategory,
+  getFavoriteCounts,
   getFirstImages,
   getImages,
   selectActiveListingRows,
@@ -108,6 +109,7 @@ export async function createListing(
     listing: mapListingSummary({
       ...created.listing,
       category,
+      favoriteCount: 0,
       firstImage: created.images[0] ?? null
     })
   };
@@ -270,10 +272,14 @@ async function mapListingRows(
     title: string;
   }>
 ): Promise<ListingSummaryResponse[]> {
-  const firstImages = await getFirstImages(
-    app,
-    rows.map((row) => row.id)
-  );
+  const listingIds = rows.map((row) => row.id);
+  const [firstImages, favoriteCounts] = await Promise.all([
+    getFirstImages(
+      app,
+      listingIds
+    ),
+    getFavoriteCounts(app, listingIds)
+  ]);
 
   return rows.map((row) =>
     mapListingSummary({
@@ -283,6 +289,7 @@ async function mapListingRows(
         name: row.categoryName,
         slug: row.categorySlug
       },
+      favoriteCount: favoriteCounts.get(row.id) ?? 0,
       firstImage: firstImages.get(row.id) ?? null
     })
   );
@@ -298,7 +305,10 @@ async function getListingSummary(
     throw new Error("Listing summary lookup failed.");
   }
 
-  const [firstImage] = await getImages(app, row.id);
+  const [images, favoriteCounts] = await Promise.all([
+    getImages(app, row.id),
+    getFavoriteCounts(app, [row.id])
+  ]);
 
   return mapListingSummary({
     ...row,
@@ -307,7 +317,8 @@ async function getListingSummary(
       name: row.categoryName,
       slug: row.categorySlug
     },
-    firstImage: firstImage ?? null
+    favoriteCount: favoriteCounts.get(row.id) ?? 0,
+    firstImage: images[0] ?? null
   });
 }
 
@@ -337,7 +348,10 @@ export async function getListingDetail(
     return null;
   }
 
-  const images = await getImages(app, row.id);
+  const [images, favoriteCounts] = await Promise.all([
+    getImages(app, row.id),
+    getFavoriteCounts(app, [row.id])
+  ]);
 
   return {
     ...mapListingSummary({
@@ -347,6 +361,7 @@ export async function getListingDetail(
         name: row.categoryName,
         slug: row.categorySlug
       },
+      favoriteCount: favoriteCounts.get(row.id) ?? 0,
       firstImage: images[0] ?? null
     }),
     description: row.description,

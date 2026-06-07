@@ -1,10 +1,11 @@
 import {
+  favorites,
   listingImages,
   listings,
   productCategories,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   CategoryBasicResponse,
@@ -206,4 +207,24 @@ export async function getImages(
     .from(listingImages)
     .where(eq(listingImages.listingId, listingId))
     .orderBy(asc(listingImages.sortOrder));
+}
+
+export async function getFavoriteCounts(
+  app: FastifyInstance,
+  listingIds: string[]
+): Promise<Map<string, number>> {
+  if (listingIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await app.db
+    .select({
+      listingId: favorites.listingId,
+      favoriteCount: sql<number>`count(${favorites.id})::int`
+    })
+    .from(favorites)
+    .where(inArray(favorites.listingId, listingIds))
+    .groupBy(favorites.listingId);
+
+  return new Map(rows.map((row) => [row.listingId, row.favoriteCount]));
 }
