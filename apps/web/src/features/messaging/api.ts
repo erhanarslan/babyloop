@@ -18,6 +18,7 @@ export type ConversationSummary = {
     senderProfileId: string;
     createdAt: string;
   } | null;
+  unreadCount: number;
   status: string;
   lastMessageAt: string | null;
   createdAt: string;
@@ -46,10 +47,21 @@ type ConversationsPayload = {
 
 type MessagesPayload = {
   messages: Message[];
+  readState?: {
+    conversation: ConversationSummary;
+    unreadConversationCount: number;
+    unreadNotificationCount: number;
+  };
 };
 
 type SendMessagePayload = {
   message: Message;
+};
+
+type ConversationReadPayload = {
+  conversation: ConversationSummary;
+  unreadConversationCount: number;
+  unreadNotificationCount: number;
 };
 
 export async function createOrGetConversation(
@@ -107,4 +119,15 @@ export async function sendMessage(
   });
 
   return response.json() as Promise<ApiResponse<SendMessagePayload>>;
+}
+
+export async function markConversationRead(
+  apiBaseUrl: string,
+  conversationId: string
+): Promise<ApiResponse<ConversationReadPayload>> {
+  const response = await authFetch(apiBaseUrl, `/api/v1/conversations/${conversationId}/read`, {
+    method: "PATCH"
+  });
+
+  return response.json() as Promise<ApiResponse<ConversationReadPayload>>;
 }

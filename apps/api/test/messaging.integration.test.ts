@@ -1,6 +1,7 @@
 import {
   aiModelRuns,
   authAccounts,
+  conversationParticipants,
   conversations,
   emailVerificationTokens,
   favorites,

@@ -1,0 +1,2 @@
+ALTER TABLE "conversation_participants" ADD COLUMN "last_read_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "conversation_participants_profile_read_idx" ON "conversation_participants" USING btree ("profile_id","last_read_at");

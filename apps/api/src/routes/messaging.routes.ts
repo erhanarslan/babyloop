@@ -1,5 +1,6 @@
 import { moderateMessageBody, type ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
+import type { CurrentUser } from "../plugins/auth.plugin.js";
 import {
   conversationParamsSchema,
   createConversationBodySchema,
@@ -13,18 +14,23 @@ import {
   listConversationParticipantProfileIds,
   listConversationsForProfile,
   listMessagesForConversation,
+  markConversationReadForProfile,
   sendMessage,
   type ConversationSummaryResponse,
   type MessageResponse
 } from "../services/messaging.service.js";
 import {
+  emitConversationUpdated,
+  emitNotificationRead,
+  emitUnreadNotificationCountUpdated,
   publishNotificationCreated,
   publishPersistedMessage,
   toNotificationCreatedPayload
 } from "../realtime/publisher.js";
 import {
   createNotification,
-  getUnreadNotificationCount
+  getUnreadNotificationCount,
+  markMessageNotificationsReadForConversation
 } from "../services/notifications.service.js";
 import { safePlainTextFallback } from "../services/text-safety.service.js";
 
@@ -38,6 +44,16 @@ type ConversationsResponse = ApiResponse<{
 
 type MessagesResponse = ApiResponse<{
   messages: MessageResponse[];
+  readState?: {
+    unreadConversationCount: number;
+    unreadNotificationCount: number;
+  };
+}>;
+
+type ConversationReadResponse = ApiResponse<{
+  conversation: ConversationSummaryResponse;
+  unreadConversationCount: number;
+  unreadNotificationCount: number;
 }>;
 
 type SendMessageResponse = ApiResponse<{
@@ -175,11 +191,58 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
 
+      const readState = await markThreadRead(app, currentUser, parsedParams.data.id);
+
       return {
         ok: true,
         data: {
-          messages: result.messages
+          messages: result.messages,
+          ...(readState ? { readState } : {})
         }
+      };
+    }
+  );
+
+  app.patch<{ Params: ConversationParams; Reply: ConversationReadResponse }>(
+    "/conversations/:id/read",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedParams = conversationParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply.status(400).send(invalidMessagingRequest("Conversation id must be a valid UUID."));
+      }
+
+      const readState = await markThreadRead(app, currentUser, parsedParams.data.id);
+
+      if (!readState) {
+        const accessResult = await getConversationForProfile(
+          app,
+          parsedParams.data.id,
+          currentUser.profile.id
+        );
+
+        if (accessResult.status === "ok") {
+          return reply.status(500).send({
+            ok: false,
+            error: {
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Internal server error"
+            }
+          });
+        }
+
+        return reply.status(accessResult.status === "not_found" ? 404 : 403).send(accessError(accessResult.status));
+      }
+
+      return {
+        ok: true,
+        data: readState
       };
     }
   );
@@ -232,6 +295,50 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       });
     }
   );
+}
+
+async function markThreadRead(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  conversationId: string
+): Promise<{
+  conversation: ConversationSummaryResponse;
+  unreadConversationCount: number;
+  unreadNotificationCount: number;
+} | null> {
+  const [readResult, readNotifications] = await Promise.all([
+    markConversationReadForProfile(app, currentUser, conversationId),
+    markMessageNotificationsReadForConversation(app, currentUser.profile.id, conversationId)
+  ]);
+
+  if (readResult.status !== "ok") {
+    return null;
+  }
+
+  const unreadNotificationCount = await getUnreadNotificationCount(app, currentUser.profile.id);
+
+  emitConversationUpdated(app, currentUser.profile.id, {
+    conversationId,
+    conversation: readResult.conversation
+  });
+
+  for (const notification of readNotifications) {
+    emitNotificationRead(app, currentUser.profile.id, {
+      notificationId: notification.id,
+      readAt: notification.readAt,
+      unreadCount: unreadNotificationCount
+    });
+  }
+
+  emitUnreadNotificationCountUpdated(app, currentUser.profile.id, {
+    unreadCount: unreadNotificationCount
+  });
+
+  return {
+    conversation: readResult.conversation,
+    unreadConversationCount: readResult.unreadConversationCount,
+    unreadNotificationCount
+  };
 }
 
 function messageBlockedResponse(): ApiResponse<never> {

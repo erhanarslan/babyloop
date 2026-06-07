@@ -55,6 +55,7 @@ export type RealtimeConversationSummary = {
     senderProfileId: string;
     createdAt: string;
   } | null;
+  unreadCount: number;
   status: string;
   lastMessageAt: string | null;
   createdAt: string;

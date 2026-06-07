@@ -6,7 +6,7 @@ import {
   messages,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
@@ -35,6 +35,7 @@ export type ConversationSummaryResponse = {
     senderProfileId: string;
     createdAt: string;
   } | null;
+  unreadCount: number;
   status: string;
   lastMessageAt: string | null;
   createdAt: string;
@@ -209,7 +210,9 @@ export async function listConversationsForProfile(
         getLatestMessage(app, row.id)
       ]);
 
-      return mapConversationSummary(row, profileId, contextListing, latestMessage);
+      const unreadCount = await getUnreadMessageCountForConversation(app, row.id, profileId);
+
+      return mapConversationSummary(row, profileId, contextListing, latestMessage, unreadCount);
     })
   );
 }
@@ -301,6 +304,46 @@ export async function listMessagesForConversation(
   return {
     status: "ok",
     messages: rows.map(mapMessage)
+  };
+}
+
+export async function markConversationReadForProfile(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  conversationId: string
+): Promise<
+  | { status: "ok"; conversation: ConversationSummaryResponse; unreadConversationCount: number }
+  | { status: "not_found" | "forbidden" }
+> {
+  const access = await getConversationAccess(app, conversationId, currentUser.profile.id);
+
+  if (access.status !== "ok") {
+    return access;
+  }
+
+  await app.db
+    .update(conversationParticipants)
+    .set({ lastReadAt: new Date() })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.profileId, currentUser.profile.id)
+      )
+    );
+
+  const [conversation, unreadConversationCount] = await Promise.all([
+    getConversationSummary(app, conversationId, currentUser.profile.id),
+    getUnreadConversationCountForProfile(app, currentUser.profile.id)
+  ]);
+
+  if (!conversation) {
+    return { status: "not_found" };
+  }
+
+  return {
+    status: "ok",
+    conversation,
+    unreadConversationCount
   };
 }
 
@@ -413,8 +456,9 @@ async function getConversationSummary(
     getLatestListingContext(app, conversationId),
     getLatestMessage(app, conversationId)
   ]);
+  const unreadCount = await getUnreadMessageCountForConversation(app, conversationId, viewerProfileId);
 
-  return mapConversationSummary(row, viewerProfileId, contextListing, latestMessage);
+  return mapConversationSummary(row, viewerProfileId, contextListing, latestMessage, unreadCount);
 }
 
 async function getLatestListingContext(
@@ -488,6 +532,52 @@ async function getConversationAccess(
   return participant ? { status: "ok" } : { status: "forbidden" };
 }
 
+export async function getUnreadConversationCountForProfile(
+  app: FastifyInstance,
+  profileId: string
+): Promise<number> {
+  const [row] = await app.db
+    .select({
+      count: sql<number>`count(distinct ${conversationParticipants.conversationId})::int`
+    })
+    .from(conversationParticipants)
+    .innerJoin(messages, eq(conversationParticipants.conversationId, messages.conversationId))
+    .where(
+      and(
+        eq(conversationParticipants.profileId, profileId),
+        ne(messages.senderProfileId, profileId),
+        sql`${messages.deletedAt} is null`,
+        sql`(${conversationParticipants.lastReadAt} is null or ${messages.createdAt} > ${conversationParticipants.lastReadAt})`
+      )
+    );
+
+  return row?.count ?? 0;
+}
+
+async function getUnreadMessageCountForConversation(
+  app: FastifyInstance,
+  conversationId: string,
+  profileId: string
+): Promise<number> {
+  const [row] = await app.db
+    .select({
+      count: sql<number>`count(${messages.id})::int`
+    })
+    .from(conversationParticipants)
+    .innerJoin(messages, eq(conversationParticipants.conversationId, messages.conversationId))
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.profileId, profileId),
+        ne(messages.senderProfileId, profileId),
+        sql`${messages.deletedAt} is null`,
+        sql`(${conversationParticipants.lastReadAt} is null or ${messages.createdAt} > ${conversationParticipants.lastReadAt})`
+      )
+    );
+
+  return row?.count ?? 0;
+}
+
 function normalizeProfilePair(
   firstProfileId: string,
   secondProfileId: string
@@ -501,7 +591,8 @@ function mapConversationSummary(
   row: ConversationSummaryRow,
   viewerProfileId: string,
   contextListing: ListingContextResponse,
-  latestMessage: LatestMessageResponse
+  latestMessage: LatestMessageResponse,
+  unreadCount: number
 ): ConversationSummaryResponse {
   const otherProfile =
     row.profileLowId === viewerProfileId
@@ -519,6 +610,7 @@ function mapConversationSummary(
     otherProfile,
     contextListing,
     latestMessage,
+    unreadCount,
     status: row.status,
     lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

@@ -31,6 +31,7 @@ import {
   formatListingPrice
 } from "../features/listings/listing-display";
 import { fetchUnreadNotificationCount } from "../features/notifications/api";
+import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notifications/unread-count-events";
 import { getRealtimeSocket } from "../lib/realtime-client";
 
 type OpenMenu = "marketplace" | "sell" | "account" | "mobile" | null;
@@ -198,11 +199,25 @@ export function SiteHeader() {
 
     void loadUnreadCount();
 
+    function handleLocalUnreadCountUpdated(event: Event) {
+      const customEvent = event as CustomEvent<{ unreadCount: number }>;
+      setUnreadNotificationCount(customEvent.detail.unreadCount);
+    }
+
+    window.addEventListener(
+      NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT,
+      handleLocalUnreadCountUpdated
+    );
+
     const socket = getRealtimeSocket(apiBaseUrl, getAuthToken());
 
     if (!socket) {
       return () => {
         isActive = false;
+        window.removeEventListener(
+          NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT,
+          handleLocalUnreadCountUpdated
+        );
       };
     }
 
@@ -230,6 +245,10 @@ export function SiteHeader() {
 
     return () => {
       isActive = false;
+      window.removeEventListener(
+        NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT,
+        handleLocalUnreadCountUpdated
+      );
       socket.off(REALTIME_EVENTS.notificationCreated, handleNotificationCreated);
       socket.off(REALTIME_EVENTS.notificationRead, handleNotificationRead);
       socket.off(REALTIME_EVENTS.notificationReadAll, handleNotificationReadAll);

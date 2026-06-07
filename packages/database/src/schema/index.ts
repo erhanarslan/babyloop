@@ -310,6 +310,7 @@ export const conversationParticipants = pgTable(
     profileId: uuid("profile_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
@@ -318,7 +319,8 @@ export const conversationParticipants = pgTable(
       table.profileId
     ),
     index("conversation_participants_conversation_id_idx").on(table.conversationId),
-    index("conversation_participants_profile_id_idx").on(table.profileId)
+    index("conversation_participants_profile_id_idx").on(table.profileId),
+    index("conversation_participants_profile_read_idx").on(table.profileId, table.lastReadAt)
   ]
 );
 

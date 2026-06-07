@@ -151,6 +151,35 @@ export async function markAllNotificationsRead(
   return updatedNotifications.length;
 }
 
+export async function markMessageNotificationsReadForConversation(
+  app: FastifyInstance,
+  profileId: string,
+  conversationId: string
+): Promise<Array<{ id: string; readAt: string }>> {
+  const readAt = new Date();
+  const updatedNotifications = await app.db
+    .update(notifications)
+    .set({ readAt })
+    .where(
+      and(
+        eq(notifications.recipientProfileId, profileId),
+        eq(notifications.type, "message_received"),
+        eq(notifications.entityType, "conversation"),
+        eq(notifications.entityId, conversationId),
+        isNull(notifications.readAt)
+      )
+    )
+    .returning({
+      id: notifications.id,
+      readAt: notifications.readAt
+    });
+
+  return updatedNotifications.map((notification) => ({
+    id: notification.id,
+    readAt: notification.readAt?.toISOString() ?? readAt.toISOString()
+  }));
+}
+
 async function getNotificationForProfile(
   app: FastifyInstance,
   profileId: string,

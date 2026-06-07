@@ -12,9 +12,11 @@ import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
 import { formatDateTime } from "../listings/listing-display";
+import { dispatchNotificationUnreadCountUpdated } from "../notifications/unread-count-events";
 import {
   fetchConversation,
   fetchMessages,
+  markConversationRead,
   type ConversationSummary,
   type Message
 } from "./api";
@@ -113,15 +115,33 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       }
 
       setCurrentProfileId(currentUserBody.data.profile.id);
-      setConversation(conversationBody.data.conversation);
+      setConversation(messagesBody.data.readState?.conversation ?? conversationBody.data.conversation);
       setMessages(messagesBody.data.messages);
+      if (messagesBody.data.readState) {
+        dispatchNotificationUnreadCountUpdated(messagesBody.data.readState.unreadNotificationCount);
+      }
     } catch {
       setState("error");
       setMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsLoading(false);
     }
-  }, [apiBaseUrl, conversationId, dictionary.common.apiUnavailable, requireAuth]);
+  }, [apiBaseUrl, conversationId, dictionary.common.apiUnavailable, dictionary, requireAuth]);
+
+  const markCurrentThreadRead = useCallback(async () => {
+    try {
+      const body = await markConversationRead(apiBaseUrl, conversationId);
+
+      if (!body.ok) {
+        return;
+      }
+
+      setConversation(body.data.conversation);
+      dispatchNotificationUnreadCountUpdated(body.data.unreadNotificationCount);
+    } catch {
+      // Realtime read feedback is best-effort; the next refetch will reconcile state.
+    }
+  }, [apiBaseUrl, conversationId]);
 
   useEffect(() => {
     hasInitialScrollRef.current = false;
@@ -174,6 +194,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         appendMessage(payload.message);
 
         if (isIncoming) {
+          void markCurrentThreadRead();
           setHighlightedMessageIds((currentIds) => {
             const nextIds = new Set(currentIds);
             nextIds.add(payload.message.id);
@@ -214,7 +235,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       realtimeSocket.off(REALTIME_EVENTS.messageCreated, handleMessageCreated);
       realtimeSocket.io.off("reconnect", handleReconnect);
     };
-  }, [apiBaseUrl, appendMessage, conversation?.id, conversationId, currentProfileId, loadThread, message]);
+  }, [apiBaseUrl, appendMessage, conversation?.id, conversationId, currentProfileId, loadThread, markCurrentThreadRead, message]);
 
   if (isCheckingAuth || isLoading) {
     return <LoadingBlock title={dictionary.messaging.loadingConversation} />;

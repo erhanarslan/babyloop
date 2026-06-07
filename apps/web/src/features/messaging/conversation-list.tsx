@@ -62,6 +62,13 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
 
       setCurrentProfileId(currentUserBody.data.profile.id);
       setConversations(conversationsBody.data.conversations);
+      setUnreadConversationIds(
+        new Set(
+          conversationsBody.data.conversations
+            .filter((conversation) => conversation.unreadCount > 0)
+            .map((conversation) => conversation.id)
+        )
+      );
       setMessage(null);
       setState(null);
     } catch {
@@ -98,12 +105,17 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
       );
 
       if (
-        payload.conversation.latestMessage &&
-        payload.conversation.latestMessage.senderProfileId !== currentProfileId
+        payload.conversation.unreadCount > 0
       ) {
         setUnreadConversationIds((currentIds) => {
           const nextIds = new Set(currentIds);
           nextIds.add(payload.conversationId);
+          return nextIds;
+        });
+      } else {
+        setUnreadConversationIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(payload.conversationId);
           return nextIds;
         });
       }
