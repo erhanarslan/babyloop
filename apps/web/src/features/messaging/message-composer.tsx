@@ -58,6 +58,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
     <form className="message-composer" onSubmit={handleSubmit}>
       <Textarea
         label={dictionary.messaging.messageLabel}
+        maxLength={5000}
         rows={3}
         value={body}
         onChange={(event) => setBody(event.target.value)}

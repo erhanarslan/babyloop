@@ -44,11 +44,6 @@ type ConversationsResponse = ApiResponse<{
 
 type MessagesResponse = ApiResponse<{
   messages: MessageResponse[];
-  readState?: {
-    conversation: ConversationSummaryResponse;
-    unreadConversationCount: number;
-    unreadNotificationCount: number;
-  };
 }>;
 
 type ConversationReadResponse = ApiResponse<{
@@ -192,13 +187,10 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
 
-      const readState = await markThreadRead(app, currentUser, parsedParams.data.id);
-
       return {
         ok: true,
         data: {
-          messages: result.messages,
-          ...(readState ? { readState } : {})
+          messages: result.messages
         }
       };
     }

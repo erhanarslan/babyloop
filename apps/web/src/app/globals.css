@@ -390,6 +390,11 @@
     @apply grid gap-4;
   }
 
+  .conversation-list,
+  .message-thread-layout {
+    @apply min-w-0;
+  }
+
   .filter-panel,
   .listing-card-body,
   .detail-panel,
@@ -441,6 +446,7 @@
 
   .listing-card-footer,
   .detail-facts div,
+  .conversation-card-header,
   .conversation-card-meta p,
   .thread-meta-grid p {
     @apply flex items-center justify-between gap-4;
@@ -487,11 +493,20 @@
   }
 
   .message-bubble {
-    @apply grid max-w-3xl gap-2 rounded-lg border border-border bg-muted/70 p-4;
+    @apply grid w-fit max-w-full gap-2 rounded-lg border border-border bg-muted/70 p-4 sm:max-w-3xl;
+  }
+
+  .message-bubble div {
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
+  }
+
+  .message-bubble time,
+  .conversation-card-header time {
+    @apply text-xs font-medium text-muted-foreground;
   }
 
   .message-bubble-own {
-    @apply justify-self-end border-primary/20 bg-primary/10;
+    @apply justify-self-end border-primary/20 bg-primary/10 text-right;
   }
 
   .message-bubble-new {
@@ -504,6 +519,27 @@
 
   .conversation-card-unread {
     @apply border-primary/35 bg-primary/5;
+  }
+
+  .conversation-card {
+    @apply grid gap-3;
+  }
+
+  .conversation-card-header {
+    @apply min-w-0 items-start;
+  }
+
+  .conversation-card-header h2,
+  .thread-panel h1 {
+    @apply break-words;
+  }
+
+  .conversation-status {
+    @apply inline-flex items-center gap-2 text-sm text-muted-foreground;
+  }
+
+  .conversation-status strong {
+    @apply inline-grid h-6 min-w-6 place-items-center rounded-full bg-primary px-2 text-xs text-primary-foreground;
   }
 
   .unread-dot {
@@ -566,6 +602,38 @@
 
   .ui-badge-warning {
     @apply bg-amber-100 text-amber-900;
+  }
+
+  @media (max-width: 640px) {
+    .conversation-card,
+    .thread-panel {
+      @apply p-4;
+    }
+
+    .conversation-card-header,
+    .conversation-card-meta p,
+    .thread-meta-grid p,
+    .message-composer .form-actions {
+      @apply items-start;
+    }
+
+    .conversation-card-header,
+    .thread-meta-grid p,
+    .message-composer .form-actions {
+      @apply flex-col gap-2;
+    }
+
+    .conversation-card-meta p {
+      @apply grid gap-1;
+    }
+
+    .message-bubble {
+      @apply w-full;
+    }
+
+    .message-composer .form-actions button {
+      @apply w-full;
+    }
   }
 }
 

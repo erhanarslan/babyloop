@@ -17,21 +17,20 @@ export function ConversationCard({ conversation, isUnread = false }: Conversatio
 
   return (
     <article className={cn("conversation-card", isUnread && "conversation-card-unread")}>
-      <div>
-        <p className="listing-meta">
-          {isUnread ? <span className="unread-dot" aria-label={dictionary.messaging.unreadConversation} /> : null}
-          {dictionary.messaging.conversationWith}
-        </p>
-        <h2>{conversation.otherProfile.displayName}</h2>
+      <div className="conversation-card-header">
+        <div>
+          <p className="listing-meta">
+            {isUnread ? <span className="unread-dot" aria-label={dictionary.messaging.unreadConversation} /> : null}
+            {dictionary.messaging.conversationWith}
+          </p>
+          <h2>{conversation.otherProfile.displayName}</h2>
+        </div>
+        <time>{formatDateTime(timestamp, locale)}</time>
       </div>
       <div className="conversation-card-meta">
         <p>
           <strong>{dictionary.messaging.listing}</strong>
           <span>{conversation.contextListing?.title ?? dictionary.messaging.noListingContext}</span>
-        </p>
-        <p>
-          <strong>{conversation.lastMessageAt ? dictionary.messaging.lastMessage : dictionary.messaging.updated}</strong>
-          <span>{formatDateTime(timestamp, locale)}</span>
         </p>
       </div>
       {conversation.latestMessage ? (
@@ -40,8 +39,11 @@ export function ConversationCard({ conversation, isUnread = false }: Conversatio
         <p className="muted">{dictionary.messaging.noMessagesSent}</p>
       )}
       <div className="listing-card-footer">
-        <span>
-          {dictionary.messaging.statusLabel}: {formatListingStatus(conversation.status, dictionary)}
+        <span className="conversation-status">
+          <span>{dictionary.messaging.statusLabel}: {formatListingStatus(conversation.status, dictionary)}</span>
+          {conversation.unreadCount > 0 ? (
+            <strong>{conversation.unreadCount}</strong>
+          ) : null}
         </span>
         <Link href={`/conversations/${conversation.id}`}>{dictionary.messaging.open}</Link>
       </div>

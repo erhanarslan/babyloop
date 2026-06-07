@@ -47,11 +47,6 @@ type ConversationsPayload = {
 
 type MessagesPayload = {
   messages: Message[];
-  readState?: {
-    conversation: ConversationSummary;
-    unreadConversationCount: number;
-    unreadNotificationCount: number;
-  };
 };
 
 type SendMessagePayload = {

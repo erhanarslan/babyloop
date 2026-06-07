@@ -28,5 +28,9 @@ export function getApiErrorMessage(
     return dictionary.messaging.messageBlocked;
   }
 
+  if (error.code === "INVALID_MESSAGE_BODY") {
+    return dictionary.messaging.invalidMessageBody;
+  }
+
   return fallback;
 }

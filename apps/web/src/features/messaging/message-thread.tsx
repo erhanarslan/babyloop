@@ -31,12 +31,16 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const { dictionary, locale } = useI18n();
   const highlightTimersRef = useRef<number[]>([]);
   const hasInitialScrollRef = useRef(false);
+  const markedReadKeyRef = useRef<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const readTargetRef = useRef<HTMLLIElement | null>(null);
+  const readTimeoutRef = useRef<number | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [highlightedMessageIds, setHighlightedMessageIds] = useState<Set<string>>(() => new Set());
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [readCandidateMessageId, setReadCandidateMessageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "forbidden" | "not-found" | "error" | null>(null);
@@ -46,6 +50,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setCurrentProfileId(null);
     setHighlightedMessageIds(new Set());
     setHasNewMessages(false);
+    setReadCandidateMessageId(null);
     setMessage(null);
     setState(null);
     setIsLoading(false);
@@ -115,11 +120,13 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       }
 
       setCurrentProfileId(currentUserBody.data.profile.id);
-      setConversation(messagesBody.data.readState?.conversation ?? conversationBody.data.conversation);
+      setConversation(conversationBody.data.conversation);
       setMessages(messagesBody.data.messages);
-      if (messagesBody.data.readState) {
-        dispatchNotificationUnreadCountUpdated(messagesBody.data.readState.unreadNotificationCount);
-      }
+      setReadCandidateMessageId(
+        conversationBody.data.conversation.unreadCount > 0
+          ? getLatestIncomingMessageId(messagesBody.data.messages, currentUserBody.data.profile.id)
+          : null
+      );
     } catch {
       setState("error");
       setMessage(dictionary.common.apiUnavailable);
@@ -137,6 +144,9 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       }
 
       setConversation(body.data.conversation);
+      setReadCandidateMessageId(null);
+      setHasNewMessages(false);
+      markedReadKeyRef.current = `${conversationId}:read`;
       dispatchNotificationUnreadCountUpdated(body.data.unreadNotificationCount);
     } catch {
       // Realtime read feedback is best-effort; the next refetch will reconcile state.
@@ -145,7 +155,9 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
 
   useEffect(() => {
     hasInitialScrollRef.current = false;
+    markedReadKeyRef.current = null;
     setIsLoading(true);
+    setReadCandidateMessageId(null);
     setMessage(null);
     setState(null);
     void loadThread();
@@ -162,8 +174,68 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     return () => {
       highlightTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       highlightTimersRef.current = [];
+      if (readTimeoutRef.current !== null) {
+        window.clearTimeout(readTimeoutRef.current);
+        readTimeoutRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!readCandidateMessageId || isLoading || message || !conversation?.id) {
+      return;
+    }
+
+    const readKey = `${conversationId}:${readCandidateMessageId}`;
+
+    if (markedReadKeyRef.current === readKey) {
+      return;
+    }
+
+    const target = readTargetRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    function scheduleMarkRead() {
+      if (markedReadKeyRef.current === readKey) {
+        return;
+      }
+
+      markedReadKeyRef.current = readKey;
+      readTimeoutRef.current = window.setTimeout(() => {
+        readTimeoutRef.current = null;
+        void markCurrentThreadRead();
+      }, 250);
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      scheduleMarkRead();
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          scheduleMarkRead();
+        }
+      },
+      {
+        threshold: 0.6
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+      if (readTimeoutRef.current !== null) {
+        window.clearTimeout(readTimeoutRef.current);
+        readTimeoutRef.current = null;
+      }
+    };
+  }, [conversation?.id, conversationId, isLoading, markCurrentThreadRead, message, readCandidateMessageId]);
 
   useEffect(() => {
     if (!conversation?.id || !currentProfileId || message) {
@@ -194,7 +266,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         appendMessage(payload.message);
 
         if (isIncoming) {
-          void markCurrentThreadRead();
+          setReadCandidateMessageId(payload.message.id);
           setHighlightedMessageIds((currentIds) => {
             const nextIds = new Set(currentIds);
             nextIds.add(payload.message.id);
@@ -304,6 +376,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
                     highlightedMessageIds.has(item.id) ? "message-bubble-new" : ""
                   ].filter(Boolean).join(" ")}
                   key={item.id}
+                  ref={item.id === readCandidateMessageId ? readTargetRef : null}
                 >
                   <div>
                     <strong>{item.sender.id === currentProfileId ? dictionary.messaging.you : item.sender.displayName}</strong>
@@ -350,6 +423,18 @@ function isNearPageBottom(): boolean {
   const distanceFromBottom = page.scrollHeight - window.scrollY - window.innerHeight;
 
   return distanceFromBottom < 240;
+}
+
+function getLatestIncomingMessageId(messages: Message[], currentProfileId: string): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (message && message.sender.id !== currentProfileId && !message.deletedAt) {
+      return message.id;
+    }
+  }
+
+  return null;
 }
 
 function getErrorState(code: string): "auth" | "forbidden" | "not-found" | "error" {

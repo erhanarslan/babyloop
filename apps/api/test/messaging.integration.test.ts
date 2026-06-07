@@ -382,7 +382,7 @@ describe("messaging API", () => {
     expect(row?.lastMessageAt).toBeInstanceOf(Date);
   });
 
-  it("marks incoming conversation messages and related notifications read when the recipient opens the thread", async () => {
+  it("marks incoming conversation messages and related notifications read only through the explicit read endpoint", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
@@ -411,6 +411,16 @@ describe("messaging API", () => {
       method: "GET",
       url: "/api/v1/notifications/unread-count"
     });
+    const sellerNotificationsList = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications"
+    });
+    const sellerNotificationCountAfterNotificationList = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications/unread-count"
+    });
 
     expect(sendResponse.statusCode).toBe(201);
     expect(sellerConversationsBeforeOpen.json().data.conversations[0]).toMatchObject({
@@ -422,23 +432,29 @@ describe("messaging API", () => {
       unreadCount: 0
     });
     expect(sellerNotificationCountBeforeOpen.json().data.count).toBe(1);
+    expect(sellerNotificationsList.statusCode).toBe(200);
+    expect(sellerNotificationsList.json().data.notifications[0]).toMatchObject({
+      entityId: conversation.id,
+      readAt: null
+    });
+    expect(sellerNotificationCountAfterNotificationList.json().data.count).toBe(1);
 
-    const openThread = await app.inject({
+    const fetchThread = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "GET",
       url: `/api/v1/conversations/${conversation.id}/messages`
     });
-    const sellerConversationsAfterOpen = await app.inject({
+    const sellerConversationsAfterThreadFetch = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "GET",
       url: "/api/v1/conversations"
     });
-    const sellerNotificationCountAfterOpen = await app.inject({
+    const sellerNotificationCountAfterThreadFetch = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "GET",
       url: "/api/v1/notifications/unread-count"
     });
-    const [sellerParticipant] = await app.db
+    const [sellerParticipantAfterThreadFetch] = await app.db
       .select({ lastReadAt: conversationParticipants.lastReadAt })
       .from(conversationParticipants)
       .where(
@@ -447,7 +463,7 @@ describe("messaging API", () => {
           eq(conversationParticipants.profileId, seller.profile.id)
         )
       );
-    const [messageNotification] = await app.db
+    const [messageNotificationAfterThreadFetch] = await app.db
       .select({ readAt: notifications.readAt })
       .from(notifications)
       .where(
@@ -458,19 +474,64 @@ describe("messaging API", () => {
         )
       );
 
-    expect(openThread.statusCode).toBe(200);
-    expect(openThread.json().data.messages).toHaveLength(1);
-    expect(openThread.json().data.readState).toMatchObject({
+    expect(fetchThread.statusCode).toBe(200);
+    expect(fetchThread.json().data.messages).toHaveLength(1);
+    expect(fetchThread.json().data.readState).toBeUndefined();
+    expect(sellerParticipantAfterThreadFetch?.lastReadAt).toBeNull();
+    expect(messageNotificationAfterThreadFetch?.readAt).toBeNull();
+    expect(sellerConversationsAfterThreadFetch.json().data.conversations[0]).toMatchObject({
+      id: conversation.id,
+      unreadCount: 1
+    });
+    expect(sellerNotificationCountAfterThreadFetch.json().data.count).toBe(1);
+
+    const readResponse = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/conversations/${conversation.id}/read`
+    });
+    const sellerConversationsAfterRead = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/conversations"
+    });
+    const sellerNotificationCountAfterRead = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications/unread-count"
+    });
+    const [sellerParticipantAfterRead] = await app.db
+      .select({ lastReadAt: conversationParticipants.lastReadAt })
+      .from(conversationParticipants)
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversation.id),
+          eq(conversationParticipants.profileId, seller.profile.id)
+        )
+      );
+    const [messageNotificationAfterRead] = await app.db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientProfileId, seller.profile.id),
+          eq(notifications.entityType, "conversation"),
+          eq(notifications.entityId, conversation.id)
+        )
+      );
+
+    expect(readResponse.statusCode).toBe(200);
+    expect(readResponse.json().data).toMatchObject({
       unreadConversationCount: 0,
       unreadNotificationCount: 0
     });
-    expect(sellerParticipant?.lastReadAt).toBeInstanceOf(Date);
-    expect(messageNotification?.readAt).toBeInstanceOf(Date);
-    expect(sellerConversationsAfterOpen.json().data.conversations[0]).toMatchObject({
+    expect(sellerParticipantAfterRead?.lastReadAt).toBeInstanceOf(Date);
+    expect(messageNotificationAfterRead?.readAt).toBeInstanceOf(Date);
+    expect(sellerConversationsAfterRead.json().data.conversations[0]).toMatchObject({
       id: conversation.id,
       unreadCount: 0
     });
-    expect(sellerNotificationCountAfterOpen.json().data.count).toBe(0);
+    expect(sellerNotificationCountAfterRead.json().data.count).toBe(0);
   });
 
   it("rejects dangerous HTML/script-like message bodies before persistence or realtime", async () => {
