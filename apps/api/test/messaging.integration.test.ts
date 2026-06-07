@@ -374,6 +374,97 @@ describe("messaging API", () => {
     expect(row?.lastMessageAt).toBeInstanceOf(Date);
   });
 
+  it("marks incoming conversation messages and related notifications read when the recipient opens the thread", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+
+    const sendResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "Is this still available?"
+      }
+    });
+    const sellerConversationsBeforeOpen = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/conversations"
+    });
+    const buyerConversationsAfterSend = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: "/api/v1/conversations"
+    });
+    const sellerNotificationCountBeforeOpen = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications/unread-count"
+    });
+
+    expect(sendResponse.statusCode).toBe(201);
+    expect(sellerConversationsBeforeOpen.json().data.conversations[0]).toMatchObject({
+      id: conversation.id,
+      unreadCount: 1
+    });
+    expect(buyerConversationsAfterSend.json().data.conversations[0]).toMatchObject({
+      id: conversation.id,
+      unreadCount: 0
+    });
+    expect(sellerNotificationCountBeforeOpen.json().data.count).toBe(1);
+
+    const openThread = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: `/api/v1/conversations/${conversation.id}/messages`
+    });
+    const sellerConversationsAfterOpen = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/conversations"
+    });
+    const sellerNotificationCountAfterOpen = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications/unread-count"
+    });
+    const [sellerParticipant] = await app.db
+      .select({ lastReadAt: conversationParticipants.lastReadAt })
+      .from(conversationParticipants)
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversation.id),
+          eq(conversationParticipants.profileId, seller.profile.id)
+        )
+      );
+    const [messageNotification] = await app.db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientProfileId, seller.profile.id),
+          eq(notifications.entityType, "conversation"),
+          eq(notifications.entityId, conversation.id)
+        )
+      );
+
+    expect(openThread.statusCode).toBe(200);
+    expect(openThread.json().data.messages).toHaveLength(1);
+    expect(openThread.json().data.readState).toMatchObject({
+      unreadConversationCount: 0,
+      unreadNotificationCount: 0
+    });
+    expect(sellerParticipant?.lastReadAt).toBeInstanceOf(Date);
+    expect(messageNotification?.readAt).toBeInstanceOf(Date);
+    expect(sellerConversationsAfterOpen.json().data.conversations[0]).toMatchObject({
+      id: conversation.id,
+      unreadCount: 0
+    });
+    expect(sellerNotificationCountAfterOpen.json().data.count).toBe(0);
+  });
+
   it("rejects dangerous HTML/script-like message bodies before persistence or realtime", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);

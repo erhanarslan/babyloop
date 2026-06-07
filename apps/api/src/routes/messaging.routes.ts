@@ -45,6 +45,7 @@ type ConversationsResponse = ApiResponse<{
 type MessagesResponse = ApiResponse<{
   messages: MessageResponse[];
   readState?: {
+    conversation: ConversationSummaryResponse;
     unreadConversationCount: number;
     unreadNotificationCount: number;
   };

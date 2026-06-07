@@ -67,6 +67,7 @@ describe("realtime contracts", () => {
           senderProfileId: "profile-2",
           createdAt: "2026-06-05T09:00:00.000Z"
         },
+        unreadCount: 1,
         status: "active",
         lastMessageAt: "2026-06-05T09:00:00.000Z",
         createdAt: "2026-06-05T08:00:00.000Z",
