@@ -75,11 +75,11 @@ describe("message moderation API", () => {
     expect(trimmed.json().data.message.body).toBe("Trimmed message");
     expect(overlong.statusCode).toBe(400);
     expect(overlong.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "INVALID_REQUEST"
-      }
-    });
+        ok: false,
+        error: {
+          code: "INVALID_MESSAGE_BODY",
+        },
+      });
   });
 
   it("blocks moderated message bodies before persisting them", async () => {
