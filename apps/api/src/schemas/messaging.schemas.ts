@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validatePlainText } from "../services/text-safety.service.js";
 
 export const createConversationBodySchema = z
   .object({
@@ -12,7 +13,25 @@ export const conversationParamsSchema = z.object({
 
 export const sendMessageBodySchema = z
   .object({
-    body: z.string().trim().min(1).max(5000)
+    body: z
+      .string()
+      .transform((value, context) => {
+        const result = validatePlainText(value, {
+          allowMultiline: true,
+          maxLength: 5000,
+          minLength: 1
+        });
+
+        if (!result.ok) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: result.message
+          });
+          return z.NEVER;
+        }
+
+        return result.value;
+      })
   })
   .strict();
 

@@ -14,6 +14,7 @@ import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
+import { registerNotificationRoutes } from "./routes/notifications.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
 import {
   createEmailDeliveryService,
@@ -64,6 +65,14 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     },
     global: false,
     hook: "preHandler"
+  });
+
+  app.addHook("onRequest", async (_request, reply) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+    reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -134,6 +143,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
+    app.register(registerNotificationRoutes, { prefix: API_PREFIX });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });

@@ -25,6 +25,10 @@ export {
   realtimeProfileRoom,
   type ConversationUpdatedPayload,
   type MessageCreatedPayload,
+  type NotificationCreatedPayload,
+  type NotificationReadAllPayload,
+  type NotificationReadPayload,
+  type NotificationUnreadCountUpdatedPayload,
   type RealtimeClientToServerEvents,
   type RealtimeConversationRoomPayload,
   type RealtimeConversationSummary,
@@ -32,5 +36,8 @@ export {
   type RealtimeErrorPayload,
   type RealtimeEventName,
   type RealtimeMessage,
+  type RealtimeNotification,
+  type RealtimeNotificationActorProfile,
+  type RealtimeNotificationType,
   type RealtimeServerToClientEvents
 } from "./realtime.js";

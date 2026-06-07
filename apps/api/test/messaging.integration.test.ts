@@ -6,7 +6,9 @@ import {
   favorites,
   listingImages,
   listings,
+  messages,
   mfaOtpChallenges,
+  notifications,
   passwordResetTokens,
   profiles,
   sessions,
@@ -369,6 +371,81 @@ describe("messaging API", () => {
       .limit(1);
 
     expect(row?.lastMessageAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects dangerous HTML/script-like message bodies before persistence or realtime", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+    const emitSpy = vi.spyOn(app.realtime!.io, "to");
+
+    const scriptResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "<script>alert(1)</script>"
+      }
+    });
+    const imageHandlerResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "<img src=x onerror=alert(1)>"
+      }
+    });
+    const javascriptProtocolResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "javascript:alert(1)"
+      }
+    });
+    const persistedMessages = await app.db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(eq(messages.conversationId, conversation.id));
+    const createdNotifications = await app.db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(eq(notifications.entityId, conversation.id));
+
+    for (const response of [scriptResponse, imageHandlerResponse, javascriptProtocolResponse]) {
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        ok: false,
+        error: {
+          code: "INVALID_MESSAGE_BODY"
+        }
+      });
+    }
+    expect(persistedMessages).toHaveLength(0);
+    expect(createdNotifications).toHaveLength(0);
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
+  it("accepts valid Turkish and multiline plaintext messages", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "Merhaba, ürün hâlâ satılık mı?\nUygunsa bugün alabilirim."
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.message.body).toBe(
+      "Merhaba, ürün hâlâ satılık mı?\nUygunsa bugün alabilirim."
+    );
   });
 
   it("does not leak latestMessage conversation summaries to outsiders", async () => {

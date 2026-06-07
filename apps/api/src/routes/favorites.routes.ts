@@ -1,5 +1,9 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
+import {
+  publishNotificationCreated,
+  toNotificationCreatedPayload
+} from "../realtime/publisher.js";
 import { favoriteBodySchema, favoriteProfileParamsSchema } from "../schemas/favorites.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
@@ -9,6 +13,10 @@ import {
   type FavoriteActionResult,
   type FavoriteListingResponse
 } from "../services/favorites.service.js";
+import {
+  createNotification,
+  getUnreadNotificationCount
+} from "../services/notifications.service.js";
 
 type FavoriteActionResponse = ApiResponse<FavoriteActionResult>;
 
@@ -66,9 +74,41 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       });
     }
 
+    if (result.result.notificationTarget) {
+      const notification = await createNotification(app, {
+        recipientProfileId: result.result.notificationTarget.recipientProfileId,
+        actorProfileId: null,
+        type: "listing_favorited",
+        title: "Listing favorited",
+        body: "A listing was favorited.",
+        entityType: "listing",
+        entityId: result.result.notificationTarget.listingId,
+        metadata: {
+          source: "favorite_added"
+        }
+      });
+
+      if (notification) {
+        const unreadCount = await getUnreadNotificationCount(
+          app,
+          result.result.notificationTarget.recipientProfileId
+        );
+        await publishNotificationCreated(
+          app,
+          result.result.notificationTarget.recipientProfileId,
+          toNotificationCreatedPayload(notification, unreadCount)
+        );
+      }
+    }
+
+    const responseData: FavoriteActionResult = {
+      favorite: result.result.favorite,
+      ...(result.result.created !== undefined ? { created: result.result.created } : {})
+    };
+
     return reply.status(result.result.created ? 201 : 200).send({
       ok: true,
-      data: result.result
+      data: responseData
     });
   });
 

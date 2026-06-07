@@ -1,6 +1,13 @@
 "use client";
 
-import type { ApiResponse } from "@babyloop/shared";
+import {
+  REALTIME_EVENTS,
+  type NotificationCreatedPayload,
+  type NotificationReadAllPayload,
+  type NotificationReadPayload,
+  type NotificationUnreadCountUpdatedPayload,
+  type ApiResponse
+} from "@babyloop/shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +30,8 @@ import {
   formatListingCondition,
   formatListingPrice
 } from "../features/listings/listing-display";
+import { fetchUnreadNotificationCount } from "../features/notifications/api";
+import { getRealtimeSocket } from "../lib/realtime-client";
 
 type OpenMenu = "marketplace" | "sell" | "account" | "mobile" | null;
 
@@ -44,6 +53,7 @@ export function SiteHeader() {
   const { dictionary, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
 
   const marketplaceItems: NavItem[] = [
@@ -63,6 +73,16 @@ export function SiteHeader() {
             description: dictionary.nav.messagesDescription,
             href: "/conversations",
             label: dictionary.nav.messages
+          },
+          {
+            description: dictionary.nav.notificationsDescription,
+            href: "/notifications",
+            label: unreadNotificationCount > 0
+              ? dictionary.nav.notificationsWithCount.replace(
+                  "{count}",
+                  formatBadgeCount(unreadNotificationCount)
+                )
+              : dictionary.nav.notifications
           }
         ]
       : [])
@@ -87,6 +107,15 @@ export function SiteHeader() {
     ? [
         { href: "/favorites", label: dictionary.nav.favorites },
         { href: "/my-listings", label: dictionary.nav.myListings },
+        {
+          href: "/notifications",
+          label: unreadNotificationCount > 0
+            ? dictionary.nav.notificationsWithCount.replace(
+                "{count}",
+                formatBadgeCount(unreadNotificationCount)
+              )
+            : dictionary.nav.notifications
+        },
         { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail },
         { href: "/account/password", label: dictionary.nav.changePassword }
       ]
@@ -144,6 +173,70 @@ export function SiteHeader() {
       window.removeEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
     };
   }, [apiBaseUrl, pathname]);
+
+  useEffect(() => {
+    if (!currentAuth) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadUnreadCount() {
+      try {
+        const body = await fetchUnreadNotificationCount(apiBaseUrl);
+
+        if (isActive && body.ok) {
+          setUnreadNotificationCount(body.data.count);
+        }
+      } catch {
+        if (isActive) {
+          setUnreadNotificationCount(0);
+        }
+      }
+    }
+
+    void loadUnreadCount();
+
+    const socket = getRealtimeSocket(apiBaseUrl, getAuthToken());
+
+    if (!socket) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    function handleNotificationCreated(payload: NotificationCreatedPayload) {
+      setUnreadNotificationCount(payload.unreadCount);
+    }
+
+    function handleNotificationRead(payload: NotificationReadPayload) {
+      setUnreadNotificationCount(payload.unreadCount);
+    }
+
+    function handleNotificationReadAll(payload: NotificationReadAllPayload) {
+      setUnreadNotificationCount(payload.unreadCount);
+    }
+
+    function handleUnreadCountUpdated(payload: NotificationUnreadCountUpdatedPayload) {
+      setUnreadNotificationCount(payload.unreadCount);
+    }
+
+    socket.on(REALTIME_EVENTS.notificationCreated, handleNotificationCreated);
+    socket.on(REALTIME_EVENTS.notificationRead, handleNotificationRead);
+    socket.on(REALTIME_EVENTS.notificationReadAll, handleNotificationReadAll);
+    socket.on(REALTIME_EVENTS.notificationUnreadCountUpdated, handleUnreadCountUpdated);
+    socket.io.on("reconnect", loadUnreadCount);
+
+    return () => {
+      isActive = false;
+      socket.off(REALTIME_EVENTS.notificationCreated, handleNotificationCreated);
+      socket.off(REALTIME_EVENTS.notificationRead, handleNotificationRead);
+      socket.off(REALTIME_EVENTS.notificationReadAll, handleNotificationReadAll);
+      socket.off(REALTIME_EVENTS.notificationUnreadCountUpdated, handleUnreadCountUpdated);
+      socket.io.off("reconnect", loadUnreadCount);
+    };
+  }, [apiBaseUrl, currentAuth]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -230,15 +323,28 @@ export function SiteHeader() {
 
         <div className="header-auth">
           {currentAuth ? (
-            <AccountMenu
-              currentAuth={currentAuth}
-              items={accountItems}
-              label={dictionary.nav.account}
-              logoutLabel={dictionary.common.logout}
-              onLogout={handleLogout}
-              openMenu={openMenu}
-              setOpenMenu={setOpenMenu}
-            />
+            <>
+              <Link
+                className="notification-header-link"
+                href="/notifications"
+                onClick={closeMenus}
+                aria-label={dictionary.nav.notifications}
+              >
+                <span>{dictionary.nav.notifications}</span>
+                {unreadNotificationCount > 0 ? (
+                  <strong>{formatBadgeCount(unreadNotificationCount)}</strong>
+                ) : null}
+              </Link>
+              <AccountMenu
+                currentAuth={currentAuth}
+                items={accountItems}
+                label={dictionary.nav.account}
+                logoutLabel={dictionary.common.logout}
+                onLogout={handleLogout}
+                openMenu={openMenu}
+                setOpenMenu={setOpenMenu}
+              />
+            </>
           ) : (
             <div className="auth-actions">
               <Link className="ghost-auth-link" href="/login" onClick={closeMenus}>
@@ -567,4 +673,8 @@ function LanguageSwitcher({
       ))}
     </div>
   );
+}
+
+function formatBadgeCount(count: number): string {
+  return count > 99 ? "99+" : String(count);
 }

@@ -17,6 +17,11 @@ export type FavoriteActionResult = {
     listingId: string;
   };
   created?: boolean;
+  notificationTarget?: {
+    listingId: string;
+    listingTitle: string;
+    recipientProfileId: string;
+  };
   removed?: boolean;
 };
 
@@ -95,7 +100,16 @@ export async function addFavorite(
         profileId,
         listingId: body.listingId
       },
-      created
+      created,
+      ...(created
+        ? {
+            notificationTarget: {
+              listingId: listing.id,
+              listingTitle: listing.title,
+              recipientProfileId: listing.sellerProfileId
+            }
+          }
+        : {})
     }
   };
 }
@@ -187,6 +201,7 @@ async function findFavoriteableListing(app: FastifyInstance, listingId: string) 
     .select({
       id: listings.id,
       sellerProfileId: listings.sellerProfileId,
+      title: listings.title,
       status: listings.status
     })
     .from(listings)

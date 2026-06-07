@@ -226,6 +226,7 @@
   .listing-card,
   .detail-panel,
   .conversation-card,
+  .notifications-panel,
   .thread-panel,
   .form-panel {
     @apply rounded-lg border border-border bg-card shadow-soft;
@@ -297,6 +298,7 @@
 
   .auth-layout,
   .sell-layout,
+  .notifications-layout,
   .conversations-layout {
     @apply pt-0;
   }
@@ -382,6 +384,7 @@
   .listing-column,
   .conversation-list,
   .message-thread-layout,
+  .notifications-layout,
   .detail-media,
   .detail-gallery {
     @apply grid gap-4;
@@ -391,6 +394,8 @@
   .listing-card-body,
   .detail-panel,
   .conversation-card,
+  .notification-item,
+  .notifications-panel,
   .thread-panel {
     @apply p-5;
   }
@@ -449,6 +454,14 @@
     @apply text-muted-foreground;
   }
 
+  .detail-description,
+  .message-bubble p,
+  .message-preview,
+  .notification-body {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
   .detail-facts {
     @apply grid gap-2;
   }
@@ -481,8 +494,66 @@
     @apply justify-self-end border-primary/20 bg-primary/10;
   }
 
+  .message-bubble-new {
+    @apply border-primary/50 bg-primary/15;
+  }
+
+  .new-messages-button {
+    @apply sticky bottom-4 mx-auto inline-flex w-fit rounded-full border border-primary/30 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft;
+  }
+
+  .conversation-card-unread {
+    @apply border-primary/35 bg-primary/5;
+  }
+
+  .unread-dot {
+    @apply inline-grid h-2.5 w-2.5 rounded-full bg-primary;
+  }
+
   .message-composer {
     @apply grid gap-4 border-t border-border pt-5;
+  }
+
+  .notifications-panel {
+    @apply grid gap-4;
+  }
+
+  .notifications-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-3;
+  }
+
+  .notifications-toolbar p {
+    @apply text-sm font-semibold text-muted-foreground;
+  }
+
+  .notification-list {
+    @apply grid gap-3;
+  }
+
+  .notification-item {
+    @apply grid gap-4 rounded-lg border border-border bg-card sm:grid-cols-[1fr_auto] sm:items-start;
+  }
+
+  .notification-item-unread {
+    @apply border-primary/35 bg-primary/5;
+  }
+
+  .notification-body,
+  .notification-item time {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .notification-actions {
+    @apply flex flex-wrap items-center gap-2 text-sm font-semibold;
+  }
+
+  .notification-actions a,
+  .notification-actions button {
+    @apply rounded-md border border-border bg-background px-3 py-2 text-primary transition-colors hover:bg-muted;
+  }
+
+  .notification-actions span {
+    @apply rounded-md bg-muted px-3 py-2 text-muted-foreground;
   }
 
   .ui-badge-neutral {
@@ -627,6 +698,14 @@
 
   .account-trigger strong {
     @apply max-w-36 truncate text-sm text-foreground;
+  }
+
+  .notification-header-link {
+    @apply relative inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-3 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground;
+  }
+
+  .notification-header-link strong {
+    @apply grid min-h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground;
   }
 
   .header-tools {

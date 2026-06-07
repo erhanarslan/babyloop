@@ -1,22 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { formatDateTime, formatListingStatus } from "../listings/listing-display";
 import type { ConversationSummary } from "./api";
 
 type ConversationCardProps = {
   conversation: ConversationSummary;
+  isUnread?: boolean;
 };
 
-export function ConversationCard({ conversation }: ConversationCardProps) {
+export function ConversationCard({ conversation, isUnread = false }: ConversationCardProps) {
   const { dictionary, locale } = useI18n();
   const timestamp = conversation.lastMessageAt ?? conversation.updatedAt;
 
   return (
-    <article className="conversation-card">
+    <article className={cn("conversation-card", isUnread && "conversation-card-unread")}>
       <div>
-        <p className="listing-meta">{dictionary.messaging.conversationWith}</p>
+        <p className="listing-meta">
+          {isUnread ? <span className="unread-dot" aria-label={dictionary.messaging.unreadConversation} /> : null}
+          {dictionary.messaging.conversationWith}
+        </p>
         <h2>{conversation.otherProfile.displayName}</h2>
       </div>
       <div className="conversation-card-meta">

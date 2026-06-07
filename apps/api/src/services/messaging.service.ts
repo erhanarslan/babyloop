@@ -262,6 +262,13 @@ export async function listConversationParticipantProfileIds(
   return rows.map((row) => row.profileId);
 }
 
+export async function getConversationNotificationContext(
+  app: FastifyInstance,
+  conversationId: string
+): Promise<ListingContextResponse> {
+  return getLatestListingContext(app, conversationId);
+}
+
 export async function listMessagesForConversation(
   app: FastifyInstance,
   currentUser: CurrentUser,

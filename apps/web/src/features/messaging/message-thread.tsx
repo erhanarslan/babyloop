@@ -2,7 +2,7 @@
 
 import { REALTIME_EVENTS } from "@babyloop/shared";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState, LoadingBlock } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getAuthToken } from "../../lib/auth-client";
@@ -27,9 +27,14 @@ type MessageThreadProps = {
 
 export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps) {
   const { dictionary, locale } = useI18n();
+  const highlightTimersRef = useRef<number[]>([]);
+  const hasInitialScrollRef = useRef(false);
+  const messageEndRef = useRef<HTMLDivElement | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
+  const [highlightedMessageIds, setHighlightedMessageIds] = useState<Set<string>>(() => new Set());
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "forbidden" | "not-found" | "error" | null>(null);
@@ -37,6 +42,8 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setConversation(null);
     setMessages([]);
     setCurrentProfileId(null);
+    setHighlightedMessageIds(new Set());
+    setHasNewMessages(false);
     setMessage(null);
     setState(null);
     setIsLoading(false);
@@ -68,6 +75,12 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     apiBaseUrl,
     onUnauthenticated: clearProtectedState
   });
+  const scrollToLatestMessage = useCallback((behavior: ScrollBehavior) => {
+    messageEndRef.current?.scrollIntoView({
+      block: "end",
+      behavior
+    });
+  }, []);
 
   const loadThread = useCallback(async () => {
     if (!(await requireAuth())) {
@@ -111,11 +124,26 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   }, [apiBaseUrl, conversationId, dictionary.common.apiUnavailable, requireAuth]);
 
   useEffect(() => {
+    hasInitialScrollRef.current = false;
     setIsLoading(true);
     setMessage(null);
     setState(null);
     void loadThread();
-  }, [loadThread]);
+  }, [conversationId, loadThread]);
+
+  useEffect(() => {
+    if (!isLoading && messages.length > 0 && !hasInitialScrollRef.current) {
+      hasInitialScrollRef.current = true;
+      scrollToLatestMessage("auto");
+    }
+  }, [isLoading, messages.length, scrollToLatestMessage]);
+
+  useEffect(() => {
+    return () => {
+      highlightTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      highlightTimersRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     if (!conversation?.id || !currentProfileId || message) {
@@ -141,7 +169,32 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       message: Message;
     }) {
       if (payload.conversationId === conversationId) {
+        const isIncoming = payload.message.sender.id !== currentProfileId;
+        const shouldAutoScroll = isNearPageBottom();
         appendMessage(payload.message);
+
+        if (isIncoming) {
+          setHighlightedMessageIds((currentIds) => {
+            const nextIds = new Set(currentIds);
+            nextIds.add(payload.message.id);
+            return nextIds;
+          });
+
+          const timerId = window.setTimeout(() => {
+            setHighlightedMessageIds((currentIds) => {
+              const nextIds = new Set(currentIds);
+              nextIds.delete(payload.message.id);
+              return nextIds;
+            });
+          }, 2400);
+          highlightTimersRef.current.push(timerId);
+        }
+
+        if (shouldAutoScroll) {
+          window.setTimeout(() => scrollToLatestMessage("smooth"), 0);
+        } else if (isIncoming) {
+          setHasNewMessages(true);
+        }
       }
     }
 
@@ -219,33 +272,63 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             message={dictionary.messaging.sendFirstMessage}
           />
         ) : (
-          <ol className="message-list">
-            {messages.map((item) => (
-              <li
-                className={
-                  item.sender.id === currentProfileId
-                    ? "message-bubble message-bubble-own"
-                    : "message-bubble"
-                }
-                key={item.id}
+          <>
+            <ol className="message-list">
+              {messages.map((item) => (
+                <li
+                  className={[
+                    item.sender.id === currentProfileId
+                      ? "message-bubble message-bubble-own"
+                      : "message-bubble",
+                    highlightedMessageIds.has(item.id) ? "message-bubble-new" : ""
+                  ].filter(Boolean).join(" ")}
+                  key={item.id}
+                >
+                  <div>
+                    <strong>{item.sender.id === currentProfileId ? dictionary.messaging.you : item.sender.displayName}</strong>
+                    <time>{formatDateTime(item.createdAt, locale)}</time>
+                  </div>
+                  <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
+                </li>
+              ))}
+            </ol>
+            <div ref={messageEndRef} />
+            {hasNewMessages ? (
+              <button
+                className="new-messages-button"
+                type="button"
+                onClick={() => {
+                  setHasNewMessages(false);
+                  scrollToLatestMessage("smooth");
+                }}
               >
-                <div>
-                  <strong>{item.sender.id === currentProfileId ? dictionary.messaging.you : item.sender.displayName}</strong>
-                  <time>{formatDateTime(item.createdAt, locale)}</time>
-                </div>
-                <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
-              </li>
-            ))}
-          </ol>
+                {dictionary.messaging.newMessages}
+              </button>
+            ) : null}
+          </>
         )}
         <MessageComposer
           apiBaseUrl={apiBaseUrl}
           conversationId={conversationId}
-          onSent={appendMessage}
+          onSent={(sentMessage) => {
+            appendMessage(sentMessage);
+            window.setTimeout(() => scrollToLatestMessage("smooth"), 0);
+          }}
         />
       </section>
     </div>
   );
+}
+
+function isNearPageBottom(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const page = document.documentElement;
+  const distanceFromBottom = page.scrollHeight - window.scrollY - window.innerHeight;
+
+  return distanceFromBottom < 240;
 }
 
 function getErrorState(code: string): "auth" | "forbidden" | "not-found" | "error" {

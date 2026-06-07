@@ -47,6 +47,13 @@ export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "skipped"
 ]);
 
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "message_received",
+  "listing_favorited",
+  "listing_status_changed",
+  "system"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -364,6 +371,38 @@ export const messages = pgTable(
   ]
 );
 
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    recipientProfileId: uuid("recipient_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    actorProfileId: uuid("actor_profile_id").references(() => profiles.id, {
+      onDelete: "set null"
+    }),
+    type: notificationTypeEnum("type").notNull(),
+    title: varchar("title", { length: 180 }).notNull(),
+    body: text("body").notNull(),
+    entityType: varchar("entity_type", { length: 80 }),
+    entityId: uuid("entity_id"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("notifications_recipient_created_at_idx").on(
+      table.recipientProfileId,
+      table.createdAt
+    ),
+    index("notifications_recipient_read_at_idx").on(table.recipientProfileId, table.readAt),
+    index("notifications_entity_idx").on(table.entityType, table.entityId)
+  ]
+);
+
 export const events = pgTable(
   "events",
   {
@@ -426,6 +465,7 @@ export const schema = {
   listings,
   messages,
   mfaOtpChallenges,
+  notifications,
   passwordResetTokens,
   productCategories,
   profiles,

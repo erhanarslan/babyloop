@@ -144,12 +144,13 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
 
 function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
   const { dictionary } = useI18n();
+  const avatarUrl = getSafeImageUrl(listing.seller.avatarUrl);
 
   return (
     <Card className="seller-card" aria-label={dictionary.listings.sellerInformationAriaLabel}>
       <div className="seller-avatar" aria-hidden="true">
-        {listing.seller.avatarUrl ? (
-          <img src={listing.seller.avatarUrl} alt="" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" />
         ) : (
           <span>{listing.seller.displayName.slice(0, 1).toUpperCase()}</span>
         )}
@@ -161,4 +162,18 @@ function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
       </div>
     </Card>
   );
+}
+
+function getSafeImageUrl(url: string | null): string | null {
+  if (!url) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
 }

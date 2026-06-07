@@ -5,6 +5,7 @@ import {
   realtimeProfileRoom,
   type ConversationUpdatedPayload,
   type MessageCreatedPayload,
+  type NotificationCreatedPayload,
   type RealtimeClientToServerEvents,
   type RealtimeServerToClientEvents
 } from "../src/realtime.js";
@@ -16,6 +17,10 @@ describe("realtime contracts", () => {
       conversationLeave: "conversation:leave",
       conversationUpdated: "conversation:updated",
       messageCreated: "message:created",
+      notificationCreated: "notification:created",
+      notificationRead: "notification:read",
+      notificationReadAll: "notification:read_all",
+      notificationUnreadCountUpdated: "notification:unread_count_updated",
       realtimeError: "realtime:error"
     });
   });
@@ -72,12 +77,42 @@ describe("realtime contracts", () => {
     expect(payload.conversation.latestMessage?.senderProfileId).toBe("profile-2");
   });
 
+  it("accepts the documented notification created payload shape", () => {
+    const payload = {
+      notification: {
+        id: "notification-1",
+        recipientProfileId: "profile-2",
+        actorProfile: {
+          id: "profile-1",
+          displayName: "Ada"
+        },
+        type: "message_received",
+        title: "New message",
+        body: "Ada: Merhaba",
+        entityType: "conversation",
+        entityId: "conversation-1",
+        metadata: {
+          messageId: "message-1"
+        },
+        readAt: null,
+        createdAt: "2026-06-05T09:00:00.000Z"
+      },
+      unreadCount: 1
+    } satisfies NotificationCreatedPayload;
+
+    expect(payload.notification.type).toBe("message_received");
+    expect(payload.unreadCount).toBe(1);
+  });
+
   it("exposes typed client and server event maps", () => {
     const joinHandler: RealtimeClientToServerEvents["conversation:join"] = (payload) => {
       expect(payload.conversationId).toBe("conversation-1");
     };
     const messageHandler: RealtimeServerToClientEvents["message:created"] = (payload) => {
       expect(payload.conversationId).toBe("conversation-1");
+    };
+    const notificationHandler: RealtimeServerToClientEvents["notification:created"] = (payload) => {
+      expect(payload.unreadCount).toBe(1);
     };
 
     joinHandler({ conversationId: "conversation-1" });
@@ -94,6 +129,22 @@ describe("realtime contracts", () => {
         createdAt: "2026-06-05T09:00:00.000Z",
         deletedAt: null
       }
+    });
+    notificationHandler({
+      notification: {
+        id: "notification-1",
+        recipientProfileId: "profile-2",
+        actorProfile: null,
+        type: "system",
+        title: "System",
+        body: "Hello",
+        entityType: null,
+        entityId: null,
+        metadata: {},
+        readAt: null,
+        createdAt: "2026-06-05T09:00:00.000Z"
+      },
+      unreadCount: 1
     });
   });
 });

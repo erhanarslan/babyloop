@@ -3,6 +3,10 @@ export const REALTIME_EVENTS = {
   conversationLeave: "conversation:leave",
   conversationUpdated: "conversation:updated",
   messageCreated: "message:created",
+  notificationCreated: "notification:created",
+  notificationRead: "notification:read",
+  notificationReadAll: "notification:read_all",
+  notificationUnreadCountUpdated: "notification:unread_count_updated",
   realtimeError: "realtime:error"
 } as const;
 
@@ -57,6 +61,31 @@ export type RealtimeConversationSummary = {
   updatedAt: string;
 };
 
+export type RealtimeNotificationType =
+  | "message_received"
+  | "listing_favorited"
+  | "listing_status_changed"
+  | "system";
+
+export type RealtimeNotificationActorProfile = {
+  id: string;
+  displayName: string;
+} | null;
+
+export type RealtimeNotification = {
+  id: string;
+  recipientProfileId: string;
+  actorProfile: RealtimeNotificationActorProfile;
+  type: RealtimeNotificationType;
+  title: string;
+  body: string;
+  entityType: string | null;
+  entityId: string | null;
+  metadata: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+};
+
 export type MessageCreatedPayload = {
   conversationId: string;
   message: RealtimeMessage;
@@ -67,6 +96,26 @@ export type ConversationUpdatedPayload = {
   conversation: RealtimeConversationSummary;
 };
 
+export type NotificationCreatedPayload = {
+  notification: RealtimeNotification;
+  unreadCount: number;
+};
+
+export type NotificationReadPayload = {
+  notificationId: string;
+  readAt: string;
+  unreadCount: number;
+};
+
+export type NotificationReadAllPayload = {
+  updatedCount: number;
+  unreadCount: number;
+};
+
+export type NotificationUnreadCountUpdatedPayload = {
+  unreadCount: number;
+};
+
 export type RealtimeClientToServerEvents = {
   [REALTIME_EVENTS.conversationJoin]: (payload: RealtimeConversationRoomPayload) => void;
   [REALTIME_EVENTS.conversationLeave]: (payload: RealtimeConversationRoomPayload) => void;
@@ -75,6 +124,12 @@ export type RealtimeClientToServerEvents = {
 export type RealtimeServerToClientEvents = {
   [REALTIME_EVENTS.conversationUpdated]: (payload: ConversationUpdatedPayload) => void;
   [REALTIME_EVENTS.messageCreated]: (payload: MessageCreatedPayload) => void;
+  [REALTIME_EVENTS.notificationCreated]: (payload: NotificationCreatedPayload) => void;
+  [REALTIME_EVENTS.notificationRead]: (payload: NotificationReadPayload) => void;
+  [REALTIME_EVENTS.notificationReadAll]: (payload: NotificationReadAllPayload) => void;
+  [REALTIME_EVENTS.notificationUnreadCountUpdated]: (
+    payload: NotificationUnreadCountUpdatedPayload
+  ) => void;
   [REALTIME_EVENTS.realtimeError]: (payload: RealtimeErrorPayload) => void;
 };
 

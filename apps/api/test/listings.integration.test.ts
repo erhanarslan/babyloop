@@ -145,6 +145,65 @@ describe("listings API", () => {
     expect(listingIds).not.toContain(soldListing.id);
   });
 
+  it("rejects dangerous HTML/script-like listing title and description", async () => {
+    const seller = await createUser(app);
+    const category = await createCategory(app.db);
+    const scriptTitle = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "POST",
+      url: "/api/v1/listings",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        listingType: "sale",
+        priceAmount: "1000.00",
+        title: "<script>alert(1)</script>"
+      }
+    });
+    const dangerousDescription = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "POST",
+      url: "/api/v1/listings",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        description: "<img src=x onerror=alert(1)>",
+        listingType: "sale",
+        priceAmount: "1000.00",
+        title: "Clean baby stroller"
+      }
+    });
+
+    expect(scriptTitle.statusCode).toBe(400);
+    expect(dangerousDescription.statusCode).toBe(400);
+  });
+
+  it("accepts valid plaintext listing title and description", async () => {
+    const seller = await createUser(app);
+    const category = await createCategory(app.db);
+    const response = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "POST",
+      url: "/api/v1/listings",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        description: "Temiz kullanıldı. Puset ve yağmurluk dahildir.",
+        listingType: "sale",
+        priceAmount: "1000.00",
+        title: "Temiz bebek arabası"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.listing).toMatchObject({
+      title: "Temiz bebek arabası"
+    });
+  });
+
   it("publicly returns active listing detail", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);

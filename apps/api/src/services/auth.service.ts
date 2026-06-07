@@ -53,6 +53,7 @@ import {
   hashMfaOtpCode,
   MFA_OTP_TTL_SECONDS
 } from "../utils/mfa-otp.js";
+import { safePlainTextFallback } from "./text-safety.service.js";
 
 export type SafeAuthUser = {
   id: string;
@@ -1185,19 +1186,23 @@ function normalizeEmail(email: string): string {
 }
 
 function buildGoogleProfileDisplayName(googleProfile: GoogleUserInfo, email: string): string {
+  const [emailPrefix] = email.split("@");
+  const fallback = emailPrefix && emailPrefix.length >= 2
+    ? safePlainTextFallback(emailPrefix, "BabyLoop User", {
+        maxLength: 120,
+        minLength: 2
+      })
+    : "BabyLoop User";
   const name = googleProfile.name?.trim();
 
   if (name && name.length >= 2) {
-    return name.slice(0, 120);
+    return safePlainTextFallback(name, fallback, {
+      maxLength: 120,
+      minLength: 2
+    });
   }
 
-  const [emailPrefix] = email.split("@");
-
-  if (emailPrefix && emailPrefix.length >= 2) {
-    return emailPrefix.slice(0, 120);
-  }
-
-  return "BabyLoop User";
+  return fallback;
 }
 
 function serializeDate(value: Date | null): string | null {

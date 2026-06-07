@@ -8,14 +8,25 @@ import {
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createOrGetConversation,
+  getConversationNotificationContext,
   getConversationForProfile,
+  listConversationParticipantProfileIds,
   listConversationsForProfile,
   listMessagesForConversation,
   sendMessage,
   type ConversationSummaryResponse,
   type MessageResponse
 } from "../services/messaging.service.js";
-import { publishPersistedMessage } from "../realtime/publisher.js";
+import {
+  publishNotificationCreated,
+  publishPersistedMessage,
+  toNotificationCreatedPayload
+} from "../realtime/publisher.js";
+import {
+  createNotification,
+  getUnreadNotificationCount
+} from "../services/notifications.service.js";
+import { safePlainTextFallback } from "../services/text-safety.service.js";
 
 type ConversationResponse = ApiResponse<{
   conversation: ConversationSummaryResponse;
@@ -190,7 +201,7 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       }
 
       if (!parsedBody.success) {
-        return reply.status(400).send(invalidMessagingRequest("Message body is invalid."));
+        return reply.status(400).send(invalidMessageBodyRequest());
       }
 
       const moderation = moderateMessageBody(parsedBody.data.body);
@@ -205,6 +216,12 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
 
+      await createMessageReceivedNotifications(app, {
+        conversationId: parsedParams.data.id,
+        message: result.message,
+        senderDisplayName: currentUser.profile.displayName,
+        senderProfileId: currentUser.profile.id
+      });
       await publishPersistedMessage(app, parsedParams.data.id, result.message);
 
       return reply.status(201).send({
@@ -223,6 +240,68 @@ function messageBlockedResponse(): ApiResponse<never> {
     error: {
       code: "MESSAGE_BLOCKED",
       message: "Message was blocked by moderation."
+    }
+  };
+}
+
+async function createMessageReceivedNotifications(
+  app: FastifyInstance,
+  input: {
+    conversationId: string;
+    message: MessageResponse;
+    senderDisplayName: string;
+    senderProfileId: string;
+  }
+): Promise<void> {
+  const [participantProfileIds, contextListing] = await Promise.all([
+    listConversationParticipantProfileIds(app, input.conversationId),
+    getConversationNotificationContext(app, input.conversationId)
+  ]);
+  const senderDisplayName = safePlainTextFallback(input.senderDisplayName, "BabyLoop user", {
+    maxLength: 120,
+    minLength: 1
+  });
+
+  await Promise.all(
+    participantProfileIds.map(async (recipientProfileId) => {
+      const notification = await createNotification(app, {
+        recipientProfileId,
+        actorProfileId: input.senderProfileId,
+        type: "message_received",
+        title: "New message",
+        body: `${senderDisplayName}: ${truncateNotificationText(input.message.body)}`,
+        entityType: "conversation",
+        entityId: input.conversationId,
+        metadata: {
+          ...(contextListing ? { listingId: contextListing.id } : {}),
+          messageId: input.message.id
+        }
+      });
+
+      if (!notification) {
+        return;
+      }
+
+      const unreadCount = await getUnreadNotificationCount(app, recipientProfileId);
+      await publishNotificationCreated(
+        app,
+        recipientProfileId,
+        toNotificationCreatedPayload(notification, unreadCount)
+      );
+    })
+  );
+}
+
+function truncateNotificationText(input: string): string {
+  return input.length > 120 ? `${input.slice(0, 117)}...` : input;
+}
+
+function invalidMessageBodyRequest(): ApiResponse<never> {
+  return {
+    ok: false,
+    error: {
+      code: "INVALID_MESSAGE_BODY",
+      message: "Message body must be safe plaintext."
     }
   };
 }

@@ -1,16 +1,12 @@
 import { z } from "zod";
+import { validatePlainText } from "../services/text-safety.service.js";
 
 export const registerBodySchema = z
   .object({
     email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
     password: z.string().min(8).max(128),
-    displayName: z.string().trim().min(2).max(120),
-    locationCity: z
-      .string()
-      .trim()
-      .max(120)
-      .optional()
-      .transform((value) => (value && value.length > 0 ? value : null))
+    displayName: plainTextField({ maxLength: 120, minLength: 2 }),
+    locationCity: optionalPlainTextField({ maxLength: 120 })
   })
   .strict();
 
@@ -68,3 +64,49 @@ export type PasswordChangeBody = z.infer<typeof passwordChangeSchema>;
 export type EmailVerificationRequestBody = z.infer<typeof emailVerificationRequestSchema>;
 export type EmailVerificationConfirmBody = z.infer<typeof emailVerificationConfirmSchema>;
 export type MfaVerifyBody = z.infer<typeof mfaVerifySchema>;
+
+function plainTextField(options: {
+  maxLength: number;
+  minLength: number;
+}) {
+  return z.string().transform((value, context) => {
+    const result = validatePlainText(value, options);
+
+    if (!result.ok) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.message
+      });
+      return z.NEVER;
+    }
+
+    return result.value;
+  });
+}
+
+function optionalPlainTextField(options: { maxLength: number }) {
+  return z
+    .string()
+    .transform((value, context) => {
+      if (value.trim().length === 0) {
+        return null;
+      }
+
+      const result = validatePlainText(value, {
+        ...options,
+        minLength: 1
+      });
+
+      if (!result.ok) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: result.message
+        });
+        return z.NEVER;
+      }
+
+      return result.value;
+    })
+    .optional()
+    .transform((value) => value ?? null);
+}

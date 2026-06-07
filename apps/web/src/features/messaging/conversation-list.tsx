@@ -8,6 +8,7 @@ import { getAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { fetchCurrentUser } from "../auth/api";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
 
@@ -18,11 +19,15 @@ type ConversationListProps = {
 export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   const { dictionary } = useI18n();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
+  const [unreadConversationIds, setUnreadConversationIds] = useState<Set<string>>(() => new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<"auth" | "error" | null>(null);
   const clearProtectedState = useCallback(() => {
     setConversations([]);
+    setCurrentProfileId(null);
+    setUnreadConversationIds(new Set());
     setMessage(null);
     setState(null);
     setIsLoading(false);
@@ -38,15 +43,25 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
     }
 
     try {
-      const body = await fetchConversations(apiBaseUrl);
+      const [currentUserBody, conversationsBody] = await Promise.all([
+        fetchCurrentUser(apiBaseUrl),
+        fetchConversations(apiBaseUrl)
+      ]);
 
-      if (!body.ok) {
-        setState(body.error.code === "FORBIDDEN" || body.error.code === "UNAUTHORIZED" ? "auth" : "error");
-        setMessage(getApiErrorMessage(body.error, dictionary));
+      if (!currentUserBody.ok) {
+        setState("auth");
+        setMessage(getApiErrorMessage(currentUserBody.error, dictionary));
         return;
       }
 
-      setConversations(body.data.conversations);
+      if (!conversationsBody.ok) {
+        setState(conversationsBody.error.code === "FORBIDDEN" || conversationsBody.error.code === "UNAUTHORIZED" ? "auth" : "error");
+        setMessage(getApiErrorMessage(conversationsBody.error, dictionary));
+        return;
+      }
+
+      setCurrentProfileId(currentUserBody.data.profile.id);
+      setConversations(conversationsBody.data.conversations);
       setMessage(null);
       setState(null);
     } catch {
@@ -62,7 +77,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   }, [loadConversations]);
 
   useEffect(() => {
-    if (isCheckingAuth || isLoading || message) {
+    if (isCheckingAuth || isLoading || message || !currentProfileId) {
       return;
     }
 
@@ -81,6 +96,17 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
           ...currentConversations.filter((conversation) => conversation.id !== payload.conversationId)
         ])
       );
+
+      if (
+        payload.conversation.latestMessage &&
+        payload.conversation.latestMessage.senderProfileId !== currentProfileId
+      ) {
+        setUnreadConversationIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.add(payload.conversationId);
+          return nextIds;
+        });
+      }
     }
 
     function handleReconnect() {
@@ -94,7 +120,7 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
       realtimeSocket.off(REALTIME_EVENTS.conversationUpdated, handleConversationUpdated);
       realtimeSocket.io.off("reconnect", handleReconnect);
     };
-  }, [apiBaseUrl, isCheckingAuth, isLoading, loadConversations, message]);
+  }, [apiBaseUrl, currentProfileId, isCheckingAuth, isLoading, loadConversations, message]);
 
   if (isCheckingAuth || isLoading) {
     return <LoadingBlock title={dictionary.messaging.loadingConversations} />;
@@ -125,7 +151,11 @@ export function ConversationList({ apiBaseUrl }: ConversationListProps) {
   return (
     <div className="conversation-list">
       {conversations.map((conversation) => (
-        <ConversationCard conversation={conversation} key={conversation.id} />
+        <ConversationCard
+          conversation={conversation}
+          isUnread={unreadConversationIds.has(conversation.id)}
+          key={conversation.id}
+        />
       ))}
     </div>
   );
