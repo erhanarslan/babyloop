@@ -14,7 +14,7 @@ This repository currently contains a verified local MVP foundation:
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
 - `packages/ai-core`: deterministic mock listing suggestion provider
 
-The current auth slice includes email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, and MFA OTP backend foundation.
+The current auth slice includes email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, and MFA OTP backend foundation. These are local/product foundations, not a claim of production-ready auth operations.
 
 Admin, worker, mobile app, real AI providers, pricing, RAG, recommendations, production email delivery, and payments are intentionally delayed.
 
@@ -37,8 +37,9 @@ Partially implemented:
 
 | Area | Current limitation |
 | --- | --- |
-| Auth/session | Session foundation exists, but production hardening, device/session management UI, and deployment validation remain incomplete. |
+| Auth/session | Session, logout, password reset, email verification, and Google OAuth foundations exist, but production hardening, device/session management UI, provider validation, and deployment validation remain incomplete. |
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
+| Listing images | Local upload/storage works for development and tests, but production object storage, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are deferred. |
 | Messaging | List/thread/send/realtime/read-state works, but report/block flows, attachments, and durable per-conversation read receipts remain deferred. |
 | AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
 | Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
@@ -58,7 +59,7 @@ Intentionally deferred:
 
 - admin, worker, and mobile apps
 - real AI providers, pricing, RAG, recommendations, and AI moderation
-- notifications and background automation
+- background workers/automation and notification delivery expansion
 - production-grade auth/session hardening
 
 ## Install
@@ -112,7 +113,7 @@ Listing image uploads use local runtime storage by default:
 UPLOAD_ROOT=var/uploads
 ```
 
-`var/uploads/` is ignored by git. PostgreSQL stores image metadata and API-relative URLs, not raw image bytes. See [docs/30-listing-image-upload-and-safety.md](/Users/erhan-pc-mac/Desktop/babyloop/docs/30-listing-image-upload-and-safety.md) for safety rules and the future R2/S3 migration path.
+`var/uploads/` is ignored by git. PostgreSQL stores image metadata and API-relative URLs, not raw image bytes. Local upload validates MIME type, extension, magic bytes, size, count, and ownership. Production object storage, transforms/resizing, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are still missing. See [docs/30-listing-image-upload-and-safety.md](/Users/erhan-pc-mac/Desktop/babyloop/docs/30-listing-image-upload-and-safety.md) for safety rules and the future R2/S3 migration path.
 
 ## Development
 
@@ -424,8 +425,8 @@ Current auth is a local-first email/password implementation:
 - `AUTH_SECRET` is required when `DATABASE_URL` is configured and must be at least 32 characters.
 - Default access token TTL is 15 minutes; set `AUTH_TOKEN_TTL_SECONDS` only for local dev overrides.
 - `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW_SECONDS` apply to register/login endpoints.
-- Web token storage currently uses `localStorage`; HTTP-only cookies, refresh tokens, session tables,
-  email verification, and password reset are intentionally delayed production hardening items.
+- Web token storage currently uses `localStorage`; HTTP-only cookies, richer session/device management,
+  production email delivery, provider validation, and deployment hardening remain incomplete.
 - `ALLOW_AUTH_UNAVAILABLE=true` is only for local unavailable-mode testing.
 
 The mock AI endpoint writes to `ai_model_runs` when `DATABASE_URL` is configured. If database logging is unavailable, the suggestion response should still work.
@@ -440,16 +441,17 @@ See [docs/28-listing-lifecycle-and-platform-foundation.md](/Users/erhan-pc-mac/D
 
 ## Image Upload Status
 
-Manual `imageUrls` are currently supported only as a temporary local-development bridge.
-They are not a production listing image flow.
+Local listing image upload is now the primary development/test image flow. Manual `imageUrls` are still supported as a temporary compatibility bridge.
+Neither local disk upload nor manual URLs are a production listing image storage strategy.
 
 Future production upload work should add:
 
 - signed upload URLs
 - durable object storage
-- file type validation
-- file size limits
-- image metadata persistence
+- transforms/resizing
+- EXIF stripping
+- CDN/cache strategy
+- upload rate limits
 - moderation/safety checks before broad marketplace distribution
 
 Optional API CORS override:

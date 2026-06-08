@@ -85,7 +85,7 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] unauthenticated upload is rejected
 - [ ] non-owner upload/delete/reorder is rejected
 - [ ] SVG is rejected
-- [ ] HTML/JS disguised as image is rejected
+- [ ] fake `.jpg`/`.png` HTML or JS content is rejected
 - [ ] MIME/extension/magic-byte mismatch is rejected
 - [ ] oversized image is rejected
 - [ ] more than 5 uploaded/listing images is rejected
@@ -101,6 +101,9 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] duplicate favorite is idempotent
 - [ ] remove favorite is idempotent
 - [ ] event logging works only when favorite state changes
+- [ ] favorite notification does not expose actor display name, email, profile id, or user id
+- [ ] listing detail and seller listing responses expose privacy-safe `favoriteCount`
+- [ ] favorite/unfavorite updates `favoriteCount` without exposing who favorited the listing
 
 ### Messaging
 
@@ -110,8 +113,20 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] only participants can read thread
 - [ ] non-participants blocked
 - [ ] blank messages rejected
+- [ ] unsafe HTML/script message bodies are rejected without a 500
+- [ ] conversation list fetch does not mark unread messages or notifications as read
+- [ ] notification list fetch does not mark unread notifications as read
+- [ ] explicit conversation-read flow only marks the current user's relevant unread state
 - [ ] `lastMessageAt` updated after sending a message
 - [ ] `latestMessage` appears in conversation list when available
+
+### Notifications
+
+- [ ] auth required for notification list and unread count
+- [ ] unread count increases after receiving a message notification
+- [ ] unread count decreases after marking related message content read
+- [ ] mark-one-read updates only the current user's notification
+- [ ] mark-all-read updates only the current user's notifications
 
 ### AI
 
@@ -145,18 +160,29 @@ Checklist:
 - [ ] listing image file picker accepts PNG/JPEG/WEBP
 - [ ] local image preview appears before submit
 - [ ] valid uploaded image appears on listing detail
+- [ ] valid uploaded image appears as browse thumbnail
 - [ ] valid uploaded image appears as my-listings thumbnail
+- [ ] seller can delete an uploaded image and listing detail updates
+- [ ] non-owner cannot upload, delete, or reorder another seller's listing images
 - [ ] SVG upload is rejected with friendly copy
+- [ ] fake `.jpg` HTML upload is rejected with friendly copy
 - [ ] oversized image is rejected with friendly copy
+- [ ] sixth image is rejected or blocked with friendly copy
 - [ ] valid image URLs can still be submitted as compatibility metadata
 - [ ] invalid image URL fails instead of silently creating bad image metadata
 - [ ] favorite/unfavorite
+- [ ] favorite notification privacy remains intact
+- [ ] favoriteCount updates after favorite/unfavorite
 - [ ] favorites page
 - [ ] my listings page
 - [ ] message seller
 - [ ] conversations page
 - [ ] conversation detail page
 - [ ] send message
+- [ ] unsafe message body is rejected with friendly copy and no script executes
+- [ ] messaging unread/read behavior only clears after conversation content is viewed
+- [ ] notification unread count stays accurate after read/read-all and conversation-read flows
+- [ ] mobile width check for listing image previews and messaging thread/composer
 
 Seeded account flow:
 

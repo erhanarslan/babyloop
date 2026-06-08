@@ -80,7 +80,7 @@ Sold listings can be archived, but not reactivated directly.
 `docker-compose.dev.yml` runs local dependencies only:
 
 - PostgreSQL 16 for `babyloop_dev`
-- Redis 7 for future queues, Socket.IO adapter work, rate-limit storage, and notifications
+- Redis 7 for future queues, Socket.IO adapter work, rate-limit storage, and notification delivery expansion
 
 Web and API still run with pnpm on the host machine.
 
@@ -132,7 +132,7 @@ No deployment, Docker image push, cloud infrastructure, or production release wo
 
 ## Listing Image Storage
 
-Listing image upload is implemented for local development and tests:
+Listing image upload is implemented as a local development/test foundation:
 
 - files are stored under `var/uploads/listings/<listingId>/`
 - `var/uploads/` is gitignored
@@ -142,6 +142,7 @@ Listing image upload is implemented for local development and tests:
 - max size is 5MB per image
 - max count is 5 images per listing
 - image serving uses `/api/v1/uploads/listings/:listingId/:filename`
+- production object storage, transforms/resizing, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are not implemented yet
 
 Future R2/S3-compatible object storage should preserve the API contract.
 
@@ -149,7 +150,7 @@ Future R2/S3-compatible object storage should preserve the API contract.
 
 Intentionally deferred:
 
-- R2/S3 image storage integration and image moderation
+- R2/S3 image storage integration, transforms/resizing, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
 - Redis-backed queues and Socket.IO adapter
 - saved searches
 - admin moderation

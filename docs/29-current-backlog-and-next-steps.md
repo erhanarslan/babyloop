@@ -4,6 +4,10 @@
 
 This document keeps the BabyLoop backlog aligned with the actual codebase so future work starts from true project state.
 
+## Product Vision
+
+BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby/child products.
+
 ## Completed Or Mostly Completed
 
 - pnpm monorepo
@@ -47,7 +51,7 @@ This document keeps the BabyLoop backlog aligned with the actual codebase so fut
 - Google OAuth production validation
 - MFA user-facing management
 - listing discovery/filtering
-- image handling beyond local storage
+- image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
 - moderation/report/block workflow
 - realtime production scaling
 - AI production/provider/RAG features
@@ -59,7 +63,7 @@ This document keeps the BabyLoop backlog aligned with the actual codebase so fut
 - production-safe auth/session transport and device/session UI
 - real email provider
 - verified Google OAuth deployment config
-- R2/S3-compatible image storage and image moderation
+- R2/S3-compatible image storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
 - report user/listing/message
 - block user
 - moderation queue/admin review
@@ -69,12 +73,37 @@ This document keeps the BabyLoop backlog aligned with the actual codebase so fut
 
 ## Next P0 Tasks
 
+- Complete Phase 0 cleanup and manual QA for auth, listing lifecycle, local image upload, favorites, notifications, messaging, realtime, and mobile-width checks.
 - Add report/block workflow for listings, messages, and users.
 - Add admin/moderation queue foundation.
 - Move image storage from local disk to an S3/R2-compatible provider without changing public API contracts.
 - Add image moderation and safer image processing/metadata handling.
 - Add production email delivery.
 - Add web E2E tests for auth, listing create/upload, favorites, notifications, and messaging.
+
+## Product Foundation Roadmap
+
+P0:
+
+- Phase 0 cleanup/manual QA.
+- Trust & Safety: report/block/moderation foundation.
+- Admin/backoffice moderation foundation.
+- Account security panel for sessions/devices, production email, Google OAuth validation, and MFA management.
+
+P1:
+
+- Search/discovery with filters, pagination, saved search, and ranking.
+- Seller dashboard with listing lifecycle, favoriteCount, and messaging activity summaries.
+- Mobile-first UI pass, including a WhatsApp-like chat UI direction. This is a UX direction, not WhatsApp integration.
+- Hybrid payment model: external agreement mode plus optional safe payment mode.
+
+P2:
+
+- AI recommendation and intelligence layer with real provider support.
+- AI ops/workers for asynchronous suggestions, moderation assistance, and auditability.
+- RAG/recommendation layer after the core marketplace data and trust foundations are stable.
+- Mobile app exploration after web flows and trust foundations mature.
+- Future admin-managed pinned promo cards in conversations.
 
 ## P1/P2 Future Features
 

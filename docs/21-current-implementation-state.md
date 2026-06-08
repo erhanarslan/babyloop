@@ -70,7 +70,7 @@ Local MVP foundation with several production-oriented building blocks
 | Google OAuth | Foundation exists, but production client validation and environment rollout remain incomplete. |
 | MFA | Backend OTP foundation exists; user-facing MFA management is deferred. |
 | Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
-| Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN strategy, image moderation, and image transforms are deferred. |
+| Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN/cache strategy, EXIF stripping, image moderation, upload rate limits, and image transforms/resizing are deferred. |
 | Messaging | Realtime and read state work. Report/block flows, attachments, durable per-conversation read receipts, and moderation queue are deferred. |
 | Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
 | AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
@@ -146,7 +146,7 @@ See `docs/30-listing-image-upload-and-safety.md`.
 - production auth/session hardening and device management
 - real email delivery
 - production Google OAuth validation
-- image moderation and object storage migration
+- production image storage: object storage migration, CDN/cache strategy, EXIF stripping, transforms/resizing, upload rate limits, and image moderation
 - search filters and pagination
 - report/block/moderation queue
 - Redis-backed realtime scaling

@@ -34,67 +34,93 @@ Current stabilization concerns:
 
 ## Stabilization Rule
 
-Until the current foundation is stable, do not add:
+Treat the current codebase as a working foundation. Future work should move through the phases below deliberately instead of jumping into unrelated product areas. Keep API contracts documented, keep database migrations safe, and keep privacy/security fixes intact.
 
-- admin panel
-- mobile app
-- real AI provider
-- payments
-- full UI redesign
-- moderation queue
-- background workers
+Stable contracts to preserve:
 
-## Phase 1: Contract Stabilization
-
-Public API request/response keys use `camelCase`.
-
-Confirmed current direction:
-
-- listing creation uses `categoryId`, `priceAmount`, `listingType`, `imageUrls`.
-- `imageUrls` remains supported for compatibility, but local file upload is now the preferred image path.
+- public API request/response keys use `camelCase`.
+- database table and column names remain `snake_case`.
+- listing creation still accepts `categoryId`, `priceAmount`, `listingType`, and compatibility `imageUrls`.
+- local file upload is now the preferred listing image path for development and tests.
 - favorites use `listingId`.
 - messaging uses `listingId` only as listing context input.
+- conversations are one channel per profile pair, with listing context attached through `conversation_listing_contexts`.
+- message bodies remain safe plaintext.
 
-Database table and column names remain `snake_case`.
+## Recommended Sequence
 
-## Phase 2: Messaging Stabilization
+### Phase 0: Cleanup and Manual QA
 
-Canonical model:
+- finish stale documentation cleanup.
+- run manual QA for auth, listing lifecycle, image upload, favorites, notifications, messaging, realtime, and mobile-width checks.
+- add web/E2E tests only after the manual critical path is stable enough to encode.
 
-- exactly one conversation channel between two profiles.
-- `conversations` uses normalized profile-pair columns: `profile_low_id`, `profile_high_id`.
-- listings are attached through `conversation_listing_contexts`.
-- `conversation_participants` remains for access checks and future flexibility.
-- `messages` stores plain text messages.
+### Phase 1: Trust & Safety / Report / Block / Moderation Foundation
 
-The old listing-based conversation model is deprecated.
+- report listing/user/message flows.
+- block user behavior.
+- moderation queue data model and API foundation.
+- preserve favorite actor privacy and plaintext messaging safety.
 
-## Phase 3: Validation and Tests
+### Phase 2: Admin Foundation
 
-Already present:
+- admin/backoffice auth boundary.
+- moderation queue review tools.
+- safe audit views for reports, listings, users, and messages.
 
-- API integration tests under `apps/api/test`.
-- Vitest API tests use `fastify.inject`.
-- Auth, listings, favorites, messaging, and mock AI have API-level coverage.
-- listing lifecycle foundation with owner edit/status APIs and minimal web controls.
-- local Docker Compose dependency stack for PostgreSQL and Redis.
-- GitHub Actions CI foundation for typecheck, shared unit tests, API integration tests, and builds.
-- local listing image upload/storage with safety validation and owner-only mutation.
+### Phase 3: Account Security Panel
 
-Recommended next stabilizers:
+- user-facing session/device management.
+- stronger auth/session transport.
+- production email provider integration for verification and reset flows.
+- Google OAuth production validation.
+- MFA management UI if the backend foundation is kept.
 
-- add web component or E2E tests for browser-owned flows.
-- add migration safety notes before shared DB usage.
-- resolve the production migration risk documented in `docs/26-database-migration-safety-audit.md`, especially the messaging profile-pair backfill path.
-- use `docs/27-messaging-migration-backfill-plan.md` to choose between pre-production baseline cleanup and forward-only staged migration before any shared production-like data is migrated.
-- document local dev verification flows.
+### Phase 4: Search and Discovery
+
+- filters, pagination, saved search, and ranking foundations.
+- keep sold/archived listings hidden from default public browse.
+
+### Phase 5: Seller Dashboard
+
+- seller listing health, favoriteCount, message activity, and lifecycle summaries.
+- keep favorite users private.
+
+### Phase 6: UI Redesign and Mobile-First Pass
+
+- product-wide visual system.
+- mobile-first flows for browse, listing creation/upload, notifications, and messaging.
+- WhatsApp-like chat UX direction without WhatsApp integration.
+
+### Phase 7: Hybrid Payment
+
+- external agreement mode.
+- optional safe payment mode.
+- no payment/escrow work before trust, admin, and account security basics exist.
+
+### Phase 8: AI Intelligence Layer
+
+- real provider integration.
+- listing valuation and quality suggestions.
+- safety-aware AI moderation assistance.
+
+### Phase 9: Infrastructure and Workers
+
+- Redis-backed queues.
+- Socket.IO Redis adapter.
+- rate-limit storage, background jobs, observability, and production deployment hardening.
+
+### Phase 10: RAG and Mobile
+
+- recommendation/RAG layer.
+- native mobile app exploration after web/product foundations are steadier.
 
 Use `docs/25-validation-and-regression-checklist.md` as the detailed regression gate for stabilization work.
 
 ## Productization Blockers
 
 - production-grade auth/session transport
-- R2/S3-compatible image storage migration and image moderation
+- R2/S3-compatible image storage migration, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
 - search/filter/pagination
 - messaging report/block flows
 - admin/moderation
@@ -103,12 +129,17 @@ Use `docs/25-validation-and-regression-checklist.md` as the detailed regression 
 
 ## Current Follow-ups
 
-- R2/S3-compatible image storage integration and image moderation
-- Redis usage for queues, Socket.IO adapter, rate limits, and notifications
-- saved search
-- admin moderation
-- payment/secure checkout
-- AI/RAG
+- Phase 0 cleanup and manual QA.
+- Trust & Safety/report/block/moderation foundation.
+- Admin foundation.
+- Account security panel.
+- Search/discovery.
+- Seller dashboard.
+- Mobile-first UI pass.
+- Hybrid payment.
+- AI intelligence layer.
+- Infrastructure/workers.
+- RAG/mobile.
 
 ## Validation Commands
 

@@ -140,11 +140,12 @@ Future work can replace local storage with R2/S3-compatible storage by:
 - keeping `listing_images.url` as the public API URL or stable media URL
 - preserving safety validation before object write
 - adding signed upload/download or CDN strategy if needed
+- adding transforms/resizing, EXIF stripping, upload rate limits, and image moderation before broad production use
 
 ## Manual QA Checklist
 
 - Login as a seller.
-- Create a listing with a valid PNG/JPEG image.
+- Create a listing with a valid PNG/JPEG/WEBP image.
 - Confirm preview appears before submit.
 - Confirm uploaded image appears on listing detail.
 - Confirm uploaded image appears as my-listings thumbnail.
@@ -163,3 +164,4 @@ Future work can replace local storage with R2/S3-compatible storage by:
 - No arbitrary filesystem serving.
 - Magic bytes are checked in addition to MIME and extension.
 - API image responses set `nosniff`.
+- EXIF stripping, resize/transform processing, CDN/cache policy, upload rate limits, and image moderation are intentionally deferred.
