@@ -81,6 +81,17 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] invalid image URL is rejected
 - [ ] more than 5 image URLs are rejected
 - [ ] valid image URLs are stored in `sortOrder` order
+- [ ] owner can upload a valid JPEG/PNG/WEBP image
+- [ ] unauthenticated upload is rejected
+- [ ] non-owner upload/delete/reorder is rejected
+- [ ] SVG is rejected
+- [ ] HTML/JS disguised as image is rejected
+- [ ] MIME/extension/magic-byte mismatch is rejected
+- [ ] oversized image is rejected
+- [ ] more than 5 uploaded/listing images is rejected
+- [ ] uploaded images are served only through the safe media route
+- [ ] deleting an image removes the DB row and does not return 500 if file cleanup is best-effort
+- [ ] reordering listing images returns the new `sortOrder`
 
 ### Favorites
 
@@ -131,8 +142,13 @@ Checklist:
 - [ ] create sale listing
 - [ ] create donation listing
 - [ ] create swap listing
-- [ ] image URL field is marked temporary/development-only
-- [ ] valid image URLs can still be submitted
+- [ ] listing image file picker accepts PNG/JPEG/WEBP
+- [ ] local image preview appears before submit
+- [ ] valid uploaded image appears on listing detail
+- [ ] valid uploaded image appears as my-listings thumbnail
+- [ ] SVG upload is rejected with friendly copy
+- [ ] oversized image is rejected with friendly copy
+- [ ] valid image URLs can still be submitted as compatibility metadata
 - [ ] invalid image URL fails instead of silently creating bad image metadata
 - [ ] favorite/unfavorite
 - [ ] favorites page

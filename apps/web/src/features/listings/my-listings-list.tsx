@@ -9,9 +9,11 @@ import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import {
+  deleteListingImageRequest,
   fetchMyListings,
   updateListingRequest,
   updateListingStatusRequest,
+  uploadListingImageRequest,
   type ListingLifecycleStatus
 } from "./api";
 import {
@@ -19,6 +21,7 @@ import {
   formatListingPrice,
   formatListingStatus
 } from "./listing-display";
+import { ListingImageFrame } from "./listing-image-frame";
 
 type MyListingsListProps = {
   apiBaseUrl: string;
@@ -111,6 +114,68 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       }
 
       replaceListing(body.data.listing);
+    } catch {
+      setActionMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setPendingListingId(null);
+    }
+  }
+
+  async function refreshListings() {
+    const body = await fetchMyListings(apiBaseUrl);
+
+    if (!body.ok) {
+      setActionMessage(getApiErrorMessage(body.error, dictionary));
+      return;
+    }
+
+    setListings(body.data.listings);
+  }
+
+  async function handleImageUpload(listingId: string, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || !(await requireAuth())) {
+      return;
+    }
+
+    setActionMessage(null);
+    setPendingListingId(listingId);
+
+    try {
+      const body = await uploadListingImageRequest(apiBaseUrl, listingId, file);
+
+      if (!body.ok) {
+        setActionMessage(getApiErrorMessage(body.error, dictionary, dictionary.listings.imageUploadFailed));
+        return;
+      }
+
+      await refreshListings();
+    } catch {
+      setActionMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setPendingListingId(null);
+    }
+  }
+
+  async function handleImageDelete(listingId: string, imageId: string) {
+    if (!(await requireAuth())) {
+      return;
+    }
+
+    setActionMessage(null);
+    setPendingListingId(listingId);
+
+    try {
+      const body = await deleteListingImageRequest(apiBaseUrl, listingId, imageId);
+
+      if (!body.ok) {
+        setActionMessage(getApiErrorMessage(body.error, dictionary));
+        return;
+      }
+
+      await refreshListings();
     } catch {
       setActionMessage(dictionary.common.apiUnavailable);
     } finally {
@@ -288,13 +353,13 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
           return (
             <article className="listing-card" key={listing.id}>
-              <div className="listing-image" aria-label={`${listing.title} image preview`}>
-                {listing.firstImage ? (
-                  <span>{dictionary.listings.imageMetadata}</span>
-                ) : (
-                  <span>{dictionary.listings.noImage}</span>
-                )}
-              </div>
+              <ListingImageFrame
+                alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
+                apiBaseUrl={apiBaseUrl}
+                className="listing-card-image"
+                fallbackLabel={dictionary.listings.noImage}
+                url={listing.firstImage?.url ?? null}
+              />
 
               <div className="listing-card-body">
                 <div>
@@ -372,6 +437,31 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   className="listing-card-actions"
                   aria-label={dictionary.listings.lifecycleActionsAriaLabel}
                 >
+                  <label className="file-upload-label file-upload-label-inline">
+                    <span>{isPending ? dictionary.listings.uploading : dictionary.listings.uploadImage}</span>
+                    <input
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={isPending}
+                      type="file"
+                      onChange={(event) => {
+                        void handleImageUpload(listing.id, event);
+                      }}
+                    />
+                  </label>
+
+                  {listing.firstImage ? (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        void handleImageDelete(listing.id, listing.firstImage!.id);
+                      }}
+                    >
+                      {dictionary.listings.deleteImage}
+                    </Button>
+                  ) : null}
+
                   <Button
                     variant="secondary"
                     type="button"

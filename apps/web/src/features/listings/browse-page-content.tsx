@@ -22,6 +22,7 @@ import {
 } from "./listing-display";
 
 type BrowsePageContentProps = {
+  apiBaseUrl: string;
   categories: Category[];
   error: ApiError | null;
   listings: ListingSummary[];
@@ -29,6 +30,7 @@ type BrowsePageContentProps = {
 };
 
 export function BrowsePageContent({
+  apiBaseUrl,
   categories,
   error,
   listings,
@@ -83,7 +85,7 @@ export function BrowsePageContent({
 
           <div className="listing-grid">
             {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+              <ListingCard apiBaseUrl={apiBaseUrl} key={listing.id} listing={listing} />
             ))}
           </div>
         </div>
@@ -92,13 +94,14 @@ export function BrowsePageContent({
   );
 }
 
-function ListingCard({ listing }: { listing: ListingSummary }) {
+function ListingCard({ apiBaseUrl, listing }: { apiBaseUrl: string; listing: ListingSummary }) {
   const { dictionary } = useI18n();
 
   return (
     <article className="listing-card">
       <ListingImageFrame
         alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
+        apiBaseUrl={apiBaseUrl}
         className="listing-card-image"
         fallbackLabel={dictionary.listings.noProductImage}
         url={listing.firstImage?.url ?? null}

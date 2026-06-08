@@ -9,6 +9,22 @@ export const listingParamsSchema = z.object({
   id: z.string().uuid()
 });
 
+export const listingImageParamsSchema = z.object({
+  id: z.string().uuid(),
+  imageId: z.string().uuid()
+});
+
+export const listingUploadParamsSchema = z.object({
+  filename: z.string().regex(/^[a-f0-9-]+\.(jpg|png|webp)$/i),
+  listingId: z.string().uuid()
+});
+
+export const reorderListingImagesBodySchema = z
+  .object({
+    imageIds: z.array(z.string().uuid()).max(5)
+  })
+  .strict();
+
 export const listingsQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   search: z.string().trim().max(120).optional()
@@ -67,8 +83,10 @@ export const updateListingStatusBodySchema = z
   .strict();
 
 export type CreateListingBody = z.infer<typeof createListingBodySchema>;
+export type ListingImageParams = z.infer<typeof listingImageParamsSchema>;
 export type ListingStatusValue = (typeof listingStatusValues)[number];
 export type ListingsQuery = z.infer<typeof listingsQuerySchema>;
+export type ReorderListingImagesBody = z.infer<typeof reorderListingImagesBodySchema>;
 export type UpdateListingBody = z.infer<typeof updateListingBodySchema>;
 export type UpdateListingStatusBody = z.infer<typeof updateListingStatusBodySchema>;
 

@@ -199,6 +199,7 @@ drizzle/meta/_journal.json
 # =========================================================
 # Uploads / local storage
 # =========================================================
+var/uploads/
 uploads/
 tmp/
 temp/

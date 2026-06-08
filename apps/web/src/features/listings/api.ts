@@ -32,6 +32,10 @@ export type CreateListingPayload = {
   listing: ListingSummary;
 };
 
+export type ListingImagePayload = {
+  image: ListingSummary["firstImage"];
+};
+
 export type MyListingsPayload = {
   listings: ListingSummary[];
 };
@@ -108,6 +112,34 @@ export async function updateListingStatusRequest(
   });
 
   return response.json() as Promise<ApiResponse<CreateListingPayload>>;
+}
+
+export async function uploadListingImageRequest(
+  apiBaseUrl: string,
+  listingId: string,
+  file: File
+): Promise<ApiResponse<ListingImagePayload>> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await authFetch(apiBaseUrl, `/api/v1/listings/${listingId}/images`, {
+    method: "POST",
+    body: formData
+  });
+
+  return response.json() as Promise<ApiResponse<ListingImagePayload>>;
+}
+
+export async function deleteListingImageRequest(
+  apiBaseUrl: string,
+  listingId: string,
+  imageId: string
+): Promise<ApiResponse<{ deleted: true }>> {
+  const response = await authFetch(apiBaseUrl, `/api/v1/listings/${listingId}/images/${imageId}`, {
+    method: "DELETE"
+  });
+
+  return response.json() as Promise<ApiResponse<{ deleted: true }>>;
 }
 
 export async function requestListingSuggestion(

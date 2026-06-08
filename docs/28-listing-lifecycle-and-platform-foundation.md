@@ -34,6 +34,13 @@ Seller-owned lifecycle endpoints:
 - `PATCH /api/v1/listings/:id/status`
   - Updates the authenticated owner's lifecycle status.
   - Body: `{ "status": "active" | "reserved" | "sold" | "archived" }`
+- `POST /api/v1/listings/:id/images`
+  - Uploads one validated listing image for the authenticated owner.
+  - Uses multipart/form-data field `image`.
+- `DELETE /api/v1/listings/:id/images/:imageId`
+  - Deletes one listing image for the authenticated owner.
+- `PATCH /api/v1/listings/:id/images/reorder`
+  - Reorders all current listing images for the authenticated owner.
 
 Authorization:
 
@@ -60,6 +67,7 @@ Existing conversations and messages remain readable for participants after a lis
 `/my-listings` shows each listing status and provides real actions backed by API calls:
 
 - edit title/price
+- upload/delete listing image
 - mark reserved
 - mark sold
 - archive
@@ -122,12 +130,27 @@ The workflow:
 
 No deployment, Docker image push, cloud infrastructure, or production release workflow is included.
 
+## Listing Image Storage
+
+Listing image upload is implemented for local development and tests:
+
+- files are stored under `var/uploads/listings/<listingId>/`
+- `var/uploads/` is gitignored
+- database rows store metadata and API-relative URLs only
+- JPEG, PNG, and WEBP are allowed
+- SVG, GIF, HTML, XML, PDF, JS, unknown binary, oversized files, and MIME/extension/magic-byte mismatches are rejected
+- max size is 5MB per image
+- max count is 5 images per listing
+- image serving uses `/api/v1/uploads/listings/:listingId/:filename`
+
+Future R2/S3-compatible object storage should preserve the API contract.
+
 ## Deferred Work
 
 Intentionally deferred:
 
-- image upload/storage and R2/S3 integration
-- Redis-backed queues, Socket.IO adapter, and notifications
+- R2/S3 image storage integration and image moderation
+- Redis-backed queues and Socket.IO adapter
 - saved searches
 - admin moderation
 - payment/secure checkout

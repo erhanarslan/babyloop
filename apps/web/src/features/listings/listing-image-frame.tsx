@@ -4,6 +4,7 @@ import { useState } from "react";
 
 type ListingImageFrameProps = {
   alt: string;
+  apiBaseUrl?: string;
   className?: string;
   fallbackLabel?: string;
   url: string | null;
@@ -11,12 +12,13 @@ type ListingImageFrameProps = {
 
 export function ListingImageFrame({
   alt,
+  apiBaseUrl,
   className = "",
   fallbackLabel = "No image",
   url
 }: ListingImageFrameProps) {
   const [hasError, setHasError] = useState(false);
-  const safeUrl = getSafeImageUrl(url);
+  const safeUrl = getSafeImageUrl(url, apiBaseUrl);
 
   if (!safeUrl || hasError) {
     return (
@@ -38,9 +40,13 @@ export function ListingImageFrame({
   );
 }
 
-function getSafeImageUrl(url: string | null): string | null {
+function getSafeImageUrl(url: string | null, apiBaseUrl?: string): string | null {
   if (!url) {
     return null;
+  }
+
+  if (url.startsWith("/api/v1/uploads/") && apiBaseUrl) {
+    return `${apiBaseUrl}${url}`;
   }
 
   try {

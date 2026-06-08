@@ -421,6 +421,10 @@
     @apply h-full w-full object-cover;
   }
 
+  .listing-card-image {
+    @apply min-h-52 overflow-hidden;
+  }
+
   .detail-image-primary {
     @apply min-h-[320px] sm:min-h-[440px];
   }
@@ -442,6 +446,34 @@
 
   .listing-inline-form input {
     @apply min-h-10 rounded-md border border-input bg-background px-3 text-sm font-normal;
+  }
+
+  .image-upload-panel {
+    @apply form-field-wide grid gap-3 rounded-md border border-border bg-muted/30 p-4;
+  }
+
+  .file-upload-label {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground;
+  }
+
+  .file-upload-label input {
+    @apply sr-only;
+  }
+
+  .file-upload-label-inline {
+    @apply min-h-10;
+  }
+
+  .image-preview-list {
+    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .image-preview-list li {
+    @apply grid gap-2 rounded-md border border-border bg-background p-2 text-sm;
+  }
+
+  .image-preview-list img {
+    @apply h-32 w-full rounded object-cover;
   }
 
   .listing-card-footer,

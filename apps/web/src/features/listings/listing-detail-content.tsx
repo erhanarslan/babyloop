@@ -44,6 +44,7 @@ export function ListingDetailContent({
                 alt={dictionary.listings.detailImageAlt
                   .replace("{title}", listing.title)
                   .replace("{index}", String(index + 1))}
+                apiBaseUrl={apiBaseUrl}
                 className={index === 0 ? "detail-image detail-image-primary" : "detail-image"}
                 fallbackLabel={dictionary.listings.imageUnavailable}
                 key={image.id}

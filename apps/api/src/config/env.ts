@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { GoogleOAuthConfig } from "../services/google-oauth.service.js";
 
 export type ApiRuntimeConfig = {
@@ -13,6 +14,7 @@ export type ApiRuntimeConfig = {
   googleOAuth?: GoogleOAuthConfig;
   host: string;
   port: number;
+  uploadRoot: string;
   webAppUrl: string;
 };
 
@@ -29,6 +31,7 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     emailDeliveryMode: readEmailDeliveryMode(env.EMAIL_DELIVERY_MODE),
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT),
+    uploadRoot: readUploadRoot(env.UPLOAD_ROOT),
     webAppUrl: readWebAppUrl(env.WEB_APP_URL)
   };
   const googleOAuth = readGoogleOAuthConfig(env);
@@ -95,6 +98,10 @@ function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | unde
 
 function readWebAppUrl(value: string | undefined): string {
   return (value ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+function readUploadRoot(value: string | undefined): string {
+  return value?.trim() || fileURLToPath(new URL("../../../../var/uploads", import.meta.url));
 }
 
 function readAuthSecret(value: string | undefined): string | undefined {

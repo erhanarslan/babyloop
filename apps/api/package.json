@@ -20,6 +20,7 @@
     "@babyloop/database": "workspace:*",
     "@babyloop/shared": "workspace:*",
     "@fastify/cors": "^11.2.0",
+    "@fastify/multipart": "^10.0.0",
     "@fastify/rate-limit": "^10.3.0",
     "drizzle-orm": "^0.39.0",
     "fastify": "^5.0.0",

@@ -22,6 +22,9 @@ import {
   type MessageCreatedPayload,
   type RealtimeErrorPayload
 } from "@babyloop/shared";
+import path from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { REFRESH_TOKEN_COOKIE_NAME, hashRefreshToken } from "../src/utils/refresh-token.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
@@ -36,15 +39,18 @@ import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
 import { connectRealtimeSocket, delay, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
 
 let app!: TestApp;
+let uploadRoot!: string;
 
 beforeEach(async () => {
   await resetTestDatabase();
-  app = await createTestApp();
+  uploadRoot = await mkdtemp(path.join(tmpdir(), "babyloop-listing-images-"));
+  app = await createTestApp({ uploadRoot });
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
   await app.close();
+  await rm(uploadRoot, { force: true, recursive: true });
 });
 
 describe("listings API", () => {
@@ -303,6 +309,271 @@ describe("listings API", () => {
       expect(responseBody).not.toContain(secondBuyer.user.id);
       expect(responseBody).not.toContain(secondBuyer.user.email);
     }
+  });
+
+  it("lets the seller upload, serve, and delete a safe listing image", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const uploadRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "stroller.png",
+      mimetype: "image/png"
+    });
+    const upload = await app.inject({
+      ...uploadRequest,
+      headers: {
+        ...authHeader(seller.accessToken),
+        ...uploadRequest.headers
+      },
+      method: "POST",
+      url: `/api/v1/listings/${listing.id}/images`
+    });
+
+    expect(upload.statusCode).toBe(201);
+    const image = upload.json().data.image;
+    expect(image).toMatchObject({
+      sortOrder: 0
+    });
+    expect(image.url).toMatch(/^\/api\/v1\/uploads\/listings\/.+\.png$/);
+
+    const [imageRow] = await app.db
+      .select({ id: listingImages.id, url: listingImages.url })
+      .from(listingImages)
+      .where(eq(listingImages.id, image.id));
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const served = await app.inject({
+      method: "GET",
+      url: image.url
+    });
+
+    expect(imageRow).toMatchObject({ id: image.id, url: image.url });
+    expect(detail.json().data.listing.images).toEqual([
+      expect.objectContaining({
+        id: image.id,
+        url: image.url
+      })
+    ]);
+    expect(detail.json().data.listing.firstImage).toMatchObject({
+      id: image.id,
+      url: image.url
+    });
+    expect(served.statusCode).toBe(200);
+    expect(served.headers["content-type"]).toContain("image/png");
+    expect(served.headers["x-content-type-options"]).toBe("nosniff");
+
+    const deleted = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "DELETE",
+      url: `/api/v1/listings/${listing.id}/images/${image.id}`
+    });
+    const detailAfterDelete = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const servedAfterDelete = await app.inject({
+      method: "GET",
+      url: image.url
+    });
+
+    expect(deleted.statusCode).toBe(200);
+    expect(detailAfterDelete.json().data.listing.images).toEqual([]);
+    expect(servedAfterDelete.statusCode).toBe(404);
+  });
+
+  it("enforces listing image ownership", async () => {
+    const seller = await createUser(app);
+    const otherUser = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const unauthenticatedUpload = await app.inject({
+      ...multipartRequest({
+        buffer: tinyPng(),
+        filename: "stroller.png",
+        mimetype: "image/png"
+      }),
+      method: "POST",
+      url: `/api/v1/listings/${listing.id}/images`
+    });
+    const nonOwnerUploadRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "stroller.png",
+      mimetype: "image/png"
+    });
+    const nonOwnerUpload = await app.inject({
+      ...nonOwnerUploadRequest,
+      headers: {
+        ...authHeader(otherUser.accessToken),
+        ...nonOwnerUploadRequest.headers
+      },
+      method: "POST",
+      url: `/api/v1/listings/${listing.id}/images`
+    });
+    const ownerUploadRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "stroller.png",
+      mimetype: "image/png"
+    });
+    const ownerUpload = await app.inject({
+      ...ownerUploadRequest,
+      headers: {
+        ...authHeader(seller.accessToken),
+        ...ownerUploadRequest.headers
+      },
+      method: "POST",
+      url: `/api/v1/listings/${listing.id}/images`
+    });
+    const imageId = ownerUpload.json().data.image.id;
+    const nonOwnerDelete = await app.inject({
+      headers: authHeader(otherUser.accessToken),
+      method: "DELETE",
+      url: `/api/v1/listings/${listing.id}/images/${imageId}`
+    });
+
+    expect(unauthenticatedUpload.statusCode).toBe(401);
+    expect(nonOwnerUpload.statusCode).toBe(403);
+    expect(ownerUpload.statusCode).toBe(201);
+    expect(nonOwnerDelete.statusCode).toBe(403);
+  });
+
+  it("rejects unsafe listing image uploads", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const svgRequest = multipartRequest({
+      buffer: Buffer.from("<svg><script>alert(1)</script></svg>"),
+      filename: "xss.svg",
+      mimetype: "image/svg+xml"
+    });
+    const htmlDisguisedRequest = multipartRequest({
+      buffer: Buffer.from("<script>alert(1)</script>"),
+      filename: "xss.png",
+      mimetype: "image/png"
+    });
+    const mismatchRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "stroller.jpg",
+      mimetype: "image/jpeg"
+    });
+    const oversizedRequest = multipartRequest({
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+      filename: "large.png",
+      mimetype: "image/png"
+    });
+    const missingFileRequest = multipartRequest({
+      buffer: Buffer.from("not an image"),
+      fieldName: "notImage",
+      filename: "x.png",
+      mimetype: "image/png"
+    });
+
+    const responses = await Promise.all([
+      app.inject({
+        ...svgRequest,
+        headers: { ...authHeader(seller.accessToken), ...svgRequest.headers },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      }),
+      app.inject({
+        ...htmlDisguisedRequest,
+        headers: { ...authHeader(seller.accessToken), ...htmlDisguisedRequest.headers },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      }),
+      app.inject({
+        ...mismatchRequest,
+        headers: { ...authHeader(seller.accessToken), ...mismatchRequest.headers },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      }),
+      app.inject({
+        ...oversizedRequest,
+        headers: { ...authHeader(seller.accessToken), ...oversizedRequest.headers },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      }),
+      app.inject({
+        ...missingFileRequest,
+        headers: { ...authHeader(seller.accessToken), ...missingFileRequest.headers },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      })
+    ]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([400, 400, 400, 413, 400]);
+    expect(responses[0].json().error.code).toBe("INVALID_IMAGE");
+    expect(responses[1].json().error.code).toBe("INVALID_IMAGE");
+    expect(responses[2].json().error.code).toBe("INVALID_IMAGE");
+    expect(responses[3].json().error.code).toBe("IMAGE_TOO_LARGE");
+    expect(responses[4].json().error.code).toBe("INVALID_REQUEST");
+  });
+
+  it("enforces listing image count and supports reordering", async () => {
+    const seller = await createUser(app);
+    const otherUser = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const uploadedImages: Array<{ id: string }> = [];
+
+    for (let index = 0; index < 5; index += 1) {
+      const request = multipartRequest({
+        buffer: tinyPng(),
+        filename: `stroller-${index}.png`,
+        mimetype: "image/png"
+      });
+      const response = await app.inject({
+        ...request,
+        headers: {
+          ...authHeader(seller.accessToken),
+          ...request.headers
+        },
+        method: "POST",
+        url: `/api/v1/listings/${listing.id}/images`
+      });
+
+      expect(response.statusCode).toBe(201);
+      uploadedImages.push(response.json().data.image);
+    }
+
+    const sixthRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "sixth.png",
+      mimetype: "image/png"
+    });
+    const tooMany = await app.inject({
+      ...sixthRequest,
+      headers: {
+        ...authHeader(seller.accessToken),
+        ...sixthRequest.headers
+      },
+      method: "POST",
+      url: `/api/v1/listings/${listing.id}/images`
+    });
+    const reversedIds = uploadedImages.map((image) => image.id).reverse();
+    const nonOwnerReorder = await app.inject({
+      headers: authHeader(otherUser.accessToken),
+      method: "PATCH",
+      payload: { imageIds: reversedIds },
+      url: `/api/v1/listings/${listing.id}/images/reorder`
+    });
+    const invalidReorder = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      payload: { imageIds: reversedIds.slice(1) },
+      url: `/api/v1/listings/${listing.id}/images/reorder`
+    });
+    const reordered = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      payload: { imageIds: reversedIds },
+      url: `/api/v1/listings/${listing.id}/images/reorder`
+    });
+
+    expect(tooMany.statusCode).toBe(400);
+    expect(tooMany.json().error.code).toBe("TOO_MANY_IMAGES");
+    expect(nonOwnerReorder.statusCode).toBe(403);
+    expect(invalidReorder.statusCode).toBe(400);
+    expect(reordered.statusCode).toBe(200);
+    expect(reordered.json().data.images.map((image: { id: string }) => image.id)).toEqual(reversedIds);
   });
 
   it("does not publicly return inactive listing detail", async () => {
@@ -826,3 +1097,40 @@ describe("listings API", () => {
     expect(response.body).not.toContain("seller-private@example.com");
   });
 });
+
+function tinyPng(): Buffer {
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lS4c3wAAAABJRU5ErkJggg==",
+    "base64"
+  );
+}
+
+function multipartRequest(input: {
+  buffer: Buffer;
+  fieldName?: string;
+  filename: string;
+  mimetype: string;
+}): {
+  headers: Record<string, string>;
+  payload: Buffer;
+} {
+  const boundary = `----babyloop-${Math.random().toString(16).slice(2)}`;
+  const fieldName = input.fieldName ?? "image";
+  const head = Buffer.from(
+    [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="${fieldName}"; filename="${input.filename}"`,
+      `Content-Type: ${input.mimetype}`,
+      "",
+      ""
+    ].join("\r\n")
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+
+  return {
+    headers: {
+      "content-type": `multipart/form-data; boundary=${boundary}`
+    },
+    payload: Buffer.concat([head, input.buffer, tail])
+  };
+}

@@ -7,16 +7,16 @@ This repository currently contains a verified local MVP foundation:
 - pnpm workspaces
 - Turborepo
 - TypeScript
-- `apps/web`: Next.js app with home, browse, listing detail, sell, favorites, my listings, auth, and messaging pages
-- `apps/api`: Fastify API with health, auth, marketplace listings, favorites, mock AI listing suggestions, and messaging endpoints
+- `apps/web`: Next.js app with home, browse, listing detail, sell, favorites, my listings, auth, notifications, and messaging pages
+- `apps/api`: Fastify API with health, auth, marketplace listings, image upload, favorites, notifications, mock AI listing suggestions, and messaging endpoints
 - `packages/shared`: shared API response type
 - `packages/config`: shared app constants
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
 - `packages/ai-core`: deterministic mock listing suggestion provider
 
-The first auth slice is implemented: email/password register, login, `GET /api/v1/auth/me`, access-token protected listing creation, favorites, my listings, and messaging flows.
+The current auth slice includes email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, and MFA OTP backend foundation.
 
-Admin, worker, mobile app, real AI providers, pricing, RAG, moderation, recommendations, notifications, and payments are intentionally delayed.
+Admin, worker, mobile app, real AI providers, pricing, RAG, recommendations, production email delivery, and payments are intentionally delayed.
 
 ## Current Implemented Features
 
@@ -24,11 +24,12 @@ Implemented:
 
 | Area | Current state |
 | --- | --- |
-| Auth | Email/password register and login, `GET /api/v1/auth/me`, signed access tokens, basic auth rate limiting. |
+| Auth | Email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, MFA OTP backend foundation, and basic auth rate limiting. |
 | Listings | Public active/reserved listing list/detail, authenticated listing creation for `sale`, `donation`, and `swap`, seller-owned edit/status lifecycle, authenticated `/api/v1/me/listings`, web browse/detail/sell/my-listings pages. |
-| Listing images | Optional manual image URL metadata can be stored and rendered as a temporary development bridge. Real upload/storage is not implemented. |
-| Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. |
-| Messaging | Authenticated conversation API, web conversations list, web thread page, deterministic moderation, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
+| Listing images | Local listing image upload, magic-byte/MIME/extension validation, local `var/uploads` storage, safe media serving, delete/reorder API, and retained manual URL compatibility. |
+| Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. Favorite notifications hide actor identity, and listing responses expose privacy-safe `favoriteCount`. |
+| Notifications | Persistent in-app notifications, unread count, mark-read/read-all APIs, realtime notification events, notification center, and header unread badge. |
+| Messaging | Authenticated conversation API, idempotent start-conversation behavior, web conversations list, web thread page, deterministic moderation, stored-XSS plaintext safety, explicit/visibility-based read state, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
 | Tests | API integration tests with Vitest and `fastify.inject`. |
 
@@ -36,21 +37,21 @@ Partially implemented:
 
 | Area | Current limitation |
 | --- | --- |
-| Auth/session | Access-token auth exists, but browser storage is still local-MVP level. No refresh/session table or HTTP-only cookie flow yet. |
+| Auth/session | Session foundation exists, but production hardening, device/session management UI, and deployment validation remain incomplete. |
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
-| Messaging | List/thread/send/realtime works, but unread counts, reporting, blocking, attachments, and notifications remain deferred. |
-| AI | Mock suggestion flow exists. No real LLM provider, price recommendation, RAG, moderation, or recommendation engine yet. |
+| Messaging | List/thread/send/realtime/read-state works, but report/block flows, attachments, and durable per-conversation read receipts remain deferred. |
+| AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
+| Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
+| Email | No-op/dev email flow exists; real provider delivery is deferred. |
+| Web testing | API integration tests exist; web component/E2E tests are still missing. |
 
 Not implemented:
 
-- Google OAuth
-- password reset and email verification
-- real image upload/storage
 - rental listing flows
 - admin panel
 - mobile app
 - payments
-- moderation/trust and safety workflows
+- report/block/moderation queue workflows
 - production observability/deployment pipeline
 
 Intentionally deferred:
@@ -104,6 +105,14 @@ pnpm dev:infra:reset
 ```
 
 Use `.env.example` for local placeholders. Do not commit real secrets.
+
+Listing image uploads use local runtime storage by default:
+
+```bash
+UPLOAD_ROOT=var/uploads
+```
+
+`var/uploads/` is ignored by git. PostgreSQL stores image metadata and API-relative URLs, not raw image bytes. See [docs/30-listing-image-upload-and-safety.md](/Users/erhan-pc-mac/Desktop/babyloop/docs/30-listing-image-upload-and-safety.md) for safety rules and the future R2/S3 migration path.
 
 ## Development
 

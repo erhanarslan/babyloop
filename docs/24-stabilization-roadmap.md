@@ -16,16 +16,17 @@ BabyLoop currently has a working local full-stack foundation:
 - Next.js web app
 - auth foundation
 - listings
+- listing image upload/storage
 - favorites
+- notifications
 - mock AI listing suggestions
-- messaging API foundation
-- messaging web UI foundation
+- messaging API/web/realtime foundation
 - API integration tests with Vitest
 
 Current stabilization concerns:
 
-- API integration tests exist, but web/E2E/CI coverage is still missing.
-- auth is local-MVP level, not production-grade.
+- API integration tests and CI exist, but web/E2E coverage is still missing.
+- auth/session foundation exists, but production hardening is not complete.
 - web UI is functional but not polished.
 - production readiness is low.
 - messaging docs must stay aligned with the profile-pair model.
@@ -38,12 +39,9 @@ Until the current foundation is stable, do not add:
 - admin panel
 - mobile app
 - real AI provider
-- image upload pipeline
 - payments
-- notifications
 - full UI redesign
 - moderation queue
-- realtime messaging
 - background workers
 
 ## Phase 1: Contract Stabilization
@@ -53,7 +51,7 @@ Public API request/response keys use `camelCase`.
 Confirmed current direction:
 
 - listing creation uses `categoryId`, `priceAmount`, `listingType`, `imageUrls`.
-- `imageUrls` is temporary development-only image metadata until real upload exists.
+- `imageUrls` remains supported for compatibility, but local file upload is now the preferred image path.
 - favorites use `listingId`.
 - messaging uses `listingId` only as listing context input.
 
@@ -81,6 +79,7 @@ Already present:
 - listing lifecycle foundation with owner edit/status APIs and minimal web controls.
 - local Docker Compose dependency stack for PostgreSQL and Redis.
 - GitHub Actions CI foundation for typecheck, shared unit tests, API integration tests, and builds.
+- local listing image upload/storage with safety validation and owner-only mutation.
 
 Recommended next stabilizers:
 
@@ -95,19 +94,17 @@ Use `docs/25-validation-and-regression-checklist.md` as the detailed regression 
 ## Productization Blockers
 
 - production-grade auth/session transport
-- image upload/storage
-- signed upload URLs, storage, file type validation, and file size limits
+- R2/S3-compatible image storage migration and image moderation
 - search/filter/pagination
-- messaging unread/report/block flows
+- messaging report/block flows
 - admin/moderation
 - trust and safety
 - deployment/observability
 
 ## Current Follow-ups
 
-- image upload/storage and R2/S3-compatible integration
+- R2/S3-compatible image storage integration and image moderation
 - Redis usage for queues, Socket.IO adapter, rate limits, and notifications
-- notification foundation
 - saved search
 - admin moderation
 - payment/secure checkout
@@ -161,10 +158,7 @@ Do not run root/API tests in parallel against the same `TEST_DATABASE_URL`; they
 
 Do not include in stabilization-only tasks:
 
-- realtime messaging
-- message moderation
 - reporting/blocking
-- notifications
 - admin UI
 - mobile UI
 - real AI providers

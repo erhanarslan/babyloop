@@ -32,5 +32,17 @@ export function getApiErrorMessage(
     return dictionary.messaging.invalidMessageBody;
   }
 
+  if (error.code === "INVALID_IMAGE") {
+    return dictionary.listings.unsupportedImageType;
+  }
+
+  if (error.code === "IMAGE_TOO_LARGE") {
+    return dictionary.listings.imageTooLarge;
+  }
+
+  if (error.code === "TOO_MANY_IMAGES") {
+    return dictionary.listings.tooManyImages;
+  }
+
   return fallback;
 }

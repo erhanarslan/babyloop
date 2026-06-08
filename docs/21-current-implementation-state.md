@@ -2,13 +2,11 @@
 
 ## Purpose
 
-This document records the actual implemented state of BabyLoop after the initial marketplace, auth, mock AI, favorites, messaging API, messaging web UI, and API test work.
-
-This is not a wishlist. It describes what exists now, what is partially implemented, and what is not production-ready yet.
+This document records the actual implemented state of BabyLoop. It is not a wishlist and it does not claim production readiness.
 
 ## Project Status
 
-BabyLoop is currently a local full-stack marketplace foundation.
+BabyLoop is a local full-stack marketplace foundation with product-grade slices for auth, listings, favorites, messaging, notifications, tests, local infrastructure, and CI.
 
 Implemented stack:
 
@@ -19,20 +17,15 @@ Implemented stack:
 - Fastify API
 - PostgreSQL
 - Drizzle ORM schema and migrations
-- local seed data
-- auth foundation
-- listings
-- favorites
-- mock AI listing suggestions
-- AI model run audit table
-- messaging API foundation
-- messaging web UI foundation
-- API integration test foundation with Vitest
+- Docker Compose local dependencies
+- GitHub Actions CI foundation
+- API integration tests with Vitest
+- shared unit tests for pure shared logic
 
 Current maturity level:
 
 ```text
-Local MVP foundation
+Local MVP foundation with several production-oriented building blocks
 ```
 
 ## Implemented Web Routes
@@ -43,154 +36,153 @@ Local MVP foundation
 - `/sell`
 - `/login`
 - `/register`
+- `/forgot-password`
+- `/reset-password`
+- `/auth/callback`
+- `/auth/verify-email`
+- `/auth/verify-email/request`
 - `/favorites`
 - `/my-listings`
+- `/notifications`
 - `/conversations`
 - `/conversations/[id]`
+- `/account/password`
 
 ## Current Implemented Features
 
-Implemented:
-
 | Area | Current state |
 | --- | --- |
-| Auth | Email/password register/login, `GET /api/v1/auth/me`, signed access tokens, basic register/login rate limiting. |
-| Listings | Public active listing list/detail, authenticated current-user listing list, and authenticated listing creation for `sale`, `donation`, and `swap`. Web browse/detail/sell/my-listings pages exist. |
-| Listing image metadata | Optional manual image URLs can be stored and rendered as a temporary development bridge. Real upload/storage is not implemented. |
-| Favorites | Authenticated favorite/unfavorite/list API and web UI. |
-| Messaging | Authenticated API routes, web conversations list, web conversation thread page, and plain text send UI. |
-| Mock AI | Deterministic listing suggestion provider, API route, sell-page integration, and `ai_model_runs` logging when DB is configured. |
-| Tests | API integration tests exist under `apps/api/test` and use Vitest with `fastify.inject`. |
+| Auth | Email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, MFA OTP backend foundation, and basic auth rate limiting. |
+| Listings | Public active/reserved browse/detail, authenticated listing creation, seller-owned edit/status lifecycle, authenticated `/api/v1/me/listings`, and minimal web controls. |
+| Listing images | Real local upload/storage now exists. API validates MIME, extension, magic bytes, size, count, and ownership; stores files under `var/uploads`; serves them from `/api/v1/uploads/listings/:listingId/:filename`; keeps manual image URL compatibility. |
+| Favorites | Authenticated favorite/unfavorite/list API and web UI. Favorite notifications hide actor identity. Listing responses expose privacy-safe `favoriteCount`. |
+| Notifications | Persistent in-app notification model, list, unread count, mark read, mark all read, realtime events, notification center, and header unread badge. |
+| Messaging | Profile-pair conversations with listing contexts, idempotent start-conversation behavior, message send/list/detail, deterministic moderation, plaintext/XSS validation, Socket.IO realtime events, explicit/visibility-based read state, and web list/thread/composer UI. |
+| Mock AI | Deterministic listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` audit logging when DB is available. |
+| Tests | Split API integration tests under `apps/api/test`, shared unit tests, Socket.IO smoke coverage, and CI-ready validation scripts. |
 
-Partially implemented:
+## Partially Complete
 
 | Area | Current limitation |
 | --- | --- |
-| Auth/session | Access-token auth exists, but localStorage token storage is local-MVP level. No refresh/session table or HTTP-only cookie transport yet. |
-| Listing discovery | Public browse/detail exists, but search/filter/pagination are limited or missing. |
-| Messaging | List/thread/send works, but no realtime, unread counts, report/block, attachments, notifications, or AI moderation yet. |
-| AI | Mock listing suggestion exists. No real LLM provider, price recommendation, RAG, moderation, or recommendation engine yet. |
+| Auth/session | Session foundation exists, but production hardening, device/session management UI, and deployment validation remain incomplete. |
+| Email | Token flows exist, but delivery is no-op/dev only until a real provider is added. |
+| Google OAuth | Foundation exists, but production client validation and environment rollout remain incomplete. |
+| MFA | Backend OTP foundation exists; user-facing MFA management is deferred. |
+| Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
+| Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN strategy, image moderation, and image transforms are deferred. |
+| Messaging | Realtime and read state work. Report/block flows, attachments, durable per-conversation read receipts, and moderation queue are deferred. |
+| Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
+| AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
+| Web tests | API tests exist. Web component/E2E coverage is deferred. |
 
-Not implemented:
+## Not Implemented
 
-- Google OAuth
-- password reset
-- email verification
-- real image upload/storage
-- listing edit/archive/delete lifecycle as user-facing API/UI
-- rental listing flows
+- report user/listing/message
+- block user
+- moderation queue/admin review
+- production email provider
+- session/device management UI
+- saved search
+- image moderation
+- web E2E tests
 - admin panel
+- analytics/dashboard
+- real LLM provider
+- AI valuation
+- RAG/recommendations
+- reviews/ratings
+- payments/rental flow
 - mobile app
-- payments
-- realtime messaging
-- production observability/deployment pipeline
-
-Intentionally deferred:
-
-- real AI providers, pricing, RAG, recommendations, and AI moderation
-- admin, worker, and mobile apps
-- notifications and automation workflows
-- production-grade auth/session hardening
 
 ## Implemented API Areas
 
 - `GET /health`
-- auth register/login/me
-- public categories/listings reads
-- protected listing creation
-- protected current-user listing list via `GET /api/v1/me/listings`
+- auth register/login/refresh/logout/me
+- password reset and email verification foundation
+- Google OAuth callback foundation
+- categories
+- public listing browse/detail
+- protected listing create/update/status
+- protected listing image upload/delete/reorder
+- protected current-user listing list
 - protected favorites add/remove/list
+- protected notifications list/unread/read/read-all
+- protected messaging conversation/message/read endpoints
+- Socket.IO realtime messaging/notifications
 - mock AI listing suggestions
-- authenticated messaging endpoints
 
-Current listing/favorite API behavior:
+## Listing Image Storage
 
-- public listing list/detail endpoints return active listings only
-- listing creation derives the seller profile from the authenticated token
-- listing creation accepts only MVP listing types: `sale`, `donation`, and `swap`
-- `rent` is intentionally deferred from active product scope
-- the PostgreSQL enum may still contain `rent` for legacy/internal compatibility until a safe enum migration plan exists
-- `imageUrls` remains supported for development-only listing image metadata until real upload exists
-- manual image URL entry is not production-acceptable
-- current-user listing list returns only listings owned by the authenticated profile, including non-public statuses
-- favorite writes derive the profile from the authenticated token
-- users cannot favorite their own listings or inactive listings
-- duplicate favorite creation and missing favorite removal are idempotent
+Local image uploads use:
 
-## Messaging State
+- `UPLOAD_ROOT`, defaulting to `var/uploads`
+- `var/uploads/listings/<listingId>/<random-file-name>.<ext>`
+- DB metadata in `listing_images`
+- API-relative public URLs such as `/api/v1/uploads/listings/<listingId>/<file>.png`
 
-The implemented messaging model is profile-pair based:
+The database does not store raw image bytes or base64.
 
-- `conversations` stores one channel per normalized profile pair.
-- `conversation_listing_contexts` attaches one or more listings to that channel.
-- `conversation_participants` supports access checks and future flexibility.
-- `messages` stores plain text messages.
+Allowed upload types:
 
-The old listing-based conversation model is deprecated and should not be restored.
+- JPEG
+- PNG
+- WEBP
 
-Implemented messaging UI:
+Rejected:
 
-- listing detail can start or reuse a conversation with the seller for logged-in non-sellers.
-- `/conversations` lists the authenticated user's conversations.
-- `/conversations/[id]` shows a thread and message composer.
-- sending plain text messages from the web UI is implemented.
+- SVG
+- GIF
+- HTML/XML/PDF/JS
+- unknown binary
+- MIME/extension/magic-byte mismatches
+- files over 5MB
+- more than 5 images per listing
 
-Messaging not implemented yet:
-
-- realtime delivery
-- unread counts
-- report/block flows
-- attachments
-- notifications
-- AI moderation
-
-## Not Production-Ready Yet
-
-- no realtime delivery
-- no message moderation
-- basic register/login rate limiting exists
-- auth token storage is local-MVP level (`localStorage`); production session transport is not complete
-- no web or end-to-end browser test suite yet
-- no admin/mobile/worker apps yet
+See `docs/30-listing-image-upload-and-safety.md`.
 
 ## Productization Blockers
 
-- production-grade auth/session transport
-- Google OAuth
-- listing edit/archive/delete lifecycle
-- rental listing deposit/date range/return/damage/contract flows
-- image upload/storage and validation
-- signed upload URLs, file type validation, file size limits, and image storage pipeline
-- search/filter/pagination
-- messaging unread/realtime/report/block flows
-- admin/moderation tools
-- trust and safety workflows
-- CI/deployment/observability
+- production auth/session hardening and device management
+- real email delivery
+- production Google OAuth validation
+- image moderation and object storage migration
+- search filters and pagination
+- report/block/moderation queue
+- Redis-backed realtime scaling
+- saved search
+- admin tools
+- payments/rental flow
+- real AI provider/RAG/valuation
+- web E2E tests
+- production observability/deployment hardening
 
 ## Validation Commands
 
 ```bash
+pnpm preflight
+pnpm --filter @babyloop/api typecheck
+TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test pnpm --filter @babyloop/api test
+pnpm --filter @babyloop/web typecheck
+pnpm --filter @babyloop/web build
 pnpm typecheck
 pnpm build
-pnpm test
-pnpm --filter @babyloop/api test
-pnpm --filter @babyloop/api typecheck
-pnpm --filter @babyloop/web typecheck
-pnpm --filter @babyloop/database typecheck
-pnpm --filter @babyloop/database db:check
 ```
 
 ## Manual QA Baseline
 
-- register
-- login
+- register/login/logout
+- password reset and email verification dev flows
 - browse listings
 - listing detail
-- create listing
-- favorite/unfavorite
-- view favorites
-- my listings
+- create listing with valid image upload
+- reject invalid image upload
+- my listings edit/status/image controls
+- favorite/unfavorite and favorite privacy
+- notifications list/read/read-all
 - start conversation from listing detail
 - open conversations list
 - open conversation thread
-- send message
+- send safe message
+- reject unsafe message body
+- confirm unread count only drops after conversation content is viewed

@@ -2,6 +2,7 @@ import { SiteShell } from "../../components/ui";
 import { BrowsePageContent } from "../../features/listings/browse-page-content";
 import {
   fetchApi,
+  getApiBaseUrl,
   type CategoriesPayload,
   type ListingsPayload
 } from "../../lib/api";
@@ -36,6 +37,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   return (
     <SiteShell>
       <BrowsePageContent
+        apiBaseUrl={getApiBaseUrl()}
         categories={categories}
         error={error}
         listings={listings}

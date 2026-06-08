@@ -3,7 +3,7 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -11,6 +11,7 @@ import type {
   ListingStatusValue,
   UpdateListingBody
 } from "../schemas/listings.schemas.js";
+import { MAX_LISTING_IMAGES, type SafeImage } from "./image-safety.service.js";
 import {
   findCategory,
   getFavoriteCounts,
@@ -25,8 +26,14 @@ import {
 import {
   mapListingSummary,
   type ListingDetailResponse,
+  type ListingImageResponse,
   type ListingSummaryResponse
 } from "./listing-response.mapper.js";
+import {
+  deleteStoredListingImage,
+  storeListingImage,
+  type StoredListingImage
+} from "./local-image-storage.service.js";
 
 export async function createListing(
   app: FastifyInstance,
@@ -245,6 +252,197 @@ export async function updateListingStatus(
   return {
     status: "updated",
     listing: await getListingSummary(app, listingId)
+  };
+}
+
+export async function addListingImage(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  input: {
+    image: SafeImage;
+    listingId: string;
+    uploadRoot: string;
+  }
+): Promise<
+  | { status: "created"; image: ListingImageResponse }
+  | { status: "not_found" | "forbidden" | "too_many_images" | "storage_failed" }
+> {
+  const listing = await selectListingOwnerRow(app, input.listingId);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  if (listing.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  const currentImages = await getImages(app, input.listingId);
+
+  if (currentImages.length >= MAX_LISTING_IMAGES) {
+    return { status: "too_many_images" };
+  }
+
+  let storedImage: StoredListingImage | null = null;
+
+  try {
+    storedImage = await storeListingImage({
+      image: input.image,
+      listingId: input.listingId,
+      uploadRoot: input.uploadRoot
+    });
+
+    const [createdImage] = await app.db
+      .insert(listingImages)
+      .values({
+        listingId: input.listingId,
+        url: storedImage.url,
+        sortOrder: currentImages.length
+      })
+      .returning({
+        id: listingImages.id,
+        url: listingImages.url,
+        sortOrder: listingImages.sortOrder
+      });
+
+    if (!createdImage) {
+      throw new Error("Listing image insert failed.");
+    }
+
+    await app.db
+      .update(listings)
+      .set({ updatedAt: new Date() })
+      .where(eq(listings.id, input.listingId));
+
+    return {
+      status: "created",
+      image: createdImage
+    };
+  } catch (error) {
+    if (storedImage) {
+      await deleteStoredListingImage({
+        uploadRoot: input.uploadRoot,
+        url: storedImage.url
+      }).catch(() => undefined);
+    }
+
+    app.log.error(error);
+    return { status: "storage_failed" };
+  }
+}
+
+export async function deleteListingImage(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  input: {
+    imageId: string;
+    listingId: string;
+    uploadRoot: string;
+  }
+): Promise<{ status: "deleted" } | { status: "not_found" | "forbidden" }> {
+  const listing = await selectListingOwnerRow(app, input.listingId);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  if (listing.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  const [image] = await app.db
+    .select({
+      id: listingImages.id,
+      url: listingImages.url
+    })
+    .from(listingImages)
+    .where(and(eq(listingImages.id, input.imageId), eq(listingImages.listingId, input.listingId)))
+    .limit(1);
+
+  if (!image) {
+    return { status: "not_found" };
+  }
+
+  await app.db.transaction(async (tx) => {
+    await tx.delete(listingImages).where(eq(listingImages.id, input.imageId));
+
+    const remainingImages = await tx
+      .select({ id: listingImages.id })
+      .from(listingImages)
+      .where(eq(listingImages.listingId, input.listingId))
+      .orderBy(asc(listingImages.sortOrder), asc(listingImages.createdAt));
+
+    for (const [index, remainingImage] of remainingImages.entries()) {
+      await tx
+        .update(listingImages)
+        .set({ sortOrder: index })
+        .where(eq(listingImages.id, remainingImage.id));
+    }
+
+    await tx
+      .update(listings)
+      .set({ updatedAt: new Date() })
+      .where(eq(listings.id, input.listingId));
+  });
+
+  await deleteStoredListingImage({
+    uploadRoot: input.uploadRoot,
+    url: image.url
+  }).catch((error) => app.log.warn(error));
+
+  return { status: "deleted" };
+}
+
+export async function reorderListingImages(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  listingId: string,
+  imageIds: string[]
+): Promise<
+  | { status: "updated"; images: ListingImageResponse[] }
+  | { status: "not_found" | "forbidden" | "invalid_request" }
+> {
+  const listing = await selectListingOwnerRow(app, listingId);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  if (listing.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  const currentImages = await getImages(app, listingId);
+
+  if (
+    currentImages.length !== imageIds.length ||
+    new Set(imageIds).size !== imageIds.length ||
+    !currentImages.every((image) => imageIds.includes(image.id))
+  ) {
+    return { status: "invalid_request" };
+  }
+
+  if (imageIds.length === 0) {
+    return { status: "updated", images: [] };
+  }
+
+  await app.db.transaction(async (tx) => {
+    for (const [index, imageId] of imageIds.entries()) {
+      await tx
+        .update(listingImages)
+        .set({ sortOrder: index })
+        .where(and(eq(listingImages.id, imageId), eq(listingImages.listingId, listingId)));
+    }
+
+    await tx
+      .update(listings)
+      .set({ updatedAt: new Date() })
+      .where(eq(listings.id, listingId));
+  });
+
+  return {
+    status: "updated",
+    images: await getImages(app, listingId)
   };
 }
 

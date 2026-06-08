@@ -1,5 +1,6 @@
 import { API_PREFIX } from "@babyloop/config";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
@@ -15,7 +16,9 @@ import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
+import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
+import { MAX_LISTING_IMAGE_BYTES } from "./services/image-safety.service.js";
 import {
   createEmailDeliveryService,
   type EmailDeliveryService
@@ -65,6 +68,13 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     },
     global: false,
     hook: "preHandler"
+  });
+
+  app.register(multipart, {
+    limits: {
+      fileSize: MAX_LISTING_IMAGE_BYTES,
+      files: 1
+    }
   });
 
   app.addHook("onRequest", async (_request, reply) => {
@@ -141,9 +151,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
-    app.register(registerListingRoutes, { prefix: API_PREFIX });
+    app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
+    app.register(registerUploadRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
