@@ -98,6 +98,10 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         });
       }
 
+      if (result.status === "profile_blocked") {
+        return reply.status(403).send(profileBlockedResponse());
+      }
+
       if (result.status !== "created" && result.status !== "existing") {
         return reply.status(500).send({
           ok: false,
@@ -269,6 +273,10 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
       const result = await sendMessage(app, currentUser, parsedParams.data.id, parsedBody.data);
 
       if (result.status !== "sent") {
+        if (result.status === "profile_blocked") {
+          return reply.status(403).send(profileBlockedResponse());
+        }
+
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
 
@@ -424,6 +432,16 @@ function accessError(status: "not_found" | "forbidden"): ApiResponse<never> {
       message: status === "not_found"
         ? "Conversation was not found."
         : "You do not have access to this conversation."
+    }
+  };
+}
+
+function profileBlockedResponse(): ApiResponse<never> {
+  return {
+    ok: false,
+    error: {
+      code: "PROFILE_BLOCKED",
+      message: "You cannot message this user."
     }
   };
 }

@@ -10,6 +10,8 @@ import {
 } from "../../components/ui";
 import { FavoriteButton } from "../../features/favorites/favorite-button";
 import { MessageSellerButton } from "../../features/messaging/message-seller-button";
+import { reportListing } from "../../features/safety/api";
+import { ReportAction } from "../../features/safety/report-action";
 import type { ListingDetailPayload } from "../../lib/api";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -95,6 +97,10 @@ export function ListingDetailContent({
             apiBaseUrl={apiBaseUrl}
             listingId={listing.id}
             sellerProfileId={listing.seller.id}
+          />
+          <ReportAction
+            actionLabel={dictionary.safety.reportListing}
+            onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
           />
         </div>
 

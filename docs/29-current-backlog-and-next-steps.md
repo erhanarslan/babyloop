@@ -40,6 +40,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - realtime messaging and notifications
 - messaging read-state correction
 - messaging XSS/security hardening
+- Trust & Safety report/block/moderation foundation
 - deterministic message moderation
 - mock AI listing suggestions
 - AI audit logging
@@ -52,7 +53,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - MFA user-facing management
 - listing discovery/filtering
 - image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- moderation/report/block workflow
+- full moderation review workflow beyond report/block foundation
 - realtime production scaling
 - AI production/provider/RAG features
 - UI system
@@ -64,9 +65,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - real email provider
 - verified Google OAuth deployment config
 - R2/S3-compatible image storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- report user/listing/message
-- block user
-- moderation queue/admin review
+- full moderation queue/admin review
 - search filters/pagination
 - web E2E tests
 - observability and production deployment hardening
@@ -74,8 +73,8 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 ## Next P0 Tasks
 
 - Complete Phase 0 cleanup and manual QA for auth, listing lifecycle, local image upload, favorites, notifications, messaging, realtime, and mobile-width checks.
-- Add report/block workflow for listings, messages, and users.
-- Add admin/moderation queue foundation.
+- Harden the report/block foundation with manual QA and edge-case copy.
+- Add admin/moderation review UI and workflow on top of the moderation case foundation.
 - Move image storage from local disk to an S3/R2-compatible provider without changing public API contracts.
 - Add image moderation and safer image processing/metadata handling.
 - Add production email delivery.
@@ -86,7 +85,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 P0:
 
 - Phase 0 cleanup/manual QA.
-- Trust & Safety: report/block/moderation foundation.
+- Trust & Safety: report/block/moderation foundation. Implemented as a backend/API/minimal-web foundation; deeper review workflows remain.
 - Admin/backoffice moderation foundation.
 - Account security panel for sessions/devices, production email, Google OAuth validation, and MFA management.
 

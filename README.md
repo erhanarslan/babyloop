@@ -1,6 +1,6 @@
 # BabyLoop
 
-BabyLoop is a long-term full-stack AI marketplace project for baby and family products.
+BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby/child products.
 
 This repository currently contains a verified local MVP foundation:
 
@@ -30,6 +30,7 @@ Implemented:
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. Favorite notifications hide actor identity, and listing responses expose privacy-safe `favoriteCount`. |
 | Notifications | Persistent in-app notifications, unread count, mark-read/read-all APIs, realtime notification events, notification center, and header unread badge. |
 | Messaging | Authenticated conversation API, idempotent start-conversation behavior, web conversations list, web thread page, deterministic moderation, stored-XSS plaintext safety, explicit/visibility-based read state, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
+| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restrictions for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
 | Tests | API integration tests with Vitest and `fastify.inject`. |
 
@@ -40,7 +41,8 @@ Partially implemented:
 | Auth/session | Session, logout, password reset, email verification, and Google OAuth foundations exist, but production hardening, device/session management UI, provider validation, and deployment validation remain incomplete. |
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
 | Listing images | Local upload/storage works for development and tests, but production object storage, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are deferred. |
-| Messaging | List/thread/send/realtime/read-state works, but report/block flows, attachments, and durable per-conversation read receipts remain deferred. |
+| Messaging | List/thread/send/realtime/read-state works, but attachments and durable per-conversation read receipts remain deferred. |
+| Trust & Safety | Reporting/blocking foundation exists, but full admin review UI, fraud detection, appeals, unsafe-product guidance, and AI/image moderation are deferred. |
 | AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
 | Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
 | Email | No-op/dev email flow exists; real provider delivery is deferred. |
@@ -52,7 +54,7 @@ Not implemented:
 - admin panel
 - mobile app
 - payments
-- report/block/moderation queue workflows
+- full admin moderation queue and review workflows
 - production observability/deployment pipeline
 
 Intentionally deferred:
@@ -61,6 +63,9 @@ Intentionally deferred:
 - real AI providers, pricing, RAG, recommendations, and AI moderation
 - background workers/automation and notification delivery expansion
 - production-grade auth/session hardening
+- WhatsApp-like chat UI refinement as a future UX direction, not WhatsApp integration
+- hybrid payment model: external agreement mode plus optional safe payment mode
+- admin-managed pinned promo cards in conversations
 
 ## Install
 

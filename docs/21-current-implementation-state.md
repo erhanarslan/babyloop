@@ -57,7 +57,8 @@ Local MVP foundation with several production-oriented building blocks
 | Listing images | Real local upload/storage now exists. API validates MIME, extension, magic bytes, size, count, and ownership; stores files under `var/uploads`; serves them from `/api/v1/uploads/listings/:listingId/:filename`; keeps manual image URL compatibility. |
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Favorite notifications hide actor identity. Listing responses expose privacy-safe `favoriteCount`. |
 | Notifications | Persistent in-app notification model, list, unread count, mark read, mark all read, realtime events, notification center, and header unread badge. |
-| Messaging | Profile-pair conversations with listing contexts, idempotent start-conversation behavior, message send/list/detail, deterministic moderation, plaintext/XSS validation, Socket.IO realtime events, explicit/visibility-based read state, and web list/thread/composer UI. |
+| Messaging | Profile-pair conversations with listing contexts, idempotent start-conversation behavior, message send/list/detail, deterministic moderation, plaintext/XSS validation, Socket.IO realtime events, explicit/visibility-based read state, block-aware send/start restrictions, and web list/thread/composer UI. |
+| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restriction for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
 | Mock AI | Deterministic listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` audit logging when DB is available. |
 | Tests | Split API integration tests under `apps/api/test`, shared unit tests, Socket.IO smoke coverage, and CI-ready validation scripts. |
 
@@ -71,16 +72,15 @@ Local MVP foundation with several production-oriented building blocks
 | MFA | Backend OTP foundation exists; user-facing MFA management is deferred. |
 | Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
 | Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN/cache strategy, EXIF stripping, image moderation, upload rate limits, and image transforms/resizing are deferred. |
-| Messaging | Realtime and read state work. Report/block flows, attachments, durable per-conversation read receipts, and moderation queue are deferred. |
+| Messaging | Realtime, read state, and block-aware send/start restrictions work. Attachments and durable per-conversation read receipts are deferred. |
+| Trust & Safety | Reporting and blocking foundation exists. Full admin review UI, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, AI moderation, and image moderation are deferred. |
 | Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
 | AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
 | Web tests | API tests exist. Web component/E2E coverage is deferred. |
 
 ## Not Implemented
 
-- report user/listing/message
-- block user
-- moderation queue/admin review
+- full admin moderation queue/review workflow
 - production email provider
 - session/device management UI
 - saved search
@@ -148,7 +148,7 @@ See `docs/30-listing-image-upload-and-safety.md`.
 - production Google OAuth validation
 - production image storage: object storage migration, CDN/cache strategy, EXIF stripping, transforms/resizing, upload rate limits, and image moderation
 - search filters and pagination
-- report/block/moderation queue
+- full admin moderation queue/review workflow
 - Redis-backed realtime scaling
 - saved search
 - admin tools

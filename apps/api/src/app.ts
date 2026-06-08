@@ -16,6 +16,7 @@ import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
+import { registerSafetyRoutes } from "./routes/safety.routes.js";
 import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
 import { MAX_LISTING_IMAGE_BYTES } from "./services/image-safety.service.js";
@@ -154,6 +155,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
+    app.register(registerSafetyRoutes, { prefix: API_PREFIX });
     app.register(registerUploadRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");

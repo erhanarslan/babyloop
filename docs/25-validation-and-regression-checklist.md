@@ -128,6 +128,23 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] mark-one-read updates only the current user's notification
 - [ ] mark-all-read updates only the current user's notifications
 
+### Trust & Safety
+
+- [ ] authenticated user can report another user's listing
+- [ ] authenticated user can report another profile
+- [ ] authenticated conversation participant can report a message
+- [ ] unauthenticated report returns 401
+- [ ] nonexistent report target returns 404
+- [ ] invalid reason/details returns 400
+- [ ] duplicate report by the same reporter/target is idempotent
+- [ ] report creates a moderation case and safety event
+- [ ] user can block another profile
+- [ ] user cannot block themself
+- [ ] block and unblock are idempotent
+- [ ] blocked profile pair cannot start a new conversation
+- [ ] blocked profile pair cannot send messages in either direction
+- [ ] block/list responses do not expose private user data
+
 ### AI
 
 - [ ] mock suggestion response works
@@ -182,6 +199,11 @@ Checklist:
 - [ ] unsafe message body is rejected with friendly copy and no script executes
 - [ ] messaging unread/read behavior only clears after conversation content is viewed
 - [ ] notification unread count stays accurate after read/read-all and conversation-read flows
+- [ ] report listing action submits successfully
+- [ ] report user action submits successfully
+- [ ] report message action submits successfully
+- [ ] block user disables further sending from the current conversation
+- [ ] unblock allows messaging to resume if the other side has not blocked the user
 - [ ] mobile width check for listing image previews and messaging thread/composer
 
 Seeded account flow:

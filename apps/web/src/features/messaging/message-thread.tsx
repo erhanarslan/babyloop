@@ -3,7 +3,7 @@
 import { REALTIME_EVENTS } from "@babyloop/shared";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EmptyState, LoadingBlock } from "../../components/ui";
+import { Alert, EmptyState, LoadingBlock } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getAuthToken } from "../../lib/auth-client";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
@@ -13,6 +13,9 @@ import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
 import { formatDateTime } from "../listings/listing-display";
 import { dispatchNotificationUnreadCountUpdated } from "../notifications/unread-count-events";
+import { fetchBlockedProfiles, reportMessage, reportProfile } from "../safety/api";
+import { BlockProfileAction } from "../safety/block-profile-action";
+import { ReportAction } from "../safety/report-action";
 import {
   fetchConversation,
   fetchMessages,
@@ -40,6 +43,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [highlightedMessageIds, setHighlightedMessageIds] = useState<Set<string>>(() => new Set());
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [isOtherProfileBlocked, setIsOtherProfileBlocked] = useState(false);
   const [readCandidateMessageId, setReadCandidateMessageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -50,6 +54,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setCurrentProfileId(null);
     setHighlightedMessageIds(new Set());
     setHasNewMessages(false);
+    setIsOtherProfileBlocked(false);
     setReadCandidateMessageId(null);
     setMessage(null);
     setState(null);
@@ -95,10 +100,11 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     }
 
     try {
-      const [currentUserBody, conversationBody, messagesBody] = await Promise.all([
+      const [currentUserBody, conversationBody, messagesBody, blockedProfilesBody] = await Promise.all([
         fetchCurrentUser(apiBaseUrl),
         fetchConversation(apiBaseUrl, conversationId),
-        fetchMessages(apiBaseUrl, conversationId)
+        fetchMessages(apiBaseUrl, conversationId),
+        fetchBlockedProfiles(apiBaseUrl)
       ]);
 
       if (!currentUserBody.ok) {
@@ -122,6 +128,13 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       setCurrentProfileId(currentUserBody.data.profile.id);
       setConversation(conversationBody.data.conversation);
       setMessages(messagesBody.data.messages);
+      setIsOtherProfileBlocked(
+        blockedProfilesBody.ok
+          ? blockedProfilesBody.data.blockedProfiles.some(
+              (profile) => profile.id === conversationBody.data.conversation.otherProfile.id
+            )
+          : false
+      );
       setReadCandidateMessageId(
         conversationBody.data.conversation.unreadCount > 0
           ? getLatestIncomingMessageId(messagesBody.data.messages, currentUserBody.data.profile.id)
@@ -356,6 +369,18 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             <span>{formatDateTime(conversation.lastMessageAt ?? conversation.updatedAt, locale)}</span>
           </p>
         </div>
+        <div className="detail-actions" aria-label={dictionary.safety.safetyActionsAriaLabel}>
+          <ReportAction
+            actionLabel={dictionary.safety.reportUser}
+            onSubmitReport={(payload) => reportProfile(apiBaseUrl, conversation.otherProfile.id, payload)}
+          />
+          <BlockProfileAction
+            apiBaseUrl={apiBaseUrl}
+            initialBlocked={isOtherProfileBlocked}
+            profileId={conversation.otherProfile.id}
+            onBlockedChange={setIsOtherProfileBlocked}
+          />
+        </div>
       </section>
 
       <section className="thread-panel">
@@ -383,6 +408,12 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
                     <time>{formatDateTime(item.createdAt, locale)}</time>
                   </div>
                   <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
+                  {item.sender.id !== currentProfileId ? (
+                    <ReportAction
+                      actionLabel={dictionary.safety.reportMessage}
+                      onSubmitReport={(payload) => reportMessage(apiBaseUrl, item.id, payload)}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -401,14 +432,22 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             ) : null}
           </>
         )}
-        <MessageComposer
-          apiBaseUrl={apiBaseUrl}
-          conversationId={conversationId}
-          onSent={(sentMessage) => {
-            appendMessage(sentMessage);
-            window.setTimeout(() => scrollToLatestMessage("smooth"), 0);
-          }}
-        />
+        {isOtherProfileBlocked ? (
+          <Alert
+            tone="info"
+            title={dictionary.safety.messagingBlockedTitle}
+            message={dictionary.safety.cannotMessageUser}
+          />
+        ) : (
+          <MessageComposer
+            apiBaseUrl={apiBaseUrl}
+            conversationId={conversationId}
+            onSent={(sentMessage) => {
+              appendMessage(sentMessage);
+              window.setTimeout(() => scrollToLatestMessage("smooth"), 0);
+            }}
+          />
+        )}
       </section>
     </div>
   );

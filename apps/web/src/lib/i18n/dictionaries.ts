@@ -441,6 +441,39 @@ export const dictionaries = {
         system: "System"
       }
     },
+    safety: {
+      safetyActionsAriaLabel: "Safety actions",
+      reportListing: "Report listing",
+      reportUser: "Report user",
+      reportMessage: "Report message",
+      blockUser: "Block user",
+      unblockUser: "Unblock",
+      userBlocked: "User blocked.",
+      userUnblocked: "User unblocked.",
+      cannotMessageUser: "You cannot message this user.",
+      cannotBlockSelf: "You cannot block yourself.",
+      cannotReportSelf: "You cannot report yourself.",
+      messagingBlockedTitle: "Messaging blocked",
+      reason: "Reason",
+      details: "Details",
+      detailsPlaceholder: "Add optional context for the moderation team.",
+      submitReport: "Submit report",
+      submitting: "Submitting...",
+      cancel: "Cancel",
+      updating: "Updating...",
+      reportSubmittedTitle: "Report submitted",
+      reportSubmitted: "Report submitted.",
+      actionComplete: "Action complete",
+      actionFailed: "Safety action failed",
+      reasons: {
+        safety: "Safety concern",
+        scam: "Scam or suspicious behavior",
+        inappropriate: "Inappropriate content",
+        prohibited_item: "Prohibited item",
+        harassment: "Harassment",
+        other: "Other"
+      }
+    },
     marketplace: {
       favoritesTitle: "Saved listings",
       favoritesDescription: "Favorites are connected to your logged-in BabyLoop profile.",
@@ -888,6 +921,39 @@ export const dictionaries = {
         listing_favorited: "Favori",
         listing_status_changed: "İlan durumu",
         system: "Sistem"
+      }
+    },
+    safety: {
+      safetyActionsAriaLabel: "Güvenlik işlemleri",
+      reportListing: "İlanı bildir",
+      reportUser: "Kullanıcıyı bildir",
+      reportMessage: "Mesajı bildir",
+      blockUser: "Kullanıcıyı engelle",
+      unblockUser: "Engeli kaldır",
+      userBlocked: "Kullanıcı engellendi.",
+      userUnblocked: "Kullanıcı engeli kaldırıldı.",
+      cannotMessageUser: "Bu kullanıcıyla mesajlaşamazsın.",
+      cannotBlockSelf: "Kendini engelleyemezsin.",
+      cannotReportSelf: "Kendini bildiremezsin.",
+      messagingBlockedTitle: "Mesajlaşma engellendi",
+      reason: "Neden",
+      details: "Detaylar",
+      detailsPlaceholder: "Moderasyon ekibi için isteğe bağlı bilgi ekle.",
+      submitReport: "Bildirimi gönder",
+      submitting: "Gönderiliyor...",
+      cancel: "Vazgeç",
+      updating: "Güncelleniyor...",
+      reportSubmittedTitle: "Bildirim gönderildi",
+      reportSubmitted: "Bildirim gönderildi.",
+      actionComplete: "İşlem tamamlandı",
+      actionFailed: "Güvenlik işlemi başarısız",
+      reasons: {
+        safety: "Güvenlik endişesi",
+        scam: "Dolandırıcılık veya şüpheli davranış",
+        inappropriate: "Uygunsuz içerik",
+        prohibited_item: "Yasaklı ürün",
+        harassment: "Taciz",
+        other: "Diğer"
       }
     },
     marketplace: {

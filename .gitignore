@@ -299,3 +299,4 @@ dependency-check-report.html
 *.swp
 *.swo
 *~
+*.zip

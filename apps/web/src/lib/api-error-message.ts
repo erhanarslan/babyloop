@@ -44,5 +44,17 @@ export function getApiErrorMessage(
     return dictionary.listings.tooManyImages;
   }
 
+  if (error.code === "PROFILE_BLOCKED") {
+    return dictionary.safety.cannotMessageUser;
+  }
+
+  if (error.code === "CANNOT_BLOCK_SELF") {
+    return dictionary.safety.cannotBlockSelf;
+  }
+
+  if (error.code === "CANNOT_REPORT_SELF") {
+    return dictionary.safety.cannotReportSelf;
+  }
+
   return fallback;
 }

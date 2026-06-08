@@ -54,6 +54,32 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "system"
 ]);
 
+export const safetyTargetTypeEnum = pgEnum("safety_target_type", [
+  "listing",
+  "profile",
+  "message"
+]);
+
+export const reportStatusEnum = pgEnum("report_status", [
+  "pending",
+  "reviewed",
+  "dismissed",
+  "action_taken"
+]);
+
+export const moderationCaseStatusEnum = pgEnum("moderation_case_status", [
+  "pending",
+  "in_review",
+  "resolved",
+  "dismissed"
+]);
+
+export const moderationPriorityEnum = pgEnum("moderation_priority", [
+  "low",
+  "normal",
+  "high"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -405,6 +431,122 @@ export const notifications = pgTable(
   ]
 );
 
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterProfileId: uuid("reporter_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    targetType: safetyTargetTypeEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: varchar("reason", { length: 80 }).notNull(),
+    details: text("details"),
+    status: reportStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("reports_reporter_target_unique").on(
+      table.reporterProfileId,
+      table.targetType,
+      table.targetId
+    ),
+    index("reports_target_idx").on(table.targetType, table.targetId),
+    index("reports_status_created_at_idx").on(table.status, table.createdAt),
+    index("reports_reporter_profile_id_idx").on(table.reporterProfileId),
+    check(
+      "reports_reason_check",
+      sql`${table.reason} in ('safety', 'scam', 'inappropriate', 'prohibited_item', 'harassment', 'other')`
+    )
+  ]
+);
+
+export const blockedProfiles = pgTable(
+  "blocked_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    blockerProfileId: uuid("blocker_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    blockedProfileId: uuid("blocked_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("blocked_profiles_blocker_blocked_unique").on(
+      table.blockerProfileId,
+      table.blockedProfileId
+    ),
+    index("blocked_profiles_blocker_profile_id_idx").on(table.blockerProfileId),
+    index("blocked_profiles_blocked_profile_id_idx").on(table.blockedProfileId),
+    check(
+      "blocked_profiles_not_self_check",
+      sql`${table.blockerProfileId} <> ${table.blockedProfileId}`
+    )
+  ]
+);
+
+export const moderationCases = pgTable(
+  "moderation_cases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportId: uuid("report_id").references(() => reports.id, { onDelete: "set null" }),
+    targetType: safetyTargetTypeEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    status: moderationCaseStatusEnum("status").notNull().default("pending"),
+    priority: moderationPriorityEnum("priority").notNull().default("normal"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("moderation_cases_report_id_idx").on(table.reportId),
+    index("moderation_cases_target_idx").on(table.targetType, table.targetId),
+    index("moderation_cases_status_priority_idx").on(table.status, table.priority)
+  ]
+);
+
+export const moderationActions = pgTable(
+  "moderation_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    moderationCaseId: uuid("moderation_case_id").references(() => moderationCases.id, {
+      onDelete: "set null"
+    }),
+    actorProfileId: uuid("actor_profile_id").references(() => profiles.id, {
+      onDelete: "set null"
+    }),
+    actionType: varchar("action_type", { length: 80 }).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("moderation_actions_case_id_idx").on(table.moderationCaseId),
+    index("moderation_actions_actor_profile_id_idx").on(table.actorProfileId),
+    index("moderation_actions_action_type_idx").on(table.actionType)
+  ]
+);
+
+export const userSafetyEvents = pgTable(
+  "user_safety_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    eventType: varchar("event_type", { length: 120 }).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("user_safety_events_profile_id_idx").on(table.profileId),
+    index("user_safety_events_event_type_idx").on(table.eventType),
+    index("user_safety_events_created_at_idx").on(table.createdAt)
+  ]
+);
+
 export const events = pgTable(
   "events",
   {
@@ -457,6 +599,7 @@ export const aiModelRuns = pgTable(
 export const schema = {
   aiModelRuns,
   authAccounts,
+  blockedProfiles,
   conversationListingContexts,
   conversationParticipants,
   conversations,
@@ -467,11 +610,15 @@ export const schema = {
   listings,
   messages,
   mfaOtpChallenges,
+  moderationActions,
+  moderationCases,
   notifications,
   passwordResetTokens,
   productCategories,
   profiles,
+  reports,
   sessions,
+  userSafetyEvents,
   users
 };
 

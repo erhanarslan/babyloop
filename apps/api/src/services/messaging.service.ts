@@ -14,6 +14,7 @@ import type {
   CreateConversationBody,
   SendMessageBody
 } from "../schemas/messaging.schemas.js";
+import { isProfilePairBlocked } from "./safety.service.js";
 
 const profileLowProfiles = alias(profiles, "profile_low_profiles");
 const profileHighProfiles = alias(profiles, "profile_high_profiles");
@@ -86,7 +87,7 @@ export async function createOrGetConversation(
   body: CreateConversationBody
 ): Promise<
   | { status: "created" | "existing"; conversation: ConversationSummaryResponse }
-  | { status: "invalid_listing" | "cannot_message_self" }
+  | { status: "invalid_listing" | "cannot_message_self" | "profile_blocked" }
 > {
   const listing = await getListingForConversation(app, body.listingId);
 
@@ -96,6 +97,10 @@ export async function createOrGetConversation(
 
   if (listing.sellerProfileId === currentUser.profile.id) {
     return { status: "cannot_message_self" };
+  }
+
+  if (await isProfilePairBlocked(app, currentUser.profile.id, listing.sellerProfileId)) {
+    return { status: "profile_blocked" };
   }
 
   const { profileLowId, profileHighId } = normalizeProfilePair(
@@ -346,12 +351,26 @@ export async function sendMessage(
   body: SendMessageBody
 ): Promise<
   | { status: "sent"; message: MessageResponse }
-  | { status: "not_found" | "forbidden" }
+  | { status: "not_found" | "forbidden" | "profile_blocked" }
 > {
   const access = await getConversationAccess(app, conversationId, currentUser.profile.id);
 
   if (access.status !== "ok") {
     return access;
+  }
+
+  const otherProfileId = await getOtherConversationParticipantProfileId(
+    app,
+    conversationId,
+    currentUser.profile.id
+  );
+
+  if (!otherProfileId) {
+    return { status: "forbidden" };
+  }
+
+  if (await isProfilePairBlocked(app, currentUser.profile.id, otherProfileId)) {
+    return { status: "profile_blocked" };
   }
 
   const now = new Date();
@@ -577,6 +596,35 @@ async function getConversationAccess(
     .limit(1);
 
   return participant ? { status: "ok" } : { status: "forbidden" };
+}
+
+async function getOtherConversationParticipantProfileId(
+  app: FastifyInstance,
+  conversationId: string,
+  profileId: string
+): Promise<string | null> {
+  const [conversation] = await app.db
+    .select({
+      profileLowId: conversations.profileLowId,
+      profileHighId: conversations.profileHighId
+    })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  if (!conversation) {
+    return null;
+  }
+
+  if (conversation.profileLowId === profileId) {
+    return conversation.profileHighId;
+  }
+
+  if (conversation.profileHighId === profileId) {
+    return conversation.profileLowId;
+  }
+
+  return null;
 }
 
 export async function getUnreadConversationCountForProfile(

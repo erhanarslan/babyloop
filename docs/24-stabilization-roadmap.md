@@ -21,6 +21,7 @@ BabyLoop currently has a working local full-stack foundation:
 - notifications
 - mock AI listing suggestions
 - messaging API/web/realtime foundation
+- Trust & Safety report/block/moderation foundation
 - API integration tests with Vitest
 
 Current stabilization concerns:
@@ -57,10 +58,11 @@ Stable contracts to preserve:
 
 ### Phase 1: Trust & Safety / Report / Block / Moderation Foundation
 
-- report listing/user/message flows.
-- block user behavior.
-- moderation queue data model and API foundation.
+- report listing/user/message flows. Foundation implemented.
+- block user behavior. Foundation implemented.
+- moderation case data model and API foundation. Foundation implemented.
 - preserve favorite actor privacy and plaintext messaging safety.
+- full admin review workflow, fraud detection, appeal flow, and AI/image moderation remain future work.
 
 ### Phase 2: Admin Foundation
 
