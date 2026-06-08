@@ -300,3 +300,4 @@ dependency-check-report.html
 *.swo
 *~
 *.zip
+manual-test-assets/
