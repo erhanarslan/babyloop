@@ -1,4 +1,6 @@
-import type { FastifyInstance } from "fastify";
+import { users } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
+import type { TestApp } from "./app.js";
 
 let sequence = 0;
 
@@ -28,16 +30,18 @@ export function authHeader(token: string) {
 }
 
 export async function createUser(
-  app: FastifyInstance,
+  app: TestApp,
   overrides: Partial<{
     displayName: string;
     email: string;
     locationCity: string;
     password: string;
+    role: string;
   }> = {}
 ): Promise<AuthPayload> {
   const email = overrides.email ?? `user-${nextId()}@babyloop.test`;
   const password = overrides.password ?? "Password123!";
+
   const response = await app.inject({
     method: "POST",
     url: "/api/v1/auth/register",
@@ -53,11 +57,22 @@ export async function createUser(
     throw new Error(`User setup failed: ${response.statusCode} ${response.body}`);
   }
 
-  return response.json<ApiSuccess<AuthPayload>>().data;
+  const body = response.json<ApiSuccess<AuthPayload>>().data;
+
+  if (overrides.role) {
+    await app.db
+      .update(users)
+      .set({ role: overrides.role })
+      .where(eq(users.id, body.user.id));
+
+    body.user.role = overrides.role;
+  }
+
+  return body;
 }
 
 export async function loginUser(
-  app: FastifyInstance,
+  app: TestApp,
   email: string,
   password = "Password123!"
 ): Promise<AuthPayload> {
