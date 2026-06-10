@@ -1,23 +1,15 @@
-import { AdminAuth } from "../../../../features/admin/admin-auth";
-import { ModerationCaseDetail } from "../../../../features/admin/moderation-case-detail";
-import { getApiBaseUrl } from "../../../../lib/api";
+import { redirect } from "next/navigation";
 
-type AdminModerationCasePageProps = {
+import { getBackofficeBaseUrl } from "../../../../lib/backoffice";
+
+type DeprecatedAdminModerationCasePageProps = {
   params: {
     caseId: string;
   };
 };
 
-export default function AdminModerationCasePage({
+export default function DeprecatedAdminModerationCasePage({
   params,
-}: AdminModerationCasePageProps) {
-  const apiBaseUrl = getApiBaseUrl();
-
-  return (
-    <AdminAuth apiBaseUrl={apiBaseUrl}>
-      <main className="page-section">
-        <ModerationCaseDetail caseId={params.caseId} />
-      </main>
-    </AdminAuth>
-  );
+}: DeprecatedAdminModerationCasePageProps) {
+  redirect(`${getBackofficeBaseUrl()}/moderation/${params.caseId}`);
 }

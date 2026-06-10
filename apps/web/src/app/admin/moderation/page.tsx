@@ -1,15 +1,7 @@
-import { AdminAuth } from "../../../features/admin/admin-auth";
-import { AdminModerationPageContent } from "../../../features/admin/admin-moderation-page-content";
-import { getApiBaseUrl } from "../../../lib/api";
+import { redirect } from "next/navigation";
 
-export default function AdminModerationPage() {
-  const apiBaseUrl = getApiBaseUrl();
+import { getBackofficeBaseUrl } from "../../../lib/backoffice";
 
-  return (
-    <AdminAuth apiBaseUrl={apiBaseUrl}>
-      <main className="page-section">
-        <AdminModerationPageContent />
-      </main>
-    </AdminAuth>
-  );
+export default function DeprecatedAdminModerationPage() {
+  redirect(`${getBackofficeBaseUrl()}/moderation`);
 }

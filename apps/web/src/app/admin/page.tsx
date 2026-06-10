@@ -1,15 +1,7 @@
-import { AdminAuth } from "../../features/admin/admin-auth";
-import { AdminHome } from "../../features/admin/admin-home";
-import { getApiBaseUrl } from "../../lib/api";
+import { redirect } from "next/navigation";
 
-export default function AdminPage() {
-  const apiBaseUrl = getApiBaseUrl();
+import { getBackofficeBaseUrl } from "../../lib/backoffice";
 
-  return (
-    <AdminAuth apiBaseUrl={apiBaseUrl}>
-      <main className="page-section">
-        <AdminHome />
-      </main>
-    </AdminAuth>
-  );
+export default function DeprecatedAdminPage() {
+  redirect(getBackofficeBaseUrl());
 }
