@@ -1,4 +1,4 @@
-import { BackofficeShell } from "../features/shell/backoffice-shell";
+import { BackofficeAuthShell } from "../features/auth/backoffice-auth-shell";
 import { getApiBaseUrl } from "../lib/api";
 
 const dashboardCards = [
@@ -28,7 +28,7 @@ export default function BackofficeHomePage() {
   const apiBaseUrl = getApiBaseUrl();
 
   return (
-    <BackofficeShell>
+    <BackofficeAuthShell>
       <section className="page-heading">
         <p className="eyebrow">BabyLoop Operations</p>
         <h2>Backoffice foundation</h2>
@@ -66,6 +66,6 @@ export default function BackofficeHomePage() {
           </article>
         ))}
       </section>
-    </BackofficeShell>
+    </BackofficeAuthShell>
   );
 }
