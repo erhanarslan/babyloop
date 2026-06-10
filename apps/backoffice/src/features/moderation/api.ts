@@ -9,6 +9,8 @@ export type AdminModerationCaseStatus =
   | "resolved"
   | "dismissed";
 
+export type AdminModerationTargetType = "listing" | "profile" | "message";
+
 export type AdminModerationActionType =
   | "note"
   | "review_started"
@@ -19,10 +21,11 @@ export type AdminModerationActionType =
 export type AdminModerationCase = {
   id: string;
   status: AdminModerationCaseStatus;
-  subjectType: string;
+  subjectType: AdminModerationTargetType;
   subjectId: string;
   reason: string;
   details: string | null;
+  priority: "low" | "normal" | "high";
   createdAt: string;
   updatedAt: string;
 };
@@ -33,6 +36,7 @@ export type AdminModerationAction = {
   actionType?: AdminModerationActionType;
   note: string | null;
   adminUserId: string | null;
+  adminDisplayName: string | null;
   createdAt: string;
 };
 
@@ -69,6 +73,75 @@ export type CreateAdminModerationCaseActionResponse = {
   case: AdminModerationCaseDetail;
 };
 
+type RawAdminTargetPreview =
+  | {
+      type: "listing";
+      id: string;
+      title: string;
+      status: string;
+    }
+  | {
+      type: "profile";
+      id: string;
+      displayName: string;
+    }
+  | {
+      type: "message";
+      id: string;
+      bodyPreview: string;
+      conversationId: string;
+      createdAt: string;
+    };
+
+type RawAdminModerationCase = {
+  id: string;
+  targetType: AdminModerationTargetType;
+  targetId: string;
+  status: AdminModerationCaseStatus;
+  priority: "low" | "normal" | "high";
+  createdAt: string;
+  updatedAt: string;
+  report: {
+    id: string;
+    reason: string;
+    status: string;
+    createdAt: string;
+    reporter: {
+      id: string;
+      displayName: string;
+    } | null;
+  } | null;
+  targetPreview: RawAdminTargetPreview | null;
+};
+
+type RawAdminModerationAction = {
+  id: string;
+  actionType: string;
+  note: string | null;
+  createdAt: string;
+  actorProfile: {
+    id: string;
+    displayName: string;
+  } | null;
+};
+
+type RawListAdminModerationCasesResponse = {
+  cases: RawAdminModerationCase[];
+};
+
+type RawGetAdminModerationCaseResponse = {
+  case: RawAdminModerationCase;
+  actions: RawAdminModerationAction[];
+};
+
+type RawUpdateAdminModerationCaseStatusResponse = {
+  caseId: string;
+};
+
+type RawCreateAdminModerationCaseActionResponse = {
+  action: RawAdminModerationAction;
+};
+
 const ADMIN_MODERATION_BASE_PATH = "/api/v1/admin/moderation";
 
 export async function listAdminModerationCases(
@@ -83,41 +156,103 @@ export async function listAdminModerationCases(
   const query = searchParams.toString();
   const path = `${ADMIN_MODERATION_BASE_PATH}/cases${query ? `?${query}` : ""}`;
 
-  return adminRequest<ListAdminModerationCasesResponse>(path);
+  const response = await adminRequest<RawListAdminModerationCasesResponse>(path);
+
+  if (!response.ok) {
+    return response;
+  }
+
+  return {
+    ok: true,
+    data: {
+      cases: response.data.cases.map(mapModerationCase),
+    },
+  };
 }
 
 export async function getAdminModerationCase(
   caseId: string,
 ): Promise<ApiResponse<GetAdminModerationCaseResponse>> {
-  return adminRequest<GetAdminModerationCaseResponse>(
+  const response = await adminRequest<RawGetAdminModerationCaseResponse>(
     `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}`,
   );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  return {
+    ok: true,
+    data: {
+      case: {
+        ...mapModerationCase(response.data.case),
+        actions: response.data.actions.map(mapModerationAction),
+      },
+    },
+  };
 }
 
 export async function updateAdminModerationCaseStatus(
   caseId: string,
   input: UpdateAdminModerationCaseStatusInput,
 ): Promise<ApiResponse<UpdateAdminModerationCaseStatusResponse>> {
-  return adminRequest<UpdateAdminModerationCaseStatusResponse>(
+  const response = await adminRequest<RawUpdateAdminModerationCaseStatusResponse>(
     `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/status`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
     },
   );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const refreshedCase = await getAdminModerationCase(response.data.caseId);
+
+  if (!refreshedCase.ok) {
+    return refreshedCase;
+  }
+
+  return {
+    ok: true,
+    data: {
+      case: refreshedCase.data.case,
+    },
+  };
 }
 
 export async function createAdminModerationCaseAction(
   caseId: string,
   input: CreateAdminModerationCaseActionInput,
 ): Promise<ApiResponse<CreateAdminModerationCaseActionResponse>> {
-  return adminRequest<CreateAdminModerationCaseActionResponse>(
+  const response = await adminRequest<RawCreateAdminModerationCaseActionResponse>(
     `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/actions`,
     {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        actionType: input.type,
+        note: input.note,
+      }),
     },
   );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const refreshedCase = await getAdminModerationCase(caseId);
+
+  if (!refreshedCase.ok) {
+    return refreshedCase;
+  }
+
+  return {
+    ok: true,
+    data: {
+      case: refreshedCase.data.case,
+    },
+  };
 }
 
 async function adminRequest<TData>(
@@ -146,3 +281,77 @@ async function adminRequest<TData>(
     };
   }
 }
+
+function mapModerationCase(rawCase: RawAdminModerationCase): AdminModerationCase {
+  return {
+    id: rawCase.id,
+    status: rawCase.status,
+    subjectType: rawCase.targetType,
+    subjectId: rawCase.targetId,
+    reason: rawCase.report?.reason ?? "manual_review",
+    details: getTargetPreviewText(rawCase.targetPreview),
+    priority: rawCase.priority,
+    createdAt: rawCase.createdAt,
+    updatedAt: rawCase.updatedAt,
+  };
+}
+
+function mapModerationAction(
+  rawAction: RawAdminModerationAction,
+): AdminModerationAction {
+  return {
+    id: rawAction.id,
+    actionType: toActionType(rawAction.actionType),
+    note: rawAction.note,
+    adminUserId: rawAction.actorProfile?.id ?? null,
+    adminDisplayName: rawAction.actorProfile?.displayName ?? null,
+    createdAt: rawAction.createdAt,
+  };
+}
+
+function getTargetPreviewText(preview: RawAdminTargetPreview | null): string | null {
+  if (!preview) {
+    return null;
+  }
+
+  if (preview.type === "listing") {
+    return `Listing: ${preview.title} (${preview.status})`;
+  }
+
+  if (preview.type === "profile") {
+    return `Profile: ${preview.displayName}`;
+  }
+
+  return `Message preview: ${preview.bodyPreview}`;
+}
+
+function toActionType(value: string): AdminModerationActionType {
+  if (
+    value === "note" ||
+    value === "review_started" ||
+    value === "dismissed" ||
+    value === "resolved" ||
+    value === "action_taken"
+  ) {
+    return value;
+  }
+
+  return "note";
+}
+
+/**
+ * Compatibility aliases for the current backoffice moderation components.
+ * TODO: Rename components to AdminModeration* after the moderation contract is stable.
+ */
+export type BackofficeModerationCaseStatus = AdminModerationCaseStatus;
+export type BackofficeModerationActionType = AdminModerationActionType;
+export type BackofficeModerationCase = AdminModerationCase;
+export type BackofficeModerationAction = AdminModerationAction;
+export type BackofficeModerationCaseDetail = AdminModerationCaseDetail;
+
+export const listBackofficeModerationCases = listAdminModerationCases;
+export const getBackofficeModerationCase = getAdminModerationCase;
+export const updateBackofficeModerationCaseStatus =
+  updateAdminModerationCaseStatus;
+export const createBackofficeModerationCaseAction =
+  createAdminModerationCaseAction;

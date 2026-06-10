@@ -162,7 +162,7 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
                 <dl className="compact-details">
                   <div>
                     <dt>Admin user</dt>
-                    <dd>{action.adminUserId ?? "Unknown"}</dd>
+                    <dd>{action.adminDisplayName ?? action.adminUserId ?? "Unknown"}</dd>
                   </div>
                   <div>
                     <dt>Created</dt>
