@@ -191,6 +191,23 @@ The timeline must not show raw message body, reporter email, user email, phone n
 
 The timeline is not a raw-data viewer and must not call the sensitive-access endpoint.
 
+## Enforcement privacy rule
+
+Backoffice enforcement controls must not expose raw sensitive data.
+
+Enforcement responses and timeline metadata may include:
+
+- enforcement action
+- target type
+- target id
+- resulting status
+- moderation action id
+- audit event id
+
+They must not include raw message body, reporter email, user email, phone numbers, tokens, refresh tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants.
+
+Sensitive access remains separate from enforcement. Enforcement UI must not call the sensitive-access endpoint.
+
 ## AI rule
 
 AI may only provide:

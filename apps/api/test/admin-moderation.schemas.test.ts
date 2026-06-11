@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminModerationEnforcementBodySchema,
   adminModerationCasesQuerySchema,
   adminSensitiveAccessBodySchema
 } from "../src/schemas/admin-moderation.schemas.js";
@@ -99,6 +100,39 @@ describe("admin moderation sensitive access schema", () => {
       adminSensitiveAccessBodySchema.safeParse({
         reason: "Review reporter identity for moderation triage.",
         fields: ["*"]
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe("admin moderation enforcement schema", () => {
+  it("accepts allowlisted enforcement actions with explicit reasons", () => {
+    const parsed = adminModerationEnforcementBodySchema.safeParse({
+      action: "listing_hide",
+      reason: "Hide listing while reviewing safety report."
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects invalid actions and weak reasons", () => {
+    expect(
+      adminModerationEnforcementBodySchema.safeParse({
+        action: "profile_suspend",
+        reason: "Suspend profile for safety review."
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationEnforcementBodySchema.safeParse({
+        action: "message_hide",
+        reason: "short"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationEnforcementBodySchema.safeParse({
+        reason: "Hide message after moderation review."
       }).success
     ).toBe(false);
   });

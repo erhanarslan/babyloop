@@ -180,6 +180,21 @@ The timeline is an operator-readability feature, not a raw-data access path. Sen
 
 Unknown audit metadata must not be returned or rendered blindly. Raw message bodies, reporter emails, tokens, full profile/listing/conversation data, and conversation participants remain outside the default detail response.
 
+### Decision: Enforcement uses existing reversible states first
+
+Backoffice enforcement must prefer existing safe schema states over broad migrations.
+
+The first enforcement slice uses:
+
+- `listings.status = archived` for listing hide
+- `listings.status = active` for listing restore
+- `messages.deleted_at` for message hide
+- moderation action/audit event only for message reviewed
+
+Profile enforcement is deferred because profiles/users do not yet have a safe moderation status model. Listing `under_review` is also deferred because it is not an existing listing status.
+
+Every enforcement action requires admin auth, a valid moderation case, a compatible target type, an explicit reason, and an audit/timeline event.
+
 ### Decision: AI remains human-in-the-loop
 
 AI may provide:

@@ -70,8 +70,8 @@ export function ModerationActionForm({
       <div>
         <h3>Add note/action</h3>
         <p>
-          Add an internal moderation note or workflow action. This does not
-          perform destructive listing/message/user actions yet.
+          Add an internal moderation note or workflow action. Use the
+          enforcement panel for audited listing or message state changes.
         </p>
       </div>
 

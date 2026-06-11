@@ -382,6 +382,22 @@ The backoffice must not request sensitive access automatically when a case detai
 - [ ] timeline does not call the sensitive-access endpoint
 - [ ] sensitive-access panel behavior remains explicit and unchanged
 
+### Moderation enforcement checklist
+
+- [ ] non-admin enforcement requests return 403
+- [ ] enforcement requires a reason of at least 10 characters
+- [ ] invalid enforcement actions return 400
+- [ ] incompatible target/action combinations return 400
+- [ ] listing hide archives the listing
+- [ ] listing restore reactivates the listing
+- [ ] message hide sets `deletedAt` and normal messaging responses no longer expose the hidden body
+- [ ] message reviewed records an audited moderation action without changing raw message content
+- [ ] enforcement writes `admin_moderation_enforcement` audit metadata with `enforcementAction`, `targetType`, `targetId`, and `resultingStatus`
+- [ ] enforcement appears in the safe case timeline
+- [ ] enforcement responses and timeline metadata do not include raw message body, reporter email, user email, phone numbers, tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants
+- [ ] enforcement UI does not call the sensitive-access endpoint
+- [ ] profile enforcement is not shown until a safe profile status model exists
+
 ### Backoffice sensitive access UI checklist
 
 - [ ] moderation case detail loads with default redacted data only

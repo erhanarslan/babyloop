@@ -216,6 +216,8 @@ Permissioned Sensitive Raw Data Access + Audit
 - Moderation list summary cards/counts are based on the current redacted result set and do not expose raw sensitive data.
 - Backoffice case detail now has a safe combined timeline for case/report context, moderation actions, status changes, and sensitive-access granted/denied audit events.
 - Timeline audit metadata is allowlisted server-side and does not expose raw message bodies, reporter emails, tokens, full profile/listing/conversation data, or conversation participants.
+- Backoffice case detail now has reason-required enforcement controls for supported listing/message targets.
+- Enforcement actions are audited and shown through the safe moderation timeline.
 
 ### Later backlog
 
@@ -224,6 +226,6 @@ Permissioned Sensitive Raw Data Access + Audit
 3. AI moderation summary endpoint using redacted inputs by default.
 4. AI recommendation UI in backoffice.
 5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
-6. Listing/profile/message action workflows.
+6. Profile/account enforcement workflow after a safe user/profile status model exists.
 7. Full trust & safety audit event dashboard.
 8. Granular denied-audit policy for unauthenticated and malformed requests.

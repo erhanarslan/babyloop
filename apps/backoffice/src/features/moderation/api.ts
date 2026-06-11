@@ -24,6 +24,12 @@ export type AdminModerationActionType =
   | "resolved"
   | "action_taken";
 
+export type AdminModerationEnforcementAction =
+  | "listing_hide"
+  | "listing_restore"
+  | "message_hide"
+  | "message_mark_reviewed";
+
 export type AdminModerationCase = {
   id: string;
   status: AdminModerationCaseStatus;
@@ -128,6 +134,24 @@ export type CreateAdminModerationCaseActionResponse = {
   case: AdminModerationCaseDetail;
 };
 
+export type ApplyAdminModerationEnforcementInput = {
+  action: AdminModerationEnforcementAction;
+  reason: string;
+};
+
+export type ApplyAdminModerationEnforcementResponse = {
+  case: AdminModerationCaseDetail;
+  enforcement: {
+    caseId: string;
+    action: AdminModerationEnforcementAction;
+    targetType: AdminModerationTargetType;
+    targetId: string;
+    resultingStatus: string;
+    moderationActionId: string;
+    auditEventId: string;
+  };
+};
+
 export type AdminSensitiveAccessField = "reporter" | "message";
 
 export type RequestAdminSensitiveAccessInput = {
@@ -221,6 +245,16 @@ type RawUpdateAdminModerationCaseStatusResponse = {
 
 type RawCreateAdminModerationCaseActionResponse = {
   action: RawAdminModerationAction;
+};
+
+type RawApplyAdminModerationEnforcementResponse = {
+  caseId: string;
+  action: AdminModerationEnforcementAction;
+  targetType: AdminModerationTargetType;
+  targetId: string;
+  resultingStatus: string;
+  moderationActionId: string;
+  auditEventId: string;
 };
 
 const ADMIN_MODERATION_BASE_PATH = "/api/v1/admin/moderation";
@@ -350,6 +384,37 @@ export async function createAdminModerationCaseAction(
   };
 }
 
+export async function applyAdminModerationEnforcement(
+  caseId: string,
+  input: ApplyAdminModerationEnforcementInput,
+): Promise<ApiResponse<ApplyAdminModerationEnforcementResponse>> {
+  const response = await adminRequest<RawApplyAdminModerationEnforcementResponse>(
+    `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/enforcement`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const refreshedCase = await getAdminModerationCase(caseId);
+
+  if (!refreshedCase.ok) {
+    return refreshedCase;
+  }
+
+  return {
+    ok: true,
+    data: {
+      case: refreshedCase.data.case,
+      enforcement: response.data,
+    },
+  };
+}
+
 export async function requestAdminSensitiveAccess(
   caseId: string,
   input: RequestAdminSensitiveAccessInput,
@@ -456,6 +521,8 @@ export type BackofficeModerationActionType = AdminModerationActionType;
 export type BackofficeModerationCase = AdminModerationCase;
 export type BackofficeModerationAction = AdminModerationAction;
 export type BackofficeModerationCaseDetail = AdminModerationCaseDetail;
+export type BackofficeModerationEnforcementAction =
+  AdminModerationEnforcementAction;
 
 export const listBackofficeModerationCases = listAdminModerationCases;
 export const getBackofficeModerationCase = getAdminModerationCase;
@@ -463,3 +530,5 @@ export const updateBackofficeModerationCaseStatus =
   updateAdminModerationCaseStatus;
 export const createBackofficeModerationCaseAction =
   createAdminModerationCaseAction;
+export const applyBackofficeModerationEnforcement =
+  applyAdminModerationEnforcement;

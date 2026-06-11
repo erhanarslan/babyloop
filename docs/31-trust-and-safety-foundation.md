@@ -233,3 +233,21 @@ The timeline combines:
 The timeline does not expose raw sensitive data. Audit metadata is allowlisted server-side and excludes raw message bodies, reporter emails, phone numbers, tokens, full profile/listing/conversation data, and conversation participants.
 
 Sensitive access remains separate and explicit. The timeline never calls the sensitive-access endpoint.
+
+<!-- 2026-06-12-moderation-enforcement-controls -->
+## 2026-06-12 Update — Moderation Enforcement Controls
+
+Backoffice moderation now has the first practical enforcement controls.
+
+Implemented actions:
+
+- hide listing by moving it to `archived`
+- restore listing by moving it to `active`
+- hide message by setting `messages.deleted_at`
+- mark message reviewed as an audited moderation action
+
+Every successful enforcement action requires admin auth, a valid moderation case, a compatible target type, and an explicit reason. It writes a moderation action and an `admin_moderation_enforcement` event so the decision appears in the safe case timeline.
+
+Profile/account enforcement remains future work because profiles/users do not yet have a safe moderation status model.
+
+Listing under-review remains future work because `under_review` is not currently a listing status.

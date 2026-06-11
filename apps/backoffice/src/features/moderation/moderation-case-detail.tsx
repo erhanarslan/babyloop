@@ -10,6 +10,7 @@ import {
   type AdminModerationTimelineItem,
   getAdminModerationCase,
 } from "./api";
+import { EnforcementActionPanel } from "./enforcement-action-panel";
 import { ModerationActionForm } from "./moderation-action-form";
 import { ModerationStatusForm } from "./moderation-status-form";
 import { SensitiveAccessPanel } from "./sensitive-access-panel";
@@ -153,6 +154,11 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
           onCreated={setModerationCase}
         />
 
+        <EnforcementActionPanel
+          moderationCase={moderationCase}
+          onApplied={setModerationCase}
+        />
+
         <SensitiveAccessPanel moderationCase={moderationCase} />
       </section>
 
@@ -232,7 +238,7 @@ function timelineItemMatchesFilter(
     case "all":
       return true;
     case "actions":
-      return item.type === "moderation_action";
+      return item.type === "moderation_action" || item.type === "audit_event";
     case "notes":
       return item.type === "note";
     case "sensitive":

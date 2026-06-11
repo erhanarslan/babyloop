@@ -913,6 +913,326 @@ describe("admin moderation API", () => {
     expect(serializedDetail).not.toContain("Review raw message text for safety moderation.");
   });
 
+  it("allows admins to apply listing enforcement and records safe audit timeline entries", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-enforcement@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const reporter = await createUser(app);
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Unsafe listing for enforcement"
+    });
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "prohibited_item"
+      }
+    });
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, listing.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "listing_hide",
+        reason: "Listing appears unsafe and should be hidden during review."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        caseId: createdCase.id,
+        action: "listing_hide",
+        targetType: "listing",
+        targetId: listing.id,
+        resultingStatus: "archived",
+        moderationActionId: expect.any(String),
+        auditEventId: expect.any(String)
+      }
+    });
+
+    const [updatedListing] = await app.db
+      .select({
+        status: listings.status
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+
+    expect(updatedListing?.status).toBe("archived");
+
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        timeline: expect.arrayContaining([
+          expect.objectContaining({
+            type: "audit_event",
+            label: "Enforcement applied",
+            metadata: expect.objectContaining({
+              enforcementAction: "listing_hide",
+              targetType: "listing",
+              targetId: listing.id,
+              resultingStatus: "archived"
+            })
+          }),
+          expect.objectContaining({
+            type: "moderation_action",
+            label: "Listing hidden"
+          })
+        ])
+      }
+    });
+
+    const serialized = JSON.stringify(detailResponse.json());
+
+    expect(serialized).not.toContain(reporter.user.email);
+    expect(serialized).not.toContain(reporter.profile.id);
+  });
+
+  it("allows admins to apply message enforcement without exposing raw message body in the timeline", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-message-enforcement@babyloop.test"
+    });
+    const sender = await createUser(app);
+    const recipient = await createUser(app);
+    const [profileLowId, profileHighId] = [
+      sender.profile.id,
+      recipient.profile.id
+    ].sort();
+
+    const [conversation] = await app.db
+      .insert(conversations)
+      .values({
+        profileLowId,
+        profileHighId,
+        createdByProfileId: sender.profile.id
+      })
+      .returning({
+        id: conversations.id
+      });
+
+    if (!conversation) {
+      throw new Error("Conversation setup failed.");
+    }
+
+    await app.db.insert(conversationParticipants).values([
+      {
+        conversationId: conversation.id,
+        profileId: sender.profile.id
+      },
+      {
+        conversationId: conversation.id,
+        profileId: recipient.profile.id
+      }
+    ]);
+
+    const rawMessageBody = "Unsafe message body should not appear in audit timeline.";
+    const [message] = await app.db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        senderProfileId: sender.profile.id,
+        body: rawMessageBody
+      })
+      .returning({
+        id: messages.id
+      });
+
+    if (!message) {
+      throw new Error("Message setup failed.");
+    }
+
+    await app.inject({
+      headers: authHeader(recipient.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/messages/${message.id}`,
+      payload: {
+        reason: "harassment"
+      }
+    });
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, message.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "message_hide",
+        reason: "Message should be hidden after moderation review."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        action: "message_hide",
+        targetType: "message",
+        targetId: message.id,
+        resultingStatus: "hidden"
+      }
+    });
+
+    const [updatedMessage] = await app.db
+      .select({
+        deletedAt: messages.deletedAt
+      })
+      .from(messages)
+      .where(eq(messages.id, message.id))
+      .limit(1);
+
+    expect(updatedMessage?.deletedAt).toBeInstanceOf(Date);
+
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        timeline: expect.arrayContaining([
+          expect.objectContaining({
+            type: "audit_event",
+            label: "Enforcement applied",
+            metadata: expect.objectContaining({
+              enforcementAction: "message_hide",
+              targetType: "message",
+              targetId: message.id,
+              resultingStatus: "hidden"
+            })
+          }),
+          expect.objectContaining({
+            type: "moderation_action",
+            label: "Message hidden"
+          })
+        ])
+      }
+    });
+
+    const serialized = JSON.stringify(detailResponse.json().data.timeline);
+
+    expect(serialized).not.toContain(rawMessageBody);
+    expect(serialized).not.toContain(conversation.id);
+    expect(serialized).not.toContain(recipient.user.email);
+  });
+
+  it("rejects invalid, incompatible, and non-admin enforcement requests", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-enforcement-validation@babyloop.test"
+    });
+    const nonAdmin = await createUser(app);
+    const seller = await createUser(app);
+    const reporter = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "safety"
+      }
+    });
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, listing.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const nonAdminResponse = await app.inject({
+      headers: authHeader(nonAdmin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "listing_hide",
+        reason: "Hide listing after moderation review."
+      }
+    });
+
+    const invalidBodyResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "profile_suspend",
+        reason: "Invalid action should be rejected."
+      }
+    });
+
+    const shortReasonResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "listing_hide",
+        reason: "short"
+      }
+    });
+
+    const incompatibleResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/enforcement`,
+      payload: {
+        action: "message_hide",
+        reason: "Message action should not apply to listing case."
+      }
+    });
+
+    expect(nonAdminResponse.statusCode).toBe(403);
+    expect(invalidBodyResponse.statusCode).toBe(400);
+    expect(shortReasonResponse.statusCode).toBe(400);
+    expect(incompatibleResponse.statusCode).toBe(400);
+  });
+
   it("allows admins to update case status and creates a moderation action", async () => {
     const admin = await createUser(app, {
       role: "admin",

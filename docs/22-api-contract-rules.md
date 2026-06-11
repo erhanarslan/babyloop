@@ -206,6 +206,29 @@ Timeline metadata must be allowlisted server-side. Unknown metadata must be omit
 
 Timeline responses must not include raw message body, reporter email, user email, phone numbers, tokens, refresh tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants.
 
+### Moderation enforcement contract
+
+Backoffice enforcement uses a separate admin-only endpoint:
+
+```txt
+POST /api/v1/admin/moderation/cases/:caseId/enforcement
+```
+
+Requests must include an allowlisted `action` and an explicit `reason` of at least 10 characters.
+
+Supported first-version actions:
+
+```txt
+listing_hide
+listing_restore
+message_hide
+message_mark_reviewed
+```
+
+Every successful enforcement action must write a moderation action and an `admin_moderation_enforcement` audit event. Responses and audit metadata must not include raw sensitive data.
+
+Profile enforcement, account suspension, listing under-review state, and destructive deletion remain outside this endpoint until the schema and product rules explicitly support them.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.

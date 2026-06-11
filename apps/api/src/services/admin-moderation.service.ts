@@ -16,7 +16,10 @@ import {
 } from "./admin-sensitive-access-audit.service.js";
 import { createSafeTextPreview } from "./redaction.service.js";
 import type { FastifyInstance } from "fastify";
-import type { AdminSensitiveAccessField } from "../schemas/admin-moderation.schemas.js";
+import type {
+  AdminModerationEnforcementAction,
+  AdminSensitiveAccessField
+} from "../schemas/admin-moderation.schemas.js";
 
 export type AdminModerationCaseStatus =
   | "pending"
@@ -158,6 +161,19 @@ export type AdminModerationSensitiveAccessResult =
       auditEventId: string;
     }
   | { status: "not_found" };
+
+export type AdminModerationEnforcementResult =
+  | {
+      status: "applied";
+      caseId: string;
+      action: AdminModerationEnforcementAction;
+      targetType: AdminModerationTargetType;
+      targetId: string;
+      resultingStatus: string;
+      moderationActionId: string;
+      auditEventId: string;
+    }
+  | { status: "not_found" | "target_not_found" | "incompatible_action" };
 
 export type AdminModerationSensitiveAccessCaseContext = SensitiveAccessAuditContext & {
   reportId: string | null;
@@ -404,6 +420,251 @@ export async function requestAdminModerationSensitiveAccess(
   };
 }
 
+export async function applyAdminModerationEnforcement(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    caseId: string;
+    action: AdminModerationEnforcementAction;
+    reason: string;
+  }
+): Promise<AdminModerationEnforcementResult> {
+  const moderationCase = await getAdminModerationSensitiveAccessCaseContext(
+    app,
+    params.caseId
+  );
+
+  if (!moderationCase) {
+    return { status: "not_found" };
+  }
+
+  if (!isEnforcementActionCompatible(moderationCase.targetType, params.action)) {
+    return { status: "incompatible_action" };
+  }
+
+  if (params.action === "listing_hide" || params.action === "listing_restore") {
+    return applyListingEnforcement(app, {
+      actorProfileId: params.actorProfileId,
+      caseId: params.caseId,
+      action: params.action,
+      reason: params.reason,
+      targetId: moderationCase.targetId ?? "",
+      targetType: "listing"
+    });
+  }
+
+  if (params.action === "message_hide" || params.action === "message_mark_reviewed") {
+    return applyMessageEnforcement(app, {
+      actorProfileId: params.actorProfileId,
+      caseId: params.caseId,
+      action: params.action,
+      reason: params.reason,
+      targetId: moderationCase.targetId ?? "",
+      targetType: "message"
+    });
+  }
+
+  return { status: "incompatible_action" };
+}
+
+async function applyListingEnforcement(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    caseId: string;
+    action: Extract<
+      AdminModerationEnforcementAction,
+      "listing_hide" | "listing_restore"
+    >;
+    reason: string;
+    targetId: string;
+    targetType: "listing";
+  }
+): Promise<AdminModerationEnforcementResult> {
+  const [listing] = await app.db
+    .select({
+      id: listings.id,
+      status: listings.status
+    })
+    .from(listings)
+    .where(eq(listings.id, params.targetId))
+    .limit(1);
+
+  if (!listing) {
+    return { status: "target_not_found" };
+  }
+
+  const resultingStatus =
+    params.action === "listing_hide" ? "archived" : "active";
+
+  const result = await app.db.transaction(async (tx) => {
+    await tx
+      .update(listings)
+      .set({
+        status: resultingStatus,
+        updatedAt: new Date()
+      })
+      .where(eq(listings.id, params.targetId));
+
+    const [moderationAction] = await tx
+      .insert(moderationActions)
+      .values({
+        moderationCaseId: params.caseId,
+        actorProfileId: params.actorProfileId,
+        actionType: params.action,
+        note: params.reason
+      })
+      .returning({
+        id: moderationActions.id
+      });
+
+    const [auditEvent] = await tx
+      .insert(events)
+      .values({
+        actorProfileId: params.actorProfileId,
+        eventType: "admin_moderation_enforcement",
+        entityType: "moderation_case",
+        entityId: params.caseId,
+        metadata: {
+          enforcementAction: params.action,
+          targetType: params.targetType,
+          targetId: params.targetId,
+          resultingStatus
+        }
+      })
+      .returning({
+        id: events.id
+      });
+
+    if (!moderationAction || !auditEvent) {
+      throw new Error("Moderation enforcement audit creation failed.");
+    }
+
+    return {
+      auditEventId: auditEvent.id,
+      moderationActionId: moderationAction.id
+    };
+  });
+
+  return {
+    status: "applied",
+    caseId: params.caseId,
+    action: params.action,
+    targetType: params.targetType,
+    targetId: params.targetId,
+    resultingStatus,
+    moderationActionId: result.moderationActionId,
+    auditEventId: result.auditEventId
+  };
+}
+
+async function applyMessageEnforcement(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    caseId: string;
+    action: Extract<
+      AdminModerationEnforcementAction,
+      "message_hide" | "message_mark_reviewed"
+    >;
+    reason: string;
+    targetId: string;
+    targetType: "message";
+  }
+): Promise<AdminModerationEnforcementResult> {
+  const [message] = await app.db
+    .select({
+      id: messages.id,
+      deletedAt: messages.deletedAt
+    })
+    .from(messages)
+    .where(eq(messages.id, params.targetId))
+    .limit(1);
+
+  if (!message) {
+    return { status: "target_not_found" };
+  }
+
+  const resultingStatus =
+    params.action === "message_hide" ? "hidden" : "reviewed";
+
+  const result = await app.db.transaction(async (tx) => {
+    if (params.action === "message_hide") {
+      await tx
+        .update(messages)
+        .set({
+          deletedAt: message.deletedAt ?? new Date()
+        })
+        .where(eq(messages.id, params.targetId));
+    }
+
+    const [moderationAction] = await tx
+      .insert(moderationActions)
+      .values({
+        moderationCaseId: params.caseId,
+        actorProfileId: params.actorProfileId,
+        actionType: params.action,
+        note: params.reason
+      })
+      .returning({
+        id: moderationActions.id
+      });
+
+    const [auditEvent] = await tx
+      .insert(events)
+      .values({
+        actorProfileId: params.actorProfileId,
+        eventType: "admin_moderation_enforcement",
+        entityType: "moderation_case",
+        entityId: params.caseId,
+        metadata: {
+          enforcementAction: params.action,
+          targetType: params.targetType,
+          targetId: params.targetId,
+          resultingStatus
+        }
+      })
+      .returning({
+        id: events.id
+      });
+
+    if (!moderationAction || !auditEvent) {
+      throw new Error("Moderation enforcement audit creation failed.");
+    }
+
+    return {
+      auditEventId: auditEvent.id,
+      moderationActionId: moderationAction.id
+    };
+  });
+
+  return {
+    status: "applied",
+    caseId: params.caseId,
+    action: params.action,
+    targetType: params.targetType,
+    targetId: params.targetId,
+    resultingStatus,
+    moderationActionId: result.moderationActionId,
+    auditEventId: result.auditEventId
+  };
+}
+
+function isEnforcementActionCompatible(
+  targetType: AdminModerationTargetType | undefined,
+  action: AdminModerationEnforcementAction
+): boolean {
+  if (targetType === "listing") {
+    return action === "listing_hide" || action === "listing_restore";
+  }
+
+  if (targetType === "message") {
+    return action === "message_hide" || action === "message_mark_reviewed";
+  }
+
+  return false;
+}
+
 export async function getAdminModerationSensitiveAccessCaseContext(
   app: FastifyInstance,
   caseId: string
@@ -587,6 +848,7 @@ async function listCaseAuditEvents(
         eq(events.entityType, "moderation_case"),
         eq(events.entityId, caseId),
         or(
+          eq(events.eventType, "admin_moderation_enforcement"),
           eq(events.eventType, "admin_sensitive_access_granted"),
           eq(events.eventType, "admin_sensitive_access_denied")
         )
@@ -662,14 +924,8 @@ function buildAdminModerationTimeline(
   for (const auditEvent of auditEvents) {
     timeline.push({
       id: auditEvent.id,
-      type:
-        auditEvent.eventType === "admin_sensitive_access_granted"
-          ? "sensitive_access_granted"
-          : "sensitive_access_denied",
-      label:
-        auditEvent.eventType === "admin_sensitive_access_granted"
-          ? "Sensitive access granted"
-          : "Sensitive access denied",
+      type: getTimelineTypeForAuditEvent(auditEvent.eventType),
+      label: getTimelineLabelForAuditEvent(auditEvent.eventType),
       createdAt: auditEvent.createdAt,
       actor: auditEvent.actor,
       metadata: sanitizeAdminModerationTimelineMetadata(auditEvent.metadata)
@@ -690,10 +946,12 @@ export function sanitizeAdminModerationTimelineMetadata(
     "actionType",
     "denialReason",
     "deniedFields",
+    "enforcementAction",
     "grantedFields",
     "moderationCaseId",
     "reportId",
     "requestedFields",
+    "resultingStatus",
     "status",
     "targetId",
     "targetType"
@@ -728,6 +986,36 @@ function isSafeTimelineMetadataValue(
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function getTimelineTypeForAuditEvent(
+  eventType: string
+): AdminModerationTimelineItemType {
+  if (eventType === "admin_sensitive_access_granted") {
+    return "sensitive_access_granted";
+  }
+
+  if (eventType === "admin_sensitive_access_denied") {
+    return "sensitive_access_denied";
+  }
+
+  return "audit_event";
+}
+
+function getTimelineLabelForAuditEvent(eventType: string): string {
+  if (eventType === "admin_sensitive_access_granted") {
+    return "Sensitive access granted";
+  }
+
+  if (eventType === "admin_sensitive_access_denied") {
+    return "Sensitive access denied";
+  }
+
+  if (eventType === "admin_moderation_enforcement") {
+    return "Enforcement applied";
+  }
+
+  return "Audit event";
+}
+
 function getTimelineTypeForAction(
   actionType: string
 ): AdminModerationTimelineItemType {
@@ -752,6 +1040,14 @@ function getTimelineLabelForAction(actionType: string): string {
       return "Status changed to in review";
     case "review_started":
       return "Review started";
+    case "listing_hide":
+      return "Listing hidden";
+    case "listing_restore":
+      return "Listing restored";
+    case "message_hide":
+      return "Message hidden";
+    case "message_mark_reviewed":
+      return "Message marked reviewed";
     case "dismissed":
       return "Status changed to dismissed";
     case "resolved":

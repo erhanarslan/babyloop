@@ -4,6 +4,7 @@ import {
   adminModerationActionBodySchema,
   adminModerationCaseParamsSchema,
   adminModerationCasesQuerySchema,
+  adminModerationEnforcementBodySchema,
   adminSensitiveAccessBodySchema,
   adminModerationStatusBodySchema
 } from "../schemas/admin-moderation.schemas.js";
@@ -14,6 +15,7 @@ import {
   recordSensitiveAccessDenied
 } from "../services/admin-sensitive-access-audit.service.js";
 import {
+  applyAdminModerationEnforcement,
   createAdminModerationAction,
   getAdminModerationSensitiveAccessCaseContext,
   getAdminModerationCaseDetail,
@@ -232,6 +234,77 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
           caseId: result.caseId,
           grantedFields: result.grantedFields,
           sensitive: result.sensitive,
+          auditEventId: result.auditEventId
+        }
+      };
+    }
+  );
+
+  app.post<{ Body: unknown; Params: { caseId: string } }>(
+    "/admin/moderation/cases/:caseId/enforcement",
+    async (request, reply) => {
+      const admin = await requireAdminUser(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminModerationCaseParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation case id must be a valid UUID."));
+      }
+
+      const parsedBody = adminModerationEnforcementBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation enforcement body is invalid."));
+      }
+
+      const result = await applyAdminModerationEnforcement(app, {
+        actorProfileId: admin.profile.id,
+        caseId: parsedParams.data.caseId,
+        action: parsedBody.data.action,
+        reason: parsedBody.data.reason
+      });
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      if (result.status === "target_not_found") {
+        return reply.status(404).send(notFound("Moderation target was not found."));
+      }
+
+      if (result.status === "incompatible_action") {
+        return reply
+          .status(400)
+          .send(invalidRequest("Enforcement action is not compatible with this case."));
+      }
+
+      if (result.status !== "applied") {
+        return reply.status(500).send({
+          ok: false,
+          error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Internal server error"
+          }
+        });
+      }
+
+      return {
+        ok: true,
+        data: {
+          caseId: result.caseId,
+          action: result.action,
+          targetType: result.targetType,
+          targetId: result.targetId,
+          resultingStatus: result.resultingStatus,
+          moderationActionId: result.moderationActionId,
           auditEventId: result.auditEventId
         }
       };

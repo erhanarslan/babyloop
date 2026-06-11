@@ -556,7 +556,12 @@ async function getLatestMessage(
       createdAt: messages.createdAt
     })
     .from(messages)
-    .where(eq(messages.conversationId, conversationId))
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        sql`${messages.deletedAt} is null`
+      )
+    )
     .orderBy(desc(messages.createdAt))
     .limit(1);
 
@@ -722,6 +727,8 @@ function mapMessage(row: {
   createdAt: Date;
   deletedAt: Date | null;
 }): MessageResponse {
+  const isHidden = row.deletedAt !== null;
+
   return {
     id: row.id,
     conversationId: row.conversationId,
@@ -729,7 +736,7 @@ function mapMessage(row: {
       id: row.senderProfileId,
       displayName: row.senderDisplayName
     },
-    body: row.body,
+    body: isHidden ? "Message hidden by moderation." : row.body,
     createdAt: row.createdAt.toISOString(),
     deletedAt: row.deletedAt?.toISOString() ?? null
   };

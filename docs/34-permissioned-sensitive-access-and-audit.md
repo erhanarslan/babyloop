@@ -159,3 +159,11 @@ actionType
 The timeline must not render unknown metadata blindly and must not expose raw message bodies, reporter emails, tokens, full profile data, full listing data, full conversation data, or conversation participants.
 
 The timeline does not call the sensitive-access endpoint. Raw access remains explicit, reasoned, and audited through the dedicated request panel.
+
+## Enforcement Separation
+
+Moderation enforcement is separate from sensitive raw access.
+
+The enforcement endpoint can change supported target moderation state and write audit/timeline events, but it must not return reporter identity, raw message bodies, profile emails, full conversation data, or other sensitive raw fields.
+
+The sensitive-access endpoint remains the only raw-data path and still requires explicit reason, allowlisted fields, permission gate, and audit.
