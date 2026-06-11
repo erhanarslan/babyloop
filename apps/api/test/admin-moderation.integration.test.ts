@@ -366,6 +366,175 @@ describe("admin moderation API", () => {
         code: "FORBIDDEN"
       }
     });
+
+    const deniedAuditRows = await app.db
+      .select({
+        id: events.id,
+        actorProfileId: events.actorProfileId,
+        eventType: events.eventType,
+        entityType: events.entityType,
+        entityId: events.entityId,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(eq(events.entityId, createdCase.id));
+
+    expect(deniedAuditRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actorProfileId: admin.profile.id,
+          eventType: "admin_sensitive_access_denied",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["reporter"],
+            deniedFields: ["reporter"],
+            denialReason: "invalid_request_body"
+          })
+        }),
+        expect.objectContaining({
+          actorProfileId: nonAdmin.profile.id,
+          eventType: "admin_sensitive_access_denied",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["reporter"],
+            deniedFields: ["reporter"],
+            denialReason: "sensitive_access_forbidden"
+          })
+        })
+      ])
+    );
+    expect(JSON.stringify(deniedAuditRows)).not.toContain(reporter.user.email);
+  });
+
+  it("audits safely denied sensitive access for missing cases and unsupported fields", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-sensitive-denied@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const reporter = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "scam"
+      }
+    });
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, listing.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const unsupportedFieldResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review whether raw message text is available.",
+        fields: ["message"]
+      }
+    });
+
+    expect(unsupportedFieldResponse.statusCode).toBe(200);
+    expect(unsupportedFieldResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        caseId: createdCase.id,
+        grantedFields: [],
+        sensitive: {},
+        auditEventId: expect.any(String)
+      }
+    });
+
+    const missingCaseId = "00000000-0000-4000-8000-000000000000";
+    const missingCaseResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${missingCaseId}/sensitive-access`,
+      payload: {
+        reason: "Review reporter identity for moderation triage.",
+        fields: ["reporter"]
+      }
+    });
+
+    expect(missingCaseResponse.statusCode).toBe(404);
+
+    const unsupportedAuditRows = await app.db
+      .select({
+        id: events.id,
+        actorProfileId: events.actorProfileId,
+        eventType: events.eventType,
+        entityType: events.entityType,
+        entityId: events.entityId,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(eq(events.entityId, createdCase.id));
+
+    expect(unsupportedAuditRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actorProfileId: admin.profile.id,
+          eventType: "admin_sensitive_access_denied",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["message"],
+            deniedFields: ["message"],
+            denialReason: "field_not_available_for_case"
+          })
+        }),
+        expect.objectContaining({
+          actorProfileId: admin.profile.id,
+          eventType: "admin_sensitive_access_granted",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["message"],
+            grantedFields: [],
+            deniedFields: ["message"]
+          })
+        })
+      ])
+    );
+
+    const missingCaseAuditRows = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        eventType: events.eventType,
+        entityType: events.entityType,
+        entityId: events.entityId,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(eq(events.entityId, missingCaseId));
+
+    expect(missingCaseAuditRows).toEqual([
+      expect.objectContaining({
+        actorProfileId: admin.profile.id,
+        eventType: "admin_sensitive_access_denied",
+        entityType: "moderation_case",
+        entityId: missingCaseId,
+        metadata: expect.objectContaining({
+          requestedFields: ["reporter"],
+          deniedFields: ["reporter"],
+          denialReason: "moderation_case_not_found"
+        })
+      })
+    ]);
   });
 
   it("returns only requested sensitive fields and writes an audit event", async () => {

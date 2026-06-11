@@ -165,9 +165,11 @@ message
 
 The endpoint writes an `events` row with `eventType = admin_sensitive_access_granted` before returning raw data.
 
+Denied attempts write `eventType = admin_sensitive_access_denied` when actor and moderation-case context are safely available. Examples include known non-admin actors, invalid request bodies for a known case, valid-but-missing case ids, and fields that are unavailable for the target case.
+
 The current permission helper allows admins as a compatibility gate. Granular sensitive-data permissions are still future work.
 
-Denied access is returned as a safe API error. Denied-access audit logging is deferred.
+Denied access is returned as a safe API error. Unauthenticated requests and malformed case ids may not create audit rows because actor/case context is unavailable.
 
 Backoffice UI access is explicit. Case detail does not auto-fetch raw data. Admins must open the sensitive-access panel, enter a reason, select fields, and submit. Returned raw data is displayed only after the audited request succeeds and can be cleared from component state.
 

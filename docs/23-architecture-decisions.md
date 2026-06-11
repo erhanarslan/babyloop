@@ -155,7 +155,10 @@ The first version is deliberately narrow:
 - current allowed fields are `reporter` and `message`
 - access goes through a dedicated sensitive-access helper
 - successful access writes an `events` audit row before data is returned
+- denied access writes an `events` audit row when actor and case context are safely available
 - default list/detail endpoints remain redacted
+
+Audit metadata must not store raw message bodies, reporter emails, tokens, full profile data, full listing data, or full conversation data. Granted audits currently keep the operator-entered reason for compatibility; denied audits avoid storing the free-text reason.
 
 The current compatibility permission gate allows admins through the dedicated helper. Granular permissions remain a future architecture item.
 

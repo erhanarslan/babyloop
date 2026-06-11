@@ -7,9 +7,15 @@ import {
   adminSensitiveAccessBodySchema,
   adminModerationStatusBodySchema
 } from "../schemas/admin-moderation.schemas.js";
-import { requireAdminUser, requireSensitiveDataAccess } from "../services/admin-context.service.js";
+import { adminForbidden, hasSensitiveDataAccess, requireAdminUser } from "../services/admin-context.service.js";
+import { requireCurrentUser } from "../services/auth-context.service.js";
+import {
+  collectRequestedFieldsForAudit,
+  recordSensitiveAccessDenied
+} from "../services/admin-sensitive-access-audit.service.js";
 import {
   createAdminModerationAction,
+  getAdminModerationSensitiveAccessCaseContext,
   getAdminModerationCaseDetail,
   listAdminModerationCases,
   requestAdminModerationSensitiveAccess,
@@ -136,9 +142,9 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/sensitive-access",
     async (request, reply) => {
-      const admin = await requireSensitiveDataAccess(app, request, reply);
+      const currentUser = await requireCurrentUser(app, request, reply);
 
-      if (!admin) {
+      if (!currentUser) {
         return reply;
       }
 
@@ -150,16 +156,59 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
           .send(invalidRequest("Moderation case id must be a valid UUID."));
       }
 
+      const caseContext = await getAdminModerationSensitiveAccessCaseContext(
+        app,
+        parsedParams.data.caseId
+      );
+
+      if (!hasSensitiveDataAccess(currentUser)) {
+        if (caseContext) {
+          await recordSensitiveAccessDenied(app, {
+            actorProfileId: currentUser.profile.id,
+            context: caseContext,
+            requestedFields: collectRequestedFieldsForAudit(request.body),
+            deniedFields: collectRequestedFieldsForAudit(request.body),
+            denialReason: "sensitive_access_forbidden"
+          });
+        }
+
+        return reply.status(403).send(adminForbidden());
+      }
+
       const parsedBody = adminSensitiveAccessBodySchema.safeParse(request.body);
 
       if (!parsedBody.success) {
+        if (caseContext) {
+          await recordSensitiveAccessDenied(app, {
+            actorProfileId: currentUser.profile.id,
+            context: caseContext,
+            requestedFields: collectRequestedFieldsForAudit(request.body),
+            deniedFields: collectRequestedFieldsForAudit(request.body),
+            denialReason: "invalid_request_body"
+          });
+        }
+
         return reply
           .status(400)
           .send(invalidRequest("Sensitive access request body is invalid."));
       }
 
+      if (!caseContext) {
+        await recordSensitiveAccessDenied(app, {
+          actorProfileId: currentUser.profile.id,
+          context: {
+            caseId: parsedParams.data.caseId
+          },
+          requestedFields: parsedBody.data.fields,
+          deniedFields: parsedBody.data.fields,
+          denialReason: "moderation_case_not_found"
+        });
+
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
       const result = await requestAdminModerationSensitiveAccess(app, {
-        actorProfileId: admin.profile.id,
+        actorProfileId: currentUser.profile.id,
         caseId: parsedParams.data.caseId,
         fields: parsedBody.data.fields,
         reason: parsedBody.data.reason

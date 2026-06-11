@@ -274,5 +274,17 @@ function getApiErrorMessage(
     return fallback;
   }
 
+  if (response.error?.code === "FORBIDDEN") {
+    return "Sensitive access denied. This request may be audited.";
+  }
+
+  if (response.error?.code === "INVALID_REQUEST") {
+    return "Sensitive access request is invalid. Check the reason and selected fields.";
+  }
+
+  if (response.error?.code === "NOT_FOUND") {
+    return "Moderation case was not found.";
+  }
+
   return response.error?.message ?? fallback;
 }

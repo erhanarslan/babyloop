@@ -50,6 +50,7 @@ Response:
 - `reason` is required, trimmed, at least 10 characters, and max 1000 characters.
 - `fields` is required, non-empty, allowlisted, and has no wildcard.
 - Successful access writes an audit event before returning data.
+- Denied access writes an audit event when actor and moderation-case context are safely available.
 - Default moderation list/detail endpoints stay redacted.
 
 ## Audit Storage
@@ -66,10 +67,26 @@ metadata:
   targetId
   requestedFields
   grantedFields
+  deniedFields
   reason
+
+eventType: admin_sensitive_access_denied
+entityType: moderation_case
+entityId: moderation case id
+metadata:
+  moderationCaseId
+  targetType
+  targetId
+  requestedFields
+  deniedFields
+  denialReason
 ```
 
-Denied access currently returns a safe error response but is not persisted. Denied-access audit logging is deferred.
+Audit metadata must not include raw message bodies, reporter email, tokens, auth/session metadata, full profile data, full listing data, or full conversation data.
+
+The granted audit still stores the operator-provided reason for compatibility. Operators should not put unnecessary personal data in the reason. Denied audits do not store the free-text reason.
+
+Unauthenticated requests and malformed case ids may return safe errors without DB audit rows because actor/case context is unavailable.
 
 ## Deliberate Non-Exposure
 

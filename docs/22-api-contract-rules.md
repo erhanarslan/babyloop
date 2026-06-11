@@ -165,6 +165,8 @@ POST /api/v1/admin/moderation/cases/:caseId/sensitive-access
 
 That endpoint requires admin authentication, the dedicated sensitive-access gate, an explicit reason, an allowlisted field request, and an audit event before returning data.
 
+Denied attempts are audited when actor and case context are safely available. Unauthenticated requests and malformed case ids may not create DB audit rows.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.
@@ -257,3 +259,5 @@ auth/session metadata
 The public web app must not call this endpoint.
 
 AI tools must not use raw sensitive data by default. Any future AI flow that needs raw access must have an explicit permission and audit design.
+
+Sensitive-access audit metadata must not include raw message bodies, reporter email, tokens, full profile data, full listing data, or full conversation data.

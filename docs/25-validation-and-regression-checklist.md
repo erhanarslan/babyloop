@@ -346,7 +346,12 @@ Default moderation list/detail responses must remain redacted.
 - raw message body is available only when `message` is requested for a message case
 - response includes `auditEventId`
 - successful access creates an `events` audit row
+- denied non-admin access creates an `admin_sensitive_access_denied` audit row when the actor and case are known
+- denied invalid-body access creates an `admin_sensitive_access_denied` audit row when the actor and case are known
+- requested fields unavailable for a case create an `admin_sensitive_access_denied` audit row
+- denied audit metadata does not contain raw message body, reporter email, tokens, or full profile/listing/conversation data
 - response does not include conversation participants, full profile data, full listing data, or auth/session metadata
+- unauthenticated requests and malformed case ids may return safe errors without DB audit rows because actor/case context is unavailable
 
 The public web app must not import or call the sensitive-access client.
 

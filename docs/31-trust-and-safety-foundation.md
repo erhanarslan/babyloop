@@ -194,9 +194,12 @@ The endpoint requires:
 - explicit reason
 - allowlisted fields only: `reporter`, `message`
 - successful audit event in `events`
+- denied audit event in `events` when actor and case context are safely available
 
 This endpoint does not expose conversation participants, full profile data, full listing data, or auth/session metadata.
 
 The current gate is a compatibility rule: admin users are allowed through a dedicated helper until granular permissions exist.
 
 Backoffice case detail now includes a small explicit request panel. It does not auto-fetch sensitive data on load; the admin must open the panel, read the warning, enter a reason, select fields, and submit. Returned raw data is kept in component state only and can be cleared.
+
+Unauthenticated requests and malformed case ids may not create DB audit events because there is no reliable actor/case context.

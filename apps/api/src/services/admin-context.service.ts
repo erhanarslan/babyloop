@@ -35,12 +35,18 @@ export async function requireSensitiveDataAccess(
 
   // Compatibility gate: today only admin users can request raw sensitive data.
   // Keep this isolated so granular permissions can replace it without route churn.
-  if (admin.role !== "admin") {
+  if (!hasSensitiveDataAccess(admin)) {
     reply.status(403).send(adminForbidden());
     return null;
   }
 
   return admin;
+}
+
+export function hasSensitiveDataAccess(currentUser: CurrentUser): boolean {
+  // Compatibility gate: today only admin users can request raw sensitive data.
+  // Keep this isolated so granular permissions can replace it without route churn.
+  return currentUser.role === "admin";
 }
 
 export function adminForbidden(): ApiFailure {

@@ -1,5 +1,4 @@
 import {
-  events,
   listings,
   messages,
   moderationActions,
@@ -9,6 +8,11 @@ import {
   users
 } from "@babyloop/database/schema";
 import { and, desc, eq } from "drizzle-orm";
+import {
+  recordSensitiveAccessDenied,
+  recordSensitiveAccessGranted,
+  type SensitiveAccessAuditContext
+} from "./admin-sensitive-access-audit.service.js";
 import { createSafeTextPreview } from "./redaction.service.js";
 import type { FastifyInstance } from "fastify";
 import type { AdminSensitiveAccessField } from "../schemas/admin-moderation.schemas.js";
@@ -99,6 +103,10 @@ export type AdminModerationSensitiveAccessResult =
       auditEventId: string;
     }
   | { status: "not_found" };
+
+export type AdminModerationSensitiveAccessCaseContext = SensitiveAccessAuditContext & {
+  reportId: string | null;
+};
 
 export async function listAdminModerationCases(
   app: FastifyInstance,
@@ -204,16 +212,10 @@ export async function requestAdminModerationSensitiveAccess(
     reason: string;
   }
 ): Promise<AdminModerationSensitiveAccessResult> {
-  const [moderationCase] = await app.db
-    .select({
-      id: moderationCases.id,
-      targetType: moderationCases.targetType,
-      targetId: moderationCases.targetId,
-      reportId: moderationCases.reportId
-    })
-    .from(moderationCases)
-    .where(eq(moderationCases.id, params.caseId))
-    .limit(1);
+  const moderationCase = await getAdminModerationSensitiveAccessCaseContext(
+    app,
+    params.caseId
+  );
 
   if (!moderationCase) {
     return { status: "not_found" };
@@ -232,7 +234,11 @@ export async function requestAdminModerationSensitiveAccess(
     }
   }
 
-  if (requestedFields.includes("message") && moderationCase.targetType === "message") {
+  if (
+    requestedFields.includes("message") &&
+    moderationCase.targetType === "message" &&
+    moderationCase.targetId
+  ) {
     const message = await loadMessageSensitiveData(app, moderationCase.targetId);
 
     if (message) {
@@ -241,36 +247,62 @@ export async function requestAdminModerationSensitiveAccess(
     }
   }
 
-  const [auditEvent] = await app.db
-    .insert(events)
-    .values({
-      actorProfileId: params.actorProfileId,
-      eventType: "admin_sensitive_access_granted",
-      entityType: "moderation_case",
-      entityId: moderationCase.id,
-      metadata: {
-        moderationCaseId: moderationCase.id,
-        targetType: moderationCase.targetType,
-        targetId: moderationCase.targetId,
-        requestedFields,
-        grantedFields,
-        reason: params.reason
-      }
-    })
-    .returning({
-      id: events.id
-    });
+  const deniedFields = requestedFields.filter(
+    (field) => !grantedFields.includes(field)
+  );
 
-  if (!auditEvent) {
-    throw new Error("Sensitive access audit event creation failed.");
+  if (deniedFields.length > 0) {
+    await recordSensitiveAccessDenied(app, {
+      actorProfileId: params.actorProfileId,
+      context: moderationCase,
+      requestedFields,
+      deniedFields,
+      denialReason: "field_not_available_for_case"
+    });
   }
+
+  const auditEventId = await recordSensitiveAccessGranted(app, {
+    actorProfileId: params.actorProfileId,
+    context: moderationCase,
+    requestedFields,
+    grantedFields,
+    deniedFields: deniedFields.length > 0 ? deniedFields : undefined,
+    reason: params.reason
+  });
 
   return {
     status: "granted",
-    caseId: moderationCase.id,
+    caseId: moderationCase.caseId,
     grantedFields,
     sensitive,
-    auditEventId: auditEvent.id
+    auditEventId
+  };
+}
+
+export async function getAdminModerationSensitiveAccessCaseContext(
+  app: FastifyInstance,
+  caseId: string
+): Promise<AdminModerationSensitiveAccessCaseContext | null> {
+  const [moderationCase] = await app.db
+    .select({
+      id: moderationCases.id,
+      targetType: moderationCases.targetType,
+      targetId: moderationCases.targetId,
+      reportId: moderationCases.reportId
+    })
+    .from(moderationCases)
+    .where(eq(moderationCases.id, caseId))
+    .limit(1);
+
+  if (!moderationCase) {
+    return null;
+  }
+
+  return {
+    caseId: moderationCase.id,
+    targetType: moderationCase.targetType,
+    targetId: moderationCase.targetId,
+    reportId: moderationCase.reportId
   };
 }
 
