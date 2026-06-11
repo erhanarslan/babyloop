@@ -128,7 +128,7 @@ Reason:
 
 UI masking is not sufficient.
 
-Sensitive data must not reach the browser unless a future permissioned endpoint explicitly allows access and records an audit event.
+Sensitive data must not reach the browser unless the permissioned sensitive-access endpoint explicitly allows access and records an audit event.
 
 ### Decision: Server-side redaction boundary
 
@@ -139,6 +139,25 @@ Reporter identity is redacted by default.
 Message body previews are generated server-side.
 
 Raw message body and conversation ID are not returned in default admin moderation responses.
+
+### Decision: Permissioned sensitive access is separate and audited
+
+Raw reporter identity and raw message body access uses a separate endpoint:
+
+```txt
+POST /api/v1/admin/moderation/cases/:caseId/sensitive-access
+```
+
+The first version is deliberately narrow:
+
+- request body must include an explicit `reason`
+- request body must include allowlisted `fields`
+- current allowed fields are `reporter` and `message`
+- access goes through a dedicated sensitive-access helper
+- successful access writes an `events` audit row before data is returned
+- default list/detail endpoints remain redacted
+
+The current compatibility permission gate allows admins through the dedicated helper. Granular permissions remain a future architecture item.
 
 ### Decision: AI remains human-in-the-loop
 
@@ -159,17 +178,15 @@ AI must not:
 
 ### Future architecture decision required
 
-A future ADR is required for:
+A future ADR is still required for:
 
 ```txt
-Permissioned Sensitive Data Access + Audit Trail
+Granular Sensitive Data Permissions + Retention Policy
 ```
 
 That ADR should define:
 
 - Permission names
-- Raw sensitive endpoint shape
-- Required access reason
-- Audit event schema
 - Retention policy
 - Backoffice UI affordance
+- Denied-access audit policy

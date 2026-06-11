@@ -22,6 +22,19 @@ export const adminModerationActionBodySchema = z.object({
   note: z.string().trim().max(1000).optional()
 });
 
+export const adminSensitiveAccessFieldSchema = z.enum(["reporter", "message"]);
+
+export const adminSensitiveAccessBodySchema = z.object({
+  reason: z.string().trim().min(10).max(1000),
+  fields: z
+    .array(adminSensitiveAccessFieldSchema)
+    .min(1)
+    .max(2)
+    .refine((fields) => new Set(fields).size === fields.length)
+});
+
 export type AdminModerationCasesQuery = z.infer<typeof adminModerationCasesQuerySchema>;
 export type AdminModerationStatusBody = z.infer<typeof adminModerationStatusBodySchema>;
 export type AdminModerationActionBody = z.infer<typeof adminModerationActionBodySchema>;
+export type AdminSensitiveAccessBody = z.infer<typeof adminSensitiveAccessBodySchema>;
+export type AdminSensitiveAccessField = z.infer<typeof adminSensitiveAccessFieldSchema>;

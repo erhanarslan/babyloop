@@ -157,7 +157,13 @@ reporter: {
 }
 ```
 
-Reporter raw identity access requires a future dedicated permissioned endpoint and audit event.
+Reporter raw identity access is available only through the separate permissioned sensitive-access endpoint:
+
+```txt
+POST /api/v1/admin/moderation/cases/:caseId/sensitive-access
+```
+
+That endpoint requires admin authentication, the dedicated sensitive-access gate, an explicit reason, an allowlisted field request, and an audit event before returning data.
 
 ### Message target preview contract
 
@@ -224,3 +230,30 @@ Every future admin/backoffice moderation response change must include tests prov
 - Email addresses
 - Raw message body
 - Conversation ID
+
+### Sensitive access contract
+
+Default moderation list/detail endpoints remain redacted.
+
+Raw sensitive data may be returned only by `POST /api/v1/admin/moderation/cases/:caseId/sensitive-access`.
+
+Current allowed fields:
+
+```txt
+reporter
+message
+```
+
+The endpoint must not expose:
+
+```txt
+conversation participants
+full conversation data
+full profile data
+full listing data
+auth/session metadata
+```
+
+The public web app must not call this endpoint.
+
+AI tools must not use raw sensitive data by default. Any future AI flow that needs raw access must have an explicit permission and audit design.

@@ -163,7 +163,7 @@ Allowed only after server-side redaction:
 
 ### AI trust & safety rule
 
-AI tools must operate on minimized/redacted inputs unless a future permissioned and audited sensitive-access flow explicitly allows otherwise.
+AI tools must operate on minimized/redacted inputs. The permissioned sensitive-access endpoint is for explicit human backoffice review and is not available to AI flows by default.
 
 AI must not perform destructive actions.
 
@@ -173,3 +173,28 @@ Trust & safety moderation tests must verify both:
 
 1. Functional behavior works.
 2. Sensitive fields are not exposed.
+
+<!-- 2026-06-11-permissioned-sensitive-access-and-audit -->
+## 2026-06-11 Update — Permissioned Sensitive Raw Data Access + Audit
+
+The first raw sensitive-access foundation is implemented for backoffice moderation.
+
+Default moderation list/detail responses remain redacted.
+
+Raw access is available only through:
+
+```txt
+POST /api/v1/admin/moderation/cases/:caseId/sensitive-access
+```
+
+The endpoint requires:
+
+- admin authentication
+- dedicated sensitive-access helper
+- explicit reason
+- allowlisted fields only: `reporter`, `message`
+- successful audit event in `events`
+
+This endpoint does not expose conversation participants, full profile data, full listing data, or auth/session metadata.
+
+The current gate is a compatibility rule: admin users are allowed through a dedicated helper until granular permissions exist.

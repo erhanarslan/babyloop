@@ -312,7 +312,7 @@ The first line is fixture setup. The second line is leak regression.
 ### Required targeted tests
 
 ```bash
-pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.integration.test.ts
+pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.schemas.test.ts admin-moderation.integration.test.ts
 ```
 
 ### Required typechecks
@@ -328,6 +328,29 @@ pnpm typecheck
 ```bash
 pnpm build
 ```
+
+### Sensitive access checklist
+
+Default moderation list/detail responses must remain redacted.
+
+`POST /api/v1/admin/moderation/cases/:caseId/sensitive-access` must verify:
+
+- missing reason returns 400
+- too-short reason returns 400
+- empty fields returns 400
+- invalid fields returns 400
+- non-admin returns 403
+- unknown case returns 404
+- only requested/granted fields are returned
+- raw reporter data is available only when `reporter` is requested
+- raw message body is available only when `message` is requested for a message case
+- response includes `auditEventId`
+- successful access creates an `events` audit row
+- response does not include conversation participants, full profile data, full listing data, or auth/session metadata
+
+The public web app must not import or call the sensitive-access client.
+
+The backoffice must not request sensitive access automatically when a case detail loads.
 
 ### PII response assertions
 

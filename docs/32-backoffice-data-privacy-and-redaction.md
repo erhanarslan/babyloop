@@ -94,7 +94,7 @@ reporter: {
 }
 ```
 
-Reporter raw identity access requires a future dedicated permissioned endpoint and audit logging.
+Reporter raw identity access requires the dedicated permissioned sensitive-access endpoint and audit logging.
 
 ## Message preview rule
 
@@ -139,7 +139,7 @@ No email, phone, user ID, session data, or private profile data may be included.
 
 ## Sensitive raw access rule
 
-Future raw sensitive access must use a separate endpoint.
+Raw sensitive access uses a separate endpoint.
 
 Required controls:
 
@@ -149,6 +149,25 @@ Required controls:
 - Minimal response
 - No AI destructive action
 - No public web exposure
+
+Implemented endpoint:
+
+```txt
+POST /api/v1/admin/moderation/cases/:caseId/sensitive-access
+```
+
+Allowed fields:
+
+```txt
+reporter
+message
+```
+
+The endpoint writes an `events` row with `eventType = admin_sensitive_access_granted` before returning raw data.
+
+The current permission helper allows admins as a compatibility gate. Granular sensitive-data permissions are still future work.
+
+Denied access is returned as a safe API error. Denied-access audit logging is deferred.
 
 ## AI rule
 

@@ -73,6 +73,32 @@ export type CreateAdminModerationCaseActionResponse = {
   case: AdminModerationCaseDetail;
 };
 
+export type AdminSensitiveAccessField = "reporter" | "message";
+
+export type RequestAdminSensitiveAccessInput = {
+  reason: string;
+  fields: AdminSensitiveAccessField[];
+};
+
+export type RequestAdminSensitiveAccessResponse = {
+  caseId: string;
+  grantedFields: AdminSensitiveAccessField[];
+  sensitive: {
+    reporter?: {
+      profileId: string;
+      displayName: string | null;
+      email: string | null;
+    };
+    message?: {
+      id: string;
+      body: string;
+      senderProfileId: string;
+      createdAt: string;
+    };
+  };
+  auditEventId: string;
+};
+
 type RawAdminTargetPreview =
   | {
       type: "listing";
@@ -251,6 +277,19 @@ export async function createAdminModerationCaseAction(
       case: refreshedCase.data.case,
     },
   };
+}
+
+export async function requestAdminSensitiveAccess(
+  caseId: string,
+  input: RequestAdminSensitiveAccessInput,
+): Promise<ApiResponse<RequestAdminSensitiveAccessResponse>> {
+  return adminRequest<RequestAdminSensitiveAccessResponse>(
+    `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/sensitive-access`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 async function adminRequest<TData>(

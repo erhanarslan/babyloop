@@ -1,14 +1,17 @@
 import {
+  events,
   listings,
   messages,
   moderationActions,
   moderationCases,
   profiles,
-  reports
+  reports,
+  users
 } from "@babyloop/database/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { createSafeTextPreview } from "./redaction.service.js";
 import type { FastifyInstance } from "fastify";
+import type { AdminSensitiveAccessField } from "../schemas/admin-moderation.schemas.js";
 
 export type AdminModerationCaseStatus =
   | "pending"
@@ -74,6 +77,28 @@ export type AdminModerationActionSummary = {
     displayName: string;
   } | null;
 };
+
+export type AdminModerationSensitiveAccessResult =
+  | {
+      status: "granted";
+      caseId: string;
+      grantedFields: AdminSensitiveAccessField[];
+      sensitive: {
+        reporter?: {
+          profileId: string;
+          displayName: string | null;
+          email: string | null;
+        };
+        message?: {
+          id: string;
+          body: string;
+          senderProfileId: string;
+          createdAt: string;
+        };
+      };
+      auditEventId: string;
+    }
+  | { status: "not_found" };
 
 export async function listAdminModerationCases(
   app: FastifyInstance,
@@ -167,6 +192,85 @@ export async function getAdminModerationCaseDetail(
     status: "found",
     case: foundCase,
     actions
+  };
+}
+
+export async function requestAdminModerationSensitiveAccess(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    caseId: string;
+    fields: AdminSensitiveAccessField[];
+    reason: string;
+  }
+): Promise<AdminModerationSensitiveAccessResult> {
+  const [moderationCase] = await app.db
+    .select({
+      id: moderationCases.id,
+      targetType: moderationCases.targetType,
+      targetId: moderationCases.targetId,
+      reportId: moderationCases.reportId
+    })
+    .from(moderationCases)
+    .where(eq(moderationCases.id, params.caseId))
+    .limit(1);
+
+  if (!moderationCase) {
+    return { status: "not_found" };
+  }
+
+  const requestedFields = [...new Set(params.fields)];
+  const grantedFields: AdminSensitiveAccessField[] = [];
+  const sensitive: Extract<AdminModerationSensitiveAccessResult, { status: "granted" }>["sensitive"] = {};
+
+  if (requestedFields.includes("reporter") && moderationCase.reportId) {
+    const reporter = await loadReporterSensitiveData(app, moderationCase.reportId);
+
+    if (reporter) {
+      sensitive.reporter = reporter;
+      grantedFields.push("reporter");
+    }
+  }
+
+  if (requestedFields.includes("message") && moderationCase.targetType === "message") {
+    const message = await loadMessageSensitiveData(app, moderationCase.targetId);
+
+    if (message) {
+      sensitive.message = message;
+      grantedFields.push("message");
+    }
+  }
+
+  const [auditEvent] = await app.db
+    .insert(events)
+    .values({
+      actorProfileId: params.actorProfileId,
+      eventType: "admin_sensitive_access_granted",
+      entityType: "moderation_case",
+      entityId: moderationCase.id,
+      metadata: {
+        moderationCaseId: moderationCase.id,
+        targetType: moderationCase.targetType,
+        targetId: moderationCase.targetId,
+        requestedFields,
+        grantedFields,
+        reason: params.reason
+      }
+    })
+    .returning({
+      id: events.id
+    });
+
+  if (!auditEvent) {
+    throw new Error("Sensitive access audit event creation failed.");
+  }
+
+  return {
+    status: "granted",
+    caseId: moderationCase.id,
+    grantedFields,
+    sensitive,
+    auditEventId: auditEvent.id
   };
 }
 
@@ -369,6 +473,69 @@ async function loadTargetPreviews(
   }
 
   return previews;
+}
+
+async function loadReporterSensitiveData(
+  app: FastifyInstance,
+  reportId: string
+): Promise<{
+  profileId: string;
+  displayName: string | null;
+  email: string | null;
+} | null> {
+  const [reporter] = await app.db
+    .select({
+      profileId: profiles.id,
+      displayName: profiles.displayName,
+      email: users.email
+    })
+    .from(reports)
+    .innerJoin(profiles, eq(profiles.id, reports.reporterProfileId))
+    .leftJoin(users, eq(users.id, profiles.userId))
+    .where(eq(reports.id, reportId))
+    .limit(1);
+
+  if (!reporter) {
+    return null;
+  }
+
+  return {
+    profileId: reporter.profileId,
+    displayName: reporter.displayName,
+    email: reporter.email
+  };
+}
+
+async function loadMessageSensitiveData(
+  app: FastifyInstance,
+  messageId: string
+): Promise<{
+  id: string;
+  body: string;
+  senderProfileId: string;
+  createdAt: string;
+} | null> {
+  const [message] = await app.db
+    .select({
+      id: messages.id,
+      body: messages.body,
+      senderProfileId: messages.senderProfileId,
+      createdAt: messages.createdAt
+    })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1);
+
+  if (!message) {
+    return null;
+  }
+
+  return {
+    id: message.id,
+    body: message.body,
+    senderProfileId: message.senderProfileId,
+    createdAt: message.createdAt.toISOString()
+  };
 }
 
 function targetKey(targetType: string, targetId: string): string {

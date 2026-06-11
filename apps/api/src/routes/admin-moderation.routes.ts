@@ -4,13 +4,15 @@ import {
   adminModerationActionBodySchema,
   adminModerationCaseParamsSchema,
   adminModerationCasesQuerySchema,
+  adminSensitiveAccessBodySchema,
   adminModerationStatusBodySchema
 } from "../schemas/admin-moderation.schemas.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireAdminUser, requireSensitiveDataAccess } from "../services/admin-context.service.js";
 import {
   createAdminModerationAction,
   getAdminModerationCaseDetail,
   listAdminModerationCases,
+  requestAdminModerationSensitiveAccess,
   updateAdminModerationCaseStatus
 } from "../services/admin-moderation.service.js";
 
@@ -126,6 +128,54 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
         ok: true,
         data: {
           caseId: result.caseId
+        }
+      };
+    }
+  );
+
+  app.post<{ Body: unknown; Params: { caseId: string } }>(
+    "/admin/moderation/cases/:caseId/sensitive-access",
+    async (request, reply) => {
+      const admin = await requireSensitiveDataAccess(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminModerationCaseParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation case id must be a valid UUID."));
+      }
+
+      const parsedBody = adminSensitiveAccessBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Sensitive access request body is invalid."));
+      }
+
+      const result = await requestAdminModerationSensitiveAccess(app, {
+        actorProfileId: admin.profile.id,
+        caseId: parsedParams.data.caseId,
+        fields: parsedBody.data.fields,
+        reason: parsedBody.data.reason
+      });
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      return {
+        ok: true,
+        data: {
+          caseId: result.caseId,
+          grantedFields: result.grantedFields,
+          sensitive: result.sensitive,
+          auditEventId: result.auditEventId
         }
       };
     }

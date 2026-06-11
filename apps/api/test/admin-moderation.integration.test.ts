@@ -1,4 +1,12 @@
-import { conversations, messages, moderationActions, moderationCases } from "@babyloop/database/schema";
+import {
+  conversationParticipants,
+  conversations,
+  events,
+  listings,
+  messages,
+  moderationActions,
+  moderationCases
+} from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestApp, type TestApp } from "./helpers/app.js";
@@ -185,6 +193,16 @@ describe("admin moderation API", () => {
     if (!conversation) {
       throw new Error("Conversation setup failed.");
     }
+    await app.db.insert(conversationParticipants).values([
+  {
+    conversationId: conversation.id,
+    profileId: sender.profile.id
+  },
+  {
+    conversationId: conversation.id,
+    profileId: recipient.profile.id
+  }
+]);
 
     const rawMessageBody =
       "Bana +90 555 111 22 33 numarasından ulaş veya secret-parent@babyloop.test adresine yaz. ürün satılık mı";
@@ -253,6 +271,287 @@ describe("admin moderation API", () => {
     expect(serialized).not.toContain("secret-parent@babyloop.test");
     expect(serialized).not.toContain(rawMessageBody);
     expect(serialized).not.toContain(conversation.id);
+    expect(serialized).not.toContain(sender.profile.id);
+    expect(serialized).not.toContain(sender.user.email);
+  });
+
+  it("validates sensitive access requests and rejects non-admin users", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-sensitive-validation@babyloop.test"
+    });
+    const nonAdmin = await createUser(app);
+    const seller = await createUser(app);
+    const reporter = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "scam"
+      }
+    });
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, listing.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const missingReason = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        fields: ["reporter"]
+      }
+    });
+
+    const shortReason = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "too short",
+        fields: ["reporter"]
+      }
+    });
+
+    const emptyFields = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review reporter identity for moderation triage.",
+        fields: []
+      }
+    });
+
+    const invalidFields = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review reporter identity for moderation triage.",
+        fields: ["reporter", "conversation"]
+      }
+    });
+
+    const nonAdminResponse = await app.inject({
+      headers: authHeader(nonAdmin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review reporter identity for moderation triage.",
+        fields: ["reporter"]
+      }
+    });
+
+    expect(missingReason.statusCode).toBe(400);
+    expect(shortReason.statusCode).toBe(400);
+    expect(emptyFields.statusCode).toBe(400);
+    expect(invalidFields.statusCode).toBe(400);
+    expect(nonAdminResponse.statusCode).toBe(403);
+    expect(nonAdminResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "FORBIDDEN"
+      }
+    });
+  });
+
+  it("returns only requested sensitive fields and writes an audit event", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-sensitive-access@babyloop.test"
+    });
+    const sender = await createUser(app, {
+      email: "sender-sensitive@babyloop.test",
+      displayName: "Sensitive Sender"
+    });
+    const recipient = await createUser(app, {
+      email: "recipient-sensitive@babyloop.test",
+      displayName: "Sensitive Recipient"
+    });
+
+    const [profileLowId, profileHighId] = [
+      sender.profile.id,
+      recipient.profile.id
+    ].sort();
+
+    const [conversation] = await app.db
+      .insert(conversations)
+      .values({
+        profileLowId,
+        profileHighId,
+        createdByProfileId: sender.profile.id
+      })
+      .returning({
+        id: conversations.id
+      });
+
+    if (!conversation) {
+      throw new Error("Conversation setup failed.");
+    }
+    await app.db.insert(conversationParticipants).values([
+      {
+        conversationId: conversation.id,
+        profileId: sender.profile.id
+      },
+      {
+        conversationId: conversation.id,
+        profileId: recipient.profile.id
+      }
+    ]);
+
+    const rawMessageBody = "Raw sensitive message body for moderator review.";
+
+    const [message] = await app.db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        senderProfileId: sender.profile.id,
+        body: rawMessageBody
+      })
+      .returning({
+        id: messages.id
+      });
+
+    if (!message) {
+      throw new Error("Message setup failed.");
+    }
+
+    const reportResponse = await app.inject({
+      headers: authHeader(recipient.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/messages/${message.id}`,
+      payload: {
+        reason: "harassment",
+        details: "This message needs moderator review."
+      }
+    });
+
+    
+    expect(reportResponse.statusCode).toBe(201);
+
+    const [createdCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, message.id))
+      .limit(1);
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const messageAccess = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review raw message text for safety moderation.",
+        fields: ["message"]
+      }
+    });
+
+    expect(messageAccess.statusCode).toBe(200);
+    expect(messageAccess.json()).toMatchObject({
+      ok: true,
+      data: {
+        caseId: createdCase.id,
+        grantedFields: ["message"],
+        sensitive: {
+          message: {
+            id: message.id,
+            body: rawMessageBody,
+            senderProfileId: sender.profile.id
+          }
+        },
+        auditEventId: expect.any(String)
+      }
+    });
+    expect(messageAccess.json().data.sensitive.reporter).toBeUndefined();
+    expect(JSON.stringify(messageAccess.json())).not.toContain(conversation.id);
+
+    const reporterAccess = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}/sensitive-access`,
+      payload: {
+        reason: "Review reporter identity for abuse triage.",
+        fields: ["reporter"]
+      }
+    });
+
+    expect(reporterAccess.statusCode).toBe(200);
+    expect(reporterAccess.json()).toMatchObject({
+      ok: true,
+      data: {
+        caseId: createdCase.id,
+        grantedFields: ["reporter"],
+        sensitive: {
+          reporter: {
+            profileId: recipient.profile.id,
+            displayName: recipient.profile.displayName,
+            email: recipient.user.email
+          }
+        },
+        auditEventId: expect.any(String)
+      }
+    });
+    expect(reporterAccess.json().data.sensitive.message).toBeUndefined();
+
+    const auditRows = await app.db
+      .select({
+        id: events.id,
+        actorProfileId: events.actorProfileId,
+        eventType: events.eventType,
+        entityType: events.entityType,
+        entityId: events.entityId,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(eq(events.entityId, createdCase.id));
+
+    expect(auditRows).toHaveLength(2);
+    expect(auditRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: messageAccess.json().data.auditEventId,
+          actorProfileId: admin.profile.id,
+          eventType: "admin_sensitive_access_granted",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["message"],
+            grantedFields: ["message"],
+            reason: "Review raw message text for safety moderation."
+          })
+        }),
+        expect.objectContaining({
+          id: reporterAccess.json().data.auditEventId,
+          actorProfileId: admin.profile.id,
+          eventType: "admin_sensitive_access_granted",
+          entityType: "moderation_case",
+          entityId: createdCase.id,
+          metadata: expect.objectContaining({
+            requestedFields: ["reporter"],
+            grantedFields: ["reporter"],
+            reason: "Review reporter identity for abuse triage."
+          })
+        })
+      ])
+    );
   });
 
   it("allows admins to update case status and creates a moderation action", async () => {

@@ -158,7 +158,7 @@ pnpm build
 - Email delivery is still no-op/dev.
 - Web flows depend on manual QA until E2E tests exist.
 - AI is mock-only except for audit logging structure.
-- Admin moderation and reporting are not implemented.
+- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, and permissioned sensitive access exist; full reviewer workflow and admin dashboards remain incomplete.
 
 
 <!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
@@ -167,7 +167,7 @@ pnpm build
 ### Current active backlog item
 
 ```txt
-Backoffice Data Privacy + Redaction Foundation
+Permissioned Sensitive Raw Data Access + Audit
 ```
 
 ### Why this is active now
@@ -188,7 +188,7 @@ Before adding more trust & safety, support, or AI tooling, the API response cont
 - Detail screen opens with real case ID.
 - Basic status/action forms exist.
 
-### In progress
+### Previously completed privacy work
 
 - API redaction utility.
 - Server-side safe message preview.
@@ -199,23 +199,26 @@ Before adding more trust & safety, support, or AI tooling, the API response cont
 - Redaction utility unit tests.
 - Docs update.
 
-### Next task after this
+### Implemented in this item
 
 ```txt
-Permissioned Sensitive Raw Data Access + Audit Design
+Permissioned Sensitive Raw Data Access + Audit
 ```
 
-This should be design-first.
-
-Do not implement it before current redaction tests and build pass.
+- Separate `POST /api/v1/admin/moderation/cases/:caseId/sensitive-access` endpoint.
+- Explicit reason and allowlisted fields required.
+- Dedicated sensitive-access gate helper.
+- Successful raw access audited through the `events` table.
+- Backoffice client function added without automatic reveal on page load.
 
 ### Later backlog
 
-1. Sensitive raw access endpoint with permission + audit.
+1. Granular sensitive-data permission model beyond the current admin compatibility gate.
 2. Admin actor minimization in timeline response.
-3. AI moderation summary endpoint.
+3. AI moderation summary endpoint using redacted inputs by default.
 4. AI recommendation UI in backoffice.
 5. Moderation queue filters and pagination.
 6. Listing/profile/message action workflows.
-7. Backoffice UI polish.
+7. Backoffice UI explicit sensitive-access request panel.
 8. Full trust & safety audit event dashboard.
+9. Denied sensitive-access audit policy.
