@@ -385,6 +385,58 @@ a {
   margin-bottom: 1rem;
 }
 
+.summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.summary-card {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 18px;
+  background: rgba(247, 247, 251, 0.84);
+  padding: 0.9rem;
+}
+
+.summary-card span {
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-card strong {
+  color: #111827;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.filter-panel {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 18px;
+  background: rgba(247, 247, 251, 0.72);
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.filter-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .filter-pill {
   border: 1px solid rgba(23, 23, 35, 0.12);
   border-radius: 999px;
@@ -662,6 +714,7 @@ a {
   font-weight: 900;
 }
 
+.form-field input,
 .form-field select,
 .form-field textarea {
   width: 100%;
@@ -676,6 +729,7 @@ a {
   resize: vertical;
 }
 
+.form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
   border-color: #6d28d9;
@@ -719,6 +773,11 @@ a {
   .detail-layout {
     grid-template-columns: 1fr;
   }
+
+  .filter-grid,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -728,7 +787,9 @@ a {
   }
 
   .compact-details,
-  .details-grid {
+  .details-grid,
+  .filter-grid,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -1,5 +1,59 @@
 import { describe, expect, it } from "vitest";
-import { adminSensitiveAccessBodySchema } from "../src/schemas/admin-moderation.schemas.js";
+import {
+  adminModerationCasesQuerySchema,
+  adminSensitiveAccessBodySchema
+} from "../src/schemas/admin-moderation.schemas.js";
+
+describe("admin moderation cases query schema", () => {
+  it("accepts safe triage filters", () => {
+    const parsed = adminModerationCasesQuerySchema.safeParse({
+      status: "pending",
+      targetType: "message",
+      q: "00000000",
+      sort: "updated_desc",
+      limit: "25"
+    });
+
+    expect(parsed.success).toBe(true);
+
+    if (parsed.success) {
+      expect(parsed.data.limit).toBe(25);
+      expect(parsed.data.q).toBe("00000000");
+    }
+  });
+
+  it("rejects invalid triage filters", () => {
+    expect(
+      adminModerationCasesQuerySchema.safeParse({
+        status: "open"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationCasesQuerySchema.safeParse({
+        targetType: "conversation"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationCasesQuerySchema.safeParse({
+        sort: "raw_message"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationCasesQuerySchema.safeParse({
+        limit: "500"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationCasesQuerySchema.safeParse({
+        q: ""
+      }).success
+    ).toBe(false);
+  });
+});
 
 describe("admin moderation sensitive access schema", () => {
   it("accepts explicit reason and allowlisted fields", () => {

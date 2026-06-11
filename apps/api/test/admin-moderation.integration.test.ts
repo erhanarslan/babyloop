@@ -104,7 +104,16 @@ describe("admin moderation API", () => {
               status: "active"
             })
           })
-        ]
+        ],
+        summary: expect.objectContaining({
+          total: 1,
+          byStatus: expect.objectContaining({
+            pending: 1
+          }),
+          byTargetType: expect.objectContaining({
+            listing: 1
+          })
+        })
       }
     });
 
@@ -113,6 +122,129 @@ describe("admin moderation API", () => {
     expect(serialized).not.toContain(reporter.user.email);
     expect(serialized).not.toContain(reporter.profile.id);
     expect(serialized).not.toContain(reporter.profile.displayName);
+  });
+
+  it("supports safe moderation list filters, sorting, limits, and summary metadata", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-list-filters@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const reporter = await createUser(app, {
+      email: "reporter-list-filters@babyloop.test",
+      displayName: "Private Reporter"
+    });
+    const listedProfile = await createUser(app, {
+      displayName: "Reported Profile"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Filtered stroller case"
+    });
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "scam",
+        details: "This listing needs triage."
+      }
+    });
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/profiles/${listedProfile.profile.id}`,
+      payload: {
+        reason: "harassment"
+      }
+    });
+
+    const [listingCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, listing.id))
+      .limit(1);
+
+    if (!listingCase) {
+      throw new Error("Listing moderation case setup failed.");
+    }
+
+    await app.db
+      .update(moderationCases)
+      .set({
+        status: "in_review"
+      })
+      .where(eq(moderationCases.id, listingCase.id));
+
+    const filteredResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases?status=in_review&targetType=listing&q=${listing.id}&sort=updated_desc&limit=1`
+    });
+
+    expect(filteredResponse.statusCode).toBe(200);
+    expect(filteredResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        cases: [
+          expect.objectContaining({
+            id: listingCase.id,
+            targetType: "listing",
+            targetId: listing.id,
+            status: "in_review",
+            report: expect.objectContaining({
+              reporter: {
+                redacted: true
+              }
+            })
+          })
+        ],
+        summary: {
+          total: 1,
+          byStatus: {
+            pending: 0,
+            inReview: 1,
+            resolved: 0,
+            dismissed: 0
+          },
+          byTargetType: {
+            listing: 1,
+            profile: 0,
+            message: 0
+          }
+        }
+      }
+    });
+
+    const serialized = JSON.stringify(filteredResponse.json());
+
+    expect(serialized).not.toContain(reporter.user.email);
+    expect(serialized).not.toContain(reporter.profile.id);
+    expect(serialized).not.toContain(reporter.profile.displayName);
+  });
+
+  it("rejects invalid moderation list filters", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-invalid-list-filters@babyloop.test"
+    });
+
+    const invalidResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/moderation/cases?status=open&targetType=conversation&sort=raw&limit=500"
+    });
+
+    expect(invalidResponse.statusCode).toBe(400);
+    expect(invalidResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_REQUEST"
+      }
+    });
   });
 
   it("allows admins to read moderation case detail", async () => {

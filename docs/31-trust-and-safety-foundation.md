@@ -203,3 +203,16 @@ The current gate is a compatibility rule: admin users are allowed through a dedi
 Backoffice case detail now includes a small explicit request panel. It does not auto-fetch sensitive data on load; the admin must open the panel, read the warning, enter a reason, select fields, and submit. Returned raw data is kept in component state only and can be cleared.
 
 Unauthenticated requests and malformed case ids may not create DB audit events because there is no reliable actor/case context.
+
+<!-- 2026-06-11-moderation-triage-filters -->
+## 2026-06-11 Update — Moderation Triage Filters
+
+Backoffice moderation now includes safe list triage controls for status, target type, search, sort, and limit.
+
+The list response remains redacted by default. Filters and summary cards operate on safe moderation metadata only and must not expose raw reporter identity, raw message body, conversation participants, emails, tokens, or session metadata.
+
+Search is intentionally limited to safe fields such as case id, report id, target id, target type, status, and report reason/status.
+
+Sensitive access remains separate, explicit, reasoned, and audited through the dedicated sensitive-access endpoint.
+
+Still deferred: queue assignment, SLA tracking, reviewer workload dashboards, and deeper moderation analytics.

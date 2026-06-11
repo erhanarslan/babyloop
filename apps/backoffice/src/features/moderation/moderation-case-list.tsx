@@ -6,11 +6,23 @@ import { useEffect, useState } from "react";
 
 import {
   type AdminModerationCase,
+  type AdminModerationCasesSummary,
   type AdminModerationCaseStatus,
+  type AdminModerationSort,
+  type AdminModerationTargetType,
   listAdminModerationCases,
 } from "./api";
 
 type StatusFilter = AdminModerationCaseStatus | "all";
+type TargetTypeFilter = AdminModerationTargetType | "all";
+
+type FilterState = {
+  status: StatusFilter;
+  targetType: TargetTypeFilter;
+  q: string;
+  sort: AdminModerationSort;
+  limit: number;
+};
 
 const statusFilters: StatusFilter[] = [
   "all",
@@ -20,9 +32,44 @@ const statusFilters: StatusFilter[] = [
   "dismissed",
 ];
 
+const targetTypeFilters: TargetTypeFilter[] = ["all", "listing", "profile", "message"];
+const sortOptions: AdminModerationSort[] = [
+  "newest",
+  "oldest",
+  "updated_desc",
+  "updated_asc",
+];
+const limitOptions = [25, 50, 100];
+
+const defaultFilters: FilterState = {
+  status: "all",
+  targetType: "all",
+  q: "",
+  sort: "newest",
+  limit: 50,
+};
+
+const emptySummary: AdminModerationCasesSummary = {
+  total: 0,
+  byStatus: {
+    pending: 0,
+    inReview: 0,
+    resolved: 0,
+    dismissed: 0,
+  },
+  byTargetType: {
+    listing: 0,
+    profile: 0,
+    message: 0,
+  },
+};
+
 export function ModerationCaseList() {
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("all");
+  const [draftFilters, setDraftFilters] = useState<FilterState>(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
   const [cases, setCases] = useState<AdminModerationCase[]>([]);
+  const [summary, setSummary] =
+    useState<AdminModerationCasesSummary>(emptySummary);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -33,9 +80,17 @@ export function ModerationCaseList() {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const response = await listAdminModerationCases(
-        selectedStatus === "all" ? undefined : { status: selectedStatus },
-      );
+      const response = await listAdminModerationCases({
+        ...(appliedFilters.status === "all"
+          ? {}
+          : { status: appliedFilters.status }),
+        ...(appliedFilters.targetType === "all"
+          ? {}
+          : { targetType: appliedFilters.targetType }),
+        ...(appliedFilters.q.trim() ? { q: appliedFilters.q.trim() } : {}),
+        sort: appliedFilters.sort,
+        limit: appliedFilters.limit,
+      });
 
       if (!isActive) {
         return;
@@ -43,12 +98,14 @@ export function ModerationCaseList() {
 
       if (!response.ok) {
         setCases([]);
+        setSummary(emptySummary);
         setErrorMessage(getApiErrorMessage(response, "Could not load cases."));
         setIsLoading(false);
         return;
       }
 
       setCases(response.data.cases);
+      setSummary(response.data.summary);
       setIsLoading(false);
     }
 
@@ -57,7 +114,19 @@ export function ModerationCaseList() {
     return () => {
       isActive = false;
     };
-  }, [selectedStatus]);
+  }, [appliedFilters]);
+
+  function applyFilters() {
+    setAppliedFilters({
+      ...draftFilters,
+      q: draftFilters.q.trim(),
+    });
+  }
+
+  function resetFilters() {
+    setDraftFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+  }
 
   return (
     <section className="content-card">
@@ -72,18 +141,128 @@ export function ModerationCaseList() {
         </div>
       </div>
 
-      <div className="filter-row" aria-label="Moderation case status filters">
-        {statusFilters.map((status) => (
+      <div className="summary-grid" aria-label="Moderation triage summary">
+        <SummaryCard label="Total" value={summary.total} />
+        <SummaryCard label="Pending" value={summary.byStatus.pending} />
+        <SummaryCard label="In review" value={summary.byStatus.inReview} />
+        <SummaryCard label="Messages" value={summary.byTargetType.message} />
+        <SummaryCard label="Listings" value={summary.byTargetType.listing} />
+      </div>
+
+      <form
+        className="filter-panel"
+        onSubmit={(event) => {
+          event.preventDefault();
+          applyFilters();
+        }}
+      >
+        <div className="filter-grid">
+          <label className="form-field">
+            <span>Status</span>
+            <select
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  status: event.target.value as StatusFilter,
+                }))
+              }
+              value={draftFilters.status}
+            >
+              {statusFilters.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Target type</span>
+            <select
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  targetType: event.target.value as TargetTypeFilter,
+                }))
+              }
+              value={draftFilters.targetType}
+            >
+              {targetTypeFilters.map((targetType) => (
+                <option key={targetType} value={targetType}>
+                  {getTargetTypeLabel(targetType)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Search</span>
+            <input
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  q: event.target.value,
+                }))
+              }
+              placeholder="Case, report, target, status"
+              type="search"
+              value={draftFilters.q}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Sort</span>
+            <select
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  sort: event.target.value as AdminModerationSort,
+                }))
+              }
+              value={draftFilters.sort}
+            >
+              {sortOptions.map((sort) => (
+                <option key={sort} value={sort}>
+                  {getSortLabel(sort)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Limit</span>
+            <select
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  limit: Number(event.target.value),
+                }))
+              }
+              value={draftFilters.limit}
+            >
+              {limitOptions.map((limit) => (
+                <option key={limit} value={limit}>
+                  {limit}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="filter-actions">
+          <button className="primary-action" disabled={isLoading} type="submit">
+            Apply filters
+          </button>
           <button
-            className={selectedStatus === status ? "filter-pill active" : "filter-pill"}
-            key={status}
-            onClick={() => setSelectedStatus(status)}
+            className="secondary-action"
+            disabled={isLoading}
+            onClick={resetFilters}
             type="button"
           >
-            {getStatusLabel(status)}
+            Reset
           </button>
-        ))}
-      </div>
+        </div>
+      </form>
 
       {isLoading ? (
         <div className="state-panel">Loading moderation cases...</div>
@@ -144,6 +323,15 @@ export function ModerationCaseList() {
   );
 }
 
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="summary-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function getStatusLabel(status: StatusFilter): string {
   switch (status) {
     case "all":
@@ -156,6 +344,32 @@ function getStatusLabel(status: StatusFilter): string {
       return "Resolved";
     case "dismissed":
       return "Dismissed";
+  }
+}
+
+function getTargetTypeLabel(targetType: TargetTypeFilter): string {
+  switch (targetType) {
+    case "all":
+      return "All";
+    case "listing":
+      return "Listing";
+    case "profile":
+      return "Profile";
+    case "message":
+      return "Message";
+  }
+}
+
+function getSortLabel(sort: AdminModerationSort): string {
+  switch (sort) {
+    case "newest":
+      return "Newest";
+    case "oldest":
+      return "Oldest";
+    case "updated_desc":
+      return "Recently updated";
+    case "updated_asc":
+      return "Least recently updated";
   }
 }
 

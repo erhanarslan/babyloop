@@ -357,6 +357,18 @@ The public web app must not import or call the sensitive-access client.
 
 The backoffice must not request sensitive access automatically when a case detail loads.
 
+### Moderation triage filters checklist
+
+- [ ] moderation list filters by `status`
+- [ ] moderation list filters by `targetType`
+- [ ] moderation list search matches safe fields such as case id, report id, target id, target type, status, or report reason/status
+- [ ] search does not expose raw reporter identity, raw message body, conversation ids, participant ids, profile emails, tokens, or session metadata
+- [ ] invalid filter values return 400
+- [ ] sort options preserve redacted list responses
+- [ ] limit is capped at 100
+- [ ] summary cards/counts reflect the current safe result set
+- [ ] the moderation list page does not call the sensitive-access endpoint
+
 ### Backoffice sensitive access UI checklist
 
 - [ ] moderation case detail loads with default redacted data only

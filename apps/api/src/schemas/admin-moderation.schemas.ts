@@ -9,6 +9,10 @@ export const adminModerationCasesQuerySchema = z.object({
     .enum(["pending", "in_review", "resolved", "dismissed"])
     .optional(),
   targetType: z.enum(["listing", "profile", "message"]).optional(),
+  q: z.string().trim().min(1).max(120).optional(),
+  sort: z
+    .enum(["newest", "oldest", "updated_desc", "updated_asc"])
+    .optional(),
   limit: z.coerce.number().int().min(1).max(100).optional()
 });
 

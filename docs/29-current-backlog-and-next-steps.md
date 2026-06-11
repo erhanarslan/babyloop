@@ -212,6 +212,8 @@ Permissioned Sensitive Raw Data Access + Audit
 - Denied sensitive-access attempts are audited when actor and case context are safely available.
 - Backoffice client function added without automatic reveal on page load.
 - Backoffice case detail now has an explicit sensitive-access request panel with warning, reason, field selection, audit id display, and clear-from-state action.
+- Backoffice moderation list now has safe triage filters for status, target type, search, sort, and limit.
+- Moderation list summary cards/counts are based on the current redacted result set and do not expose raw sensitive data.
 
 ### Later backlog
 
@@ -219,7 +221,7 @@ Permissioned Sensitive Raw Data Access + Audit
 2. Admin actor minimization in timeline response.
 3. AI moderation summary endpoint using redacted inputs by default.
 4. AI recommendation UI in backoffice.
-5. Moderation queue filters and pagination.
+5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
 6. Listing/profile/message action workflows.
 7. Full trust & safety audit event dashboard.
 8. Granular denied-audit policy for unauthenticated and malformed requests.

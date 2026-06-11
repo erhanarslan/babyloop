@@ -11,6 +11,12 @@ export type AdminModerationCaseStatus =
 
 export type AdminModerationTargetType = "listing" | "profile" | "message";
 
+export type AdminModerationSort =
+  | "newest"
+  | "oldest"
+  | "updated_desc"
+  | "updated_asc";
+
 export type AdminModerationActionType =
   | "note"
   | "review_started"
@@ -46,10 +52,30 @@ export type AdminModerationCaseDetail = AdminModerationCase & {
 
 export type ListAdminModerationCasesParams = {
   status?: AdminModerationCaseStatus;
+  targetType?: AdminModerationTargetType;
+  q?: string;
+  sort?: AdminModerationSort;
+  limit?: number;
+};
+
+export type AdminModerationCasesSummary = {
+  total: number;
+  byStatus: {
+    pending: number;
+    inReview: number;
+    resolved: number;
+    dismissed: number;
+  };
+  byTargetType: {
+    listing: number;
+    profile: number;
+    message: number;
+  };
 };
 
 export type ListAdminModerationCasesResponse = {
   cases: AdminModerationCase[];
+  summary: AdminModerationCasesSummary;
 };
 
 export type GetAdminModerationCaseResponse = {
@@ -151,6 +177,7 @@ type RawAdminModerationAction = {
 
 type RawListAdminModerationCasesResponse = {
   cases: RawAdminModerationCase[];
+  summary: AdminModerationCasesSummary;
 };
 
 type RawGetAdminModerationCaseResponse = {
@@ -176,6 +203,18 @@ export async function listAdminModerationCases(
   if (params?.status) {
     searchParams.set("status", params.status);
   }
+  if (params?.targetType) {
+    searchParams.set("targetType", params.targetType);
+  }
+  if (params?.q) {
+    searchParams.set("q", params.q);
+  }
+  if (params?.sort) {
+    searchParams.set("sort", params.sort);
+  }
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
 
   const query = searchParams.toString();
   const path = `${ADMIN_MODERATION_BASE_PATH}/cases${query ? `?${query}` : ""}`;
@@ -190,6 +229,7 @@ export async function listAdminModerationCases(
     ok: true,
     data: {
       cases: response.data.cases.map(mapModerationCase),
+      summary: response.data.summary,
     },
   };
 }

@@ -126,3 +126,13 @@ Any future AI use of raw sensitive data requires a separate permission, audit, a
 ## Current Limitation
 
 The first permission gate is a compatibility helper that allows `admin` users. This is intentionally isolated so granular permissions can replace it later without changing route handlers.
+
+## Moderation List Triage
+
+The backoffice moderation list may filter by status, target type, safe search text, sort, and limit, and may show summary counts for the current result set.
+
+These list controls do not call the sensitive-access endpoint and do not reveal raw sensitive fields.
+
+Search remains limited to safe operational fields such as case id, report id, target id, target type, status, and report reason/status. Raw message bodies, reporter identity, conversation participants, emails, tokens, and session metadata are outside the list/search contract.
+
+Summary cards are operational metadata for triage only. They are not a raw sensitive-data view.

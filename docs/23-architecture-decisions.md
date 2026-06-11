@@ -162,6 +162,16 @@ Audit metadata must not store raw message bodies, reporter emails, tokens, full 
 
 The current compatibility permission gate allows admins through the dedicated helper. Granular permissions remain a future architecture item.
 
+### Decision: Moderation triage filters stay on redacted DTOs
+
+Backoffice moderation list filters are operational triage controls, not sensitive-data access controls.
+
+`GET /api/v1/admin/moderation/cases` may filter by status, target type, safe search text, sort, and limit, and may return summary counts for the current safe result set.
+
+Search is intentionally limited to case/report/target identifiers and non-sensitive moderation metadata. It must not search raw message bodies, reporter identity, email addresses, conversation participants, tokens, or session metadata.
+
+Sensitive access remains a separate explicit endpoint with reason and audit requirements.
+
 ### Decision: AI remains human-in-the-loop
 
 AI may provide:

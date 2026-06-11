@@ -40,24 +40,31 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
           .send(invalidRequest("Moderation case filters are invalid."));
       }
 
-            const filters = {
+      const filters = {
         ...(parsedQuery.data.status !== undefined
-            ? { status: parsedQuery.data.status }
-            : {}),
+          ? { status: parsedQuery.data.status }
+          : {}),
         ...(parsedQuery.data.targetType !== undefined
-            ? { targetType: parsedQuery.data.targetType }
-            : {}),
+          ? { targetType: parsedQuery.data.targetType }
+          : {}),
+        ...(parsedQuery.data.q !== undefined ? { q: parsedQuery.data.q } : {}),
+        ...(parsedQuery.data.sort !== undefined
+          ? { sort: parsedQuery.data.sort }
+          : {}),
         ...(parsedQuery.data.limit !== undefined
-            ? { limit: parsedQuery.data.limit }
-            : {})
-        };
+          ? { limit: parsedQuery.data.limit }
+          : {})
+      };
 
-        return {
+      const result = await listAdminModerationCases(app, filters);
+
+      return {
         ok: true,
         data: {
-            cases: await listAdminModerationCases(app, filters)
+          cases: result.cases,
+          summary: result.summary
         }
-        };
+      };
     }
   );
 

@@ -7,7 +7,7 @@ import {
   reports,
   users
 } from "@babyloop/database/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import {
   recordSensitiveAccessDenied,
   recordSensitiveAccessGranted,
@@ -24,6 +24,12 @@ export type AdminModerationCaseStatus =
   | "dismissed";
 
 export type AdminModerationTargetType = "listing" | "profile" | "message";
+
+export type AdminModerationSort =
+  | "newest"
+  | "oldest"
+  | "updated_desc"
+  | "updated_asc";
 
 export type AdminModerationActionType =
   | "note"
@@ -50,6 +56,26 @@ export type AdminModerationCaseSummary = {
     } | null;
   } | null;
   targetPreview: AdminTargetPreview | null;
+};
+
+export type AdminModerationCasesSummary = {
+  total: number;
+  byStatus: {
+    pending: number;
+    inReview: number;
+    resolved: number;
+    dismissed: number;
+  };
+  byTargetType: {
+    listing: number;
+    profile: number;
+    message: number;
+  };
+};
+
+export type AdminModerationCaseListResult = {
+  cases: AdminModerationCaseSummary[];
+  summary: AdminModerationCasesSummary;
 };
 
 export type AdminTargetPreview =
@@ -113,12 +139,15 @@ export async function listAdminModerationCases(
   filters: {
     status?: AdminModerationCaseStatus;
     targetType?: AdminModerationTargetType;
+    q?: string;
+    sort?: AdminModerationSort;
     limit?: number;
   }
-): Promise<AdminModerationCaseSummary[]> {
+): Promise<AdminModerationCaseListResult> {
   const whereConditions = [
     filters.status ? eq(moderationCases.status, filters.status) : undefined,
-    filters.targetType ? eq(moderationCases.targetType, filters.targetType) : undefined
+    filters.targetType ? eq(moderationCases.targetType, filters.targetType) : undefined,
+    filters.q ? buildModerationCaseSearchCondition(filters.q) : undefined
   ].filter(Boolean);
 
   const rows = await app.db
@@ -139,7 +168,7 @@ export async function listAdminModerationCases(
     .from(moderationCases)
     .leftJoin(reports, eq(moderationCases.reportId, reports.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-    .orderBy(desc(moderationCases.createdAt))
+    .orderBy(getModerationCaseOrderBy(filters.sort))
     .limit(filters.limit ?? 50);
 
   const targetPreviews = await loadTargetPreviews(
@@ -150,7 +179,7 @@ export async function listAdminModerationCases(
     }))
   );
 
-  return rows.map((row) => ({
+  const cases = rows.map((row) => ({
     id: row.id,
     targetType: row.targetType,
     targetId: row.targetId,
@@ -166,13 +195,77 @@ export async function listAdminModerationCases(
           createdAt: row.reportCreatedAt?.toISOString() ?? row.createdAt.toISOString(),
           reporter: row.reporterProfileId
             ? {
-                redacted: true
+                redacted: true as const
               }
             : null
         }
       : null,
     targetPreview: targetPreviews.get(targetKey(row.targetType, row.targetId)) ?? null
   }));
+
+  return {
+    cases,
+    summary: summarizeModerationCases(cases)
+  };
+}
+
+function buildModerationCaseSearchCondition(query: string) {
+  const pattern = `%${query.trim()}%`;
+
+  return or(
+    sql`${moderationCases.id}::text ilike ${pattern}`,
+    sql`${moderationCases.targetId}::text ilike ${pattern}`,
+    sql`${moderationCases.targetType}::text ilike ${pattern}`,
+    sql`${moderationCases.status}::text ilike ${pattern}`,
+    sql`${reports.id}::text ilike ${pattern}`,
+    sql`${reports.reason}::text ilike ${pattern}`,
+    sql`${reports.status}::text ilike ${pattern}`
+  );
+}
+
+function getModerationCaseOrderBy(sort: AdminModerationSort | undefined) {
+  switch (sort) {
+    case "oldest":
+      return asc(moderationCases.createdAt);
+    case "updated_desc":
+      return desc(moderationCases.updatedAt);
+    case "updated_asc":
+      return asc(moderationCases.updatedAt);
+    case "newest":
+    default:
+      return desc(moderationCases.createdAt);
+  }
+}
+
+function summarizeModerationCases(
+  cases: AdminModerationCaseSummary[]
+): AdminModerationCasesSummary {
+  const summary: AdminModerationCasesSummary = {
+    total: cases.length,
+    byStatus: {
+      pending: 0,
+      inReview: 0,
+      resolved: 0,
+      dismissed: 0
+    },
+    byTargetType: {
+      listing: 0,
+      profile: 0,
+      message: 0
+    }
+  };
+
+  for (const moderationCase of cases) {
+    if (moderationCase.status === "in_review") {
+      summary.byStatus.inReview += 1;
+    } else {
+      summary.byStatus[moderationCase.status] += 1;
+    }
+
+    summary.byTargetType[moderationCase.targetType] += 1;
+  }
+
+  return summary;
 }
 
 export async function getAdminModerationCaseDetail(
@@ -186,7 +279,7 @@ export async function getAdminModerationCaseDetail(
     }
   | { status: "not_found" }
 > {
-  const cases = await listAdminModerationCases(app, { limit: 100 });
+  const { cases } = await listAdminModerationCases(app, { limit: 100 });
 
   const foundCase = cases.find((item) => item.id === caseId);
 

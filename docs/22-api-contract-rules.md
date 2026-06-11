@@ -167,6 +167,24 @@ That endpoint requires admin authentication, the dedicated sensitive-access gate
 
 Denied attempts are audited when actor and case context are safely available. Unauthenticated requests and malformed case ids may not create DB audit rows.
 
+### Moderation triage list contract
+
+`GET /api/v1/admin/moderation/cases` supports safe triage filters for status, target type, search, sort, and limit.
+
+Allowed query fields:
+
+```txt
+status
+targetType
+q
+sort
+limit
+```
+
+The list search is limited to safe operational fields such as case id, report id, target id, target type, status, and report reason/status. It must not search or return raw reporter identity, raw message body, conversation participants, profile emails, tokens, or session metadata.
+
+The response may include summary metadata for the current safe result set. Summary counts are operational triage data only; they are not a raw sensitive-data view and must not require or trigger sensitive access.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.
