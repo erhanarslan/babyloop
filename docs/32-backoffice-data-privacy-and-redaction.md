@@ -173,6 +173,24 @@ Denied access is returned as a safe API error. Unauthenticated requests and malf
 
 Backoffice UI access is explicit. Case detail does not auto-fetch raw data. Admins must open the sensitive-access panel, enter a reason, select fields, and submit. Returned raw data is displayed only after the audited request succeeds and can be cleared from component state.
 
+## Timeline audit visibility rule
+
+Case detail may show a combined moderation timeline.
+
+Allowed timeline content:
+
+- case/report context
+- moderation notes/actions
+- status changes
+- sensitive-access granted/denied audit event labels
+- allowlisted operational metadata such as requested/granted/denied fields, target type/id, status, action type, and denial reason
+
+Timeline metadata must be allowlisted by the API before it reaches the backoffice UI.
+
+The timeline must not show raw message body, reporter email, user email, phone numbers, tokens, refresh tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants.
+
+The timeline is not a raw-data viewer and must not call the sensitive-access endpoint.
+
 ## AI rule
 
 AI may only provide:

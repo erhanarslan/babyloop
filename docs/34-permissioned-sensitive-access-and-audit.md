@@ -136,3 +136,26 @@ These list controls do not call the sensitive-access endpoint and do not reveal 
 Search remains limited to safe operational fields such as case id, report id, target id, target type, status, and report reason/status. Raw message bodies, reporter identity, conversation participants, emails, tokens, and session metadata are outside the list/search contract.
 
 Summary cards are operational metadata for triage only. They are not a raw sensitive-data view.
+
+## Case Timeline Audit Visibility
+
+Backoffice case detail may show sensitive-access granted and denied audit events in the case timeline.
+
+Timeline items show safe labels, actor display where available, timestamps, and allowlisted metadata only.
+
+Allowed timeline metadata includes:
+
+```txt
+requestedFields
+grantedFields
+deniedFields
+targetType
+targetId
+denialReason
+status
+actionType
+```
+
+The timeline must not render unknown metadata blindly and must not expose raw message bodies, reporter emails, tokens, full profile data, full listing data, full conversation data, or conversation participants.
+
+The timeline does not call the sensitive-access endpoint. Raw access remains explicit, reasoned, and audited through the dedicated request panel.

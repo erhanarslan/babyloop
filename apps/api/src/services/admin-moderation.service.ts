@@ -1,4 +1,5 @@
 import {
+  events,
   listings,
   messages,
   moderationActions,
@@ -106,6 +107,34 @@ export type AdminModerationActionSummary = {
     id: string;
     displayName: string;
   } | null;
+};
+
+export type AdminModerationTimelineItemType =
+  | "audit_event"
+  | "case_created"
+  | "moderation_action"
+  | "note"
+  | "report_received"
+  | "sensitive_access_denied"
+  | "sensitive_access_granted"
+  | "status_change";
+
+export type AdminModerationTimelineMetadata = Record<
+  string,
+  string | number | boolean | string[] | null
+>;
+
+export type AdminModerationTimelineItem = {
+  id: string;
+  type: AdminModerationTimelineItemType;
+  label: string;
+  createdAt: string;
+  actor: {
+    id: string;
+    displayName: string | null;
+  } | null;
+  metadata?: AdminModerationTimelineMetadata | undefined;
+  note?: string | null | undefined;
 };
 
 export type AdminModerationSensitiveAccessResult =
@@ -276,6 +305,7 @@ export async function getAdminModerationCaseDetail(
       status: "found";
       case: AdminModerationCaseSummary;
       actions: AdminModerationActionSummary[];
+      timeline: AdminModerationTimelineItem[];
     }
   | { status: "not_found" }
 > {
@@ -288,11 +318,13 @@ export async function getAdminModerationCaseDetail(
   }
 
   const actions = await listCaseActions(app, caseId);
+  const auditEvents = await listCaseAuditEvents(app, caseId);
 
   return {
     status: "found",
     case: foundCase,
-    actions
+    actions,
+    timeline: buildAdminModerationTimeline(foundCase, actions, auditEvents)
   };
 }
 
@@ -520,6 +552,226 @@ async function listCaseActions(
         }
       : null
   }));
+}
+
+type AdminModerationAuditEventSummary = {
+  id: string;
+  eventType: string;
+  createdAt: string;
+  actor: {
+    id: string;
+    displayName: string | null;
+  } | null;
+  metadata: Record<string, unknown>;
+};
+
+async function listCaseAuditEvents(
+  app: FastifyInstance,
+  caseId: string
+): Promise<AdminModerationAuditEventSummary[]> {
+  const actorProfiles = profiles;
+
+  const rows = await app.db
+    .select({
+      id: events.id,
+      eventType: events.eventType,
+      metadata: events.metadata,
+      createdAt: events.createdAt,
+      actorProfileId: actorProfiles.id,
+      actorDisplayName: actorProfiles.displayName
+    })
+    .from(events)
+    .leftJoin(actorProfiles, eq(events.actorProfileId, actorProfiles.id))
+    .where(
+      and(
+        eq(events.entityType, "moderation_case"),
+        eq(events.entityId, caseId),
+        or(
+          eq(events.eventType, "admin_sensitive_access_granted"),
+          eq(events.eventType, "admin_sensitive_access_denied")
+        )
+      )
+    )
+    .orderBy(desc(events.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    eventType: row.eventType,
+    metadata: row.metadata,
+    createdAt: row.createdAt.toISOString(),
+    actor: row.actorProfileId
+      ? {
+          id: row.actorProfileId,
+          displayName: row.actorDisplayName ?? "Unknown admin"
+        }
+      : null
+  }));
+}
+
+function buildAdminModerationTimeline(
+  moderationCase: AdminModerationCaseSummary,
+  actions: AdminModerationActionSummary[],
+  auditEvents: AdminModerationAuditEventSummary[]
+): AdminModerationTimelineItem[] {
+  const timeline: AdminModerationTimelineItem[] = [
+    {
+      id: `${moderationCase.id}:case-created`,
+      type: "case_created",
+      label: "Case created",
+      createdAt: moderationCase.createdAt,
+      actor: null,
+      metadata: sanitizeAdminModerationTimelineMetadata({
+        targetType: moderationCase.targetType,
+        targetId: moderationCase.targetId,
+        status: moderationCase.status
+      })
+    }
+  ];
+
+  if (moderationCase.report) {
+    timeline.push({
+      id: `${moderationCase.report.id}:report-received`,
+      type: "report_received",
+      label: "Report received",
+      createdAt: moderationCase.report.createdAt,
+      actor: null,
+      metadata: sanitizeAdminModerationTimelineMetadata({
+        reportId: moderationCase.report.id,
+        status: moderationCase.report.status
+      })
+    });
+  }
+
+  for (const action of actions) {
+    const actionType = action.actionType;
+
+    timeline.push({
+      id: action.id,
+      type: getTimelineTypeForAction(actionType),
+      label: getTimelineLabelForAction(actionType),
+      createdAt: action.createdAt,
+      actor: action.actorProfile,
+      note: action.note,
+      metadata: sanitizeAdminModerationTimelineMetadata({
+        actionType,
+        ...(isModerationStatusAction(actionType) ? { status: actionType } : {})
+      })
+    });
+  }
+
+  for (const auditEvent of auditEvents) {
+    timeline.push({
+      id: auditEvent.id,
+      type:
+        auditEvent.eventType === "admin_sensitive_access_granted"
+          ? "sensitive_access_granted"
+          : "sensitive_access_denied",
+      label:
+        auditEvent.eventType === "admin_sensitive_access_granted"
+          ? "Sensitive access granted"
+          : "Sensitive access denied",
+      createdAt: auditEvent.createdAt,
+      actor: auditEvent.actor,
+      metadata: sanitizeAdminModerationTimelineMetadata(auditEvent.metadata)
+    });
+  }
+
+  return timeline.sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+  );
+}
+
+export function sanitizeAdminModerationTimelineMetadata(
+  metadata: Record<string, unknown>
+): AdminModerationTimelineMetadata | undefined {
+  const safeMetadata: AdminModerationTimelineMetadata = {};
+  const allowedKeys = [
+    "actionType",
+    "denialReason",
+    "deniedFields",
+    "grantedFields",
+    "moderationCaseId",
+    "reportId",
+    "requestedFields",
+    "status",
+    "targetId",
+    "targetType"
+  ];
+
+  for (const key of allowedKeys) {
+    const value = metadata[key];
+
+    if (isSafeTimelineMetadataValue(value)) {
+      safeMetadata[key] = value;
+    }
+  }
+
+  return Object.keys(safeMetadata).length > 0 ? safeMetadata : undefined;
+}
+
+function isSafeTimelineMetadataValue(
+  value: unknown
+): value is string | number | boolean | string[] | null {
+  if (value === null) {
+    return true;
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function getTimelineTypeForAction(
+  actionType: string
+): AdminModerationTimelineItemType {
+  if (actionType === "note") {
+    return "note";
+  }
+
+  if (isModerationStatusAction(actionType)) {
+    return "status_change";
+  }
+
+  return "moderation_action";
+}
+
+function getTimelineLabelForAction(actionType: string): string {
+  switch (actionType) {
+    case "note":
+      return "Internal note";
+    case "pending":
+      return "Status changed to pending";
+    case "in_review":
+      return "Status changed to in review";
+    case "review_started":
+      return "Review started";
+    case "dismissed":
+      return "Status changed to dismissed";
+    case "resolved":
+      return "Status changed to resolved";
+    case "action_taken":
+      return "Action taken";
+    default:
+      return "Moderation action";
+  }
+}
+
+function isModerationStatusAction(
+  actionType: string
+): actionType is AdminModerationCaseStatus {
+  return (
+    actionType === "pending" ||
+    actionType === "in_review" ||
+    actionType === "resolved" ||
+    actionType === "dismissed"
+  );
 }
 
 async function loadTargetPreviews(

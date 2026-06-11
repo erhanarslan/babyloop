@@ -172,6 +172,14 @@ Search is intentionally limited to case/report/target identifiers and non-sensit
 
 Sensitive access remains a separate explicit endpoint with reason and audit requirements.
 
+### Decision: Audit timeline is safe metadata only
+
+Backoffice case detail may compose a timeline from moderation actions and related `events` rows.
+
+The timeline is an operator-readability feature, not a raw-data access path. Sensitive-access granted/denied audit events may be visible, but only through server-side allowlisted metadata.
+
+Unknown audit metadata must not be returned or rendered blindly. Raw message bodies, reporter emails, tokens, full profile/listing/conversation data, and conversation participants remain outside the default detail response.
+
 ### Decision: AI remains human-in-the-loop
 
 AI may provide:

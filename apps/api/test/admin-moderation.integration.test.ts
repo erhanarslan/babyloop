@@ -643,6 +643,31 @@ describe("admin moderation API", () => {
       ])
     );
 
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        timeline: expect.arrayContaining([
+          expect.objectContaining({
+            type: "sensitive_access_denied",
+            label: "Sensitive access denied",
+            metadata: expect.objectContaining({
+              requestedFields: ["message"],
+              deniedFields: ["message"],
+              denialReason: "field_not_available_for_case"
+            })
+          })
+        ])
+      }
+    });
+    expect(JSON.stringify(detailResponse.json())).not.toContain(reporter.user.email);
+
     const missingCaseAuditRows = await app.db
       .select({
         actorProfileId: events.actorProfileId,
@@ -713,7 +738,8 @@ describe("admin moderation API", () => {
       }
     ]);
 
-    const rawMessageBody = "Raw sensitive message body for moderator review.";
+    const rawMessageBody =
+      "Raw sensitive message body for moderator review. Call +90 555 111 22 33 or email parent@example.com.";
 
     const [message] = await app.db
       .insert(messages)
@@ -853,6 +879,38 @@ describe("admin moderation API", () => {
         })
       ])
     );
+
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        timeline: expect.arrayContaining([
+          expect.objectContaining({
+            type: "sensitive_access_granted",
+            label: "Sensitive access granted",
+            metadata: expect.objectContaining({
+              requestedFields: ["message"],
+              grantedFields: ["message"],
+              targetType: "message",
+              targetId: message.id
+            })
+          })
+        ])
+      }
+    });
+
+    const serializedDetail = JSON.stringify(detailResponse.json());
+
+    expect(serializedDetail).not.toContain(rawMessageBody);
+    expect(serializedDetail).not.toContain(recipient.user.email);
+    expect(serializedDetail).not.toContain(conversation.id);
+    expect(serializedDetail).not.toContain("Review raw message text for safety moderation.");
   });
 
   it("allows admins to update case status and creates a moderation action", async () => {

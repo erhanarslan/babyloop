@@ -760,6 +760,12 @@ a {
   padding: 1rem;
 }
 
+.timeline-item.sensitive_access_granted,
+.timeline-item.sensitive_access_denied {
+  border-color: rgba(180, 83, 9, 0.22);
+  background: rgba(255, 251, 235, 0.48);
+}
+
 .timeline-item strong {
   color: #111827;
 }
@@ -767,6 +773,31 @@ a {
 .timeline-item p {
   color: #4b5563;
   line-height: 1.6;
+}
+
+.metadata-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metadata-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 999px;
+  background: rgba(247, 247, 251, 0.88);
+  color: #374151;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  padding: 0.42rem 0.65rem;
+}
+
+.metadata-chip strong {
+  color: #111827;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 1100px) {

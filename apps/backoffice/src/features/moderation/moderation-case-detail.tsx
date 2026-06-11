@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-  type AdminModerationAction,
-  type AdminModerationActionType,
   type AdminModerationCaseDetail as AdminModerationCaseDetailType,
   type AdminModerationCaseStatus,
+  type AdminModerationTimelineItem,
   getAdminModerationCase,
 } from "./api";
 import { ModerationActionForm } from "./moderation-action-form";
@@ -19,9 +18,20 @@ type ModerationCaseDetailProps = {
   caseId: string;
 };
 
+type TimelineFilter = "all" | "actions" | "notes" | "sensitive" | "status";
+
+const timelineFilters: TimelineFilter[] = [
+  "all",
+  "actions",
+  "notes",
+  "sensitive",
+  "status",
+];
+
 export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
   const [moderationCase, setModerationCase] =
     useState<AdminModerationCaseDetailType | null>(null);
+  const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -75,6 +85,10 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
       </div>
     );
   }
+
+  const visibleTimeline = moderationCase.timeline.filter((item) =>
+    timelineItemMatchesFilter(item, timelineFilter),
+  );
 
   return (
     <div className="detail-layout">
@@ -146,32 +160,61 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
         <div className="page-toolbar">
           <div>
             <p className="eyebrow">Audit timeline</p>
-            <h2>Case actions</h2>
-            <p>Internal notes and workflow actions for this moderation case.</p>
+            <h2>Case timeline</h2>
+            <p>
+              Redacted moderation history, actions, and sensitive-access audit
+              events for this case.
+            </p>
           </div>
         </div>
 
-        {moderationCase.actions.length === 0 ? (
-          <div className="state-panel">No actions have been recorded yet.</div>
+        <div className="filter-row" aria-label="Timeline filters">
+          {timelineFilters.map((filter) => (
+            <button
+              className={timelineFilter === filter ? "filter-pill active" : "filter-pill"}
+              key={filter}
+              onClick={() => setTimelineFilter(filter)}
+              type="button"
+            >
+              {getTimelineFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
+
+        {visibleTimeline.length === 0 ? (
+          <div className="state-panel">
+            No timeline events match this filter.
+          </div>
         ) : (
           <div className="timeline">
-            {moderationCase.actions.map((action) => (
-              <article className="timeline-item" key={action.id}>
+            {visibleTimeline.map((item) => (
+              <article className={`timeline-item ${item.type}`} key={item.id}>
                 <div>
-                  <strong>{getActionTypeLabel(getActionType(action))}</strong>
-                  <p>{action.note || "No note."}</p>
+                  <strong>{item.label}</strong>
+                  {item.note ? <p>{item.note}</p> : null}
                 </div>
 
                 <dl className="compact-details">
                   <div>
-                    <dt>Admin user</dt>
-                    <dd>{action.adminDisplayName ?? action.adminUserId ?? "Unknown"}</dd>
+                    <dt>Actor</dt>
+                    <dd>{getTimelineActorLabel(item)}</dd>
                   </div>
                   <div>
                     <dt>Created</dt>
-                    <dd>{formatDateTime(action.createdAt)}</dd>
+                    <dd>{formatDateTime(item.createdAt)}</dd>
                   </div>
                 </dl>
+
+                {item.metadata ? (
+                  <div className="metadata-chip-row">
+                    {Object.entries(item.metadata).map(([key, value]) => (
+                      <span className="metadata-chip" key={`${item.id}:${key}`}>
+                        <strong>{formatMetadataKey(key)}</strong>
+                        {formatMetadataValue(value)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
@@ -179,6 +222,70 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
       </section>
     </div>
   );
+}
+
+function timelineItemMatchesFilter(
+  item: AdminModerationTimelineItem,
+  filter: TimelineFilter,
+): boolean {
+  switch (filter) {
+    case "all":
+      return true;
+    case "actions":
+      return item.type === "moderation_action";
+    case "notes":
+      return item.type === "note";
+    case "sensitive":
+      return (
+        item.type === "sensitive_access_granted" ||
+        item.type === "sensitive_access_denied"
+      );
+    case "status":
+      return item.type === "status_change";
+  }
+}
+
+function getTimelineFilterLabel(filter: TimelineFilter): string {
+  switch (filter) {
+    case "all":
+      return "All";
+    case "actions":
+      return "Actions";
+    case "notes":
+      return "Notes";
+    case "sensitive":
+      return "Sensitive access";
+    case "status":
+      return "Status";
+  }
+}
+
+function getTimelineActorLabel(item: AdminModerationTimelineItem): string {
+  if (!item.actor) {
+    return "System";
+  }
+
+  return item.actor.displayName ?? item.actor.id;
+}
+
+function formatMetadataKey(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function formatMetadataValue(
+  value: string | number | boolean | string[] | null,
+): string {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.join(", ") : "none";
+  }
+
+  if (value === null) {
+    return "none";
+  }
+
+  return String(value);
 }
 
 function getStatusLabel(status: AdminModerationCaseStatus): string {
@@ -191,25 +298,6 @@ function getStatusLabel(status: AdminModerationCaseStatus): string {
       return "Resolved";
     case "dismissed":
       return "Dismissed";
-  }
-}
-
-function getActionType(action: AdminModerationAction): AdminModerationActionType {
-  return action.type ?? action.actionType ?? "note";
-}
-
-function getActionTypeLabel(type: AdminModerationActionType): string {
-  switch (type) {
-    case "note":
-      return "Note";
-    case "review_started":
-      return "Review started";
-    case "dismissed":
-      return "Dismissed";
-    case "resolved":
-      return "Resolved";
-    case "action_taken":
-      return "Action taken";
   }
 }
 

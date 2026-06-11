@@ -369,6 +369,19 @@ The backoffice must not request sensitive access automatically when a case detai
 - [ ] summary cards/counts reflect the current safe result set
 - [ ] the moderation list page does not call the sensitive-access endpoint
 
+### Moderation timeline and audit visibility checklist
+
+- [ ] case detail includes a safe timeline
+- [ ] timeline shows case/report creation context
+- [ ] timeline shows moderation notes/actions/status changes
+- [ ] timeline shows sensitive-access granted events as safe metadata
+- [ ] timeline shows sensitive-access denied events as safe metadata
+- [ ] timeline metadata is allowlisted server-side
+- [ ] timeline metadata does not include raw message body, reporter email, user email, phone numbers, tokens, refresh tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants
+- [ ] timeline UI filters work for all, actions, notes, sensitive access, and status
+- [ ] timeline does not call the sensitive-access endpoint
+- [ ] sensitive-access panel behavior remains explicit and unchanged
+
 ### Backoffice sensitive access UI checklist
 
 - [ ] moderation case detail loads with default redacted data only

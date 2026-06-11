@@ -95,7 +95,8 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
         ok: true,
         data: {
           case: result.case,
-          actions: result.actions
+          actions: result.actions,
+          timeline: result.timeline
         }
       };
     }

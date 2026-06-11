@@ -214,6 +214,8 @@ Permissioned Sensitive Raw Data Access + Audit
 - Backoffice case detail now has an explicit sensitive-access request panel with warning, reason, field selection, audit id display, and clear-from-state action.
 - Backoffice moderation list now has safe triage filters for status, target type, search, sort, and limit.
 - Moderation list summary cards/counts are based on the current redacted result set and do not expose raw sensitive data.
+- Backoffice case detail now has a safe combined timeline for case/report context, moderation actions, status changes, and sensitive-access granted/denied audit events.
+- Timeline audit metadata is allowlisted server-side and does not expose raw message bodies, reporter emails, tokens, full profile/listing/conversation data, or conversation participants.
 
 ### Later backlog
 

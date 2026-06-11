@@ -185,6 +185,27 @@ The list search is limited to safe operational fields such as case id, report id
 
 The response may include summary metadata for the current safe result set. Summary counts are operational triage data only; they are not a raw sensitive-data view and must not require or trigger sensitive access.
 
+### Moderation detail timeline contract
+
+Default moderation case detail responses may include a composed `timeline` array with safe case, report, moderation action, and audit-event entries.
+
+The timeline may show sensitive-access granted/denied audit events only as safe operational metadata, such as:
+
+```txt
+requestedFields
+grantedFields
+deniedFields
+targetType
+targetId
+denialReason
+status
+actionType
+```
+
+Timeline metadata must be allowlisted server-side. Unknown metadata must be omitted rather than rendered blindly.
+
+Timeline responses must not include raw message body, reporter email, user email, phone numbers, tokens, refresh tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.

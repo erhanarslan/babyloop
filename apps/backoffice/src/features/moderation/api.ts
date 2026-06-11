@@ -46,8 +46,37 @@ export type AdminModerationAction = {
   createdAt: string;
 };
 
+export type AdminModerationTimelineItemType =
+  | "audit_event"
+  | "case_created"
+  | "moderation_action"
+  | "note"
+  | "report_received"
+  | "sensitive_access_denied"
+  | "sensitive_access_granted"
+  | "status_change";
+
+export type AdminModerationTimelineMetadata = Record<
+  string,
+  string | number | boolean | string[] | null
+>;
+
+export type AdminModerationTimelineItem = {
+  id: string;
+  type: AdminModerationTimelineItemType;
+  label: string;
+  createdAt: string;
+  actor: {
+    id: string;
+    displayName: string | null;
+  } | null;
+  metadata?: AdminModerationTimelineMetadata | undefined;
+  note?: string | null | undefined;
+};
+
 export type AdminModerationCaseDetail = AdminModerationCase & {
   actions: AdminModerationAction[];
+  timeline: AdminModerationTimelineItem[];
 };
 
 export type ListAdminModerationCasesParams = {
@@ -183,6 +212,7 @@ type RawListAdminModerationCasesResponse = {
 type RawGetAdminModerationCaseResponse = {
   case: RawAdminModerationCase;
   actions: RawAdminModerationAction[];
+  timeline: AdminModerationTimelineItem[];
 };
 
 type RawUpdateAdminModerationCaseStatusResponse = {
@@ -251,6 +281,7 @@ export async function getAdminModerationCase(
       case: {
         ...mapModerationCase(response.data.case),
         actions: response.data.actions.map(mapModerationAction),
+        timeline: response.data.timeline,
       },
     },
   };

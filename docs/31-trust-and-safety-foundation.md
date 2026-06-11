@@ -216,3 +216,20 @@ Search is intentionally limited to safe fields such as case id, report id, targe
 Sensitive access remains separate, explicit, reasoned, and audited through the dedicated sensitive-access endpoint.
 
 Still deferred: queue assignment, SLA tracking, reviewer workload dashboards, and deeper moderation analytics.
+
+<!-- 2026-06-11-moderation-timeline-audit-visibility -->
+## 2026-06-11 Update — Moderation Timeline + Audit Visibility
+
+Backoffice moderation case detail now includes a safe timeline.
+
+The timeline combines:
+
+- case/report context
+- moderation notes/actions
+- status changes
+- sensitive-access granted audit events
+- sensitive-access denied audit events
+
+The timeline does not expose raw sensitive data. Audit metadata is allowlisted server-side and excludes raw message bodies, reporter emails, phone numbers, tokens, full profile/listing/conversation data, and conversation participants.
+
+Sensitive access remains separate and explicit. The timeline never calls the sensitive-access endpoint.
