@@ -198,3 +198,5 @@ The endpoint requires:
 This endpoint does not expose conversation participants, full profile data, full listing data, or auth/session metadata.
 
 The current gate is a compatibility rule: admin users are allowed through a dedicated helper until granular permissions exist.
+
+Backoffice case detail now includes a small explicit request panel. It does not auto-fetch sensitive data on load; the admin must open the panel, read the warning, enter a reason, select fields, and submit. Returned raw data is kept in component state only and can be cleared.

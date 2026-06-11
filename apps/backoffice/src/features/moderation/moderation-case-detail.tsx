@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { ModerationActionForm } from "./moderation-action-form";
 import { ModerationStatusForm } from "./moderation-status-form";
+import { SensitiveAccessPanel } from "./sensitive-access-panel";
 
 type ModerationCaseDetailProps = {
   caseId: string;
@@ -137,6 +138,8 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
           moderationCase={moderationCase}
           onCreated={setModerationCase}
         />
+
+        <SensitiveAccessPanel moderationCase={moderationCase} />
       </section>
 
       <section className="content-card full-span">

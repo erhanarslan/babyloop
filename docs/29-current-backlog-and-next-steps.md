@@ -210,6 +210,7 @@ Permissioned Sensitive Raw Data Access + Audit
 - Dedicated sensitive-access gate helper.
 - Successful raw access audited through the `events` table.
 - Backoffice client function added without automatic reveal on page load.
+- Backoffice case detail now has an explicit sensitive-access request panel with warning, reason, field selection, audit id display, and clear-from-state action.
 
 ### Later backlog
 
@@ -219,6 +220,5 @@ Permissioned Sensitive Raw Data Access + Audit
 4. AI recommendation UI in backoffice.
 5. Moderation queue filters and pagination.
 6. Listing/profile/message action workflows.
-7. Backoffice UI explicit sensitive-access request panel.
-8. Full trust & safety audit event dashboard.
-9. Denied sensitive-access audit policy.
+7. Full trust & safety audit event dashboard.
+8. Denied sensitive-access audit policy.

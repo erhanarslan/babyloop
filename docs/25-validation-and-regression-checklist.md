@@ -352,6 +352,20 @@ The public web app must not import or call the sensitive-access client.
 
 The backoffice must not request sensitive access automatically when a case detail loads.
 
+### Backoffice sensitive access UI checklist
+
+- [ ] moderation case detail loads with default redacted data only
+- [ ] sensitive access panel is collapsed behind an explicit action
+- [ ] opening the panel does not call the sensitive-access endpoint
+- [ ] submit is disabled until a reason of at least 10 characters is entered
+- [ ] submit is disabled until at least one field is selected
+- [ ] request warning is visible before submit
+- [ ] successful request displays only returned/granted fields
+- [ ] successful request displays `Audit event id`
+- [ ] clear button removes returned sensitive data from component state
+- [ ] sensitive data is not placed in URL params, localStorage, sessionStorage, cookies, or console logs
+- [ ] public web app still has no sensitive-access client import
+
 ### PII response assertions
 
 Admin moderation responses must not contain:

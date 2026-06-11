@@ -169,6 +169,8 @@ The current permission helper allows admins as a compatibility gate. Granular se
 
 Denied access is returned as a safe API error. Denied-access audit logging is deferred.
 
+Backoffice UI access is explicit. Case detail does not auto-fetch raw data. Admins must open the sensitive-access panel, enter a reason, select fields, and submit. Returned raw data is displayed only after the audited request succeeds and can be cleared from component state.
+
 ## AI rule
 
 AI may only provide:

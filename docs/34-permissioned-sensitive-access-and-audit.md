@@ -85,13 +85,18 @@ This first version does not expose:
 
 The backoffice must not request raw sensitive data automatically on case detail load.
 
-Future UI should require:
+The implemented case detail UI requires:
 
 1. explicit click
 2. warning
 3. reason entry
 4. field selection
-5. clearly marked sensitive panel after grant
+5. submit action
+6. clearly marked sensitive panel after grant
+7. audit event id display
+8. clear action that removes returned sensitive data from component state
+
+The UI must not store sensitive data in localStorage, sessionStorage, URL params, cookies, or console logs.
 
 ## AI Rule
 
