@@ -114,3 +114,62 @@ The next admin foundation should build on `moderation_cases` and `moderation_act
 - status transitions
 - reviewer assignment if needed
 - safe redaction rules for user-generated content
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Privacy rule added to trust & safety foundation
+
+Trust & safety features must default to data minimization.
+
+Backoffice users may be admins, but admin access does not automatically justify exposing all sensitive data in default responses.
+
+### Moderation case data classes
+
+#### Low-risk metadata
+
+Allowed by default:
+
+- Case ID
+- Target type
+- Target ID
+- Case status
+- Priority
+- Created/updated timestamps
+- Report reason/status
+- Redacted reporter marker
+
+#### Sensitive user data
+
+Not allowed by default:
+
+- Reporter profile ID
+- Reporter display name
+- Reporter email
+- Reporter phone
+- Raw message body
+- Conversation ID
+- Conversation participants
+- User/session/auth metadata
+
+#### Controlled preview data
+
+Allowed only after server-side redaction:
+
+- Message preview
+- Listing title
+- Profile display name
+
+### AI trust & safety rule
+
+AI tools must operate on minimized/redacted inputs unless a future permissioned and audited sensitive-access flow explicitly allows otherwise.
+
+AI must not perform destructive actions.
+
+### Required tests
+
+Trust & safety moderation tests must verify both:
+
+1. Functional behavior works.
+2. Sensitive fields are not exposed.

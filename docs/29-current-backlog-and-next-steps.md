@@ -159,3 +159,63 @@ pnpm build
 - Web flows depend on manual QA until E2E tests exist.
 - AI is mock-only except for audit logging structure.
 - Admin moderation and reporting are not implemented.
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Current active backlog item
+
+```txt
+Backoffice Data Privacy + Redaction Foundation
+```
+
+### Why this is active now
+
+Backoffice moderation list/detail flow now works with real case IDs.
+
+Before adding more trust & safety, support, or AI tooling, the API response contract must stop exposing unnecessary sensitive data.
+
+### Done before this item
+
+- Backoffice app created.
+- Backoffice port set to `3001`.
+- Backoffice shell/auth basic flow added.
+- Admin/non-admin access behavior added.
+- Moderation list route added.
+- Moderation detail route added.
+- Dynamic case route moved to correct app router location.
+- Detail screen opens with real case ID.
+- Basic status/action forms exist.
+
+### In progress
+
+- API redaction utility.
+- Server-side safe message preview.
+- Reporter identity redaction.
+- Query-level reporter minimization.
+- Backoffice raw DTO update.
+- PII regression tests.
+- Redaction utility unit tests.
+- Docs update.
+
+### Next task after this
+
+```txt
+Permissioned Sensitive Raw Data Access + Audit Design
+```
+
+This should be design-first.
+
+Do not implement it before current redaction tests and build pass.
+
+### Later backlog
+
+1. Sensitive raw access endpoint with permission + audit.
+2. Admin actor minimization in timeline response.
+3. AI moderation summary endpoint.
+4. AI recommendation UI in backoffice.
+5. Moderation queue filters and pagination.
+6. Listing/profile/message action workflows.
+7. Backoffice UI polish.
+8. Full trust & safety audit event dashboard.

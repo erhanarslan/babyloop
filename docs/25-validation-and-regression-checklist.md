@@ -263,3 +263,117 @@ These areas are intentionally not marked as tested until infrastructure exists:
 - accessibility automation
 - visual regression tests
 - load/performance tests
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Backoffice privacy regression checklist
+
+Run this after every change touching:
+
+- `apps/api/src/services/admin-moderation.service.ts`
+- `apps/api/src/routes/admin-moderation.routes.ts`
+- `apps/api/src/services/redaction.service.ts`
+- `apps/backoffice/src/features/moderation/api.ts`
+- moderation tests
+- safety/report/message DTOs
+
+### Targeted grep
+
+```bash
+grep -R "conversationId\|reporterDisplayName\|bodyPreview: message.body\|message.body.slice" -n \
+  apps/api/src/services/admin-moderation.service.ts \
+  apps/api/src/routes/admin-moderation.routes.ts \
+  apps/backoffice/src/features/moderation/api.ts
+```
+
+Expected result after privacy patch:
+
+```txt
+No output.
+```
+
+### Message test fixture grep
+
+```bash
+grep -n "conversationId\|conversation.id" apps/api/test/admin-moderation.integration.test.ts
+```
+
+Expected result:
+
+```txt
+conversationId: conversation.id
+expect(serialized).not.toContain(conversation.id)
+```
+
+The first line is fixture setup. The second line is leak regression.
+
+### Required targeted tests
+
+```bash
+pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.integration.test.ts
+```
+
+### Required typechecks
+
+```bash
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/backoffice typecheck
+pnpm typecheck
+```
+
+### Required build
+
+```bash
+pnpm build
+```
+
+### PII response assertions
+
+Admin moderation responses must not contain:
+
+```txt
+reporter email
+reporter profile id
+reporter display name
+phone numbers
+email addresses
+raw message body
+conversation id
+conversation participant ids
+```
+
+Allowed redaction markers:
+
+```txt
+[redacted-email]
+[redacted-phone]
+reporter.redacted = true
+```
+
+### Manual smoke test
+
+1. Start stack:
+
+```bash
+./scripts/dev-clean-start.sh
+```
+
+2. Open:
+
+```txt
+http://localhost:3001/moderation
+```
+
+3. Open a moderation case detail.
+
+4. Confirm:
+
+- Case list loads.
+- Case detail loads.
+- Message preview is visible when target is message.
+- Raw phone/email does not appear in preview.
+- Reporter identity is not visible.
+- Status update still works.
+- Note/action creation still works.

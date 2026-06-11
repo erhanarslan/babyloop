@@ -196,3 +196,49 @@ Do not include in stabilization-only tasks:
 - mobile UI
 - real AI providers
 - payments
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Current stabilization track
+
+```txt
+Backoffice Data Privacy + Redaction Foundation
+```
+
+This is a stabilization/security task, not a UI polish task.
+
+### Immediate checklist
+
+1. Add API redaction utility.
+2. Apply safe preview generation to moderation target previews.
+3. Redact reporter identity in default admin moderation responses.
+4. Remove reporter profile join from admin moderation list query.
+5. Remove `conversationId` from default message preview DTO.
+6. Update backoffice raw DTO types.
+7. Add regression tests for PII exposure.
+8. Add redaction utility unit tests.
+9. Update docs with privacy contract.
+10. Run targeted and full validation.
+
+### Validation order
+
+```bash
+pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.integration.test.ts
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/backoffice typecheck
+pnpm typecheck
+pnpm build
+```
+
+### Do not do in this track
+
+- UI redesign
+- AI moderation summary generation
+- Raw sensitive-data access endpoint
+- Permission matrix implementation
+- New DB migration for audit logs
+- Public marketplace feature work
+
+These come after the redacted DTO foundation is stable.

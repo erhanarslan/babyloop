@@ -70,3 +70,58 @@ Each step should include the smallest meaningful verification:
 - Summaries should be concise and specific.
 - Architectural decisions should include a short reason.
 - Open questions should be listed only when they block the next step.
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Current Codex continuation point
+
+Current active implementation task:
+
+```txt
+Backoffice Data Privacy + Redaction Foundation
+```
+
+The next Codex session must continue from the current dirty working tree and must not restart the project.
+
+Expected changed files may include:
+
+```txt
+apps/api/src/services/admin-moderation.service.ts
+apps/api/src/services/redaction.service.ts
+apps/api/test/admin-moderation.integration.test.ts
+apps/api/test/redaction.service.test.ts
+apps/backoffice/src/features/moderation/api.ts
+docs/10-codex-working-plan.md
+docs/21-current-implementation-state.md
+docs/22-api-contract-rules.md
+docs/23-architecture-decisions.md
+docs/24-stabilization-roadmap.md
+docs/25-validation-and-regression-checklist.md
+docs/29-current-backlog-and-next-steps.md
+docs/31-trust-and-safety-foundation.md
+docs/32-backoffice-data-privacy-and-redaction.md
+docs/33-codex-next-prompt-backoffice-privacy.md
+```
+
+First commands for Codex:
+
+```bash
+cd /Users/erhan-pc-mac/Desktop/babyloop
+
+git status --short
+
+grep -R "conversationId\|reporterDisplayName\|bodyPreview: message.body\|message.body.slice" -n \
+  apps/api/src/services/admin-moderation.service.ts \
+  apps/api/src/routes/admin-moderation.routes.ts \
+  apps/backoffice/src/features/moderation/api.ts
+
+grep -n "conversationId\|conversation.id" apps/api/test/admin-moderation.integration.test.ts
+
+pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.integration.test.ts
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/backoffice typecheck
+```
+
+Do not implement sensitive raw-data access yet. That is the next design task after this patch validates.

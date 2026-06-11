@@ -1,4 +1,4 @@
-import { moderationActions, moderationCases } from "@babyloop/database/schema";
+import { conversations, messages, moderationActions, moderationCases } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestApp, type TestApp } from "./helpers/app.js";
@@ -85,10 +85,9 @@ describe("admin moderation API", () => {
             report: expect.objectContaining({
               reason: "scam",
               status: "pending",
-              reporter: expect.objectContaining({
-                id: reporter.profile.id,
-                displayName: reporter.profile.displayName
-              })
+              reporter: {
+                redacted: true
+              }
             }),
             targetPreview: expect.objectContaining({
               type: "listing",
@@ -101,7 +100,11 @@ describe("admin moderation API", () => {
       }
     });
 
-    expect(JSON.stringify(listResponse.json())).not.toContain(reporter.user.email);
+    const serialized = JSON.stringify(listResponse.json());
+
+    expect(serialized).not.toContain(reporter.user.email);
+    expect(serialized).not.toContain(reporter.profile.id);
+    expect(serialized).not.toContain(reporter.profile.displayName);
   });
 
   it("allows admins to read moderation case detail", async () => {
@@ -153,6 +156,103 @@ describe("admin moderation API", () => {
         actions: []
       }
     });
+  });
+
+  it("redacts reporter identity and raw message PII in admin moderation responses", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-message-redaction@babyloop.test"
+    });
+    const sender = await createUser(app);
+    const recipient = await createUser(app);
+
+    const [profileLowId, profileHighId] = [
+      sender.profile.id,
+      recipient.profile.id
+    ].sort();
+
+    const [conversation] = await app.db
+      .insert(conversations)
+      .values({
+        profileLowId,
+        profileHighId,
+        createdByProfileId: sender.profile.id
+      })
+      .returning({
+        id: conversations.id
+      });
+
+    if (!conversation) {
+      throw new Error("Conversation setup failed.");
+    }
+
+    const rawMessageBody =
+      "Bana +90 555 111 22 33 numarasından ulaş veya secret-parent@babyloop.test adresine yaz. ürün satılık mı";
+
+    const [message] = await app.db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        senderProfileId: sender.profile.id,
+        body: rawMessageBody
+      })
+      .returning({
+        id: messages.id
+      });
+
+    if (!message) {
+      throw new Error("Message setup failed.");
+    }
+
+    const [createdCase] = await app.db
+      .insert(moderationCases)
+      .values({
+        targetType: "message",
+        targetId: message.id,
+        status: "pending",
+        priority: "normal"
+      })
+      .returning({
+        id: moderationCases.id
+      });
+
+    if (!createdCase) {
+      throw new Error("Moderation case setup failed.");
+    }
+
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${createdCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+
+    const body = detailResponse.json();
+    const serialized = JSON.stringify(body);
+
+    expect(body).toMatchObject({
+      ok: true,
+      data: {
+        case: expect.objectContaining({
+          id: createdCase.id,
+          targetType: "message",
+          targetId: message.id,
+          targetPreview: expect.objectContaining({
+            type: "message",
+            id: message.id,
+            bodyPreview: expect.stringContaining("[redacted-phone]")
+          })
+        })
+      }
+    });
+
+    expect(serialized).toContain("[redacted-email]");
+    expect(serialized).toContain("ürün satılık mı");
+    expect(serialized).not.toContain("+90 555 111 22 33");
+    expect(serialized).not.toContain("secret-parent@babyloop.test");
+    expect(serialized).not.toContain(rawMessageBody);
+    expect(serialized).not.toContain(conversation.id);
   });
 
   it("allows admins to update case status and creates a moderation action", async () => {

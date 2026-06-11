@@ -186,3 +186,72 @@ pnpm build
 - send safe message
 - reject unsafe message body
 - confirm unread count only drops after conversation content is viewed
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Current active task
+
+```txt
+Backoffice Data Privacy + Redaction Foundation
+```
+
+This task started after the dedicated backoffice moderation list/detail flow became functional with real case IDs.
+
+### Confirmed current architecture
+
+- `apps/web` is the public marketplace application.
+- `apps/backoffice` is the dedicated internal backoffice application.
+- `apps/api` is the shared backend.
+- Backoffice moderation routes live in `apps/backoffice`, not in the public web app.
+- Public web legacy admin URLs redirect to the backoffice app.
+
+### Confirmed completed before this task
+
+- Backoffice app exists and runs on port `3001`.
+- Backoffice shell layout exists.
+- Backoffice login/auth shell exists.
+- Non-admin users receive forbidden state.
+- Admin users can access backoffice.
+- `/moderation` list route exists.
+- `/moderation/[caseId]` detail route exists.
+- Dynamic detail route is located at `apps/backoffice/src/app/moderation/[caseId]/page.tsx`.
+- Moderation case detail opens with real case IDs.
+- Case detail displays core moderation metadata, target preview, status form, action/note form, and audit timeline.
+
+### Current privacy/security work
+
+The current implementation is stabilizing a server-side privacy boundary for admin moderation responses.
+
+In progress:
+
+- API redaction utility.
+- Server-side safe text preview generation.
+- Reporter identity redaction.
+- Query-level reporter minimization.
+- Message preview DTO minimization.
+- Backoffice raw DTO update.
+- PII exposure regression tests.
+- Redaction utility unit tests.
+- Documentation update.
+
+### Current expected validation
+
+```bash
+pnpm --filter @babyloop/api test -- redaction.service.test.ts admin-moderation.integration.test.ts
+pnpm --filter @babyloop/api typecheck
+pnpm --filter @babyloop/backoffice typecheck
+pnpm typecheck
+pnpm build
+```
+
+### Not done yet
+
+- Permissioned sensitive raw-data endpoint.
+- Permission matrix for raw PII access.
+- Audit log for sensitive data access.
+- AI moderation summary endpoint.
+- AI recommendation workflow.
+- Admin actor minimization in action timeline.
+- Backoffice UI polish.

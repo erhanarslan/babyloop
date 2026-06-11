@@ -94,3 +94,133 @@ Favorite writes are token-owned and must follow these rules:
 - Do not revert messaging to listing-based conversations.
 - Do not create separate conversations per listing.
 - Do not remove `conversation_listing_contexts`.
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Backoffice moderation privacy contract
+
+Backoffice API responses must use dedicated internal DTOs.
+
+The backoffice UI is not a security boundary. Sensitive data must be minimized or redacted before it leaves `apps/api`.
+
+Default admin moderation responses may include:
+
+```txt
+case.id
+case.targetType
+case.targetId
+case.status
+case.priority
+case.createdAt
+case.updatedAt
+report.id
+report.reason
+report.status
+report.createdAt
+report.reporter.redacted
+targetPreview
+actions
+```
+
+Default admin moderation responses must not include:
+
+```txt
+reporter.email
+reporter.phone
+reporter.profileId
+reporter.displayName
+raw message body
+conversationId
+conversation participant ids
+private profile fields
+auth/session metadata
+```
+
+### Reporter contract
+
+Allowed default reporter shape:
+
+```ts
+reporter: {
+  redacted: true
+} | null
+```
+
+Disallowed default reporter shape:
+
+```ts
+reporter: {
+  id: string;
+  displayName: string;
+}
+```
+
+Reporter raw identity access requires a future dedicated permissioned endpoint and audit event.
+
+### Message target preview contract
+
+Message previews must be generated server-side.
+
+Allowed shape:
+
+```ts
+{
+  type: "message";
+  id: string;
+  bodyPreview: string;
+  createdAt: string;
+}
+```
+
+Disallowed fields:
+
+```txt
+body
+rawBody
+conversationId
+senderProfileId
+senderEmail
+senderPhone
+participants
+```
+
+### Listing/profile target preview contract
+
+Listing/profile previews may only return minimal safe fields.
+
+Listing preview:
+
+```ts
+{
+  type: "listing";
+  id: string;
+  title: string;
+  status: string;
+}
+```
+
+Profile preview:
+
+```ts
+{
+  type: "profile";
+  id: string;
+  displayName: string;
+}
+```
+
+The string values must be safe/redacted server-side before returning.
+
+### Regression rule
+
+Every future admin/backoffice moderation response change must include tests proving that the response does not expose:
+
+- Reporter email
+- Reporter profile ID
+- Reporter display name
+- Phone numbers
+- Email addresses
+- Raw message body
+- Conversation ID

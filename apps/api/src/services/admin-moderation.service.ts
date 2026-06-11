@@ -7,6 +7,7 @@ import {
   reports
 } from "@babyloop/database/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { createSafeTextPreview } from "./redaction.service.js";
 import type { FastifyInstance } from "fastify";
 
 export type AdminModerationCaseStatus =
@@ -38,8 +39,7 @@ export type AdminModerationCaseSummary = {
     status: string;
     createdAt: string;
     reporter: {
-      id: string;
-      displayName: string;
+      redacted: true;
     } | null;
   } | null;
   targetPreview: AdminTargetPreview | null;
@@ -61,7 +61,6 @@ export type AdminTargetPreview =
       type: "message";
       id: string;
       bodyPreview: string;
-      conversationId: string;
       createdAt: string;
     };
 
@@ -102,12 +101,10 @@ export async function listAdminModerationCases(
       reportReason: reports.reason,
       reportStatus: reports.status,
       reportCreatedAt: reports.createdAt,
-      reporterProfileId: profiles.id,
-      reporterDisplayName: profiles.displayName
+      reporterProfileId: reports.reporterProfileId
     })
     .from(moderationCases)
     .leftJoin(reports, eq(moderationCases.reportId, reports.id))
-    .leftJoin(profiles, eq(reports.reporterProfileId, profiles.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(desc(moderationCases.createdAt))
     .limit(filters.limit ?? 50);
@@ -136,8 +133,7 @@ export async function listAdminModerationCases(
           createdAt: row.reportCreatedAt?.toISOString() ?? row.createdAt.toISOString(),
           reporter: row.reporterProfileId
             ? {
-                id: row.reporterProfileId,
-                displayName: row.reporterDisplayName ?? "Unknown user"
+                redacted: true
               }
             : null
         }
@@ -323,7 +319,7 @@ async function loadTargetPreviews(
         previews.set(targetKey(target.targetType, target.targetId), {
           type: "listing",
           id: listing.id,
-          title: listing.title,
+          title: createSafeTextPreview(listing.title, 80),
           status: listing.status
         });
       }
@@ -345,7 +341,7 @@ async function loadTargetPreviews(
         previews.set(targetKey(target.targetType, target.targetId), {
           type: "profile",
           id: profile.id,
-          displayName: profile.displayName
+          displayName: createSafeTextPreview(profile.displayName, 80)
         });
       }
 
@@ -356,7 +352,6 @@ async function loadTargetPreviews(
       .select({
         id: messages.id,
         body: messages.body,
-        conversationId: messages.conversationId,
         createdAt: messages.createdAt
       })
       .from(messages)
@@ -367,8 +362,7 @@ async function loadTargetPreviews(
       previews.set(targetKey(target.targetType, target.targetId), {
         type: "message",
         id: message.id,
-        bodyPreview: message.body.length > 120 ? `${message.body.slice(0, 120)}…` : message.body,
-        conversationId: message.conversationId,
+        bodyPreview: createSafeTextPreview(message.body),
         createdAt: message.createdAt.toISOString()
       });
     }

@@ -104,3 +104,72 @@ Real listing photos need controlled upload, storage, validation, and auditabilit
 - Do not remove `imageUrls` before a replacement upload flow exists.
 - Do not add storage SDKs or schema changes without a focused upload implementation plan.
 - Keep validation strict for the temporary URL flow: valid URLs only and max 5 images.
+
+
+<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
+## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
+
+### Decision: Public web and backoffice remain separate applications
+
+Decision remains active.
+
+- `apps/web` is the public marketplace application.
+- `apps/backoffice` is the dedicated internal admin/backoffice application.
+- `apps/api` is the shared backend.
+- Public admin redirects are allowed only as legacy navigation helpers.
+
+Reason:
+
+- Admin code must not grow inside the public web bundle.
+- Moderation, trust & safety, support, audit, and AI tooling require a different privacy model.
+- Public DTOs and backoffice DTOs have different exposure rules.
+
+### Decision: Backoffice masking is not security
+
+UI masking is not sufficient.
+
+Sensitive data must not reach the browser unless a future permissioned endpoint explicitly allows access and records an audit event.
+
+### Decision: Server-side redaction boundary
+
+Admin moderation responses must be produced through a minimized/redacted DTO boundary.
+
+Reporter identity is redacted by default.
+
+Message body previews are generated server-side.
+
+Raw message body and conversation ID are not returned in default admin moderation responses.
+
+### Decision: AI remains human-in-the-loop
+
+AI may provide:
+
+- Summaries
+- Risk explanations
+- Classification suggestions
+- Recommended next actions
+
+AI must not:
+
+- Resolve cases automatically
+- Dismiss cases automatically
+- Block users automatically
+- Delete listings automatically
+- Receive unnecessary raw private data
+
+### Future architecture decision required
+
+A future ADR is required for:
+
+```txt
+Permissioned Sensitive Data Access + Audit Trail
+```
+
+That ADR should define:
+
+- Permission names
+- Raw sensitive endpoint shape
+- Required access reason
+- Audit event schema
+- Retention policy
+- Backoffice UI affordance

@@ -89,7 +89,6 @@ type RawAdminTargetPreview =
       type: "message";
       id: string;
       bodyPreview: string;
-      conversationId: string;
       createdAt: string;
     };
 
@@ -107,8 +106,7 @@ type RawAdminModerationCase = {
     status: string;
     createdAt: string;
     reporter: {
-      id: string;
-      displayName: string;
+      redacted: true;
     } | null;
   } | null;
   targetPreview: RawAdminTargetPreview | null;
