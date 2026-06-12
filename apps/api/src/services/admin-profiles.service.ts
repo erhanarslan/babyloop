@@ -1,20 +1,26 @@
 import {
+  events,
   listings,
   moderationActions,
   moderationCases,
   productCategories,
   profileTrustSnapshots,
   profiles,
-  reports
+  reports,
+  userSafetyEvents
 } from "@babyloop/database/schema";
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
+  AdminProfileEnforcementActionValue,
   AdminProfileRiskLevelValue,
   AdminProfileSafetyStatusValue,
   AdminProfilesQuery
 } from "../schemas/admin-profiles.schemas.js";
-import type { AdminProfileTrustSnapshot } from "./profile-trust-snapshot.service.js";
+import {
+  recomputeProfileTrustSnapshot,
+  type AdminProfileTrustSnapshot
+} from "./profile-trust-snapshot.service.js";
 
 export type AdminProfileSummary = {
   profileId: string;
@@ -63,6 +69,26 @@ export type AdminProfileEnforcementSummary = {
   caseId: string | null;
   actionType: string;
   createdAt: string;
+};
+
+export type AdminProfileEnforcementApplied = {
+  profileId: string;
+  action: AdminProfileEnforcementActionValue;
+  previousSafetyStatus: AdminProfileSafetyStatusValue;
+  nextSafetyStatus: AdminProfileSafetyStatusValue;
+  moderationActionId: string;
+  auditEventId: string;
+};
+
+export type AdminProfileEnforcementResult =
+  | { status: "applied"; enforcement: AdminProfileEnforcementApplied; profile: AdminProfileDetail }
+  | { status: "not_found" | "invalid_transition" | "incompatible_action" };
+
+export type ApplyAdminProfileEnforcementParams = {
+  actorProfileId: string;
+  profileId: string;
+  action: AdminProfileEnforcementActionValue;
+  reason: string;
 };
 
 export type AdminProfileDetail = AdminProfileSummary & {
@@ -132,7 +158,10 @@ export async function getAdminProfileDetail(
   ]);
   const listingIds = recentListings.map((listing) => listing.listingId);
   const relatedCases = await loadRelatedModerationCases(app, { profileId, listingIds });
-  const enforcementHistory = await loadEnforcementHistory(app, relatedCases.map((item) => item.caseId));
+  const enforcementHistory = await loadEnforcementHistory(app, {
+    profileId,
+    caseIds: relatedCases.map((item) => item.caseId)
+  });
   const summary = toAdminProfileSummary(row, listingCounts.totalListings);
 
   return {
@@ -151,6 +180,133 @@ export async function getAdminProfileDetail(
     listings: recentListings,
     relatedModerationCases: relatedCases,
     enforcementHistory
+  };
+}
+
+export async function applyAdminProfileEnforcement(
+  app: FastifyInstance,
+  params: ApplyAdminProfileEnforcementParams
+): Promise<AdminProfileEnforcementResult> {
+  const [profile] = await app.db
+    .select({
+      id: profiles.id,
+      safetyStatus: profiles.safetyStatus
+    })
+    .from(profiles)
+    .where(eq(profiles.id, params.profileId))
+    .limit(1);
+
+  if (!profile) {
+    return { status: "not_found" };
+  }
+
+  const nextSafetyStatus =
+    params.action === "profile_warn"
+      ? profile.safetyStatus
+      : getNextProfileSafetyStatus(params.action);
+
+  if (!nextSafetyStatus) {
+    return { status: "incompatible_action" };
+  }
+
+  if (!isValidProfileSafetyTransition(profile.safetyStatus, params.action)) {
+    return { status: "invalid_transition" };
+  }
+
+  const result = await app.db.transaction(async (tx) => {
+    if (params.action !== "profile_warn") {
+      await tx
+        .update(profiles)
+        .set({
+          safetyStatus: nextSafetyStatus,
+          safetyStatusUpdatedAt: new Date(),
+          safetyStatusReasonCode: params.action,
+          safetyStatusUpdatedByProfileId: params.actorProfileId,
+          updatedAt: new Date()
+        })
+        .where(eq(profiles.id, params.profileId));
+    }
+
+    const [moderationAction] = await tx
+      .insert(moderationActions)
+      .values({
+        actorProfileId: params.actorProfileId,
+        actionType: params.action,
+        note: params.reason
+      })
+      .returning({
+        id: moderationActions.id
+      });
+
+    if (!moderationAction) {
+      throw new Error("Profile enforcement action creation failed.");
+    }
+
+    const [auditEvent] = await tx
+      .insert(events)
+      .values({
+        actorProfileId: params.actorProfileId,
+        eventType: "admin_profile_enforcement_applied",
+        entityType: "profile",
+        entityId: params.profileId,
+        metadata: {
+          enforcementAction: params.action,
+          targetType: "profile",
+          targetId: params.profileId,
+          previousSafetyStatus: profile.safetyStatus,
+          nextSafetyStatus,
+          moderationActionId: moderationAction.id,
+          reasonLength: params.reason.length,
+          source: "profile_admin_detail",
+          result: "applied"
+        }
+      })
+      .returning({
+        id: events.id
+      });
+
+    if (!auditEvent) {
+      throw new Error("Profile enforcement audit creation failed.");
+    }
+
+    await tx.insert(userSafetyEvents).values({
+      profileId: params.profileId,
+      eventType: params.action,
+      metadata: {
+        actorProfileId: params.actorProfileId,
+        auditEventId: auditEvent.id,
+        moderationActionId: moderationAction.id,
+        previousSafetyStatus: profile.safetyStatus,
+        nextSafetyStatus,
+        source: "profile_admin_detail"
+      }
+    });
+
+    return {
+      auditEventId: auditEvent.id,
+      moderationActionId: moderationAction.id
+    };
+  });
+
+  await recomputeProfileTrustSnapshot(app, params.profileId);
+
+  const updatedProfile = await getAdminProfileDetail(app, params.profileId);
+
+  if (!updatedProfile) {
+    return { status: "not_found" };
+  }
+
+  return {
+    status: "applied",
+    profile: updatedProfile,
+    enforcement: {
+      profileId: params.profileId,
+      action: params.action,
+      previousSafetyStatus: profile.safetyStatus,
+      nextSafetyStatus,
+      moderationActionId: result.moderationActionId,
+      auditEventId: result.auditEventId
+    }
   };
 }
 
@@ -377,31 +533,72 @@ async function loadRelatedModerationCases(
 
 async function loadEnforcementHistory(
   app: FastifyInstance,
-  caseIds: string[]
+  params: { profileId: string; caseIds: string[] }
 ): Promise<AdminProfileEnforcementSummary[]> {
-  if (caseIds.length === 0) {
-    return [];
+  const historyByActionId = new Map<string, AdminProfileEnforcementSummary>();
+
+  if (params.caseIds.length > 0) {
+    const rows = await app.db
+      .select({
+        actionId: moderationActions.id,
+        caseId: moderationActions.moderationCaseId,
+        actionType: moderationActions.actionType,
+        createdAt: moderationActions.createdAt
+      })
+      .from(moderationActions)
+      .where(inArray(moderationActions.moderationCaseId, params.caseIds))
+      .orderBy(desc(moderationActions.createdAt))
+      .limit(20);
+
+    for (const row of rows) {
+      historyByActionId.set(row.actionId, {
+        actionId: row.actionId,
+        caseId: row.caseId,
+        actionType: row.actionType,
+        createdAt: row.createdAt.toISOString()
+      });
+    }
   }
 
-  const rows = await app.db
+  const directRows = await app.db
     .select({
-      actionId: moderationActions.id,
-      caseId: moderationActions.moderationCaseId,
-      actionType: moderationActions.actionType,
-      createdAt: moderationActions.createdAt
+      auditEventId: events.id,
+      metadata: events.metadata,
+      createdAt: events.createdAt
     })
-    .from(moderationActions)
-    .where(inArray(moderationActions.moderationCaseId, caseIds))
-    .orderBy(desc(moderationActions.createdAt))
+    .from(events)
+    .where(
+      and(
+        eq(events.entityType, "profile"),
+        eq(events.entityId, params.profileId),
+        eq(events.eventType, "admin_profile_enforcement_applied")
+      )
+    )
+    .orderBy(desc(events.createdAt))
     .limit(20);
 
-  return rows.map((row) => ({
-    actionId: row.actionId,
-    caseId: row.caseId,
-    actionType: row.actionType,
-    createdAt: row.createdAt.toISOString()
-  }));
+  for (const row of directRows) {
+    const metadata = row.metadata as Record<string, unknown>;
+    const actionId = typeof metadata.moderationActionId === "string"
+      ? metadata.moderationActionId
+      : row.auditEventId;
+    const actionType = typeof metadata.enforcementAction === "string"
+      ? metadata.enforcementAction
+      : "profile_enforcement";
+
+    historyByActionId.set(actionId, {
+      actionId,
+      caseId: null,
+      actionType,
+      createdAt: row.createdAt.toISOString()
+    });
+  }
+
+  return Array.from(historyByActionId.values())
+    .sort((first, second) => second.createdAt.localeCompare(first.createdAt))
+    .slice(0, 20);
 }
+
 
 function toAdminProfileSummary(row: AdminProfileRow, listingCount: number): AdminProfileSummary {
   return {
@@ -431,6 +628,35 @@ function toAdminProfileSummary(row: AdminProfileRow, listingCount: number): Admi
         }
       : null
   };
+}
+
+function getNextProfileSafetyStatus(
+  action: Exclude<AdminProfileEnforcementActionValue, "profile_warn">
+): AdminProfileSafetyStatusValue {
+  switch (action) {
+    case "profile_restrict":
+      return "restricted";
+    case "profile_suspend":
+      return "suspended";
+    case "profile_restore":
+      return "active";
+  }
+}
+
+function isValidProfileSafetyTransition(
+  currentStatus: AdminProfileSafetyStatusValue,
+  action: AdminProfileEnforcementActionValue
+): boolean {
+  switch (action) {
+    case "profile_warn":
+      return true;
+    case "profile_restrict":
+      return currentStatus !== "restricted";
+    case "profile_suspend":
+      return currentStatus !== "suspended";
+    case "profile_restore":
+      return currentStatus !== "active";
+  }
 }
 
 function escapeLike(value: string): string {

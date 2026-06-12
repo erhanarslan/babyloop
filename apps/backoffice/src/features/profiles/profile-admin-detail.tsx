@@ -1,11 +1,14 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
   type AdminProfileDetail,
+  type AdminProfileEnforcementAction,
+  applyAdminProfileEnforcement,
   getAdminProfile,
 } from "./api";
 
@@ -69,12 +72,23 @@ export function ProfileAdminDetail({ profileId }: { profileId: string }) {
         </div>
       ) : null}
 
-      {profile ? <ProfileDetailContent profile={profile} /> : null}
+      {profile ? (
+        <ProfileDetailContent
+          onProfileUpdated={setProfile}
+          profile={profile}
+        />
+      ) : null}
     </section>
   );
 }
 
-function ProfileDetailContent({ profile }: { profile: AdminProfileDetail }) {
+function ProfileDetailContent({
+  onProfileUpdated,
+  profile,
+}: {
+  onProfileUpdated: (profile: AdminProfileDetail) => void;
+  profile: AdminProfileDetail;
+}) {
   const snapshot = profile.trustSnapshot;
   const riskLevel = snapshot?.riskLevel ?? "low";
 
@@ -108,6 +122,11 @@ function ProfileDetailContent({ profile }: { profile: AdminProfileDetail }) {
           </div>
         </dl>
       </section>
+
+      <ProfileEnforcementControls
+        onProfileUpdated={onProfileUpdated}
+        profile={profile}
+      />
 
       <section className="profile-detail-card">
         <h3>Trust snapshot</h3>
@@ -249,6 +268,148 @@ function ProfileDetailContent({ profile }: { profile: AdminProfileDetail }) {
         )}
       </section>
     </div>
+  );
+}
+
+type ProfileEnforcementOption = {
+  action: AdminProfileEnforcementAction;
+  label: string;
+  description: string;
+};
+
+const profileEnforcementOptions: ProfileEnforcementOption[] = [
+  {
+    action: "profile_warn",
+    label: "Warn profile",
+    description: "Record a warning without changing the profile safety status."
+  },
+  {
+    action: "profile_restrict",
+    label: "Restrict profile",
+    description: "Prevent listing creation and messaging while keeping profile records visible to admins."
+  },
+  {
+    action: "profile_suspend",
+    label: "Suspend profile",
+    description: "Block marketplace activity and hide the seller's public listings."
+  },
+  {
+    action: "profile_restore",
+    label: "Restore profile",
+    description: "Return the profile to active marketplace status."
+  }
+];
+
+function ProfileEnforcementControls({
+  onProfileUpdated,
+  profile,
+}: {
+  onProfileUpdated: (profile: AdminProfileDetail) => void;
+  profile: AdminProfileDetail;
+}) {
+  const [selectedAction, setSelectedAction] = useState<AdminProfileEnforcementAction>(
+    "profile_warn"
+  );
+  const [reason, setReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedReason = reason.trim();
+
+    if (trimmedReason.length < 10) {
+      setErrorMessage("Enter a reason with at least 10 characters.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback(null);
+    setErrorMessage(null);
+
+    const response = await applyAdminProfileEnforcement(profile.profileId, {
+      action: selectedAction,
+      reason: trimmedReason,
+    });
+
+    setIsSubmitting(false);
+
+    if (!response.ok) {
+      setErrorMessage(getApiErrorMessage(response, "Could not apply profile enforcement."));
+      return;
+    }
+
+    onProfileUpdated(response.data.profile);
+    setReason("");
+    setFeedback(
+      `Profile enforcement applied. Audit event id: ${response.data.enforcement.auditEventId}`
+    );
+  }
+
+  return (
+    <form className="profile-detail-card enforcement-card" onSubmit={handleSubmit}>
+      <div>
+        <h3>Profile enforcement</h3>
+        <p className="muted">
+          Apply profile-level Trust & Safety actions directly from this detail page.
+          A reason is required. The action is audited and does not expose raw reports,
+          reporter identity, message bodies, email, or phone data.
+        </p>
+      </div>
+
+      <fieldset className="checkbox-group">
+        <legend>Action</legend>
+        {profileEnforcementOptions.map((option) => (
+          <label className="checkbox-option" key={option.action}>
+            <input
+              checked={selectedAction === option.action}
+              disabled={isSubmitting}
+              name="profile-enforcement-action"
+              onChange={() => setSelectedAction(option.action)}
+              type="radio"
+              value={option.action}
+            />
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <label className="form-field">
+        <span>Enforcement reason</span>
+        <textarea
+          disabled={isSubmitting}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Explain why this profile-level action is necessary. Avoid unnecessary personal data."
+          rows={4}
+          value={reason}
+        />
+      </label>
+
+      <div className="state-panel warning">
+        Current profile safety status: {formatStatus(profile.safetyStatus)}.
+        Repeating the same state transition is rejected by the API.
+      </div>
+
+      {feedback ? <p className="form-success">{feedback}</p> : null}
+      {errorMessage ? (
+        <p className="form-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <button
+        className="primary-action"
+        disabled={isSubmitting || reason.trim().length < 10}
+        type="submit"
+      >
+        {isSubmitting ? "Applying..." : "Apply profile enforcement"}
+      </button>
+    </form>
   );
 }
 

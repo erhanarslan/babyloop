@@ -2,10 +2,21 @@ import { z } from "zod";
 
 export const adminProfileSafetyStatusValues = ["active", "restricted", "suspended"] as const;
 export const adminProfileRiskLevelValues = ["low", "medium", "high", "critical"] as const;
+export const adminProfileEnforcementActionValues = [
+  "profile_warn",
+  "profile_restrict",
+  "profile_suspend",
+  "profile_restore"
+] as const;
 
 export const adminProfileParamsSchema = z.object({
   profileId: z.string().uuid()
 });
+
+export const adminProfileEnforcementBodySchema = z.object({
+  action: z.enum(adminProfileEnforcementActionValues),
+  reason: z.string().trim().min(10).max(2000)
+}).strict();
 
 export const adminProfilesQuerySchema = z.object({
   safetyStatus: z.enum(adminProfileSafetyStatusValues).optional(),
@@ -106,14 +117,30 @@ export const adminProfilesResponseSchema = z.object({
   profiles: z.array(adminProfileSummarySchema)
 }).strict();
 
+export const adminProfileEnforcementResultSchema = z.object({
+  profileId: z.string().uuid(),
+  action: z.enum(adminProfileEnforcementActionValues),
+  previousSafetyStatus: z.enum(adminProfileSafetyStatusValues),
+  nextSafetyStatus: z.enum(adminProfileSafetyStatusValues),
+  moderationActionId: z.string().uuid(),
+  auditEventId: z.string().uuid()
+}).strict();
+
+export const adminProfileEnforcementResponseSchema = z.object({
+  profile: adminProfileDetailSchema,
+  enforcement: adminProfileEnforcementResultSchema
+}).strict();
+
 export const adminProfileDetailResponseSchema = z.object({
   profile: adminProfileDetailSchema
 }).strict();
 
 export type AdminProfileParams = z.infer<typeof adminProfileParamsSchema>;
 export type AdminProfilesQuery = z.infer<typeof adminProfilesQuerySchema>;
+export type AdminProfileEnforcementBody = z.infer<typeof adminProfileEnforcementBodySchema>;
 export type AdminProfileSummaryResponse = z.infer<typeof adminProfileSummarySchema>;
 export type AdminProfileDetailResponse = z.infer<typeof adminProfileDetailSchema>;
 export type AdminProfilesResponse = z.infer<typeof adminProfilesResponseSchema>;
 export type AdminProfileSafetyStatusValue = (typeof adminProfileSafetyStatusValues)[number];
 export type AdminProfileRiskLevelValue = (typeof adminProfileRiskLevelValues)[number];
+export type AdminProfileEnforcementActionValue = (typeof adminProfileEnforcementActionValues)[number];

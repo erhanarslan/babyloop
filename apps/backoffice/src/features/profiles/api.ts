@@ -5,6 +5,12 @@ import { authFetch } from "../../lib/auth-client";
 
 export type AdminProfileSafetyStatus = "active" | "restricted" | "suspended";
 export type AdminProfileRiskLevel = "low" | "medium" | "high" | "critical";
+export type AdminProfileEnforcementAction =
+  | "profile_warn"
+  | "profile_restrict"
+  | "profile_suspend"
+  | "profile_restore";
+
 export type AdminProfileSort =
   | "risk_desc"
   | "risk_asc"
@@ -112,6 +118,25 @@ export type GetAdminProfileResponse = {
   profile: AdminProfileDetail;
 };
 
+export type AdminProfileEnforcementResult = {
+  profileId: string;
+  action: AdminProfileEnforcementAction;
+  previousSafetyStatus: AdminProfileSafetyStatus;
+  nextSafetyStatus: AdminProfileSafetyStatus;
+  moderationActionId: string;
+  auditEventId: string;
+};
+
+export type ApplyAdminProfileEnforcementBody = {
+  action: AdminProfileEnforcementAction;
+  reason: string;
+};
+
+export type ApplyAdminProfileEnforcementResponse = {
+  profile: AdminProfileDetail;
+  enforcement: AdminProfileEnforcementResult;
+};
+
 const ADMIN_PROFILES_BASE_PATH = "/api/v1/admin/profiles";
 
 export async function listAdminProfiles(
@@ -145,6 +170,22 @@ export async function getAdminProfile(
   profileId: string,
 ): Promise<ApiResponse<GetAdminProfileResponse>> {
   return adminRequest<GetAdminProfileResponse>(`${ADMIN_PROFILES_BASE_PATH}/${profileId}`);
+}
+
+export async function applyAdminProfileEnforcement(
+  profileId: string,
+  body: ApplyAdminProfileEnforcementBody,
+): Promise<ApiResponse<ApplyAdminProfileEnforcementResponse>> {
+  return adminRequest<ApplyAdminProfileEnforcementResponse>(
+    `${ADMIN_PROFILES_BASE_PATH}/${profileId}/enforcement`,
+    {
+      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    },
+  );
 }
 
 async function adminRequest<T>(

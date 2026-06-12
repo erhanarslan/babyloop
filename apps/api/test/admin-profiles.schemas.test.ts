@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   adminProfileDetailResponseSchema,
+  adminProfileEnforcementBodySchema,
+  adminProfileEnforcementResponseSchema,
   adminProfileParamsSchema,
   adminProfilesQuerySchema,
   adminProfilesResponseSchema
@@ -95,6 +97,38 @@ describe("admin profiles schemas", () => {
     ).toBe(true);
 
     expect(adminProfileParamsSchema.safeParse({ profileId: "not-a-uuid" }).success).toBe(false);
+  });
+
+
+  it("accepts safe profile enforcement body", () => {
+    const parsed = adminProfileEnforcementBodySchema.safeParse({
+      action: "profile_restrict",
+      reason: "Repeated unsafe marketplace behavior."
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects unsafe profile enforcement body", () => {
+    expect(
+      adminProfileEnforcementBodySchema.safeParse({
+        action: "listing_hide",
+        reason: "Wrong target action."
+      }).success
+    ).toBe(false);
+    expect(
+      adminProfileEnforcementBodySchema.safeParse({
+        action: "profile_suspend",
+        reason: "short"
+      }).success
+    ).toBe(false);
+    expect(
+      adminProfileEnforcementBodySchema.safeParse({
+        action: "profile_warn",
+        reason: "Valid reason text.",
+        rawReason: "Should not be accepted."
+      }).success
+    ).toBe(false);
   });
 
   it("accepts safe profile detail response data", () => {
@@ -209,6 +243,54 @@ describe("admin profiles schemas", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts safe profile enforcement response data", () => {
+    const profile = {
+      profileId: "00000000-0000-4000-8000-000000000001",
+      displayName: "Safe Parent",
+      locationCity: null,
+      safetyStatus: "restricted",
+      createdAt: "2026-06-12T12:00:00.000Z",
+      updatedAt: "2026-06-12T12:00:00.000Z",
+      listingCount: 0,
+      trustSnapshot: null,
+      stats: {
+        totalListings: 0,
+        activeListings: 0,
+        archivedListings: 0,
+        soldListings: 0,
+        reservedListings: 0,
+        draftListings: 0,
+        totalCases: 0,
+        openCases: 0,
+        enforcementActions: 1
+      },
+      listings: [],
+      relatedModerationCases: [],
+      enforcementHistory: [
+        {
+          actionId: "00000000-0000-4000-8000-000000000032",
+          caseId: null,
+          actionType: "profile_restrict",
+          createdAt: "2026-06-12T12:00:00.000Z"
+        }
+      ]
+    };
+
+    const parsed = adminProfileEnforcementResponseSchema.safeParse({
+      profile,
+      enforcement: {
+        profileId: "00000000-0000-4000-8000-000000000001",
+        action: "profile_restrict",
+        previousSafetyStatus: "active",
+        nextSafetyStatus: "restricted",
+        moderationActionId: "00000000-0000-4000-8000-000000000032",
+        auditEventId: "00000000-0000-4000-8000-000000000033"
+      }
+    });
+
+    expect(parsed.success).toBe(true);
   });
 
 });

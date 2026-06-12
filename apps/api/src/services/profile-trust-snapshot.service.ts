@@ -323,22 +323,38 @@ async function countEnforcementActionsForProfile(
   relatedTargetIds: RelatedTargetIds,
   options: { since?: Date } = {}
 ): Promise<number> {
-  const conditions = [
+  const caseConditions = [
     buildModerationCaseProfileWhere(profileId, relatedTargetIds),
     inArray(moderationActions.actionType, ENFORCEMENT_ACTION_TYPES)
   ];
 
   if (options.since) {
-    conditions.push(gte(moderationActions.createdAt, options.since));
+    caseConditions.push(gte(moderationActions.createdAt, options.since));
   }
 
-  const [row] = await app.db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(moderationActions)
-    .innerJoin(moderationCases, eq(moderationActions.moderationCaseId, moderationCases.id))
-    .where(and(...conditions));
+  const directConditions = [
+    eq(events.entityType, "profile"),
+    eq(events.entityId, profileId),
+    eq(events.eventType, "admin_profile_enforcement_applied")
+  ];
 
-  return row?.count ?? 0;
+  if (options.since) {
+    directConditions.push(gte(events.createdAt, options.since));
+  }
+
+  const [caseRow, directRow] = await Promise.all([
+    app.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(moderationActions)
+      .innerJoin(moderationCases, eq(moderationActions.moderationCaseId, moderationCases.id))
+      .where(and(...caseConditions)),
+    app.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(events)
+      .where(and(...directConditions))
+  ]);
+
+  return (caseRow[0]?.count ?? 0) + (directRow[0]?.count ?? 0);
 }
 
 async function countSensitiveAccessEventsForCases(
@@ -402,18 +418,41 @@ async function loadLastEnforcementAtForProfile(
   profileId: string,
   relatedTargetIds: RelatedTargetIds
 ): Promise<Date | null> {
-  const [row] = await app.db
-    .select({ lastAt: sql<Date | null>`max(${moderationActions.createdAt})` })
-    .from(moderationActions)
-    .innerJoin(moderationCases, eq(moderationActions.moderationCaseId, moderationCases.id))
-    .where(
-      and(
-        buildModerationCaseProfileWhere(profileId, relatedTargetIds),
-        inArray(moderationActions.actionType, ENFORCEMENT_ACTION_TYPES)
+  const [caseRows, directRows] = await Promise.all([
+    app.db
+      .select({ lastAt: sql<Date | null>`max(${moderationActions.createdAt})` })
+      .from(moderationActions)
+      .innerJoin(moderationCases, eq(moderationActions.moderationCaseId, moderationCases.id))
+      .where(
+        and(
+          buildModerationCaseProfileWhere(profileId, relatedTargetIds),
+          inArray(moderationActions.actionType, ENFORCEMENT_ACTION_TYPES)
+        )
+      ),
+    app.db
+      .select({ lastAt: sql<Date | null>`max(${events.createdAt})` })
+      .from(events)
+      .where(
+        and(
+          eq(events.entityType, "profile"),
+          eq(events.entityId, profileId),
+          eq(events.eventType, "admin_profile_enforcement_applied")
+        )
       )
-    );
+  ]);
 
-  return row?.lastAt ?? null;
+  const caseLastAt = caseRows[0]?.lastAt ?? null;
+  const directLastAt = directRows[0]?.lastAt ?? null;
+
+  if (!caseLastAt) {
+    return directLastAt;
+  }
+
+  if (!directLastAt) {
+    return caseLastAt;
+  }
+
+  return caseLastAt > directLastAt ? caseLastAt : directLastAt;
 }
 
 function buildModerationCaseProfileWhere(
