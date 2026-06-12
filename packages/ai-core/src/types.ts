@@ -20,7 +20,6 @@ export type ListingSuggestionProvider = {
   suggestListing(input: ListingSuggestionInput): Promise<ListingSuggestionOutput>;
 };
 
-
 export type ModerationSummaryTargetType = "listing" | "profile" | "message";
 
 export type ModerationSummaryInput = {
@@ -54,9 +53,16 @@ export type ModerationSummaryOutput = {
   confidenceScore: number;
   providerName: string;
   promptVersion: string;
+  modelName?: string;
 };
 
 export type ModerationSummaryProvider = {
   readonly providerName: string;
+  readonly modelName?: string;
   summarizeModerationCase(input: ModerationSummaryInput): Promise<ModerationSummaryOutput>;
+};
+
+export type ModerationSummaryGuardrailIssue = {
+  field: string;
+  reason: string;
 };

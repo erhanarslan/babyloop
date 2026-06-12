@@ -112,6 +112,10 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
                 <dd>{summary.promptVersion}</dd>
               </div>
               <div>
+                <dt>Model</dt>
+                <dd>{summary.modelName ?? "Not disclosed"}</dd>
+              </div>
+              <div>
                 <dt>AI run</dt>
                 <dd>{aiModelRunId ? shortId(aiModelRunId) : "Not available"}</dd>
               </div>

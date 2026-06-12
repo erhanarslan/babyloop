@@ -70,3 +70,6 @@ The dashboard summary remains aggregate-only and now includes restricted/suspend
 - duplicate image detection
 - exports
 - full user directory/profile admin detail
+
+
+See also: `docs/40-ai-moderation-provider-configuration.md` for the AI moderation provider configuration and redaction guardrails.

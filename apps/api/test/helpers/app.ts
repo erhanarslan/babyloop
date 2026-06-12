@@ -38,6 +38,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const app = createApp({
     config: {
+      aiModerationSummary: { provider: "mock" },
       allowAuthUnavailable: false,
       authRateLimitMax: options.authRateLimitMax ?? 100,
       authRateLimitWindowSeconds: options.authRateLimitWindowSeconds ?? 60,

@@ -61,6 +61,7 @@ describe("admin audit schemas", () => {
     const sanitized = sanitizeAuditMetadata({
       caseId: "30000000-0000-4000-8000-000000000001",
       aiModelRunId: "30000000-0000-4000-8000-000000000002",
+      modelName: "mock-model",
       providerName: "mock-moderation-summary",
       promptVersion: "moderation_summary.mock.v1",
       confidenceScore: 0.77,
@@ -73,6 +74,7 @@ describe("admin audit schemas", () => {
     expect(sanitized).toEqual({
       caseId: "30000000-0000-4000-8000-000000000001",
       aiModelRunId: "30000000-0000-4000-8000-000000000002",
+      modelName: "mock-model",
       providerName: "mock-moderation-summary",
       promptVersion: "moderation_summary.mock.v1",
       confidenceScore: 0.77,

@@ -254,3 +254,6 @@ pnpm build
 - Safe audit browser.
 - Assignment/SLA workflows.
 - Backoffice UI polish.
+
+
+See also: `docs/40-ai-moderation-provider-configuration.md` for the AI moderation provider configuration and redaction guardrails.

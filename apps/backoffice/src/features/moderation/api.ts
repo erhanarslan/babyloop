@@ -174,6 +174,7 @@ export type AdminModerationAiSummary = {
   confidenceScore: number;
   providerName: string;
   promptVersion: string;
+  modelName?: string;
 };
 
 export type GenerateAdminModerationAiSummaryInput = {

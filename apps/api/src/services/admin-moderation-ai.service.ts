@@ -1,12 +1,15 @@
 import {
+  MODERATION_SUMMARY_OPENAI_PROMPT_VERSION,
   MODERATION_SUMMARY_PROMPT_VERSION,
   summarizeModerationCase,
   type ModerationSummaryInput,
-  type ModerationSummaryOutput
+  type ModerationSummaryOutput,
+  type ModerationSummaryProvider
 } from "@babyloop/ai-core";
 import { aiModelRuns, events } from "@babyloop/database/schema";
 import type { FastifyInstance } from "fastify";
 import { getAdminModerationCaseDetail } from "./admin-moderation.service.js";
+import { createSafeTextPreview } from "./redaction.service.js";
 
 const AI_MODERATION_SUMMARY_FEATURE = "moderation_summary";
 const MOCK_AI_MODEL_NAME = "mock-model";
@@ -28,6 +31,7 @@ export async function generateAdminModerationAiSummary(
   params: {
     actorProfileId: string;
     caseId: string;
+    provider?: ModerationSummaryProvider;
     reason: string;
   }
 ): Promise<AdminModerationAiSummaryResult> {
@@ -40,22 +44,28 @@ export async function generateAdminModerationAiSummary(
   const input = buildRedactedModerationSummaryInput(detail);
 
   try {
-    const summary = await summarizeModerationCase(input);
+    const summary = await summarizeModerationCase(input, {
+      ...(params.provider ? { provider: params.provider } : {})
+    });
+
     const aiModelRunId = await recordModerationAiModelRun(app, {
       input,
       output: summary,
       confidenceScore: summary.confidenceScore,
       riskScore: riskScoreForLevel(summary.riskLevel),
+      modelName: summary.modelName ?? params.provider?.modelName ?? MOCK_AI_MODEL_NAME,
       providerName: summary.providerName,
       promptVersion: summary.promptVersion,
       status: "success"
     });
+
     const auditEventId = await recordModerationAiSummaryAuditEvent(app, {
       actorProfileId: params.actorProfileId,
       caseId: params.caseId,
       targetType: detail.case.targetType,
       targetId: detail.case.targetId,
       aiModelRunId,
+      modelName: summary.modelName ?? params.provider?.modelName ?? MOCK_AI_MODEL_NAME,
       providerName: summary.providerName,
       promptVersion: summary.promptVersion,
       confidenceScore: summary.confidenceScore,
@@ -76,8 +86,9 @@ export async function generateAdminModerationAiSummary(
 
     await recordModerationAiModelRun(app, {
       input,
-      providerName: MOCK_AI_PROVIDER_NAME,
-      promptVersion: MODERATION_SUMMARY_PROMPT_VERSION,
+      providerName: params.provider?.providerName ?? MOCK_AI_PROVIDER_NAME,
+      modelName: params.provider?.modelName ?? MOCK_AI_MODEL_NAME,
+      promptVersion: getPromptVersionForProvider(params.provider),
       status: "error",
       errorMessage
     });
@@ -89,29 +100,35 @@ export async function generateAdminModerationAiSummary(
 function buildRedactedModerationSummaryInput(
   detail: Extract<Awaited<ReturnType<typeof getAdminModerationCaseDetail>>, { status: "found" }>
 ): ModerationSummaryInput {
-  return {
+  const input: ModerationSummaryInput = {
     caseId: detail.case.id,
     targetType: detail.case.targetType,
     targetId: detail.case.targetId,
     status: detail.case.status,
     priority: detail.case.priority,
-    ...(detail.case.report?.reason ? { reportReason: detail.case.report.reason } : {}),
-    ...(detail.case.targetPreview
-      ? { targetPreview: toModerationSummaryTargetPreview(detail.case.targetPreview) }
-      : {}),
     recentTimelineLabels: detail.timeline.slice(0, 10).map((item) => item.label),
     previousEnforcementActions: detail.timeline
       .map((item) => item.metadata?.action)
       .filter((value): value is string => typeof value === "string")
       .slice(0, 10)
   };
+
+  if (detail.case.report?.reason) {
+    input.reportReason = createSafeTextPreview(detail.case.report.reason, 240);
+  }
+
+  if (detail.case.targetPreview) {
+    input.targetPreview = toModerationSummaryTargetPreview(detail.case.targetPreview);
+  }
+
+  return input;
 }
 
 function toModerationSummaryTargetPreview(
   preview: NonNullable<
     Extract<Awaited<ReturnType<typeof getAdminModerationCaseDetail>>, { status: "found" }>["case"]["targetPreview"]
   >
-): ModerationSummaryInput["targetPreview"] {
+): NonNullable<ModerationSummaryInput["targetPreview"]> {
   if (preview.type === "listing") {
     return {
       type: "listing",
@@ -137,6 +154,7 @@ type AiModelRunLogInput = {
   input: ModerationSummaryInput;
   output?: ModerationSummaryOutput;
   providerName: string;
+  modelName: string;
   promptVersion: string;
   confidenceScore?: number;
   riskScore?: number;
@@ -153,7 +171,7 @@ async function recordModerationAiModelRun(
     .values({
       feature: AI_MODERATION_SUMMARY_FEATURE,
       providerName: run.providerName,
-      modelName: MOCK_AI_MODEL_NAME,
+      modelName: run.modelName,
       promptVersion: run.promptVersion,
       input: { ...run.input },
       output: run.output ? { ...run.output } : null,
@@ -165,7 +183,7 @@ async function recordModerationAiModelRun(
     })
     .returning({ id: aiModelRuns.id });
 
-  return created.id;
+  return requireCreatedId(created, "AI model run creation");
 }
 
 async function recordModerationAiSummaryAuditEvent(
@@ -176,6 +194,7 @@ async function recordModerationAiSummaryAuditEvent(
     targetType: string;
     targetId: string;
     aiModelRunId: string;
+    modelName: string;
     providerName: string;
     promptVersion: string;
     confidenceScore: number;
@@ -196,6 +215,7 @@ async function recordModerationAiSummaryAuditEvent(
         targetType: input.targetType,
         targetId: input.targetId,
         aiModelRunId: input.aiModelRunId,
+        modelName: input.modelName,
         providerName: input.providerName,
         promptVersion: input.promptVersion,
         confidenceScore: input.confidenceScore,
@@ -207,7 +227,24 @@ async function recordModerationAiSummaryAuditEvent(
     })
     .returning({ id: events.id });
 
+  return requireCreatedId(created, "AI moderation audit event creation");
+}
+
+function requireCreatedId(
+  created: { id: string } | undefined,
+  operation: string
+): string {
+  if (!created) {
+    throw new Error(`${operation} did not return an id`);
+  }
+
   return created.id;
+}
+
+function getPromptVersionForProvider(provider: ModerationSummaryProvider | undefined): string {
+  return provider?.providerName === "openai-responses"
+    ? MODERATION_SUMMARY_OPENAI_PROMPT_VERSION
+    : MODERATION_SUMMARY_PROMPT_VERSION;
 }
 
 function riskScoreForLevel(level: ModerationSummaryOutput["riskLevel"]): number {

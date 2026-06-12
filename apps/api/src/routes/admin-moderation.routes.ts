@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@babyloop/shared";
+import type { ModerationSummaryProvider } from "@babyloop/ai-core";
 import type { FastifyInstance } from "fastify";
 import {
   adminModerationActionBodySchema,
@@ -26,7 +27,14 @@ import {
 } from "../services/admin-moderation.service.js";
 import { generateAdminModerationAiSummary } from "../services/admin-moderation-ai.service.js";
 
-export function registerAdminModerationRoutes(app: FastifyInstance): void {
+export type RegisterAdminModerationRoutesOptions = {
+  aiSummaryProvider?: ModerationSummaryProvider;
+};
+
+export function registerAdminModerationRoutes(
+  app: FastifyInstance,
+  options: RegisterAdminModerationRoutesOptions = {}
+): void {
   app.get<{ Querystring: unknown }>(
     "/admin/moderation/cases",
     async (request, reply) => {
@@ -271,6 +279,7 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
       const result = await generateAdminModerationAiSummary(app, {
         actorProfileId: admin.profile.id,
         caseId: parsedParams.data.caseId,
+        ...(options.aiSummaryProvider ? { provider: options.aiSummaryProvider } : {}),
         reason: parsedBody.data.reason
       });
 

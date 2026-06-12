@@ -1125,6 +1125,7 @@ export function sanitizeAdminModerationTimelineMetadata(
     "deniedFields",
     "enforcementAction",
     "grantedFields",
+    "modelName",
     "moderationCaseId",
     "nextSafetyStatus",
     "previousSafetyStatus",

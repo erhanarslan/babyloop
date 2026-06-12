@@ -238,3 +238,6 @@ Permissioned Sensitive Raw Data Access + Audit
 7. Stabilize profile enforcement and audit browser through manual QA, then design appeals/export boundaries.
 8. Full trust & safety audit event dashboard and advanced analytics.
 9. Granular denied-audit policy for unauthenticated and malformed requests.
+
+
+See also: `docs/40-ai-moderation-provider-configuration.md` for the AI moderation provider configuration and redaction guardrails.

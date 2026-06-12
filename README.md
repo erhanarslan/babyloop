@@ -464,3 +464,6 @@ Optional API CORS override:
 ```bash
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 pnpm --filter @babyloop/api dev
 ```
+
+
+AI moderation summaries now support a default mock provider plus optional server-side OpenAI Responses provider configuration. See `docs/40-ai-moderation-provider-configuration.md` for guardrails and environment settings.

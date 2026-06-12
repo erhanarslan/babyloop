@@ -29,17 +29,24 @@ import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.routes.js
 import { registerAdminModerationRoutes } from "./routes/admin-moderation.routes.js";
 import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
+import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
+import type { ModerationSummaryProvider } from "@babyloop/ai-core";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
   emailDelivery?: EmailDeliveryService;
   googleOAuthClient?: GoogleOAuthClient;
+  moderationSummaryProvider?: ModerationSummaryProvider;
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const config = options.config ?? readApiRuntimeConfig();
 
   assertAuthConfig(config);
+
+  const moderationSummaryProvider =
+    options.moderationSummaryProvider ??
+    createAdminModerationAiSummaryProvider(config.aiModerationSummary);
 
   const emailDelivery =
     options.emailDelivery ??
@@ -163,7 +170,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminListingRoutes, { prefix: API_PREFIX });
-    app.register(registerAdminModerationRoutes, { prefix: API_PREFIX });
+    app.register(registerAdminModerationRoutes, {
+      aiSummaryProvider: moderationSummaryProvider,
+      prefix: API_PREFIX
+    });
     app.register(registerUploadRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");

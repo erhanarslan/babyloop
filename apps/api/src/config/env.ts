@@ -1,7 +1,17 @@
 import { fileURLToPath } from "node:url";
 import type { GoogleOAuthConfig } from "../services/google-oauth.service.js";
 
+export type AiModerationSummaryRuntimeConfig =
+  | { provider: "mock" }
+  | {
+      provider: "openai";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
+    };
+
 export type ApiRuntimeConfig = {
+  aiModerationSummary: AiModerationSummaryRuntimeConfig;
   allowAuthUnavailable: boolean;
   authRateLimitMax: number;
   authRateLimitWindowSeconds: number;
@@ -23,6 +33,7 @@ const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiRuntimeConfig {
   const allowAuthUnavailable = readBoolean(env.ALLOW_AUTH_UNAVAILABLE, false);
   const config: ApiRuntimeConfig = {
+    aiModerationSummary: readAiModerationSummaryConfig(env),
     allowAuthUnavailable,
     authRateLimitMax: readPositiveInteger(env.AUTH_RATE_LIMIT_MAX, 10),
     authRateLimitWindowSeconds: readPositiveInteger(env.AUTH_RATE_LIMIT_WINDOW_SECONDS, 60),
@@ -61,6 +72,38 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+
+function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSummaryRuntimeConfig {
+  const provider = (env.AI_MODERATION_SUMMARY_PROVIDER ?? "mock").trim().toLowerCase();
+
+  if (!provider || provider === "mock") {
+    return { provider: "mock" };
+  }
+
+  if (provider !== "openai") {
+    throw new Error("AI_MODERATION_SUMMARY_PROVIDER must be mock or openai.");
+  }
+
+  const apiKey = env.OPENAI_API_KEY?.trim();
+  const model = env.OPENAI_MODERATION_SUMMARY_MODEL?.trim();
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is required when AI_MODERATION_SUMMARY_PROVIDER=openai.");
+  }
+
+  if (!model) {
+    throw new Error("OPENAI_MODERATION_SUMMARY_MODEL is required when AI_MODERATION_SUMMARY_PROVIDER=openai.");
+  }
+
+  const endpoint = env.OPENAI_RESPONSES_ENDPOINT?.trim();
+
+  return {
+    provider: "openai",
+    apiKey,
+    model,
+    ...(endpoint ? { endpoint } : {})
+  };
 }
 
 function readEmailDeliveryMode(value: string | undefined): "noop" {

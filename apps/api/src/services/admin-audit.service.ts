@@ -28,6 +28,7 @@ const SAFE_AUDIT_METADATA_KEYS = [
   "grantedFields",
   "imageId",
   "listingId",
+  "modelName",
   "moderationActionId",
   "nextReviewStatus",
   "nextSafetyStatus",
