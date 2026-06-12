@@ -41,6 +41,61 @@ export type AdminProfileSummary = {
   trustSnapshot: AdminProfileTrustSnapshot | null;
 };
 
+export type AdminProfileListingSummary = {
+  listingId: string;
+  title: string;
+  status: string;
+  listingType: string;
+  condition: string;
+  price: {
+    amount: string;
+    currency: string;
+  } | null;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminProfileModerationCaseSummary = {
+  caseId: string;
+  reportId: string | null;
+  targetType: "listing" | "profile" | "message";
+  targetId: string;
+  status: "pending" | "in_review" | "resolved" | "dismissed";
+  priority: "low" | "normal" | "high";
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminProfileEnforcementSummary = {
+  actionId: string;
+  caseId: string | null;
+  actionType: string;
+  createdAt: string;
+};
+
+export type AdminProfileDetail = AdminProfileSummary & {
+  stats: {
+    totalListings: number;
+    activeListings: number;
+    archivedListings: number;
+    soldListings: number;
+    reservedListings: number;
+    draftListings: number;
+    totalCases: number;
+    openCases: number;
+    enforcementActions: number;
+  };
+  listings: AdminProfileListingSummary[];
+  relatedModerationCases: AdminProfileModerationCaseSummary[];
+  enforcementHistory: AdminProfileEnforcementSummary[];
+};
+
 export type ListAdminProfilesParams = {
   safetyStatus?: AdminProfileSafetyStatus;
   riskLevel?: AdminProfileRiskLevel;
@@ -51,6 +106,10 @@ export type ListAdminProfilesParams = {
 
 export type ListAdminProfilesResponse = {
   profiles: AdminProfileSummary[];
+};
+
+export type GetAdminProfileResponse = {
+  profile: AdminProfileDetail;
 };
 
 const ADMIN_PROFILES_BASE_PATH = "/api/v1/admin/profiles";
@@ -80,6 +139,12 @@ export async function listAdminProfiles(
   const path = `${ADMIN_PROFILES_BASE_PATH}${query ? `?${query}` : ""}`;
 
   return adminRequest<ListAdminProfilesResponse>(path);
+}
+
+export async function getAdminProfile(
+  profileId: string,
+): Promise<ApiResponse<GetAdminProfileResponse>> {
+  return adminRequest<GetAdminProfileResponse>(`${ADMIN_PROFILES_BASE_PATH}/${profileId}`);
 }
 
 async function adminRequest<T>(

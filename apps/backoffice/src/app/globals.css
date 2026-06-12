@@ -1213,3 +1213,64 @@ a {
   background: rgba(247, 247, 251, 0.74);
   padding: 0.9rem;
 }
+
+.profile-detail-link {
+  justify-self: flex-start;
+}
+
+.profile-detail-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.profile-detail-card {
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.profile-detail-card.wide {
+  grid-column: 1 / -1;
+}
+
+.profile-detail-card h3 {
+  color: #111827;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.table-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.table-list-row {
+  align-items: center;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 14px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.table-list-row a {
+  color: #4f46e5;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.table-list-row a:hover {
+  text-decoration: underline;
+}
+
+.table-list-row span {
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}

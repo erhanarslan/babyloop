@@ -1,6 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
+import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
@@ -313,6 +314,10 @@ function ProfileCard({ profile }: { profile: AdminProfileSummary }) {
       ) : (
         <p className="muted">No trust snapshot has been computed for this profile yet.</p>
       )}
+
+      <Link className="secondary-action profile-detail-link" href={`/profiles/${profile.profileId}`}>
+        View profile detail
+      </Link>
     </article>
   );
 }

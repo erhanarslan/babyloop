@@ -1,9 +1,13 @@
 import {
   listings,
+  moderationActions,
+  moderationCases,
+  productCategories,
   profileTrustSnapshots,
-  profiles
+  profiles,
+  reports
 } from "@babyloop/database/schema";
-import { asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   AdminProfileRiskLevelValue,
@@ -21,6 +25,61 @@ export type AdminProfileSummary = {
   updatedAt: string;
   listingCount: number;
   trustSnapshot: AdminProfileTrustSnapshot | null;
+};
+
+export type AdminProfileListingSummary = {
+  listingId: string;
+  title: string;
+  status: string;
+  listingType: string;
+  condition: string;
+  price: {
+    amount: string;
+    currency: string;
+  } | null;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminProfileModerationCaseSummary = {
+  caseId: string;
+  reportId: string | null;
+  targetType: "listing" | "profile" | "message";
+  targetId: string;
+  status: "pending" | "in_review" | "resolved" | "dismissed";
+  priority: "low" | "normal" | "high";
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminProfileEnforcementSummary = {
+  actionId: string;
+  caseId: string | null;
+  actionType: string;
+  createdAt: string;
+};
+
+export type AdminProfileDetail = AdminProfileSummary & {
+  stats: {
+    totalListings: number;
+    activeListings: number;
+    archivedListings: number;
+    soldListings: number;
+    reservedListings: number;
+    draftListings: number;
+    totalCases: number;
+    openCases: number;
+    enforcementActions: number;
+  };
+  listings: AdminProfileListingSummary[];
+  relatedModerationCases: AdminProfileModerationCaseSummary[];
+  enforcementHistory: AdminProfileEnforcementSummary[];
 };
 
 type AdminProfileRow = {
@@ -55,6 +114,44 @@ export async function listAdminProfiles(
   const listingCounts = await loadListingCountsByProfileId(app, rows.map((row) => row.profileId));
 
   return rows.map((row) => toAdminProfileSummary(row, listingCounts.get(row.profileId) ?? 0));
+}
+
+export async function getAdminProfileDetail(
+  app: FastifyInstance,
+  profileId: string
+): Promise<AdminProfileDetail | null> {
+  const [row] = await selectAdminProfileRows(app, { q: profileId }, 1);
+
+  if (!row || row.profileId !== profileId) {
+    return null;
+  }
+
+  const [listingCounts, recentListings] = await Promise.all([
+    loadListingStatusCounts(app, profileId),
+    loadRecentProfileListings(app, profileId)
+  ]);
+  const listingIds = recentListings.map((listing) => listing.listingId);
+  const relatedCases = await loadRelatedModerationCases(app, { profileId, listingIds });
+  const enforcementHistory = await loadEnforcementHistory(app, relatedCases.map((item) => item.caseId));
+  const summary = toAdminProfileSummary(row, listingCounts.totalListings);
+
+  return {
+    ...summary,
+    stats: {
+      totalListings: listingCounts.totalListings,
+      activeListings: listingCounts.activeListings,
+      archivedListings: listingCounts.archivedListings,
+      soldListings: listingCounts.soldListings,
+      reservedListings: listingCounts.reservedListings,
+      draftListings: listingCounts.draftListings,
+      totalCases: relatedCases.length,
+      openCases: relatedCases.filter((item) => item.status === "pending" || item.status === "in_review").length,
+      enforcementActions: enforcementHistory.length
+    },
+    listings: recentListings,
+    relatedModerationCases: relatedCases,
+    enforcementHistory
+  };
 }
 
 async function selectAdminProfileRows(
@@ -156,6 +253,154 @@ async function loadListingCountsByProfileId(
     .groupBy(listings.sellerProfileId);
 
   return new Map(rows.map((row) => [row.profileId, row.listingCount]));
+}
+
+async function loadListingStatusCounts(
+  app: FastifyInstance,
+  profileId: string
+): Promise<AdminProfileDetail["stats"]> {
+  const rows = await app.db
+    .select({
+      status: listings.status,
+      count: sql<number>`count(${listings.id})::int`
+    })
+    .from(listings)
+    .where(eq(listings.sellerProfileId, profileId))
+    .groupBy(listings.status);
+
+  const counts = new Map(rows.map((row) => [row.status, row.count]));
+
+  return {
+    totalListings: rows.reduce((total, row) => total + row.count, 0),
+    activeListings: counts.get("active") ?? 0,
+    archivedListings: counts.get("archived") ?? 0,
+    soldListings: counts.get("sold") ?? 0,
+    reservedListings: counts.get("reserved") ?? 0,
+    draftListings: counts.get("draft") ?? 0,
+    totalCases: 0,
+    openCases: 0,
+    enforcementActions: 0
+  };
+}
+
+async function loadRecentProfileListings(
+  app: FastifyInstance,
+  profileId: string
+): Promise<AdminProfileListingSummary[]> {
+  const rows = await app.db
+    .select({
+      listingId: listings.id,
+      title: listings.title,
+      status: listings.status,
+      listingType: listings.listingType,
+      condition: listings.condition,
+      priceAmount: listings.priceAmount,
+      currency: listings.currency,
+      categoryId: productCategories.id,
+      categoryName: productCategories.name,
+      categorySlug: productCategories.slug,
+      createdAt: listings.createdAt,
+      updatedAt: listings.updatedAt
+    })
+    .from(listings)
+    .innerJoin(productCategories, eq(productCategories.id, listings.categoryId))
+    .where(eq(listings.sellerProfileId, profileId))
+    .orderBy(desc(listings.updatedAt))
+    .limit(10);
+
+  return rows.map((row) => ({
+    listingId: row.listingId,
+    title: row.title,
+    status: row.status,
+    listingType: row.listingType,
+    condition: row.condition,
+    price: row.priceAmount
+      ? {
+          amount: row.priceAmount,
+          currency: row.currency
+        }
+      : null,
+    category: {
+      id: row.categoryId,
+      name: row.categoryName,
+      slug: row.categorySlug
+    },
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  }));
+}
+
+async function loadRelatedModerationCases(
+  app: FastifyInstance,
+  params: { profileId: string; listingIds: string[] }
+): Promise<AdminProfileModerationCaseSummary[]> {
+  const targetConditions: SQL[] = [
+    and(eq(moderationCases.targetType, "profile"), eq(moderationCases.targetId, params.profileId))!
+  ];
+
+  if (params.listingIds.length > 0) {
+    targetConditions.push(
+      and(eq(moderationCases.targetType, "listing"), inArray(moderationCases.targetId, params.listingIds))!
+    );
+  }
+
+  const rows = await app.db
+    .select({
+      caseId: moderationCases.id,
+      reportId: moderationCases.reportId,
+      targetType: moderationCases.targetType,
+      targetId: moderationCases.targetId,
+      status: moderationCases.status,
+      priority: moderationCases.priority,
+      reason: reports.reason,
+      createdAt: moderationCases.createdAt,
+      updatedAt: moderationCases.updatedAt
+    })
+    .from(moderationCases)
+    .leftJoin(reports, eq(reports.id, moderationCases.reportId))
+    .where(sql.join(targetConditions, sql` or `))
+    .orderBy(desc(moderationCases.updatedAt))
+    .limit(20);
+
+  return rows.map((row) => ({
+    caseId: row.caseId,
+    reportId: row.reportId,
+    targetType: row.targetType,
+    targetId: row.targetId,
+    status: row.status,
+    priority: row.priority,
+    reason: row.reason,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  }));
+}
+
+async function loadEnforcementHistory(
+  app: FastifyInstance,
+  caseIds: string[]
+): Promise<AdminProfileEnforcementSummary[]> {
+  if (caseIds.length === 0) {
+    return [];
+  }
+
+  const rows = await app.db
+    .select({
+      actionId: moderationActions.id,
+      caseId: moderationActions.moderationCaseId,
+      actionType: moderationActions.actionType,
+      createdAt: moderationActions.createdAt
+    })
+    .from(moderationActions)
+    .where(inArray(moderationActions.moderationCaseId, caseIds))
+    .orderBy(desc(moderationActions.createdAt))
+    .limit(20);
+
+  return rows.map((row) => ({
+    actionId: row.actionId,
+    caseId: row.caseId,
+    actionType: row.actionType,
+    createdAt: row.createdAt.toISOString()
+  }));
 }
 
 function toAdminProfileSummary(row: AdminProfileRow, listingCount: number): AdminProfileSummary {
