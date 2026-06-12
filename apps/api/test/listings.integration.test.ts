@@ -1357,6 +1357,292 @@ describe("listings API", () => {
     expect(invalidAction.statusCode).toBe(400);
     expect(blankReason.statusCode).toBe(400);
   });
+
+  it("allows admins to reject and approve listing images with public filtering", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-image-review@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-image-review@babyloop.test"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Image review listing"
+    });
+    const [image] = await app.db
+      .insert(listingImages)
+      .values({
+        listingId: listing.id,
+        url: `/api/v1/uploads/listings/${listing.id}/review.png`,
+        sortOrder: 0
+      })
+      .returning({
+        id: listingImages.id
+      });
+
+    if (!image) {
+      throw new Error("Image review test setup failed.");
+    }
+
+    const rejected = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "Image is not suitable for marketplace display."
+      }
+    });
+    const publicDetailAfterReject = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const publicListAfterReject = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings?q=Image%20review`
+    });
+    const adminDetailAfterReject = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings/${listing.id}`
+    });
+    const approved = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "approve",
+        reason: "Image has been reviewed and can be shown publicly."
+      }
+    });
+    const publicDetailAfterApprove = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const reviewEventCount = await countEvents(
+      app.db,
+      "admin_listing_image_review_applied",
+      listing.id
+    );
+
+    expect(rejected.statusCode).toBe(200);
+    expect(rejected.json().data.image).toMatchObject({
+      id: image.id,
+      reviewStatus: "rejected",
+      reviewedByProfileId: admin.profile.id
+    });
+    expect(publicDetailAfterReject.statusCode).toBe(200);
+    expect(publicDetailAfterReject.json().data.listing.images).toEqual([]);
+    expect(publicListAfterReject.statusCode).toBe(200);
+    expect(publicListAfterReject.json().data.listings[0].firstImage).toBeNull();
+    expect(adminDetailAfterReject.statusCode).toBe(200);
+    expect(adminDetailAfterReject.json().data.listing.images).toEqual([
+      expect.objectContaining({
+        id: image.id,
+        reviewStatus: "rejected"
+      })
+    ]);
+    expect(approved.statusCode).toBe(200);
+    expect(approved.json().data.image.reviewStatus).toBe("approved");
+    expect(publicDetailAfterApprove.json().data.listing.images).toEqual([
+      expect.objectContaining({
+        id: image.id,
+        url: `/api/v1/uploads/listings/${listing.id}/review.png`
+      })
+    ]);
+    expect(reviewEventCount).toBe(2);
+    expect(rejected.body).not.toContain(seller.user.email);
+    expect(rejected.body).not.toContain("messageBody");
+    expect(rejected.body).not.toContain("accessToken");
+    expect(rejected.body).not.toContain("refreshToken");
+  });
+
+  it("rejects unsafe admin listing image review requests", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-invalid-image-review@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const otherSeller = await createUser(app);
+    const nonAdmin = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const otherListing = await createListing(app, otherSeller.accessToken);
+    const [image] = await app.db
+      .insert(listingImages)
+      .values({
+        listingId: listing.id,
+        url: `/api/v1/uploads/listings/${listing.id}/review.png`,
+        sortOrder: 0
+      })
+      .returning({
+        id: listingImages.id
+      });
+
+    if (!image) {
+      throw new Error("Image review rejection setup failed.");
+    }
+
+    const nonAdminResponse = await app.inject({
+      headers: authHeader(nonAdmin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "This non-admin request should be blocked."
+      }
+    });
+    const mismatchedListing = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${otherListing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "The image does not belong to this listing."
+      }
+    });
+    const invalidAction = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "delete",
+        reason: "Unsupported image review action."
+      }
+    });
+    const blankReason = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "   "
+      }
+    });
+
+    expect(nonAdminResponse.statusCode).toBe(403);
+    expect(mismatchedListing.statusCode).toBe(404);
+    expect(invalidAction.statusCode).toBe(400);
+    expect(blankReason.statusCode).toBe(400);
+  });
+
+  it("includes sanitized listing activity for listing and image review actions", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-activity@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-activity@babyloop.test"
+    });
+    const listing = await createListing(app, seller.accessToken);
+    const [image] = await app.db
+      .insert(listingImages)
+      .values({
+        listingId: listing.id,
+        url: `/api/v1/uploads/listings/${listing.id}/activity.png`,
+        sortOrder: 0
+      })
+      .returning({
+        id: listingImages.id
+      });
+
+    if (!image) {
+      throw new Error("Listing activity setup failed.");
+    }
+
+    await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "archive",
+        reason: "Archive listing during marketplace operations review."
+      }
+    });
+    await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "Image should be hidden from public listing displays."
+      }
+    });
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings/${listing.id}`
+    });
+    const eventTypes = response
+      .json()
+      .data.listing.auditTrail.map((event: { eventType: string }) => event.eventType);
+
+    expect(response.statusCode).toBe(200);
+    expect(eventTypes).toContain("admin_listing_action_applied");
+    expect(eventTypes).toContain("admin_listing_image_review_applied");
+    expect(response.body).not.toContain(seller.user.email);
+    expect(response.body).not.toContain("messageBody");
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("accessToken");
+    expect(response.body).not.toContain("review_reason");
+    expect(response.body).not.toContain("reviewReason");
+  });
+
+  it("returns aggregate-only admin dashboard summary", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-dashboard-summary@babyloop.test"
+    });
+    const nonAdmin = await createUser(app);
+    const seller = await createUser(app, {
+      email: "private-seller-dashboard@babyloop.test"
+    });
+    await createListing(app, seller.accessToken, {
+      title: "Dashboard aggregate listing"
+    });
+
+    const nonAdminResponse = await app.inject({
+      headers: authHeader(nonAdmin.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/dashboard/summary"
+    });
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/dashboard/summary"
+    });
+
+    expect(nonAdminResponse.statusCode).toBe(403);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        summary: {
+          listings: expect.objectContaining({
+            totalListings: expect.any(Number),
+            activeListings: expect.any(Number)
+          }),
+          images: expect.objectContaining({
+            totalListingImages: expect.any(Number),
+            rejectedListingImages: expect.any(Number)
+          }),
+          moderation: expect.objectContaining({
+            totalModerationCases: expect.any(Number),
+            openModerationCases: expect.any(Number)
+          }),
+          actions: expect.objectContaining({
+            listingActionsLast7Days: expect.any(Number),
+            imageReviewActionsLast7Days: expect.any(Number)
+          })
+        }
+      }
+    });
+    expect(response.body).not.toContain(seller.user.email);
+    expect(response.body).not.toContain("seller");
+    expect(response.body).not.toContain("reporter");
+    expect(response.body).not.toContain("messageBody");
+    expect(response.body).not.toContain("metadata");
+  });
 });
 
 function tinyPng(): Buffer {

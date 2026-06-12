@@ -27,8 +27,20 @@ export const adminListingActionBodySchema = z.object({
   reason: z.string().trim().min(10).max(1000)
 });
 
+export const adminListingImageParamsSchema = adminListingParamsSchema.extend({
+  imageId: z.string().uuid()
+});
+
+export const adminListingImageActionBodySchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  reason: z.string().trim().min(10).max(1000)
+});
+
 export type AdminListingActionBody = z.infer<typeof adminListingActionBodySchema>;
 export type AdminListingActionValue = AdminListingActionBody["action"];
+export type AdminListingImageActionBody = z.infer<typeof adminListingImageActionBodySchema>;
+export type AdminListingImageActionValue = AdminListingImageActionBody["action"];
+export type AdminListingImageParams = z.infer<typeof adminListingImageParamsSchema>;
 export type AdminListingParams = z.infer<typeof adminListingParamsSchema>;
 export type AdminListingStatusValue = (typeof adminListingStatusValues)[number];
 export type AdminListingsQuery = z.infer<typeof adminListingsQuerySchema>;

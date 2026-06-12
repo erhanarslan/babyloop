@@ -228,6 +228,26 @@ Listing-scoped archive/restore actions are audited with `events.eventType = admi
 
 Listing review is not a sensitive-access path and must not call `POST /api/v1/admin/moderation/cases/:caseId/sensitive-access`.
 
+## Marketplace review operations privacy rule
+
+Listing image review and dashboard operations must preserve the same minimization boundary.
+
+Admin listing detail may include safe image review metadata:
+
+- image id
+- URL
+- sort order
+- review status
+- reviewed timestamp
+- reviewer profile id
+- created timestamp
+
+It must not include raw reviewer user/profile objects, seller contact data, reporter identity, raw message body, image binary data, tokens, cookies, or password hashes.
+
+Rejected images are hidden from public listing responses. Admin listing detail may show rejected images so admins can review operational state.
+
+Dashboard summary responses are aggregate-only. They must not include identities, raw event metadata, seller/reporter data, message content, auth/session data, or raw admin reasons.
+
 ## AI rule
 
 AI may only provide:

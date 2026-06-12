@@ -174,7 +174,12 @@ export async function getFirstImages(
       sortOrder: listingImages.sortOrder
     })
     .from(listingImages)
-    .where(inArray(listingImages.listingId, listingIds))
+    .where(
+      and(
+        inArray(listingImages.listingId, listingIds),
+        eq(listingImages.reviewStatus, "approved")
+      )
+    )
     .orderBy(asc(listingImages.listingId), asc(listingImages.sortOrder));
 
   const firstImages = new Map<string, ListingImageResponse>();
@@ -205,7 +210,12 @@ export async function getImages(
       sortOrder: listingImages.sortOrder
     })
     .from(listingImages)
-    .where(eq(listingImages.listingId, listingId))
+    .where(
+      and(
+        eq(listingImages.listingId, listingId),
+        eq(listingImages.reviewStatus, "approved")
+      )
+    )
     .orderBy(asc(listingImages.sortOrder));
 }
 

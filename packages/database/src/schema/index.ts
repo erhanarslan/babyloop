@@ -39,6 +39,11 @@ export const listingConditionEnum = pgEnum("listing_condition", [
   "needs_repair"
 ]);
 
+export const listingImageReviewStatusEnum = pgEnum("listing_image_review_status", [
+  "approved",
+  "rejected"
+]);
+
 export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "success",
   "error",
@@ -273,10 +278,16 @@ export const listingImages = pgTable(
       .references(() => listings.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    reviewStatus: listingImageReviewStatusEnum("review_status").notNull().default("approved"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedByProfileId: uuid("reviewed_by_profile_id").references(() => profiles.id, {
+      onDelete: "set null"
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
-    index("listing_images_listing_id_idx").on(table.listingId)
+    index("listing_images_listing_id_idx").on(table.listingId),
+    index("listing_images_review_status_idx").on(table.reviewStatus)
   ]
 );
 

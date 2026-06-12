@@ -11,6 +11,7 @@ This is intentionally separate from moderation case enforcement. It gives admins
 GET /api/v1/admin/listings
 GET /api/v1/admin/listings/:listingId
 POST /api/v1/admin/listings/:listingId/actions
+POST /api/v1/admin/listings/:listingId/images/:imageId/actions
 ```
 
 List filters:
@@ -35,6 +36,11 @@ Supported actions:
 - `archive` sets `listings.status` to `archived`
 - `restore` sets `listings.status` to `active`
 
+Image review actions:
+
+- `approve` sets `listing_images.review_status` to `approved`
+- `reject` sets `listing_images.review_status` to `rejected`
+
 ## Privacy Boundaries
 
 Admin listing DTOs may include:
@@ -44,6 +50,7 @@ Admin listing DTOs may include:
 - price/currency
 - status
 - image count and safe listing image URLs
+- image review status, reviewed timestamp, and reviewer profile id for admin review
 - seller profile id, display name, city, and profile creation timestamp
 - related moderation case counts and safe case summaries
 
@@ -80,6 +87,8 @@ Safe metadata includes:
 
 The audit event intentionally does not store seller contact data, reporter identity, message body, tokens, or raw profile/user objects. The first version stores `reasonLength` rather than the reason text for listing actions.
 
+Image review actions write `events.eventType = admin_listing_image_review_applied` with safe metadata: `listingId`, `imageId`, `action`, `previousReviewStatus`, `nextReviewStatus`, `reasonLength`, and `result`.
+
 ## Backoffice UI
 
 New routes:
@@ -96,10 +105,10 @@ The detail page shows:
 - listing summary
 - status badge
 - privacy-safe seller summary
-- read-only image review foundation
+- image review controls for approved/rejected status
 - related moderation case summaries
 - archive/restore action form with required reason
-- listing-scoped audit trail
+- listing-scoped activity/audit trail
 
 The listing review UI does not call the sensitive-access endpoint and does not store sensitive data in localStorage, sessionStorage, cookies, URL params, or console logs.
 
@@ -122,10 +131,10 @@ They currently share the same underlying safe listing statuses (`active` and `ar
 ## Deferred
 
 - listing `under_review` status, because the current listing status enum does not support it
-- image approve/reject status, because listing images do not yet have moderation status fields
+- pending image queue and automated image moderation
 - profile enforcement, because profiles/users do not yet have a safe account status model
 - assignment and SLA workflows
-- dashboard metrics
+- advanced dashboard metrics/charts
 - appeals and export flows
 - image moderation automation
 
@@ -137,7 +146,8 @@ They currently share the same underlying safe listing statuses (`active` and `ar
 - Search by listing id/title/category/seller profile id.
 - Open a listing detail.
 - Confirm seller email/phone are not displayed.
-- Confirm image review is read-only.
+- Reject an image with a reason and confirm it is hidden publicly.
+- Approve the image again and confirm it appears publicly.
 - Confirm related moderation cases show safe summaries only.
 - Archive a listing with a reason.
 - Confirm an audit event id/history appears after refresh.

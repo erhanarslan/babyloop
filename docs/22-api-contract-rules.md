@@ -256,6 +256,22 @@ Admin listing responses must not include seller email, seller phone, raw user ob
 
 Listing action requests must include `action: "archive" | "restore"` and an explicit reason. Listing-scoped actions are audited separately from moderation case enforcement and must not call the sensitive-access endpoint.
 
+Listing image review requests use:
+
+```txt
+POST /api/v1/admin/listings/:listingId/images/:imageId/actions
+```
+
+Requests must include `action: "approve" | "reject"` and an explicit reason. Rejected images must not appear in public listing list/detail responses. Admin listing detail may include image review status and reviewer profile id, but not raw reviewer profile/user data or seller contact data.
+
+Admin dashboard summary uses:
+
+```txt
+GET /api/v1/admin/dashboard/summary
+```
+
+The response must be aggregate-only and must not include seller/reporter identities, message content, raw event metadata, tokens, or private user/profile data.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.

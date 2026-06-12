@@ -108,6 +108,26 @@ It must not include seller email, seller phone, raw user/profile objects, report
 
 Listing-scoped archive/restore actions require a reason and write `admin_listing_action_applied` audit events. The sensitive-access endpoint is not used by listing review tools.
 
+<!-- 2026-06-12-marketplace-review-operations -->
+## 2026-06-12 Update — Marketplace Review Operations
+
+Backoffice now supports listing image review status:
+
+- `approved`
+- `rejected`
+
+Existing and newly uploaded images default to `approved`. Rejected images are hidden from public listing list/detail responses, while admin listing detail shows all images with safe review metadata.
+
+Image review actions use:
+
+```txt
+POST /api/v1/admin/listings/:listingId/images/:imageId/actions
+```
+
+They require admin auth, matching listing/image ids, an allowlisted action, and a reason. They write `admin_listing_image_review_applied` audit events and do not call sensitive-access.
+
+The backoffice dashboard MVP now returns aggregate-only listing, image, moderation, and action counts. It does not expose identities, message content, raw event metadata, or private user/profile data.
+
 ## Manual QA Checklist
 
 - Login as Ayse.

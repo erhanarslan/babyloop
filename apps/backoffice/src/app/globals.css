@@ -549,6 +549,11 @@ a {
   color: #166534;
 }
 
+.status-badge.approved {
+  background: rgba(22, 163, 74, 0.1);
+  color: #166534;
+}
+
 .status-badge.reserved {
   background: rgba(245, 158, 11, 0.12);
   color: #92400e;
@@ -562,6 +567,11 @@ a {
 .status-badge.archived {
   background: rgba(107, 114, 128, 0.12);
   color: #374151;
+}
+
+.status-badge.rejected {
+  background: rgba(220, 38, 38, 0.1);
+  color: #991b1b;
 }
 
 .secondary-action {

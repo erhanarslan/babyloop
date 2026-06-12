@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   adminListingActionBodySchema,
+  adminListingImageActionBodySchema,
+  adminListingImageParamsSchema,
   adminListingParamsSchema,
   adminListingsQuerySchema
 } from "../src/schemas/admin-listings.schemas.js";
@@ -61,6 +63,45 @@ describe("admin listings schemas", () => {
       adminListingActionBodySchema.safeParse({
         action: "restore",
         reason: "short"
+      }).success
+    ).toBe(false);
+  });
+
+  it("validates listing image review params and action bodies", () => {
+    expect(
+      adminListingImageParamsSchema.safeParse({
+        imageId: "40000000-0000-4000-8000-000000000001",
+        listingId: "30000000-0000-4000-8000-000000000001"
+      }).success
+    ).toBe(true);
+    expect(
+      adminListingImageParamsSchema.safeParse({
+        imageId: "bad-image-id",
+        listingId: "30000000-0000-4000-8000-000000000001"
+      }).success
+    ).toBe(false);
+    expect(
+      adminListingImageActionBodySchema.safeParse({
+        action: "reject",
+        reason: "Image contains prohibited or unsafe content."
+      }).success
+    ).toBe(true);
+    expect(
+      adminListingImageActionBodySchema.safeParse({
+        action: "approve",
+        reason: "Image has passed the marketplace review."
+      }).success
+    ).toBe(true);
+    expect(
+      adminListingImageActionBodySchema.safeParse({
+        action: "delete",
+        reason: "Unsupported image action."
+      }).success
+    ).toBe(false);
+    expect(
+      adminListingImageActionBodySchema.safeParse({
+        action: "reject",
+        reason: "   "
       }).success
     ).toBe(false);
   });

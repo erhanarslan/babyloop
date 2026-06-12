@@ -156,7 +156,11 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
 
       <section className="side-stack">
         <ListingStatusActionForm listing={listing} onApplied={setListing} />
-        <ListingImageReviewPanel images={listing.images} />
+        <ListingImageReviewPanel
+          images={listing.images}
+          listingId={listing.id}
+          onReviewed={setListing}
+        />
         <RelatedModerationCases cases={listing.relatedModerationCases} />
       </section>
 
@@ -166,8 +170,8 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
             <p className="eyebrow">Audit</p>
             <h2>Listing action audit</h2>
             <p>
-              Safe listing-scoped admin action history. Sensitive access and
-              moderation case timelines remain separate.
+              Safe listing-scoped admin activity, image review actions, and
+              related moderation enforcement events. Sensitive access remains separate.
             </p>
           </div>
         </div>
@@ -249,6 +253,22 @@ function getAuditEventLabel(event: AdminListingAuditEvent): string {
     if (action === "restore") {
       return "Listing restored";
     }
+  }
+
+  if (event.eventType === "admin_listing_image_review_applied") {
+    const action = event.metadata.action;
+
+    if (action === "approve") {
+      return "Image approved";
+    }
+
+    if (action === "reject") {
+      return "Image rejected";
+    }
+  }
+
+  if (event.eventType === "admin_moderation_enforcement") {
+    return "Moderation enforcement applied";
   }
 
   return "Listing audit event";

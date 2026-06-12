@@ -2,15 +2,19 @@ import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import {
   adminListingActionBodySchema,
+  adminListingImageActionBodySchema,
+  adminListingImageParamsSchema,
   adminListingParamsSchema,
   adminListingsQuerySchema
 } from "../schemas/admin-listings.schemas.js";
 import { requireAdminUser } from "../services/admin-context.service.js";
 import {
   applyAdminListingAction,
+  applyAdminListingImageAction,
   getAdminListingDetail,
   listAdminListings,
   type AdminListingDetail,
+  type AdminListingImageReview,
   type AdminListingSummary
 } from "../services/admin-listings.service.js";
 
@@ -27,6 +31,11 @@ type AdminListingActionResponse = ApiResponse<{
   action: string;
   previousStatus: string;
   nextStatus: string;
+  auditEventId: string;
+}>;
+
+type AdminListingImageActionResponse = ApiResponse<{
+  image: AdminListingImageReview;
   auditEventId: string;
 }>;
 
@@ -148,6 +157,61 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
           action: result.action,
           previousStatus: result.previousStatus,
           nextStatus: result.nextStatus,
+          auditEventId: result.auditEventId
+        }
+      };
+    }
+  );
+
+  app.post<{ Body: unknown; Params: unknown; Reply: AdminListingImageActionResponse }>(
+    "/admin/listings/:listingId/images/:imageId/actions",
+    async (request, reply) => {
+      const admin = await requireAdminUser(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminListingImageParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Listing and image ids must be valid UUIDs."));
+      }
+
+      const parsedBody = adminListingImageActionBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Admin listing image action body is invalid."));
+      }
+
+      const result = await applyAdminListingImageAction(app, {
+        actorProfileId: admin.profile.id,
+        action: parsedBody.data.action,
+        imageId: parsedParams.data.imageId,
+        listingId: parsedParams.data.listingId,
+        reason: parsedBody.data.reason
+      });
+
+      if (result.status === "not_found" || result.status === "image_not_found") {
+        return reply.status(404).send(notFound("Listing image was not found."));
+      }
+
+      if (result.status === "unsupported_action") {
+        return reply.status(400).send(invalidRequest("Listing image action is invalid."));
+      }
+
+      if (result.status !== "applied") {
+        return reply.status(400).send(invalidRequest("Listing image action is invalid."));
+      }
+
+      return {
+        ok: true,
+        data: {
+          image: result.image,
           auditEventId: result.auditEventId
         }
       };

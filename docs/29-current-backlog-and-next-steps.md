@@ -220,6 +220,7 @@ Permissioned Sensitive Raw Data Access + Audit
 - Backoffice case detail now has reason-required enforcement controls for supported listing/message targets.
 - Enforcement actions are audited and shown through the safe moderation timeline.
 - Backoffice listing review tools now provide safe listing list/detail screens, read-only image review, related moderation case summaries, reason-required archive/restore actions, and listing-scoped audit events.
+- Marketplace review operations now include approved/rejected listing image review, public filtering for rejected images, listing activity visibility, and an aggregate-only dashboard MVP.
 
 ### Later backlog
 
@@ -228,7 +229,7 @@ Permissioned Sensitive Raw Data Access + Audit
 3. AI moderation summary endpoint using redacted inputs by default.
 4. AI recommendation UI in backoffice.
 5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
-6. Listing image approve/reject workflow after image moderation status exists.
+6. Pending image review queue and automated image moderation.
 7. Profile/account enforcement workflow after a safe user/profile status model exists.
-8. Full trust & safety audit event dashboard.
+8. Full trust & safety audit event dashboard and advanced analytics.
 9. Granular denied-audit policy for unauthenticated and malformed requests.

@@ -158,6 +158,17 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] admin can restore an archived listing with a reason
 - [ ] listing admin actions write `admin_listing_action_applied` audit events
 - [ ] unsupported listing actions and blank reasons are rejected
+- [ ] admin can reject a listing image with a reason
+- [ ] rejected images disappear from public listing list/detail responses
+- [ ] admin listing detail still shows rejected images with `reviewStatus = rejected`
+- [ ] admin can approve a rejected listing image
+- [ ] approved images appear in public listing list/detail responses again
+- [ ] listing image review writes `admin_listing_image_review_applied`
+- [ ] image review audit metadata does not include raw reason, seller email/phone, reporter identity, raw message body, tokens, or raw profile/user objects
+- [ ] non-admin image review requests return 403
+- [ ] mismatched `listingId`/`imageId` returns 404
+- [ ] dashboard summary returns aggregate counts only
+- [ ] dashboard summary does not expose seller/reporter/message/private user data or raw event metadata
 
 ### AI
 
@@ -223,6 +234,9 @@ Checklist:
 - [ ] backoffice listing cards show safe seller summary, thumbnail/count, and related case counts
 - [ ] backoffice `/listings/[listingId]` shows safe listing detail, read-only image review, related cases, and listing action audit
 - [ ] backoffice listing archive/restore requires a reason and does not call sensitive-access
+- [ ] backoffice image approve/reject requires a reason and does not call sensitive-access
+- [ ] rejected images are visible in backoffice and hidden publicly
+- [ ] backoffice dashboard loads aggregate-only listing/image/moderation/action cards
 - [ ] backoffice listing review does not show seller email/phone, reporter identity, or raw message body
 
 Seeded account flow:

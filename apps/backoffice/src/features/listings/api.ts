@@ -17,11 +17,15 @@ export type AdminListingSort =
   | "updated_asc";
 
 export type AdminListingAction = "archive" | "restore";
+export type AdminListingImageAction = "approve" | "reject";
 
 export type AdminListingImage = {
   id: string;
   url: string;
   sortOrder: number;
+  reviewStatus: "approved" | "rejected";
+  reviewedAt: string | null;
+  reviewedByProfileId: string | null;
   createdAt: string;
 };
 
@@ -124,6 +128,17 @@ export type ApplyAdminListingActionResponse = {
   };
 };
 
+export type ApplyAdminListingImageActionInput = {
+  action: AdminListingImageAction;
+  reason: string;
+};
+
+export type ApplyAdminListingImageActionResponse = {
+  listing: AdminListingDetail;
+  image: AdminListingImage;
+  auditEventId: string;
+};
+
 const ADMIN_LISTINGS_BASE_PATH = "/api/v1/admin/listings";
 
 export async function listAdminListings(
@@ -188,6 +203,39 @@ export async function applyAdminListingAction(
     data: {
       listing: refreshedListing.data.listing,
       action: response.data,
+    },
+  };
+}
+
+export async function applyAdminListingImageAction(
+  listingId: string,
+  imageId: string,
+  input: ApplyAdminListingImageActionInput,
+): Promise<ApiResponse<ApplyAdminListingImageActionResponse>> {
+  const response = await adminRequest<{
+    image: AdminListingImage;
+    auditEventId: string;
+  }>(`${ADMIN_LISTINGS_BASE_PATH}/${listingId}/images/${imageId}/actions`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const refreshedListing = await getAdminListing(listingId);
+
+  if (!refreshedListing.ok) {
+    return refreshedListing;
+  }
+
+  return {
+    ok: true,
+    data: {
+      listing: refreshedListing.data.listing,
+      image: response.data.image,
+      auditEventId: response.data.auditEventId,
     },
   };
 }

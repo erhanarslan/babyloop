@@ -224,6 +224,30 @@ Listing-scoped actions currently support `archive` and `restore`, mapped to exis
 
 Listing action audit events use `admin_listing_action_applied` and store only safe metadata such as listing id, action, previous/next status, and reason length.
 
+### Decision: Rejected listing images are hidden publicly, visible to admins
+
+Listing image review uses `listing_images.review_status` with `approved` and `rejected`.
+
+Images default to `approved` so existing listings and new uploads continue to work. Public listing queries must fetch approved images only. Admin listing detail may fetch all images and include safe review metadata.
+
+Image review actions are listing-scoped marketplace operations:
+
+```txt
+POST /api/v1/admin/listings/:listingId/images/:imageId/actions
+```
+
+They write `admin_listing_image_review_applied` events and store only safe metadata. Raw reasons, image bytes, seller contact data, reporter identity, message bodies, tokens, and raw profile/user objects must not be stored in audit metadata.
+
+### Decision: Dashboard MVP is aggregate-only
+
+The backoffice dashboard summary endpoint:
+
+```txt
+GET /api/v1/admin/dashboard/summary
+```
+
+returns aggregate counts only. It is not an audit-log browser, user directory, or sensitive-data viewer. It must not expose identities, raw event metadata, message content, private profile/user data, or auth/session data.
+
 ### Decision: AI remains human-in-the-loop
 
 AI may provide:

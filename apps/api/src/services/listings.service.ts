@@ -3,7 +3,7 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -277,9 +277,9 @@ export async function addListingImage(
     return { status: "forbidden" };
   }
 
-  const currentImages = await getImages(app, input.listingId);
+  const currentImageCount = await countAllListingImages(app, input.listingId);
 
-  if (currentImages.length >= MAX_LISTING_IMAGES) {
+  if (currentImageCount >= MAX_LISTING_IMAGES) {
     return { status: "too_many_images" };
   }
 
@@ -297,7 +297,7 @@ export async function addListingImage(
       .values({
         listingId: input.listingId,
         url: storedImage.url,
-        sortOrder: currentImages.length
+        sortOrder: currentImageCount
       })
       .returning({
         id: listingImages.id,
@@ -444,6 +444,20 @@ export async function reorderListingImages(
     status: "updated",
     images: await getImages(app, listingId)
   };
+}
+
+async function countAllListingImages(
+  app: FastifyInstance,
+  listingId: string
+): Promise<number> {
+  const [row] = await app.db
+    .select({
+      imageCount: sql<number>`count(${listingImages.id})::int`
+    })
+    .from(listingImages)
+    .where(eq(listingImages.listingId, listingId));
+
+  return row?.imageCount ?? 0;
 }
 
 export async function listListingsForCurrentUser(

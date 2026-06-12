@@ -10,6 +10,7 @@ import {
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
+  AdminListingImageActionValue,
   AdminListingActionValue,
   AdminListingStatusValue
 } from "../schemas/admin-listings.schemas.js";
@@ -32,6 +33,9 @@ export type AdminListingImageReview = {
   id: string;
   url: string;
   sortOrder: number;
+  reviewStatus: "approved" | "rejected";
+  reviewedAt: string | null;
+  reviewedByProfileId: string | null;
   createdAt: string;
 };
 
@@ -104,6 +108,14 @@ export type AdminListingActionResult =
       auditEventId: string;
     }
   | { status: "not_found" | "unsupported_action" };
+
+export type AdminListingImageActionResult =
+  | {
+      status: "applied";
+      image: AdminListingImageReview;
+      auditEventId: string;
+    }
+  | { status: "not_found" | "image_not_found" | "unsupported_action" };
 
 export async function listAdminListings(
   app: FastifyInstance,
@@ -223,6 +235,106 @@ export async function applyAdminListingAction(
     previousStatus: listing.status,
     nextStatus,
     auditEventId: auditEvent.id
+  };
+}
+
+export async function applyAdminListingImageAction(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    action: AdminListingImageActionValue;
+    imageId: string;
+    listingId: string;
+    reason: string;
+  }
+): Promise<AdminListingImageActionResult> {
+  const [listing] = await app.db
+    .select({
+      id: listings.id
+    })
+    .from(listings)
+    .where(eq(listings.id, params.listingId))
+    .limit(1);
+
+  if (!listing) {
+    return { status: "not_found" };
+  }
+
+  const [image] = await app.db
+    .select({
+      id: listingImages.id,
+      listingId: listingImages.listingId,
+      reviewStatus: listingImages.reviewStatus
+    })
+    .from(listingImages)
+    .where(and(eq(listingImages.id, params.imageId), eq(listingImages.listingId, params.listingId)))
+    .limit(1);
+
+  if (!image) {
+    return { status: "image_not_found" };
+  }
+
+  const nextReviewStatus = getNextReviewStatusForAction(params.action);
+
+  if (!nextReviewStatus) {
+    return { status: "unsupported_action" };
+  }
+
+  const result = await app.db.transaction(async (tx) => {
+    const now = new Date();
+    const [updatedImage] = await tx
+      .update(listingImages)
+      .set({
+        reviewStatus: nextReviewStatus,
+        reviewedAt: now,
+        reviewedByProfileId: params.actorProfileId
+      })
+      .where(and(eq(listingImages.id, params.imageId), eq(listingImages.listingId, params.listingId)))
+      .returning({
+        id: listingImages.id,
+        url: listingImages.url,
+        sortOrder: listingImages.sortOrder,
+        reviewStatus: listingImages.reviewStatus,
+        reviewedAt: listingImages.reviewedAt,
+        reviewedByProfileId: listingImages.reviewedByProfileId,
+        createdAt: listingImages.createdAt
+      });
+
+    const [auditEvent] = await tx
+      .insert(events)
+      .values({
+        actorProfileId: params.actorProfileId,
+        eventType: "admin_listing_image_review_applied",
+        entityType: "listing",
+        entityId: params.listingId,
+        metadata: {
+          listingId: params.listingId,
+          imageId: params.imageId,
+          action: params.action,
+          previousReviewStatus: image.reviewStatus,
+          nextReviewStatus,
+          reasonLength: params.reason.length,
+          result: "applied"
+        }
+      })
+      .returning({
+        id: events.id
+      });
+
+    if (!updatedImage || !auditEvent) {
+      throw new Error("Admin listing image review audit creation failed.");
+    }
+
+    return {
+      auditEventId: auditEvent.id,
+      image: updatedImage
+    };
+  });
+
+  return {
+    status: "applied",
+    image: mapImage(result.image),
+    auditEventId: result.auditEventId
   };
 }
 
@@ -358,6 +470,9 @@ async function loadPrimaryImages(
       listingId: listingImages.listingId,
       url: listingImages.url,
       sortOrder: listingImages.sortOrder,
+      reviewStatus: listingImages.reviewStatus,
+      reviewedAt: listingImages.reviewedAt,
+      reviewedByProfileId: listingImages.reviewedByProfileId,
       createdAt: listingImages.createdAt
     })
     .from(listingImages)
@@ -406,6 +521,9 @@ async function loadAdminListingImages(
       id: listingImages.id,
       url: listingImages.url,
       sortOrder: listingImages.sortOrder,
+      reviewStatus: listingImages.reviewStatus,
+      reviewedAt: listingImages.reviewedAt,
+      reviewedByProfileId: listingImages.reviewedByProfileId,
       createdAt: listingImages.createdAt
     })
     .from(listingImages)
@@ -497,6 +615,13 @@ async function loadAdminListingAuditTrail(
   app: FastifyInstance,
   listingId: string
 ): Promise<AdminListingAuditEvent[]> {
+  const relatedCases = await app.db
+    .select({
+      id: moderationCases.id
+    })
+    .from(moderationCases)
+    .where(and(eq(moderationCases.targetType, "listing"), eq(moderationCases.targetId, listingId)));
+  const relatedCaseIds = relatedCases.map((moderationCase) => moderationCase.id);
   const rows = await app.db
     .select({
       id: events.id,
@@ -508,7 +633,18 @@ async function loadAdminListingAuditTrail(
     })
     .from(events)
     .leftJoin(profiles, eq(events.actorProfileId, profiles.id))
-    .where(and(eq(events.entityType, "listing"), eq(events.entityId, listingId)))
+    .where(
+      or(
+        and(eq(events.entityType, "listing"), eq(events.entityId, listingId)),
+        relatedCaseIds.length > 0
+          ? and(
+              eq(events.entityType, "moderation_case"),
+              inArray(events.entityId, relatedCaseIds),
+              eq(events.eventType, "admin_moderation_enforcement")
+            )
+          : undefined
+      )
+    )
     .orderBy(desc(events.createdAt))
     .limit(50);
 
@@ -530,12 +666,18 @@ function mapImage(row: {
   id: string;
   url: string;
   sortOrder: number;
+  reviewStatus: "approved" | "rejected";
+  reviewedAt: Date | null;
+  reviewedByProfileId: string | null;
   createdAt: Date;
 }): AdminListingImageReview {
   return {
     id: row.id,
     url: row.url,
     sortOrder: row.sortOrder,
+    reviewStatus: row.reviewStatus,
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+    reviewedByProfileId: row.reviewedByProfileId,
     createdAt: row.createdAt.toISOString()
   };
 }
@@ -571,15 +713,35 @@ function getNextStatusForAction(action: AdminListingActionValue): "active" | "ar
   }
 }
 
+function getNextReviewStatusForAction(
+  action: AdminListingImageActionValue
+): "approved" | "rejected" | null {
+  switch (action) {
+    case "approve":
+      return "approved";
+    case "reject":
+      return "rejected";
+  }
+}
+
 function sanitizeListingAuditMetadata(
   metadata: Record<string, unknown>
 ): Record<string, string | number | boolean | string[] | null> {
   const allowedKeys = [
     "action",
+    "enforcementAction",
+    "imageId",
     "listingId",
+    "moderationActionId",
     "nextStatus",
+    "nextReviewStatus",
     "previousStatus",
-    "reasonLength"
+    "previousReviewStatus",
+    "reasonLength",
+    "result",
+    "resultingStatus",
+    "targetId",
+    "targetType"
   ];
   const safeMetadata: Record<string, string | number | boolean | string[] | null> = {};
 
