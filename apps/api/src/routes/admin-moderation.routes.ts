@@ -3,6 +3,7 @@ import type { ModerationSummaryProvider } from "@babyloop/ai-core";
 import type { FastifyInstance } from "fastify";
 import {
   adminModerationActionBodySchema,
+  adminModerationAiSummariesQuerySchema,
   adminModerationAiSummaryBodySchema,
   adminModerationCaseParamsSchema,
   adminModerationCasesQuerySchema,
@@ -25,7 +26,10 @@ import {
   requestAdminModerationSensitiveAccess,
   updateAdminModerationCaseStatus
 } from "../services/admin-moderation.service.js";
-import { generateAdminModerationAiSummary } from "../services/admin-moderation-ai.service.js";
+import {
+  generateAdminModerationAiSummary,
+  listAdminModerationAiSummaries
+} from "../services/admin-moderation-ai.service.js";
 
 export type RegisterAdminModerationRoutesOptions = {
   aiSummaryProvider?: ModerationSummaryProvider;
@@ -251,6 +255,51 @@ export function registerAdminModerationRoutes(
   );
 
 
+  app.get<{ Params: { caseId: string }; Querystring: unknown }>(
+    "/admin/moderation/cases/:caseId/ai-summaries",
+    async (request, reply) => {
+      const admin = await requireAdminUser(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminModerationCaseParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation case id must be a valid UUID."));
+      }
+
+      const parsedQuery = adminModerationAiSummariesQuerySchema.safeParse(request.query);
+
+      if (!parsedQuery.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation AI summary query is invalid."));
+      }
+
+      const result = await listAdminModerationAiSummaries(app, {
+        caseId: parsedParams.data.caseId,
+        limit: parsedQuery.data.limit ?? 5
+      });
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      return {
+        ok: true,
+        data: {
+          caseId: result.caseId,
+          summaries: result.summaries
+        }
+      };
+    }
+  );
+
+
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/ai-summary",
     async (request, reply) => {
@@ -285,6 +334,18 @@ export function registerAdminModerationRoutes(
 
       if (result.status === "not_found") {
         return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      if (result.status === "rate_limited") {
+        reply.header("Retry-After", String(result.retryAfterSeconds));
+
+        return reply.status(429).send({
+          ok: false,
+          error: {
+            code: "AI_RATE_LIMITED",
+            message: "A recent AI moderation summary already exists for this case."
+          }
+        });
       }
 
       if (result.status === "error") {

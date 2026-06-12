@@ -7,6 +7,7 @@ import {
   type ModerationSummaryProvider
 } from "@babyloop/ai-core";
 import { aiModelRuns, events } from "@babyloop/database/schema";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { getAdminModerationCaseDetail } from "./admin-moderation.service.js";
 import { createSafeTextPreview } from "./redaction.service.js";
@@ -14,6 +15,27 @@ import { createSafeTextPreview } from "./redaction.service.js";
 const AI_MODERATION_SUMMARY_FEATURE = "moderation_summary";
 const MOCK_AI_MODEL_NAME = "mock-model";
 const MOCK_AI_PROVIDER_NAME = "mock-moderation-summary";
+const AI_MODERATION_SUMMARY_RATE_LIMIT_SECONDS = 5 * 60;
+
+export type AdminModerationAiSummaryRunSummary = {
+  id: string;
+  caseId: string | null;
+  status: "success" | "error" | "validation_failed" | "provider_failed" | "skipped";
+  providerName: string;
+  modelName: string | null;
+  promptVersion: string;
+  summary: string | null;
+  riskLevel: ModerationSummaryOutput["riskLevel"] | null;
+  recommendedAction: ModerationSummaryOutput["recommendedAction"] | null;
+  confidenceScore: number | null;
+  riskScore: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+export type AdminModerationAiSummariesResult =
+  | { status: "found"; caseId: string; summaries: AdminModerationAiSummaryRunSummary[] }
+  | { status: "not_found" };
 
 export type AdminModerationAiSummaryResult =
   | {
@@ -22,6 +44,13 @@ export type AdminModerationAiSummaryResult =
       aiModelRunId: string;
       auditEventId: string;
       summary: ModerationSummaryOutput;
+    }
+  | {
+      status: "rate_limited";
+      caseId: string;
+      retryAfterSeconds: number;
+      nextAllowedAt: string;
+      latestSummary: AdminModerationAiSummaryRunSummary;
     }
   | { status: "not_found" }
   | { status: "error"; errorMessage: string };
@@ -42,6 +71,28 @@ export async function generateAdminModerationAiSummary(
   }
 
   const input = buildRedactedModerationSummaryInput(detail);
+  const recentSummary = await getLatestSuccessfulModerationAiSummaryRun(
+    app,
+    params.caseId,
+    AI_MODERATION_SUMMARY_RATE_LIMIT_SECONDS
+  );
+
+  if (recentSummary) {
+    const nextAllowedAt = new Date(
+      new Date(recentSummary.createdAt).getTime() + AI_MODERATION_SUMMARY_RATE_LIMIT_SECONDS * 1000
+    );
+
+    return {
+      status: "rate_limited",
+      caseId: params.caseId,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((nextAllowedAt.getTime() - Date.now()) / 1000)
+      ),
+      nextAllowedAt: nextAllowedAt.toISOString(),
+      latestSummary: recentSummary
+    };
+  }
 
   try {
     const summary = await summarizeModerationCase(input, {
@@ -97,6 +148,32 @@ export async function generateAdminModerationAiSummary(
   }
 }
 
+
+export async function listAdminModerationAiSummaries(
+  app: FastifyInstance,
+  params: {
+    caseId: string;
+    limit: number;
+  }
+): Promise<AdminModerationAiSummariesResult> {
+  const detail = await getAdminModerationCaseDetail(app, params.caseId);
+
+  if (detail.status === "not_found") {
+    return { status: "not_found" };
+  }
+
+  const summaries = await listModerationAiSummaryRuns(app, {
+    caseId: params.caseId,
+    limit: params.limit
+  });
+
+  return {
+    status: "found",
+    caseId: params.caseId,
+    summaries
+  };
+}
+
 function buildRedactedModerationSummaryInput(
   detail: Extract<Awaited<ReturnType<typeof getAdminModerationCaseDetail>>, { status: "found" }>
 ): ModerationSummaryInput {
@@ -148,6 +225,152 @@ function toModerationSummaryTargetPreview(
     type: "message",
     summary: `Message ${preview.id.slice(0, 8)} preview: ${preview.bodyPreview}`
   };
+}
+
+
+async function getLatestSuccessfulModerationAiSummaryRun(
+  app: FastifyInstance,
+  caseId: string,
+  withinSeconds: number
+): Promise<AdminModerationAiSummaryRunSummary | null> {
+  const [latest] = await queryModerationAiSummaryRuns(app, {
+    caseId,
+    limit: 1,
+    status: "success",
+    createdSince: new Date(Date.now() - withinSeconds * 1000)
+  });
+
+  return latest ? mapAiModelRunSummary(latest) : null;
+}
+
+async function listModerationAiSummaryRuns(
+  app: FastifyInstance,
+  params: {
+    caseId: string;
+    limit: number;
+  }
+): Promise<AdminModerationAiSummaryRunSummary[]> {
+  const rows = await queryModerationAiSummaryRuns(app, {
+    caseId: params.caseId,
+    limit: params.limit
+  });
+
+  return rows.map(mapAiModelRunSummary);
+}
+
+type AiModelRunSummaryRow = {
+  id: string;
+  providerName: string;
+  modelName: string | null;
+  promptVersion: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  confidenceScore: string | null;
+  riskScore: string | null;
+  status: "success" | "error" | "validation_failed" | "provider_failed" | "skipped";
+  errorMessage: string | null;
+  createdAt: Date;
+};
+
+async function queryModerationAiSummaryRuns(
+  app: FastifyInstance,
+  params: {
+    caseId: string;
+    limit: number;
+    status?: "success" | "error" | "validation_failed" | "provider_failed" | "skipped";
+    createdSince?: Date;
+  }
+): Promise<AiModelRunSummaryRow[]> {
+  const whereClauses = [
+    eq(aiModelRuns.feature, AI_MODERATION_SUMMARY_FEATURE),
+    sql`${aiModelRuns.input}->>'caseId' = ${params.caseId}`
+  ];
+
+  if (params.status) {
+    whereClauses.push(eq(aiModelRuns.status, params.status));
+  }
+
+  if (params.createdSince) {
+    whereClauses.push(gte(aiModelRuns.createdAt, params.createdSince));
+  }
+
+  return app.db
+    .select({
+      id: aiModelRuns.id,
+      providerName: aiModelRuns.providerName,
+      modelName: aiModelRuns.modelName,
+      promptVersion: aiModelRuns.promptVersion,
+      input: aiModelRuns.input,
+      output: aiModelRuns.output,
+      confidenceScore: aiModelRuns.confidenceScore,
+      riskScore: aiModelRuns.riskScore,
+      status: aiModelRuns.status,
+      errorMessage: aiModelRuns.errorMessage,
+      createdAt: aiModelRuns.createdAt
+    })
+    .from(aiModelRuns)
+    .where(and(...whereClauses))
+    .orderBy(desc(aiModelRuns.createdAt))
+    .limit(params.limit);
+}
+
+function mapAiModelRunSummary(row: AiModelRunSummaryRow): AdminModerationAiSummaryRunSummary {
+  const output = row.output ?? {};
+
+  return {
+    id: row.id,
+    caseId: typeof row.input.caseId === "string" ? row.input.caseId : null,
+    status: row.status,
+    providerName: row.providerName,
+    modelName: row.modelName,
+    promptVersion: row.promptVersion,
+    summary: getOptionalString(output.summary),
+    riskLevel: getRiskLevel(output.riskLevel),
+    recommendedAction: getRecommendedAction(output.recommendedAction),
+    confidenceScore: parseOptionalNumber(row.confidenceScore),
+    riskScore: parseOptionalNumber(row.riskScore),
+    errorMessage: row.errorMessage ? row.errorMessage.slice(0, 300) : null,
+    createdAt: row.createdAt.toISOString()
+  };
+}
+
+function getOptionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.slice(0, 500) : null;
+}
+
+function getRiskLevel(value: unknown): ModerationSummaryOutput["riskLevel"] | null {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+
+  return null;
+}
+
+function getRecommendedAction(
+  value: unknown
+): ModerationSummaryOutput["recommendedAction"] | null {
+  if (
+    value === "dismiss_or_monitor" ||
+    value === "continue_review" ||
+    value === "hide_listing" ||
+    value === "hide_message" ||
+    value === "restrict_profile" ||
+    value === "escalate"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function parseOptionalNumber(value: string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 type AiModelRunLogInput = {

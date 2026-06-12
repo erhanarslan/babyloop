@@ -188,6 +188,27 @@ export type GenerateAdminModerationAiSummaryResponse = {
   auditEventId: string;
 };
 
+export type AdminModerationAiSummaryRun = {
+  id: string;
+  caseId: string | null;
+  status: "success" | "error" | "validation_failed" | "provider_failed" | "skipped";
+  providerName: string;
+  modelName: string | null;
+  promptVersion: string;
+  summary: string | null;
+  riskLevel: AdminModerationAiSummary["riskLevel"] | null;
+  recommendedAction: AdminModerationAiSummary["recommendedAction"] | null;
+  confidenceScore: number | null;
+  riskScore: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+export type ListAdminModerationAiSummariesResponse = {
+  caseId: string;
+  summaries: AdminModerationAiSummaryRun[];
+};
+
 export type RequestAdminSensitiveAccessInput = {
   reason: string;
   fields: AdminSensitiveAccessField[];
@@ -450,6 +471,15 @@ export async function applyAdminModerationEnforcement(
   };
 }
 
+
+export async function listAdminModerationAiSummaries(
+  caseId: string,
+  limit = 5,
+): Promise<ApiResponse<ListAdminModerationAiSummariesResponse>> {
+  return adminRequest<ListAdminModerationAiSummariesResponse>(
+    `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/ai-summaries?limit=${limit}`,
+  );
+}
 
 export async function generateAdminModerationAiSummary(
   caseId: string,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adminModerationEnforcementBodySchema,
+  adminModerationAiSummariesQuerySchema,
   adminModerationAiSummaryBodySchema,
   adminModerationCasesQuerySchema,
   adminSensitiveAccessBodySchema
@@ -156,5 +157,29 @@ describe("admin moderation AI summary schema", () => {
     expect(adminModerationAiSummaryBodySchema.safeParse({ reason: "short" }).success)
       .toBe(false);
     expect(adminModerationAiSummaryBodySchema.safeParse({}).success).toBe(false);
+  });
+});
+
+
+describe("admin moderation AI summaries query schema", () => {
+  it("accepts a safe history limit", () => {
+    const parsed = adminModerationAiSummariesQuerySchema.safeParse({
+      limit: "5"
+    });
+
+    expect(parsed.success).toBe(true);
+
+    if (parsed.success) {
+      expect(parsed.data.limit).toBe(5);
+    }
+  });
+
+  it("rejects unsafe history limits", () => {
+    expect(adminModerationAiSummariesQuerySchema.safeParse({ limit: "0" }).success)
+      .toBe(false);
+    expect(adminModerationAiSummariesQuerySchema.safeParse({ limit: "100" }).success)
+      .toBe(false);
+    expect(adminModerationAiSummariesQuerySchema.safeParse({ limit: "raw" }).success)
+      .toBe(false);
   });
 });
