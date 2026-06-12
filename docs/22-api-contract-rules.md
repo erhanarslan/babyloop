@@ -229,6 +229,33 @@ Every successful enforcement action must write a moderation action and an `admin
 
 Profile enforcement, account suspension, listing under-review state, and destructive deletion remain outside this endpoint until the schema and product rules explicitly support them.
 
+### Admin listing review contract
+
+Admin listing review uses listing-scoped endpoints:
+
+```txt
+GET /api/v1/admin/listings
+GET /api/v1/admin/listings/:listingId
+POST /api/v1/admin/listings/:listingId/actions
+```
+
+`GET /api/v1/admin/listings` may filter by `status`, `q`, `categoryId`, `sort`, and `limit`. Search is limited to safe listing and operational fields such as listing id, title, public description, category id/name, seller profile id, and status.
+
+Admin listing responses may include safe seller summary fields:
+
+```ts
+seller: {
+  profileId: string;
+  displayName: string;
+  locationCity: string | null;
+  createdAt: string;
+}
+```
+
+Admin listing responses must not include seller email, seller phone, raw user objects, raw profile objects, reporter identity, raw message body, conversation participants, tokens, or auth/session metadata.
+
+Listing action requests must include `action: "archive" | "restore"` and an explicit reason. Listing-scoped actions are audited separately from moderation case enforcement and must not call the sensitive-access endpoint.
+
 ### Message target preview contract
 
 Message previews must be generated server-side.

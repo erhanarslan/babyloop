@@ -41,6 +41,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - messaging read-state correction
 - messaging XSS/security hardening
 - Trust & Safety report/block/moderation foundation
+- backoffice listing review tools for safe listing operations
 - deterministic message moderation
 - mock AI listing suggestions
 - AI audit logging
@@ -53,7 +54,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - MFA user-facing management
 - listing discovery/filtering
 - image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full moderation review workflow beyond report/block foundation
+- full moderation review workflow beyond current report/block, case triage, enforcement, timeline, and listing review foundations
 - realtime production scaling
 - AI production/provider/RAG features
 - UI system
@@ -218,6 +219,7 @@ Permissioned Sensitive Raw Data Access + Audit
 - Timeline audit metadata is allowlisted server-side and does not expose raw message bodies, reporter emails, tokens, full profile/listing/conversation data, or conversation participants.
 - Backoffice case detail now has reason-required enforcement controls for supported listing/message targets.
 - Enforcement actions are audited and shown through the safe moderation timeline.
+- Backoffice listing review tools now provide safe listing list/detail screens, read-only image review, related moderation case summaries, reason-required archive/restore actions, and listing-scoped audit events.
 
 ### Later backlog
 
@@ -226,6 +228,7 @@ Permissioned Sensitive Raw Data Access + Audit
 3. AI moderation summary endpoint using redacted inputs by default.
 4. AI recommendation UI in backoffice.
 5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
-6. Profile/account enforcement workflow after a safe user/profile status model exists.
-7. Full trust & safety audit event dashboard.
-8. Granular denied-audit policy for unauthenticated and malformed requests.
+6. Listing image approve/reject workflow after image moderation status exists.
+7. Profile/account enforcement workflow after a safe user/profile status model exists.
+8. Full trust & safety audit event dashboard.
+9. Granular denied-audit policy for unauthenticated and malformed requests.

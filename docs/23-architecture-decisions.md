@@ -75,24 +75,34 @@ Rent introduces deposit, date range, return, damage, contract, payment, and disp
 - Do not remove `rent` from the database enum without a dedicated migration plan.
 - Do not implement rental payments, deposits, date ranges, or return/dispute flows in MVP cleanup tasks.
 
-## AD-004: Manual Image URLs Are Temporary Development Bridge
+## AD-004: Listing Images Use Safe Upload Storage, Manual URLs Are Compatibility
 
 ### Decision
 
-BabyLoop currently accepts `imageUrls` during listing creation and stores image URL metadata.
+BabyLoop supports local listing image upload for development and test through `var/uploads`, plus a safe API media route. PostgreSQL stores image metadata and public relative URLs only, not raw image bytes.
 
-This is temporary development-only behavior. Manual image URL entry is not acceptable for production marketplace listings.
+BabyLoop still accepts `imageUrls` during listing creation as compatibility metadata for existing local development and regression coverage. Manual arbitrary URL entry is not acceptable as the primary production marketplace photo flow.
 
-The field must remain available until a real upload flow exists so current local development and regression tests keep working.
+Production storage still needs an S3/R2-compatible provider, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation.
+
+Current upload safety includes:
+
+- file type validation
+- file size limits
+- MIME/extension/magic-byte checks
+- SVG rejection
+- max image count
+- path traversal prevention
+- no original filename trust
 
 Future production upload work should add:
 
-- signed upload URLs
-- durable storage
-- file type validation
-- file size limits
+- signed or direct object-storage uploads
+- durable object storage
+- resize/thumbnail transforms
+- EXIF stripping
+- image moderation hooks
 - image metadata persistence
-- safety/moderation hooks before broad marketplace distribution
 
 ### Reason
 
@@ -100,8 +110,9 @@ Real listing photos need controlled upload, storage, validation, and auditabilit
 
 ### Do Not Regress
 
-- Do not claim image upload exists until files can actually be uploaded.
-- Do not remove `imageUrls` before a replacement upload flow exists.
+- Do not store raw image bytes/base64 in PostgreSQL.
+- Do not commit uploaded image files or local upload folders.
+- Do not remove `imageUrls` until compatibility requirements are retired deliberately.
 - Do not add storage SDKs or schema changes without a focused upload implementation plan.
 - Keep validation strict for the temporary URL flow: valid URLs only and max 5 images.
 
@@ -194,6 +205,24 @@ The first enforcement slice uses:
 Profile enforcement is deferred because profiles/users do not yet have a safe moderation status model. Listing `under_review` is also deferred because it is not an existing listing status.
 
 Every enforcement action requires admin auth, a valid moderation case, a compatible target type, an explicit reason, and an audit/timeline event.
+
+### Decision: Listing admin review is listing-scoped, not sensitive access
+
+Backoffice listing review tools use separate admin listing endpoints:
+
+```txt
+GET /api/v1/admin/listings
+GET /api/v1/admin/listings/:listingId
+POST /api/v1/admin/listings/:listingId/actions
+```
+
+These endpoints support marketplace operations on listing records and must not call or replace the permissioned sensitive-access endpoint.
+
+Admin listing DTOs may include safe listing fields, category summary, read-only image metadata, seller profile id/display name/city, and related moderation case summaries. They must not include seller email, seller phone, raw user/profile objects, reporter identity, raw message body, conversation participants, tokens, or auth/session metadata.
+
+Listing-scoped actions currently support `archive` and `restore`, mapped to existing `listings.status` values `archived` and `active`. Listing `under_review`, image approve/reject, and profile enforcement remain deferred until the schema supports safe states.
+
+Listing action audit events use `admin_listing_action_applied` and store only safe metadata such as listing id, action, previous/next status, and reason length.
 
 ### Decision: AI remains human-in-the-loop
 

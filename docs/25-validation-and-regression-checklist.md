@@ -145,6 +145,20 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] blocked profile pair cannot send messages in either direction
 - [ ] block/list responses do not expose private user data
 
+### Backoffice Listing Review
+
+- [ ] admin can list marketplace listings through `GET /api/v1/admin/listings`
+- [ ] non-admin users cannot list admin listings
+- [ ] admin listing list filters validate `status`, `q`, `categoryId`, `sort`, and `limit`
+- [ ] admin listing list response does not expose seller email, seller phone, raw user/profile data, reporter identity, or raw message body
+- [ ] admin can open listing detail through `GET /api/v1/admin/listings/:listingId`
+- [ ] listing detail includes read-only image review metadata and related moderation case summaries
+- [ ] related moderation case summaries do not expose reporter identity or raw message bodies
+- [ ] admin can archive a listing with a reason through `POST /api/v1/admin/listings/:listingId/actions`
+- [ ] admin can restore an archived listing with a reason
+- [ ] listing admin actions write `admin_listing_action_applied` audit events
+- [ ] unsupported listing actions and blank reasons are rejected
+
 ### AI
 
 - [ ] mock suggestion response works
@@ -205,6 +219,11 @@ Checklist:
 - [ ] block user disables further sending from the current conversation
 - [ ] unblock allows messaging to resume if the other side has not blocked the user
 - [ ] mobile width check for listing image previews and messaging thread/composer
+- [ ] backoffice `/listings` loads with status/search/sort/limit controls
+- [ ] backoffice listing cards show safe seller summary, thumbnail/count, and related case counts
+- [ ] backoffice `/listings/[listingId]` shows safe listing detail, read-only image review, related cases, and listing action audit
+- [ ] backoffice listing archive/restore requires a reason and does not call sensitive-access
+- [ ] backoffice listing review does not show seller email/phone, reporter identity, or raw message body
 
 Seeded account flow:
 

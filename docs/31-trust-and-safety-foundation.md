@@ -80,7 +80,7 @@ Allowed reasons:
 
 ## Still Missing
 
-- full admin moderation UI
+- deeper admin moderation workflows beyond current list/detail, timeline, enforcement, and listing review tools
 - admin queue assignment and review states
 - escalation workflow
 - appeal flow
@@ -90,6 +90,23 @@ Allowed reasons:
 - AI moderation assistance
 - image moderation
 - moderation analytics and SLA tracking
+
+<!-- 2026-06-12-listing-admin-review-tools -->
+## 2026-06-12 Update — Listing Admin Review Tools
+
+Backoffice now includes a privacy-safe marketplace listing review area:
+
+```txt
+GET /api/v1/admin/listings
+GET /api/v1/admin/listings/:listingId
+POST /api/v1/admin/listings/:listingId/actions
+```
+
+The listing review DTO includes safe listing fields, category summary, image count/read-only image metadata, seller profile id/display name/city, and related moderation case summaries.
+
+It must not include seller email, seller phone, raw user/profile objects, reporter identity, raw message body, conversation participants, tokens, or auth/session metadata.
+
+Listing-scoped archive/restore actions require a reason and write `admin_listing_action_applied` audit events. The sensitive-access endpoint is not used by listing review tools.
 
 ## Manual QA Checklist
 

@@ -1096,6 +1096,267 @@ describe("listings API", () => {
     expect(response.body).not.toContain("password_hash");
     expect(response.body).not.toContain("seller-private@example.com");
   });
+
+  it("allows admins to list listings with privacy-safe seller summaries", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-list@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-list@babyloop.test",
+      displayName: "Safe Seller"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Admin review stroller"
+    });
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings?q=${listing.id}&status=active&sort=newest&limit=10`
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      ok: true;
+      data: {
+        listings: Array<{
+          id: string;
+          seller: Record<string, unknown>;
+          [key: string]: unknown;
+        }>;
+      };
+    }>();
+    expect(body.ok).toBe(true);
+    expect(Array.isArray(body.data.listings)).toBe(true);
+
+    const adminListing = body.data.listings.find((item) => item.id === listing.id);
+
+    expect(adminListing).toBeDefined();
+    expect(adminListing).toMatchObject({
+      id: listing.id,
+      title: "Admin review stroller",
+      status: "active",
+      seller: expect.objectContaining({
+        createdAt: expect.any(String),
+        displayName: "Safe Seller",
+        locationCity: seller.profile.locationCity,
+        profileId: seller.profile.id,
+      }),
+      category: expect.objectContaining({
+        id: expect.any(String),
+        name: expect.any(String)
+      }),
+      condition: "good",
+      currency: "TRY",
+      imageCount: expect.any(Number),
+      listingType: "sale",
+      moderation: expect.objectContaining({
+        relatedCaseCount: expect.any(Number),
+        openRelatedCaseCount: expect.any(Number)
+      }),
+      price: expect.objectContaining({
+        amount: "1000.00",
+        currency: "TRY"
+      }),
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String)
+    });
+
+    expect(adminListing).not.toHaveProperty("user");
+    expect(adminListing).not.toHaveProperty("profile");
+    expect(adminListing).not.toHaveProperty("passwordHash");
+    expect(adminListing).not.toHaveProperty("reporter");
+    expect(adminListing).not.toHaveProperty("messageBody");
+    expect(adminListing).not.toHaveProperty("conversationParticipants");
+    expect(adminListing?.seller).not.toHaveProperty("email");
+    expect(adminListing?.seller).not.toHaveProperty("phone");
+    expect(adminListing?.seller).not.toHaveProperty("user");
+
+    expect(response.body).not.toContain(seller.user.email);
+    expect(response.body).not.toContain("private-seller-list@babyloop.test");
+    expect(response.body).not.toContain("passwordHash");
+    expect(response.body).not.toContain("messageBody");
+    expect(response.body).not.toContain("conversationParticipants");
+  });
+
+  it("allows admins to review listing detail with images and related case summaries", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-detail@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-detail@babyloop.test",
+      displayName: "Detail Seller"
+    });
+    const reporter = await createUser(app, {
+      email: "private-reporter-listing-detail@babyloop.test",
+      displayName: "Private Reporter"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Reported review listing"
+    });
+
+    await app.db.insert(listingImages).values({
+      listingId: listing.id,
+      url: `/api/v1/uploads/listings/${listing.id}/safe.png`,
+      sortOrder: 0
+    });
+
+    const reportResponse = await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${listing.id}`,
+      payload: {
+        reason: "scam",
+        details: "Looks suspicious."
+      }
+    });
+
+    expect(reportResponse.statusCode).toBe(201);
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings/${listing.id}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        listing: expect.objectContaining({
+          id: listing.id,
+          imageCount: 1,
+          images: [
+            expect.objectContaining({
+              url: `/api/v1/uploads/listings/${listing.id}/safe.png`
+            })
+          ],
+          moderation: {
+            relatedCaseCount: 1,
+            openRelatedCaseCount: 1
+          },
+          relatedModerationCases: [
+            expect.objectContaining({
+              targetType: "listing",
+              targetId: listing.id,
+              reason: "scam"
+            })
+          ]
+        })
+      }
+    });
+
+    expect(response.body).not.toContain(seller.user.email);
+    expect(response.body).not.toContain(reporter.user.email);
+    expect(response.body).not.toContain(reporter.profile.displayName);
+    expect(response.body).not.toContain("reporter");
+  });
+
+  it("allows admins to archive and restore listings with safe audit events", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-action@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-action@babyloop.test"
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Action review listing"
+    });
+
+    const archived = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "archive",
+        reason: "Listing should be removed from marketplace review."
+      }
+    });
+    const restored = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "restore",
+        reason: "Listing has passed the review and can return."
+      }
+    });
+    const [listingRow] = await app.db
+      .select({
+        status: listings.status
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+    const eventCount = await countEvents(
+      app.db,
+      "admin_listing_action_applied",
+      listing.id
+    );
+
+    expect(archived.statusCode).toBe(200);
+    expect(archived.json().data).toMatchObject({
+      listingId: listing.id,
+      action: "archive",
+      previousStatus: "active",
+      nextStatus: "archived"
+    });
+    expect(restored.statusCode).toBe(200);
+    expect(restored.json().data).toMatchObject({
+      listingId: listing.id,
+      action: "restore",
+      previousStatus: "archived",
+      nextStatus: "active"
+    });
+    expect(listingRow?.status).toBe("active");
+    expect(eventCount).toBe(2);
+    expect(archived.body).not.toContain(seller.user.email);
+    expect(archived.body).not.toContain("messageBody");
+  });
+
+  it("rejects unsafe admin listing action requests", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-invalid-action@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const nonAdmin = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const nonAdminResponse = await app.inject({
+      headers: authHeader(nonAdmin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "archive",
+        reason: "This should not be allowed."
+      }
+    });
+    const invalidAction = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "under_review",
+        reason: "Unsupported listing review state."
+      }
+    });
+    const blankReason = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "archive",
+        reason: "   "
+      }
+    });
+
+    expect(nonAdminResponse.statusCode).toBe(403);
+    expect(invalidAction.statusCode).toBe(400);
+    expect(blankReason.statusCode).toBe(400);
+  });
 });
 
 function tinyPng(): Buffer {

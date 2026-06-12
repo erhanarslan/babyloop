@@ -208,6 +208,26 @@ They must not include raw message body, reporter email, user email, phone number
 
 Sensitive access remains separate from enforcement. Enforcement UI must not call the sensitive-access endpoint.
 
+## Listing review privacy rule
+
+Backoffice listing review tools use dedicated admin listing DTOs.
+
+Allowed listing review data:
+
+- listing id, title, public description, price, currency, status, listing type, condition, created/updated timestamps
+- category id/name/slug
+- listing image id/url/sort order/created timestamp
+- image counts and primary image preview
+- seller profile id, display name, city, and profile creation timestamp
+- related moderation case id/status/target/reason/status timestamps
+- listing-scoped audit metadata that has been allowlisted
+
+Listing review responses must not include seller email, seller phone, raw user objects, raw profile objects, reporter identity, raw message body, conversation participants, tokens, refresh tokens, or auth/session metadata.
+
+Listing-scoped archive/restore actions are audited with `events.eventType = admin_listing_action_applied`. Audit metadata may include listing id, action, previous/next status, and reason length. It must not store seller contact data, reporter identity, message bodies, tokens, or raw profile/user data.
+
+Listing review is not a sensitive-access path and must not call `POST /api/v1/admin/moderation/cases/:caseId/sensitive-access`.
+
 ## AI rule
 
 AI may only provide:

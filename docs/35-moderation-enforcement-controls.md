@@ -87,3 +87,15 @@ AI must not auto-enforce or call enforcement endpoints by default.
 - reversible message unhide workflow
 - assignment, SLA, reviewer queues, dashboards
 - appeals and enforcement notifications
+
+## Related Listing Review Tools
+
+Marketplace listing review now also has listing-scoped admin tools:
+
+```txt
+GET /api/v1/admin/listings
+GET /api/v1/admin/listings/:listingId
+POST /api/v1/admin/listings/:listingId/actions
+```
+
+Those actions currently support `archive` and `restore` for direct listing operations. They are audited with `admin_listing_action_applied` and remain separate from case-scoped enforcement. They do not call sensitive-access and must not expose seller contact data, reporter identity, or raw message bodies.
