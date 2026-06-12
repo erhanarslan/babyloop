@@ -31,6 +31,7 @@ import { registerAdminModerationRoutes } from "./routes/admin-moderation.routes.
 import { registerAdminProfileRoutes } from "./routes/admin-profiles.routes.js";
 import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
+import { registerAdminAiOpsRoutes } from "./routes/admin-ai-ops.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
 import type { ModerationSummaryProvider } from "@babyloop/ai-core";
 
@@ -170,6 +171,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
+    app.register(registerAdminAiOpsRoutes, { prefix: API_PREFIX });
     app.register(registerAdminConversationRoutes, { prefix: API_PREFIX });
     app.register(registerAdminDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminListingRoutes, { prefix: API_PREFIX });

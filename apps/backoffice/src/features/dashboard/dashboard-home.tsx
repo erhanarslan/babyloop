@@ -156,7 +156,7 @@ export function DashboardHome() {
               ]}
             />
             <DashboardModule
-              href="/moderation"
+              href="/ai-ops"
               title="AI moderation health"
               description="Monitor AI moderation summary usage and failure signals without showing raw prompts or outputs."
               stats={[

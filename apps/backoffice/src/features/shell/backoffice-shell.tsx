@@ -67,8 +67,9 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: "AI Tools",
+    href: "/ai-ops",
     description: "AI-assisted operations",
-    status: "planned",
+    status: "active",
   },
 ];
 
