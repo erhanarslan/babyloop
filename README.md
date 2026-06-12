@@ -16,7 +16,7 @@ This repository currently contains a verified local MVP foundation:
 
 The current auth slice includes email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, and MFA OTP backend foundation. These are local/product foundations, not a claim of production-ready auth operations.
 
-Worker, mobile app, real AI providers, pricing, RAG, recommendations, production email delivery, and payments are intentionally delayed.
+Worker, mobile app, listing valuation, RAG, recommendations, production email delivery, payments, and production AI operations are intentionally delayed. A configurable OpenAI-backed provider foundation now exists for redacted backoffice moderation summaries; public listing assistance remains mock-only.
 
 ## Current Implemented Features
 
@@ -43,8 +43,8 @@ Partially implemented:
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
 | Listing images | Local upload/storage works for development and tests, but production object storage, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are deferred. |
 | Messaging | List/thread/send/realtime/read-state works, but attachments and durable per-conversation read receipts remain deferred. |
-| Trust & Safety | Reporting/blocking, profile enforcement, and backoffice review foundations exist, but assignment/SLA, fraud detection, appeals, unsafe-product guidance, full user directory, and AI moderation are deferred. |
-| AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
+| Trust & Safety | Reporting/blocking, profile enforcement, backoffice review, safe audit browsing, and explicit redacted AI moderation summary foundations exist. Assignment/SLA, fraud detection, appeals, unsafe-product guidance, full user directory, trust-score snapshots, and monitoring analytics are deferred. |
+| AI | Mock public listing suggestion flow exists. Backoffice redacted moderation summaries support mock or server-configured OpenAI provider execution with guardrails and `ai_model_runs` logging. Listing image understanding, price recommendation, RAG, recommendation engine, summary history, rate limiting, and cost monitoring remain deferred. |
 | Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
 | Email | No-op/dev email flow exists; real provider delivery is deferred. |
 | Web testing | API integration tests exist; web component/E2E tests are still missing. |
@@ -60,7 +60,7 @@ Not implemented:
 Intentionally deferred:
 
 - worker and mobile apps
-- real AI providers, pricing, RAG, recommendations, and AI moderation
+- public listing AI provider, pricing/valuation, image understanding, RAG, recommendations, and production AI operations
 - background workers/automation and notification delivery expansion
 - remaining production-grade auth/session hardening, including CSRF token enforcement and device/session UI
 - WhatsApp-like chat UI refinement as a future UX direction, not WhatsApp integration

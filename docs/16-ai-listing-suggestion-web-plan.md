@@ -4,7 +4,9 @@
 
 This plan covers the first web integration for the existing mock listing suggestion API.
 
-Do not add real AI providers, database logging, auth, image analysis, valuation, moderation, or automatic listing mutation in this slice.
+This document records the first public web listing suggestion slice. That slice intentionally stayed mock-only and text-field based. Backoffice moderation summaries now have a separate real-provider foundation; do not confuse that internal Trust & Safety AI flow with the public listing assistant.
+
+Do not add public real-provider calls, image analysis, valuation, market research, moderation, or automatic listing mutation in this slice. These now belong to later listing-assistant phases documented in `docs/41-current-task-map-and-roadmap.md`.
 
 ## Target Page
 
@@ -53,6 +55,24 @@ Do not send seller profile id, listing id, price, image URLs, or private user da
 - Empty form should not call the suggestion endpoint.
 - Low confidence should show missing information questions instead of strong claims.
 - AI must not imply safety certainty for baby products.
+
+## Current Status — 2026-06-12
+
+Implemented:
+
+- `/sell` can request a mock listing suggestion from text fields.
+- The suggestion panel is non-blocking and does not auto-submit or mutate server data.
+- Listing creation remains manual and usable without AI.
+
+Deferred public listing assistant work:
+
+- image-based brand/model/category inference
+- condition estimation from photos
+- price range estimation
+- comparable/market research
+- accept/apply buttons with explicit user control
+- real provider for public listing assistance
+- production safety/cost/rate controls
 
 ## What Is Intentionally Delayed
 

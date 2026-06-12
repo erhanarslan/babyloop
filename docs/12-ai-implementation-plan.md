@@ -6,6 +6,28 @@ This plan defines the first AI implementation path for BabyLoop. It should guide
 
 Core rule: AI must assist listing creation, not block it. A seller should still be able to create a manual listing when AI is unavailable, slow, low-confidence, or returns invalid output.
 
+
+## Current Status — 2026-06-12
+
+Implemented today:
+
+- public listing suggestion remains a deterministic mock provider flow
+- backoffice moderation summary foundation exists
+- backoffice moderation summary provider can be `mock` or server-configured `openai`
+- OpenAI moderation summaries use structured JSON output through the Responses API
+- redacted input and safe output guardrails run before returning, persisting, or auditing AI output
+- `ai_model_runs` records provider/model/prompt/status metadata for moderation summaries
+
+Still deferred:
+
+- AI summary history/read model in backoffice
+- per-case/per-admin rate limiting and cost guardrails
+- trust/risk score snapshots
+- listing image understanding for brand/model/condition
+- price estimation and comparable-market research
+- RAG/recommendations
+- evaluation datasets and production AI monitoring
+
 ## AI Phases
 
 | Phase | Name | Goal | Done criteria |

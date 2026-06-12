@@ -4,6 +4,8 @@
 
 This document keeps the BabyLoop backlog aligned with the actual codebase so future work starts from true project state.
 
+See also `docs/41-current-task-map-and-roadmap.md` for the current implementation map, prioritized task list, and sequencing from backoffice intelligence to web listing AI.
+
 ## Product Vision
 
 BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby/child products.
@@ -49,6 +51,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - deterministic message moderation
 - mock AI listing suggestions
 - AI audit logging
+- backoffice redacted AI moderation summary provider configuration and guardrails
 
 ## Partially Complete
 
@@ -60,7 +63,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
 - full moderation workflow beyond current report/block, case triage, profile/listing/message enforcement, timeline, listing review, image review, audit browser, and dashboard foundations
 - realtime production scaling
-- AI production/provider/RAG features
+- AI production operations: summary history, rate limiting, cost guardrails, evaluation, listing image understanding, valuation, RAG, and recommendations
 - UI system
 - web tests/E2E
 
@@ -119,7 +122,7 @@ P2:
 - reviews/ratings
 - payment/secure checkout
 - rental/date/deposit flow
-- real LLM provider
+- public listing real provider and production AI operations
 - AI valuation
 - RAG/recommendations
 - mobile app
@@ -163,7 +166,7 @@ pnpm build
 - Email delivery is still no-op/dev.
 - Web flows depend on manual QA until E2E tests exist.
 - Public web still uses Bearer-token compatibility; backoffice has moved off readable access-token browser storage.
-- AI is mock-only except for audit logging structure.
+- Public listing suggestions are mock-only. Backoffice moderation summaries can use mock or server-configured OpenAI providers, but AI history, rate limiting, evaluation, and cost monitoring remain incomplete.
 - Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, triage filters, timeline, profile/listing/message enforcement, permissioned sensitive access, listing review, image review, safe audit browser, and an aggregate dashboard MVP exist; assignment/SLA, full user directory, appeals/export, and advanced analytics remain incomplete.
 
 

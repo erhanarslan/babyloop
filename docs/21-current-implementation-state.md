@@ -74,9 +74,9 @@ Local MVP foundation with several production-oriented building blocks
 | Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
 | Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN/cache strategy, EXIF stripping, image moderation, upload rate limits, and image transforms/resizing are deferred. |
 | Messaging | Realtime, read state, and block-aware send/start restrictions work. Attachments and durable per-conversation read receipts are deferred. |
-| Trust & Safety | Reporting/blocking, profile enforcement, and backoffice review foundations exist. Assignment/SLA, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, full user directory, and AI moderation are deferred. |
+| Trust & Safety | Reporting/blocking, profile enforcement, backoffice review, safe audit browser, and redacted AI moderation summary foundations exist. Assignment/SLA, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, full user directory, trust-score snapshots, and monitoring analytics are deferred. |
 | Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
-| AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
+| AI | Mock public listing suggestion flow exists. Backoffice moderation summaries support mock or server-configured OpenAI provider execution with guardrails and `ai_model_runs` logging. Listing image analysis, valuation, RAG, recommendations, AI summary history, rate limiting, and cost monitoring are deferred. |
 | Web tests | API tests exist. Web component/E2E coverage is deferred. |
 
 ## Not Implemented
@@ -88,7 +88,7 @@ Local MVP foundation with several production-oriented building blocks
 - image moderation
 - web E2E tests
 - advanced analytics/dashboard beyond the aggregate MVP
-- real LLM provider
+- public listing real provider and production AI operations
 - AI valuation
 - RAG/recommendations
 - reviews/ratings
@@ -153,7 +153,7 @@ See `docs/30-listing-image-upload-and-safety.md`.
 - saved search
 - deeper admin tools beyond the current backoffice foundation
 - payments/rental flow
-- real AI provider/RAG/valuation
+- public listing real provider, RAG, valuation, and production AI operations
 - web E2E tests
 - production observability/deployment hardening
 
