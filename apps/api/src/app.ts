@@ -5,6 +5,10 @@ import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
 import { registerAuthPlugin } from "./plugins/auth.plugin.js";
+import {
+  isBackofficeCsrfRequestValid,
+  shouldEnforceBackofficeCsrf
+} from "./utils/backoffice-csrf.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerAuthRoutes } from "./routes/auth.routes.js";
@@ -67,7 +71,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     credentials: true,
     origin: config.corsOrigins,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-babyloop-csrf-token"],
     exposedHeaders: ["Set-Cookie"]
   });
 
@@ -98,6 +102,24 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     reply.header("X-Frame-Options", "DENY");
     reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
     reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+  });
+
+  app.addHook("preHandler", async (request, reply) => {
+    if (!shouldEnforceBackofficeCsrf(request, { apiPrefix: API_PREFIX })) {
+      return;
+    }
+
+    if (isBackofficeCsrfRequestValid(request)) {
+      return;
+    }
+
+    return reply.status(403).send({
+      ok: false,
+      error: {
+        code: "CSRF_TOKEN_REQUIRED",
+        message: "A valid CSRF token is required for backoffice mutations."
+      }
+    });
   });
 
   app.setErrorHandler((error, request, reply) => {

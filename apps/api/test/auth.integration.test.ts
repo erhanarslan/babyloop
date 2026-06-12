@@ -24,6 +24,10 @@ import {
 } from "@babyloop/shared";
 import { REFRESH_TOKEN_COOKIE_NAME, hashRefreshToken } from "../src/utils/refresh-token.js";
 import { BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-access-token-cookie.js";
+import {
+  BACKOFFICE_CSRF_COOKIE_NAME,
+  BACKOFFICE_CSRF_HEADER_NAME
+} from "../src/utils/backoffice-csrf.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
 import { GOOGLE_OAUTH_STATE_COOKIE_NAME, type GoogleUserInfo } from "../src/services/google-oauth.service.js";
@@ -646,6 +650,57 @@ describe("auth API", () => {
     expect(refreshResponse.body).not.toContain("accessToken");
     expect(getBackofficeAccessSetCookie(refreshResponse)).toContain("HttpOnly");
     expect(getRefreshSetCookie(refreshResponse)).toContain("HttpOnly");
+  });
+
+  it("requires a CSRF token for cookie-authenticated backoffice mutations", async () => {
+    await createUser(app, {
+      email: "backoffice-csrf-admin@example.com",
+      password: "Password123!",
+      role: "admin"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "backoffice-csrf-admin@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/backoffice/login"
+    });
+
+    const accessCookie = getBackofficeAccessSetCookie(loginResponse);
+    const csrfCookie = getBackofficeCsrfSetCookie(loginResponse);
+    const csrfToken = getCookieValue(csrfCookie);
+
+    const missingCsrf = await app.inject({
+      headers: {
+        cookie: toCookieHeader(accessCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/backoffice/logout"
+    });
+
+    expect(missingCsrf.statusCode).toBe(403);
+    expect(missingCsrf.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "CSRF_TOKEN_REQUIRED"
+      }
+    });
+
+    const validCsrf = await app.inject({
+      headers: {
+        [BACKOFFICE_CSRF_HEADER_NAME]: csrfToken,
+        cookie: `${toCookieHeader(accessCookie)}; ${toCookieHeader(csrfCookie)}`
+      },
+      method: "POST",
+      url: "/api/v1/auth/backoffice/logout"
+    });
+
+    expect(validCsrf.statusCode).toBe(200);
+    expect(validCsrf.json()).toMatchObject({
+      ok: true
+    });
   });
 
   it("returns 401 for auth refresh without a refresh cookie", async () => {
@@ -2254,6 +2309,20 @@ function getBackofficeAccessSetCookie(response: {
   }
 
   return accessCookie;
+}
+
+function getBackofficeCsrfSetCookie(response: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const csrfCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${BACKOFFICE_CSRF_COOKIE_NAME}=`)
+  );
+
+  if (!csrfCookie) {
+    throw new Error("Backoffice CSRF cookie was not set.");
+  }
+
+  return csrfCookie;
 }
 
 async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserInfo>): Promise<void> {

@@ -2,6 +2,12 @@ import type { ApiResponse } from "@babyloop/shared";
 
 export const BACKOFFICE_AUTH_CHANGED_EVENT = "babyloop-backoffice-auth-changed";
 
+const BACKOFFICE_CSRF_COOKIE_NAME = "babyloop_backoffice_csrf_token";
+const BACKOFFICE_CSRF_HEADER_NAME = "x-babyloop-csrf-token";
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+let cachedBackofficeCsrfToken: string | null = null;
+
 export type BackofficeAuthUser = {
   id: string;
   email: string;
@@ -17,6 +23,10 @@ type LoginResponse = {
   user: BackofficeAuthUser;
 };
 
+type BackofficeCsrfResponse = {
+  csrfToken: string;
+};
+
 export async function loginBackoffice(
   apiBaseUrl: string,
   input: {
@@ -25,6 +35,8 @@ export async function loginBackoffice(
   },
 ): Promise<{ ok: true; auth: LoginResponse } | { ok: false; message: string }> {
   try {
+    clearBackofficeCsrfToken();
+
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/login`, {
       method: "POST",
       credentials: "include",
@@ -52,6 +64,7 @@ export async function loginBackoffice(
       };
     }
 
+    await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
     dispatchAuthChanged();
 
     return {
@@ -68,11 +81,14 @@ export async function loginBackoffice(
 
 export async function logoutBackoffice(apiBaseUrl: string): Promise<void> {
   try {
-    await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
+    await fetch(
+      `${apiBaseUrl}/api/v1/auth/backoffice/logout`,
+      await buildAuthRequestInit(apiBaseUrl, {
+        method: "POST",
+      }),
+    );
   } finally {
+    clearBackofficeCsrfToken();
     dispatchAuthChanged();
   }
 }
@@ -84,7 +100,10 @@ export async function authFetch(
 ): Promise<Response> {
   const requestUrl = `${apiBaseUrl}${path}`;
 
-  const firstResponse = await fetch(requestUrl, buildAuthRequestInit(init));
+  const firstResponse = await fetch(
+    requestUrl,
+    await buildAuthRequestInit(apiBaseUrl, init),
+  );
 
   if (firstResponse.status !== 401) {
     return firstResponse;
@@ -97,7 +116,7 @@ export async function authFetch(
     return firstResponse;
   }
 
-  return fetch(requestUrl, buildAuthRequestInit(init));
+  return fetch(requestUrl, await buildAuthRequestInit(apiBaseUrl, init));
 }
 
 export async function fetchBackofficeMe(
@@ -116,6 +135,8 @@ export async function fetchBackofficeMe(
 
 async function refreshSession(apiBaseUrl: string): Promise<boolean> {
   try {
+    clearBackofficeCsrfToken();
+
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/refresh`, {
       method: "POST",
       credentials: "include",
@@ -127,18 +148,109 @@ async function refreshSession(apiBaseUrl: string): Promise<boolean> {
       return false;
     }
 
+    await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
+
     return true;
   } catch {
     return false;
   }
 }
 
-function buildAuthRequestInit(init?: RequestInit): RequestInit {
+async function buildAuthRequestInit(
+  apiBaseUrl: string,
+  init?: RequestInit,
+): Promise<RequestInit> {
+  const headers = new Headers(init?.headers);
+
+  if (isUnsafeRequest(init)) {
+    const csrfToken = await ensureBackofficeCsrfToken(apiBaseUrl);
+
+    if (csrfToken) {
+      headers.set(BACKOFFICE_CSRF_HEADER_NAME, csrfToken);
+    }
+  }
+
   return {
     ...init,
     credentials: "include",
-    headers: new Headers(init?.headers),
+    headers,
   };
+}
+
+async function ensureBackofficeCsrfToken(
+  apiBaseUrl: string,
+  options: { forceRefresh?: boolean } = {},
+): Promise<string | null> {
+  if (!options.forceRefresh && cachedBackofficeCsrfToken) {
+    return cachedBackofficeCsrfToken;
+  }
+
+  if (!options.forceRefresh) {
+    const cookieToken = readCsrfTokenFromDocumentCookie();
+
+    if (cookieToken) {
+      cachedBackofficeCsrfToken = cookieToken;
+      return cookieToken;
+    }
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/csrf`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    const body = (await response.json()) as ApiResponse<BackofficeCsrfResponse>;
+
+    if (!response.ok || !body.ok) {
+      cachedBackofficeCsrfToken = null;
+      return null;
+    }
+
+    cachedBackofficeCsrfToken = body.data.csrfToken;
+    return cachedBackofficeCsrfToken;
+  } catch {
+    cachedBackofficeCsrfToken = null;
+    return null;
+  }
+}
+
+function isUnsafeRequest(init?: RequestInit): boolean {
+  const method = (init?.method ?? "GET").toUpperCase();
+
+  return UNSAFE_METHODS.has(method);
+}
+
+function readCsrfTokenFromDocumentCookie(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  for (const cookiePart of document.cookie.split(";")) {
+    const [rawName, ...rawValueParts] = cookiePart.trim().split("=");
+
+    if (rawName !== BACKOFFICE_CSRF_COOKIE_NAME) {
+      continue;
+    }
+
+    const rawValue = rawValueParts.join("=");
+
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function clearBackofficeCsrfToken(): void {
+  cachedBackofficeCsrfToken = null;
 }
 
 function getApiErrorMessage(body: ApiResponse<unknown>, fallback: string): string {

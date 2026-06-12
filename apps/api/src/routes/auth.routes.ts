@@ -70,6 +70,11 @@ import {
   serializeBackofficeAccessTokenCookie,
   serializeExpiredBackofficeAccessTokenCookie
 } from "../utils/backoffice-access-token-cookie.js";
+import {
+  createBackofficeCsrfToken,
+  serializeBackofficeCsrfCookie,
+  serializeExpiredBackofficeCsrfCookie
+} from "../utils/backoffice-csrf.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
@@ -85,6 +90,10 @@ type PasswordResetRequestRouteResponse =
 type LoginRouteResponse = AuthResponse | MfaChallengeResponse;
 
 type BackofficeAuthRouteResponse = AuthMeResponse | MfaChallengeResponse | ReturnType<typeof adminForbidden>;
+
+type BackofficeCsrfRouteResponse =
+  | { ok: true; data: { csrfToken: string } }
+  | ReturnType<typeof adminForbidden>;
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -376,6 +385,32 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     }
   );
 
+  app.get<{ Reply: BackofficeCsrfRouteResponse }>(
+    "/auth/backoffice/csrf",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      if (currentUser.role !== "admin") {
+        return reply.status(403).send(adminForbidden());
+      }
+
+      const csrfToken = createBackofficeCsrfToken();
+
+      reply.header("set-cookie", serializeBackofficeCsrfCookie(csrfToken));
+
+      return {
+        ok: true,
+        data: {
+          csrfToken
+        }
+      };
+    }
+  );
+
   app.post<{ Body: unknown; Reply: PasswordResetRequestRouteResponse }>(
     "/auth/password-reset/request",
     authRateLimitOptions(options),
@@ -623,18 +658,23 @@ function setBackofficeAuthCookies(
     }),
     serializeBackofficeAccessTokenCookie(input.accessToken, {
       maxAgeSeconds: input.accessTokenMaxAgeSeconds
-    })
+    }),
+    serializeBackofficeCsrfCookie(createBackofficeCsrfToken())
   ]);
 }
 
 function clearBackofficeAccessCookie(reply: FastifyReply): void {
-  reply.header("set-cookie", serializeExpiredBackofficeAccessTokenCookie());
+  reply.header("set-cookie", [
+    serializeExpiredBackofficeAccessTokenCookie(),
+    serializeExpiredBackofficeCsrfCookie()
+  ]);
 }
 
 function clearBackofficeAuthCookies(reply: FastifyReply): void {
   reply.header("set-cookie", [
     serializeExpiredRefreshTokenCookie(),
-    serializeExpiredBackofficeAccessTokenCookie()
+    serializeExpiredBackofficeAccessTokenCookie(),
+    serializeExpiredBackofficeCsrfCookie()
   ]);
 }
 
