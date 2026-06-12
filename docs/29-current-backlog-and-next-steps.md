@@ -21,6 +21,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - shared unit tests
 - auth register/login/me
 - refresh-token session foundation
+- backoffice httpOnly access cookie session hardening
 - logout/session revoke
 - password reset
 - email verification
@@ -48,7 +49,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 
 ## Partially Complete
 
-- production auth/session hardening
+- remaining production auth/session hardening: public-web cookie migration, full CSRF token, session/device UI, and granular RBAC
 - real email delivery
 - Google OAuth production validation
 - MFA user-facing management
@@ -62,7 +63,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 
 ## Production Blockers
 
-- production-safe auth/session transport and device/session UI
+- production-safe public-web auth transport, CSRF token enforcement, and device/session UI
 - real email provider
 - verified Google OAuth deployment config
 - R2/S3-compatible image storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
@@ -88,7 +89,7 @@ P0:
 - Phase 0 cleanup/manual QA.
 - Trust & Safety: report/block/moderation foundation. Implemented as a backend/API/minimal-web foundation; deeper review workflows remain.
 - Admin/backoffice moderation foundation.
-- Account security panel for sessions/devices, production email, Google OAuth validation, and MFA management.
+- Account security panel for sessions/devices, production email, Google OAuth validation, CSRF token hardening, and MFA management.
 
 P1:
 
@@ -158,6 +159,7 @@ pnpm build
 - Realtime is not yet scaled with a Redis adapter.
 - Email delivery is still no-op/dev.
 - Web flows depend on manual QA until E2E tests exist.
+- Public web still uses Bearer-token compatibility; backoffice has moved off readable access-token browser storage.
 - AI is mock-only except for audit logging structure.
 - Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, and permissioned sensitive access exist; full reviewer workflow and admin dashboards remain incomplete.
 

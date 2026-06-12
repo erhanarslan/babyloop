@@ -16,6 +16,22 @@ Backoffice Data Privacy + Redaction Foundation
 
 This task follows the completion of the first usable backoffice moderation list/detail flow.
 
+## Backoffice Session Storage Rule
+
+Backoffice must not store admin access tokens in browser-readable storage.
+
+Disallowed in `apps/backoffice`:
+
+- `localStorage` access-token storage
+- `sessionStorage` access-token storage
+- readable cookies containing access tokens
+- URL/query-string access tokens
+- console logging auth payloads or tokens
+
+Backoffice auth uses dedicated `/api/v1/auth/backoffice/*` endpoints. Login and refresh set `babyloop_backoffice_access_token` as an httpOnly cookie and return safe user/profile data without `accessToken`.
+
+Public web Bearer-token compatibility remains separate and must not be removed casually.
+
 ## Scope
 
 This policy applies to:

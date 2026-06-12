@@ -44,8 +44,11 @@ import {
   type PasswordResetConfirmResponse,
   type PasswordResetRequestResponse,
   type AuthSessionRequestMeta,
-  type AuthTokenOptions
+  type AuthTokenOptions,
+  type SafeAuthProfile,
+  type SafeAuthUser
 } from "../services/auth.service.js";
+import { adminForbidden } from "../services/admin-context.service.js";
 import {
   buildGoogleAuthorizationUrl,
   defaultGoogleOAuthClient,
@@ -63,6 +66,10 @@ import {
   serializeExpiredRefreshTokenCookie,
   serializeRefreshTokenCookie
 } from "../utils/refresh-token.js";
+import {
+  serializeBackofficeAccessTokenCookie,
+  serializeExpiredBackofficeAccessTokenCookie
+} from "../utils/backoffice-access-token-cookie.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
@@ -76,6 +83,8 @@ type PasswordResetRequestRouteResponse =
   | ReturnType<typeof invalidAuthRequest>;
 
 type LoginRouteResponse = AuthResponse | MfaChallengeResponse;
+
+type BackofficeAuthRouteResponse = AuthMeResponse | MfaChallengeResponse | ReturnType<typeof adminForbidden>;
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -239,6 +248,133 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
     return reply.status(200).send(buildLogoutAuthResponse());
   });
+
+  app.post<{ Body: unknown; Reply: BackofficeAuthRouteResponse }>(
+    "/auth/backoffice/login",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = loginBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await loginUser(app, parsedBody.data, {
+        emailDelivery: options.emailDelivery,
+        webAppUrl: options.webAppUrl
+      });
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      if (result.status === "mfa_required") {
+        const response =
+          shouldExposeDevOtpCode() && result.devOtpCode
+            ? {
+                ok: true as const,
+                data: {
+                  ...result.response.data,
+                  devOtpCode: result.devOtpCode
+                }
+              }
+            : result.response;
+
+        return reply.status(200).send(response);
+      }
+
+      if (result.response.data.user.role !== "admin") {
+        clearBackofficeAuthCookies(reply);
+        return reply.status(403).send(adminForbidden());
+      }
+
+      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      setBackofficeAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: session.refreshToken,
+        refreshTokenExpiresAt: session.expiresAt
+      });
+
+      return reply.status(200).send(buildBackofficeAuthResponse(response.data));
+    }
+  );
+
+  app.post<{ Reply: AuthMeResponse | ReturnType<typeof unauthorizedAuthRequest> | ReturnType<typeof adminForbidden> }>(
+    "/auth/backoffice/refresh",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+
+      if (!refreshToken) {
+        clearBackofficeAccessCookie(reply);
+        return reply.status(401).send(unauthorizedAuthRequest());
+      }
+
+      const result = await refreshAuthSession(
+        app,
+        refreshToken,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      if (result.status === "invalid") {
+        clearBackofficeAuthCookies(reply);
+        return reply.status(401).send(result.response);
+      }
+
+      if (result.response.data.user.role !== "admin") {
+        await revokeAuthSession(app, result.refreshToken);
+        clearBackofficeAuthCookies(reply);
+        return reply.status(403).send(adminForbidden());
+      }
+
+      const response = attachAccessToken(result.response, options);
+
+      setBackofficeAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: result.refreshToken,
+        refreshTokenExpiresAt: result.expiresAt
+      });
+
+      return reply.status(200).send(buildBackofficeAuthResponse(response.data));
+    }
+  );
+
+  app.post<{ Reply: LogoutAuthResponse }>("/auth/backoffice/logout", async (request, reply) => {
+    const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+
+    if (refreshToken) {
+      await revokeAuthSession(app, refreshToken);
+    }
+
+    clearBackofficeAuthCookies(reply);
+
+    return reply.status(200).send(buildLogoutAuthResponse());
+  });
+
+  app.get<{ Reply: AuthMeResponse | ReturnType<typeof adminForbidden> }>(
+    "/auth/backoffice/me",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      if (currentUser.role !== "admin") {
+        return reply.status(403).send(adminForbidden());
+      }
+
+      return buildAuthMeResponse(currentUser);
+    }
+  );
 
   app.post<{ Body: unknown; Reply: PasswordResetRequestRouteResponse }>(
     "/auth/password-reset/request",
@@ -470,6 +606,49 @@ function setRefreshTokenCookie(reply: FastifyReply, refreshToken: string, expire
 
 function clearRefreshTokenCookie(reply: FastifyReply): void {
   reply.header("set-cookie", serializeExpiredRefreshTokenCookie());
+}
+
+function setBackofficeAuthCookies(
+  reply: FastifyReply,
+  input: {
+    accessToken: string;
+    accessTokenMaxAgeSeconds: number;
+    refreshToken: string;
+    refreshTokenExpiresAt: Date;
+  }
+): void {
+  reply.header("set-cookie", [
+    serializeRefreshTokenCookie(input.refreshToken, {
+      expiresAt: input.refreshTokenExpiresAt
+    }),
+    serializeBackofficeAccessTokenCookie(input.accessToken, {
+      maxAgeSeconds: input.accessTokenMaxAgeSeconds
+    })
+  ]);
+}
+
+function clearBackofficeAccessCookie(reply: FastifyReply): void {
+  reply.header("set-cookie", serializeExpiredBackofficeAccessTokenCookie());
+}
+
+function clearBackofficeAuthCookies(reply: FastifyReply): void {
+  reply.header("set-cookie", [
+    serializeExpiredRefreshTokenCookie(),
+    serializeExpiredBackofficeAccessTokenCookie()
+  ]);
+}
+
+function buildBackofficeAuthResponse(input: {
+  profile: SafeAuthProfile;
+  user: SafeAuthUser;
+}): AuthMeResponse {
+  return {
+    ok: true,
+    data: {
+      profile: input.profile,
+      user: input.user
+    }
+  };
 }
 
 function readQueryStringValue(value: unknown): string | null {

@@ -1,6 +1,5 @@
 import type { ApiResponse } from "@babyloop/shared";
 
-export const BACKOFFICE_AUTH_TOKEN_STORAGE_KEY = "babyloop_backoffice_access_token";
 export const BACKOFFICE_AUTH_CHANGED_EVENT = "babyloop-backoffice-auth-changed";
 
 export type BackofficeAuthUser = {
@@ -15,27 +14,8 @@ export type BackofficeAuthMe = {
 };
 
 type LoginResponse = {
-  accessToken: string;
   user: BackofficeAuthUser;
 };
-
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(BACKOFFICE_AUTH_TOKEN_STORAGE_KEY);
-}
-
-export function setAuthToken(token: string): void {
-  window.localStorage.setItem(BACKOFFICE_AUTH_TOKEN_STORAGE_KEY, token);
-  window.dispatchEvent(new Event(BACKOFFICE_AUTH_CHANGED_EVENT));
-}
-
-export function clearAuthToken(): void {
-  window.localStorage.removeItem(BACKOFFICE_AUTH_TOKEN_STORAGE_KEY);
-  window.dispatchEvent(new Event(BACKOFFICE_AUTH_CHANGED_EVENT));
-}
 
 export async function loginBackoffice(
   apiBaseUrl: string,
@@ -45,7 +25,7 @@ export async function loginBackoffice(
   },
 ): Promise<{ ok: true; auth: LoginResponse } | { ok: false; message: string }> {
   try {
-    const response = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/login`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -54,7 +34,9 @@ export async function loginBackoffice(
       body: JSON.stringify(input),
     });
 
-    const body = (await response.json()) as ApiResponse<LoginResponse>;
+    const body = (await response.json()) as ApiResponse<
+      LoginResponse | { mfaRequired: true }
+    >;
 
     if (!response.ok || !body.ok) {
       return {
@@ -63,7 +45,14 @@ export async function loginBackoffice(
       };
     }
 
-    setAuthToken(body.data.accessToken);
+    if (!("user" in body.data)) {
+      return {
+        ok: false,
+        message: "Additional verification is required before backoffice login.",
+      };
+    }
+
+    dispatchAuthChanged();
 
     return {
       ok: true,
@@ -79,13 +68,12 @@ export async function loginBackoffice(
 
 export async function logoutBackoffice(apiBaseUrl: string): Promise<void> {
   try {
-    await fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
+    await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/logout`, {
       method: "POST",
       credentials: "include",
-      headers: buildAuthHeaders(),
     });
   } finally {
-    clearAuthToken();
+    dispatchAuthChanged();
   }
 }
 
@@ -105,7 +93,7 @@ export async function authFetch(
   const refreshed = await refreshSession(apiBaseUrl);
 
   if (!refreshed) {
-    clearAuthToken();
+    dispatchAuthChanged();
     return firstResponse;
   }
 
@@ -115,9 +103,9 @@ export async function authFetch(
 export async function fetchBackofficeMe(
   apiBaseUrl: string,
 ): Promise<BackofficeAuthMe | null> {
-  const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
+  const response = await authFetch(apiBaseUrl, "/api/v1/auth/backoffice/me");
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     return null;
   }
 
@@ -128,18 +116,17 @@ export async function fetchBackofficeMe(
 
 async function refreshSession(apiBaseUrl: string): Promise<boolean> {
   try {
-    const response = await fetch(`${apiBaseUrl}/api/v1/auth/refresh`, {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/refresh`, {
       method: "POST",
       credentials: "include",
     });
 
-    const body = (await response.json()) as ApiResponse<{ accessToken: string }>;
+    const body = (await response.json()) as ApiResponse<BackofficeAuthMe>;
 
     if (!response.ok || !body.ok) {
       return false;
     }
 
-    setAuthToken(body.data.accessToken);
     return true;
   } catch {
     return false;
@@ -150,22 +137,7 @@ function buildAuthRequestInit(init?: RequestInit): RequestInit {
   return {
     ...init,
     credentials: "include",
-    headers: {
-      ...buildAuthHeaders(),
-      ...init?.headers,
-    },
-  };
-}
-
-function buildAuthHeaders(): HeadersInit {
-  const token = getAuthToken();
-
-  if (!token) {
-    return {};
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
+    headers: new Headers(init?.headers),
   };
 }
 
@@ -175,4 +147,12 @@ function getApiErrorMessage(body: ApiResponse<unknown>, fallback: string): strin
   }
 
   return body.error?.message ?? fallback;
+}
+
+function dispatchAuthChanged(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(BACKOFFICE_AUTH_CHANGED_EVENT));
 }

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Implementation note: The completed first auth slice uses a signed Bearer access token stored by the web client in `localStorage` for development simplicity. Passwords are hashed with Node's built-in `scrypt`. HTTP-only cookies, refresh tokens, a session table, email verification, password reset, and Argon2id remain production hardening options for a later phase.
+Implementation note: The completed first auth slice uses signed access tokens and a refresh-token session table. Public web Bearer-token compatibility remains for now, but backoffice no longer stores its admin access token in browser `localStorage`; it uses a dedicated httpOnly backoffice access cookie plus the existing refresh-token cookie. Passwords are hashed with Node's built-in `scrypt`. Argon2id, full CSRF token enforcement, device/session UI, and granular RBAC remain production hardening options for later phases.
 
 Auth hardening step 1 is implemented:
 
@@ -30,7 +30,8 @@ Recommendation:
 - `users` table owns login identity.
 - `profiles` table owns marketplace display identity.
 - API creates a profile during registration.
-- Web stores a signed Bearer access token in `localStorage` for the current local-first slice.
+- Public web Bearer-token compatibility remains during the current local-first slice.
+- Backoffice uses dedicated cookie-backed auth endpoints and must not store admin access tokens in `localStorage` or `sessionStorage`.
 - Protected API routes derive the current user/profile from the verified session, never from request body ids.
 
 This keeps the implementation portfolio-friendly, auditable, and small without introducing OAuth, external auth vendors, or admin RBAC too early.
@@ -57,7 +58,16 @@ Update `profiles` later in the same auth slice:
 
 ## Session/Token Strategy
 
-First slice uses a signed stateless Bearer access token returned by `register` and `login`.
+First slice uses signed stateless access tokens. Public `register`, `login`, `refresh`, and MFA verify responses still return an `accessToken` for compatibility with the public app.
+
+Backoffice uses dedicated endpoints that do not return an access token in JSON:
+
+- `POST /api/v1/auth/backoffice/login`
+- `POST /api/v1/auth/backoffice/refresh`
+- `POST /api/v1/auth/backoffice/logout`
+- `GET /api/v1/auth/backoffice/me`
+
+Backoffice login/refresh set `babyloop_backoffice_access_token` as an httpOnly cookie and return only safe user/profile data.
 
 Token payload should stay small:
 
@@ -68,7 +78,7 @@ Token payload should stay small:
 
 Use a server-only `AUTH_SECRET` environment variable. Do not expose it to Next.js client code.
 
-`AUTH_SECRET` must be at least 32 characters. Refresh tokens, a server-side session table, and HTTP-only cookie transport are delayed.
+`AUTH_SECRET` must be at least 32 characters. Refresh tokens and a server-side session table are implemented. Full public-web cookie migration remains future work.
 
 ## Password Hashing
 
@@ -87,6 +97,7 @@ Rules:
 Create a small auth utility/plugin in `apps/api`:
 
 - parse `Authorization: Bearer <token>`
+- fall back to the explicit `babyloop_backoffice_access_token` cookie for backoffice requests
 - verify token signature and expiry
 - load user/profile reference when needed
 - decorate request with `currentUser`
@@ -177,11 +188,11 @@ Implemented:
 | Risk | First-slice mitigation |
 | --- | --- |
 | Client spoofing another profile id | Remove client-controlled profile ids from write endpoints. |
-| Stolen token | Expiry, `AUTH_SECRET`, and future HTTP-only cookie hardening. |
+| Stolen token | Expiry, `AUTH_SECRET`, backoffice httpOnly access cookie, and future public-web cookie migration. |
 | Password leakage | `scrypt`, no password logging, generic login errors. |
 | Seed data breakage | Make `profiles.user_id` nullable initially. |
-| XSS/localStorage exposure | Keep UI small, avoid unsafe HTML, move to HTTP-only cookies later. |
-| CSRF | Lower risk with Bearer header; revisit if cookies are introduced. |
+| XSS/localStorage exposure | Backoffice access token removed from `localStorage`; public web Bearer compatibility remains until a separate migration. |
+| CSRF | Backoffice cookie auth currently relies on httpOnly cookies, SameSite=Lax, credentialed CORS origin restrictions, and admin-only routes. A full double-submit or synchronizer CSRF token remains deferred. |
 | Brute force login | Basic register/login rate limiting is implemented; stronger IP/account risk controls are delayed. |
 | Overexposed user data | `GET /auth/me` returns only safe user/profile fields. |
 

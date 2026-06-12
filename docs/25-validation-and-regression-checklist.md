@@ -65,6 +65,12 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] `GET /api/v1/auth/me` is protected
 - [ ] invalid token rejection
 - [ ] auth rate limit
+- [ ] backoffice admin login sets httpOnly access cookie and does not return `accessToken`
+- [ ] backoffice non-admin login returns 403 and does not issue a usable access cookie
+- [ ] backoffice refresh rotates cookies and does not return `accessToken`
+- [ ] auth plugin accepts the explicit backoffice access cookie
+- [ ] backoffice logout clears the access cookie and refresh cookie
+- [ ] public auth login/refresh Bearer-token compatibility remains intact
 
 ### Listings
 
@@ -238,6 +244,8 @@ Checklist:
 - [ ] rejected images are visible in backoffice and hidden publicly
 - [ ] backoffice dashboard loads aggregate-only listing/image/moderation/action cards
 - [ ] backoffice listing review does not show seller email/phone, reporter identity, or raw message body
+- [ ] backoffice login does not create `localStorage` or `sessionStorage` access-token entries
+- [ ] backoffice API calls use credentialed cookie auth instead of `Authorization: Bearer`
 
 Seeded account flow:
 

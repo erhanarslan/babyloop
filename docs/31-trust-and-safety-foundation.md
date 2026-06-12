@@ -74,6 +74,7 @@ Allowed reasons:
 
 - block/list responses expose only minimal profile display data
 - report responses do not expose private user data
+- backoffice admin auth uses an httpOnly access cookie and must not store access tokens in browser storage
 - favorite actor privacy remains separate and must not regress
 - message bodies remain plaintext only
 - report details use the same plaintext/XSS safety policy as other user-generated text

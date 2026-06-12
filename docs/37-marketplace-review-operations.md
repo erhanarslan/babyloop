@@ -113,6 +113,8 @@ Marketplace review operations must not expose:
 
 Sensitive-access remains separate and is not used by listing image review, listing activity, or dashboard summary.
 
+Backoffice marketplace review tools rely on the dedicated backoffice auth flow. Admin access tokens must be transported through httpOnly cookies and must not be stored in browser `localStorage`, `sessionStorage`, URLs, or console logs.
+
 ## Deferred
 
 - pending image queue

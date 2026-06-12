@@ -59,6 +59,31 @@ Examples:
 
 Do not expose user-controlled `profile_id`, `profileId`, `sellerProfileId`, or `buyerProfileId` in protected write request bodies. The API derives profile ownership from the auth token.
 
+## Auth Transport Contract
+
+Public auth endpoints remain Bearer-token compatible:
+
+```txt
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/mfa/verify
+```
+
+Those compatibility responses may still include `accessToken` until the public web auth flow is migrated separately.
+
+Backoffice auth must use dedicated cookie-backed endpoints:
+
+```txt
+POST /api/v1/auth/backoffice/login
+POST /api/v1/auth/backoffice/refresh
+POST /api/v1/auth/backoffice/logout
+GET /api/v1/auth/backoffice/me
+```
+
+Backoffice login and refresh must not return `accessToken` in JSON. They set the explicit httpOnly `babyloop_backoffice_access_token` cookie and the existing refresh-token cookie. Backoffice browser code must not store access tokens in `localStorage`, `sessionStorage`, readable cookies, URLs, or console logs.
+
+The API auth plugin may authenticate from `Authorization: Bearer <token>` first for compatibility, then from the explicit backoffice access cookie. It must not accept arbitrary cookie names as access tokens.
+
 ## Messaging Contract
 
 Messaging create requests use `listingId` as listing context input only.

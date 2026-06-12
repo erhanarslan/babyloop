@@ -23,6 +23,7 @@ import {
   type RealtimeErrorPayload
 } from "@babyloop/shared";
 import { REFRESH_TOKEN_COOKIE_NAME, hashRefreshToken } from "../src/utils/refresh-token.js";
+import { BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-access-token-cookie.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
 import { GOOGLE_OAUTH_STATE_COOKIE_NAME, type GoogleUserInfo } from "../src/services/google-oauth.service.js";
@@ -30,7 +31,7 @@ import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
 import { authHeader, createUser, loginUser } from "./helpers/auth.js";
 import { countEvents, createCategory, createConversation, createListing, getListingSellerProfileId } from "./helpers/fixtures.js";
-import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, toCookieHeader } from "./helpers/cookies.js";
+import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, getSetCookieHeaders, toCookieHeader } from "./helpers/cookies.js";
 import { createRecordingEmailDeliveryService, type RecordingEmailDeliveryService } from "./helpers/email.js";
 import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
 import { connectRealtimeSocket, delay, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
@@ -518,6 +519,133 @@ describe("auth API", () => {
 
     expect(sessionRows).toHaveLength(2);
     expect(sessionRows.some((row) => row.refreshTokenHash === hashRefreshToken(refreshToken))).toBe(true);
+  });
+
+  it("backoffice admin login sets an httpOnly access cookie without returning an access token", async () => {
+    await createUser(app, {
+      email: "backoffice-admin-login@example.com",
+      password: "Password123!",
+      role: "admin"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/backoffice/login",
+      payload: {
+        email: "backoffice-admin-login@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        user: {
+          email: "backoffice-admin-login@example.com",
+          role: "admin"
+        }
+      }
+    });
+    expect(response.json().data.accessToken).toBeUndefined();
+    expect(response.body).not.toContain("accessToken");
+
+    const accessCookie = getBackofficeAccessSetCookie(response);
+    const refreshCookie = getRefreshSetCookie(response);
+
+    expect(accessCookie).toContain("HttpOnly");
+    expect(accessCookie).toContain("SameSite=Lax");
+    expect(accessCookie).toContain("Path=/");
+    expect(accessCookie).toContain("Max-Age=");
+    expect(refreshCookie).toContain("HttpOnly");
+
+    const meResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(accessCookie)
+      },
+      method: "GET",
+      url: "/api/v1/auth/backoffice/me"
+    });
+
+    expect(meResponse.statusCode).toBe(200);
+    expect(meResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        user: {
+          role: "admin"
+        }
+      }
+    });
+  });
+
+  it("backoffice login rejects non-admin users without issuing an access cookie", async () => {
+    await createUser(app, {
+      email: "backoffice-non-admin@example.com",
+      password: "Password123!"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/backoffice/login",
+      payload: {
+        email: "backoffice-non-admin@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "FORBIDDEN"
+      }
+    });
+    expect(response.body).not.toContain("accessToken");
+
+    const accessCookie = getBackofficeAccessSetCookie(response);
+
+    expect(accessCookie).toContain("HttpOnly");
+    expect(accessCookie).toContain("Max-Age=0");
+  });
+
+  it("backoffice refresh rotates session cookies without returning an access token", async () => {
+    await createUser(app, {
+      email: "backoffice-refresh-admin@example.com",
+      password: "Password123!",
+      role: "admin"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/backoffice/login",
+      payload: {
+        email: "backoffice-refresh-admin@example.com",
+        password: "Password123!"
+      }
+    });
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/backoffice/refresh"
+    });
+
+    expect(refreshResponse.statusCode).toBe(200);
+    expect(refreshResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        user: {
+          email: "backoffice-refresh-admin@example.com",
+          role: "admin"
+        }
+      }
+    });
+    expect(refreshResponse.json().data.accessToken).toBeUndefined();
+    expect(refreshResponse.body).not.toContain("accessToken");
+    expect(getBackofficeAccessSetCookie(refreshResponse)).toContain("HttpOnly");
+    expect(getRefreshSetCookie(refreshResponse)).toContain("HttpOnly");
   });
 
   it("returns 401 for auth refresh without a refresh cookie", async () => {
@@ -2113,6 +2241,20 @@ describe("auth API", () => {
     });
   });
 });
+
+function getBackofficeAccessSetCookie(response: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const accessCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME}=`)
+  );
+
+  if (!accessCookie) {
+    throw new Error("Backoffice access cookie was not set.");
+  }
+
+  return accessCookie;
+}
 
 async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserInfo>): Promise<void> {
   await app.close();

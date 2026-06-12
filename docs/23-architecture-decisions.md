@@ -116,6 +116,37 @@ Real listing photos need controlled upload, storage, validation, and auditabilit
 - Do not add storage SDKs or schema changes without a focused upload implementation plan.
 - Keep validation strict for the temporary URL flow: valid URLs only and max 5 images.
 
+## AD-005: Backoffice Uses HttpOnly Cookie Auth, Public Bearer Compatibility Remains
+
+### Decision
+
+Backoffice admin access tokens must not be stored in browser `localStorage` or `sessionStorage`.
+
+Backoffice uses dedicated auth endpoints:
+
+```txt
+POST /api/v1/auth/backoffice/login
+POST /api/v1/auth/backoffice/refresh
+POST /api/v1/auth/backoffice/logout
+GET /api/v1/auth/backoffice/me
+```
+
+Successful backoffice login/refresh sets `babyloop_backoffice_access_token` as an httpOnly cookie. The API auth plugin still accepts `Authorization: Bearer` first for public app compatibility, then falls back to the explicit backoffice access cookie.
+
+### Reason
+
+Backoffice has higher-risk moderation and marketplace operations. Removing readable admin access tokens from browser storage reduces XSS token theft risk while keeping public auth compatibility stable.
+
+### CSRF Posture
+
+The first hardening step relies on httpOnly cookies, SameSite=Lax, credentialed CORS origin restrictions, and admin-only authorization. A full CSRF token mechanism remains future work and should be added before broader cross-site deployment assumptions change.
+
+### Do Not Regress
+
+- Do not store backoffice access tokens in `localStorage`, `sessionStorage`, readable cookies, URLs, or logs.
+- Do not return access tokens from `/auth/backoffice/login` or `/auth/backoffice/refresh`.
+- Do not remove Bearer-token support until public web auth has a separate migration.
+
 
 <!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
 ## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
