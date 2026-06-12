@@ -1,42 +1,64 @@
 import { z } from "zod";
 
+const nonNegativeIntegerSchema = z.number().int().nonnegative();
+
 export const adminDashboardSummaryResponseSchema = z.object({
   listings: z.object({
-    totalListings: z.number().int().nonnegative(),
-    activeListings: z.number().int().nonnegative(),
-    archivedListings: z.number().int().nonnegative(),
-    soldListings: z.number().int().nonnegative(),
-    reservedListings: z.number().int().nonnegative(),
-    draftListings: z.number().int().nonnegative(),
-    listingsCreatedLast7Days: z.number().int().nonnegative(),
-    listingsUpdatedLast7Days: z.number().int().nonnegative(),
-    listingsWithRejectedImages: z.number().int().nonnegative()
+    totalListings: nonNegativeIntegerSchema,
+    activeListings: nonNegativeIntegerSchema,
+    archivedListings: nonNegativeIntegerSchema,
+    soldListings: nonNegativeIntegerSchema,
+    reservedListings: nonNegativeIntegerSchema,
+    draftListings: nonNegativeIntegerSchema,
+    listingsCreatedLast7Days: nonNegativeIntegerSchema,
+    listingsUpdatedLast7Days: nonNegativeIntegerSchema,
+    listingsWithRejectedImages: nonNegativeIntegerSchema
   }).strict(),
   images: z.object({
-    totalListingImages: z.number().int().nonnegative(),
-    approvedListingImages: z.number().int().nonnegative(),
-    rejectedListingImages: z.number().int().nonnegative(),
-    imagesReviewedLast7Days: z.number().int().nonnegative()
+    totalListingImages: nonNegativeIntegerSchema,
+    approvedListingImages: nonNegativeIntegerSchema,
+    rejectedListingImages: nonNegativeIntegerSchema,
+    imagesReviewedLast7Days: nonNegativeIntegerSchema
   }).strict(),
   moderation: z.object({
-    totalModerationCases: z.number().int().nonnegative(),
-    openModerationCases: z.number().int().nonnegative(),
-    closedModerationCases: z.number().int().nonnegative(),
-    casesCreatedLast7Days: z.number().int().nonnegative(),
-    sensitiveAccessGrantedLast7Days: z.number().int().nonnegative(),
-    sensitiveAccessDeniedLast7Days: z.number().int().nonnegative()
+    totalModerationCases: nonNegativeIntegerSchema,
+    openModerationCases: nonNegativeIntegerSchema,
+    closedModerationCases: nonNegativeIntegerSchema,
+    openHighPriorityCases: nonNegativeIntegerSchema,
+    openNormalPriorityCases: nonNegativeIntegerSchema,
+    openLowPriorityCases: nonNegativeIntegerSchema,
+    casesCreatedLast7Days: nonNegativeIntegerSchema,
+    pendingReports: nonNegativeIntegerSchema,
+    reportsCreatedLast7Days: nonNegativeIntegerSchema,
+    sensitiveAccessGrantedLast7Days: nonNegativeIntegerSchema,
+    sensitiveAccessDeniedLast7Days: nonNegativeIntegerSchema
   }).strict(),
   actions: z.object({
-    auditEventsLast7Days: z.number().int().nonnegative(),
-    profileEnforcementActionsLast7Days: z.number().int().nonnegative(),
-    listingActionsLast7Days: z.number().int().nonnegative(),
-    imageReviewActionsLast7Days: z.number().int().nonnegative()
+    auditEventsLast7Days: nonNegativeIntegerSchema,
+    profileEnforcementActionsLast7Days: nonNegativeIntegerSchema,
+    listingActionsLast7Days: nonNegativeIntegerSchema,
+    imageReviewActionsLast7Days: nonNegativeIntegerSchema,
+    messageEnforcementActionsLast7Days: nonNegativeIntegerSchema
   }).strict(),
   profiles: z.object({
-    restrictedProfiles: z.number().int().nonnegative(),
-    suspendedProfiles: z.number().int().nonnegative(),
-    highRiskProfiles: z.number().int().nonnegative(),
-    criticalRiskProfiles: z.number().int().nonnegative()
+    restrictedProfiles: nonNegativeIntegerSchema,
+    suspendedProfiles: nonNegativeIntegerSchema,
+    highRiskProfiles: nonNegativeIntegerSchema,
+    criticalRiskProfiles: nonNegativeIntegerSchema,
+    profilesNeedingReview: nonNegativeIntegerSchema
+  }).strict(),
+  conversations: z.object({
+    totalConversations: nonNegativeIntegerSchema,
+    conversationsCreatedLast7Days: nonNegativeIntegerSchema,
+    messagesCreatedLast7Days: nonNegativeIntegerSchema,
+    reportedMessageCount: nonNegativeIntegerSchema,
+    openMessageCases: nonNegativeIntegerSchema
+  }).strict(),
+  ai: z.object({
+    moderationSummaryRunsLast7Days: nonNegativeIntegerSchema,
+    moderationSummaryFailuresLast7Days: nonNegativeIntegerSchema,
+    providerFailuresLast7Days: nonNegativeIntegerSchema,
+    validationFailuresLast7Days: nonNegativeIntegerSchema
   }).strict()
 }).strict();
 

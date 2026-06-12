@@ -26,6 +26,11 @@ export type AdminDashboardSummary = {
     openModerationCases: number;
     closedModerationCases: number;
     casesCreatedLast7Days: number;
+    openHighPriorityCases: number;
+    openNormalPriorityCases: number;
+    openLowPriorityCases: number;
+    pendingReports: number;
+    reportsCreatedLast7Days: number;
     sensitiveAccessGrantedLast7Days: number;
     sensitiveAccessDeniedLast7Days: number;
   };
@@ -34,12 +39,27 @@ export type AdminDashboardSummary = {
     profileEnforcementActionsLast7Days: number;
     listingActionsLast7Days: number;
     imageReviewActionsLast7Days: number;
+    messageEnforcementActionsLast7Days: number;
   };
   profiles: {
     restrictedProfiles: number;
     suspendedProfiles: number;
     highRiskProfiles: number;
     criticalRiskProfiles: number;
+    profilesNeedingReview: number;
+  };
+  conversations: {
+    totalConversations: number;
+    conversationsCreatedLast7Days: number;
+    messagesCreatedLast7Days: number;
+    reportedMessageCount: number;
+    openMessageCases: number;
+  };
+  ai: {
+    moderationSummaryRunsLast7Days: number;
+    moderationSummaryFailuresLast7Days: number;
+    providerFailuresLast7Days: number;
+    validationFailuresLast7Days: number;
   };
 };
 
