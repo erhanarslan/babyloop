@@ -47,6 +47,29 @@ const messageOptions: EnforcementOption[] = [
   },
 ];
 
+const profileOptions: EnforcementOption[] = [
+  {
+    action: "profile_warn",
+    label: "Warn profile",
+    description: "Record a warning without changing the profile safety status.",
+  },
+  {
+    action: "profile_restrict",
+    label: "Restrict profile",
+    description: "Prevent the profile from creating listings or sending messages.",
+  },
+  {
+    action: "profile_suspend",
+    label: "Suspend profile",
+    description: "Prevent marketplace activity and hide the seller's public listings.",
+  },
+  {
+    action: "profile_restore",
+    label: "Restore profile",
+    description: "Return the profile to active marketplace status.",
+  },
+];
+
 export function EnforcementActionPanel({
   moderationCase,
   onApplied,
@@ -187,6 +210,10 @@ function getEnforcementOptions(targetType: string): EnforcementOption[] {
 
   if (targetType === "message") {
     return messageOptions;
+  }
+
+  if (targetType === "profile") {
+    return profileOptions;
   }
 
   return [];

@@ -3,7 +3,7 @@
 
 BabyLoop now has a first backoffice enforcement foundation for supported moderation case targets.
 
-This is intentionally narrow. It is not a full account suspension, admin dashboard, SLA, or automated AI enforcement system.
+This is intentionally narrow. It is not an assignment/SLA system, appeals flow, export flow, or automated AI enforcement system.
 
 ## Endpoint
 
@@ -19,7 +19,7 @@ Required controls:
 - action compatible with the case target type
 - explicit reason, minimum 10 characters
 - moderation action row
-- `admin_moderation_enforcement` audit event
+- safe audit event
 
 ## Implemented Actions
 
@@ -28,6 +28,10 @@ listing_hide
 listing_restore
 message_hide
 message_mark_reviewed
+profile_warn
+profile_restrict
+profile_suspend
+profile_restore
 ```
 
 Listing behavior:
@@ -42,12 +46,22 @@ Message behavior:
 - latest-message preview ignores hidden messages
 - `message_mark_reviewed` records the moderation decision without changing message content because messages do not have a reviewed status column
 
+Profile behavior:
+
+- `profile_warn` records an audited warning without changing persistent status
+- `profile_restrict` sets `profiles.safety_status` to `restricted`
+- `profile_suspend` sets `profiles.safety_status` to `suspended`
+- `profile_restore` sets `profiles.safety_status` to `active`
+- restricted/suspended profiles cannot create listings or send messages
+- suspended seller listings are hidden from public listing list/detail responses
+
 ## Audit and Timeline
 
 Every successful action writes:
 
 - `moderation_actions`
-- `events.eventType = admin_moderation_enforcement`
+- `events.eventType = admin_moderation_enforcement` for listing/message actions
+- `events.eventType = admin_profile_enforcement_applied` for profile actions
 
 Safe audit metadata:
 
@@ -56,6 +70,10 @@ enforcementAction
 targetType
 targetId
 resultingStatus
+previousSafetyStatus
+nextSafetyStatus
+reasonLength
+result
 ```
 
 Case detail timeline can show the enforcement event and action using safe labels and metadata only.
@@ -81,12 +99,11 @@ AI must not auto-enforce or call enforcement endpoints by default.
 
 ## Deferred
 
-- profile/account enforcement
-- account suspension or user status model
 - listing `under_review` state
 - reversible message unhide workflow
 - assignment, SLA, reviewer queues, dashboards
 - appeals and enforcement notifications
+- granular RBAC and full user directory
 
 ## Related Listing Review Tools
 

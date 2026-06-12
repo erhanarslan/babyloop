@@ -58,8 +58,8 @@ Local MVP foundation with several production-oriented building blocks
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Favorite notifications hide actor identity. Listing responses expose privacy-safe `favoriteCount`. |
 | Notifications | Persistent in-app notification model, list, unread count, mark read, mark all read, realtime events, notification center, and header unread badge. |
 | Messaging | Profile-pair conversations with listing contexts, idempotent start-conversation behavior, message send/list/detail, deterministic moderation, plaintext/XSS validation, Socket.IO realtime events, explicit/visibility-based read state, block-aware send/start restrictions, and web list/thread/composer UI. |
-| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restriction for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
-| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/filters/timeline/enforcement, explicit sensitive-access request UI, listing review, listing image approve/reject, and listing activity visibility. |
+| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restriction for blocked profile pairs, profile safety status/enforcement foundation, moderation case foundation, safety event logging, and minimal web entry points. |
+| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/filters/timeline/enforcement, profile enforcement controls, explicit sensitive-access request UI, listing review, listing image approve/reject, listing activity visibility, and safe audit browser. |
 | Mock AI | Deterministic listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` audit logging when DB is available. |
 | Tests | Split API integration tests under `apps/api/test`, shared unit tests, Socket.IO smoke coverage, and CI-ready validation scripts. |
 
@@ -74,7 +74,7 @@ Local MVP foundation with several production-oriented building blocks
 | Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
 | Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN/cache strategy, EXIF stripping, image moderation, upload rate limits, and image transforms/resizing are deferred. |
 | Messaging | Realtime, read state, and block-aware send/start restrictions work. Attachments and durable per-conversation read receipts are deferred. |
-| Trust & Safety | Reporting/blocking and backoffice review foundations exist. Assignment/SLA, profile enforcement, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, audit browser, and AI moderation are deferred. |
+| Trust & Safety | Reporting/blocking, profile enforcement, and backoffice review foundations exist. Assignment/SLA, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, full user directory, and AI moderation are deferred. |
 | Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
 | AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
 | Web tests | API tests exist. Web component/E2E coverage is deferred. |
@@ -87,7 +87,7 @@ Local MVP foundation with several production-oriented building blocks
 - saved search
 - image moderation
 - web E2E tests
-- advanced analytics/dashboard
+- advanced analytics/dashboard beyond the aggregate MVP
 - real LLM provider
 - AI valuation
 - RAG/recommendations

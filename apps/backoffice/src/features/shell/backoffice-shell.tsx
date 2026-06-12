@@ -59,8 +59,9 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: "Audit Logs",
+    href: "/audit",
     description: "Admin action history",
-    status: "planned",
+    status: "active",
   },
   {
     label: "AI Tools",

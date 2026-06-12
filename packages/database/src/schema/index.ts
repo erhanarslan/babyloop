@@ -44,6 +44,12 @@ export const listingImageReviewStatusEnum = pgEnum("listing_image_review_status"
   "rejected"
 ]);
 
+export const profileSafetyStatusEnum = pgEnum("profile_safety_status", [
+  "active",
+  "restricted",
+  "suspended"
+]);
+
 export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "success",
   "error",
@@ -110,11 +116,20 @@ export const profiles = pgTable(
     displayName: varchar("display_name", { length: 120 }).notNull(),
     avatarUrl: text("avatar_url"),
     locationCity: varchar("location_city", { length: 120 }),
+    safetyStatus: profileSafetyStatusEnum("safety_status").notNull().default("active"),
+    safetyStatusUpdatedAt: timestamp("safety_status_updated_at", { withTimezone: true }),
+    safetyStatusReasonCode: varchar("safety_status_reason_code", { length: 80 }),
+    safetyStatusUpdatedByProfileId: uuid("safety_status_updated_by_profile_id").references(
+      (): AnyPgColumn => profiles.id,
+      { onDelete: "set null" }
+    ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
-    uniqueIndex("profiles_user_id_unique").on(table.userId)
+    uniqueIndex("profiles_user_id_unique").on(table.userId),
+    index("profiles_safety_status_idx").on(table.safetyStatus),
+    index("profiles_safety_status_updated_by_idx").on(table.safetyStatusUpdatedByProfileId)
   ]
 );
 

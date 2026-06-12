@@ -434,10 +434,28 @@ The backoffice must not request sensitive access automatically when a case detai
 - [ ] message hide sets `deletedAt` and normal messaging responses no longer expose the hidden body
 - [ ] message reviewed records an audited moderation action without changing raw message content
 - [ ] enforcement writes `admin_moderation_enforcement` audit metadata with `enforcementAction`, `targetType`, `targetId`, and `resultingStatus`
+- [ ] profile warn records an audited moderation action and does not change `profiles.safety_status`
+- [ ] profile restrict sets `profiles.safety_status = restricted`
+- [ ] profile suspend sets `profiles.safety_status = suspended`
+- [ ] profile restore sets `profiles.safety_status = active`
+- [ ] restricted/suspended profiles cannot create new listings
+- [ ] restricted/suspended profiles cannot send messages
+- [ ] suspended seller listings are hidden from public listing list/detail responses
+- [ ] no-op profile enforcement transitions return 400 and do not write audit events
 - [ ] enforcement appears in the safe case timeline
 - [ ] enforcement responses and timeline metadata do not include raw message body, reporter email, user email, phone numbers, tokens, auth/session metadata, full profile/listing/conversation data, or conversation participants
 - [ ] enforcement UI does not call the sensitive-access endpoint
-- [ ] profile enforcement is not shown until a safe profile status model exists
+- [ ] profile enforcement controls are shown only for profile-target moderation cases
+
+### Audit browser checklist
+
+- [ ] admin can open `/audit`
+- [ ] non-admin cannot call `GET /api/v1/admin/audit/events`
+- [ ] audit filters validate `eventType`, `entityType`, safe search, sort, and limit
+- [ ] audit browser search is limited to safe ids and event/entity types, not raw metadata text
+- [ ] audit browser metadata is allowlisted and does not return raw metadata wholesale
+- [ ] audit browser does not show raw reason text, reporter email, user email, phone numbers, message body, tokens, password hashes, cookies, raw profile/listing/message objects, or auth/session internals
+- [ ] audit browser links safely to related moderation cases and listings when ids are present
 
 ### Backoffice sensitive access UI checklist
 

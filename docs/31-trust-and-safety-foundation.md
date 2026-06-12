@@ -127,7 +127,20 @@ POST /api/v1/admin/listings/:listingId/images/:imageId/actions
 
 They require admin auth, matching listing/image ids, an allowlisted action, and a reason. They write `admin_listing_image_review_applied` audit events and do not call sensitive-access.
 
-The backoffice dashboard MVP now returns aggregate-only listing, image, moderation, and action counts. It does not expose identities, message content, raw event metadata, or private user/profile data.
+The backoffice dashboard MVP now returns aggregate-only listing, image, moderation, profile safety, audit, and action counts. It does not expose identities, message content, raw event metadata, or private user/profile data.
+
+## Profile Enforcement And Audit Browser
+
+Profile-target moderation cases now support `profile_warn`, `profile_restrict`, `profile_suspend`, and `profile_restore`.
+
+- `profile_warn` is audit-only.
+- `profile_restrict` blocks listing creation and message sending.
+- `profile_suspend` blocks listing creation/message sending and hides the seller's public listings.
+- `profile_restore` returns the profile to active status.
+
+Successful profile enforcement writes a moderation action plus `admin_profile_enforcement_applied` with safe metadata only. No-op transitions are rejected without audit rows.
+
+Backoffice `/audit` exposes safe audit event browsing through allowlisted metadata. It must not display raw reasons, emails, phone numbers, message bodies, tokens, raw profile/listing/message objects, or raw event metadata.
 
 ## Manual QA Checklist
 

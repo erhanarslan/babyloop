@@ -286,6 +286,12 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
           .send(invalidRequest("Enforcement action is not compatible with this case."));
       }
 
+      if (result.status === "invalid_transition") {
+        return reply
+          .status(400)
+          .send(invalidRequest("Enforcement action is not valid for the target state."));
+      }
+
       if (result.status !== "applied") {
         return reply.status(500).send({
           ok: false,

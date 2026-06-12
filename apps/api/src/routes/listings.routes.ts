@@ -108,6 +108,26 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       });
     }
 
+    if (result.status === "profile_not_allowed") {
+      return reply.status(403).send({
+        ok: false,
+        error: {
+          code: "PROFILE_NOT_ALLOWED_TO_CREATE_LISTING",
+          message: "This profile cannot create listings right now."
+        }
+      });
+    }
+
+    if (result.status !== "created") {
+      return reply.status(500).send({
+        ok: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Internal server error"
+        }
+      });
+    }
+
     return reply.status(201).send({
       ok: true,
       data: {

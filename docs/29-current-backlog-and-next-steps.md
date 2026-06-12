@@ -44,6 +44,8 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - Trust & Safety report/block/moderation foundation
 - backoffice listing review tools for safe listing operations
 - backoffice dashboard MVP and listing image approve/reject review workflow
+- profile safety enforcement foundation
+- safe backoffice audit browser
 - deterministic message moderation
 - mock AI listing suggestions
 - AI audit logging
@@ -56,7 +58,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - MFA user-facing management
 - listing discovery/filtering
 - image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full moderation workflow beyond current report/block, case triage, enforcement, timeline, listing review, image review, and dashboard foundations
+- full moderation workflow beyond current report/block, case triage, profile/listing/message enforcement, timeline, listing review, image review, audit browser, and dashboard foundations
 - realtime production scaling
 - AI production/provider/RAG features
 - UI system
@@ -162,7 +164,7 @@ pnpm build
 - Web flows depend on manual QA until E2E tests exist.
 - Public web still uses Bearer-token compatibility; backoffice has moved off readable access-token browser storage.
 - AI is mock-only except for audit logging structure.
-- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, triage filters, timeline, enforcement, permissioned sensitive access, listing review, image review, and an aggregate dashboard MVP exist; assignment/SLA, audit browser, profile enforcement, and advanced analytics remain incomplete.
+- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, triage filters, timeline, profile/listing/message enforcement, permissioned sensitive access, listing review, image review, safe audit browser, and an aggregate dashboard MVP exist; assignment/SLA, full user directory, appeals/export, and advanced analytics remain incomplete.
 
 
 <!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
@@ -233,6 +235,6 @@ Permissioned Sensitive Raw Data Access + Audit
 4. AI recommendation UI in backoffice.
 5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
 6. Pending image review queue and automated image moderation.
-7. Profile/account enforcement workflow after a safe user/profile status model exists.
+7. Stabilize profile enforcement and audit browser through manual QA, then design appeals/export boundaries.
 8. Full trust & safety audit event dashboard and advanced analytics.
 9. Granular denied-audit policy for unauthenticated and malformed requests.

@@ -232,8 +232,9 @@ The first enforcement slice uses:
 - `listings.status = active` for listing restore
 - `messages.deleted_at` for message hide
 - moderation action/audit event only for message reviewed
+- `profiles.safety_status` for profile restriction, suspension, and restoration
 
-Profile enforcement is deferred because profiles/users do not yet have a safe moderation status model. Listing `under_review` is also deferred because it is not an existing listing status.
+Profile warning is audit-only. Profile restriction and suspension block listing creation and message sending. Suspended seller listings are hidden from public listing list/detail queries. Listing `under_review` is still deferred because it is not an existing listing status.
 
 Every enforcement action requires admin auth, a valid moderation case, a compatible target type, an explicit reason, and an audit/timeline event.
 
@@ -284,6 +285,18 @@ GET /api/v1/admin/dashboard/summary
 ```
 
 returns aggregate counts only. It is not an audit-log browser, user directory, or sensitive-data viewer. It must not expose identities, raw event metadata, message content, private profile/user data, or auth/session data.
+
+### Decision: Audit browser is safe metadata only
+
+The admin audit browser endpoint:
+
+```txt
+GET /api/v1/admin/audit/events
+```
+
+returns event id, type, entity type/id, actor profile id, timestamp, and server-side allowlisted metadata only.
+
+It must not return raw metadata wholesale and must not expose raw reasons, emails, phone numbers, message bodies, profile/listing/message objects, tokens, cookies, password hashes, or auth/session internals. Query search is limited to safe ids and event/entity types, not metadata text.
 
 ### Decision: AI remains human-in-the-loop
 

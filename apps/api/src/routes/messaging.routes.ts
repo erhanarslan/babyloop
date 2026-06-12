@@ -102,6 +102,10 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         return reply.status(403).send(profileBlockedResponse());
       }
 
+      if (result.status === "profile_not_allowed") {
+        return reply.status(403).send(profileNotAllowedToMessageResponse());
+      }
+
       if (result.status !== "created" && result.status !== "existing") {
         return reply.status(500).send({
           ok: false,
@@ -277,6 +281,10 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
           return reply.status(403).send(profileBlockedResponse());
         }
 
+        if (result.status === "profile_not_allowed") {
+          return reply.status(403).send(profileNotAllowedToMessageResponse());
+        }
+
         return reply.status(result.status === "not_found" ? 404 : 403).send(accessError(result.status));
       }
 
@@ -442,6 +450,16 @@ function profileBlockedResponse(): ApiResponse<never> {
     error: {
       code: "PROFILE_BLOCKED",
       message: "You cannot message this user."
+    }
+  };
+}
+
+function profileNotAllowedToMessageResponse(): ApiResponse<never> {
+  return {
+    ok: false,
+    error: {
+      code: "PROFILE_NOT_ALLOWED_TO_MESSAGE",
+      message: "This profile cannot send messages right now."
     }
   };
 }

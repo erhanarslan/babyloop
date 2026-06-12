@@ -74,6 +74,7 @@ export function DashboardHome() {
             <SummaryCard label="Archived" value={summary.listings.archivedListings} />
             <SummaryCard label="Rejected images" value={summary.images.rejectedListingImages} />
             <SummaryCard label="Open cases" value={summary.moderation.openModerationCases} />
+            <SummaryCard label="Suspended profiles" value={summary.profiles.suspendedProfiles} />
           </section>
 
           <section className="module-grid" aria-label="Backoffice modules">
@@ -115,6 +116,16 @@ export function DashboardHome() {
                 ["Listing actions 7d", summary.actions.listingActionsLast7Days],
                 ["Image reviews 7d", summary.actions.imageReviewActionsLast7Days],
                 ["Denied sensitive 7d", summary.moderation.sensitiveAccessDeniedLast7Days],
+              ]}
+            />
+            <DashboardModule
+              href="/audit"
+              title="Audit events"
+              description="Browse safe audit metadata without exposing raw reasons, contact data, or message bodies."
+              stats={[
+                ["Audit events 7d", summary.actions.auditEventsLast7Days],
+                ["Profile actions 7d", summary.actions.profileEnforcementActionsLast7Days],
+                ["Restricted profiles", summary.profiles.restrictedProfiles],
               ]}
             />
           </section>

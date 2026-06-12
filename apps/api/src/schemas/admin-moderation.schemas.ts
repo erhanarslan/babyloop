@@ -32,7 +32,11 @@ export const adminModerationEnforcementActionSchema = z.enum([
   "listing_hide",
   "listing_restore",
   "message_hide",
-  "message_mark_reviewed"
+  "message_mark_reviewed",
+  "profile_warn",
+  "profile_restrict",
+  "profile_suspend",
+  "profile_restore"
 ]);
 
 export const adminModerationEnforcementBodySchema = z.object({

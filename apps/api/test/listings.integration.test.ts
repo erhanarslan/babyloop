@@ -1750,8 +1750,14 @@ describe("listings API", () => {
             openModerationCases: expect.any(Number)
           }),
           actions: expect.objectContaining({
+            auditEventsLast7Days: expect.any(Number),
+            profileEnforcementActionsLast7Days: expect.any(Number),
             listingActionsLast7Days: expect.any(Number),
             imageReviewActionsLast7Days: expect.any(Number)
+          }),
+          profiles: expect.objectContaining({
+            restrictedProfiles: expect.any(Number),
+            suspendedProfiles: expect.any(Number)
           })
         }
       }

@@ -14,6 +14,7 @@ import type {
   CreateConversationBody,
   SendMessageBody
 } from "../schemas/messaging.schemas.js";
+import { canSendMessage, getProfileSafetyStatus } from "./profile-safety.service.js";
 import { isProfilePairBlocked } from "./safety.service.js";
 
 const profileLowProfiles = alias(profiles, "profile_low_profiles");
@@ -87,8 +88,14 @@ export async function createOrGetConversation(
   body: CreateConversationBody
 ): Promise<
   | { status: "created" | "existing"; conversation: ConversationSummaryResponse }
-  | { status: "invalid_listing" | "cannot_message_self" | "profile_blocked" }
+  | { status: "invalid_listing" | "cannot_message_self" | "profile_blocked" | "profile_not_allowed" }
 > {
+  const safetyStatus = await getProfileSafetyStatus(app, currentUser.profile.id);
+
+  if (!safetyStatus || !canSendMessage(safetyStatus)) {
+    return { status: "profile_not_allowed" };
+  }
+
   const listing = await getListingForConversation(app, body.listingId);
 
   if (!listing) {
@@ -351,8 +358,14 @@ export async function sendMessage(
   body: SendMessageBody
 ): Promise<
   | { status: "sent"; message: MessageResponse }
-  | { status: "not_found" | "forbidden" | "profile_blocked" }
+  | { status: "not_found" | "forbidden" | "profile_blocked" | "profile_not_allowed" }
 > {
+  const safetyStatus = await getProfileSafetyStatus(app, currentUser.profile.id);
+
+  if (!safetyStatus || !canSendMessage(safetyStatus)) {
+    return { status: "profile_not_allowed" };
+  }
+
   const access = await getConversationAccess(app, conversationId, currentUser.profile.id);
 
   if (access.status !== "ok") {
@@ -440,7 +453,14 @@ async function getListingForConversation(
       sellerProfileId: listings.sellerProfileId
     })
     .from(listings)
-    .where(and(eq(listings.id, listingId), inArray(listings.status, MESSAGEABLE_LISTING_STATUSES)))
+    .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
+    .where(
+      and(
+        eq(listings.id, listingId),
+        inArray(listings.status, MESSAGEABLE_LISTING_STATUSES),
+        ne(profiles.safetyStatus, "suspended")
+      )
+    )
     .limit(1);
 
   return listing ?? null;

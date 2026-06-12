@@ -35,12 +35,22 @@ import {
   storeListingImage,
   type StoredListingImage
 } from "./local-image-storage.service.js";
+import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
 
 export async function createListing(
   app: FastifyInstance,
   currentUser: CurrentUser,
   body: CreateListingBody
-): Promise<{ status: "created"; listing: ListingSummaryResponse } | { status: "invalid_category" }> {
+): Promise<
+  | { status: "created"; listing: ListingSummaryResponse }
+  | { status: "invalid_category" | "profile_not_allowed" }
+> {
+  const safetyStatus = await getProfileSafetyStatus(app, currentUser.profile.id);
+
+  if (!safetyStatus || !canCreateListing(safetyStatus)) {
+    return { status: "profile_not_allowed" };
+  }
+
   const category = await findCategory(app, body.categoryId);
 
   if (!category) {

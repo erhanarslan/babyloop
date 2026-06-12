@@ -2,7 +2,8 @@ import {
   events,
   listingImages,
   listings,
-  moderationCases
+  moderationCases,
+  profiles
 } from "@babyloop/database/schema";
 import { and, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -27,7 +28,11 @@ export async function getAdminDashboardSummary(
     sensitiveAccessGrantedLast7Days,
     sensitiveAccessDeniedLast7Days,
     listingActionsLast7Days,
-    imageReviewActionsLast7Days
+    imageReviewActionsLast7Days,
+    profileEnforcementActionsLast7Days,
+    auditEventsLast7Days,
+    restrictedProfiles,
+    suspendedProfiles
   ] = await Promise.all([
     countListingsByStatus(app),
     countListings(app, gte(listings.createdAt, since)),
@@ -46,7 +51,11 @@ export async function getAdminDashboardSummary(
     countEventsSince(app, "admin_sensitive_access_granted", since),
     countEventsSince(app, "admin_sensitive_access_denied", since),
     countEventsSince(app, "admin_listing_action_applied", since),
-    countEventsSince(app, "admin_listing_image_review_applied", since)
+    countEventsSince(app, "admin_listing_image_review_applied", since),
+    countEventsSince(app, "admin_profile_enforcement_applied", since),
+    countEvents(app, gte(events.createdAt, since)),
+    countProfiles(app, eq(profiles.safetyStatus, "restricted")),
+    countProfiles(app, eq(profiles.safetyStatus, "suspended"))
   ]);
 
   return {
@@ -76,8 +85,14 @@ export async function getAdminDashboardSummary(
       sensitiveAccessDeniedLast7Days
     },
     actions: {
+      auditEventsLast7Days,
+      profileEnforcementActionsLast7Days,
       listingActionsLast7Days,
       imageReviewActionsLast7Days
+    },
+    profiles: {
+      restrictedProfiles,
+      suspendedProfiles
     }
   };
 }
@@ -212,6 +227,17 @@ async function countEvents(
       itemCount: sql<number>`count(*)::int`
     })
     .from(events)
+    .where(whereClause);
+
+  return row?.itemCount ?? 0;
+}
+
+async function countProfiles(app: FastifyInstance, whereClause?: SQL): Promise<number> {
+  const [row] = await app.db
+    .select({
+      itemCount: sql<number>`count(*)::int`
+    })
+    .from(profiles)
     .where(whereClause);
 
   return row?.itemCount ?? 0;

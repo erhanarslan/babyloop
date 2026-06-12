@@ -30,8 +30,14 @@ export type AdminDashboardSummary = {
     sensitiveAccessDeniedLast7Days: number;
   };
   actions: {
+    auditEventsLast7Days: number;
+    profileEnforcementActionsLast7Days: number;
     listingActionsLast7Days: number;
     imageReviewActionsLast7Days: number;
+  };
+  profiles: {
+    restrictedProfiles: number;
+    suspendedProfiles: number;
   };
 };
 

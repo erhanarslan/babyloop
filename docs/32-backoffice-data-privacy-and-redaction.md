@@ -264,6 +264,21 @@ Rejected images are hidden from public listing responses. Admin listing detail m
 
 Dashboard summary responses are aggregate-only. They must not include identities, raw event metadata, seller/reporter data, message content, auth/session data, or raw admin reasons.
 
+## Profile enforcement and audit browser privacy rule
+
+Profile enforcement may expose only safe profile safety fields in backoffice contexts:
+
+- profile id
+- display name when already safe for target preview
+- safety status
+- safety status timestamp
+
+It must not expose email, phone, raw user objects, raw profile objects, address/contact data, message bodies, reporter identity, tokens, cookies, password hashes, or auth/session internals.
+
+Profile enforcement audit metadata may include action, target ids, previous/next safety status, reason length, and result. It must not include raw reason text or private profile/user data.
+
+The audit browser returns only allowlisted metadata. It must not return raw `events.metadata` wholesale and must not render raw JSON blobs that could include private data.
+
 ## AI rule
 
 AI may only provide:

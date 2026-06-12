@@ -128,7 +128,7 @@ Backoffice marketplace review tools rely on the dedicated backoffice auth flow. 
 - pending image queue
 - automated AI image scanning
 - image transformations/thumbnail moderation workflow
-- profile enforcement
+- profile enforcement is now handled through profile-target moderation cases; full user directory and appeals remain deferred
 - appeals
 - exports
 - assignment/SLA

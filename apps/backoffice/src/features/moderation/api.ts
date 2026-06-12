@@ -28,7 +28,11 @@ export type AdminModerationEnforcementAction =
   | "listing_hide"
   | "listing_restore"
   | "message_hide"
-  | "message_mark_reviewed";
+  | "message_mark_reviewed"
+  | "profile_warn"
+  | "profile_restrict"
+  | "profile_suspend"
+  | "profile_restore";
 
 export type AdminModerationCase = {
   id: string;
@@ -189,6 +193,7 @@ type RawAdminTargetPreview =
       type: "profile";
       id: string;
       displayName: string;
+      safetyStatus: "active" | "restricted" | "suspended";
     }
   | {
       type: "message";
@@ -492,7 +497,7 @@ function getTargetPreviewText(preview: RawAdminTargetPreview | null): string | n
   }
 
   if (preview.type === "profile") {
-    return `Profile: ${preview.displayName}`;
+    return `Profile: ${preview.displayName} (${preview.safetyStatus})`;
   }
 
   return `Message preview: ${preview.bodyPreview}`;

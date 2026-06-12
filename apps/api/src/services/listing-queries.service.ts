@@ -5,7 +5,7 @@ import {
   productCategories,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   CategoryBasicResponse,
@@ -53,17 +53,22 @@ export async function selectActiveListingRows(app: FastifyInstance, searchQuery?
     })
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
     .where(
       shouldSearch
         ? and(
           inArray(listings.status, PUBLIC_LISTING_STATUSES),
+          ne(profiles.safetyStatus, "suspended"),
           or(
             ilike(listings.title, searchPattern),
             ilike(listings.description, searchPattern),
             ilike(productCategories.name, searchPattern)
           )
         )
-        : inArray(listings.status, PUBLIC_LISTING_STATUSES)
+        : and(
+          inArray(listings.status, PUBLIC_LISTING_STATUSES),
+          ne(profiles.safetyStatus, "suspended")
+        )
     )
     .orderBy(desc(listings.createdAt))
     .limit(LISTING_LIMIT);
@@ -115,7 +120,13 @@ export async function selectListingDetailRow(app: FastifyInstance, id: string) {
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
     .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
-    .where(and(eq(listings.id, id), inArray(listings.status, PUBLIC_LISTING_STATUSES)))
+    .where(
+      and(
+        eq(listings.id, id),
+        inArray(listings.status, PUBLIC_LISTING_STATUSES),
+        ne(profiles.safetyStatus, "suspended")
+      )
+    )
     .limit(1);
 
   return row ?? null;

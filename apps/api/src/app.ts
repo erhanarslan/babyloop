@@ -28,6 +28,7 @@ import type { GoogleOAuthClient } from "./services/google-oauth.service.js";
 import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.routes.js";
 import { registerAdminModerationRoutes } from "./routes/admin-moderation.routes.js";
 import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
+import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
@@ -159,6 +160,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
+    app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminListingRoutes, { prefix: API_PREFIX });
     app.register(registerAdminModerationRoutes, { prefix: API_PREFIX });

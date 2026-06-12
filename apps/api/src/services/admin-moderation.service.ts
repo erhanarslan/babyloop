@@ -93,6 +93,7 @@ export type AdminTargetPreview =
       type: "profile";
       id: string;
       displayName: string;
+      safetyStatus: "active" | "restricted" | "suspended";
     }
   | {
       type: "message";
@@ -173,7 +174,7 @@ export type AdminModerationEnforcementResult =
       moderationActionId: string;
       auditEventId: string;
     }
-  | { status: "not_found" | "target_not_found" | "incompatible_action" };
+  | { status: "not_found" | "target_not_found" | "incompatible_action" | "invalid_transition" };
 
 export type AdminModerationSensitiveAccessCaseContext = SensitiveAccessAuditContext & {
   reportId: string | null;
@@ -464,6 +465,22 @@ export async function applyAdminModerationEnforcement(
     });
   }
 
+  if (
+    params.action === "profile_warn" ||
+    params.action === "profile_restrict" ||
+    params.action === "profile_suspend" ||
+    params.action === "profile_restore"
+  ) {
+    return applyProfileEnforcement(app, {
+      actorProfileId: params.actorProfileId,
+      caseId: params.caseId,
+      action: params.action,
+      reason: params.reason,
+      targetId: moderationCase.targetId ?? "",
+      targetType: "profile"
+    });
+  }
+
   return { status: "incompatible_action" };
 }
 
@@ -650,6 +667,115 @@ async function applyMessageEnforcement(
   };
 }
 
+async function applyProfileEnforcement(
+  app: FastifyInstance,
+  params: {
+    actorProfileId: string;
+    caseId: string;
+    action: Extract<
+      AdminModerationEnforcementAction,
+      "profile_warn" | "profile_restrict" | "profile_suspend" | "profile_restore"
+    >;
+    reason: string;
+    targetId: string;
+    targetType: "profile";
+  }
+): Promise<AdminModerationEnforcementResult> {
+  const [profile] = await app.db
+    .select({
+      id: profiles.id,
+      safetyStatus: profiles.safetyStatus
+    })
+    .from(profiles)
+    .where(eq(profiles.id, params.targetId))
+    .limit(1);
+
+  if (!profile) {
+    return { status: "target_not_found" };
+  }
+
+  const nextSafetyStatus =
+    params.action === "profile_warn"
+      ? profile.safetyStatus
+      : getNextProfileSafetyStatus(params.action);
+
+  if (!nextSafetyStatus) {
+    return { status: "incompatible_action" };
+  }
+
+  if (!isValidProfileSafetyTransition(profile.safetyStatus, params.action)) {
+    return { status: "invalid_transition" };
+  }
+
+  const result = await app.db.transaction(async (tx) => {
+    if (params.action !== "profile_warn") {
+      await tx
+        .update(profiles)
+        .set({
+          safetyStatus: nextSafetyStatus,
+          safetyStatusUpdatedAt: new Date(),
+          safetyStatusReasonCode: params.action,
+          safetyStatusUpdatedByProfileId: params.actorProfileId,
+          updatedAt: new Date()
+        })
+        .where(eq(profiles.id, params.targetId));
+    }
+
+    const [moderationAction] = await tx
+      .insert(moderationActions)
+      .values({
+        moderationCaseId: params.caseId,
+        actorProfileId: params.actorProfileId,
+        actionType: params.action,
+        note: params.reason
+      })
+      .returning({
+        id: moderationActions.id
+      });
+
+    const [auditEvent] = await tx
+      .insert(events)
+      .values({
+        actorProfileId: params.actorProfileId,
+        eventType: "admin_profile_enforcement_applied",
+        entityType: "moderation_case",
+        entityId: params.caseId,
+        metadata: {
+          enforcementAction: params.action,
+          targetType: params.targetType,
+          targetId: params.targetId,
+          previousSafetyStatus: profile.safetyStatus,
+          nextSafetyStatus,
+          reasonLength: params.reason.length,
+          result: "applied"
+        }
+      })
+      .returning({
+        id: events.id
+      });
+
+    if (!moderationAction || !auditEvent) {
+      throw new Error("Profile enforcement audit creation failed.");
+    }
+
+    return {
+      auditEventId: auditEvent.id,
+      moderationActionId: moderationAction.id
+    };
+  });
+
+  return {
+    status: "applied",
+    caseId: params.caseId,
+    action: params.action,
+    targetType: params.targetType,
+    targetId: params.targetId,
+    resultingStatus: nextSafetyStatus,
+    moderationActionId: result.moderationActionId,
+    auditEventId: result.auditEventId
+  };
+}
+
 function isEnforcementActionCompatible(
   targetType: AdminModerationTargetType | undefined,
   action: AdminModerationEnforcementAction
@@ -662,7 +788,51 @@ function isEnforcementActionCompatible(
     return action === "message_hide" || action === "message_mark_reviewed";
   }
 
+  if (targetType === "profile") {
+    return (
+      action === "profile_warn" ||
+      action === "profile_restrict" ||
+      action === "profile_suspend" ||
+      action === "profile_restore"
+    );
+  }
+
   return false;
+}
+
+function getNextProfileSafetyStatus(
+  action: Extract<
+    AdminModerationEnforcementAction,
+    "profile_restrict" | "profile_suspend" | "profile_restore"
+  >
+): "active" | "restricted" | "suspended" {
+  switch (action) {
+    case "profile_restrict":
+      return "restricted";
+    case "profile_suspend":
+      return "suspended";
+    case "profile_restore":
+      return "active";
+  }
+}
+
+function isValidProfileSafetyTransition(
+  currentStatus: "active" | "restricted" | "suspended",
+  action: Extract<
+    AdminModerationEnforcementAction,
+    "profile_warn" | "profile_restrict" | "profile_suspend" | "profile_restore"
+  >
+): boolean {
+  switch (action) {
+    case "profile_warn":
+      return true;
+    case "profile_restrict":
+      return currentStatus !== "restricted";
+    case "profile_suspend":
+      return currentStatus !== "suspended";
+    case "profile_restore":
+      return currentStatus !== "active";
+  }
 }
 
 export async function getAdminModerationSensitiveAccessCaseContext(
@@ -849,6 +1019,7 @@ async function listCaseAuditEvents(
         eq(events.entityId, caseId),
         or(
           eq(events.eventType, "admin_moderation_enforcement"),
+          eq(events.eventType, "admin_profile_enforcement_applied"),
           eq(events.eventType, "admin_sensitive_access_granted"),
           eq(events.eventType, "admin_sensitive_access_denied")
         )
@@ -949,8 +1120,13 @@ export function sanitizeAdminModerationTimelineMetadata(
     "enforcementAction",
     "grantedFields",
     "moderationCaseId",
+    "nextSafetyStatus",
+    "previousSafetyStatus",
+    "profileId",
+    "reasonLength",
     "reportId",
     "requestedFields",
+    "result",
     "resultingStatus",
     "status",
     "targetId",
@@ -1013,6 +1189,10 @@ function getTimelineLabelForAuditEvent(eventType: string): string {
     return "Enforcement applied";
   }
 
+  if (eventType === "admin_profile_enforcement_applied") {
+    return "Profile enforcement applied";
+  }
+
   return "Audit event";
 }
 
@@ -1048,6 +1228,14 @@ function getTimelineLabelForAction(actionType: string): string {
       return "Message hidden";
     case "message_mark_reviewed":
       return "Message marked reviewed";
+    case "profile_warn":
+      return "Profile warned";
+    case "profile_restrict":
+      return "Profile restricted";
+    case "profile_suspend":
+      return "Profile suspended";
+    case "profile_restore":
+      return "Profile restored";
     case "dismissed":
       return "Status changed to dismissed";
     case "resolved":
@@ -1108,7 +1296,8 @@ async function loadTargetPreviews(
       const [profile] = await app.db
         .select({
           id: profiles.id,
-          displayName: profiles.displayName
+          displayName: profiles.displayName,
+          safetyStatus: profiles.safetyStatus
         })
         .from(profiles)
         .where(eq(profiles.id, target.targetId))
@@ -1118,7 +1307,8 @@ async function loadTargetPreviews(
         previews.set(targetKey(target.targetType, target.targetId), {
           type: "profile",
           id: profile.id,
-          displayName: createSafeTextPreview(profile.displayName, 80)
+          displayName: createSafeTextPreview(profile.displayName, 80),
+          safetyStatus: profile.safetyStatus
         });
       }
 

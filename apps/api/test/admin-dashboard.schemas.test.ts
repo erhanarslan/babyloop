@@ -30,8 +30,14 @@ describe("admin dashboard schemas", () => {
         sensitiveAccessDeniedLast7Days: 1
       },
       actions: {
+        auditEventsLast7Days: 7,
+        profileEnforcementActionsLast7Days: 1,
         listingActionsLast7Days: 2,
         imageReviewActionsLast7Days: 3
+      },
+      profiles: {
+        restrictedProfiles: 1,
+        suspendedProfiles: 1
       }
     });
 
@@ -67,8 +73,14 @@ describe("admin dashboard schemas", () => {
         sensitiveAccessDeniedLast7Days: 1
       },
       actions: {
+        auditEventsLast7Days: 7,
+        profileEnforcementActionsLast7Days: 1,
         listingActionsLast7Days: 2,
         imageReviewActionsLast7Days: 3
+      },
+      profiles: {
+        restrictedProfiles: 1,
+        suspendedProfiles: 1
       }
     });
 

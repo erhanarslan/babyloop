@@ -27,8 +27,14 @@ export const adminDashboardSummaryResponseSchema = z.object({
     sensitiveAccessDeniedLast7Days: z.number().int().nonnegative()
   }).strict(),
   actions: z.object({
+    auditEventsLast7Days: z.number().int().nonnegative(),
+    profileEnforcementActionsLast7Days: z.number().int().nonnegative(),
     listingActionsLast7Days: z.number().int().nonnegative(),
     imageReviewActionsLast7Days: z.number().int().nonnegative()
+  }).strict(),
+  profiles: z.object({
+    restrictedProfiles: z.number().int().nonnegative(),
+    suspendedProfiles: z.number().int().nonnegative()
   }).strict()
 }).strict();
 

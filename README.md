@@ -30,8 +30,8 @@ Implemented:
 | Favorites | Authenticated favorite/unfavorite/list API and web UI. Users cannot favorite their own listings or inactive listings. Favorite notifications hide actor identity, and listing responses expose privacy-safe `favoriteCount`. |
 | Notifications | Persistent in-app notifications, unread count, mark-read/read-all APIs, realtime notification events, notification center, and header unread badge. |
 | Messaging | Authenticated conversation API, idempotent start-conversation behavior, web conversations list, web thread page, deterministic moderation, stored-XSS plaintext safety, explicit/visibility-based read state, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
-| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restrictions for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
-| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/timeline/enforcement, sensitive-access request UI, listing review, listing image approve/reject, and aggregate operations summary. |
+| Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restrictions for blocked profile pairs, profile safety enforcement foundation, moderation case foundation, safety event logging, and minimal web entry points. |
+| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/timeline/enforcement, profile enforcement controls, sensitive-access request UI, listing review, listing image approve/reject, safe audit browser, and aggregate operations summary. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
 | Tests | API integration tests with Vitest and `fastify.inject`. |
 
@@ -43,7 +43,7 @@ Partially implemented:
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
 | Listing images | Local upload/storage works for development and tests, but production object storage, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are deferred. |
 | Messaging | List/thread/send/realtime/read-state works, but attachments and durable per-conversation read receipts remain deferred. |
-| Trust & Safety | Reporting/blocking and backoffice review foundations exist, but assignment/SLA, profile enforcement, fraud detection, appeals, unsafe-product guidance, audit browser, and AI moderation are deferred. |
+| Trust & Safety | Reporting/blocking, profile enforcement, and backoffice review foundations exist, but assignment/SLA, fraud detection, appeals, unsafe-product guidance, full user directory, and AI moderation are deferred. |
 | AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
 | Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
 | Email | No-op/dev email flow exists; real provider delivery is deferred. |

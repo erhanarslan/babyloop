@@ -248,11 +248,17 @@ listing_hide
 listing_restore
 message_hide
 message_mark_reviewed
+profile_warn
+profile_restrict
+profile_suspend
+profile_restore
 ```
 
-Every successful enforcement action must write a moderation action and an `admin_moderation_enforcement` audit event. Responses and audit metadata must not include raw sensitive data.
+Every successful enforcement action must write a moderation action and a safe audit event. Listing/message enforcement uses `admin_moderation_enforcement`; profile enforcement uses `admin_profile_enforcement_applied`. Responses and audit metadata must not include raw sensitive data.
 
-Profile enforcement, account suspension, listing under-review state, and destructive deletion remain outside this endpoint until the schema and product rules explicitly support them.
+Profile enforcement actions are valid only for profile-target cases. `profile_warn` is audit-only. `profile_restrict`, `profile_suspend`, and `profile_restore` update `profiles.safety_status` and also write an `admin_profile_enforcement_applied` event. No-op transitions must return `400` and must not write audit events.
+
+Listing under-review state and destructive deletion remain outside this endpoint until the schema and product rules explicitly support them.
 
 ### Admin listing review contract
 
@@ -296,6 +302,18 @@ GET /api/v1/admin/dashboard/summary
 ```
 
 The response must be aggregate-only and must not include seller/reporter identities, message content, raw event metadata, tokens, or private user/profile data.
+
+### Admin audit browser contract
+
+Safe audit browsing uses:
+
+```txt
+GET /api/v1/admin/audit/events
+```
+
+Filters may include `eventType`, `entityType`, `actorProfileId`, safe `q`, `sort`, and capped `limit`. Search is limited to safe ids and event/entity types. It must not search raw metadata text.
+
+Audit browser responses may include event id, event type, entity type/id, actor profile id, timestamp, and allowlisted metadata only. They must not return raw event metadata wholesale, raw reasons, emails, phone numbers, message bodies, profile/listing/message objects, tokens, cookies, password hashes, or auth/session internals.
 
 ### Message target preview contract
 

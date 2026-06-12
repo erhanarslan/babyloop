@@ -107,19 +107,24 @@ describe("admin moderation sensitive access schema", () => {
 
 describe("admin moderation enforcement schema", () => {
   it("accepts allowlisted enforcement actions with explicit reasons", () => {
-    const parsed = adminModerationEnforcementBodySchema.safeParse({
+    const listingAction = adminModerationEnforcementBodySchema.safeParse({
       action: "listing_hide",
       reason: "Hide listing while reviewing safety report."
     });
+    const profileAction = adminModerationEnforcementBodySchema.safeParse({
+      action: "profile_suspend",
+      reason: "Suspend profile after marketplace safety review."
+    });
 
-    expect(parsed.success).toBe(true);
+    expect(listingAction.success).toBe(true);
+    expect(profileAction.success).toBe(true);
   });
 
   it("rejects invalid actions and weak reasons", () => {
     expect(
       adminModerationEnforcementBodySchema.safeParse({
-        action: "profile_suspend",
-        reason: "Suspend profile for safety review."
+        action: "profile_delete",
+        reason: "Unsupported profile action should be rejected."
       }).success
     ).toBe(false);
 
