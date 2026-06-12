@@ -38,9 +38,10 @@ const navigationItems: NavigationItem[] = [
     status: "active",
   },
   {
-    label: "Users",
-    description: "User management",
-    status: "planned",
+    label: "Profiles",
+    href: "/profiles",
+    description: "Profile risk directory",
+    status: "active",
   },
   {
     label: "Messages",

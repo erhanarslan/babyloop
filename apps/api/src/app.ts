@@ -27,6 +27,7 @@ import {
 import type { GoogleOAuthClient } from "./services/google-oauth.service.js";
 import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.routes.js";
 import { registerAdminModerationRoutes } from "./routes/admin-moderation.routes.js";
+import { registerAdminProfileRoutes } from "./routes/admin-profiles.routes.js";
 import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
@@ -170,6 +171,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminListingRoutes, { prefix: API_PREFIX });
+    app.register(registerAdminProfileRoutes, { prefix: API_PREFIX });
     app.register(registerAdminModerationRoutes, {
       aiSummaryProvider: moderationSummaryProvider,
       prefix: API_PREFIX
