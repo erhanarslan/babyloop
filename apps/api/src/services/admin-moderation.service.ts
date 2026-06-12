@@ -15,6 +15,7 @@ import {
   type SensitiveAccessAuditContext
 } from "./admin-sensitive-access-audit.service.js";
 import { createSafeTextPreview } from "./redaction.service.js";
+import { recomputeProfileTrustSnapshot } from "./profile-trust-snapshot.service.js";
 import type { FastifyInstance } from "fastify";
 import type {
   AdminModerationEnforcementAction,
@@ -763,6 +764,8 @@ async function applyProfileEnforcement(
       moderationActionId: moderationAction.id
     };
   });
+
+  await recomputeProfileTrustSnapshot(app, params.targetId);
 
   return {
     status: "applied",

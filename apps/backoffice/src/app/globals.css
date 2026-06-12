@@ -1136,3 +1136,12 @@ a {
 .insight-metric strong {
   font-size: 1.2rem;
 }
+
+.trust-snapshot-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 0.85rem;
+}

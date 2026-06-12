@@ -16,6 +16,10 @@ import {
   type AdminModerationTargetType
 } from "./admin-moderation.service.js";
 import { createSafeTextPreview } from "./redaction.service.js";
+import {
+  getOrRecomputeProfileTrustSnapshot,
+  type AdminProfileTrustSnapshot
+} from "./profile-trust-snapshot.service.js";
 
 const AI_MODERATION_SUMMARY_FEATURE = "moderation_summary";
 const OPEN_CASE_STATUSES: AdminModerationCaseStatus[] = ["pending", "in_review"];
@@ -60,6 +64,7 @@ export type AdminModerationCaseInsights = {
     confidenceScore: number | null;
     createdAt: string;
   } | null;
+  profileTrustSnapshot: AdminProfileTrustSnapshot | null;
   risk: {
     score: number;
     level: AdminModerationCaseRiskLevel;
@@ -143,6 +148,10 @@ export async function getAdminModerationCaseInsights(
     loadLatestAiSummaryForCase(app, caseId)
   ]);
 
+  const profileTrustSnapshot = targetProfile
+    ? await getOrRecomputeProfileTrustSnapshot(app, targetProfile.profileId)
+    : null;
+
   const counts = {
     openCasesForTarget,
     totalCasesForTarget,
@@ -172,6 +181,7 @@ export async function getAdminModerationCaseInsights(
       targetProfile,
       counts,
       latestAiSummary,
+      profileTrustSnapshot,
       risk,
       recommendedNextStep: getRecommendedNextStep({
         riskLevel: risk.level,

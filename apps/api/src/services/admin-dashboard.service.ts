@@ -3,7 +3,8 @@ import {
   listingImages,
   listings,
   moderationCases,
-  profiles
+  profiles,
+  profileTrustSnapshots
 } from "@babyloop/database/schema";
 import { and, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -32,7 +33,9 @@ export async function getAdminDashboardSummary(
     profileEnforcementActionsLast7Days,
     auditEventsLast7Days,
     restrictedProfiles,
-    suspendedProfiles
+    suspendedProfiles,
+    highRiskProfiles,
+    criticalRiskProfiles
   ] = await Promise.all([
     countListingsByStatus(app),
     countListings(app, gte(listings.createdAt, since)),
@@ -55,7 +58,9 @@ export async function getAdminDashboardSummary(
     countEventsSince(app, "admin_profile_enforcement_applied", since),
     countEvents(app, gte(events.createdAt, since)),
     countProfiles(app, eq(profiles.safetyStatus, "restricted")),
-    countProfiles(app, eq(profiles.safetyStatus, "suspended"))
+    countProfiles(app, eq(profiles.safetyStatus, "suspended")),
+    countProfileTrustSnapshots(app, eq(profileTrustSnapshots.riskLevel, "high")),
+    countProfileTrustSnapshots(app, eq(profileTrustSnapshots.riskLevel, "critical"))
   ]);
 
   return {
@@ -92,7 +97,9 @@ export async function getAdminDashboardSummary(
     },
     profiles: {
       restrictedProfiles,
-      suspendedProfiles
+      suspendedProfiles,
+      highRiskProfiles,
+      criticalRiskProfiles
     }
   };
 }
@@ -238,6 +245,20 @@ async function countProfiles(app: FastifyInstance, whereClause?: SQL): Promise<n
       itemCount: sql<number>`count(*)::int`
     })
     .from(profiles)
+    .where(whereClause);
+
+  return row?.itemCount ?? 0;
+}
+
+async function countProfileTrustSnapshots(
+  app: FastifyInstance,
+  whereClause?: SQL
+): Promise<number> {
+  const [row] = await app.db
+    .select({
+      itemCount: sql<number>`count(*)::int`
+    })
+    .from(profileTrustSnapshots)
     .where(whereClause);
 
   return row?.itemCount ?? 0;

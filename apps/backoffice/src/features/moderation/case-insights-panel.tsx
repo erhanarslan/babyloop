@@ -109,6 +109,34 @@ export function CaseInsightsPanel({ moderationCase }: CaseInsightsPanelProps) {
             <p className="muted">No safe target profile signal is available.</p>
           )}
 
+          {insights.profileTrustSnapshot ? (
+            <div className="trust-snapshot-card">
+              <div>
+                <p className="eyebrow">Profile trust snapshot</p>
+                <strong>{formatRiskLevel(insights.profileTrustSnapshot.riskLevel)} profile risk</strong>
+                <p className="muted">Computed {formatDateTime(insights.profileTrustSnapshot.computedAt)}</p>
+              </div>
+              <dl className="compact-details">
+                <div>
+                  <dt>Trust score</dt>
+                  <dd>{insights.profileTrustSnapshot.trustScore}</dd>
+                </div>
+                <div>
+                  <dt>Risk score</dt>
+                  <dd>{insights.profileTrustSnapshot.riskScore}</dd>
+                </div>
+                <div>
+                  <dt>Open profile cases</dt>
+                  <dd>{insights.profileTrustSnapshot.openCaseCount}</dd>
+                </div>
+                <div>
+                  <dt>Recent reports</dt>
+                  <dd>{insights.profileTrustSnapshot.recentReportCount}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
+
           <div className="insight-metric-grid">
             <InsightMetric label="Open cases" value={insights.counts.openCasesForTarget} />
             <InsightMetric label="Total cases" value={insights.counts.totalCasesForTarget} />
@@ -154,7 +182,7 @@ function InsightMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function formatRiskLevel(level: AdminModerationCaseInsights["risk"]["level"] | "medium" | "high" | "low"): string {
+function formatRiskLevel(level: AdminModerationCaseInsights["risk"]["level"]): string {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
 

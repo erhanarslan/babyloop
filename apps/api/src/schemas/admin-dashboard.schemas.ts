@@ -34,7 +34,9 @@ export const adminDashboardSummaryResponseSchema = z.object({
   }).strict(),
   profiles: z.object({
     restrictedProfiles: z.number().int().nonnegative(),
-    suspendedProfiles: z.number().int().nonnegative()
+    suspendedProfiles: z.number().int().nonnegative(),
+    highRiskProfiles: z.number().int().nonnegative(),
+    criticalRiskProfiles: z.number().int().nonnegative()
   }).strict()
 }).strict();
 

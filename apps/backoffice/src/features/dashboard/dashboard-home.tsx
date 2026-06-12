@@ -75,6 +75,7 @@ export function DashboardHome() {
             <SummaryCard label="Rejected images" value={summary.images.rejectedListingImages} />
             <SummaryCard label="Open cases" value={summary.moderation.openModerationCases} />
             <SummaryCard label="Suspended profiles" value={summary.profiles.suspendedProfiles} />
+            <SummaryCard label="High risk profiles" value={summary.profiles.highRiskProfiles} />
           </section>
 
           <section className="module-grid" aria-label="Backoffice modules">
@@ -126,6 +127,8 @@ export function DashboardHome() {
                 ["Audit events 7d", summary.actions.auditEventsLast7Days],
                 ["Profile actions 7d", summary.actions.profileEnforcementActionsLast7Days],
                 ["Restricted profiles", summary.profiles.restrictedProfiles],
+                ["High risk profiles", summary.profiles.highRiskProfiles],
+                ["Critical risk profiles", summary.profiles.criticalRiskProfiles],
               ]}
             />
           </section>

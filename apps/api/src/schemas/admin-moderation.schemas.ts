@@ -54,6 +54,24 @@ export const adminModerationAiSummariesQuerySchema = z.object({
 });
 
 
+
+const adminProfileTrustSnapshotSchema = z.object({
+  profileId: z.string().uuid(),
+  trustScore: z.number().int().min(0).max(100),
+  riskScore: z.number().int().min(0).max(100),
+  riskLevel: z.enum(["low", "medium", "high", "critical"]),
+  safetyStatus: z.enum(["active", "restricted", "suspended"]),
+  openCaseCount: z.number().int().min(0),
+  totalCaseCount: z.number().int().min(0),
+  recentReportCount: z.number().int().min(0),
+  recentEnforcementCount: z.number().int().min(0),
+  sensitiveAccessCount: z.number().int().min(0),
+  aiSummaryCount: z.number().int().min(0),
+  lastReportAt: z.string().datetime().nullable(),
+  lastEnforcementAt: z.string().datetime().nullable(),
+  computedAt: z.string().datetime()
+});
+
 export const adminModerationCaseInsightsResponseSchema = z.object({
   caseId: z.string().uuid(),
   insights: z.object({
@@ -88,6 +106,7 @@ export const adminModerationCaseInsightsResponseSchema = z.object({
         createdAt: z.string().datetime()
       })
       .nullable(),
+    profileTrustSnapshot: adminProfileTrustSnapshotSchema.nullable(),
     risk: z.object({
       score: z.number().int().min(0).max(100),
       level: z.enum(["low", "medium", "high", "critical"]),

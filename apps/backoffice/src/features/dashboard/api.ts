@@ -38,6 +38,8 @@ export type AdminDashboardSummary = {
   profiles: {
     restrictedProfiles: number;
     suspendedProfiles: number;
+    highRiskProfiles: number;
+    criticalRiskProfiles: number;
   };
 };
 

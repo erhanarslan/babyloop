@@ -112,6 +112,22 @@ export type AdminModerationCaseInsights = {
     confidenceScore: number | null;
     createdAt: string;
   } | null;
+  profileTrustSnapshot: {
+    profileId: string;
+    trustScore: number;
+    riskScore: number;
+    riskLevel: "low" | "medium" | "high" | "critical";
+    safetyStatus: "active" | "restricted" | "suspended";
+    openCaseCount: number;
+    totalCaseCount: number;
+    recentReportCount: number;
+    recentEnforcementCount: number;
+    sensitiveAccessCount: number;
+    aiSummaryCount: number;
+    lastReportAt: string | null;
+    lastEnforcementAt: string | null;
+    computedAt: string;
+  } | null;
   risk: {
     score: number;
     level: "low" | "medium" | "high" | "critical";

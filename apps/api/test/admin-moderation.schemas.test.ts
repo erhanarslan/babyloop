@@ -220,6 +220,22 @@ describe("admin moderation case insights response schema", () => {
           confidenceScore: 0.82,
           createdAt: "2026-06-12T12:01:00.000Z"
         },
+        profileTrustSnapshot: {
+          profileId: "00000000-0000-4000-8000-000000000002",
+          trustScore: 38,
+          riskScore: 62,
+          riskLevel: "high",
+          safetyStatus: "restricted",
+          openCaseCount: 2,
+          totalCaseCount: 4,
+          recentReportCount: 3,
+          recentEnforcementCount: 1,
+          sensitiveAccessCount: 1,
+          aiSummaryCount: 2,
+          lastReportAt: "2026-06-12T10:00:00.000Z",
+          lastEnforcementAt: "2026-06-12T11:00:00.000Z",
+          computedAt: "2026-06-12T12:00:00.000Z"
+        },
         risk: {
           score: 72,
           level: "high",
@@ -256,6 +272,7 @@ describe("admin moderation case insights response schema", () => {
             aiSummaryErrors: 0
           },
           latestAiSummary: null,
+          profileTrustSnapshot: null,
           risk: {
             score: 101,
             level: "severe",

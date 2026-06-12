@@ -50,6 +50,13 @@ export const profileSafetyStatusEnum = pgEnum("profile_safety_status", [
   "suspended"
 ]);
 
+export const profileTrustRiskLevelEnum = pgEnum("profile_trust_risk_level", [
+  "low",
+  "medium",
+  "high",
+  "critical"
+]);
+
 export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "success",
   "error",
@@ -130,6 +137,38 @@ export const profiles = pgTable(
     uniqueIndex("profiles_user_id_unique").on(table.userId),
     index("profiles_safety_status_idx").on(table.safetyStatus),
     index("profiles_safety_status_updated_by_idx").on(table.safetyStatusUpdatedByProfileId)
+  ]
+);
+
+export const profileTrustSnapshots = pgTable(
+  "profile_trust_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    trustScore: integer("trust_score").notNull().default(100),
+    riskScore: integer("risk_score").notNull().default(0),
+    riskLevel: profileTrustRiskLevelEnum("risk_level").notNull().default("low"),
+    safetyStatus: profileSafetyStatusEnum("safety_status").notNull().default("active"),
+    openCaseCount: integer("open_case_count").notNull().default(0),
+    totalCaseCount: integer("total_case_count").notNull().default(0),
+    recentReportCount: integer("recent_report_count").notNull().default(0),
+    recentEnforcementCount: integer("recent_enforcement_count").notNull().default(0),
+    sensitiveAccessCount: integer("sensitive_access_count").notNull().default(0),
+    aiSummaryCount: integer("ai_summary_count").notNull().default(0),
+    lastReportAt: timestamp("last_report_at", { withTimezone: true }),
+    lastEnforcementAt: timestamp("last_enforcement_at", { withTimezone: true }),
+    computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("profile_trust_snapshots_profile_id_unique").on(table.profileId),
+    index("profile_trust_snapshots_risk_level_idx").on(table.riskLevel),
+    index("profile_trust_snapshots_computed_at_idx").on(table.computedAt),
+    check("profile_trust_snapshots_trust_score_check", sql`${table.trustScore} between 0 and 100`),
+    check("profile_trust_snapshots_risk_score_check", sql`${table.riskScore} between 0 and 100`)
   ]
 );
 
@@ -642,6 +681,7 @@ export const schema = {
   passwordResetTokens,
   productCategories,
   profiles,
+  profileTrustSnapshots,
   reports,
   sessions,
   userSafetyEvents,

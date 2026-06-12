@@ -37,7 +37,9 @@ describe("admin dashboard schemas", () => {
       },
       profiles: {
         restrictedProfiles: 1,
-        suspendedProfiles: 1
+        suspendedProfiles: 1,
+        highRiskProfiles: 1,
+        criticalRiskProfiles: 0
       }
     });
 
@@ -80,7 +82,9 @@ describe("admin dashboard schemas", () => {
       },
       profiles: {
         restrictedProfiles: 1,
-        suspendedProfiles: 1
+        suspendedProfiles: 1,
+        highRiskProfiles: 1,
+        criticalRiskProfiles: 0
       }
     });
 
