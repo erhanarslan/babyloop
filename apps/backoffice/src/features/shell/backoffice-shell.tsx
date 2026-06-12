@@ -45,8 +45,9 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: "Messages",
+    href: "/conversations",
     description: "Conversation safety",
-    status: "planned",
+    status: "active",
   },
   {
     label: "Reports",
