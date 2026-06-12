@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adminModerationEnforcementBodySchema,
+  adminModerationAiSummaryBodySchema,
   adminModerationCasesQuerySchema,
   adminSensitiveAccessBodySchema
 } from "../src/schemas/admin-moderation.schemas.js";
@@ -140,5 +141,20 @@ describe("admin moderation enforcement schema", () => {
         reason: "Hide message after moderation review."
       }).success
     ).toBe(false);
+  });
+});
+
+
+describe("admin moderation AI summary schema", () => {
+  it("requires an explicit useful generation reason", () => {
+    expect(
+      adminModerationAiSummaryBodySchema.safeParse({
+        reason: "Generate a redacted AI summary for moderation triage."
+      }).success
+    ).toBe(true);
+
+    expect(adminModerationAiSummaryBodySchema.safeParse({ reason: "short" }).success)
+      .toBe(false);
+    expect(adminModerationAiSummaryBodySchema.safeParse({}).success).toBe(false);
   });
 });

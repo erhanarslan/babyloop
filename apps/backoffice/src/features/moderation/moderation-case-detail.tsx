@@ -10,6 +10,7 @@ import {
   type AdminModerationTimelineItem,
   getAdminModerationCase,
 } from "./api";
+import { AiSummaryPanel } from "./ai-summary-panel";
 import { EnforcementActionPanel } from "./enforcement-action-panel";
 import { ModerationActionForm } from "./moderation-action-form";
 import { ModerationStatusForm } from "./moderation-status-form";
@@ -158,6 +159,8 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
           moderationCase={moderationCase}
           onApplied={setModerationCase}
         />
+
+        <AiSummaryPanel moderationCase={moderationCase} />
 
         <SensitiveAccessPanel moderationCase={moderationCase} />
       </section>

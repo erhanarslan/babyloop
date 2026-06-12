@@ -1115,6 +1115,12 @@ export function sanitizeAdminModerationTimelineMetadata(
   const safeMetadata: AdminModerationTimelineMetadata = {};
   const allowedKeys = [
     "actionType",
+    "riskLevel",
+    "recommendedAction",
+    "promptVersion",
+    "providerName",
+    "confidenceScore",
+    "aiModelRunId",
     "denialReason",
     "deniedFields",
     "enforcementAction",
@@ -1191,6 +1197,10 @@ function getTimelineLabelForAuditEvent(eventType: string): string {
 
   if (eventType === "admin_profile_enforcement_applied") {
     return "Profile enforcement applied";
+  }
+
+  if (eventType === "admin_ai_moderation_summary_generated") {
+    return "AI moderation summary generated";
   }
 
   return "Audit event";

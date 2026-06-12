@@ -158,6 +158,35 @@ export type ApplyAdminModerationEnforcementResponse = {
 
 export type AdminSensitiveAccessField = "reporter" | "message";
 
+
+export type AdminModerationAiSummary = {
+  summary: string;
+  riskLevel: "low" | "medium" | "high";
+  recommendedAction:
+    | "dismiss_or_monitor"
+    | "continue_review"
+    | "hide_listing"
+    | "hide_message"
+    | "restrict_profile"
+    | "escalate";
+  rationale: string[];
+  safetySignals: string[];
+  confidenceScore: number;
+  providerName: string;
+  promptVersion: string;
+};
+
+export type GenerateAdminModerationAiSummaryInput = {
+  reason: string;
+};
+
+export type GenerateAdminModerationAiSummaryResponse = {
+  caseId: string;
+  summary: AdminModerationAiSummary;
+  aiModelRunId: string;
+  auditEventId: string;
+};
+
 export type RequestAdminSensitiveAccessInput = {
   reason: string;
   fields: AdminSensitiveAccessField[];
@@ -418,6 +447,20 @@ export async function applyAdminModerationEnforcement(
       enforcement: response.data,
     },
   };
+}
+
+
+export async function generateAdminModerationAiSummary(
+  caseId: string,
+  input: GenerateAdminModerationAiSummaryInput,
+): Promise<ApiResponse<GenerateAdminModerationAiSummaryResponse>> {
+  return adminRequest<GenerateAdminModerationAiSummaryResponse>(
+    `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/ai-summary`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function requestAdminSensitiveAccess(

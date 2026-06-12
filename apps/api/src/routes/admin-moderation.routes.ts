@@ -2,6 +2,7 @@ import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import {
   adminModerationActionBodySchema,
+  adminModerationAiSummaryBodySchema,
   adminModerationCaseParamsSchema,
   adminModerationCasesQuerySchema,
   adminModerationEnforcementBodySchema,
@@ -23,6 +24,7 @@ import {
   requestAdminModerationSensitiveAccess,
   updateAdminModerationCaseStatus
 } from "../services/admin-moderation.service.js";
+import { generateAdminModerationAiSummary } from "../services/admin-moderation-ai.service.js";
 
 export function registerAdminModerationRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown }>(
@@ -239,6 +241,65 @@ export function registerAdminModerationRoutes(app: FastifyInstance): void {
       };
     }
   );
+
+
+  app.post<{ Body: unknown; Params: { caseId: string } }>(
+    "/admin/moderation/cases/:caseId/ai-summary",
+    async (request, reply) => {
+      const admin = await requireAdminUser(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminModerationCaseParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation case id must be a valid UUID."));
+      }
+
+      const parsedBody = adminModerationAiSummaryBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation AI summary body is invalid."));
+      }
+
+      const result = await generateAdminModerationAiSummary(app, {
+        actorProfileId: admin.profile.id,
+        caseId: parsedParams.data.caseId,
+        reason: parsedBody.data.reason
+      });
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      if (result.status === "error") {
+        return reply.status(503).send({
+          ok: false,
+          error: {
+            code: "AI_UNAVAILABLE",
+            message: "Moderation summary provider is unavailable."
+          }
+        });
+      }
+
+      return {
+        ok: true,
+        data: {
+          caseId: result.caseId,
+          summary: result.summary,
+          aiModelRunId: result.aiModelRunId,
+          auditEventId: result.auditEventId
+        }
+      };
+    }
+  );
+
 
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/enforcement",

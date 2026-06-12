@@ -44,6 +44,11 @@ export const adminModerationEnforcementBodySchema = z.object({
   reason: z.string().trim().min(10).max(1000)
 });
 
+
+export const adminModerationAiSummaryBodySchema = z.object({
+  reason: z.string().trim().min(10).max(1000)
+});
+
 export const adminSensitiveAccessBodySchema = z.object({
   reason: z.string().trim().min(10).max(1000),
   fields: z
@@ -58,5 +63,6 @@ export type AdminModerationStatusBody = z.infer<typeof adminModerationStatusBody
 export type AdminModerationActionBody = z.infer<typeof adminModerationActionBodySchema>;
 export type AdminModerationEnforcementAction = z.infer<typeof adminModerationEnforcementActionSchema>;
 export type AdminModerationEnforcementBody = z.infer<typeof adminModerationEnforcementBodySchema>;
+export type AdminModerationAiSummaryBody = z.infer<typeof adminModerationAiSummaryBodySchema>;
 export type AdminSensitiveAccessBody = z.infer<typeof adminSensitiveAccessBodySchema>;
 export type AdminSensitiveAccessField = z.infer<typeof adminSensitiveAccessFieldSchema>;

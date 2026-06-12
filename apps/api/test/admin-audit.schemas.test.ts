@@ -57,6 +57,31 @@ describe("admin audit schemas", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("allows AI moderation summary metadata", () => {
+    const sanitized = sanitizeAuditMetadata({
+      caseId: "30000000-0000-4000-8000-000000000001",
+      aiModelRunId: "30000000-0000-4000-8000-000000000002",
+      providerName: "mock-moderation-summary",
+      promptVersion: "moderation_summary.mock.v1",
+      confidenceScore: 0.77,
+      riskLevel: "medium",
+      recommendedAction: "continue_review",
+      reasonLength: 58,
+      rawReason: "do not expose this"
+    });
+
+    expect(sanitized).toEqual({
+      caseId: "30000000-0000-4000-8000-000000000001",
+      aiModelRunId: "30000000-0000-4000-8000-000000000002",
+      providerName: "mock-moderation-summary",
+      promptVersion: "moderation_summary.mock.v1",
+      confidenceScore: 0.77,
+      riskLevel: "medium",
+      recommendedAction: "continue_review",
+      reasonLength: 58
+    });
+  });
+
   it("strips unsafe raw metadata keys", () => {
     const sanitized = sanitizeAuditMetadata({
       targetType: "profile",

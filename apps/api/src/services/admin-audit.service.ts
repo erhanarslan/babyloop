@@ -15,6 +15,12 @@ export type AdminAuditEventSummary = {
 
 const SAFE_AUDIT_METADATA_KEYS = [
   "action",
+  "riskLevel",
+  "recommendedAction",
+  "promptVersion",
+  "providerName",
+  "confidenceScore",
+  "aiModelRunId",
   "caseId",
   "denialReason",
   "deniedFields",
