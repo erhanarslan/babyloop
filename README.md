@@ -8,7 +8,7 @@ This repository currently contains a verified local MVP foundation:
 - Turborepo
 - TypeScript
 - `apps/web`: Next.js app with home, browse, listing detail, sell, favorites, my listings, auth, notifications, and messaging pages
-- `apps/api`: Fastify API with health, auth, marketplace listings, image upload, favorites, notifications, mock AI listing suggestions, and messaging endpoints
+- `apps/api`: Fastify API with health, auth, marketplace listings, image upload, favorites, notifications, mock AI listing suggestions, messaging, and backoffice admin endpoints
 - `packages/shared`: shared API response type
 - `packages/config`: shared app constants
 - `packages/database`: Drizzle/PostgreSQL schema, migration, local seed data, and `ai_model_runs` audit table
@@ -16,7 +16,7 @@ This repository currently contains a verified local MVP foundation:
 
 The current auth slice includes email/password register/login, `GET /api/v1/auth/me`, refresh-token sessions, logout/session revoke, password reset, email verification, Google OAuth foundation, and MFA OTP backend foundation. These are local/product foundations, not a claim of production-ready auth operations.
 
-Admin, worker, mobile app, real AI providers, pricing, RAG, recommendations, production email delivery, and payments are intentionally delayed.
+Worker, mobile app, real AI providers, pricing, RAG, recommendations, production email delivery, and payments are intentionally delayed.
 
 ## Current Implemented Features
 
@@ -31,6 +31,7 @@ Implemented:
 | Notifications | Persistent in-app notifications, unread count, mark-read/read-all APIs, realtime notification events, notification center, and header unread badge. |
 | Messaging | Authenticated conversation API, idempotent start-conversation behavior, web conversations list, web thread page, deterministic moderation, stored-XSS plaintext safety, explicit/visibility-based read state, Socket.IO realtime delivery, and plain text send UI. Conversations are one channel per profile pair with listing contexts. |
 | Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restrictions for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
+| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/timeline/enforcement, sensitive-access request UI, listing review, listing image approve/reject, and aggregate operations summary. |
 | Mock AI | Deterministic mock listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` logging when DB is available. |
 | Tests | API integration tests with Vitest and `fastify.inject`. |
 
@@ -38,11 +39,11 @@ Partially implemented:
 
 | Area | Current limitation |
 | --- | --- |
-| Auth/session | Session, logout, password reset, email verification, and Google OAuth foundations exist, but production hardening, device/session management UI, provider validation, and deployment validation remain incomplete. |
+| Auth/session | Session, logout, password reset, email verification, Google OAuth foundations, and backoffice httpOnly access-cookie transport exist, but public-web cookie migration, CSRF token enforcement, device/session management UI, provider validation, and deployment validation remain incomplete. |
 | Listing discovery | Public list/detail exists, but search/filter/pagination are limited or missing. |
 | Listing images | Local upload/storage works for development and tests, but production object storage, image transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are deferred. |
 | Messaging | List/thread/send/realtime/read-state works, but attachments and durable per-conversation read receipts remain deferred. |
-| Trust & Safety | Reporting/blocking foundation exists, but full admin review UI, fraud detection, appeals, unsafe-product guidance, and AI/image moderation are deferred. |
+| Trust & Safety | Reporting/blocking and backoffice review foundations exist, but assignment/SLA, profile enforcement, fraud detection, appeals, unsafe-product guidance, audit browser, and AI moderation are deferred. |
 | AI | Mock suggestion flow and audit logging exist. No real LLM provider, price recommendation, RAG, moderation queue, or recommendation engine yet. |
 | Realtime | Socket.IO works locally for messaging/notifications, but production scaling with a Redis adapter remains deferred. |
 | Email | No-op/dev email flow exists; real provider delivery is deferred. |
@@ -51,18 +52,17 @@ Partially implemented:
 Not implemented:
 
 - rental listing flows
-- admin panel
 - mobile app
 - payments
-- full admin moderation queue and review workflows
+- full assignment/SLA moderation workflow
 - production observability/deployment pipeline
 
 Intentionally deferred:
 
-- admin, worker, and mobile apps
+- worker and mobile apps
 - real AI providers, pricing, RAG, recommendations, and AI moderation
 - background workers/automation and notification delivery expansion
-- production-grade auth/session hardening
+- remaining production-grade auth/session hardening, including CSRF token enforcement and device/session UI
 - WhatsApp-like chat UI refinement as a future UX direction, not WhatsApp integration
 - hybrid payment model: external agreement mode plus optional safe payment mode
 - admin-managed pinned promo cards in conversations
@@ -398,7 +398,7 @@ curl -X POST http://127.0.0.1:4000/api/v1/ai/listing-suggestions \
 - image upload/storage and media validation
 - search/filter/pagination
 - messaging unread state, report, and block flows
-- admin/moderation tools
+- deeper admin/moderation tools beyond the current backoffice foundation
 - trust and safety policy enforcement
 - deployment and observability
 
@@ -430,7 +430,7 @@ Current auth is a local-first email/password implementation:
 - `AUTH_SECRET` is required when `DATABASE_URL` is configured and must be at least 32 characters.
 - Default access token TTL is 15 minutes; set `AUTH_TOKEN_TTL_SECONDS` only for local dev overrides.
 - `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW_SECONDS` apply to register/login endpoints.
-- Web token storage currently uses `localStorage`; HTTP-only cookies, richer session/device management,
+- Public web token storage currently uses Bearer-token compatibility; backoffice access-token storage has moved to httpOnly cookies. Full public-web cookie migration, richer session/device management,
   production email delivery, provider validation, and deployment hardening remain incomplete.
 - `ALLOW_AUTH_UNAVAILABLE=true` is only for local unavailable-mode testing.
 

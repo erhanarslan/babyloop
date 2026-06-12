@@ -1275,6 +1275,20 @@ describe("listings API", () => {
         reason: "Listing should be removed from marketplace review."
       }
     });
+    const archiveAgain = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "archive",
+        reason: "A repeated archive should be rejected."
+      }
+    });
+    const eventCountAfterNoopArchive = await countEvents(
+      app.db,
+      "admin_listing_action_applied",
+      listing.id
+    );
     const restored = await app.inject({
       headers: authHeader(admin.accessToken),
       method: "POST",
@@ -1282,6 +1296,15 @@ describe("listings API", () => {
       payload: {
         action: "restore",
         reason: "Listing has passed the review and can return."
+      }
+    });
+    const restoreAgain = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/actions`,
+      payload: {
+        action: "restore",
+        reason: "A repeated restore should be rejected."
       }
     });
     const [listingRow] = await app.db
@@ -1304,6 +1327,8 @@ describe("listings API", () => {
       previousStatus: "active",
       nextStatus: "archived"
     });
+    expect(archiveAgain.statusCode).toBe(400);
+    expect(eventCountAfterNoopArchive).toBe(1);
     expect(restored.statusCode).toBe(200);
     expect(restored.json().data).toMatchObject({
       listingId: listing.id,
@@ -1311,6 +1336,7 @@ describe("listings API", () => {
       previousStatus: "archived",
       nextStatus: "active"
     });
+    expect(restoreAgain.statusCode).toBe(400);
     expect(listingRow?.status).toBe("active");
     expect(eventCount).toBe(2);
     expect(archived.body).not.toContain(seller.user.email);
@@ -1393,6 +1419,20 @@ describe("listings API", () => {
         reason: "Image is not suitable for marketplace display."
       }
     });
+    const rejectAgain = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "A repeated rejection should be rejected."
+      }
+    });
+    const eventCountAfterNoopReject = await countEvents(
+      app.db,
+      "admin_listing_image_review_applied",
+      listing.id
+    );
     const publicDetailAfterReject = await app.inject({
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
@@ -1415,6 +1455,15 @@ describe("listings API", () => {
         reason: "Image has been reviewed and can be shown publicly."
       }
     });
+    const approveAgain = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "approve",
+        reason: "A repeated approval should be rejected."
+      }
+    });
     const publicDetailAfterApprove = await app.inject({
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
@@ -1431,6 +1480,8 @@ describe("listings API", () => {
       reviewStatus: "rejected",
       reviewedByProfileId: admin.profile.id
     });
+    expect(rejectAgain.statusCode).toBe(400);
+    expect(eventCountAfterNoopReject).toBe(1);
     expect(publicDetailAfterReject.statusCode).toBe(200);
     expect(publicDetailAfterReject.json().data.listing.images).toEqual([]);
     expect(publicListAfterReject.statusCode).toBe(200);
@@ -1450,6 +1501,7 @@ describe("listings API", () => {
         url: `/api/v1/uploads/listings/${listing.id}/review.png`
       })
     ]);
+    expect(approveAgain.statusCode).toBe(400);
     expect(reviewEventCount).toBe(2);
     expect(rejected.body).not.toContain(seller.user.email);
     expect(rejected.body).not.toContain("messageBody");
@@ -1523,6 +1575,73 @@ describe("listings API", () => {
     expect(mismatchedListing.statusCode).toBe(404);
     expect(invalidAction.statusCode).toBe(400);
     expect(blankReason.statusCode).toBe(400);
+  });
+
+  it("preserves rejected image review state when seller updates matching imageUrls", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-image-url-preserve@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Rejected URL preservation listing"
+    });
+    const imageUrl = "https://cdn.example.test/rejected-review-image.png";
+    const [image] = await app.db
+      .insert(listingImages)
+      .values({
+        listingId: listing.id,
+        url: imageUrl,
+        sortOrder: 0
+      })
+      .returning({
+        id: listingImages.id
+      });
+
+    if (!image) {
+      throw new Error("Rejected image URL preservation setup failed.");
+    }
+
+    const rejected = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
+      payload: {
+        action: "reject",
+        reason: "Image URL should stay hidden after seller metadata updates."
+      }
+    });
+    const sellerUpdate = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}`,
+      payload: {
+        imageUrls: [imageUrl]
+      }
+    });
+    const [imageAfterUpdate] = await app.db
+      .select({
+        id: listingImages.id,
+        reviewStatus: listingImages.reviewStatus
+      })
+      .from(listingImages)
+      .where(eq(listingImages.url, imageUrl))
+      .limit(1);
+    const publicDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+
+    expect(rejected.statusCode).toBe(200);
+    expect(sellerUpdate.statusCode).toBe(200);
+    expect(imageAfterUpdate).toEqual({
+      id: image.id,
+      reviewStatus: "rejected"
+    });
+    expect(publicDetail.statusCode).toBe(200);
+    expect(publicDetail.json().data.listing.images).toEqual([]);
+    expect(sellerUpdate.body).not.toContain("reviewStatus");
+    expect(sellerUpdate.body).not.toContain("reviewedByProfileId");
   });
 
   it("includes sanitized listing activity for listing and image review actions", async () => {

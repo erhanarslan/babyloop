@@ -59,6 +59,7 @@ Local MVP foundation with several production-oriented building blocks
 | Notifications | Persistent in-app notification model, list, unread count, mark read, mark all read, realtime events, notification center, and header unread badge. |
 | Messaging | Profile-pair conversations with listing contexts, idempotent start-conversation behavior, message send/list/detail, deterministic moderation, plaintext/XSS validation, Socket.IO realtime events, explicit/visibility-based read state, block-aware send/start restrictions, and web list/thread/composer UI. |
 | Trust & Safety | Report listing/profile/message APIs, user block/unblock APIs, two-way messaging restriction for blocked profile pairs, moderation case foundation, safety event logging, and minimal web entry points. |
+| Backoffice | Dedicated admin app with cookie-backed auth, dashboard MVP, moderation list/detail/filters/timeline/enforcement, explicit sensitive-access request UI, listing review, listing image approve/reject, and listing activity visibility. |
 | Mock AI | Deterministic listing suggestion provider, API endpoint, sell-page integration, and `ai_model_runs` audit logging when DB is available. |
 | Tests | Split API integration tests under `apps/api/test`, shared unit tests, Socket.IO smoke coverage, and CI-ready validation scripts. |
 
@@ -66,28 +67,27 @@ Local MVP foundation with several production-oriented building blocks
 
 | Area | Current limitation |
 | --- | --- |
-| Auth/session | Session foundation exists, but production hardening, device/session management UI, and deployment validation remain incomplete. |
+| Auth/session | Session foundation and backoffice httpOnly access-cookie transport exist, but public-web cookie migration, CSRF token enforcement, device/session management UI, and deployment validation remain incomplete. |
 | Email | Token flows exist, but delivery is no-op/dev only until a real provider is added. |
 | Google OAuth | Foundation exists, but production client validation and environment rollout remain incomplete. |
 | MFA | Backend OTP foundation exists; user-facing MFA management is deferred. |
 | Listing discovery | Browse/detail exists with limited search. Filters, pagination, saved search, and ranking are deferred. |
 | Image storage | Local upload/storage works. R2/S3-compatible object storage, CDN/cache strategy, EXIF stripping, image moderation, upload rate limits, and image transforms/resizing are deferred. |
 | Messaging | Realtime, read state, and block-aware send/start restrictions work. Attachments and durable per-conversation read receipts are deferred. |
-| Trust & Safety | Reporting and blocking foundation exists. Full admin review UI, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, AI moderation, and image moderation are deferred. |
+| Trust & Safety | Reporting/blocking and backoffice review foundations exist. Assignment/SLA, profile enforcement, escalation workflow, fraud detection, appeal flow, unsafe baby product guidance, audit browser, and AI moderation are deferred. |
 | Realtime | Socket.IO works locally. Redis adapter/scaling, presence, and production topology are deferred. |
 | AI | Mock provider and audit logging exist. Real provider, valuation, RAG, recommendations, and AI moderation are deferred. |
 | Web tests | API tests exist. Web component/E2E coverage is deferred. |
 
 ## Not Implemented
 
-- full admin moderation queue/review workflow
+- full assignment/SLA moderation workflow
 - production email provider
 - session/device management UI
 - saved search
 - image moderation
 - web E2E tests
-- admin panel
-- analytics/dashboard
+- advanced analytics/dashboard
 - real LLM provider
 - AI valuation
 - RAG/recommendations
@@ -148,10 +148,10 @@ See `docs/30-listing-image-upload-and-safety.md`.
 - production Google OAuth validation
 - production image storage: object storage migration, CDN/cache strategy, EXIF stripping, transforms/resizing, upload rate limits, and image moderation
 - search filters and pagination
-- full admin moderation queue/review workflow
+- full assignment/SLA moderation workflow
 - Redis-backed realtime scaling
 - saved search
-- admin tools
+- deeper admin tools beyond the current backoffice foundation
 - payments/rental flow
 - real AI provider/RAG/valuation
 - web E2E tests
@@ -248,10 +248,9 @@ pnpm build
 
 ### Not done yet
 
-- Permissioned sensitive raw-data endpoint.
-- Permission matrix for raw PII access.
-- Audit log for sensitive data access.
+- Granular permission matrix for raw PII access beyond the current admin compatibility gate.
 - AI moderation summary endpoint.
 - AI recommendation workflow.
-- Admin actor minimization in action timeline.
+- Safe audit browser.
+- Assignment/SLA workflows.
 - Backoffice UI polish.

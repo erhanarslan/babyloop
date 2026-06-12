@@ -2,7 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   type AdminListingDetail,
@@ -62,8 +62,12 @@ function ImageReviewCard({
   listingId: string;
   onReviewed: (listing: AdminListingDetail) => void;
 }) {
+  const supportedActions = useMemo<AdminListingImageAction[]>(
+    () => (image.reviewStatus === "rejected" ? ["approve"] : ["reject"]),
+    [image.reviewStatus],
+  );
   const [action, setAction] = useState<AdminListingImageAction>(
-    image.reviewStatus === "rejected" ? "approve" : "reject",
+    supportedActions[0] ?? "reject",
   );
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,6 +75,14 @@ function ImageReviewCard({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const canSubmit = reason.trim().length >= MIN_REASON_LENGTH && !isSubmitting;
+
+  useEffect(() => {
+    setAction(supportedActions[0] ?? "reject");
+    setReason("");
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    setIsSubmitting(false);
+  }, [image.id, image.reviewStatus, listingId, supportedActions]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,8 +153,11 @@ function ImageReviewCard({
             }
             value={action}
           >
-            <option value="approve">Approve image</option>
-            <option value="reject">Reject image</option>
+            {supportedActions.map((supportedAction) => (
+              <option key={supportedAction} value={supportedAction}>
+                {getReviewActionLabel(supportedAction)}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -171,6 +186,15 @@ function ImageReviewCard({
       </form>
     </article>
   );
+}
+
+function getReviewActionLabel(action: AdminListingImageAction): string {
+  switch (action) {
+    case "approve":
+      return "Approve image";
+    case "reject":
+      return "Reject image";
+  }
 }
 
 function getReviewStatusLabel(status: AdminListingImage["reviewStatus"]): string {

@@ -3,7 +3,7 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -15,8 +15,9 @@ import { MAX_LISTING_IMAGES, type SafeImage } from "./image-safety.service.js";
 import {
   findCategory,
   getFavoriteCounts,
-  getFirstImages,
-  getImages,
+  getOwnerListingImages,
+  getPublicFirstListingImages,
+  getPublicListingImages,
   selectActiveListingRows,
   selectListingsBySellerProfileId,
   selectListingDetailRow,
@@ -175,16 +176,61 @@ export async function updateListing(
       .where(eq(listings.id, listingId));
 
     if (body.imageUrls !== undefined) {
-      await tx.delete(listingImages).where(eq(listingImages.listingId, listingId));
+      const existingImages = await tx
+        .select({
+          id: listingImages.id,
+          url: listingImages.url
+        })
+        .from(listingImages)
+        .where(eq(listingImages.listingId, listingId))
+        .orderBy(asc(listingImages.sortOrder), asc(listingImages.createdAt));
+      const existingByUrl = new Map<string, Array<{ id: string; url: string }>>();
 
-      if (body.imageUrls.length > 0) {
-        await tx.insert(listingImages).values(
-          body.imageUrls.map((url, index) => ({
+      for (const image of existingImages) {
+        const matchingImages = existingByUrl.get(image.url) ?? [];
+        matchingImages.push(image);
+        existingByUrl.set(image.url, matchingImages);
+      }
+
+      const retainedImageIds = new Set<string>();
+
+      for (const [index, url] of body.imageUrls.entries()) {
+        const [matchedImage] = existingByUrl.get(url) ?? [];
+
+        if (matchedImage) {
+          retainedImageIds.add(matchedImage.id);
+          existingByUrl.set(url, (existingByUrl.get(url) ?? []).slice(1));
+          await tx
+            .update(listingImages)
+            .set({ sortOrder: index })
+            .where(eq(listingImages.id, matchedImage.id));
+          continue;
+        }
+
+        const [createdImage] = await tx
+          .insert(listingImages)
+          .values({
             listingId,
             url,
             sortOrder: index
-          }))
-        );
+          })
+          .returning({
+            id: listingImages.id
+          });
+
+        if (!createdImage) {
+          throw new Error("Listing image insert failed.");
+        }
+
+        retainedImageIds.add(createdImage.id);
+      }
+
+      const imageIdsToDelete = existingImages
+        .map((image) => image.id)
+        .filter((imageId) => !retainedImageIds.has(imageId));
+
+      if (imageIdsToDelete.length > 0) {
+        await tx.delete(listingImages).where(inArray(listingImages.id, imageIdsToDelete));
       }
     }
 
@@ -412,7 +458,7 @@ export async function reorderListingImages(
     return { status: "forbidden" };
   }
 
-  const currentImages = await getImages(app, listingId);
+  const currentImages = await getOwnerListingImages(app, listingId);
 
   if (
     currentImages.length !== imageIds.length ||
@@ -442,7 +488,7 @@ export async function reorderListingImages(
 
   return {
     status: "updated",
-    images: await getImages(app, listingId)
+    images: await getOwnerListingImages(app, listingId)
   };
 }
 
@@ -486,7 +532,7 @@ async function mapListingRows(
 ): Promise<ListingSummaryResponse[]> {
   const listingIds = rows.map((row) => row.id);
   const [firstImages, favoriteCounts] = await Promise.all([
-    getFirstImages(
+    getPublicFirstListingImages(
       app,
       listingIds
     ),
@@ -518,7 +564,7 @@ async function getListingSummary(
   }
 
   const [images, favoriteCounts] = await Promise.all([
-    getImages(app, row.id),
+    getPublicListingImages(app, row.id),
     getFavoriteCounts(app, [row.id])
   ]);
 
@@ -561,7 +607,7 @@ export async function getListingDetail(
   }
 
   const [images, favoriteCounts] = await Promise.all([
-    getImages(app, row.id),
+    getPublicListingImages(app, row.id),
     getFavoriteCounts(app, [row.id])
   ]);
 

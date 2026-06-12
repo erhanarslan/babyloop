@@ -255,6 +255,8 @@ Listing-scoped actions currently support `archive` and `restore`, mapped to exis
 
 Listing action audit events use `admin_listing_action_applied` and store only safe metadata such as listing id, action, previous/next status, and reason length.
 
+Listing-scoped archive/restore actions must reject no-op transitions server-side. `archive` is valid only when the listing is not already archived. `restore` is valid only when the listing is archived. Rejected no-op transitions must not write audit events.
+
 ### Decision: Rejected listing images are hidden publicly, visible to admins
 
 Listing image review uses `listing_images.review_status` with `approved` and `rejected`.
@@ -268,6 +270,10 @@ POST /api/v1/admin/listings/:listingId/images/:imageId/actions
 ```
 
 They write `admin_listing_image_review_applied` events and store only safe metadata. Raw reasons, image bytes, seller contact data, reporter identity, message bodies, tokens, and raw profile/user objects must not be stored in audit metadata.
+
+Image approve/reject actions must reject no-op transitions server-side. `approve` is valid only for rejected images. `reject` is valid only for approved images. Rejected no-op transitions must not write audit events.
+
+Owner listing image URL updates must preserve matching existing `listing_images` rows so admin review state is not silently reset. Public listing queries use approved-only helpers, owner routes use owner-safe image sets without review metadata, and admin listing detail uses all image rows with safe review metadata.
 
 ### Decision: Dashboard MVP is aggregate-only
 

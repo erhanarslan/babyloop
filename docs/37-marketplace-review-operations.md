@@ -19,6 +19,8 @@ Existing and newly uploaded images default to `approved`, so current public list
 
 Rejected images are hidden from public listing list/detail responses. Admin listing detail still shows all images, including rejected images, with safe review metadata.
 
+Seller listing URL updates preserve matching existing image rows and review state. This prevents a same-URL seller update from silently recreating a rejected image as approved. Deleting a rejected image and uploading a visually identical new file is not blocked in this MVP; perceptual duplicate detection remains deferred.
+
 ### Image Review Endpoint
 
 ```txt
@@ -40,6 +42,12 @@ Supported actions:
 - `reject`
 
 The endpoint requires admin auth, matching `listingId`/`imageId`, and a useful reason. It does not call sensitive-access and does not perform listing archive/restore.
+
+No-op transitions are rejected server-side:
+
+- approved image + `approve` returns `400`
+- rejected image + `reject` returns `400`
+- rejected no-op transitions do not write `admin_listing_image_review_applied`
 
 ### Image Review Audit
 

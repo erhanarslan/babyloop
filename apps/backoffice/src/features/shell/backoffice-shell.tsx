@@ -5,51 +5,67 @@ type BackofficeShellProps = {
   children: ReactNode;
 };
 
-const navigationItems = [
+type NavigationItem =
+  | {
+      description: string;
+      href: string;
+      label: string;
+      status: "active";
+    }
+  | {
+      description: string;
+      label: string;
+      status: "planned";
+    };
+
+const navigationItems: NavigationItem[] = [
   {
     label: "Dashboard",
     href: "/",
     description: "Operational overview",
+    status: "active",
   },
   {
     label: "Moderation",
     href: "/moderation",
     description: "Cases and reports",
-  },
-  {
-    label: "Users",
-    href: "/users",
-    description: "User management",
+    status: "active",
   },
   {
     label: "Listings",
     href: "/listings",
     description: "Listing operations",
+    status: "active",
+  },
+  {
+    label: "Users",
+    description: "User management",
+    status: "planned",
   },
   {
     label: "Messages",
-    href: "/messages",
     description: "Conversation safety",
+    status: "planned",
   },
   {
     label: "Reports",
-    href: "/reports",
     description: "Report triage",
+    status: "planned",
   },
   {
     label: "Safety Events",
-    href: "/safety-events",
     description: "Trust & safety signals",
+    status: "planned",
   },
   {
     label: "Audit Logs",
-    href: "/audit",
     description: "Admin action history",
+    status: "planned",
   },
   {
     label: "AI Tools",
-    href: "/ai",
     description: "AI-assisted operations",
+    status: "planned",
   },
 ];
 
@@ -64,10 +80,24 @@ export function BackofficeShell({ children }: BackofficeShellProps) {
 
         <nav className="sidebar-nav">
           {navigationItems.map((item) => (
-            <Link className="sidebar-link" href={item.href} key={item.href}>
-              <span>{item.label}</span>
-              <small>{item.description}</small>
-            </Link>
+            item.status === "active" ? (
+              <Link className="sidebar-link" href={item.href} key={item.label}>
+                <span>{item.label}</span>
+                <small>{item.description}</small>
+              </Link>
+            ) : (
+              <div
+                aria-disabled="true"
+                className="sidebar-link sidebar-link-disabled"
+                key={item.label}
+              >
+                <span>
+                  {item.label}
+                  <em>Planned</em>
+                </span>
+                <small>{item.description}</small>
+              </div>
+            )
           ))}
         </nav>
       </aside>

@@ -43,6 +43,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - messaging XSS/security hardening
 - Trust & Safety report/block/moderation foundation
 - backoffice listing review tools for safe listing operations
+- backoffice dashboard MVP and listing image approve/reject review workflow
 - deterministic message moderation
 - mock AI listing suggestions
 - AI audit logging
@@ -55,7 +56,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - MFA user-facing management
 - listing discovery/filtering
 - image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full moderation review workflow beyond current report/block, case triage, enforcement, timeline, and listing review foundations
+- full moderation workflow beyond current report/block, case triage, enforcement, timeline, listing review, image review, and dashboard foundations
 - realtime production scaling
 - AI production/provider/RAG features
 - UI system
@@ -67,7 +68,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 - real email provider
 - verified Google OAuth deployment config
 - R2/S3-compatible image storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full moderation queue/admin review
+- full assignment/SLA moderation workflow and advanced admin review operations
 - search filters/pagination
 - web E2E tests
 - observability and production deployment hardening
@@ -76,7 +77,7 @@ BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby
 
 - Complete Phase 0 cleanup and manual QA for auth, listing lifecycle, local image upload, favorites, notifications, messaging, realtime, and mobile-width checks.
 - Harden the report/block foundation with manual QA and edge-case copy.
-- Add admin/moderation review UI and workflow on top of the moderation case foundation.
+- Stabilize and manually QA the current backoffice dashboard, moderation, listing review, and image review foundations.
 - Move image storage from local disk to an S3/R2-compatible provider without changing public API contracts.
 - Add image moderation and safer image processing/metadata handling.
 - Add production email delivery.
@@ -88,7 +89,7 @@ P0:
 
 - Phase 0 cleanup/manual QA.
 - Trust & Safety: report/block/moderation foundation. Implemented as a backend/API/minimal-web foundation; deeper review workflows remain.
-- Admin/backoffice moderation foundation.
+- Admin/backoffice moderation and marketplace review foundation.
 - Account security panel for sessions/devices, production email, Google OAuth validation, CSRF token hardening, and MFA management.
 
 P1:
@@ -112,7 +113,7 @@ P2:
 - improved search filters and pagination
 - Redis-backed Socket.IO adapter and queues
 - notification delivery expansion
-- analytics/dashboard
+- advanced analytics/dashboard beyond the current aggregate-only backoffice dashboard MVP
 - reviews/ratings
 - payment/secure checkout
 - rental/date/deposit flow
@@ -161,7 +162,7 @@ pnpm build
 - Web flows depend on manual QA until E2E tests exist.
 - Public web still uses Bearer-token compatibility; backoffice has moved off readable access-token browser storage.
 - AI is mock-only except for audit logging structure.
-- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, and permissioned sensitive access exist; full reviewer workflow and admin dashboards remain incomplete.
+- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, triage filters, timeline, enforcement, permissioned sensitive access, listing review, image review, and an aggregate dashboard MVP exist; assignment/SLA, audit browser, profile enforcement, and advanced analytics remain incomplete.
 
 
 <!-- 2026-06-11-backoffice-privacy-redaction-foundation -->

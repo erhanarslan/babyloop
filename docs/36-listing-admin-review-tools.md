@@ -36,10 +36,22 @@ Supported actions:
 - `archive` sets `listings.status` to `archived`
 - `restore` sets `listings.status` to `active`
 
+Server-side transition rules:
+
+- `archive` is allowed only when the listing is not already archived
+- `restore` is allowed only when the listing is archived
+- no-op/invalid transitions return `400` and do not write audit events
+
 Image review actions:
 
 - `approve` sets `listing_images.review_status` to `approved`
 - `reject` sets `listing_images.review_status` to `rejected`
+
+Server-side image transition rules:
+
+- `approve` is allowed only when the image is rejected
+- `reject` is allowed only when the image is approved
+- no-op/invalid transitions return `400` and do not write audit events
 
 ## Privacy Boundaries
 
@@ -112,6 +124,8 @@ The detail page shows:
 
 The listing review UI does not call the sensitive-access endpoint and does not store sensitive data in localStorage, sessionStorage, cookies, URL params, or console logs.
 
+Backoffice navigation only links to implemented Dashboard, Moderation, and Listings routes. Planned sections are shown as disabled items instead of linking to missing pages.
+
 ## Boundary With Moderation Enforcement
 
 Case-scoped enforcement remains:
@@ -153,4 +167,6 @@ They currently share the same underlying safe listing statuses (`active` and `ar
 - Confirm an audit event id/history appears after refresh.
 - Restore the listing with a reason.
 - Confirm public sensitive-access UI is not involved.
+- Try archiving an already archived listing and restoring an active listing; confirm both are rejected and no new audit event is written.
+- Try approving an approved image and rejecting a rejected image; confirm both are rejected and no new audit event is written.
 - Confirm no raw reporter identity or raw message body appears.

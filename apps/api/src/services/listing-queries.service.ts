@@ -158,7 +158,7 @@ export async function selectListingSummaryRow(app: FastifyInstance, id: string) 
   return row ?? null;
 }
 
-export async function getFirstImages(
+export async function getPublicFirstListingImages(
   app: FastifyInstance,
   listingIds: string[]
 ): Promise<Map<string, ListingImageResponse>> {
@@ -199,7 +199,7 @@ export async function getFirstImages(
   return firstImages;
 }
 
-export async function getImages(
+export async function getPublicListingImages(
   app: FastifyInstance,
   listingId: string
 ): Promise<ListingImageResponse[]> {
@@ -216,6 +216,21 @@ export async function getImages(
         eq(listingImages.reviewStatus, "approved")
       )
     )
+    .orderBy(asc(listingImages.sortOrder));
+}
+
+export async function getOwnerListingImages(
+  app: FastifyInstance,
+  listingId: string
+): Promise<ListingImageResponse[]> {
+  return app.db
+    .select({
+      id: listingImages.id,
+      url: listingImages.url,
+      sortOrder: listingImages.sortOrder
+    })
+    .from(listingImages)
+    .where(eq(listingImages.listingId, listingId))
     .orderBy(asc(listingImages.sortOrder));
 }
 

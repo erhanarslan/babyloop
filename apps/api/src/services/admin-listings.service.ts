@@ -107,7 +107,7 @@ export type AdminListingActionResult =
       nextStatus: string;
       auditEventId: string;
     }
-  | { status: "not_found" | "unsupported_action" };
+  | { status: "invalid_transition" | "not_found" | "unsupported_action" };
 
 export type AdminListingImageActionResult =
   | {
@@ -115,7 +115,7 @@ export type AdminListingImageActionResult =
       image: AdminListingImageReview;
       auditEventId: string;
     }
-  | { status: "not_found" | "image_not_found" | "unsupported_action" };
+  | { status: "image_not_found" | "invalid_transition" | "not_found" | "unsupported_action" };
 
 export async function listAdminListings(
   app: FastifyInstance,
@@ -193,6 +193,10 @@ export async function applyAdminListingAction(
 
   if (!nextStatus) {
     return { status: "unsupported_action" };
+  }
+
+  if (!isValidAdminListingTransition(listing.status, params.action)) {
+    return { status: "invalid_transition" };
   }
 
   const [auditEvent] = await app.db.transaction(async (tx) => {
@@ -278,6 +282,10 @@ export async function applyAdminListingImageAction(
 
   if (!nextReviewStatus) {
     return { status: "unsupported_action" };
+  }
+
+  if (!isValidImageReviewTransition(image.reviewStatus, params.action)) {
+    return { status: "invalid_transition" };
   }
 
   const result = await app.db.transaction(async (tx) => {
@@ -713,6 +721,18 @@ function getNextStatusForAction(action: AdminListingActionValue): "active" | "ar
   }
 }
 
+function isValidAdminListingTransition(
+  currentStatus: string,
+  action: AdminListingActionValue
+): boolean {
+  switch (action) {
+    case "archive":
+      return currentStatus !== "archived";
+    case "restore":
+      return currentStatus === "archived";
+  }
+}
+
 function getNextReviewStatusForAction(
   action: AdminListingImageActionValue
 ): "approved" | "rejected" | null {
@@ -721,6 +741,18 @@ function getNextReviewStatusForAction(
       return "approved";
     case "reject":
       return "rejected";
+  }
+}
+
+function isValidImageReviewTransition(
+  currentReviewStatus: "approved" | "rejected",
+  action: AdminListingImageActionValue
+): boolean {
+  switch (action) {
+    case "approve":
+      return currentReviewStatus === "rejected";
+    case "reject":
+      return currentReviewStatus === "approved";
   }
 }
 

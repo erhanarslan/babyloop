@@ -89,10 +89,35 @@ a {
   transform: translateX(2px);
 }
 
+.sidebar-link-disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.sidebar-link-disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
 .sidebar-link span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   color: #111827;
   font-size: 0.95rem;
   font-weight: 800;
+}
+
+.sidebar-link em {
+  border: 1px solid rgba(107, 114, 128, 0.22);
+  border-radius: 999px;
+  padding: 0.08rem 0.38rem;
+  color: #6b7280;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .sidebar-link small {

@@ -2,7 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   type AdminListingAction,
@@ -21,14 +21,25 @@ export function ListingStatusActionForm({
   listing,
   onApplied,
 }: ListingStatusActionFormProps) {
-  const initialAction = listing.actionEligibility.supportedActions[0] ?? "archive";
+  const supportedActions = useMemo(
+    () => listing.actionEligibility.supportedActions,
+    [listing.actionEligibility.supportedActions],
+  );
+  const initialAction = supportedActions[0] ?? "archive";
   const [action, setAction] = useState<AdminListingAction>(initialAction);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const supportedActions = listing.actionEligibility.supportedActions;
+  useEffect(() => {
+    setAction(supportedActions[0] ?? "archive");
+    setReason("");
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    setIsSubmitting(false);
+  }, [listing.id, listing.status, supportedActions]);
+
   const canSubmit =
     supportedActions.length > 0 &&
     reason.trim().length >= MIN_REASON_LENGTH &&

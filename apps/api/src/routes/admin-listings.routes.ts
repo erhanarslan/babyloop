@@ -146,6 +146,12 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
         return reply.status(400).send(invalidRequest("Listing action is invalid."));
       }
 
+      if (result.status === "invalid_transition") {
+        return reply
+          .status(400)
+          .send(invalidRequest("Listing action is not valid for the current status."));
+      }
+
       if (result.status !== "applied") {
         return reply.status(400).send(invalidRequest("Listing action is invalid."));
       }
@@ -202,6 +208,12 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
 
       if (result.status === "unsupported_action") {
         return reply.status(400).send(invalidRequest("Listing image action is invalid."));
+      }
+
+      if (result.status === "invalid_transition") {
+        return reply
+          .status(400)
+          .send(invalidRequest("Listing image action is not valid for the current review status."));
       }
 
       if (result.status !== "applied") {
