@@ -30,6 +30,7 @@ import {
   generateAdminModerationAiSummary,
   listAdminModerationAiSummaries
 } from "../services/admin-moderation-ai.service.js";
+import { getAdminModerationCaseInsights } from "../services/admin-moderation-insights.service.js";
 
 export type RegisterAdminModerationRoutesOptions = {
   aiSummaryProvider?: ModerationSummaryProvider;
@@ -249,6 +250,40 @@ export function registerAdminModerationRoutes(
           grantedFields: result.grantedFields,
           sensitive: result.sensitive,
           auditEventId: result.auditEventId
+        }
+      };
+    }
+  );
+
+
+  app.get<{ Params: { caseId: string } }>(
+    "/admin/moderation/cases/:caseId/insights",
+    async (request, reply) => {
+      const admin = await requireAdminUser(app, request, reply);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedParams = adminModerationCaseParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Moderation case id must be a valid UUID."));
+      }
+
+      const result = await getAdminModerationCaseInsights(app, parsedParams.data.caseId);
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(notFound("Moderation case was not found."));
+      }
+
+      return {
+        ok: true,
+        data: {
+          caseId: result.caseId,
+          insights: result.insights
         }
       };
     }

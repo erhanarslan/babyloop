@@ -1051,3 +1051,88 @@ a {
   line-height: 1.6;
   margin: 0;
 }
+
+.insight-card {
+  border-left: 4px solid #7862f8;
+}
+
+.insight-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.risk-score-card {
+  align-items: center;
+  background: rgba(120, 98, 248, 0.08);
+  border: 1px solid rgba(120, 98, 248, 0.18);
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.risk-score-card > div {
+  align-items: center;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.risk-score-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.risk-dot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  width: 0.7rem;
+}
+
+.risk-dot.low {
+  background: #24a148;
+}
+
+.risk-dot.medium {
+  background: #f1c21b;
+}
+
+.risk-dot.high {
+  background: #ff832b;
+}
+
+.risk-dot.critical {
+  background: #da1e28;
+}
+
+.compact-note-panel {
+  padding: 0.85rem;
+}
+
+.insight-metric-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.insight-metric {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+
+.insight-metric span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.insight-metric strong {
+  font-size: 1.2rem;
+}

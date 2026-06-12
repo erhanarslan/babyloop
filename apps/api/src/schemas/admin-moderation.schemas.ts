@@ -53,6 +53,59 @@ export const adminModerationAiSummariesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(20).optional()
 });
 
+
+export const adminModerationCaseInsightsResponseSchema = z.object({
+  caseId: z.string().uuid(),
+  insights: z.object({
+    caseId: z.string().uuid(),
+    generatedAt: z.string().datetime(),
+    targetProfile: z
+      .object({
+        profileId: z.string().uuid(),
+        displayName: z.string(),
+        safetyStatus: z.enum(["active", "restricted", "suspended"]),
+        source: z.enum(["target_profile", "listing_seller", "message_sender"])
+      })
+      .nullable(),
+    counts: z.object({
+      openCasesForTarget: z.number().int().min(0),
+      totalCasesForTarget: z.number().int().min(0),
+      reportsLast7Days: z.number().int().min(0),
+      reportsLast30Days: z.number().int().min(0),
+      priorEnforcementActions: z.number().int().min(0),
+      enforcementActionsLast30Days: z.number().int().min(0),
+      sensitiveAccessEvents: z.number().int().min(0),
+      aiSummaryRuns: z.number().int().min(0),
+      aiSummarySuccesses: z.number().int().min(0),
+      aiSummaryErrors: z.number().int().min(0)
+    }),
+    latestAiSummary: z
+      .object({
+        aiModelRunId: z.string().uuid(),
+        riskLevel: z.enum(["low", "medium", "high"]).nullable(),
+        recommendedAction: z.string().nullable(),
+        confidenceScore: z.number().nullable(),
+        createdAt: z.string().datetime()
+      })
+      .nullable(),
+    risk: z.object({
+      score: z.number().int().min(0).max(100),
+      level: z.enum(["low", "medium", "high", "critical"]),
+      signals: z.array(z.string()).min(1).max(20)
+    }),
+    recommendedNextStep: z.object({
+      code: z.enum([
+        "review_ai_summary",
+        "review_sensitive_context",
+        "consider_enforcement",
+        "continue_review",
+        "monitor_only"
+      ]),
+      label: z.string().min(1)
+    })
+  })
+});
+
 export const adminSensitiveAccessBodySchema = z.object({
   reason: z.string().trim().min(10).max(1000),
   fields: z
@@ -69,5 +122,8 @@ export type AdminModerationEnforcementAction = z.infer<typeof adminModerationEnf
 export type AdminModerationEnforcementBody = z.infer<typeof adminModerationEnforcementBodySchema>;
 export type AdminModerationAiSummaryBody = z.infer<typeof adminModerationAiSummaryBodySchema>;
 export type AdminModerationAiSummariesQuery = z.infer<typeof adminModerationAiSummariesQuerySchema>;
+export type AdminModerationCaseInsightsResponse = z.infer<
+  typeof adminModerationCaseInsightsResponseSchema
+>;
 export type AdminSensitiveAccessBody = z.infer<typeof adminSensitiveAccessBodySchema>;
 export type AdminSensitiveAccessField = z.infer<typeof adminSensitiveAccessFieldSchema>;

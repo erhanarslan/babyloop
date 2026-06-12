@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminModerationCaseInsightsResponseSchema,
   adminModerationEnforcementBodySchema,
   adminModerationAiSummariesQuerySchema,
   adminModerationAiSummaryBodySchema,
@@ -181,5 +182,91 @@ describe("admin moderation AI summaries query schema", () => {
       .toBe(false);
     expect(adminModerationAiSummariesQuerySchema.safeParse({ limit: "raw" }).success)
       .toBe(false);
+  });
+});
+
+
+describe("admin moderation case insights response schema", () => {
+  const caseId = "00000000-0000-4000-8000-000000000001";
+
+  it("accepts safe case insight signals", () => {
+    const parsed = adminModerationCaseInsightsResponseSchema.safeParse({
+      caseId,
+      insights: {
+        caseId,
+        generatedAt: "2026-06-12T12:00:00.000Z",
+        targetProfile: {
+          profileId: "00000000-0000-4000-8000-000000000002",
+          displayName: "Safe Parent",
+          safetyStatus: "restricted",
+          source: "target_profile"
+        },
+        counts: {
+          openCasesForTarget: 2,
+          totalCasesForTarget: 4,
+          reportsLast7Days: 1,
+          reportsLast30Days: 3,
+          priorEnforcementActions: 1,
+          enforcementActionsLast30Days: 1,
+          sensitiveAccessEvents: 1,
+          aiSummaryRuns: 2,
+          aiSummarySuccesses: 1,
+          aiSummaryErrors: 1
+        },
+        latestAiSummary: {
+          aiModelRunId: "00000000-0000-4000-8000-000000000003",
+          riskLevel: "high",
+          recommendedAction: "restrict_profile",
+          confidenceScore: 0.82,
+          createdAt: "2026-06-12T12:01:00.000Z"
+        },
+        risk: {
+          score: 72,
+          level: "high",
+          signals: ["Recent reports for this target"]
+        },
+        recommendedNextStep: {
+          code: "consider_enforcement",
+          label: "Review enforcement options and prior history before closing this case."
+        }
+      }
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects invalid insight risk levels and negative counts", () => {
+    expect(
+      adminModerationCaseInsightsResponseSchema.safeParse({
+        caseId,
+        insights: {
+          caseId,
+          generatedAt: "2026-06-12T12:00:00.000Z",
+          targetProfile: null,
+          counts: {
+            openCasesForTarget: -1,
+            totalCasesForTarget: 0,
+            reportsLast7Days: 0,
+            reportsLast30Days: 0,
+            priorEnforcementActions: 0,
+            enforcementActionsLast30Days: 0,
+            sensitiveAccessEvents: 0,
+            aiSummaryRuns: 0,
+            aiSummarySuccesses: 0,
+            aiSummaryErrors: 0
+          },
+          latestAiSummary: null,
+          risk: {
+            score: 101,
+            level: "severe",
+            signals: []
+          },
+          recommendedNextStep: {
+            code: "raw_sensitive_review",
+            label: "Invalid code"
+          }
+        }
+      }).success
+    ).toBe(false);
   });
 });

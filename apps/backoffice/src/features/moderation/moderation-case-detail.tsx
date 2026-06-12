@@ -11,6 +11,7 @@ import {
   getAdminModerationCase,
 } from "./api";
 import { AiSummaryPanel } from "./ai-summary-panel";
+import { CaseInsightsPanel } from "./case-insights-panel";
 import { EnforcementActionPanel } from "./enforcement-action-panel";
 import { ModerationActionForm } from "./moderation-action-form";
 import { ModerationStatusForm } from "./moderation-status-form";
@@ -154,6 +155,8 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
           moderationCase={moderationCase}
           onCreated={setModerationCase}
         />
+
+        <CaseInsightsPanel moderationCase={moderationCase} />
 
         <EnforcementActionPanel
           moderationCase={moderationCase}

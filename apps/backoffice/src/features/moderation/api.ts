@@ -84,6 +84,55 @@ export type AdminModerationTimelineItem = {
   note?: string | null | undefined;
 };
 
+export type AdminModerationCaseInsights = {
+  caseId: string;
+  generatedAt: string;
+  targetProfile: {
+    profileId: string;
+    displayName: string;
+    safetyStatus: "active" | "restricted" | "suspended";
+    source: "target_profile" | "listing_seller" | "message_sender";
+  } | null;
+  counts: {
+    openCasesForTarget: number;
+    totalCasesForTarget: number;
+    reportsLast7Days: number;
+    reportsLast30Days: number;
+    priorEnforcementActions: number;
+    enforcementActionsLast30Days: number;
+    sensitiveAccessEvents: number;
+    aiSummaryRuns: number;
+    aiSummarySuccesses: number;
+    aiSummaryErrors: number;
+  };
+  latestAiSummary: {
+    aiModelRunId: string;
+    riskLevel: "low" | "medium" | "high" | null;
+    recommendedAction: string | null;
+    confidenceScore: number | null;
+    createdAt: string;
+  } | null;
+  risk: {
+    score: number;
+    level: "low" | "medium" | "high" | "critical";
+    signals: string[];
+  };
+  recommendedNextStep: {
+    code:
+      | "review_ai_summary"
+      | "review_sensitive_context"
+      | "consider_enforcement"
+      | "continue_review"
+      | "monitor_only";
+    label: string;
+  };
+};
+
+export type GetAdminModerationCaseInsightsResponse = {
+  caseId: string;
+  insights: AdminModerationCaseInsights;
+};
+
 export type AdminModerationCaseDetail = AdminModerationCase & {
   actions: AdminModerationAction[];
   timeline: AdminModerationTimelineItem[];
@@ -471,6 +520,14 @@ export async function applyAdminModerationEnforcement(
   };
 }
 
+
+export async function getAdminModerationCaseInsights(
+  caseId: string,
+): Promise<ApiResponse<GetAdminModerationCaseInsightsResponse>> {
+  return adminRequest<GetAdminModerationCaseInsightsResponse>(
+    `${ADMIN_MODERATION_BASE_PATH}/cases/${caseId}/insights`,
+  );
+}
 
 export async function listAdminModerationAiSummaries(
   caseId: string,
