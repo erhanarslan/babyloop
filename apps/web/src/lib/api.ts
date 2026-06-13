@@ -77,6 +77,18 @@ export type ListingsPayload = {
   pagination?: ListingsPagination;
 };
 
+export type SearchSuggestion = {
+  kind: "category" | "listing";
+  label: string;
+  categoryId?: string;
+  categorySlug?: string;
+  listingId?: string;
+};
+
+export type SearchSuggestionsPayload = {
+  suggestions: SearchSuggestion[];
+};
+
 export type ListingDetailPayload = {
   listing: ListingDetail;
 };

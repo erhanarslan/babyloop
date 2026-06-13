@@ -13,7 +13,8 @@ import {
   type Category,
   type CategoriesPayload,
   type ListingsPagination,
-  type ListingsPayload
+  type ListingsPayload,
+  type SearchSuggestionsPayload
 } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,12 @@ export default async function CategoryLandingPage({ params, searchParams }: Cate
   const listingsResult = category
     ? await fetchApi<ListingsPayload>(buildListingsPath(filters))
     : null;
+  const suggestionsPath = buildSearchSuggestionsPath(filters.q);
+  const suggestionsResult = suggestionsPath
+    ? await fetchApi<SearchSuggestionsPayload>(suggestionsPath)
+    : null;
   const listings = listingsResult?.ok ? listingsResult.data.listings : [];
+  const searchSuggestions = suggestionsResult?.ok ? suggestionsResult.data.suggestions : [];
   const fallbackPagination: ListingsPagination = {
     limit: filters.limit,
     offset: filters.offset,
@@ -86,6 +92,7 @@ export default async function CategoryLandingPage({ params, searchParams }: Cate
         listings={listings}
         pagination={pagination}
         searchQuery={filters.q}
+        searchSuggestions={searchSuggestions}
       />
     </SiteShell>
   );
@@ -99,6 +106,21 @@ async function findCategoryBySlug(slug: string): Promise<Category | null> {
   }
 
   return categoriesResult.data.categories.find((category) => category.slug === slug) ?? null;
+}
+
+function buildSearchSuggestionsPath(query: string): string | null {
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery.length < 2) {
+    return null;
+  }
+
+  const params = new URLSearchParams({
+    limit: "8",
+    q: normalizedQuery
+  });
+
+  return `/api/v1/search-suggestions?${params.toString()}`;
 }
 
 function resolveOffsetForCategoryPage(searchParams: BrowseSearchParams): number {

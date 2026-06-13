@@ -13,7 +13,8 @@ import type {
   BrowseListingsFilters,
   Category,
   ListingSummary,
-  ListingsPagination
+  ListingsPagination,
+  SearchSuggestion
 } from "../../lib/api";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -36,6 +37,7 @@ type BrowsePageContentProps = {
   listings: ListingSummary[];
   pagination: ListingsPagination;
   searchQuery: string;
+  searchSuggestions: SearchSuggestion[];
 };
 
 type CategoryTreeNode = Category & {
@@ -60,7 +62,8 @@ export function BrowsePageContent({
   filters,
   listings,
   pagination,
-  searchQuery
+  searchQuery,
+  searchSuggestions
 }: BrowsePageContentProps) {
   const { dictionary } = useI18n();
   const categoryTree = buildCategoryTree(categories);
@@ -104,11 +107,22 @@ export function BrowsePageContent({
               <span>Search</span>
               <input
                 defaultValue={filters.q}
+                list="browse-search-suggestions"
                 maxLength={120}
                 name="q"
                 placeholder="Search listings"
                 type="search"
               />
+              {searchSuggestions.length > 0 ? (
+                <datalist id="browse-search-suggestions">
+                  {searchSuggestions.map((suggestion) => (
+                    <option
+                      key={`${suggestion.kind}-${suggestion.label}`}
+                      value={suggestion.label}
+                    />
+                  ))}
+                </datalist>
+              ) : null}
             </label>
 
             {!currentCategorySlug ? (

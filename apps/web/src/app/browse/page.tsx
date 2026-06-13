@@ -10,7 +10,8 @@ import {
   getApiBaseUrl,
   type CategoriesPayload,
   type ListingsPagination,
-  type ListingsPayload
+  type ListingsPayload,
+  type SearchSuggestionsPayload
 } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +24,16 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const resolvedSearchParams = await searchParams;
   const filters = resolveBrowseFilters(resolvedSearchParams);
   const listingsPath = buildListingsPath(filters);
-  const [categoriesResult, listingsResult] = await Promise.all([
+  const suggestionsPath = buildSearchSuggestionsPath(filters.q);
+  const [categoriesResult, listingsResult, suggestionsResult] = await Promise.all([
     fetchApi<CategoriesPayload>("/api/v1/categories"),
-    fetchApi<ListingsPayload>(listingsPath)
+    fetchApi<ListingsPayload>(listingsPath),
+    suggestionsPath ? fetchApi<SearchSuggestionsPayload>(suggestionsPath) : Promise.resolve(null)
   ]);
 
   const categories = categoriesResult.ok ? categoriesResult.data.categories : [];
   const listings = listingsResult.ok ? listingsResult.data.listings : [];
+  const searchSuggestions = suggestionsResult?.ok ? suggestionsResult.data.suggestions : [];
   const fallbackPagination: ListingsPagination = {
     limit: filters.limit,
     offset: filters.offset,
@@ -56,7 +60,23 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         listings={listings}
         pagination={pagination}
         searchQuery={filters.q}
+        searchSuggestions={searchSuggestions}
       />
     </SiteShell>
   );
+}
+
+function buildSearchSuggestionsPath(query: string): string | null {
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery.length < 2) {
+    return null;
+  }
+
+  const params = new URLSearchParams({
+    limit: "8",
+    q: normalizedQuery
+  });
+
+  return `/api/v1/search-suggestions?${params.toString()}`;
 }
