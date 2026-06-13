@@ -1084,3 +1084,23 @@
     display: none;
   }
 }
+
+.recently-viewed-panel {
+    @apply mt-6;
+  }
+
+  .recently-viewed-grid {
+    @apply grid gap-4 md:grid-cols-2;
+  }
+
+  .recently-viewed-card {
+    @apply overflow-hidden rounded-2xl border border-border bg-background;
+  }
+
+  .recently-viewed-image {
+    @apply aspect-[4/3] w-full;
+  }
+
+  .recently-viewed-body {
+    @apply flex flex-col gap-3 p-4;
+  }

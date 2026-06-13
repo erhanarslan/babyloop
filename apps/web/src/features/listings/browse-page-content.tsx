@@ -19,6 +19,7 @@ import type {
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { ListingImageFrame } from "./listing-image-frame";
+import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { appendIfPresent } from "./browse-routing";
 import {
   formatCategoryName,
@@ -208,6 +209,8 @@ export function BrowsePageContent({
               <ListingCard apiBaseUrl={apiBaseUrl} key={listing.id} listing={listing} />
             ))}
           </div>
+
+          <RecentlyViewedListings apiBaseUrl={apiBaseUrl} />
 
           {!error && pagination.total > 0 ? (
             <nav className="pagination-controls" aria-label="Listing pagination">
