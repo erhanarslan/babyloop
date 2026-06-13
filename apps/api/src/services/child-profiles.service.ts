@@ -29,6 +29,10 @@ export type LifecycleRecommendationResponse = {
     categorySlug: string;
     reasonCode: string;
     reasonLabel: string;
+    whyNow: string;
+    reasoningConfidenceScore: number;
+    reasoningProviderName: string;
+    reasoningPromptVersion: string;
   }>;
 };
 
@@ -37,6 +41,16 @@ type LifecycleRule = {
   reasonCode: string;
   reasonLabel: string;
 };
+
+type LifecycleReasoning = {
+  whyNow: string;
+  confidenceScore: number;
+  providerName: string;
+  promptVersion: string;
+};
+
+const LIFECYCLE_REASONING_PROVIDER_NAME = "deterministic-lifecycle-reasoner";
+const LIFECYCLE_REASONING_PROMPT_VERSION = "lifecycle-reasoning-v1";
 
 const LIFECYCLE_RECOMMENDATION_RULES: Record<ChildAgeBand, LifecycleRule[]> = {
   expecting: [
@@ -250,12 +264,22 @@ export async function listLifecycleRecommendations(
           return null;
         }
 
+        const reasoning = buildLifecycleReasoning({
+          ageBand: childProfile.ageBand,
+          categoryName: category.name,
+          rule
+        });
+
         return {
           categoryId: category.id,
           categoryName: category.name,
           categorySlug: category.slug,
           reasonCode: rule.reasonCode,
-          reasonLabel: rule.reasonLabel
+          reasonLabel: rule.reasonLabel,
+          whyNow: reasoning.whyNow,
+          reasoningConfidenceScore: reasoning.confidenceScore,
+          reasoningProviderName: reasoning.providerName,
+          reasoningPromptVersion: reasoning.promptVersion
         };
       })
       .filter((recommendation): recommendation is NonNullable<typeof recommendation> => recommendation !== null)
@@ -271,4 +295,97 @@ function mapChildProfile(row: typeof childProfiles.$inferSelect): ChildProfileRe
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };
+}
+
+function buildLifecycleReasoning(input: {
+  ageBand: ChildAgeBand;
+  categoryName: string;
+  rule: LifecycleRule;
+}): LifecycleReasoning {
+  return {
+    whyNow: buildWhyNow(input.ageBand, input.categoryName, input.rule.reasonCode),
+    confidenceScore: calculateLifecycleConfidence(input.ageBand, input.rule.reasonCode),
+    providerName: LIFECYCLE_REASONING_PROVIDER_NAME,
+    promptVersion: LIFECYCLE_REASONING_PROMPT_VERSION
+  };
+}
+
+function buildWhyNow(
+  ageBand: ChildAgeBand,
+  categoryName: string,
+  reasonCode: string
+): string {
+  const ageBandLabel = formatAgeBandForReasoning(ageBand);
+  const categoryLabel = categoryName.trim() || "this category";
+
+  switch (reasonCode) {
+    case "prepare_for_mobility":
+      return `${ageBandLabel} is a practical planning window for mobility gear such as ${categoryLabel}.`;
+    case "prepare_for_safe_travel":
+      return `${ageBandLabel} is a good stage to compare safe travel essentials before urgent trips begin.`;
+    case "safe_travel":
+      return `${categoryLabel} stays relevant now because early trips need age-appropriate travel setup.`;
+    case "early_mobility":
+      return `${ageBandLabel} often brings short outdoor routines, so mobility gear can become useful.`;
+    case "daily_mobility":
+      return `${ageBandLabel} usually increases daily outings, making practical mobility categories more relevant.`;
+    case "early_play":
+      return `${ageBandLabel} is when simple play items can support attention, reach, and exploration.`;
+    case "sensory_play":
+      return `${ageBandLabel} is a common stage for sensory exploration, texture, sound, and grasping activities.`;
+    case "developmental_play":
+      return `${categoryLabel} can fit this stage because simple cause-and-effect play becomes more useful.`;
+    case "travel_review":
+      return `${ageBandLabel} is a sensible checkpoint to review whether existing travel gear still fits.`;
+    case "toddler_learning":
+      return `${ageBandLabel} often shifts toward movement, matching, stacking, and simple problem-solving.`;
+    case "active_play":
+      return `${ageBandLabel} usually brings more walking and active play, so durable play categories matter.`;
+    case "preschool_learning":
+      return `${ageBandLabel} is a strong window for focused play, sorting, pretend play, and early independence.`;
+    case "creative_play":
+      return `${categoryLabel} can support imagination, social play, and longer independent play sessions.`;
+    case "older_child_play":
+      return `${ageBandLabel} recommendations focus on longer-lasting play value and age-flexible learning.`;
+    case "skill_building":
+      return `${categoryLabel} is useful now because skill-building items can stay relevant across several months.`;
+    default:
+      return `${categoryLabel} is recommended because it matches the selected age band and current lifecycle stage.`;
+  }
+}
+
+function calculateLifecycleConfidence(ageBand: ChildAgeBand, reasonCode: string): number {
+  const baseScoreByAgeBand: Record<ChildAgeBand, number> = {
+    expecting: 0.72,
+    newborn_0_3: 0.78,
+    infant_3_6: 0.76,
+    infant_6_12: 0.8,
+    toddler_12_24: 0.82,
+    preschool_24_36: 0.79,
+    child_3_plus: 0.74
+  };
+
+  const safetyOrFitBoost = ["prepare_for_safe_travel", "safe_travel", "travel_review"].includes(reasonCode)
+    ? 0.04
+    : 0;
+
+  return roundToTwoDecimals(Math.min(baseScoreByAgeBand[ageBand] + safetyOrFitBoost, 0.9));
+}
+
+function formatAgeBandForReasoning(ageBand: ChildAgeBand): string {
+  const labels: Record<ChildAgeBand, string> = {
+    expecting: "The expecting stage",
+    newborn_0_3: "The 0-3 month stage",
+    infant_3_6: "The 3-6 month stage",
+    infant_6_12: "The 6-12 month stage",
+    toddler_12_24: "The 12-24 month stage",
+    preschool_24_36: "The 24-36 month stage",
+    child_3_plus: "The 3+ year stage"
+  };
+
+  return labels[ageBand];
+}
+
+function roundToTwoDecimals(value: number): number {
+  return Math.round(value * 100) / 100;
 }

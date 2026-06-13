@@ -31,6 +31,10 @@ export type LifecycleRecommendationGroup = {
     categorySlug: string;
     reasonCode: string;
     reasonLabel: string;
+    whyNow: string;
+    reasoningConfidenceScore: number;
+    reasoningProviderName: string;
+    reasoningPromptVersion: string;
   }>;
 };
 

@@ -267,6 +267,11 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
                       <div>
                         <strong>{recommendation.categoryName}</strong>
                         <p>{recommendation.reasonLabel}</p>
+                        <p className="form-note">{recommendation.whyNow}</p>
+                        <p className="ai-debug">
+                          {recommendation.reasoningProviderName} · {recommendation.reasoningPromptVersion} · confidence{" "}
+                          {recommendation.reasoningConfidenceScore}
+                        </p>
                       </div>
                       <Link href={`/categories/${recommendation.categorySlug}`}>Browse</Link>
                     </div>

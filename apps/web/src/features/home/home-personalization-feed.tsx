@@ -200,6 +200,7 @@ function LifecycleHomeCard({
             <li key={`${suggestion.groupLabel}-${suggestion.categoryId}`}>
               <Link href={`/categories/${suggestion.categorySlug}`}>{suggestion.categoryName}</Link>
               <span>{suggestion.reasonLabel}</span>
+              <span>{suggestion.whyNow}</span>
             </li>
           ))}
         </ul>
