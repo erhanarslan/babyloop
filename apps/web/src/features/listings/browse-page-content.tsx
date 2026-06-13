@@ -36,6 +36,11 @@ type BrowsePageContentProps = {
   searchQuery: string;
 };
 
+type CategoryTreeNode = Category & {
+  children: CategoryTreeNode[];
+  depth: number;
+};
+
 const CONDITION_OPTIONS = ["new", "like_new", "good", "fair", "needs_repair"] as const;
 const LISTING_TYPE_OPTIONS = ["sale", "swap", "donation"] as const;
 const SORT_OPTIONS = [
@@ -55,10 +60,15 @@ export function BrowsePageContent({
   searchQuery
 }: BrowsePageContentProps) {
   const { dictionary } = useI18n();
+  const categoryTree = buildCategoryTree(categories);
+  const orderedCategories = flattenCategoryTree(categoryTree);
+  const selectedCategory = categories.find((category) => category.id === filters.categoryId) ?? null;
   const hasSearchQuery = searchQuery.length >= 3;
   const title = hasSearchQuery
     ? dictionary.listings.browseResultsTitle.replace("{query}", searchQuery)
-    : dictionary.listings.browseTitle;
+    : selectedCategory
+      ? formatCategoryName(selectedCategory, dictionary)
+      : dictionary.listings.browseTitle;
   const hasPreviousPage = pagination.offset > 0;
   const previousOffset = Math.max(0, pagination.offset - pagination.limit);
   const nextOffset = pagination.offset + pagination.limit;
@@ -76,6 +86,13 @@ export function BrowsePageContent({
           <h2>{dictionary.listings.categoriesTitle}</h2>
           <p className="filter-note">{dictionary.listings.categoriesNote}</p>
 
+          <CategoryNavigation
+            categories={categoryTree}
+            dictionary={dictionary}
+            filters={filters}
+            selectedCategoryId={filters.categoryId}
+          />
+
           <form action="/browse" method="get" className="form-stack">
             <label>
               <span>Search</span>
@@ -92,9 +109,9 @@ export function BrowsePageContent({
               <span>{dictionary.listings.categoriesTitle}</span>
               <select defaultValue={filters.categoryId} name="categoryId">
                 <option value="">All categories</option>
-                {categories.map((category) => (
+                {orderedCategories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {formatCategoryName(category, dictionary)}
+                    {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
                   </option>
                 ))}
               </select>
@@ -138,19 +155,6 @@ export function BrowsePageContent({
             <button type="submit">Apply filters</button>
             <Link href="/browse">Clear filters</Link>
           </form>
-
-          {categories.length > 0 ? (
-            <ul className="category-list">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <span>{formatCategoryName(category, dictionary)}</span>
-                  <small>{category.slug}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">{dictionary.listings.categoriesUnavailable}</p>
-          )}
         </Card>
 
         <div className="listing-column">
@@ -164,6 +168,7 @@ export function BrowsePageContent({
           {!error ? (
             <p className="listing-meta">
               Showing {listings.length} of {pagination.total} listings
+              {selectedCategory ? ` in ${formatCategoryName(selectedCategory, dictionary)}` : ""}
             </p>
           ) : null}
 
@@ -203,6 +208,86 @@ export function BrowsePageContent({
   );
 }
 
+function CategoryNavigation({
+  categories,
+  dictionary,
+  filters,
+  selectedCategoryId
+}: {
+  categories: CategoryTreeNode[];
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  filters: BrowseListingsFilters;
+  selectedCategoryId: string;
+}) {
+  if (categories.length === 0) {
+    return <p className="muted">{dictionary.listings.categoriesUnavailable}</p>;
+  }
+
+  return (
+    <nav aria-label={dictionary.listings.categoriesAriaLabel}>
+      <ul className="category-list">
+        <li>
+          {selectedCategoryId ? (
+            <Link href={buildCategoryHref(filters, "")}>All categories</Link>
+          ) : (
+            <strong>All categories</strong>
+          )}
+        </li>
+        {categories.map((category) => (
+          <CategoryNavigationItem
+            category={category}
+            dictionary={dictionary}
+            filters={filters}
+            key={category.id}
+            selectedCategoryId={selectedCategoryId}
+          />
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function CategoryNavigationItem({
+  category,
+  dictionary,
+  filters,
+  selectedCategoryId
+}: {
+  category: CategoryTreeNode;
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  filters: BrowseListingsFilters;
+  selectedCategoryId: string;
+}) {
+  const isSelected = category.id === selectedCategoryId;
+
+  return (
+    <li>
+      {isSelected ? (
+        <strong>{formatCategoryName(category, dictionary)}</strong>
+      ) : (
+        <Link href={buildCategoryHref(filters, category.id)}>
+          {formatCategoryName(category, dictionary)}
+        </Link>
+      )}
+      <small>{category.slug}</small>
+
+      {category.children.length > 0 ? (
+        <ul>
+          {category.children.map((child) => (
+            <CategoryNavigationItem
+              category={child}
+              dictionary={dictionary}
+              filters={filters}
+              key={child.id}
+              selectedCategoryId={selectedCategoryId}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
 function ListingCard({ apiBaseUrl, listing }: { apiBaseUrl: string; listing: ListingSummary }) {
   const { dictionary } = useI18n();
 
@@ -237,6 +322,65 @@ function ListingCard({ apiBaseUrl, listing }: { apiBaseUrl: string; listing: Lis
         </div>
       </div>
     </article>
+  );
+}
+
+function buildCategoryTree(categories: Category[]): CategoryTreeNode[] {
+  const nodes = new Map<string, CategoryTreeNode>();
+  const roots: CategoryTreeNode[] = [];
+
+  for (const category of categories) {
+    nodes.set(category.id, {
+      ...category,
+      children: [],
+      depth: 0
+    });
+  }
+
+  for (const node of nodes.values()) {
+    if (!node.parentId) {
+      roots.push(node);
+      continue;
+    }
+
+    const parent = nodes.get(node.parentId);
+
+    if (!parent) {
+      roots.push(node);
+      continue;
+    }
+
+    node.depth = parent.depth + 1;
+    parent.children.push(node);
+  }
+
+  return sortCategoryTree(roots);
+}
+
+function sortCategoryTree(nodes: CategoryTreeNode[]): CategoryTreeNode[] {
+  return nodes
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((node) => ({
+      ...node,
+      children: sortCategoryTree(node.children)
+    }));
+}
+
+function flattenCategoryTree(nodes: CategoryTreeNode[]): CategoryTreeNode[] {
+  return nodes.flatMap((node) => [node, ...flattenCategoryTree(node.children)]);
+}
+
+function buildCategoryOptionLabel(label: string, depth: number): string {
+  return `${"— ".repeat(depth)}${label}`;
+}
+
+function buildCategoryHref(filters: BrowseListingsFilters, categoryId: string): string {
+  return buildBrowseHref(
+    {
+      ...filters,
+      categoryId
+    },
+    0
   );
 }
 
