@@ -9,13 +9,17 @@ import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { AiSuggestionPanel } from "./ai-suggestion-panel";
+import { AiPriceSuggestionPanel } from "./ai-price-suggestion-panel";
 import {
   createListingRequest,
   requestListingSuggestion,
+  requestPriceSuggestion,
   uploadListingImageRequest,
   type CreateListingRequest,
   type ListingSuggestion,
-  type ListingSuggestionRequest
+  type ListingSuggestionRequest,
+  type PriceSuggestion,
+  type PriceSuggestionRequest
 } from "./api";
 import type { ListingCondition, ListingType } from "./listing-form-options";
 import { SellListingFields } from "./sell-listing-fields";
@@ -38,9 +42,12 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
+  const [priceAiErrorMessage, setPriceAiErrorMessage] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<ListingSuggestion | null>(null);
+  const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestion | null>(null);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasCategories = categories.length > 0;
   const clearSelectedImages = useCallback(() => {
@@ -52,9 +59,12 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const clearProtectedState = useCallback(() => {
     setErrorMessage(null);
     setAiErrorMessage(null);
+    setPriceAiErrorMessage(null);
     setSuggestion(null);
+    setPriceSuggestion(null);
     clearSelectedImages();
     setIsSuggesting(false);
+    setIsSuggestingPrice(false);
     setIsSubmitting(false);
   }, [clearSelectedImages]);
   const { isCheckingAuth, requireAuth } = useProtectedRoute({
@@ -181,6 +191,37 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
   }
 
+  async function handleGeneratePriceSuggestion(form: HTMLFormElement | null) {
+    if (!form) {
+      return;
+    }
+
+    setPriceAiErrorMessage(null);
+    const payload = buildPriceSuggestionPayload(form);
+
+    if (Object.keys(payload).length === 0) {
+      setPriceAiErrorMessage("Add category, condition, listing type, title, or a current price first.");
+      return;
+    }
+
+    setIsSuggestingPrice(true);
+
+    try {
+      const body = await requestPriceSuggestion(apiBaseUrl, payload);
+
+      if (!body.ok) {
+        setPriceAiErrorMessage(getApiErrorMessage(body.error, dictionary, "AI price suggestion is unavailable. You can continue manually."));
+        return;
+      }
+
+      setPriceSuggestion(body.data.suggestion);
+    } catch {
+      setPriceAiErrorMessage("AI price suggestion is unavailable. You can continue manually.");
+    } finally {
+      setIsSuggestingPrice(false);
+    }
+  }
+
   if (isCheckingAuth) {
     return <LoadingBlock title={dictionary.common.loading} />;
   }
@@ -232,7 +273,24 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         <Alert title={dictionary.listings.aiSuggestionUnavailable} message={aiErrorMessage} />
       ) : null}
 
+      {priceAiErrorMessage ? (
+        <Alert title="AI price suggestion unavailable" message={priceAiErrorMessage} />
+      ) : null}
+
       {suggestion ? <AiSuggestionPanel suggestion={suggestion} /> : null}
+
+      {priceSuggestion ? (
+        <AiPriceSuggestionPanel
+          suggestion={priceSuggestion}
+          onApplyPrice={() => {
+            const form = document.forms[0];
+
+            if (form) {
+              fillPriceSuggestionFields(form, priceSuggestion);
+            }
+          }}
+        />
+      ) : null}
 
       <div className="form-actions">
         <p className="form-note">{dictionary.listings.formTrustNote}</p>
@@ -246,6 +304,16 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
             }}
           >
             {isSuggesting ? dictionary.listings.suggesting : dictionary.listings.suggestListingDetails}
+          </Button>
+          <Button
+            variant="secondary"
+            type="button"
+            disabled={isSuggestingPrice}
+            onClick={(event) => {
+              void handleGeneratePriceSuggestion(event.currentTarget.form);
+            }}
+          >
+            {isSuggestingPrice ? "Suggesting price..." : "Suggest price"}
           </Button>
           <Button type="submit" disabled={isSubmitting || !hasCategories}>
             {isSubmitting ? dictionary.listings.creating : dictionary.common.createListing}
@@ -325,5 +393,39 @@ function fillSuggestionFields(form: HTMLFormElement, suggestion: ListingSuggesti
 
   if (descriptionField instanceof HTMLTextAreaElement) {
     descriptionField.value = suggestion.suggestedDescription;
+  }
+}
+
+
+function buildPriceSuggestionPayload(form: HTMLFormElement): PriceSuggestionRequest {
+  const formData = new FormData(form);
+  const title = getString(formData, "title");
+  const categoryName = getSelectedOptionText(form, "categoryId");
+  const condition = getString(formData, "condition");
+  const listingType = getString(formData, "listingType") as ListingType;
+  const currentPriceAmount = getString(formData, "priceAmount");
+  const currency = getString(formData, "currency").toUpperCase() || "TRY";
+
+  return {
+    ...(title ? { title } : {}),
+    ...(categoryName ? { categoryName } : {}),
+    ...(condition ? { condition } : {}),
+    ...(listingType ? { listingType } : {}),
+    ...(currentPriceAmount ? { currentPriceAmount } : {}),
+    currency
+  };
+}
+
+
+function fillPriceSuggestionFields(form: HTMLFormElement, suggestion: PriceSuggestion): void {
+  const priceField = form.elements.namedItem("priceAmount");
+  const currencyField = form.elements.namedItem("currency");
+
+  if (priceField instanceof HTMLInputElement && suggestion.recommendedPriceAmount) {
+    priceField.value = suggestion.recommendedPriceAmount;
+  }
+
+  if (currencyField instanceof HTMLInputElement) {
+    currencyField.value = suggestion.currency;
   }
 }

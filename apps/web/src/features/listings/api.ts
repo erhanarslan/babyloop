@@ -57,8 +57,33 @@ export type ListingSuggestion = {
   promptVersion: string;
 };
 
+export type PriceSuggestionRequest = {
+  title?: string;
+  categoryName?: string;
+  condition?: string;
+  listingType?: ListingType;
+  currentPriceAmount?: string;
+  currency?: string;
+};
+
+export type PriceSuggestion = {
+  recommendedPriceAmount: string | null;
+  recommendedPriceMin: string | null;
+  recommendedPriceMax: string | null;
+  currency: string;
+  pricingMode: "suggested" | "not_applicable";
+  rationale: string[];
+  confidenceScore: number;
+  providerName: string;
+  promptVersion: string;
+};
+
 type ListingSuggestionPayload = {
   suggestion: ListingSuggestion;
+};
+
+type PriceSuggestionPayload = {
+  suggestion: PriceSuggestion;
 };
 
 export async function createListingRequest(
@@ -155,4 +180,19 @@ export async function requestListingSuggestion(
   });
 
   return response.json() as Promise<ApiResponse<ListingSuggestionPayload>>;
+}
+
+export async function requestPriceSuggestion(
+  apiBaseUrl: string,
+  payload: PriceSuggestionRequest
+): Promise<ApiResponse<PriceSuggestionPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/ai/price-suggestions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  return response.json() as Promise<ApiResponse<PriceSuggestionPayload>>;
 }

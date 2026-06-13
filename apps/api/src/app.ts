@@ -11,6 +11,7 @@ import {
 } from "./utils/backoffice-csrf.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
+import { registerAiPriceSuggestionRoutes } from "./routes/ai-price-suggestions.routes.js";
 import { registerAuthRoutes } from "./routes/auth.routes.js";
 import { registerAuthUnavailableRoutes } from "./routes/auth-unavailable.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
@@ -193,6 +194,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     }
 
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
+    app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
@@ -220,6 +222,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   } else {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
+    app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
 
     if (config.allowAuthUnavailable) {
       app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });

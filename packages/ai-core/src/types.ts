@@ -20,6 +20,32 @@ export type ListingSuggestionProvider = {
   suggestListing(input: ListingSuggestionInput): Promise<ListingSuggestionOutput>;
 };
 
+export type PriceSuggestionInput = {
+  title?: string;
+  categoryName?: string;
+  condition?: string;
+  listingType?: "sale" | "swap" | "donation";
+  currentPriceAmount?: string;
+  currency?: string;
+};
+
+export type PriceSuggestionOutput = {
+  recommendedPriceAmount: string | null;
+  recommendedPriceMin: string | null;
+  recommendedPriceMax: string | null;
+  currency: string;
+  pricingMode: "suggested" | "not_applicable";
+  rationale: string[];
+  confidenceScore: number;
+  providerName: string;
+  promptVersion: string;
+};
+
+export type PriceSuggestionProvider = {
+  readonly providerName: string;
+  suggestPrice(input: PriceSuggestionInput): Promise<PriceSuggestionOutput>;
+};
+
 export type ModerationSummaryTargetType = "listing" | "profile" | "message";
 
 export type ModerationSummaryInput = {
