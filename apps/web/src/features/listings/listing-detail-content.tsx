@@ -20,6 +20,7 @@ import { useI18n } from "../../lib/i18n/i18n-provider";
 import { ListingImageFrame } from "./listing-image-frame";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
+import { RelatedListings } from "./related-listings";
 import {
   formatCategoryName,
   formatDateTime,
@@ -120,6 +121,7 @@ export function ListingDetailContent({
 
         <SellerCard listing={listing} />
         <RecentlyViewedListings apiBaseUrl={apiBaseUrl} currentListingId={listing.id} />
+        <RelatedListings apiBaseUrl={apiBaseUrl} listingId={listing.id} />
 
         <dl className="detail-facts">
           <div>

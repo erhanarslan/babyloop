@@ -18,6 +18,7 @@ import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
+import { registerListingRecommendationRoutes } from "./routes/listing-recommendations.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
 import { registerProductEventRoutes } from "./routes/product-events.routes.js";
@@ -192,6 +193,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
+    app.register(registerListingRecommendationRoutes, { prefix: API_PREFIX });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
