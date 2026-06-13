@@ -1,23 +1,44 @@
 "use client";
 
-export type ProductEventType =
+export type ListingProductEventType =
   | "listing_detail_viewed"
   | "listing_card_clicked"
-  | "contact_seller_intent";
+  | "contact_seller_intent"
+  | "recently_viewed_listing_clicked";
+
+export type ProductEventType =
+  | ListingProductEventType
+  | "category_viewed"
+  | "search_performed";
 
 export type ProductEventSource =
   | "home"
   | "browse"
+  | "category_landing"
   | "listing_detail"
   | "favorites"
-  | "recommendation";
+  | "recommendation"
+  | "recently_viewed";
 
-export type ProductEventPayload = {
-  eventType: ProductEventType;
-  listingId: string;
-  categoryId?: string;
-  source?: ProductEventSource;
-};
+export type ProductEventPayload =
+  | {
+      eventType: ListingProductEventType;
+      listingId: string;
+      categoryId?: string;
+      source?: ProductEventSource;
+    }
+  | {
+      eventType: "category_viewed";
+      categoryId: string;
+      source?: ProductEventSource;
+    }
+  | {
+      eventType: "search_performed";
+      queryLength: number;
+      resultCount?: number;
+      categoryId?: string;
+      source?: ProductEventSource;
+    };
 
 export async function recordProductEvent(
   apiBaseUrl: string,

@@ -16,10 +16,43 @@ describe("product event schemas", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a category view event without listing id", () => {
+    const result = productEventBodySchema.safeParse({
+      eventType: "category_viewed",
+      categoryId: CATEGORY_ID,
+      source: "category_landing"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a search event with only aggregate query metadata", () => {
+    const result = productEventBodySchema.safeParse({
+      eventType: "search_performed",
+      queryLength: 12,
+      resultCount: 8,
+      categoryId: CATEGORY_ID,
+      source: "browse"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a recently viewed listing click event", () => {
+    const result = productEventBodySchema.safeParse({
+      eventType: "recently_viewed_listing_clicked",
+      listingId: LISTING_ID,
+      categoryId: CATEGORY_ID,
+      source: "recently_viewed"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects raw search query and unknown metadata fields", () => {
     const result = productEventBodySchema.safeParse({
-      eventType: "listing_detail_viewed",
-      listingId: LISTING_ID,
+      eventType: "search_performed",
+      queryLength: 12,
       rawQuery: "bebek arabası",
       userAgent: "Mozilla",
       referrer: "https://example.com/private"
@@ -28,11 +61,21 @@ describe("product event schemas", () => {
     expect(result.success).toBe(false);
   });
 
-  it("requires a valid listing id", () => {
+  it("requires a valid listing id for listing events", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "listing_detail_viewed",
       listingId: "not-a-uuid",
       source: "listing_detail"
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("requires a valid category id for category events", () => {
+    const result = productEventBodySchema.safeParse({
+      eventType: "category_viewed",
+      categoryId: "not-a-uuid",
+      source: "category_landing"
     });
 
     expect(result.success).toBe(false);

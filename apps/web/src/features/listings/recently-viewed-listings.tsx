@@ -13,6 +13,7 @@ import {
   formatListingType
 } from "./listing-display";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { recordProductEvent } from "../../features/product-events/api";
 
 type RecentlyViewedListingsProps = {
   apiBaseUrl: string;
@@ -77,7 +78,19 @@ export function RecentlyViewedListings({
               </p>
               <div className="listing-card-footer">
                 <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-                <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>
+                <Link
+                  href={`/listings/${listing.id}`}
+                  onClick={() => {
+                    void recordProductEvent(apiBaseUrl, {
+                      categoryId: listing.category.id,
+                      eventType: "recently_viewed_listing_clicked",
+                      listingId: listing.id,
+                      source: "recently_viewed"
+                    });
+                  }}
+                >
+                  {dictionary.common.viewDetails}
+                </Link>
               </div>
             </div>
           </article>

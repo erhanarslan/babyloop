@@ -11,19 +11,21 @@ export type RecordedProductEvent = {
 };
 
 const PRODUCT_EVENT_PREFIX = "product_";
+const SEARCH_EVENT_ENTITY_ID = "00000000-0000-0000-0000-000000000000";
 
 export async function recordProductEvent(
   app: FastifyInstance,
   input: RecordProductEventInput
 ): Promise<RecordedProductEvent> {
+  const entity = resolveProductEventEntity(input);
   const metadata = buildProductEventMetadata(input);
 
   const [createdEvent] = await app.db
     .insert(events)
     .values({
       ...(input.actorProfileId ? { actorProfileId: input.actorProfileId } : {}),
-      entityId: input.listingId,
-      entityType: "listing",
+      entityId: entity.id,
+      entityType: entity.type,
       eventType: `${PRODUCT_EVENT_PREFIX}${input.eventType}`,
       metadata
     })
@@ -40,14 +42,40 @@ export async function recordProductEvent(
   };
 }
 
+function resolveProductEventEntity(input: RecordProductEventInput): {
+  id: string;
+  type: "listing" | "category" | "search";
+} {
+  if ("listingId" in input) {
+    return {
+      id: input.listingId,
+      type: "listing"
+    };
+  }
+
+  if (input.eventType === "category_viewed") {
+    return {
+      id: input.categoryId,
+      type: "category"
+    };
+  }
+
+  return {
+    id: SEARCH_EVENT_ENTITY_ID,
+    type: "search"
+  };
+}
+
 function buildProductEventMetadata(
   input: RecordProductEventInput
-): Record<string, string> {
-  const metadata: Record<string, string> = {
-    listingId: input.listingId
-  };
+): Record<string, number | string> {
+  const metadata: Record<string, number | string> = {};
 
-  if (input.categoryId) {
+  if ("listingId" in input) {
+    metadata.listingId = input.listingId;
+  }
+
+  if ("categoryId" in input && input.categoryId) {
     metadata.categoryId = input.categoryId;
   }
 
@@ -55,5 +83,34 @@ function buildProductEventMetadata(
     metadata.source = input.source;
   }
 
+  if (input.eventType === "search_performed") {
+    metadata.queryLength = input.queryLength;
+
+    if (typeof input.resultCount === "number") {
+      metadata.resultCount = input.resultCount;
+      metadata.resultBucket = buildResultBucket(input.resultCount);
+    }
+  }
+
   return metadata;
+}
+
+function buildResultBucket(resultCount: number): string {
+  if (resultCount === 0) {
+    return "0";
+  }
+
+  if (resultCount <= 5) {
+    return "1-5";
+  }
+
+  if (resultCount <= 20) {
+    return "6-20";
+  }
+
+  if (resultCount <= 100) {
+    return "21-100";
+  }
+
+  return "100+";
 }
