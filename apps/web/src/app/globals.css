@@ -1254,3 +1254,34 @@
   border-radius: 999px;
   padding: 0.5rem 0.8rem;
 }
+
+.parent-guide-preview-section {
+  border-top: 1px solid var(--border);
+}
+
+.parent-guide-preview-actions {
+  margin-top: 1rem;
+}
+
+.parent-guide-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.parent-guide-card,
+.parent-guide-preview-card,
+.parent-guide-listing-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.parent-guide-card ul,
+.parent-guide-preview-card ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.parent-guide-listing-card .home-personalization-actions {
+  margin-top: 0.75rem;
+}

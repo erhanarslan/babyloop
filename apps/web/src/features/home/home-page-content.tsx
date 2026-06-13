@@ -3,6 +3,7 @@
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { HomeAuthActions } from "./home-auth-actions";
 import { HomePersonalizationFeed } from "./home-personalization-feed";
+import { ParentGuidePreviewSection } from "../parent-guides/parent-guide-preview-section";
 
 type HomePageContentProps = {
   apiBaseUrl: string;
@@ -25,6 +26,8 @@ export function HomePageContent({ apiBaseUrl }: HomePageContentProps) {
       </section>
 
       <HomePersonalizationFeed apiBaseUrl={apiBaseUrl} />
+
+      <ParentGuidePreviewSection />
 
       <section className="home-section">
         <div className="home-section-heading">

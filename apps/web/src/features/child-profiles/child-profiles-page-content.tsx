@@ -17,6 +17,7 @@ import {
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { getGuideTopicsForAgeBand } from "../parent-guides/parent-guide-data";
 import {
   createChildProfile,
   deleteChildProfile,
@@ -277,7 +278,10 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
                         </p>
                       </div>
                       <div className="form-actions">
+                        <div className="form-actions">
                         <Link href={`/categories/${recommendation.categorySlug}`}>Browse</Link>
+                        <Link href={buildLifecycleBrowseHref(recommendation)}>Search need</Link>
+                      </div>
                         <Link href={buildLifecycleBrowseHref(recommendation)}>Search need</Link>
                       </div>
                     </div>
@@ -291,21 +295,76 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
             ))}
           </section>
         ) : null}
+
+        <ParentGuideTopicsSection
+          childProfiles={childProfiles}
+          selectedAgeBand={ageBand}
+        />
+
       </PageContainer>
     </>
   );
 }
 
-function formatAgeBand(ageBand: ChildAgeBand): string {
-  return AGE_BAND_OPTIONS.find((option) => option.value === ageBand)?.label ?? ageBand;
+function ParentGuideTopicsSection({
+  childProfiles,
+  selectedAgeBand
+}: {
+  childProfiles: ChildProfile[];
+  selectedAgeBand: ChildAgeBand;
+}) {
+  const activeAgeBands = childProfiles
+    .filter((childProfile) => childProfile.isActive)
+    .map((childProfile) => childProfile.ageBand);
+  const ageBands = activeAgeBands.length > 0 ? activeAgeBands : [selectedAgeBand];
+  const topics = dedupeGuideTopics(ageBands.flatMap((ageBand) => getGuideTopicsForAgeBand(ageBand)));
+
+  if (topics.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="listing-column" aria-label="Parent guide topics">
+      <div className="section-heading">
+        <h2>Parents also ask</h2>
+        <p className="muted">
+          Curated topics that will later power BabyLoop Assistant and RAG answers.
+        </p>
+      </div>
+
+      <div className="parent-guide-grid">
+        {topics.slice(0, 4).map((topic) => (
+          <Card as="article" className="parent-guide-card" key={topic.id}>
+            <p className="eyebrow">{topic.eyebrow}</p>
+            <h3>{topic.title}</h3>
+            <p>{topic.summary}</p>
+            <div className="state-panel warning">
+              <strong>Common misconception:</strong> {topic.knownMyth}
+            </div>
+            <p className="form-note">
+              <strong>AI note:</strong> {topic.aiNote}
+            </p>
+            <div className="home-personalization-actions">
+              <Link href="/guides">Read guide</Link>
+              <Link href={topic.browseHref}>Find listings</Link>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
 }
 
-function buildParentMilestoneTitle(group: LifecycleRecommendationGroup): string {
-  return `${group.childProfileLabel} reached the ${formatAgeBand(group.ageBand)} stage`;
-}
+function dedupeGuideTopics<T extends { id: string }>(topics: T[]): T[] {
+  const seen = new Set<string>();
+  return topics.filter((topic) => {
+    if (seen.has(topic.id)) {
+      return false;
+    }
 
-function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): string {
-  return `Here is a lightweight list of product categories that may become useful around this stage.`;
+    seen.add(topic.id);
+    return true;
+  });
 }
 
 function buildLifecycleBrowseHref(
@@ -318,6 +377,22 @@ function buildLifecycleBrowseHref(
   });
 
   return `/browse?${params.toString()}`;
+}
+
+function formatLifecycleConfidence(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatAgeBand(ageBand: ChildAgeBand): string {
+  return AGE_BAND_OPTIONS.find((option) => option.value === ageBand)?.label ?? ageBand;
+}
+
+function buildParentMilestoneTitle(group: LifecycleRecommendationGroup): string {
+  return `${group.childProfileLabel} reached the ${formatAgeBand(group.ageBand)} stage`;
+}
+
+function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): string {
+  return `Here is a lightweight list of product categories that may become useful around this stage.`;
 }
 
 function formatConfidence(value: number): string {

@@ -227,7 +227,7 @@ function LifecycleHomeCard({
               </Link>
               <span>{suggestion.whyNow}</span>
               <span>
-                {suggestion.reasonLabel} · {formatConfidence(suggestion.reasoningConfidenceScore)} confidence
+                {suggestion.reasonLabel} · {formatLifecycleConfidence(suggestion.reasoningConfidenceScore)} confidence
               </span>
             </li>
           ))}
@@ -236,21 +236,21 @@ function LifecycleHomeCard({
 
       <div className="home-personalization-actions">
         <Link href="/account/children">Manage child profiles</Link>
-        <Link href="/browse">Browse all</Link>
+        <Link href="/guides">Parent guides</Link>
       </div>
     </Card>
   );
 }
 
 function buildParentMilestoneTitle(group: LifecycleRecommendationGroup): string {
-  return `${group.childProfileLabel} is in the ${formatAgeBand(group.ageBand)} stage`;
+  return `${group.childProfileLabel} is in the ${formatLifecycleAgeBand(group.ageBand)} stage`;
 }
 
 function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): string {
   return `BabyLoop prepared a privacy-light needs list for this stage using only the saved age band, not an exact birth date.`;
 }
 
-function formatAgeBand(ageBand: LifecycleRecommendationGroup["ageBand"]): string {
+function formatLifecycleAgeBand(ageBand: LifecycleRecommendationGroup["ageBand"]): string {
   switch (ageBand) {
     case "expecting":
       return "expecting";
@@ -269,7 +269,7 @@ function formatAgeBand(ageBand: LifecycleRecommendationGroup["ageBand"]): string
   }
 }
 
-function formatConfidence(value: number): string {
+function formatLifecycleConfidence(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 

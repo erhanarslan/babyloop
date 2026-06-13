@@ -17,6 +17,7 @@ import { recordProductEvent } from "../../features/product-events/api";
 import type { ListingDetailPayload } from "../../lib/api";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { getPrimaryGuideForCategorySlug } from "../parent-guides/parent-guide-data";
 import { ListingImageFrame } from "./listing-image-frame";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
@@ -121,6 +122,7 @@ export function ListingDetailContent({
         </div>
 
         <SellerCard listing={listing} />
+        <ListingRelatedGuideCard categorySlug={listing.category.slug} />
         <RecentlyViewedListings apiBaseUrl={apiBaseUrl} currentListingId={listing.id} />
         <RelatedListings apiBaseUrl={apiBaseUrl} listingId={listing.id} />
 
@@ -167,6 +169,31 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
         </Link>
       </PageContainer>
     </>
+  );
+}
+
+function ListingRelatedGuideCard({ categorySlug }: { categorySlug: string }) {
+  const topic = getPrimaryGuideForCategorySlug(categorySlug);
+
+  if (!topic) {
+    return null;
+  }
+
+  return (
+    <Card className="seller-card parent-guide-listing-card" aria-label="Related parent guide">
+      <div>
+        <p className="listing-meta">Parent guide</p>
+        <h2>{topic.title}</h2>
+        <p className="muted">{topic.summary}</p>
+        <p className="form-note">
+          <strong>Common misconception:</strong> {topic.knownMyth}
+        </p>
+        <div className="home-personalization-actions">
+          <Link href="/guides">Read guide</Link>
+          <Link href={topic.browseHref}>Find related listings</Link>
+        </div>
+      </div>
+    </Card>
   );
 }
 
