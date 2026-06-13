@@ -1,0 +1,121 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { SiteShell } from "../../../components/ui";
+import {
+  buildListingsPath,
+  resolveBrowseFilters,
+  type BrowseSearchParams
+} from "../../../features/listings/browse-routing";
+import { BrowsePageContent } from "../../../features/listings/browse-page-content";
+import {
+  fetchApi,
+  getApiBaseUrl,
+  type Category,
+  type CategoriesPayload,
+  type ListingsPagination,
+  type ListingsPayload
+} from "../../../lib/api";
+
+export const dynamic = "force-dynamic";
+
+type CategoryPageProps = {
+  params?: Promise<{
+    slug?: string;
+  }>;
+  searchParams?: Promise<BrowseSearchParams>;
+};
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const slug = decodeURIComponent((await params)?.slug ?? "");
+  const category = await findCategoryBySlug(slug);
+
+  if (!category) {
+    return {
+      title: "BabyLoop category"
+    };
+  }
+
+  return {
+    title: `${category.name} | BabyLoop`,
+    description: `Browse parent-owned BabyLoop listings in ${category.name}.`
+  };
+}
+
+export default async function CategoryLandingPage({ params, searchParams }: CategoryPageProps) {
+  const slug = decodeURIComponent((await params)?.slug ?? "");
+  const resolvedSearchParams = await searchParams;
+  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+  const categories = categoriesResult.ok ? categoriesResult.data.categories : [];
+  const category = categories.find((candidate) => candidate.slug === slug) ?? null;
+
+  if (categoriesResult.ok && !category) {
+    notFound();
+  }
+
+  const filters = resolveBrowseFilters(resolvedSearchParams, {
+    categoryId: category?.id ?? "",
+    offset: resolveOffsetForCategoryPage(resolvedSearchParams)
+  });
+  const listingsResult = category
+    ? await fetchApi<ListingsPayload>(buildListingsPath(filters))
+    : null;
+  const listings = listingsResult?.ok ? listingsResult.data.listings : [];
+  const fallbackPagination: ListingsPagination = {
+    limit: filters.limit,
+    offset: filters.offset,
+    total: listings.length,
+    hasNextPage: false
+  };
+  const pagination = listingsResult?.ok
+    ? listingsResult.data.pagination ?? fallbackPagination
+    : fallbackPagination;
+  const error = !categoriesResult.ok
+    ? categoriesResult.error
+    : listingsResult && !listingsResult.ok
+      ? listingsResult.error
+      : null;
+
+  return (
+    <SiteShell>
+      <BrowsePageContent
+        apiBaseUrl={getApiBaseUrl()}
+        categories={categories}
+        currentCategorySlug={category?.slug ?? null}
+        error={error}
+        filters={filters}
+        listings={listings}
+        pagination={pagination}
+        searchQuery={filters.q}
+      />
+    </SiteShell>
+  );
+}
+
+async function findCategoryBySlug(slug: string): Promise<Category | null> {
+  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+
+  if (!categoriesResult.ok) {
+    return null;
+  }
+
+  return categoriesResult.data.categories.find((category) => category.slug === slug) ?? null;
+}
+
+function resolveOffsetForCategoryPage(searchParams: BrowseSearchParams): number {
+  const rawOffset = readParam(searchParams?.offset);
+  const parsedOffset = Number.parseInt(rawOffset, 10);
+
+  if (!Number.isFinite(parsedOffset)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(parsedOffset, 0), 10000);
+}
+
+function readParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}

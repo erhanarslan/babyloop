@@ -18,6 +18,7 @@ import type {
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { ListingImageFrame } from "./listing-image-frame";
+import { appendIfPresent } from "./browse-routing";
 import {
   formatCategoryName,
   formatListingCondition,
@@ -29,6 +30,7 @@ import {
 type BrowsePageContentProps = {
   apiBaseUrl: string;
   categories: Category[];
+  currentCategorySlug: string | null;
   error: ApiError | null;
   filters: BrowseListingsFilters;
   listings: ListingSummary[];
@@ -53,6 +55,7 @@ const SORT_OPTIONS = [
 export function BrowsePageContent({
   apiBaseUrl,
   categories,
+  currentCategorySlug,
   error,
   filters,
   listings,
@@ -72,6 +75,9 @@ export function BrowsePageContent({
   const hasPreviousPage = pagination.offset > 0;
   const previousOffset = Math.max(0, pagination.offset - pagination.limit);
   const nextOffset = pagination.offset + pagination.limit;
+  const paginationBasePath = currentCategorySlug
+    ? `/categories/${currentCategorySlug}`
+    : "/browse";
 
   return (
     <>
@@ -93,7 +99,7 @@ export function BrowsePageContent({
             selectedCategoryId={filters.categoryId}
           />
 
-          <form action="/browse" method="get" className="form-stack">
+          <form action={paginationBasePath} method="get" className="form-stack">
             <label>
               <span>Search</span>
               <input
@@ -105,17 +111,19 @@ export function BrowsePageContent({
               />
             </label>
 
-            <label>
-              <span>{dictionary.listings.categoriesTitle}</span>
-              <select defaultValue={filters.categoryId} name="categoryId">
-                <option value="">All categories</option>
-                {orderedCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!currentCategorySlug ? (
+              <label>
+                <span>{dictionary.listings.categoriesTitle}</span>
+                <select defaultValue={filters.categoryId} name="categoryId">
+                  <option value="">All categories</option>
+                  {orderedCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <label>
               <span>{dictionary.listings.typeLabel}</span>
@@ -153,7 +161,9 @@ export function BrowsePageContent({
             </label>
 
             <button type="submit">Apply filters</button>
-            <Link href="/browse">Clear filters</Link>
+            <Link href={currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse"}>
+              Clear filters
+            </Link>
           </form>
         </Card>
 
@@ -188,7 +198,12 @@ export function BrowsePageContent({
           {!error && pagination.total > 0 ? (
             <nav className="pagination-controls" aria-label="Listing pagination">
               {hasPreviousPage ? (
-                <Link href={buildBrowseHref(filters, previousOffset)}>Previous</Link>
+                <Link href={buildBrowseHref(filters, previousOffset, {
+                  basePath: paginationBasePath,
+                  includeCategoryId: !currentCategorySlug
+                })}>
+                  Previous
+                </Link>
               ) : (
                 <span className="muted">Previous</span>
               )}
@@ -196,7 +211,12 @@ export function BrowsePageContent({
                 Offset {pagination.offset}
               </span>
               {pagination.hasNextPage ? (
-                <Link href={buildBrowseHref(filters, nextOffset)}>Next</Link>
+                <Link href={buildBrowseHref(filters, nextOffset, {
+                  basePath: paginationBasePath,
+                  includeCategoryId: !currentCategorySlug
+                })}>
+                  Next
+                </Link>
               ) : (
                 <span className="muted">Next</span>
               )}
@@ -228,7 +248,12 @@ function CategoryNavigation({
       <ul className="category-list">
         <li>
           {selectedCategoryId ? (
-            <Link href={buildCategoryHref(filters, "")}>All categories</Link>
+            <Link href={buildBrowseHref(filters, 0, {
+              basePath: "/browse",
+              includeCategoryId: false
+            })}>
+              All categories
+            </Link>
           ) : (
             <strong>All categories</strong>
           )}
@@ -265,7 +290,7 @@ function CategoryNavigationItem({
       {isSelected ? (
         <strong>{formatCategoryName(category, dictionary)}</strong>
       ) : (
-        <Link href={buildCategoryHref(filters, category.id)}>
+        <Link href={buildCategoryLandingHref(filters, category.slug)}>
           {formatCategoryName(category, dictionary)}
         </Link>
       )}
@@ -374,21 +399,32 @@ function buildCategoryOptionLabel(label: string, depth: number): string {
   return `${"— ".repeat(depth)}${label}`;
 }
 
-function buildCategoryHref(filters: BrowseListingsFilters, categoryId: string): string {
-  return buildBrowseHref(
-    {
-      ...filters,
-      categoryId
-    },
-    0
-  );
+function buildCategoryLandingHref(filters: BrowseListingsFilters, slug: string): string {
+  return buildBrowseHref(filters, 0, {
+    basePath: `/categories/${slug}`,
+    includeCategoryId: false
+  });
 }
 
-function buildBrowseHref(filters: BrowseListingsFilters, offset: number): string {
+function buildBrowseHref(
+  filters: BrowseListingsFilters,
+  offset: number,
+  options: {
+    basePath: string;
+    includeCategoryId: boolean;
+  } = {
+    basePath: "/browse",
+    includeCategoryId: true
+  }
+): string {
   const params = new URLSearchParams();
 
   appendIfPresent(params, "q", filters.q);
-  appendIfPresent(params, "categoryId", filters.categoryId);
+
+  if (options.includeCategoryId) {
+    appendIfPresent(params, "categoryId", filters.categoryId);
+  }
+
   appendIfPresent(params, "condition", filters.condition);
   appendIfPresent(params, "listingType", filters.listingType);
   appendIfPresent(params, "sort", filters.sort);
@@ -400,11 +436,5 @@ function buildBrowseHref(filters: BrowseListingsFilters, offset: number): string
 
   const query = params.toString();
 
-  return query ? `/browse?${query}` : "/browse";
-}
-
-function appendIfPresent(params: URLSearchParams, key: string, value: string): void {
-  if (value.trim().length > 0) {
-    params.set(key, value.trim());
-  }
+  return query ? `${options.basePath}?${query}` : options.basePath;
 }
