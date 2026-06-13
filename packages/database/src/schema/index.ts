@@ -57,6 +57,16 @@ export const profileTrustRiskLevelEnum = pgEnum("profile_trust_risk_level", [
   "critical"
 ]);
 
+export const childAgeBandEnum = pgEnum("child_age_band", [
+  "expecting",
+  "newborn_0_3",
+  "infant_3_6",
+  "infant_6_12",
+  "toddler_12_24",
+  "preschool_24_36",
+  "child_3_plus"
+]);
+
 export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "success",
   "error",
@@ -169,6 +179,27 @@ export const profileTrustSnapshots = pgTable(
     index("profile_trust_snapshots_computed_at_idx").on(table.computedAt),
     check("profile_trust_snapshots_trust_score_check", sql`${table.trustScore} between 0 and 100`),
     check("profile_trust_snapshots_risk_score_check", sql`${table.riskScore} between 0 and 100`)
+  ]
+);
+
+export const childProfiles = pgTable(
+  "child_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    label: varchar("label", { length: 80 }).notNull().default("Child profile"),
+    ageBand: childAgeBandEnum("age_band").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("child_profiles_profile_id_idx").on(table.profileId),
+    index("child_profiles_age_band_idx").on(table.ageBand),
+    index("child_profiles_profile_active_idx").on(table.profileId, table.isActive),
+    check("child_profiles_label_not_blank_check", sql`length(trim(${table.label})) > 0`)
   ]
 );
 

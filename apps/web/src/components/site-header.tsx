@@ -118,7 +118,8 @@ export function SiteHeader() {
             : dictionary.nav.notifications
         },
         { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail },
-        { href: "/account/password", label: dictionary.nav.changePassword }
+        { href: "/account/password", label: dictionary.nav.changePassword },
+        { href: "/account/children", label: "Child profiles" }
       ]
     : [];
 

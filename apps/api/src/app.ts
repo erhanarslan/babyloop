@@ -14,6 +14,7 @@ import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestio
 import { registerAuthRoutes } from "./routes/auth.routes.js";
 import { registerAuthUnavailableRoutes } from "./routes/auth-unavailable.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
+import { registerChildProfileRoutes } from "./routes/child-profiles.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
@@ -191,6 +192,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
+    app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
     app.register(registerListingRecommendationRoutes, { prefix: API_PREFIX });
