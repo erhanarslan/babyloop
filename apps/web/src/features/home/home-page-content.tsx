@@ -2,6 +2,7 @@
 
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { HomeAuthActions } from "./home-auth-actions";
+import { HomePersonalizationFeed } from "./home-personalization-feed";
 
 type HomePageContentProps = {
   apiBaseUrl: string;
@@ -22,6 +23,8 @@ export function HomePageContent({ apiBaseUrl }: HomePageContentProps) {
 
         <HeroPreviewCard />
       </section>
+
+      <HomePersonalizationFeed apiBaseUrl={apiBaseUrl} />
 
       <section className="home-section">
         <div className="home-section-heading">

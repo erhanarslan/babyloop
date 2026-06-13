@@ -1124,3 +1124,74 @@
 .related-listing-body {
   @apply flex flex-col gap-3 p-4;
 }
+
+.home-personalization-feed {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.home-personalization-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.home-personalization-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.home-card-heading-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.home-feed-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-feed-list li {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.2rem;
+  padding-top: 0.75rem;
+}
+
+.home-feed-list a,
+.home-feed-link,
+.home-personalization-actions a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home-feed-list span,
+.home-feed-link + .home-feed-link,
+.home-personalization-card .muted {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.home-personalization-empty {
+  display: grid;
+}
+
+.home-personalization-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.home-personalization-actions a {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.5rem 0.8rem;
+}
