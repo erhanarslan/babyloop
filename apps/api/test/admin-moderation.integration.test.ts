@@ -247,6 +247,72 @@ describe("admin moderation API", () => {
     });
   });
 
+  it("reads moderation case detail by id beyond the default list window", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-detail-window@babyloop.test"
+    });
+    const seller = await createUser(app);
+    const reporter = await createUser(app);
+    const firstListing = await createListing(app, seller.accessToken, {
+      title: "First reported listing"
+    });
+
+    await app.inject({
+      headers: authHeader(reporter.accessToken),
+      method: "POST",
+      url: `/api/v1/reports/listings/${firstListing.id}`,
+      payload: {
+        reason: "scam"
+      }
+    });
+
+    const [firstCase] = await app.db
+      .select({
+        id: moderationCases.id
+      })
+      .from(moderationCases)
+      .where(eq(moderationCases.targetId, firstListing.id))
+      .limit(1);
+
+    if (!firstCase) {
+      throw new Error("First moderation case setup failed.");
+    }
+
+    for (let index = 0; index < 105; index += 1) {
+      const listing = await createListing(app, seller.accessToken, {
+        title: `Window filler listing ${index}`
+      });
+
+      await app.inject({
+        headers: authHeader(reporter.accessToken),
+        method: "POST",
+        url: `/api/v1/reports/listings/${listing.id}`,
+        payload: {
+          reason: "inappropriate"
+        }
+      });
+    }
+
+    const detailResponse = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/moderation/cases/${firstCase.id}`
+    });
+
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        case: expect.objectContaining({
+          id: firstCase.id,
+          targetId: firstListing.id,
+          targetType: "listing"
+        })
+      }
+    });
+  });
+
   it("allows admins to read moderation case detail", async () => {
     const admin = await createUser(app, {
       role: "admin",

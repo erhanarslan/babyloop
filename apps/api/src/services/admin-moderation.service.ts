@@ -327,7 +327,10 @@ export async function getAdminModerationCaseDetail(
     }
   | { status: "not_found" }
 > {
-  const { cases } = await listAdminModerationCases(app, { limit: 100 });
+  const { cases } = await listAdminModerationCases(app, {
+    limit: 100,
+    q: caseId
+  });
 
   const foundCase = cases.find((item) => item.id === caseId);
 
