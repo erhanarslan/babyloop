@@ -28,10 +28,36 @@ export async function connectRealtimeSocket(
   apiBaseUrl: string,
   accessToken: string
 ): Promise<TestRealtimeSocket> {
-  const socket: TestRealtimeSocket = createSocket(apiBaseUrl, {
+  return connectRealtimeSocketWithOptions(apiBaseUrl, {
     auth: {
       token: accessToken
-    },
+    }
+  });
+}
+
+export async function connectRealtimeSocketWithCookie(
+  apiBaseUrl: string,
+  cookieHeader: string
+): Promise<TestRealtimeSocket> {
+  return connectRealtimeSocketWithOptions(apiBaseUrl, {
+    extraHeaders: {
+      cookie: cookieHeader
+    }
+  });
+}
+
+async function connectRealtimeSocketWithOptions(
+  apiBaseUrl: string,
+  options: {
+    auth?: {
+      token: string;
+    };
+    extraHeaders?: Record<string, string>;
+  }
+): Promise<TestRealtimeSocket> {
+  const socket: TestRealtimeSocket = createSocket(apiBaseUrl, {
+    ...(options.auth ? { auth: options.auth } : {}),
+    ...(options.extraHeaders ? { extraHeaders: options.extraHeaders } : {}),
     forceNew: true,
     reconnection: false,
     transports: ["websocket"],

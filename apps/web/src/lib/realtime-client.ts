@@ -19,12 +19,7 @@ let activeAccessToken: string | null = null;
 export function getRealtimeSocket(
   apiBaseUrl: string,
   accessToken: string | null
-): BabyloopRealtimeSocket | null {
-  if (!accessToken) {
-    disconnectRealtimeSocket();
-    return null;
-  }
-
+): BabyloopRealtimeSocket {
   if (
     activeSocket &&
     activeApiBaseUrl === apiBaseUrl &&
@@ -36,9 +31,13 @@ export function getRealtimeSocket(
   disconnectRealtimeSocket();
 
   activeSocket = io(apiBaseUrl, {
-    auth: {
-      token: accessToken
-    },
+    ...(accessToken
+      ? {
+          auth: {
+            token: accessToken
+          }
+        }
+      : {}),
     reconnection: true,
     transports: ["websocket", "polling"],
     withCredentials: true

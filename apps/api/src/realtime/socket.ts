@@ -15,6 +15,7 @@ import {
   authenticateAccessToken,
   type CurrentUser
 } from "../plugins/auth.plugin.js";
+import { readPublicAccessTokenCookie } from "../utils/public-access-token-cookie.js";
 
 export type RealtimeServer = Server<
   RealtimeClientToServerEvents,
@@ -145,13 +146,15 @@ function readSocketAccessToken(socket: RealtimeSocket): string | null {
 
   const authorization = socket.handshake.headers.authorization;
 
-  if (!authorization) {
-    return null;
+  if (authorization) {
+    const [scheme, token] = authorization.split(" ");
+
+    if (scheme === "Bearer" && token) {
+      return token;
+    }
   }
 
-  const [scheme, token] = authorization.split(" ");
-
-  return scheme === "Bearer" && token ? token : null;
+  return readPublicAccessTokenCookie(socket.handshake.headers.cookie);
 }
 
 function emitRealtimeError(socket: RealtimeSocket, code: RealtimeErrorCode): void {

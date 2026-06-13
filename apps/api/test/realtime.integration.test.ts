@@ -23,6 +23,7 @@ import {
   type RealtimeErrorPayload
 } from "@babyloop/shared";
 import { REFRESH_TOKEN_COOKIE_NAME, hashRefreshToken } from "../src/utils/refresh-token.js";
+import { PUBLIC_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/public-access-token-cookie.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
 import { GOOGLE_OAUTH_STATE_COOKIE_NAME, type GoogleUserInfo } from "../src/services/google-oauth.service.js";
@@ -30,10 +31,10 @@ import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
 import { authHeader, createUser, loginUser } from "./helpers/auth.js";
 import { countEvents, createCategory, createConversation, createListing, getListingSellerProfileId } from "./helpers/fixtures.js";
-import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, toCookieHeader } from "./helpers/cookies.js";
+import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, toCookieHeader, getSetCookieHeaders } from "./helpers/cookies.js";
 import { createRecordingEmailDeliveryService, type RecordingEmailDeliveryService } from "./helpers/email.js";
 import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
-import { connectRealtimeSocket, delay, disconnectSockets, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
+import { connectRealtimeSocket, connectRealtimeSocketWithCookie, delay, disconnectSockets, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
 
 let app!: TestApp;
 
@@ -48,6 +49,30 @@ afterEach(async () => {
 });
 
 describe("messaging realtime API", () => {
+  it("accepts socket authentication from the public access cookie", async () => {
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const apiBaseUrl = getListeningBaseUrl(app);
+
+    await createUser(app, {
+      email: "realtime-cookie-auth@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "realtime-cookie-auth@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+    const socket = await connectRealtimeSocketWithCookie(apiBaseUrl, toCookieHeader(publicAccessCookie));
+
+    expect(socket.connected).toBe(true);
+
+    disconnectSockets(socket);
+  });
   it("publishes realtime events after message persistence", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
@@ -248,3 +273,17 @@ describe("messaging realtime API", () => {
   });
 
 });
+
+function getPublicAccessSetCookie(response: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const accessCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=`)
+  );
+
+  if (!accessCookie) {
+    throw new Error("Public access cookie was not set.");
+  }
+
+  return accessCookie;
+}
