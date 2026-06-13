@@ -20,6 +20,7 @@ import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
+import { registerProductEventRoutes } from "./routes/product-events.routes.js";
 import { registerSafetyRoutes } from "./routes/safety.routes.js";
 import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
@@ -191,6 +192,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
+    app.register(registerProductEventRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAiOpsRoutes, { prefix: API_PREFIX });
