@@ -13,10 +13,21 @@ export function AiSuggestionPanel({ suggestion, onApplySuggestion }: AiSuggestio
   const { dictionary } = useI18n();
 
   return (
-    <section className="ai-suggestion-panel" aria-label={dictionary.listings.aiSuggestionLabel}>
-      <div>
-        <h2>{dictionary.listings.aiSuggestionTitle}</h2>
-        <p className="ai-suggestion-title">{suggestion.suggestedTitle}</p>
+    <section className="ai-suggestion-panel ai-workflow-panel" aria-label={dictionary.listings.aiSuggestionLabel}>
+      <div className="ai-workflow-header">
+        <div>
+          <p className="eyebrow">AI listing assistant</p>
+          <h2>{dictionary.listings.aiSuggestionTitle}</h2>
+          <p className="form-note">
+            Review the draft before applying it. BabyLoop never publishes AI content automatically.
+          </p>
+        </div>
+        <span className="ai-confidence-pill">{formatConfidence(suggestion.confidenceScore)} confidence</span>
+      </div>
+
+      <div className="ai-suggestion-draft-card">
+        <p className="eyebrow">Suggested title</p>
+        <h3>{suggestion.suggestedTitle}</h3>
         <p>{suggestion.suggestedDescription}</p>
       </div>
 
@@ -35,37 +46,52 @@ export function AiSuggestionPanel({ suggestion, onApplySuggestion }: AiSuggestio
         </div>
       </div>
 
-      <div className="tag-list" aria-label={dictionary.listings.suggestedTagsLabel}>
-        {suggestion.suggestedTags.map((tag) => (
-          <span key={tag}>{tag}</span>
-        ))}
+      {suggestion.suggestedTags.length > 0 ? (
+        <div>
+          <p className="eyebrow">Suggested tags</p>
+          <div className="tag-list" aria-label={dictionary.listings.suggestedTagsLabel}>
+            {suggestion.suggestedTags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="ai-guidance-grid">
+        <div className="ai-guidance-card">
+          <h3>Safety checks</h3>
+          {suggestion.safetyWarnings.length > 0 ? (
+            <ul className="question-list">
+              {suggestion.safetyWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="form-note">No major safety warnings were returned. Still review the listing manually.</p>
+          )}
+        </div>
+
+        <div className="ai-guidance-card">
+          <h3>Missing details</h3>
+          {suggestion.missingInfoQuestions.length > 0 ? (
+            <ul className="question-list">
+              {suggestion.missingInfoQuestions.map((question) => (
+                <li key={question}>{question}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="form-note">The draft looks complete enough to continue.</p>
+          )}
+        </div>
       </div>
 
-      {suggestion.safetyWarnings.length > 0 ? (
-        <div>
-          <h3>Safety checks</h3>
-          <ul className="question-list">
-            {suggestion.safetyWarnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {suggestion.missingInfoQuestions.length > 0 ? (
-        <div>
-          <h3>Missing details</h3>
-          <ul className="question-list">
-            {suggestion.missingInfoQuestions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <div className="state-panel warning">
+        AI can help with wording and structure, but you are responsible for accurate condition, price, photos, and included parts.
+      </div>
 
       <div className="form-button-row">
         <Button type="button" variant="secondary" onClick={onApplySuggestion}>
-          Apply suggestion
+          Apply AI draft to form
         </Button>
       </div>
 
@@ -79,4 +105,8 @@ export function AiSuggestionPanel({ suggestion, onApplySuggestion }: AiSuggestio
 
 function formatOptionalText(value: string | null): string {
   return value?.trim() ? value : "Not suggested";
+}
+
+function formatConfidence(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }

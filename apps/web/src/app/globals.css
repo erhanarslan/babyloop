@@ -1285,3 +1285,91 @@
 .parent-guide-listing-card .home-personalization-actions {
   margin-top: 0.75rem;
 }
+
+.ai-sell-workflow-callout,
+.sell-publish-checklist,
+.ai-workflow-panel {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+  padding: 1.25rem;
+}
+
+.ai-sell-workflow-callout {
+  display: grid;
+  gap: 1rem;
+}
+
+.ai-sell-workflow-callout ol,
+.sell-publish-checklist ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.ai-workflow-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ai-confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.6rem;
+  white-space: nowrap;
+}
+
+.ai-suggestion-draft-card,
+.ai-guidance-card,
+.ai-price-range {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--background);
+  padding: 1rem;
+}
+
+.ai-suggestion-draft-card {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ai-suggestion-draft-card h3 {
+  margin: 0;
+}
+
+.ai-guidance-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.ai-price-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sell-publish-checklist {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 700px) {
+  .ai-workflow-header,
+  .ai-price-range {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-confidence-pill {
+    width: fit-content;
+  }
+}

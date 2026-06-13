@@ -13,8 +13,8 @@ export function AiPriceSuggestionPanel({
   onApplyPrice
 }: AiPriceSuggestionPanelProps) {
   return (
-    <section className="ai-suggestion-panel" aria-label="AI price suggestion">
-      <div className="form-actions">
+    <section className="ai-suggestion-panel ai-workflow-panel" aria-label="AI price suggestion">
+      <div className="ai-workflow-header">
         <div>
           <p className="eyebrow">AI price suggestion</p>
           {suggestion.pricingMode === "suggested" ? (
@@ -24,31 +24,51 @@ export function AiPriceSuggestionPanel({
           ) : (
             <h2>Price not required</h2>
           )}
-          {suggestion.recommendedPriceMin && suggestion.recommendedPriceMax ? (
-            <p>
-              Suggested range: {suggestion.recommendedPriceMin}-{suggestion.recommendedPriceMax}{" "}
-              {suggestion.currency}
-            </p>
-          ) : null}
+          <p className="form-note">
+            Use this as a starting point. You can still edit the price before publishing.
+          </p>
         </div>
-
-        {suggestion.recommendedPriceAmount ? (
-          <Button type="button" variant="secondary" onClick={onApplyPrice}>
-            Apply price
-          </Button>
-        ) : null}
+        <span className="ai-confidence-pill">{formatConfidence(suggestion.confidenceScore)} confidence</span>
       </div>
 
-      <ul>
-        {suggestion.rationale.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+      {suggestion.recommendedPriceMin && suggestion.recommendedPriceMax ? (
+        <div className="ai-price-range">
+          <span>Suggested range</span>
+          <strong>
+            {suggestion.recommendedPriceMin}-{suggestion.recommendedPriceMax} {suggestion.currency}
+          </strong>
+        </div>
+      ) : null}
 
-      <p className="muted">
+      <div className="ai-guidance-card">
+        <h3>Pricing rationale</h3>
+        <ul className="question-list">
+          {suggestion.rationale.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="state-panel warning">
+        Buyer demand, local pickup convenience, photo quality, and included accessories can change the final price.
+      </div>
+
+      {suggestion.recommendedPriceAmount ? (
+        <div className="form-button-row">
+          <Button type="button" variant="secondary" onClick={onApplyPrice}>
+            Apply suggested price
+          </Button>
+        </div>
+      ) : null}
+
+      <p className="ai-debug">
         {suggestion.providerName} · {suggestion.promptVersion} · confidence{" "}
         {suggestion.confidenceScore}
       </p>
     </section>
   );
+}
+
+function formatConfidence(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Badge, Button, LoadingBlock } from "../../components/ui";
 import type { Category } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -40,6 +40,7 @@ const MAX_IMAGE_COUNT = 5;
 export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps) {
   const { dictionary } = useI18n();
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
   const [priceAiErrorMessage, setPriceAiErrorMessage] = useState<string | null>(null);
@@ -226,7 +227,9 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
+    <form className="listing-form" ref={formRef} onSubmit={handleSubmit}>
+      <SellAiWorkflowCallout />
+
       <SellListingFields categories={categories} />
 
       <section className="image-upload-panel" aria-label={dictionary.listings.images}>
@@ -290,10 +293,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         <AiSuggestionPanel
           suggestion={suggestion}
           onApplySuggestion={() => {
-            const form = document.forms[0];
-
-            if (form instanceof HTMLFormElement) {
-              fillSuggestionFields(form, suggestion, categories);
+            if (formRef.current) {
+              fillSuggestionFields(formRef.current, suggestion, categories);
             }
           }}
         />
@@ -303,14 +304,14 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         <AiPriceSuggestionPanel
           suggestion={priceSuggestion}
           onApplyPrice={() => {
-            const form = document.forms[0];
-
-            if (form) {
-              fillPriceSuggestionFields(form, priceSuggestion);
+            if (formRef.current) {
+              fillPriceSuggestionFields(formRef.current, priceSuggestion);
             }
           }}
         />
       ) : null}
+
+      <SellPublishChecklist selectedImagesCount={selectedImages.length} />
 
       <div className="form-actions">
         <p className="form-note">{dictionary.listings.formTrustNote}</p>
@@ -341,6 +342,44 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         </div>
       </div>
     </form>
+  );
+}
+
+function SellAiWorkflowCallout() {
+  return (
+    <section className="ai-sell-workflow-callout" aria-label="AI listing workflow">
+      <div>
+        <p className="eyebrow">AI-assisted listing</p>
+        <h2>Draft faster, publish manually</h2>
+        <p className="form-note">
+          Generate a better draft, check missing details, get a price range, then publish only after your review.
+        </p>
+      </div>
+
+      <ol>
+        <li>Write a few product details or select a category.</li>
+        <li>Ask AI for listing details and price guidance.</li>
+        <li>Review condition, photos, accessories, and safety notes.</li>
+      </ol>
+    </section>
+  );
+}
+
+function SellPublishChecklist({ selectedImagesCount }: { selectedImagesCount: number }) {
+  return (
+    <section className="sell-publish-checklist" aria-label="Publish checklist">
+      <div>
+        <p className="eyebrow">Before publishing</p>
+        <h2>Quick seller checklist</h2>
+      </div>
+
+      <ul className="question-list">
+        <li>Condition, missing parts, and included accessories are clearly described.</li>
+        <li>{selectedImagesCount > 0 ? "Photos are attached." : "Add photos if possible; they help families decide faster."}</li>
+        <li>No private contact details are needed in the public listing.</li>
+        <li>Price is reviewed manually even if an AI suggestion was applied.</li>
+      </ul>
+    </section>
   );
 }
 
@@ -410,93 +449,53 @@ function fillSuggestionFields(
   suggestion: ListingSuggestion,
   categories: Category[]
 ): void {
-  fillTextControlValue(form.elements.namedItem("title"), suggestion.suggestedTitle);
-  fillTextControlValue(form.elements.namedItem("description"), suggestion.suggestedDescription);
+  setTextInputValue(form, "title", suggestion.suggestedTitle);
+  setTextareaValue(form, "description", suggestion.suggestedDescription);
 
-  setSelectValueIfOptionExists(
-    form.elements.namedItem("categoryId"),
-    findSuggestedCategoryId(categories, suggestion)
-  );
-  setSelectValueIfOptionExists(
-    form.elements.namedItem("condition"),
-    suggestion.suggestedCondition ?? undefined
-  );
-  setSelectValueIfOptionExists(form.elements.namedItem("listingType"), suggestion.suggestedListingType);
+  if (suggestion.suggestedCategorySlug) {
+    const matchingCategory = categories.find(
+      (category) => category.slug === suggestion.suggestedCategorySlug
+    );
+
+    if (matchingCategory) {
+      setSelectValue(form, "categoryId", matchingCategory.id);
+    }
+  }
+
+  if (suggestion.suggestedCondition) {
+    setSelectValue(form, "condition", suggestion.suggestedCondition);
+  }
+
+  if (suggestion.suggestedListingType) {
+    setSelectValue(form, "listingType", suggestion.suggestedListingType);
+  }
 }
 
-function fillTextControlValue(field: Element | RadioNodeList | null, value: string): void {
-  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+function setTextInputValue(form: HTMLFormElement, key: string, value: string): void {
+  const field = form.elements.namedItem(key);
+
+  if (field instanceof HTMLInputElement) {
     field.value = value;
     field.dispatchEvent(new Event("input", { bubbles: true }));
   }
 }
 
-function setSelectValueIfOptionExists(
-  field: Element | RadioNodeList | null,
-  value: string | undefined
-): void {
-  if (!(field instanceof HTMLSelectElement) || !value) {
-    return;
+function setTextareaValue(form: HTMLFormElement, key: string, value: string): void {
+  const field = form.elements.namedItem(key);
+
+  if (field instanceof HTMLTextAreaElement) {
+    field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
   }
-
-  const hasOption = Array.from(field.options).some((option) => option.value === value);
-
-  if (!hasOption) {
-    return;
-  }
-
-  field.value = value;
-  field.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function findSuggestedCategoryId(
-  categories: Category[],
-  suggestion: ListingSuggestion
-): string | undefined {
-  const candidates = [suggestion.suggestedCategorySlug, suggestion.suggestedCategoryName]
-    .filter(isNonEmptyString)
-    .map(normalizeForMatch);
+function setSelectValue(form: HTMLFormElement, key: string, value: string): void {
+  const field = form.elements.namedItem(key);
 
-  if (candidates.length === 0) {
-    return undefined;
+  if (field instanceof HTMLSelectElement) {
+    field.value = value;
+    field.dispatchEvent(new Event("change", { bubbles: true }));
   }
-
-  for (const category of categories) {
-    const record = category as unknown as Record<string, string | undefined>;
-    const categoryId = record["id"];
-
-    if (!categoryId) {
-      continue;
-    }
-
-    const categoryValues = [record["slug"], record["name"], categoryId]
-      .filter(isNonEmptyString)
-      .map(normalizeForMatch);
-
-    if (categoryValues.some((value) => candidates.includes(value))) {
-      return categoryId;
-    }
-  }
-
-  return undefined;
-}
-
-function normalizeForMatch(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function isNonEmptyString(value: string | null | undefined): value is string {
-  return typeof value === "string" && value.trim().length > 0;
 }
 
 function buildPriceSuggestionPayload(form: HTMLFormElement): PriceSuggestionRequest {
