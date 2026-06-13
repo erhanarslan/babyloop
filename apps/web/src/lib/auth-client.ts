@@ -3,6 +3,8 @@ import type { ApiResponse } from "@babyloop/shared";
 export const AUTH_CHANGED_EVENT = "babyloop-auth-changed";
 export const AUTH_SESSION_ENDED_EVENT = "babyloop-auth-session-ended";
 
+const PUBLIC_CSRF_HEADER_NAME = "x-babyloop-csrf-token";
+
 export type AuthMe = {
   user: {
     id: string;
@@ -23,8 +25,10 @@ export type AuthPayload = AuthMe & {
 };
 
 let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;
+let publicCsrfTokenPromise: Promise<string | null> | null = null;
 let authSessionVersion = 0;
 let memoryAuthToken: string | null = null;
+let cachedPublicCsrfToken: string | null = null;
 let manuallyLoggedOut = false;
 
 export function getAuthToken(): string | null {
@@ -44,6 +48,8 @@ export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
   const shouldBroadcast = options.broadcast ?? false;
 
   memoryAuthToken = null;
+  cachedPublicCsrfToken = null;
+  publicCsrfTokenPromise = null;
 
   if (hadToken || shouldBroadcast) {
     authSessionVersion += 1;
@@ -187,7 +193,7 @@ export async function authFetch(
   init: RequestInit = {}
 ): Promise<Response> {
   const requestUrl = `${apiBaseUrl}${path}`;
-  const response = await fetch(requestUrl, buildAuthRequestInit(init));
+  const response = await fetch(requestUrl, await buildAuthRequestInit(apiBaseUrl, init));
 
   if (response.status !== 401) {
     return response;
@@ -199,10 +205,10 @@ export async function authFetch(
     return response;
   }
 
-  return fetch(requestUrl, buildAuthRequestInit(init));
+  return fetch(requestUrl, await buildAuthRequestInit(apiBaseUrl, init));
 }
 
-function buildAuthRequestInit(init: RequestInit): RequestInit {
+async function buildAuthRequestInit(apiBaseUrl: string, init: RequestInit): Promise<RequestInit> {
   const headers = new Headers(init.headers);
   const token = getAuthToken();
 
@@ -210,11 +216,61 @@ function buildAuthRequestInit(init: RequestInit): RequestInit {
     headers.set("authorization", `Bearer ${token}`);
   }
 
+  if (shouldAttachPublicCsrfHeader(init)) {
+    const csrfToken = await ensurePublicCsrfToken(apiBaseUrl);
+
+    if (csrfToken) {
+      headers.set(PUBLIC_CSRF_HEADER_NAME, csrfToken);
+    }
+  }
+
   return {
     ...init,
     credentials: "include",
     headers
   };
+}
+
+function shouldAttachPublicCsrfHeader(init: RequestInit): boolean {
+  const method = (init.method ?? "GET").toUpperCase();
+
+  return !["GET", "HEAD", "OPTIONS"].includes(method);
+}
+
+async function ensurePublicCsrfToken(apiBaseUrl: string): Promise<string | null> {
+  if (cachedPublicCsrfToken) {
+    return cachedPublicCsrfToken;
+  }
+
+  if (publicCsrfTokenPromise) {
+    return publicCsrfTokenPromise;
+  }
+
+  publicCsrfTokenPromise = fetchPublicCsrfToken(apiBaseUrl).finally(() => {
+    publicCsrfTokenPromise = null;
+  });
+
+  return publicCsrfTokenPromise;
+}
+
+async function fetchPublicCsrfToken(apiBaseUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/csrf`, {
+      credentials: "include"
+    });
+    const body = (await response.json()) as ApiResponse<{ csrfToken: string }>;
+
+    if (!response.ok || !body.ok) {
+      cachedPublicCsrfToken = null;
+      return null;
+    }
+
+    cachedPublicCsrfToken = body.data.csrfToken;
+    return cachedPublicCsrfToken;
+  } catch {
+    cachedPublicCsrfToken = null;
+    return null;
+  }
 }
 
 function unauthorizedResponse(): ApiResponse<AuthPayload> {
@@ -231,6 +287,8 @@ function markManuallyLoggedOut(): void {
   manuallyLoggedOut = true;
   authSessionVersion += 1;
   refreshSessionPromise = null;
+  publicCsrfTokenPromise = null;
+  cachedPublicCsrfToken = null;
 }
 
 function isManuallyLoggedOut(): boolean {

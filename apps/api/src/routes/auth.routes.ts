@@ -75,6 +75,11 @@ import {
   serializePublicAccessTokenCookie
 } from "../utils/public-access-token-cookie.js";
 import {
+  createPublicCsrfToken,
+  serializeExpiredPublicCsrfCookie,
+  serializePublicCsrfCookie
+} from "../utils/public-csrf.js";
+import {
   createBackofficeCsrfToken,
   serializeBackofficeCsrfCookie,
   serializeExpiredBackofficeCsrfCookie
@@ -98,6 +103,8 @@ type BackofficeAuthRouteResponse = AuthMeResponse | MfaChallengeResponse | Retur
 type BackofficeCsrfRouteResponse =
   | { ok: true; data: { csrfToken: string } }
   | ReturnType<typeof adminForbidden>;
+
+type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -435,6 +442,28 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     }
   );
 
+  app.get<{ Reply: PublicCsrfRouteResponse | ReturnType<typeof unauthorizedAuthRequest> }>(
+    "/auth/csrf",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const csrfToken = createPublicCsrfToken();
+
+      reply.header("set-cookie", serializePublicCsrfCookie(csrfToken));
+
+      return {
+        ok: true,
+        data: {
+          csrfToken
+        }
+      };
+    }
+  );
+
   app.post<{ Body: unknown; Reply: PasswordResetRequestRouteResponse }>(
     "/auth/password-reset/request",
     authRateLimitOptions(options),
@@ -678,7 +707,8 @@ function setPublicAuthCookies(
     }),
     serializePublicAccessTokenCookie(input.accessToken, {
       maxAgeSeconds: input.accessTokenMaxAgeSeconds
-    })
+    }),
+    serializePublicCsrfCookie(createPublicCsrfToken())
   ]);
 }
 
@@ -689,7 +719,8 @@ function clearRefreshTokenCookie(reply: FastifyReply): void {
 function clearPublicAuthCookies(reply: FastifyReply): void {
   reply.header("set-cookie", [
     serializeExpiredRefreshTokenCookie(),
-    serializeExpiredPublicAccessTokenCookie()
+    serializeExpiredPublicAccessTokenCookie(),
+    serializeExpiredPublicCsrfCookie()
   ]);
 }
 

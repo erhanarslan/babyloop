@@ -9,6 +9,10 @@ import {
   isBackofficeCsrfRequestValid,
   shouldEnforceBackofficeCsrf
 } from "./utils/backoffice-csrf.js";
+import {
+  isPublicCsrfRequestValid,
+  shouldEnforcePublicCsrf
+} from "./utils/public-csrf.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerAiPriceSuggestionRoutes } from "./routes/ai-price-suggestions.routes.js";
@@ -113,19 +117,33 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   });
 
   app.addHook("preHandler", async (request, reply) => {
-    if (!shouldEnforceBackofficeCsrf(request, { apiPrefix: API_PREFIX })) {
+    if (shouldEnforceBackofficeCsrf(request, { apiPrefix: API_PREFIX })) {
+      if (isBackofficeCsrfRequestValid(request)) {
+        return;
+      }
+
+      return reply.status(403).send({
+        ok: false,
+        error: {
+          code: "CSRF_TOKEN_REQUIRED",
+          message: "A valid CSRF token is required for backoffice mutations."
+        }
+      });
+    }
+
+    if (!shouldEnforcePublicCsrf(request, { apiPrefix: API_PREFIX })) {
       return;
     }
 
-    if (isBackofficeCsrfRequestValid(request)) {
+    if (isPublicCsrfRequestValid(request)) {
       return;
     }
 
     return reply.status(403).send({
       ok: false,
       error: {
-        code: "CSRF_TOKEN_REQUIRED",
-        message: "A valid CSRF token is required for backoffice mutations."
+        code: "PUBLIC_CSRF_TOKEN_REQUIRED",
+        message: "A valid CSRF token is required for authenticated public mutations."
       }
     });
   });
