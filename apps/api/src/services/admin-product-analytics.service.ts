@@ -30,6 +30,7 @@ const PRODUCT_EVENT_TYPES: string[] = [
 const LISTING_PRODUCT_EVENT_TYPES: string[] = [
   "product_listing_detail_viewed",
   "product_listing_card_clicked",
+  "product_listing_recommendation_impression",
   "product_contact_seller_intent",
   "product_recently_viewed_listing_clicked"
 ];
@@ -46,7 +47,10 @@ export async function getAdminProductAnalyticsSummary(
     eventsLast24Hours,
     eventsLast7Days,
     listingDetailViewsLast7Days,
+    listingCardClicksLast7Days,
     recommendationImpressionsLast7Days,
+    recommendationClicksLast7Days,
+    contactSellerIntentsLast7Days,
     categoryViewsLast7Days,
     searchesLast7Days,
     recentlyViewedClicksLast7Days,
@@ -60,7 +64,17 @@ export async function getAdminProductAnalyticsSummary(
     countProductEvents(app, gte(events.createdAt, since24Hours)),
     countProductEvents(app, gte(events.createdAt, since7Days)),
     countProductEvents(app, and(eq(events.eventType, "product_listing_detail_viewed"), gte(events.createdAt, since7Days))),
+    countProductEvents(app, and(eq(events.eventType, "product_listing_card_clicked"), gte(events.createdAt, since7Days))),
     countProductEvents(app, and(eq(events.eventType, "product_listing_recommendation_impression"), gte(events.createdAt, since7Days))),
+    countProductEvents(
+      app,
+      and(
+        eq(events.eventType, "product_listing_card_clicked"),
+        sql`${events.metadata}->>'source' = 'recommendation'`,
+        gte(events.createdAt, since7Days)
+      )
+    ),
+    countProductEvents(app, and(eq(events.eventType, "product_contact_seller_intent"), gte(events.createdAt, since7Days))),
     countProductEvents(app, and(eq(events.eventType, "product_category_viewed"), gte(events.createdAt, since7Days))),
     countProductEvents(app, and(eq(events.eventType, "product_search_performed"), gte(events.createdAt, since7Days))),
     countProductEvents(app, and(eq(events.eventType, "product_recently_viewed_listing_clicked"), gte(events.createdAt, since7Days))),
@@ -77,7 +91,18 @@ export async function getAdminProductAnalyticsSummary(
       eventsLast24Hours,
       eventsLast7Days,
       listingDetailViewsLast7Days,
+      listingCardClicksLast7Days,
       recommendationImpressionsLast7Days,
+      recommendationClicksLast7Days,
+      contactSellerIntentsLast7Days,
+      recommendationClickRateLast7Days: calculateRate(
+        recommendationClicksLast7Days,
+        recommendationImpressionsLast7Days
+      ),
+      detailToContactIntentRateLast7Days: calculateRate(
+        contactSellerIntentsLast7Days,
+        listingDetailViewsLast7Days
+      ),
       categoryViewsLast7Days,
       searchesLast7Days,
       recentlyViewedClicksLast7Days
@@ -234,6 +259,14 @@ async function countSearchResultBuckets(
     resultBucket: row.resultBucket,
     count: row.itemCount
   }));
+}
+
+function calculateRate(numerator: number, denominator: number): number {
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return Number(((numerator / denominator) * 100).toFixed(2));
 }
 
 function stripProductPrefix(eventType: string): AdminProductAnalyticsEventName {

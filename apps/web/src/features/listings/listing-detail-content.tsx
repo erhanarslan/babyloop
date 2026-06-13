@@ -110,6 +110,7 @@ export function ListingDetailContent({
           />
           <MessageSellerButton
             apiBaseUrl={apiBaseUrl}
+            categoryId={listing.category.id}
             listingId={listing.id}
             sellerProfileId={listing.seller.id}
           />

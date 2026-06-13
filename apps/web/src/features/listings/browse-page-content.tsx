@@ -20,6 +20,7 @@ import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { ListingImageFrame } from "./listing-image-frame";
 import { DiscoveryAnalyticsTracker } from "../../features/product-events/discovery-analytics-tracker";
+import { recordProductEvent } from "../../features/product-events/api";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { appendIfPresent } from "./browse-routing";
 import {
@@ -215,7 +216,12 @@ export function BrowsePageContent({
 
           <div className="listing-grid">
             {listings.map((listing) => (
-              <ListingCard apiBaseUrl={apiBaseUrl} key={listing.id} listing={listing} />
+              <ListingCard
+                apiBaseUrl={apiBaseUrl}
+                key={listing.id}
+                listing={listing}
+                source={currentCategorySlug ? "category_landing" : "browse"}
+              />
             ))}
           </div>
 
@@ -339,7 +345,15 @@ function CategoryNavigationItem({
   );
 }
 
-function ListingCard({ apiBaseUrl, listing }: { apiBaseUrl: string; listing: ListingSummary }) {
+function ListingCard({
+  apiBaseUrl,
+  listing,
+  source
+}: {
+  apiBaseUrl: string;
+  listing: ListingSummary;
+  source: "browse" | "category_landing";
+}) {
   const { dictionary } = useI18n();
 
   return (
@@ -369,7 +383,19 @@ function ListingCard({ apiBaseUrl, listing }: { apiBaseUrl: string; listing: Lis
         </div>
         <div className="listing-card-footer">
           <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-          <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>
+          <Link
+            href={`/listings/${listing.id}`}
+            onClick={() => {
+              void recordProductEvent(apiBaseUrl, {
+                categoryId: listing.category.id,
+                eventType: "listing_card_clicked",
+                listingId: listing.id,
+                source
+              });
+            }}
+          >
+            {dictionary.common.viewDetails}
+          </Link>
         </div>
       </div>
     </article>

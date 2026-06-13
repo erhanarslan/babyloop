@@ -44,7 +44,12 @@ export type AdminProductAnalyticsSummaryResponse = {
     eventsLast24Hours: number;
     eventsLast7Days: number;
     listingDetailViewsLast7Days: number;
+    listingCardClicksLast7Days: number;
     recommendationImpressionsLast7Days: number;
+    recommendationClicksLast7Days: number;
+    contactSellerIntentsLast7Days: number;
+    recommendationClickRateLast7Days: number;
+    detailToContactIntentRateLast7Days: number;
     categoryViewsLast7Days: number;
     searchesLast7Days: number;
     recentlyViewedClicksLast7Days: number;

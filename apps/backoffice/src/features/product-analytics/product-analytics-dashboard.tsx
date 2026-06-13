@@ -79,9 +79,26 @@ export function ProductAnalyticsDashboard() {
             <SummaryCard label="Events 24h" value={summary.totals.eventsLast24Hours} />
             <SummaryCard label="Events 7d" value={summary.totals.eventsLast7Days} />
             <SummaryCard label="Detail views 7d" value={summary.totals.listingDetailViewsLast7Days} />
+            <SummaryCard label="Listing clicks 7d" value={summary.totals.listingCardClicksLast7Days} />
             <SummaryCard
               label="Recommendation impressions 7d"
               value={summary.totals.recommendationImpressionsLast7Days}
+            />
+            <SummaryCard
+              label="Recommendation clicks 7d"
+              value={summary.totals.recommendationClicksLast7Days}
+            />
+            <SummaryCard
+              label="Recommendation CTR 7d"
+              value={`${summary.totals.recommendationClickRateLast7Days}%`}
+            />
+            <SummaryCard
+              label="Contact intents 7d"
+              value={summary.totals.contactSellerIntentsLast7Days}
+            />
+            <SummaryCard
+              label="Detail → contact rate 7d"
+              value={`${summary.totals.detailToContactIntentRateLast7Days}%`}
             />
             <SummaryCard label="Category views 7d" value={summary.totals.categoryViewsLast7Days} />
             <SummaryCard label="Searches 7d" value={summary.totals.searchesLast7Days} />
@@ -189,7 +206,7 @@ export function ProductAnalyticsDashboard() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function SummaryCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="summary-card">
       <span>{label}</span>

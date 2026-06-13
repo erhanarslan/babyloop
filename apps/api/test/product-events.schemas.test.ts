@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { productEventBodySchema } from "../src/schemas/product-events.schemas.js";
+import {
+  productEventBodySchema,
+  productEventTypeSchema
+} from "../src/schemas/product-events.schemas.js";
 
 const LISTING_ID = "00000000-0000-0000-0000-000000000001";
 const CATEGORY_ID = "00000000-0000-0000-0000-000000000002";
@@ -56,6 +59,12 @@ describe("product event schemas", () => {
       categoryId: CATEGORY_ID,
       source: "recommendation"
     });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps exported product event type schema aligned with recommendation impressions", () => {
+    const result = productEventTypeSchema.safeParse("listing_recommendation_impression");
 
     expect(result.success).toBe(true);
   });
