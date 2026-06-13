@@ -36,6 +36,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   const hasInitialScrollRef = useRef(false);
   const markedReadKeyRef = useRef<string | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const readCandidateSourceRef = useRef<"initial" | "realtime" | null>(null);
   const readTargetRef = useRef<HTMLLIElement | null>(null);
   const readTimeoutRef = useRef<number | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
@@ -55,6 +56,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     setHighlightedMessageIds(new Set());
     setHasNewMessages(false);
     setIsOtherProfileBlocked(false);
+    readCandidateSourceRef.current = null;
     setReadCandidateMessageId(null);
     setMessage(null);
     setState(null);
@@ -135,11 +137,13 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             )
           : false
       );
-      setReadCandidateMessageId(
+      const initialReadCandidateId =
         conversationBody.data.conversation.unreadCount > 0
           ? getLatestIncomingMessageId(messagesBody.data.messages, currentUserBody.data.profile.id)
-          : null
-      );
+          : null;
+
+      readCandidateSourceRef.current = initialReadCandidateId ? "initial" : null;
+      setReadCandidateMessageId(initialReadCandidateId);
     } catch {
       setState("error");
       setMessage(dictionary.common.apiUnavailable);
@@ -157,6 +161,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       }
 
       setConversation(body.data.conversation);
+      readCandidateSourceRef.current = null;
       setReadCandidateMessageId(null);
       setHasNewMessages(false);
       markedReadKeyRef.current = `${conversationId}:read`;
@@ -169,6 +174,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   useEffect(() => {
     hasInitialScrollRef.current = false;
     markedReadKeyRef.current = null;
+    readCandidateSourceRef.current = null;
     setIsLoading(true);
     setReadCandidateMessageId(null);
     setMessage(null);
@@ -182,6 +188,44 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       scrollToLatestMessage("auto");
     }
   }, [isLoading, messages.length, scrollToLatestMessage]);
+
+  useEffect(() => {
+    if (
+      readCandidateSourceRef.current !== "initial" ||
+      !readCandidateMessageId ||
+      isLoading ||
+      message ||
+      !conversation?.id
+    ) {
+      return;
+    }
+
+    const readKey = `${conversationId}:${readCandidateMessageId}`;
+
+    if (markedReadKeyRef.current === readKey) {
+      return;
+    }
+
+    markedReadKeyRef.current = readKey;
+    readTimeoutRef.current = window.setTimeout(() => {
+      readTimeoutRef.current = null;
+      void markCurrentThreadRead();
+    }, 250);
+
+    return () => {
+      if (readTimeoutRef.current !== null) {
+        window.clearTimeout(readTimeoutRef.current);
+        readTimeoutRef.current = null;
+      }
+    };
+  }, [
+    conversation?.id,
+    conversationId,
+    isLoading,
+    markCurrentThreadRead,
+    message,
+    readCandidateMessageId
+  ]);
 
   useEffect(() => {
     return () => {
@@ -279,6 +323,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         appendMessage(payload.message);
 
         if (isIncoming) {
+          readCandidateSourceRef.current = "realtime";
           setReadCandidateMessageId(payload.message.id);
           setHighlightedMessageIds((currentIds) => {
             const nextIds = new Set(currentIds);

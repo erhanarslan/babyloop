@@ -385,7 +385,7 @@ async function createMessageReceivedNotifications(
         actorProfileId: input.senderProfileId,
         type: "message_received",
         title: "New message",
-        body: `${senderDisplayName}: ${truncateNotificationText(input.message.body)}`,
+        body: `${senderDisplayName} sent you a new message.`,
         entityType: "conversation",
         entityId: input.conversationId,
         metadata: {
