@@ -24,10 +24,15 @@ import {
 } from "@babyloop/shared";
 import { REFRESH_TOKEN_COOKIE_NAME, hashRefreshToken } from "../src/utils/refresh-token.js";
 import { BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-access-token-cookie.js";
+import { PUBLIC_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/public-access-token-cookie.js";
 import {
   BACKOFFICE_CSRF_COOKIE_NAME,
   BACKOFFICE_CSRF_HEADER_NAME
 } from "../src/utils/backoffice-csrf.js";
+import {
+  PUBLIC_CSRF_COOKIE_NAME,
+  PUBLIC_CSRF_HEADER_NAME
+} from "../src/utils/public-csrf.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
 import { GOOGLE_OAUTH_STATE_COOKIE_NAME, type GoogleUserInfo } from "../src/services/google-oauth.service.js";
@@ -700,6 +705,224 @@ describe("auth API", () => {
     expect(validCsrf.statusCode).toBe(200);
     expect(validCsrf.json()).toMatchObject({
       ok: true
+    });
+  });
+
+  it("issues a public CSRF token for cookie-authenticated public sessions", async () => {
+    await createUser(app, {
+      email: "public-csrf-token@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "public-csrf-token@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+
+    const csrfResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(publicAccessCookie)
+      },
+      method: "GET",
+      url: "/api/v1/auth/csrf"
+    });
+
+    expect(csrfResponse.statusCode).toBe(200);
+    expect(csrfResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        csrfToken: expect.any(String)
+      }
+    });
+
+    const publicCsrfCookie = getPublicCsrfSetCookie(csrfResponse);
+
+    expect(publicCsrfCookie).toContain("SameSite=Lax");
+    expect(publicCsrfCookie).toContain("Path=/");
+    expect(publicCsrfCookie).toContain("Max-Age=");
+    expect(getCookieValue(publicCsrfCookie)).toBe(csrfResponse.json().data.csrfToken);
+  });
+
+  it("requires a public CSRF token for cookie-authenticated public mutations", async () => {
+    await createUser(app, {
+      email: "public-csrf-missing@example.com",
+      password: "Password123!"
+    });
+    const category = await createCategory(app.db, {
+      name: "Public CSRF Missing",
+      slug: "public-csrf-missing"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "public-csrf-missing@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+
+    const response = await app.inject({
+      headers: {
+        cookie: toCookieHeader(publicAccessCookie)
+      },
+      method: "POST",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        listingType: "sale",
+        priceAmount: "1200.00",
+        title: "Cookie mutation without CSRF"
+      },
+      url: "/api/v1/listings"
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PUBLIC_CSRF_TOKEN_REQUIRED"
+      }
+    });
+  });
+
+  it("accepts a valid public CSRF token for cookie-authenticated public mutations", async () => {
+    await createUser(app, {
+      email: "public-csrf-valid@example.com",
+      password: "Password123!"
+    });
+    const category = await createCategory(app.db, {
+      name: "Public CSRF Valid",
+      slug: "public-csrf-valid"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "public-csrf-valid@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+    const publicCsrfCookie = getPublicCsrfSetCookie(loginResponse);
+    const publicCsrfToken = getCookieValue(publicCsrfCookie);
+
+    const response = await app.inject({
+      headers: {
+        [PUBLIC_CSRF_HEADER_NAME]: publicCsrfToken,
+        cookie: `${toCookieHeader(publicAccessCookie)}; ${toCookieHeader(publicCsrfCookie)}`
+      },
+      method: "POST",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        listingType: "sale",
+        priceAmount: "1500.00",
+        title: "Cookie mutation with CSRF"
+      },
+      url: "/api/v1/listings"
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        listing: {
+          title: "Cookie mutation with CSRF"
+        }
+      }
+    });
+  });
+
+  it("does not require public CSRF for bearer-authenticated public mutations", async () => {
+    const user = await createUser(app, {
+      email: "public-csrf-bearer@example.com"
+    });
+    const category = await createCategory(app.db, {
+      name: "Public CSRF Bearer",
+      slug: "public-csrf-bearer"
+    });
+
+    const response = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        listingType: "sale",
+        priceAmount: "1800.00",
+        title: "Bearer mutation without CSRF"
+      },
+      url: "/api/v1/listings"
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        listing: {
+          title: "Bearer mutation without CSRF"
+        }
+      }
+    });
+  });
+
+  it("does not require public CSRF for safe cookie-authenticated reads or auth bootstrap endpoints", async () => {
+    await createUser(app, {
+      email: "public-csrf-safe@example.com",
+      password: "Password123!"
+    });
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "public-csrf-safe@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+
+    const meResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(publicAccessCookie)
+      },
+      method: "GET",
+      url: "/api/v1/auth/me"
+    });
+
+    expect(meResponse.statusCode).toBe(200);
+
+    const logoutResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(publicAccessCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(logoutResponse.statusCode).toBe(200);
+  });
+
+  it("returns 401 for public CSRF token requests without authentication", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/csrf"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
     });
   });
 
@@ -2296,6 +2519,34 @@ describe("auth API", () => {
     });
   });
 });
+
+function getPublicAccessSetCookie(response: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const accessCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=`)
+  );
+
+  if (!accessCookie) {
+    throw new Error("Public access cookie was not set.");
+  }
+
+  return accessCookie;
+}
+
+function getPublicCsrfSetCookie(response: {
+  headers: Record<string, string | string[] | undefined>;
+}): string {
+  const csrfCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith(`${PUBLIC_CSRF_COOKIE_NAME}=`)
+  );
+
+  if (!csrfCookie) {
+    throw new Error("Public CSRF cookie was not set.");
+  }
+
+  return csrfCookie;
+}
 
 function getBackofficeAccessSetCookie(response: {
   headers: Record<string, string | string[] | undefined>;
