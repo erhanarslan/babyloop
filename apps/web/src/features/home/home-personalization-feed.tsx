@@ -162,6 +162,12 @@ function RecentlyViewedHomeCard({ listings }: { listings: RecentlyViewedListing[
   );
 }
 
+type LifecycleSuggestion = LifecycleRecommendationGroup["recommendations"][number] & {
+  ageBand: LifecycleRecommendationGroup["ageBand"];
+  childProfileId: string;
+  groupLabel: string;
+};
+
 function LifecycleHomeCard({
   groups,
   hasAuthenticatedFeed
@@ -169,48 +175,102 @@ function LifecycleHomeCard({
   groups: LifecycleRecommendationGroup[];
   hasAuthenticatedFeed: boolean;
 }) {
-  const suggestions = groups.flatMap((group) =>
-    group.recommendations.slice(0, 2).map((recommendation) => ({
+  const activeGroups = groups.filter((group) => group.recommendations.length > 0);
+  const primaryGroup = activeGroups[0] ?? null;
+  const suggestions: LifecycleSuggestion[] = activeGroups.flatMap((group) =>
+    group.recommendations.slice(0, 3).map((recommendation) => ({
       ...recommendation,
+      ageBand: group.ageBand,
+      childProfileId: group.childProfileId,
       groupLabel: group.childProfileLabel
     }))
-  ).slice(0, 4);
+  ).slice(0, 5);
 
   return (
     <Card as="article" className="home-personalization-card">
       <div className="home-card-heading-row">
         <div>
-          <p className="eyebrow">Lifecycle suggestions</p>
-          <h3>Age-band category ideas</h3>
+          <p className="eyebrow">Upcoming needs</p>
+          <h3>
+            {primaryGroup
+              ? buildParentMilestoneTitle(primaryGroup)
+              : "Plan the next useful items"}
+          </h3>
         </div>
         <Badge>{suggestions.length}</Badge>
       </div>
 
       {!hasAuthenticatedFeed ? (
-        <p className="muted">Sign in and add child age bands to unlock lifecycle category suggestions.</p>
+        <p className="muted">
+          Sign in and add a child age band to get a lightweight needs list for the current stage.
+        </p>
       ) : null}
 
-      {hasAuthenticatedFeed && suggestions.length === 0 ? (
-        <p className="muted">Add or resume a child profile to see category suggestions here.</p>
+      {hasAuthenticatedFeed && !primaryGroup ? (
+        <p className="muted">
+          Add or resume a child profile to see a stage-based list of upcoming product needs.
+        </p>
+      ) : null}
+
+      {primaryGroup ? (
+        <p className="muted">
+          {buildParentMilestoneDescription(primaryGroup)}
+        </p>
       ) : null}
 
       {suggestions.length > 0 ? (
         <ul className="home-feed-list">
           {suggestions.map((suggestion) => (
-            <li key={`${suggestion.groupLabel}-${suggestion.categoryId}`}>
-              <Link href={`/categories/${suggestion.categorySlug}`}>{suggestion.categoryName}</Link>
-              <span>{suggestion.reasonLabel}</span>
+            <li key={`${suggestion.childProfileId}-${suggestion.categoryId}`}>
+              <Link href={`/categories/${suggestion.categorySlug}`}>
+                {suggestion.categoryName}
+              </Link>
               <span>{suggestion.whyNow}</span>
+              <span>
+                {suggestion.reasonLabel} · {formatConfidence(suggestion.reasoningConfidenceScore)} confidence
+              </span>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <Link className="home-feed-link" href="/account/children">
-        Manage child profiles
-      </Link>
+      <div className="home-personalization-actions">
+        <Link href="/account/children">Manage child profiles</Link>
+        <Link href="/browse">Browse all</Link>
+      </div>
     </Card>
   );
+}
+
+function buildParentMilestoneTitle(group: LifecycleRecommendationGroup): string {
+  return `${group.childProfileLabel} is in the ${formatAgeBand(group.ageBand)} stage`;
+}
+
+function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): string {
+  return `BabyLoop prepared a privacy-light needs list for this stage using only the saved age band, not an exact birth date.`;
+}
+
+function formatAgeBand(ageBand: LifecycleRecommendationGroup["ageBand"]): string {
+  switch (ageBand) {
+    case "expecting":
+      return "expecting";
+    case "newborn_0_3":
+      return "0-3 month";
+    case "infant_3_6":
+      return "3-6 month";
+    case "infant_6_12":
+      return "6-12 month";
+    case "toddler_12_24":
+      return "12-24 month";
+    case "preschool_24_36":
+      return "24-36 month";
+    case "child_3_plus":
+      return "3+ year";
+  }
+}
+
+function formatConfidence(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function SavedSearchesHomeCard({

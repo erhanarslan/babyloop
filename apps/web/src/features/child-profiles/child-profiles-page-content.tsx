@@ -153,7 +153,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       <PageHeading
         eyebrow="Family profile"
         title="Child profiles"
-        description="Save privacy-light age bands to receive lifecycle category suggestions. BabyLoop stores age bands, not exact birth dates."
+        description="Save privacy-light age bands to receive a stage-based upcoming needs list. BabyLoop stores age bands, not exact birth dates."
       />
 
       <PageContainer className="listing-column" ariaLabel="Child profiles">
@@ -245,20 +245,23 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
         ) : null}
 
         {recommendationGroups.length > 0 ? (
-          <section className="listing-column" aria-label="Lifecycle recommendations">
+          <section className="listing-column" aria-label="Upcoming needs plan">
             <div className="section-heading">
-              <h2>Lifecycle category suggestions</h2>
-              <p className="muted">Explainable category suggestions based on active age bands.</p>
+              <h2>Upcoming needs plan</h2>
+              <p className="muted">
+                Stage-based product ideas for parents. These suggestions use age bands only and avoid exact birth dates.
+              </p>
             </div>
 
             {recommendationGroups.map((group) => (
               <Card as="article" className="form-panel" key={group.childProfileId}>
                 <div className="form-actions">
                   <div>
-                    <h3>{group.childProfileLabel}</h3>
-                    <p className="form-note">{formatAgeBand(group.ageBand)}</p>
+                    <p className="eyebrow">{formatAgeBand(group.ageBand)}</p>
+                    <h3>{buildParentMilestoneTitle(group)}</h3>
+                    <p className="form-note">{buildParentMilestoneDescription(group)}</p>
                   </div>
-                  <Badge>{group.recommendations.length} suggestions</Badge>
+                  <Badge>{group.recommendations.length} needs</Badge>
                 </div>
 
                 <div className="listing-column">
@@ -266,16 +269,23 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
                     <div className="panel-row" key={`${group.childProfileId}-${recommendation.categoryId}`}>
                       <div>
                         <strong>{recommendation.categoryName}</strong>
-                        <p>{recommendation.reasonLabel}</p>
-                        <p className="form-note">{recommendation.whyNow}</p>
+                        <p>{recommendation.whyNow}</p>
+                        <p className="form-note">{recommendation.reasonLabel}</p>
                         <p className="ai-debug">
                           {recommendation.reasoningProviderName} · {recommendation.reasoningPromptVersion} · confidence{" "}
-                          {recommendation.reasoningConfidenceScore}
+                          {formatConfidence(recommendation.reasoningConfidenceScore)}
                         </p>
                       </div>
-                      <Link href={`/categories/${recommendation.categorySlug}`}>Browse</Link>
+                      <div className="form-actions">
+                        <Link href={`/categories/${recommendation.categorySlug}`}>Browse</Link>
+                        <Link href={buildLifecycleBrowseHref(recommendation)}>Search need</Link>
+                      </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="state-panel warning">
+                  This is a marketplace needs guide, not medical, nutrition, or therapy advice. For child-specific health decisions, consult a qualified professional.
                 </div>
               </Card>
             ))}
@@ -288,4 +298,28 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
 
 function formatAgeBand(ageBand: ChildAgeBand): string {
   return AGE_BAND_OPTIONS.find((option) => option.value === ageBand)?.label ?? ageBand;
+}
+
+function buildParentMilestoneTitle(group: LifecycleRecommendationGroup): string {
+  return `${group.childProfileLabel} reached the ${formatAgeBand(group.ageBand)} stage`;
+}
+
+function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): string {
+  return `Here is a lightweight list of product categories that may become useful around this stage.`;
+}
+
+function buildLifecycleBrowseHref(
+  recommendation: LifecycleRecommendationGroup["recommendations"][number]
+): string {
+  const params = new URLSearchParams({
+    categoryId: recommendation.categoryId,
+    q: recommendation.categoryName,
+    sort: "newest"
+  });
+
+  return `/browse?${params.toString()}`;
+}
+
+function formatConfidence(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
