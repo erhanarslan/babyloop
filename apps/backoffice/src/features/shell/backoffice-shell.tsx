@@ -38,6 +38,12 @@ const navigationItems: NavigationItem[] = [
     status: "active",
   },
   {
+    label: "Analytics",
+    href: "/product-analytics",
+    description: "Product discovery signals",
+    status: "active",
+  },
+  {
     label: "Profiles",
     href: "/profiles",
     description: "Profile risk directory",
