@@ -926,6 +926,225 @@ describe("auth API", () => {
     });
   });
 
+  it("register sets public access and CSRF cookies for cookie-backed sessions", async () => {
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        displayName: "Register Cookie Parent",
+        email: "register-cookie-session@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/register"
+    });
+
+    expect(response.statusCode).toBe(201);
+
+    const publicAccessCookie = getPublicAccessSetCookie(response);
+    const publicCsrfCookie = getPublicCsrfSetCookie(response);
+
+    expect(publicAccessCookie).toContain("HttpOnly");
+    expect(publicAccessCookie).toContain("SameSite=Lax");
+    expect(publicAccessCookie).toContain("Path=/");
+    expect(publicAccessCookie).toContain("Max-Age=");
+    expect(getCookieValue(publicAccessCookie)).toEqual(expect.any(String));
+
+    expect(publicCsrfCookie).toContain("SameSite=Lax");
+    expect(publicCsrfCookie).toContain("Path=/");
+    expect(publicCsrfCookie).toContain("Max-Age=");
+    expect(getCookieValue(publicCsrfCookie)).toEqual(expect.any(String));
+  });
+
+  it("login sets public access and CSRF cookies for cookie-backed sessions", async () => {
+    await createUser(app, {
+      email: "login-cookie-session@example.com",
+      password: "Password123!"
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        email: "login-cookie-session@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const publicAccessCookie = getPublicAccessSetCookie(response);
+    const publicCsrfCookie = getPublicCsrfSetCookie(response);
+
+    expect(publicAccessCookie).toContain("HttpOnly");
+    expect(publicAccessCookie).toContain("SameSite=Lax");
+    expect(publicAccessCookie).toContain("Path=/");
+    expect(publicAccessCookie).toContain("Max-Age=");
+    expect(getCookieValue(publicAccessCookie)).toEqual(expect.any(String));
+
+    expect(publicCsrfCookie).toContain("SameSite=Lax");
+    expect(publicCsrfCookie).toContain("Path=/");
+    expect(publicCsrfCookie).toContain("Max-Age=");
+    expect(getCookieValue(publicCsrfCookie)).toEqual(expect.any(String));
+  });
+
+  it("auth/me accepts the public access cookie without a bearer token", async () => {
+    await createUser(app, {
+      email: "cookie-auth-me@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "cookie-auth-me@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+
+    const response = await app.inject({
+      headers: {
+        cookie: toCookieHeader(publicAccessCookie)
+      },
+      method: "GET",
+      url: "/api/v1/auth/me"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        user: {
+          email: "cookie-auth-me@example.com"
+        }
+      }
+    });
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("refresh_token");
+    expect(response.body).not.toContain("passwordHash");
+    expect(response.body).not.toContain("password_hash");
+  });
+
+  it("refresh sets a new public access cookie and public CSRF cookie", async () => {
+    const registerResponse = await app.inject({
+      method: "POST",
+      payload: {
+        displayName: "Refresh Cookie Parent",
+        email: "refresh-cookie-session@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/register"
+    });
+    const firstRefreshCookie = getRefreshSetCookie(registerResponse);
+    const firstPublicCsrfCookie = getPublicCsrfSetCookie(registerResponse);
+
+    const response = await app.inject({
+      headers: {
+        cookie: toCookieHeader(firstRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const nextPublicAccessCookie = getPublicAccessSetCookie(response);
+    const nextPublicCsrfCookie = getPublicCsrfSetCookie(response);
+
+    expect(nextPublicAccessCookie).toContain("HttpOnly");
+    expect(nextPublicAccessCookie).toContain("SameSite=Lax");
+    expect(nextPublicAccessCookie).toContain("Path=/");
+    expect(nextPublicAccessCookie).toContain("Max-Age=");
+    expect(getCookieValue(nextPublicAccessCookie)).toEqual(expect.any(String));
+
+    expect(nextPublicCsrfCookie).toContain("SameSite=Lax");
+    expect(nextPublicCsrfCookie).toContain("Path=/");
+    expect(nextPublicCsrfCookie).toContain("Max-Age=");
+    expect(getCookieValue(nextPublicCsrfCookie)).toEqual(expect.any(String));
+    expect(getCookieValue(nextPublicCsrfCookie)).not.toBe(getCookieValue(firstPublicCsrfCookie));
+  });
+
+  it("logout clears public access and CSRF cookies", async () => {
+    await createUser(app, {
+      email: "logout-cookie-session@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "logout-cookie-session@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+    const publicCsrfCookie = getPublicCsrfSetCookie(loginResponse);
+
+    const response = await app.inject({
+      headers: {
+        cookie: [
+          toCookieHeader(refreshCookie),
+          toCookieHeader(publicAccessCookie),
+          toCookieHeader(publicCsrfCookie)
+        ].join("; ")
+      },
+      method: "POST",
+      url: "/api/v1/auth/logout"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(getRefreshSetCookie(response)).toContain("Max-Age=0");
+    expect(getPublicAccessSetCookie(response)).toContain("Max-Age=0");
+    expect(getPublicCsrfSetCookie(response)).toContain("Max-Age=0");
+  });
+
+  it("password change clears public access and CSRF cookies for cookie-authenticated sessions", async () => {
+    await createUser(app, {
+      email: "password-change-cookie-session@example.com",
+      password: "OldPassword123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "password-change-cookie-session@example.com",
+        password: "OldPassword123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+    const publicCsrfCookie = getPublicCsrfSetCookie(loginResponse);
+    const publicCsrfToken = getCookieValue(publicCsrfCookie);
+
+    const response = await app.inject({
+      headers: {
+        [PUBLIC_CSRF_HEADER_NAME]: publicCsrfToken,
+        cookie: `${toCookieHeader(publicAccessCookie)}; ${toCookieHeader(publicCsrfCookie)}`
+      },
+      method: "POST",
+      payload: {
+        currentPassword: "OldPassword123!",
+        newPassword: "NewPassword123!"
+      },
+      url: "/api/v1/auth/password/change"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      data: {
+        passwordChanged: true
+      }
+    });
+    expect(getRefreshSetCookie(response)).toContain("Max-Age=0");
+    expect(getPublicAccessSetCookie(response)).toContain("Max-Age=0");
+    expect(getPublicCsrfSetCookie(response)).toContain("Max-Age=0");
+  });
+
   it("returns 401 for auth refresh without a refresh cookie", async () => {
     const response = await app.inject({
       method: "POST",
