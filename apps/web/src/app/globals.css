@@ -1373,3 +1373,43 @@
     width: fit-content;
   }
 }
+
+.buyer-guidance-card {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.buyer-guidance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.buyer-guidance-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.buyer-guidance-grid > div {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--background);
+  padding: 1rem;
+}
+
+.buyer-guidance-grid h3 {
+  margin-top: 0;
+}
+
+.buyer-guidance-facts {
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .buyer-guidance-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

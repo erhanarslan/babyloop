@@ -103,6 +103,8 @@ export function ListingDetailContent({
           {listing.description ?? dictionary.listings.noDescription}
         </p>
 
+        <BuyerGuidanceCard listing={listing} />
+
         <div className="detail-actions" aria-label={dictionary.listings.listingActionsAriaLabel}>
           <FavoriteButton
             apiBaseUrl={apiBaseUrl}
@@ -170,6 +172,121 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
       </PageContainer>
     </>
   );
+}
+
+function BuyerGuidanceCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
+  const { dictionary } = useI18n();
+  const questions = getBuyerQuestions(listing);
+  const safetyChecks = getSafetyChecks(listing);
+
+  return (
+    <Card className="buyer-guidance-card" aria-label="Buyer guidance">
+      <div className="buyer-guidance-header">
+        <div>
+          <p className="listing-meta">Buyer guide</p>
+          <h2>Ask better questions before messaging</h2>
+          <p className="muted">
+            Use these checks to understand condition, included parts, pickup expectations, and safety-sensitive details before deciding.
+          </p>
+        </div>
+        <Link href="/guides">Open parent guides</Link>
+      </div>
+
+      <div className="buyer-guidance-grid">
+        <div>
+          <h3>Suggested seller questions</h3>
+          <ul className="question-list">
+            {questions.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3>Quick safety checklist</h3>
+          <ul className="question-list">
+            {safetyChecks.map((check) => (
+              <li key={check}>{check}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="state-panel warning">
+        Keep payment, pickup, and contact details inside BabyLoop messages until you feel comfortable. Report listings that look misleading or unsafe.
+      </div>
+
+      <dl className="compact-details buyer-guidance-facts">
+        <div>
+          <dt>Type</dt>
+          <dd>{formatListingType(listing.listingType, dictionary)}</dd>
+        </div>
+        <div>
+          <dt>Condition</dt>
+          <dd>{formatListingCondition(listing.condition, dictionary)}</dd>
+        </div>
+        <div>
+          <dt>Category</dt>
+          <dd>{formatCategoryName(listing.category, dictionary)}</dd>
+        </div>
+      </dl>
+    </Card>
+  );
+}
+
+function getBuyerQuestions(listing: ListingDetailPayload["listing"]): string[] {
+  const questions = [
+    "Are there any stains, missing parts, repairs, or defects that are not visible in the photos?",
+    "Which accessories, manuals, spare parts, or boxes are included?",
+    "How long was it used, and why are you selling it?",
+    "Can you share one more clear photo of the most worn area?"
+  ];
+
+  if (listing.price) {
+    questions.push("Is the listed price final, or is there room for a reasonable offer?");
+  }
+
+  if (listing.listingType === "swap") {
+    questions.push("What kind of item would you consider for a swap?");
+  }
+
+  if (listing.listingType === "donation") {
+    questions.push("Is pickup timing flexible for donation handover?");
+  }
+
+  if (isSafetySensitiveCategory(listing.category.slug)) {
+    questions.push("Has the product ever been involved in an accident, recall, or safety issue?");
+  }
+
+  return questions;
+}
+
+function getSafetyChecks(listing: ListingDetailPayload["listing"]): string[] {
+  const checks = [
+    "Confirm the product matches the child's current stage and size.",
+    "Check photos for fabric wear, broken parts, missing straps, loose screws, and hygiene.",
+    "Prefer clear pickup expectations before arranging handover."
+  ];
+
+  if (listing.condition === "fair" || listing.condition === "needs_repair") {
+    checks.push("This condition needs extra review before use; ask what repair or cleaning is required.");
+  }
+
+  if (isSafetySensitiveCategory(listing.category.slug)) {
+    checks.push("For safety-sensitive gear, verify history, stability, labels, and all locking mechanisms before use.");
+  }
+
+  return checks;
+}
+
+function isSafetySensitiveCategory(categorySlug: string): boolean {
+  return [
+    "car-seats",
+    "strollers",
+    "feeding",
+    "sleep",
+    "travel"
+  ].includes(categorySlug);
 }
 
 function ListingRelatedGuideCard({ categorySlug }: { categorySlug: string }) {
