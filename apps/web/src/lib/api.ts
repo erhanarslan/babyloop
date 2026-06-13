@@ -93,6 +93,10 @@ export type ListingDetailPayload = {
   listing: ListingDetail;
 };
 
+export type ListingRecommendationsPayload = {
+  recommendations: ListingSummary[];
+};
+
 export type FavoritesPayload = {
   favorites: FavoriteListing[];
 };

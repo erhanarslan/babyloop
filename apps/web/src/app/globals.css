@@ -1104,3 +1104,23 @@
   .recently-viewed-body {
     @apply flex flex-col gap-3 p-4;
   }
+
+.related-listings-panel {
+  @apply mt-6;
+}
+
+.related-listings-grid {
+  @apply grid gap-4 md:grid-cols-2;
+}
+
+.related-listing-card {
+  @apply overflow-hidden rounded-2xl border border-border bg-background;
+}
+
+.related-listing-image {
+  @apply aspect-[4/3] w-full;
+}
+
+.related-listing-body {
+  @apply flex flex-col gap-3 p-4;
+}
