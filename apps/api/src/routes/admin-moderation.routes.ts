@@ -11,7 +11,7 @@ import {
   adminSensitiveAccessBodySchema,
   adminModerationStatusBodySchema
 } from "../schemas/admin-moderation.schemas.js";
-import { adminForbidden, hasSensitiveDataAccess, requireAdminUser } from "../services/admin-context.service.js";
+import { adminForbidden, hasSensitiveDataAccess, requireBackofficePermission } from "../services/admin-context.service.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   collectRequestedFieldsForAudit,
@@ -43,7 +43,7 @@ export function registerAdminModerationRoutes(
   app.get<{ Querystring: unknown }>(
     "/admin/moderation/cases",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_view");
 
       if (!admin) {
         return reply;
@@ -88,7 +88,7 @@ export function registerAdminModerationRoutes(
   app.get<{ Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_view");
 
       if (!admin) {
         return reply;
@@ -122,7 +122,7 @@ export function registerAdminModerationRoutes(
   app.patch<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/status",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_enforce");
 
       if (!admin) {
         return reply;
@@ -259,7 +259,7 @@ export function registerAdminModerationRoutes(
   app.get<{ Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/insights",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_view");
 
       if (!admin) {
         return reply;
@@ -293,7 +293,7 @@ export function registerAdminModerationRoutes(
   app.get<{ Params: { caseId: string }; Querystring: unknown }>(
     "/admin/moderation/cases/:caseId/ai-summaries",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_view");
 
       if (!admin) {
         return reply;
@@ -338,7 +338,7 @@ export function registerAdminModerationRoutes(
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/ai-summary",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "ai_generate");
 
       if (!admin) {
         return reply;
@@ -409,7 +409,7 @@ export function registerAdminModerationRoutes(
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/enforcement",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_enforce");
 
       if (!admin) {
         return reply;
@@ -486,7 +486,7 @@ export function registerAdminModerationRoutes(
   app.post<{ Body: unknown; Params: { caseId: string } }>(
     "/admin/moderation/cases/:caseId/actions",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "moderation_enforce");
 
       if (!admin) {
         return reply;

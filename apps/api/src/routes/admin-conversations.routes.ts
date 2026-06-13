@@ -10,7 +10,7 @@ import {
   type AdminConversationDetail,
   type AdminConversationSummary
 } from "../services/admin-conversations.service.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireBackofficePermission } from "../services/admin-context.service.js";
 
 type AdminConversationsResponse = ApiResponse<{
   conversations: AdminConversationSummary[];
@@ -24,7 +24,7 @@ export function registerAdminConversationRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminConversationsResponse }>(
     "/admin/conversations",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "conversation_view");
 
       if (!admin) {
         return reply;
@@ -48,7 +48,7 @@ export function registerAdminConversationRoutes(app: FastifyInstance): void {
   app.get<{ Params: unknown; Reply: AdminConversationDetailResponse }>(
     "/admin/conversations/:conversationId",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "conversation_view");
 
       if (!admin) {
         return reply;

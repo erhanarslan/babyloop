@@ -1,7 +1,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import { adminAuditEventsQuerySchema } from "../schemas/admin-audit.schemas.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireBackofficePermission } from "../services/admin-context.service.js";
 import {
   listAdminAuditEvents,
   type AdminAuditEventSummary
@@ -15,7 +15,7 @@ export function registerAdminAuditRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminAuditEventsResponse }>(
     "/admin/audit/events",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "audit_view");
 
       if (!admin) {
         return reply;

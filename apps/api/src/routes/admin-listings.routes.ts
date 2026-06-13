@@ -7,7 +7,7 @@ import {
   adminListingParamsSchema,
   adminListingsQuerySchema
 } from "../schemas/admin-listings.schemas.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireBackofficePermission } from "../services/admin-context.service.js";
 import {
   applyAdminListingAction,
   applyAdminListingImageAction,
@@ -43,7 +43,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminListingsResponse }>(
     "/admin/listings",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
 
       if (!admin) {
         return reply;
@@ -77,7 +77,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.get<{ Params: unknown; Reply: AdminListingDetailResponse }>(
     "/admin/listings/:listingId",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
 
       if (!admin) {
         return reply;
@@ -109,7 +109,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Params: unknown; Reply: AdminListingActionResponse }>(
     "/admin/listings/:listingId/actions",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
 
       if (!admin) {
         return reply;
@@ -172,7 +172,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Params: unknown; Reply: AdminListingImageActionResponse }>(
     "/admin/listings/:listingId/images/:imageId/actions",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
 
       if (!admin) {
         return reply;

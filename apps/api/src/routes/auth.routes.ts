@@ -48,7 +48,7 @@ import {
   type SafeAuthProfile,
   type SafeAuthUser
 } from "../services/auth.service.js";
-import { adminForbidden } from "../services/admin-context.service.js";
+import { adminForbidden, isBackofficeRole } from "../services/admin-context.service.js";
 import {
   buildGoogleAuthorizationUrl,
   defaultGoogleOAuthClient,
@@ -292,7 +292,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(200).send(response);
       }
 
-      if (result.response.data.user.role !== "admin") {
+      if (!isBackofficeRole(result.response.data.user.role)) {
         clearBackofficeAuthCookies(reply);
         return reply.status(403).send(adminForbidden());
       }
@@ -337,7 +337,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(401).send(result.response);
       }
 
-      if (result.response.data.user.role !== "admin") {
+      if (!isBackofficeRole(result.response.data.user.role)) {
         await revokeAuthSession(app, result.refreshToken);
         clearBackofficeAuthCookies(reply);
         return reply.status(403).send(adminForbidden());
@@ -377,7 +377,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply;
       }
 
-      if (currentUser.role !== "admin") {
+      if (!isBackofficeRole(currentUser.role)) {
         return reply.status(403).send(adminForbidden());
       }
 
@@ -394,7 +394,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply;
       }
 
-      if (currentUser.role !== "admin") {
+      if (!isBackofficeRole(currentUser.role)) {
         return reply.status(403).send(adminForbidden());
       }
 

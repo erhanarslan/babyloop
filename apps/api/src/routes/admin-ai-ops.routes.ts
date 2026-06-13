@@ -1,7 +1,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import { adminAiOpsRunsQuerySchema } from "../schemas/admin-ai-ops.schemas.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireBackofficePermission } from "../services/admin-context.service.js";
 import {
   getAdminAiOpsSummary,
   listAdminAiOpsRuns,
@@ -21,7 +21,7 @@ export function registerAdminAiOpsRoutes(app: FastifyInstance): void {
   app.get<{ Reply: AdminAiOpsSummaryApiResponse }>(
     "/admin/ai-ops/summary",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "ai_ops_view");
 
       if (!admin) {
         return reply;
@@ -39,7 +39,7 @@ export function registerAdminAiOpsRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminAiOpsRunsApiResponse }>(
     "/admin/ai-ops/runs",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "ai_ops_view");
 
       if (!admin) {
         return reply;

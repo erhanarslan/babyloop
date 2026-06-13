@@ -5,7 +5,7 @@ import {
   adminProfileParamsSchema,
   adminProfilesQuerySchema
 } from "../schemas/admin-profiles.schemas.js";
-import { requireAdminUser } from "../services/admin-context.service.js";
+import { requireBackofficePermission } from "../services/admin-context.service.js";
 import {
   applyAdminProfileEnforcement,
   getAdminProfileDetail,
@@ -32,7 +32,7 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminProfilesResponse }>(
     "/admin/profiles",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "profile_view");
 
       if (!admin) {
         return reply;
@@ -62,7 +62,7 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
   app.get<{ Params: unknown; Reply: AdminProfileDetailResponse }>(
     "/admin/profiles/:profileId",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "profile_view");
 
       if (!admin) {
         return reply;
@@ -104,7 +104,7 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
   app.post<{ Body: unknown; Params: unknown; Reply: AdminProfileEnforcementResponse }>(
     "/admin/profiles/:profileId/enforcement",
     async (request, reply) => {
-      const admin = await requireAdminUser(app, request, reply);
+      const admin = await requireBackofficePermission(app, request, reply, "profile_enforce");
 
       if (!admin) {
         return reply;
