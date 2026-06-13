@@ -3,12 +3,18 @@ export type ListingSuggestionInput = {
   description?: string;
   categoryName?: string;
   condition?: string;
+  listingType?: "sale" | "swap" | "donation";
 };
 
 export type ListingSuggestionOutput = {
   suggestedTitle: string;
   suggestedDescription: string;
+  suggestedCategorySlug: string | null;
+  suggestedCategoryName: string | null;
+  suggestedCondition: string | null;
+  suggestedListingType: "sale" | "swap" | "donation";
   suggestedTags: string[];
+  safetyWarnings: string[];
   missingInfoQuestions: string[];
   confidenceScore: number;
   providerName: string;

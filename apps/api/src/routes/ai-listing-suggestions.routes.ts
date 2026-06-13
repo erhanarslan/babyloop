@@ -12,18 +12,29 @@ import { z } from "zod";
 const AI_LISTING_SUGGESTION_FEATURE = "listing_suggestion";
 const MOCK_AI_MODEL_NAME = "mock-model";
 const MOCK_AI_PROVIDER_NAME = "mock-listing-suggestion";
+const contactAddressPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const contactNumberPattern = /(?:\+?\d[\d\s().-]{7,}\d)/g;
+
+const listingTypeSchema = z.enum(["sale", "swap", "donation"]);
 
 const createListingSuggestionBodySchema = z
   .object({
     title: optionalTrimmedString(160),
     description: optionalTrimmedString(2000),
     categoryName: optionalTrimmedString(120),
-    condition: optionalTrimmedString(80)
+    condition: optionalTrimmedString(80),
+    listingType: listingTypeSchema.optional()
   })
   .strict()
   .refine(
     (value) =>
-      Boolean(value.title ?? value.description ?? value.categoryName ?? value.condition),
+      Boolean(
+        value.title ??
+          value.description ??
+          value.categoryName ??
+          value.condition ??
+          value.listingType
+      ),
     "At least one listing field is required."
   );
 
@@ -67,7 +78,7 @@ export function registerAiListingSuggestionRoutes(app: FastifyInstance): void {
           }
         };
       } catch (error) {
-        request.log.error(error);
+        request.log.error("Listing suggestion provider failed.");
 
         await logAiModelRun(app, request, {
           input: toListingSuggestionInput(parsedBody.data),
@@ -119,6 +130,10 @@ function toListingSuggestionInput(
     input.condition = body.condition;
   }
 
+  if (body.listingType) {
+    input.listingType = body.listingType;
+  }
+
   return input;
 }
 
@@ -151,21 +166,51 @@ async function logAiModelRun(
       providerName: run.providerName,
       modelName: MOCK_AI_MODEL_NAME,
       promptVersion: run.promptVersion,
-      input: { ...run.input },
-      output: run.output ? { ...run.output } : null,
+      input: redactAiLogRecord(run.input),
+      output: run.output ? redactAiLogRecord(run.output) : null,
       confidenceScore:
         typeof run.confidenceScore === "number" ? run.confidenceScore.toFixed(4) : null,
       status: run.status,
-      errorMessage: run.errorMessage ?? null
+      errorMessage: run.errorMessage ? redactContactText(run.errorMessage) : null
     });
-  } catch (error) {
-    request.log.error(error, "Failed to persist AI model run.");
+  } catch {
+    request.log.error("Failed to persist AI model run.");
   }
+}
+
+function redactAiLogRecord(
+  value: ListingSuggestionInput | ListingSuggestionOutput
+): Record<string, unknown> {
+  return sanitizeAiLogValue(value) as Record<string, unknown>;
+}
+
+function sanitizeAiLogValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return redactContactText(value).slice(0, 2000);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeAiLogValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, sanitizeAiLogValue(item)])
+    );
+  }
+
+  return value;
+}
+
+function redactContactText(value: string): string {
+  return value
+    .replace(contactAddressPattern, "[redacted-contact]")
+    .replace(contactNumberPattern, "[redacted-contact]");
 }
 
 function getSafeErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
-    return error.message.slice(0, 500);
+    return redactContactText(error.message).slice(0, 500);
   }
 
   return "Listing suggestion failed.";

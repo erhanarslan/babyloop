@@ -183,7 +183,6 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       }
 
       setSuggestion(body.data.suggestion);
-      fillSuggestionFields(form, body.data.suggestion);
     } catch {
       setAiErrorMessage(dictionary.listings.aiUnavailableManual);
     } finally {
@@ -277,7 +276,18 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         <Alert title="AI price suggestion unavailable" message={priceAiErrorMessage} />
       ) : null}
 
-      {suggestion ? <AiSuggestionPanel suggestion={suggestion} /> : null}
+      {suggestion ? (
+        <AiSuggestionPanel
+          suggestion={suggestion}
+          onApplySuggestion={() => {
+            const form = document.forms[0];
+
+            if (form instanceof HTMLFormElement) {
+              fillSuggestionFields(form, suggestion, categories);
+            }
+          }}
+        />
+      ) : null}
 
       {priceSuggestion ? (
         <AiPriceSuggestionPanel
@@ -359,12 +369,14 @@ function buildSuggestionPayload(form: HTMLFormElement): ListingSuggestionRequest
   const description = getString(formData, "description");
   const categoryName = getSelectedOptionText(form, "categoryId");
   const condition = getString(formData, "condition");
+  const listingType = getString(formData, "listingType") as ListingType;
 
   return {
     ...(title ? { title } : {}),
     ...(description ? { description } : {}),
     ...(categoryName ? { categoryName } : {}),
-    ...(condition ? { condition } : {})
+    ...(condition ? { condition } : {}),
+    ...(listingType ? { listingType } : {})
   };
 }
 
@@ -383,19 +395,99 @@ function getSelectedOptionText(form: HTMLFormElement, key: string): string {
   return field.selectedOptions[0]?.textContent?.trim() ?? "";
 }
 
-function fillSuggestionFields(form: HTMLFormElement, suggestion: ListingSuggestion): void {
-  const titleField = form.elements.namedItem("title");
-  const descriptionField = form.elements.namedItem("description");
+function fillSuggestionFields(
+  form: HTMLFormElement,
+  suggestion: ListingSuggestion,
+  categories: Category[]
+): void {
+  fillTextControlValue(form.elements.namedItem("title"), suggestion.suggestedTitle);
+  fillTextControlValue(form.elements.namedItem("description"), suggestion.suggestedDescription);
 
-  if (titleField instanceof HTMLInputElement) {
-    titleField.value = suggestion.suggestedTitle;
-  }
+  setSelectValueIfOptionExists(
+    form.elements.namedItem("categoryId"),
+    findSuggestedCategoryId(categories, suggestion)
+  );
+  setSelectValueIfOptionExists(
+    form.elements.namedItem("condition"),
+    suggestion.suggestedCondition ?? undefined
+  );
+  setSelectValueIfOptionExists(form.elements.namedItem("listingType"), suggestion.suggestedListingType);
+}
 
-  if (descriptionField instanceof HTMLTextAreaElement) {
-    descriptionField.value = suggestion.suggestedDescription;
+function fillTextControlValue(field: Element | RadioNodeList | null, value: string): void {
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+    field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
   }
 }
 
+function setSelectValueIfOptionExists(
+  field: Element | RadioNodeList | null,
+  value: string | undefined
+): void {
+  if (!(field instanceof HTMLSelectElement) || !value) {
+    return;
+  }
+
+  const hasOption = Array.from(field.options).some((option) => option.value === value);
+
+  if (!hasOption) {
+    return;
+  }
+
+  field.value = value;
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function findSuggestedCategoryId(
+  categories: Category[],
+  suggestion: ListingSuggestion
+): string | undefined {
+  const candidates = [suggestion.suggestedCategorySlug, suggestion.suggestedCategoryName]
+    .filter(isNonEmptyString)
+    .map(normalizeForMatch);
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  for (const category of categories) {
+    const record = category as unknown as Record<string, string | undefined>;
+    const categoryId = record["id"];
+
+    if (!categoryId) {
+      continue;
+    }
+
+    const categoryValues = [record["slug"], record["name"], categoryId]
+      .filter(isNonEmptyString)
+      .map(normalizeForMatch);
+
+    if (categoryValues.some((value) => candidates.includes(value))) {
+      return categoryId;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeForMatch(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function isNonEmptyString(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
 function buildPriceSuggestionPayload(form: HTMLFormElement): PriceSuggestionRequest {
   const formData = new FormData(form);
