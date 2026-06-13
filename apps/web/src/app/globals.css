@@ -432,8 +432,50 @@
   .listing-card-badges,
   .listing-card-actions,
   .form-button-row,
-  .tag-list {
+  .tag-list,
+  .filter-chip-list {
     @apply flex flex-wrap gap-2;
+  }
+
+  .active-filter-panel,
+  .save-search-panel,
+  .image-upload-empty,
+  .seller-insight-callout {
+    @apply rounded-md border border-border bg-muted/40 p-4;
+  }
+
+  .active-filter-panel,
+  .save-search-panel,
+  .seller-insight-callout {
+    @apply grid gap-3;
+  }
+
+  .seller-insight-callout {
+    @apply sm:grid-cols-[1fr_auto] sm:items-center;
+  }
+
+  .filter-chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground no-underline transition-colors hover:border-primary hover:text-primary;
+  }
+
+  .filter-chip-clear {
+    @apply border-primary/30 bg-primary/10 text-primary;
+  }
+
+  .save-search-summary {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .saved-search-chip-list {
+    @apply my-3;
+  }
+
+  .text-success {
+    @apply text-emerald-700;
+  }
+
+  .text-warning {
+    @apply text-amber-700;
   }
 
   .listing-inline-form {
@@ -450,6 +492,22 @@
 
   .image-upload-panel {
     @apply form-field-wide grid gap-3 rounded-md border border-border bg-muted/30 p-4;
+  }
+
+  .image-upload-header {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .image-upload-empty {
+    @apply grid gap-1 text-sm;
+  }
+
+  .image-upload-empty strong {
+    @apply text-foreground;
+  }
+
+  .image-upload-empty span {
+    @apply text-muted-foreground;
   }
 
   .file-upload-label {
@@ -1133,10 +1191,11 @@
 .home-personalization-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .home-personalization-card {
+  align-content: start;
   display: grid;
   gap: 1rem;
   padding: 1rem;
@@ -1160,7 +1219,7 @@
 .home-feed-list li {
   border-top: 1px solid var(--border);
   display: grid;
-  gap: 0.2rem;
+  gap: 0.25rem;
   padding-top: 0.75rem;
 }
 

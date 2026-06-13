@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, LoadingBlock } from "../../components/ui";
+import { Alert, Badge, Button, LoadingBlock } from "../../components/ui";
 import type { Category } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -230,19 +230,29 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       <SellListingFields categories={categories} />
 
       <section className="image-upload-panel" aria-label={dictionary.listings.images}>
-        <div>
-          <label className="file-upload-label">
-            <span>{dictionary.listings.uploadImage}</span>
-            <input
-              accept="image/jpeg,image/png,image/webp"
-              disabled={isSubmitting || selectedImages.length >= MAX_IMAGE_COUNT}
-              multiple
-              type="file"
-              onChange={handleImageSelection}
-            />
-          </label>
-          <p className="muted">{dictionary.listings.imageLimitHelp}</p>
+        <div className="image-upload-header">
+          <div>
+            <label className="file-upload-label">
+              <span>{dictionary.listings.uploadImage}</span>
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                disabled={isSubmitting || selectedImages.length >= MAX_IMAGE_COUNT}
+                multiple
+                type="file"
+                onChange={handleImageSelection}
+              />
+            </label>
+            <p className="muted">{dictionary.listings.imageLimitHelp}</p>
+          </div>
+          <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} images</Badge>
         </div>
+
+        {selectedImages.length === 0 ? (
+          <div className="image-upload-empty">
+            <strong>Photos help families decide faster.</strong>
+            <span>Use clear JPG, PNG, or WEBP photos. BabyLoop validates image safety during upload.</span>
+          </div>
+        ) : null}
 
         {selectedImages.length > 0 ? (
           <ul className="image-preview-list">

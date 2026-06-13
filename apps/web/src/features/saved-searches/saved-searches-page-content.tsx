@@ -97,6 +97,11 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
             <div className="form-actions">
               <div>
                 <h2>{savedSearch.name}</h2>
+                <div className="filter-chip-list saved-search-chip-list" aria-label="Saved search filters">
+                  {buildSavedSearchChips(savedSearch).map((chip) => (
+                    <span className="filter-chip" key={chip}>{chip}</span>
+                  ))}
+                </div>
                 <p className="form-note">{buildSavedSearchSummary(savedSearch)}</p>
               </div>
               <div className="form-actions">
@@ -131,16 +136,21 @@ function buildSavedSearchHref(savedSearch: SavedSearch): string {
 }
 
 function buildSavedSearchSummary(savedSearch: SavedSearch): string {
-  const parts = [
+  const parts = buildSavedSearchChips(savedSearch);
+
+  return parts.length > 0 ? parts.join(" · ") : "No filters";
+}
+
+function buildSavedSearchChips(savedSearch: SavedSearch): string[] {
+  return [
     savedSearch.q ? `Search: ${savedSearch.q}` : "",
     savedSearch.listingType ? `Type: ${savedSearch.listingType}` : "",
     savedSearch.condition ? `Condition: ${savedSearch.condition}` : "",
     savedSearch.priceMin ? `Min: ${savedSearch.priceMin}` : "",
     savedSearch.priceMax ? `Max: ${savedSearch.priceMax}` : "",
-    savedSearch.hasImages ? "Images only" : ""
+    savedSearch.hasImages ? "Images only" : "",
+    savedSearch.sort && savedSearch.sort !== "newest" ? `Sort: ${savedSearch.sort}` : ""
   ].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(" · ") : "No filters";
 }
 
 function appendParam(params: URLSearchParams, key: string, value: string): void {

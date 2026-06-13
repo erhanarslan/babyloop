@@ -106,10 +106,11 @@ export function SiteHeader() {
 
   const accountItems: AccountItem[] = currentAuth
     ? [
+        { href: "/account/children", label: "Child profiles" },
+        { href: "/account/saved-searches", label: "Saved searches" },
+        { href: "/account/seller", label: "Seller dashboard" },
         { href: "/favorites", label: dictionary.nav.favorites },
         { href: "/my-listings", label: dictionary.nav.myListings },
-        { href: "/account/seller", label: "Seller dashboard" },
-        { href: "/account/saved-searches", label: "Saved searches" },
         {
           href: "/notifications",
           label: unreadNotificationCount > 0
@@ -119,9 +120,8 @@ export function SiteHeader() {
               )
             : dictionary.nav.notifications
         },
-        { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail },
         { href: "/account/password", label: dictionary.nav.changePassword },
-        { href: "/account/children", label: "Child profiles" }
+        { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail }
       ]
     : [];
 
@@ -644,7 +644,7 @@ function AccountMenu({
   setOpenMenu
 }: AccountMenuProps) {
   const isOpen = openMenu === "account";
-  const displayName = currentAuth.profile.displayName || currentAuth.user.email;
+  const displayName = currentAuth.profile.displayName || "Account";
   const initial = displayName.slice(0, 1).toUpperCase();
 
   return (

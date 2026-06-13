@@ -58,6 +58,11 @@ const SORT_OPTIONS = [
   { label: "Price high to low", value: "price_desc" }
 ] as const;
 
+type FilterChip = {
+  href: string;
+  label: string;
+};
+
 export function BrowsePageContent({
   apiBaseUrl,
   categories,
@@ -85,6 +90,14 @@ export function BrowsePageContent({
   const paginationBasePath = currentCategorySlug
     ? `/categories/${currentCategorySlug}`
     : "/browse";
+  const activeFilterChips = buildActiveFilterChips({
+    currentCategorySlug,
+    dictionary,
+    filters,
+    paginationBasePath,
+    selectedCategory
+  });
+  const clearFiltersHref = currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse";
 
   return (
     <>
@@ -248,11 +261,40 @@ export function BrowsePageContent({
             </p>
           ) : null}
 
+          {!error && activeFilterChips.length > 0 ? (
+            <div className="active-filter-panel" aria-label="Active browse filters">
+              <div>
+                <p className="eyebrow">Active filters</p>
+                <p className="form-note">Remove a chip to broaden the marketplace results.</p>
+              </div>
+              <div className="filter-chip-list">
+                {activeFilterChips.map((chip) => (
+                  <Link className="filter-chip" href={chip.href} key={chip.label}>
+                    {chip.label}
+                    <span aria-hidden="true">×</span>
+                  </Link>
+                ))}
+                <Link className="filter-chip filter-chip-clear" href={clearFiltersHref}>
+                  Clear all
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           {!error && listings.length === 0 ? (
-            <EmptyState
-              title={dictionary.listings.noActiveListingsTitle}
-              message={dictionary.listings.noActiveListingsBody}
-            />
+            activeFilterChips.length > 0 ? (
+              <EmptyState
+                title="No listings match these filters"
+                message="Clear or loosen one filter to see more marketplace results."
+                actionHref={clearFiltersHref}
+                actionLabel="Clear filters"
+              />
+            ) : (
+              <EmptyState
+                title={dictionary.listings.noActiveListingsTitle}
+                message={dictionary.listings.noActiveListingsBody}
+              />
+            )
           ) : null}
 
           <div className="listing-grid">
@@ -497,6 +539,117 @@ function buildCategoryLandingHref(filters: BrowseListingsFilters, slug: string):
     basePath: `/categories/${slug}`,
     includeCategoryId: false
   });
+}
+
+function buildActiveFilterChips({
+  currentCategorySlug,
+  dictionary,
+  filters,
+  paginationBasePath,
+  selectedCategory
+}: {
+  currentCategorySlug: string | null;
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  filters: BrowseListingsFilters;
+  paginationBasePath: string;
+  selectedCategory: Category | null;
+}): FilterChip[] {
+  const chips: FilterChip[] = [];
+
+  if (!currentCategorySlug && selectedCategory) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        categoryId: ""
+      }),
+      label: `Category: ${formatCategoryName(selectedCategory, dictionary)}`
+    });
+  }
+
+  if (filters.q.trim()) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        q: ""
+      }),
+      label: `Search: ${filters.q.trim()}`
+    });
+  }
+
+  if (filters.listingType) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        listingType: ""
+      }),
+      label: `Type: ${formatListingType(filters.listingType, dictionary)}`
+    });
+  }
+
+  if (filters.condition) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        condition: ""
+      }),
+      label: `Condition: ${formatListingCondition(filters.condition, dictionary)}`
+    });
+  }
+
+  if (filters.priceMin) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        priceMin: ""
+      }),
+      label: `Min: ${filters.priceMin}`
+    });
+  }
+
+  if (filters.priceMax) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        priceMax: ""
+      }),
+      label: `Max: ${filters.priceMax}`
+    });
+  }
+
+  if (filters.hasImages === "true") {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        hasImages: ""
+      }),
+      label: "Images only"
+    });
+  }
+
+  if (filters.sort && filters.sort !== "newest") {
+    const sortLabel = SORT_OPTIONS.find((sortOption) => sortOption.value === filters.sort)?.label ?? filters.sort;
+
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        sort: "newest"
+      }),
+      label: `Sort: ${sortLabel}`
+    });
+  }
+
+  return chips;
+}
+
+function buildBrowseHrefWithOverrides(
+  filters: BrowseListingsFilters,
+  paginationBasePath: string,
+  currentCategorySlug: string | null,
+  overrides: Partial<BrowseListingsFilters>
+): string {
+  return buildBrowseHref(
+    {
+      ...filters,
+      ...overrides
+    },
+    0,
+    {
+      basePath: paginationBasePath,
+      includeCategoryId: !currentCategorySlug
+    }
+  );
 }
 
 function buildBrowseHref(

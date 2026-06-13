@@ -27,6 +27,7 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
   const { isCheckingAuth } = useProtectedRoute({ apiBaseUrl });
   const [summary, setSummary] = useState<SellerDashboardSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (isCheckingAuth) {
@@ -36,6 +37,9 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
     let isActive = true;
 
     async function loadSellerDashboard() {
+      setIsLoading(true);
+      setErrorMessage(null);
+
       const response = await fetchSellerDashboard(apiBaseUrl);
 
       if (!isActive) {
@@ -45,10 +49,12 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
       if (!response.ok) {
         setErrorMessage(getApiErrorMessage(response.error as ApiError, dictionary));
         setSummary(null);
+        setIsLoading(false);
         return;
       }
 
       setSummary(response.data.summary);
+      setIsLoading(false);
     }
 
     void loadSellerDashboard();
@@ -71,12 +77,26 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
           <Alert title="Seller dashboard unavailable" message={errorMessage} />
         ) : null}
 
-        {isCheckingAuth || !summary ? (
+        {isCheckingAuth || isLoading ? (
           <LoadingBlock title="Loading seller dashboard" message="Preparing your listing insights." />
         ) : null}
 
         {summary ? (
           <>
+            <Card as="section" className="seller-insight-callout">
+              <div>
+                <p className="eyebrow">Privacy-safe insights</p>
+                <h2>Track demand without exposing buyers</h2>
+                <p className="form-note">
+                  Favorites, views, listing clicks, and contact intents are aggregate signals only.
+                </p>
+              </div>
+              <div className="home-personalization-actions">
+                <Link href="/sell">Create listing</Link>
+                <Link href="/my-listings">Manage listings</Link>
+              </div>
+            </Card>
+
             <section className="summary-grid">
               <SummaryCard label="Listings" value={summary.totals.totalListings} />
               <SummaryCard label="Active" value={summary.totals.activeListings} />
