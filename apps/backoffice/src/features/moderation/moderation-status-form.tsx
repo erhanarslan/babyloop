@@ -28,6 +28,7 @@ export function ModerationStatusForm({
 }: ModerationStatusFormProps) {
   const [selectedStatus, setSelectedStatus] =
     useState<AdminModerationCaseStatus>(moderationCase.status);
+  const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,8 +40,10 @@ export function ModerationStatusForm({
     setFeedback(null);
     setErrorMessage(null);
 
+    const trimmedNote = note.trim();
     const response = await updateAdminModerationCaseStatus(moderationCase.id, {
       status: selectedStatus,
+      ...(trimmedNote ? { note: trimmedNote } : {}),
     });
 
     setIsSubmitting(false);
@@ -51,6 +54,7 @@ export function ModerationStatusForm({
     }
 
     onUpdated(response.data.case);
+    setNote("");
     setFeedback("Status updated.");
   }
 
@@ -77,6 +81,17 @@ export function ModerationStatusForm({
         </select>
       </label>
 
+      <label className="form-field">
+        <span>Status note</span>
+        <textarea
+          maxLength={1000}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="Optional workflow note. Avoid unnecessary personal data."
+          rows={3}
+          value={note}
+        />
+      </label>
+
       {feedback ? <p className="form-success">{feedback}</p> : null}
       {errorMessage ? (
         <p className="form-error" role="alert">
@@ -86,7 +101,10 @@ export function ModerationStatusForm({
 
       <button
         className="primary-action"
-        disabled={isSubmitting || selectedStatus === moderationCase.status}
+        disabled={
+          isSubmitting ||
+          (selectedStatus === moderationCase.status && note.trim().length === 0)
+        }
         type="submit"
       >
         {isSubmitting ? "Updating..." : "Update status"}

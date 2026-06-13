@@ -5,8 +5,41 @@ import {
   adminModerationAiSummariesQuerySchema,
   adminModerationAiSummaryBodySchema,
   adminModerationCasesQuerySchema,
+  adminModerationStatusBodySchema,
   adminSensitiveAccessBodySchema
 } from "../src/schemas/admin-moderation.schemas.js";
+
+describe("admin moderation status schema", () => {
+  it("accepts status transitions with an optional workflow note", () => {
+    expect(
+      adminModerationStatusBodySchema.safeParse({
+        status: "in_review",
+        note: "Started reviewing the redacted case context."
+      }).success
+    ).toBe(true);
+
+    expect(
+      adminModerationStatusBodySchema.safeParse({
+        status: "resolved"
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects invalid status values and overlong notes", () => {
+    expect(
+      adminModerationStatusBodySchema.safeParse({
+        status: "open"
+      }).success
+    ).toBe(false);
+
+    expect(
+      adminModerationStatusBodySchema.safeParse({
+        status: "dismissed",
+        note: "a".repeat(1001)
+      }).success
+    ).toBe(false);
+  });
+});
 
 describe("admin moderation cases query schema", () => {
   it("accepts safe triage filters", () => {

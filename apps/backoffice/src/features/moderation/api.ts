@@ -188,6 +188,7 @@ export type GetAdminModerationCaseResponse = {
 
 export type UpdateAdminModerationCaseStatusInput = {
   status: AdminModerationCaseStatus;
+  note?: string;
 };
 
 export type UpdateAdminModerationCaseStatusResponse = {
