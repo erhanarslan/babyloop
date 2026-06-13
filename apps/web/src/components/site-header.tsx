@@ -108,6 +108,8 @@ export function SiteHeader() {
     ? [
         { href: "/favorites", label: dictionary.nav.favorites },
         { href: "/my-listings", label: dictionary.nav.myListings },
+        { href: "/account/seller", label: "Seller dashboard" },
+        { href: "/account/saved-searches", label: "Saved searches" },
         {
           href: "/notifications",
           label: unreadNotificationCount > 0

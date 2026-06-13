@@ -67,6 +67,9 @@ export type BrowseListingsFilters = {
   categoryId: string;
   condition: string;
   listingType: string;
+  priceMin: string;
+  priceMax: string;
+  hasImages: string;
   sort: string;
   limit: number;
   offset: number;

@@ -24,6 +24,9 @@ type NormalizedActiveListingQuery = {
   categoryId?: string;
   listingType?: ListingsQuery["listingType"];
   condition?: ListingsQuery["condition"];
+  priceMin?: string;
+  priceMax?: string;
+  hasImages?: boolean;
   sort: ListingsQuery["sort"];
   limit: number;
   offset: number;
@@ -300,6 +303,9 @@ function normalizeActiveListingQuery(query: ActiveListingQueryInput): Normalized
     ...(query?.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query?.listingType ? { listingType: query.listingType } : {}),
     ...(query?.condition ? { condition: query.condition } : {}),
+    ...(query?.priceMin ? { priceMin: query.priceMin } : {}),
+    ...(query?.priceMax ? { priceMax: query.priceMax } : {}),
+    ...(query?.hasImages !== undefined ? { hasImages: query.hasImages } : {}),
     sort: query?.sort ?? "newest",
     limit: query?.limit ?? LISTING_LIMIT,
     offset: query?.offset ?? 0
@@ -325,7 +331,14 @@ function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
       : []),
     ...(options.categoryId ? [eq(listings.categoryId, options.categoryId)] : []),
     ...(options.listingType ? [eq(listings.listingType, options.listingType)] : []),
-    ...(options.condition ? [eq(listings.condition, options.condition)] : [])
+    ...(options.condition ? [eq(listings.condition, options.condition)] : []),
+    ...(options.priceMin ? [sql`${listings.priceAmount} >= ${options.priceMin}`] : []),
+    ...(options.priceMax ? [sql`${listings.priceAmount} <= ${options.priceMax}`] : []),
+    ...(options.hasImages ? [sql`exists (
+      select 1 from listing_images
+      where listing_images.listing_id = ${listings.id}
+        and listing_images.review_status = 'approved'
+    )`] : [])
   );
 }
 

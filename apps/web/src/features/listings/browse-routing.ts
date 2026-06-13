@@ -16,6 +16,9 @@ export function resolveBrowseFilters(
     categoryId: readParam(searchParams?.categoryId),
     condition: readParam(searchParams?.condition),
     listingType: readParam(searchParams?.listingType),
+    priceMin: readParam(searchParams?.priceMin),
+    priceMax: readParam(searchParams?.priceMax),
+    hasImages: readBooleanParam(searchParams?.hasImages),
     sort: readParam(searchParams?.sort) || "newest",
     limit: Math.min(Math.max(limit, 1), 50),
     offset: Math.min(Math.max(offset, 0), 10000),
@@ -30,6 +33,9 @@ export function buildListingsPath(filters: BrowseListingsFilters): string {
   appendIfPresent(params, "categoryId", filters.categoryId);
   appendIfPresent(params, "condition", filters.condition);
   appendIfPresent(params, "listingType", filters.listingType);
+  appendIfPresent(params, "priceMin", filters.priceMin);
+  appendIfPresent(params, "priceMax", filters.priceMax);
+  appendIfPresent(params, "hasImages", filters.hasImages);
   appendIfPresent(params, "sort", filters.sort);
   params.set("limit", String(filters.limit));
   params.set("offset", String(filters.offset));
@@ -41,6 +47,12 @@ export function appendIfPresent(params: URLSearchParams, key: string, value: str
   if (value.trim().length > 0) {
     params.set(key, value.trim());
   }
+}
+
+function readBooleanParam(value: string | string[] | undefined): string {
+  const normalized = readParam(value);
+
+  return normalized === "true" ? "true" : "";
 }
 
 function readParam(value: string | string[] | undefined): string {

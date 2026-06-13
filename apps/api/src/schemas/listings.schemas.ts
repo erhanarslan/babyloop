@@ -41,6 +41,16 @@ const optionalUuidQueryParam = z
   .optional()
   .transform((value) => (value && value.length > 0 ? value : undefined));
 
+const optionalPriceQueryParam = z
+  .union([z.literal(""), z.string().trim().regex(DECIMAL_PRICE_PATTERN)])
+  .optional()
+  .transform((value) => (value && value.length > 0 ? value : undefined));
+
+const optionalBooleanQueryParam = z
+  .union([z.literal(""), z.literal("true"), z.literal("false")])
+  .optional()
+  .transform((value) => (value === "true" ? true : value === "false" ? false : undefined));
+
 function optionalEnumQueryParam<const Values extends readonly [string, ...string[]]>(values: Values) {
   return z
     .union([z.literal(""), z.enum(values)])
@@ -55,6 +65,9 @@ export const listingsQuerySchema = z
     categoryId: optionalUuidQueryParam,
     listingType: optionalEnumQueryParam(listingTypeValues),
     condition: optionalEnumQueryParam(listingConditionValues),
+    priceMin: optionalPriceQueryParam,
+    priceMax: optionalPriceQueryParam,
+    hasImages: optionalBooleanQueryParam,
     sort: z.enum(listingSortValues).optional().default("newest"),
     limit: z.coerce.number().int().min(1).max(50).optional().default(20),
     offset: z.coerce.number().int().min(0).max(10000).optional().default(0)

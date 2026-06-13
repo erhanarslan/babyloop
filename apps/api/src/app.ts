@@ -25,6 +25,8 @@ import { registerNotificationRoutes } from "./routes/notifications.routes.js";
 import { registerProductEventRoutes } from "./routes/product-events.routes.js";
 import { registerSearchSuggestionRoutes } from "./routes/search-suggestions.routes.js";
 import { registerSafetyRoutes } from "./routes/safety.routes.js";
+import { registerSavedSearchRoutes } from "./routes/saved-searches.routes.js";
+import { registerSellerDashboardRoutes } from "./routes/seller-dashboard.routes.js";
 import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
 import { MAX_LISTING_IMAGE_BYTES } from "./services/image-safety.service.js";
@@ -201,6 +203,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
     app.register(registerSearchSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
+    app.register(registerSavedSearchRoutes, { prefix: API_PREFIX });
+    app.register(registerSellerDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAiOpsRoutes, { prefix: API_PREFIX });
     app.register(registerAdminConversationRoutes, { prefix: API_PREFIX });

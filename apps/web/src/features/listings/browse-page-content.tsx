@@ -22,6 +22,7 @@ import { ListingImageFrame } from "./listing-image-frame";
 import { DiscoveryAnalyticsTracker } from "../../features/product-events/discovery-analytics-tracker";
 import { recordProductEvent } from "../../features/product-events/api";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
+import { SaveSearchButton } from "../saved-searches/save-search-button";
 import { appendIfPresent } from "./browse-routing";
 import {
   formatCategoryName,
@@ -175,6 +176,40 @@ export function BrowsePageContent({
             </label>
 
             <label>
+              <span>Minimum price</span>
+              <input
+                defaultValue={filters.priceMin}
+                inputMode="decimal"
+                maxLength={13}
+                name="priceMin"
+                placeholder="0"
+                type="text"
+              />
+            </label>
+
+            <label>
+              <span>Maximum price</span>
+              <input
+                defaultValue={filters.priceMax}
+                inputMode="decimal"
+                maxLength={13}
+                name="priceMax"
+                placeholder="5000"
+                type="text"
+              />
+            </label>
+
+            <label className="checkbox-row">
+              <input
+                defaultChecked={filters.hasImages === "true"}
+                name="hasImages"
+                type="checkbox"
+                value="true"
+              />
+              <span>Only listings with images</span>
+            </label>
+
+            <label>
               <span>Sort</span>
               <select defaultValue={filters.sort} name="sort">
                 {SORT_OPTIONS.map((sortOption) => (
@@ -190,6 +225,12 @@ export function BrowsePageContent({
               Clear filters
             </Link>
           </form>
+
+          <SaveSearchButton
+            apiBaseUrl={apiBaseUrl}
+            categoryName={selectedCategory ? formatCategoryName(selectedCategory, dictionary) : undefined}
+            filters={filters}
+          />
         </Card>
 
         <div className="listing-column">
@@ -479,6 +520,9 @@ function buildBrowseHref(
 
   appendIfPresent(params, "condition", filters.condition);
   appendIfPresent(params, "listingType", filters.listingType);
+  appendIfPresent(params, "priceMin", filters.priceMin);
+  appendIfPresent(params, "priceMax", filters.priceMax);
+  appendIfPresent(params, "hasImages", filters.hasImages);
   appendIfPresent(params, "sort", filters.sort);
   params.set("limit", String(filters.limit));
 
