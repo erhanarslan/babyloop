@@ -1,9 +1,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 
-export const AUTH_TOKEN_STORAGE_KEY = "babyloop_access_token";
 export const AUTH_CHANGED_EVENT = "babyloop-auth-changed";
 export const AUTH_SESSION_ENDED_EVENT = "babyloop-auth-session-ended";
-const AUTH_LOGGED_OUT_STORAGE_KEY = "babyloop_logged_out";
 
 export type AuthMe = {
   user: {
@@ -26,52 +24,37 @@ export type AuthPayload = AuthMe & {
 
 let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;
 let authSessionVersion = 0;
+let memoryAuthToken: string | null = null;
+let manuallyLoggedOut = false;
 
 export function getAuthToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    return window.localStorage?.getItem(AUTH_TOKEN_STORAGE_KEY) ?? null;
-  } catch {
-    return null;
-  }
+  return memoryAuthToken;
 }
 
 export function setAuthToken(token: string): void {
-  try {
-    window.localStorage?.removeItem(AUTH_LOGGED_OUT_STORAGE_KEY);
-    window.localStorage?.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-  } catch {
-    return;
-  }
-
+  memoryAuthToken = token;
+  manuallyLoggedOut = false;
   authSessionVersion += 1;
-  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+
+  dispatchAuthEvent(AUTH_CHANGED_EVENT);
 }
 
 export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
-  let hadToken = false;
+  const hadToken = memoryAuthToken !== null;
   const shouldBroadcast = options.broadcast ?? false;
 
-  try {
-    hadToken = window.localStorage?.getItem(AUTH_TOKEN_STORAGE_KEY) !== null;
-    window.localStorage?.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  } catch {
-    return;
-  }
+  memoryAuthToken = null;
 
   if (hadToken || shouldBroadcast) {
     authSessionVersion += 1;
   }
 
   if (hadToken) {
-    window.dispatchEvent(new Event(AUTH_SESSION_ENDED_EVENT));
+    dispatchAuthEvent(AUTH_SESSION_ENDED_EVENT);
   }
 
   if (shouldBroadcast) {
-    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+    dispatchAuthEvent(AUTH_CHANGED_EVENT);
   }
 }
 
@@ -245,24 +228,19 @@ function unauthorizedResponse(): ApiResponse<AuthPayload> {
 }
 
 function markManuallyLoggedOut(): void {
+  manuallyLoggedOut = true;
   authSessionVersion += 1;
   refreshSessionPromise = null;
-
-  try {
-    window.localStorage?.setItem(AUTH_LOGGED_OUT_STORAGE_KEY, "true");
-  } catch {
-    return;
-  }
 }
 
 function isManuallyLoggedOut(): boolean {
+  return manuallyLoggedOut;
+}
+
+function dispatchAuthEvent(eventName: string): void {
   if (typeof window === "undefined") {
-    return false;
+    return;
   }
 
-  try {
-    return window.localStorage?.getItem(AUTH_LOGGED_OUT_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
+  window.dispatchEvent(new Event(eventName));
 }

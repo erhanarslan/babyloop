@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { verifyAccessToken } from "../utils/access-token.js";
 import { readBackofficeAccessTokenCookie } from "../utils/backoffice-access-token-cookie.js";
+import { readPublicAccessTokenCookie } from "../utils/public-access-token-cookie.js";
 
 type AuthPluginOptions = {
   authSecret: string;
@@ -24,7 +25,10 @@ export function registerAuthPlugin(app: FastifyInstance, options: AuthPluginOpti
   app.decorateRequest("currentUser", null);
 
   app.decorate("authenticate", async (request: FastifyRequest) => {
-    const token = readBearerToken(request) ?? readBackofficeAccessTokenCookie(request.headers.cookie);
+    const token =
+      readBearerToken(request) ??
+      readPublicAccessTokenCookie(request.headers.cookie) ??
+      readBackofficeAccessTokenCookie(request.headers.cookie);
 
     if (!token) {
       return null;

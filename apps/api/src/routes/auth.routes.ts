@@ -71,6 +71,10 @@ import {
   serializeExpiredBackofficeAccessTokenCookie
 } from "../utils/backoffice-access-token-cookie.js";
 import {
+  serializeExpiredPublicAccessTokenCookie,
+  serializePublicAccessTokenCookie
+} from "../utils/public-access-token-cookie.js";
+import {
   createBackofficeCsrfToken,
   serializeBackofficeCsrfCookie,
   serializeExpiredBackofficeCsrfCookie
@@ -136,7 +140,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         buildAuthSessionRequestMeta(request)
       );
 
-      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+      setPublicAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: session.refreshToken,
+        refreshTokenExpiresAt: session.expiresAt
+      });
 
       return reply.status(201).send(responseWithDevVerificationToken);
     }
@@ -183,7 +192,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         buildAuthSessionRequestMeta(request)
       );
 
-      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+      setPublicAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: session.refreshToken,
+        refreshTokenExpiresAt: session.expiresAt
+      });
 
       return reply.status(200).send(response);
     }
@@ -212,7 +226,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         buildAuthSessionRequestMeta(request)
       );
 
-      setRefreshTokenCookie(reply, session.refreshToken, session.expiresAt);
+      setPublicAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: session.refreshToken,
+        refreshTokenExpiresAt: session.expiresAt
+      });
 
       return reply.status(200).send(response);
     }
@@ -240,7 +259,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       const response = attachAccessToken(result.response, options);
 
-      setRefreshTokenCookie(reply, result.refreshToken, result.expiresAt);
+      setPublicAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: result.refreshToken,
+        refreshTokenExpiresAt: result.expiresAt
+      });
 
       return reply.status(200).send(response);
     }
@@ -253,7 +277,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       await revokeAuthSession(app, refreshToken);
     }
 
-    clearRefreshTokenCookie(reply);
+    clearPublicAuthCookies(reply);
 
     return reply.status(200).send(buildLogoutAuthResponse());
   });
@@ -481,7 +505,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(401).send(result.response);
       }
 
-      clearRefreshTokenCookie(reply);
+      clearPublicAuthCookies(reply);
 
       return reply.status(200).send(result.response);
     }
@@ -639,8 +663,34 @@ function setRefreshTokenCookie(reply: FastifyReply, refreshToken: string, expire
   );
 }
 
+function setPublicAuthCookies(
+  reply: FastifyReply,
+  input: {
+    accessToken: string;
+    accessTokenMaxAgeSeconds: number;
+    refreshToken: string;
+    refreshTokenExpiresAt: Date;
+  }
+): void {
+  reply.header("set-cookie", [
+    serializeRefreshTokenCookie(input.refreshToken, {
+      expiresAt: input.refreshTokenExpiresAt
+    }),
+    serializePublicAccessTokenCookie(input.accessToken, {
+      maxAgeSeconds: input.accessTokenMaxAgeSeconds
+    })
+  ]);
+}
+
 function clearRefreshTokenCookie(reply: FastifyReply): void {
   reply.header("set-cookie", serializeExpiredRefreshTokenCookie());
+}
+
+function clearPublicAuthCookies(reply: FastifyReply): void {
+  reply.header("set-cookie", [
+    serializeExpiredRefreshTokenCookie(),
+    serializeExpiredPublicAccessTokenCookie()
+  ]);
 }
 
 function setBackofficeAuthCookies(
