@@ -7,6 +7,7 @@ import {
 } from "@babyloop/database/schema";
 import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import type { ListingsQuery } from "../schemas/listings.schemas.js";
 import type {
   CategoryBasicResponse,
   ListingImageResponse
@@ -14,6 +15,19 @@ import type {
 
 const LISTING_LIMIT = 20;
 const PUBLIC_LISTING_STATUSES: Array<"active" | "reserved"> = ["active", "reserved"];
+
+type ActiveListingQueryInput = Partial<ListingsQuery> | string | undefined;
+
+type NormalizedActiveListingQuery = {
+  q?: string;
+  search?: string;
+  categoryId?: string;
+  listingType?: ListingsQuery["listingType"];
+  condition?: ListingsQuery["condition"];
+  sort: ListingsQuery["sort"];
+  limit: number;
+  offset: number;
+};
 
 export async function findCategory(
   app: FastifyInstance,
@@ -32,10 +46,11 @@ export async function findCategory(
   return category ?? null;
 }
 
-export async function selectActiveListingRows(app: FastifyInstance, searchQuery?: string) {
-  const normalizedSearchQuery = searchQuery?.trim() ?? "";
-  const shouldSearch = normalizedSearchQuery.length >= 3;
-  const searchPattern = `%${normalizedSearchQuery}%`;
+export async function selectActiveListingRows(
+  app: FastifyInstance,
+  query?: ActiveListingQueryInput
+) {
+  const options = normalizeActiveListingQuery(query);
 
   return app.db
     .select({
@@ -54,24 +69,28 @@ export async function selectActiveListingRows(app: FastifyInstance, searchQuery?
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
     .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
-    .where(
-      shouldSearch
-        ? and(
-          inArray(listings.status, PUBLIC_LISTING_STATUSES),
-          ne(profiles.safetyStatus, "suspended"),
-          or(
-            ilike(listings.title, searchPattern),
-            ilike(listings.description, searchPattern),
-            ilike(productCategories.name, searchPattern)
-          )
-        )
-        : and(
-          inArray(listings.status, PUBLIC_LISTING_STATUSES),
-          ne(profiles.safetyStatus, "suspended")
-        )
-    )
-    .orderBy(desc(listings.createdAt))
-    .limit(LISTING_LIMIT);
+    .where(buildActiveListingWhere(options))
+    .orderBy(...buildActiveListingOrderBy(options.sort))
+    .limit(options.limit)
+    .offset(options.offset);
+}
+
+export async function countActiveListingRows(
+  app: FastifyInstance,
+  query?: ActiveListingQueryInput
+): Promise<number> {
+  const options = normalizeActiveListingQuery(query);
+
+  const [row] = await app.db
+    .select({
+      total: sql<number>`count(${listings.id})::int`
+    })
+    .from(listings)
+    .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
+    .where(buildActiveListingWhere(options));
+
+  return row?.total ?? 0;
 }
 
 export async function selectListingsBySellerProfileId(app: FastifyInstance, sellerProfileId: string) {
@@ -263,4 +282,65 @@ export async function getFavoriteCounts(
     .groupBy(favorites.listingId);
 
   return new Map(rows.map((row) => [row.listingId, row.favoriteCount]));
+}
+
+function normalizeActiveListingQuery(query: ActiveListingQueryInput): NormalizedActiveListingQuery {
+  if (typeof query === "string") {
+    return {
+      q: query,
+      sort: "newest",
+      limit: LISTING_LIMIT,
+      offset: 0
+    };
+  }
+
+  return {
+    ...(query?.q ? { q: query.q } : {}),
+    ...(query?.search ? { search: query.search } : {}),
+    ...(query?.categoryId ? { categoryId: query.categoryId } : {}),
+    ...(query?.listingType ? { listingType: query.listingType } : {}),
+    ...(query?.condition ? { condition: query.condition } : {}),
+    sort: query?.sort ?? "newest",
+    limit: query?.limit ?? LISTING_LIMIT,
+    offset: query?.offset ?? 0
+  };
+}
+
+function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
+  const normalizedSearchQuery = (options.q ?? options.search ?? "").trim();
+  const shouldSearch = normalizedSearchQuery.length >= 3;
+  const searchPattern = `%${normalizedSearchQuery}%`;
+
+  return and(
+    inArray(listings.status, PUBLIC_LISTING_STATUSES),
+    ne(profiles.safetyStatus, "suspended"),
+    ...(shouldSearch
+      ? [
+        or(
+          ilike(listings.title, searchPattern),
+          ilike(listings.description, searchPattern),
+          ilike(productCategories.name, searchPattern)
+        )
+      ]
+      : []),
+    ...(options.categoryId ? [eq(listings.categoryId, options.categoryId)] : []),
+    ...(options.listingType ? [eq(listings.listingType, options.listingType)] : []),
+    ...(options.condition ? [eq(listings.condition, options.condition)] : [])
+  );
+}
+
+function buildActiveListingOrderBy(sort: ListingsQuery["sort"]) {
+  if (sort === "oldest") {
+    return [asc(listings.createdAt)];
+  }
+
+  if (sort === "price_asc") {
+    return [asc(listings.priceAmount), desc(listings.createdAt)];
+  }
+
+  if (sort === "price_desc") {
+    return [desc(listings.priceAmount), desc(listings.createdAt)];
+  }
+
+  return [desc(listings.createdAt)];
 }

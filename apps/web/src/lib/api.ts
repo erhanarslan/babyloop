@@ -55,8 +55,26 @@ export type CategoriesPayload = {
   categories: Category[];
 };
 
+export type ListingsPagination = {
+  limit: number;
+  offset: number;
+  total: number;
+  hasNextPage: boolean;
+};
+
+export type BrowseListingsFilters = {
+  q: string;
+  categoryId: string;
+  condition: string;
+  listingType: string;
+  sort: string;
+  limit: number;
+  offset: number;
+};
+
 export type ListingsPayload = {
   listings: ListingSummary[];
+  pagination?: ListingsPagination;
 };
 
 export type ListingDetailPayload = {

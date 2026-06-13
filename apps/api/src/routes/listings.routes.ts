@@ -19,7 +19,7 @@ import {
   createListing,
   deleteListingImage,
   getListingDetail,
-  listActiveListings,
+  listActiveListingsPage,
   listListingsForCurrentUser,
   reorderListingImages,
   updateListing,
@@ -32,6 +32,16 @@ import type {
 } from "../services/listing-response.mapper.js";
 
 type ListingsResponse = ApiResponse<{
+  listings: ListingSummaryResponse[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasNextPage: boolean;
+  };
+}>;
+
+type MyListingsResponse = ApiResponse<{
   listings: ListingSummaryResponse[];
 }>;
 
@@ -67,10 +77,7 @@ type ListingImageParams = ListingParams & {
   imageId: string;
 };
 
-type ListingsQuery = {
-  q?: string;
-  search?: string;
-};
+type ListingsQuery = Record<string, unknown>;
 
 type ListingRouteOptions = {
   uploadRoot: string;
@@ -149,18 +156,15 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       });
     }
 
-    const searchQuery = parsedQuery.data.q ?? parsedQuery.data.search;
-    const listings = await listActiveListings(app, searchQuery);
+    const result = await listActiveListingsPage(app, parsedQuery.data);
 
     return {
       ok: true,
-      data: {
-        listings
-      }
+      data: result
     };
   });
 
-  app.get<{ Reply: ListingsResponse }>("/me/listings", async (request, reply) => {
+  app.get<{ Reply: MyListingsResponse }>("/me/listings", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 
     if (!currentUser) {

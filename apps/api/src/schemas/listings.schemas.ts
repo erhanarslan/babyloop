@@ -4,6 +4,10 @@ import { validatePlainText } from "../services/text-safety.service.js";
 const DECIMAL_PRICE_PATTERN = /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 export const listingStatusValues = ["active", "reserved", "sold", "archived"] as const;
+export const listingTypeValues = ["sale", "swap", "donation"] as const;
+export const listingConditionValues = ["new", "like_new", "good", "fair", "needs_repair"] as const;
+export const listingSortValues = ["newest", "oldest", "price_asc", "price_desc"] as const;
+
 
 export const listingParamsSchema = z.object({
   id: z.string().uuid()
@@ -25,10 +29,37 @@ export const reorderListingImagesBodySchema = z
   })
   .strict();
 
-export const listingsQuerySchema = z.object({
-  q: z.string().trim().max(120).optional(),
-  search: z.string().trim().max(120).optional()
-});
+const optionalTrimmedQueryParam = z
+  .string()
+  .trim()
+  .max(120)
+  .transform((value) => (value.length > 0 ? value : undefined))
+  .optional();
+
+const optionalUuidQueryParam = z
+  .union([z.literal(""), z.string().uuid()])
+  .optional()
+  .transform((value) => (value && value.length > 0 ? value : undefined));
+
+function optionalEnumQueryParam<const Values extends readonly [string, ...string[]]>(values: Values) {
+  return z
+    .union([z.literal(""), z.enum(values)])
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined));
+}
+
+export const listingsQuerySchema = z
+  .object({
+    q: optionalTrimmedQueryParam,
+    search: optionalTrimmedQueryParam,
+    categoryId: optionalUuidQueryParam,
+    listingType: optionalEnumQueryParam(listingTypeValues),
+    condition: optionalEnumQueryParam(listingConditionValues),
+    sort: z.enum(listingSortValues).optional().default("newest"),
+    limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+    offset: z.coerce.number().int().min(0).max(10000).optional().default(0)
+  })
+  .strict();
 
 export const createListingBodySchema = z
   .object({

@@ -9,10 +9,12 @@ import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
   CreateListingBody,
   ListingStatusValue,
+  ListingsQuery,
   UpdateListingBody
 } from "../schemas/listings.schemas.js";
 import { MAX_LISTING_IMAGES, type SafeImage } from "./image-safety.service.js";
 import {
+  countActiveListingRows,
   findCategory,
   getFavoriteCounts,
   getOwnerListingImages,
@@ -133,12 +135,45 @@ export async function createListing(
   };
 }
 
+export type ListingPaginationResponse = {
+  limit: number;
+  offset: number;
+  total: number;
+  hasNextPage: boolean;
+};
+
+export type ListActiveListingsPageResponse = {
+  listings: ListingSummaryResponse[];
+  pagination: ListingPaginationResponse;
+};
+
 export async function listActiveListings(
   app: FastifyInstance,
   searchQuery?: string
 ): Promise<ListingSummaryResponse[]> {
   const rows = await selectActiveListingRows(app, searchQuery);
   return mapListingRows(app, rows);
+}
+
+export async function listActiveListingsPage(
+  app: FastifyInstance,
+  query: ListingsQuery
+): Promise<ListActiveListingsPageResponse> {
+  const [rows, total] = await Promise.all([
+    selectActiveListingRows(app, query),
+    countActiveListingRows(app, query)
+  ]);
+  const listings = await mapListingRows(app, rows);
+
+  return {
+    listings,
+    pagination: {
+      limit: query.limit,
+      offset: query.offset,
+      total,
+      hasNextPage: query.offset + rows.length < total
+    }
+  };
 }
 
 export async function updateListing(
