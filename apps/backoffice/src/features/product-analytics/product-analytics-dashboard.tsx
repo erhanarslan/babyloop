@@ -79,6 +79,10 @@ export function ProductAnalyticsDashboard() {
             <SummaryCard label="Events 24h" value={summary.totals.eventsLast24Hours} />
             <SummaryCard label="Events 7d" value={summary.totals.eventsLast7Days} />
             <SummaryCard label="Detail views 7d" value={summary.totals.listingDetailViewsLast7Days} />
+            <SummaryCard
+              label="Recommendation impressions 7d"
+              value={summary.totals.recommendationImpressionsLast7Days}
+            />
             <SummaryCard label="Category views 7d" value={summary.totals.categoryViewsLast7Days} />
             <SummaryCard label="Searches 7d" value={summary.totals.searchesLast7Days} />
             <SummaryCard label="Recent clicks 7d" value={summary.totals.recentlyViewedClicksLast7Days} />

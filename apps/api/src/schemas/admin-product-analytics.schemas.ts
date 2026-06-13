@@ -1,6 +1,7 @@
 export type AdminProductAnalyticsEventName =
   | "listing_detail_viewed"
   | "listing_card_clicked"
+  | "listing_recommendation_impression"
   | "contact_seller_intent"
   | "recently_viewed_listing_clicked"
   | "category_viewed"
@@ -43,6 +44,7 @@ export type AdminProductAnalyticsSummaryResponse = {
     eventsLast24Hours: number;
     eventsLast7Days: number;
     listingDetailViewsLast7Days: number;
+    recommendationImpressionsLast7Days: number;
     categoryViewsLast7Days: number;
     searchesLast7Days: number;
     recentlyViewedClicksLast7Days: number;

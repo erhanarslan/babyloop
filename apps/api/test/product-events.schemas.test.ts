@@ -49,6 +49,17 @@ describe("product event schemas", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a recommendation impression event", () => {
+    const result = productEventBodySchema.safeParse({
+      eventType: "listing_recommendation_impression",
+      listingId: LISTING_ID,
+      categoryId: CATEGORY_ID,
+      source: "recommendation"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects raw search query and unknown metadata fields", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "search_performed",

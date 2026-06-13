@@ -2,7 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Card } from "../../components/ui";
 import type {
   ListingRecommendationsPayload,
@@ -26,6 +26,7 @@ type RelatedListingsProps = {
 export function RelatedListings({ apiBaseUrl, listingId }: RelatedListingsProps) {
   const { dictionary } = useI18n();
   const [relatedListings, setRelatedListings] = useState<ListingSummary[]>([]);
+  const impressionKeyRef = useRef("");
 
   useEffect(() => {
     let isActive = true;
@@ -58,6 +59,25 @@ export function RelatedListings({ apiBaseUrl, listingId }: RelatedListingsProps)
       isActive = false;
     };
   }, [apiBaseUrl, listingId]);
+
+  useEffect(() => {
+    const impressionKey = relatedListings.map((listing) => listing.id).join(",");
+
+    if (!impressionKey || impressionKey === impressionKeyRef.current) {
+      return;
+    }
+
+    impressionKeyRef.current = impressionKey;
+
+    for (const listing of relatedListings) {
+      void recordProductEvent(apiBaseUrl, {
+        categoryId: listing.category.id,
+        eventType: "listing_recommendation_impression",
+        listingId: listing.id,
+        source: "recommendation"
+      });
+    }
+  }, [apiBaseUrl, relatedListings]);
 
   if (relatedListings.length === 0) {
     return null;

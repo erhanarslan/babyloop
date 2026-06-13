@@ -3,6 +3,7 @@
 export type ListingProductEventType =
   | "listing_detail_viewed"
   | "listing_card_clicked"
+  | "listing_recommendation_impression"
   | "contact_seller_intent"
   | "recently_viewed_listing_clicked";
 
