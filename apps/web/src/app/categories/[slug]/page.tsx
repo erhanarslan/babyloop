@@ -10,7 +10,6 @@ import { BrowsePageContent } from "../../../features/listings/browse-page-conten
 import {
   fetchApi,
   getApiBaseUrl,
-  type Category,
   type CategoriesPayload,
   type ListingsPagination,
   type ListingsPayload,
@@ -25,15 +24,21 @@ import {
 export const dynamic = "force-dynamic";
 
 type CategoryPageProps = {
-  params?: Promise<{
-    slug?: string;
+  params: Promise<{
+    slug: string;
   }>;
   searchParams?: Promise<BrowseSearchParams>;
 };
 
-export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
-  const slug = decodeURIComponent((await params)?.slug ?? "");
-  const category = await findCategoryBySlug(slug);
+export async function generateMetadata({
+  params,
+  searchParams
+}: CategoryPageProps): Promise<Metadata> {
+  const slug = decodeURIComponent((await params).slug);
+  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+  const category = categoriesResult.ok
+    ? categoriesResult.data.categories.find((item) => item.slug === slug)
+    : null;
 
   if (!category) {
     return buildNoIndexMetadata(
@@ -49,29 +54,32 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   return buildCategoryMetadata(category);
 }
 
-export default async function CategoryLandingPage({ params, searchParams }: CategoryPageProps) {
-  const slug = decodeURIComponent((await params)?.slug ?? "");
+export default async function CategoryPage({
+  params,
+  searchParams
+}: CategoryPageProps) {
+  const slug = decodeURIComponent((await params).slug);
   const resolvedSearchParams = await searchParams;
   const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
   const categories = categoriesResult.ok ? categoriesResult.data.categories : [];
-  const category = categories.find((candidate) => candidate.slug === slug) ?? null;
+  const category = categories.find((item) => item.slug === slug);
 
-  if (categoriesResult.ok && !category) {
+  if (!category) {
     notFound();
   }
 
   const filters = resolveBrowseFilters(resolvedSearchParams, {
-    categoryId: category?.id ?? "",
-    offset: resolveOffsetForCategoryPage(resolvedSearchParams)
+    categoryId: category.id
   });
-  const listingsResult = category
-    ? await fetchApi<ListingsPayload>(buildListingsPath(filters))
-    : null;
+  const listingsPath = buildListingsPath(filters);
   const suggestionsPath = buildSearchSuggestionsPath(filters.q);
-  const suggestionsResult = suggestionsPath
-    ? await fetchApi<SearchSuggestionsPayload>(suggestionsPath)
-    : null;
-  const listings = listingsResult?.ok ? listingsResult.data.listings : [];
+
+  const [listingsResult, suggestionsResult] = await Promise.all([
+    fetchApi<ListingsPayload>(listingsPath),
+    suggestionsPath ? fetchApi<SearchSuggestionsPayload>(suggestionsPath) : Promise.resolve(null)
+  ]);
+
+  const listings = listingsResult.ok ? listingsResult.data.listings : [];
   const searchSuggestions = suggestionsResult?.ok ? suggestionsResult.data.suggestions : [];
   const fallbackPagination: ListingsPagination = {
     limit: filters.limit,
@@ -79,13 +87,13 @@ export default async function CategoryLandingPage({ params, searchParams }: Cate
     total: listings.length,
     hasNextPage: false
   };
-  const pagination = listingsResult?.ok
+  const pagination = listingsResult.ok
     ? listingsResult.data.pagination ?? fallbackPagination
     : fallbackPagination;
-  const error = !categoriesResult.ok
-    ? categoriesResult.error
-    : listingsResult && !listingsResult.ok
-      ? listingsResult.error
+  const error = !listingsResult.ok
+    ? listingsResult.error
+    : !categoriesResult.ok
+      ? categoriesResult.error
       : null;
 
   return (
@@ -93,7 +101,7 @@ export default async function CategoryLandingPage({ params, searchParams }: Cate
       <BrowsePageContent
         apiBaseUrl={getApiBaseUrl()}
         categories={categories}
-        currentCategorySlug={category?.slug ?? null}
+        currentCategorySlug={category.slug}
         error={error}
         filters={filters}
         listings={listings}
@@ -103,16 +111,6 @@ export default async function CategoryLandingPage({ params, searchParams }: Cate
       />
     </SiteShell>
   );
-}
-
-async function findCategoryBySlug(slug: string): Promise<Category | null> {
-  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
-
-  if (!categoriesResult.ok) {
-    return null;
-  }
-
-  return categoriesResult.data.categories.find((category) => category.slug === slug) ?? null;
 }
 
 function buildSearchSuggestionsPath(query: string): string | null {
@@ -128,25 +126,6 @@ function buildSearchSuggestionsPath(query: string): string | null {
   });
 
   return `/api/v1/search-suggestions?${params.toString()}`;
-}
-
-function resolveOffsetForCategoryPage(searchParams: BrowseSearchParams): number {
-  const rawOffset = readParam(searchParams?.offset);
-  const parsedOffset = Number.parseInt(rawOffset, 10);
-
-  if (!Number.isFinite(parsedOffset)) {
-    return 0;
-  }
-
-  return Math.min(Math.max(parsedOffset, 0), 10000);
-}
-
-function readParam(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-
-  return value ?? "";
 }
 
 function hasCategorySeoFilters(searchParams: BrowseSearchParams): boolean {

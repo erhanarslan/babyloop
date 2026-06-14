@@ -1,3 +1,87 @@
+== git ==
+?? category-landing-inspection.txt
+4b1459c feat(web): finalize browse marketplace experience
+d79f047 feat(web): polish public home product narrative
+d7a1439 feat(web): add public SEO foundation
+e31bfa0 feat(web): improve assistant contextual entry points
+f854969 feat(web): complete public web empty and error states
+94bfe3e feat(web): polish mobile marketplace surfaces
+
+== category route ==
+
+== browse routing ==
+import type { BrowseListingsFilters } from "../../lib/api";
+
+export const DEFAULT_LISTINGS_LIMIT = 20;
+
+export type BrowseSearchParams = Record<string, string | string[] | undefined> | undefined;
+
+export function resolveBrowseFilters(
+  searchParams: BrowseSearchParams,
+  overrides: Partial<BrowseListingsFilters> = {}
+): BrowseListingsFilters {
+  const offset = parsePositiveInteger(readParam(searchParams?.offset), 0);
+  const limit = parsePositiveInteger(readParam(searchParams?.limit), DEFAULT_LISTINGS_LIMIT);
+
+  return {
+    q: readParam(searchParams?.q).trim(),
+    categoryId: readParam(searchParams?.categoryId),
+    condition: readParam(searchParams?.condition),
+    listingType: readParam(searchParams?.listingType),
+    priceMin: readParam(searchParams?.priceMin),
+    priceMax: readParam(searchParams?.priceMax),
+    hasImages: readBooleanParam(searchParams?.hasImages),
+    sort: readParam(searchParams?.sort) || "newest",
+    limit: Math.min(Math.max(limit, 1), 50),
+    offset: Math.min(Math.max(offset, 0), 10000),
+    ...overrides
+  };
+}
+
+export function buildListingsPath(filters: BrowseListingsFilters): string {
+  const params = new URLSearchParams();
+
+  appendIfPresent(params, "q", filters.q);
+  appendIfPresent(params, "categoryId", filters.categoryId);
+  appendIfPresent(params, "condition", filters.condition);
+  appendIfPresent(params, "listingType", filters.listingType);
+  appendIfPresent(params, "priceMin", filters.priceMin);
+  appendIfPresent(params, "priceMax", filters.priceMax);
+  appendIfPresent(params, "hasImages", filters.hasImages);
+  appendIfPresent(params, "sort", filters.sort);
+  params.set("limit", String(filters.limit));
+  params.set("offset", String(filters.offset));
+
+  return `/api/v1/listings?${params.toString()}`;
+}
+
+export function appendIfPresent(params: URLSearchParams, key: string, value: string): void {
+  if (value.trim().length > 0) {
+    params.set(key, value.trim());
+  }
+}
+
+function readBooleanParam(value: string | string[] | undefined): string {
+  const normalized = readParam(value);
+
+  return normalized === "true" ? "true" : "";
+}
+
+function readParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
+
+function parsePositiveInteger(value: string, fallback: number): number {
+  const parsed = Number.parseInt(value, 10);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+== browse page content current ==
 "use client";
 
 import Link from "next/link";
@@ -101,12 +185,6 @@ export function BrowsePageContent({
     "find_products",
     buildBrowseAssistantPrompt(filters, selectedCategory, dictionary)
   );
-  const categoryLandingAssistantHref = selectedCategory
-    ? buildAssistantHref(
-        "find_products",
-        `Help me browse ${formatCategoryName(selectedCategory, dictionary)} listings on BabyLoop with a safer second-hand checklist.`
-      )
-    : browseAssistantHref;
 
   return (
     <>
@@ -117,16 +195,6 @@ export function BrowsePageContent({
         searchQuery={searchQuery}
         source={currentCategorySlug ? "category_landing" : "browse"}
       />
-
-      {currentCategorySlug && selectedCategory ? (
-        <CategoryLandingHero
-          assistantHref={categoryLandingAssistantHref}
-          clearFiltersHref={clearFiltersHref}
-          filters={filters}
-          pagination={pagination}
-          selectedCategory={selectedCategory}
-        />
-      ) : null}
 
       <PageHeading
         eyebrow={dictionary.listings.browseEyebrow}
@@ -380,68 +448,6 @@ export function BrowsePageContent({
         </div>
       </PageContainer>
     </>
-  );
-}
-
-function CategoryLandingHero({
-  assistantHref,
-  clearFiltersHref,
-  filters,
-  pagination,
-  selectedCategory
-}: {
-  assistantHref: string;
-  clearFiltersHref: string;
-  filters: BrowseListingsFilters;
-  pagination: ListingsPagination;
-  selectedCategory: Category;
-}) {
-  const { dictionary } = useI18n();
-  const categoryName = formatCategoryName(selectedCategory, dictionary);
-  const activeFilterCount = countActiveBrowseFilters(filters);
-
-  return (
-    <Card as="section" className="category-landing-hero" aria-label={`${categoryName} category landing`}>
-      <div>
-        <p className="eyebrow">Category landing</p>
-        <h2>{categoryName} listings for parent decisions</h2>
-        <p>
-          Compare parent-owned {categoryName} listings with condition, price, photos, listing type,
-          saved searches, and safer second-hand buying checks before starting a conversation.
-        </p>
-
-        <div className="category-landing-actions">
-          <Link href={clearFiltersHref}>Reset category filters</Link>
-          <Link href={assistantHref}>Ask Assistant</Link>
-          <Link href="/guides">Parent guides</Link>
-          <Link href="/account/saved-searches">Saved searches</Link>
-        </div>
-
-        <div className="category-landing-guide-strip">
-          <strong>Before you message a seller</strong>
-          <ul>
-            <li>Check condition, missing parts, pickup expectations, and photo clarity.</li>
-            <li>Use filters to separate sale, donation, and swap-ready listings.</li>
-            <li>Save useful searches when this category is a recurring family need.</li>
-          </ul>
-        </div>
-      </div>
-
-      <aside className="category-landing-metric-grid" aria-label="Category marketplace summary">
-        <div className="category-landing-metric">
-          <span>Matching listings</span>
-          <strong>{pagination.total}</strong>
-        </div>
-        <div className="category-landing-metric">
-          <span>Active filters</span>
-          <strong>{activeFilterCount}</strong>
-        </div>
-        <div className="category-landing-metric">
-          <span>Discovery path</span>
-          <strong>SEO → category → listing</strong>
-        </div>
-      </aside>
-    </Card>
   );
 }
 
@@ -1057,8 +1063,584 @@ function formatBrowseListingDate(value: string): string {
     return "Recently listed";
   }
 
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short"
-  }).format(date);
+== category/listing css refs ==
+225:  .filter-panel,
+226:  .listing-card,
+371:  .browse-layout,
+398:  .filter-panel,
+399:  .listing-card-body,
+424:  .listing-card-image {
+432:  .listing-card-badges,
+433:  .listing-card-actions,
+436:  .filter-chip-list {
+440:  .active-filter-panel,
+447:  .active-filter-panel,
+457:  .filter-chip {
+461:  .filter-chip-clear {
+537:  .listing-card-footer,
+547:  .category-list small,
+1174:.related-listing-card {
+1274:.parent-guide-listing-card {
+1285:.parent-guide-listing-card .home-personalization-actions {
+1637:  .browse-layout,
+1643:  .filter-panel {
+1648:  .listing-card-footer,
+1657:  .listing-card-footer a,
+1697:  .filter-form,
+1799:.browse-discovery-panel {
+1805:.browse-discovery-main {
+1812:.browse-discovery-main h2 {
+1816:.browse-discovery-counts {
+1827:.browse-discovery-counts strong {
+1831:.browse-discovery-counts span {
+1836:.browse-discovery-actions,
+1838:.browse-suggestion-strip,
+1839:.browse-suggestion-strip div {
+1846:.browse-discovery-actions a,
+1848:.browse-suggestion-strip a {
+1859:.browse-suggestion-strip {
+1864:.browse-suggestion-strip > span,
+1878:.listing-card-buyer-hint {
+1894:  .browse-discovery-main,
+1895:  .browse-discovery-actions,
+1896:  .browse-suggestion-strip,
+1902:  .browse-discovery-counts {
+1907:  .browse-discovery-actions a,
+1909:  .browse-suggestion-strip a {
+1917:  .filter-panel {
+1921:  .listing-card {
+1925:  .listing-card-body {
+1929:  .listing-card-badges {
+2203:  .browse-layout,
+2219:  .filter-panel,
+2227:  .browse-discovery-panel,
+2231:  .parent-guide-listing-card,
+2246:  .browse-discovery-main,
+2247:  .browse-discovery-actions,
+2248:  .browse-suggestion-strip,
+2255:  .listing-card-footer,
+2266:  .browse-discovery-actions a,
+2267:  .browse-suggestion-strip a,
+2275:  .listing-card-footer a,
+2276:  .listing-card-footer button,
+2288:  .filter-chip-list,
+2289:  .listing-card-badges,
+2295:  .filter-chip,
+2297:  .listing-card-badges > *,
+2304:  .listing-card,
+2315:  .listing-card-body,
+2316:  .filter-panel,
+2332:  .listing-card-image {
+2373:  .filter-panel input,
+2374:  .filter-panel select {
+2406:  .browse-discovery-panel,
+2426:  .listing-card-footer,
+2436:  .listing-card-footer a,
+2437:  .listing-card-footer button,
+2644:.browse-layout {
+2648:.browse-discovery-panel-product {
+2658:.browse-discovery-panel-product::after {
+2669:.browse-discovery-main,
+2670:.browse-discovery-actions,
+2671:.browse-suggestion-strip {
+2676:.browse-discovery-paths {
+2683:.browse-discovery-paths span {
+2692:.browse-discovery-paths strong {
+2731:.browse-no-results-actions a,
+2732:.browse-card-context a {
+2743:.browse-no-results-card {
+2750:.browse-no-results-card h2 {
+2756:.browse-no-results-card p {
+2761:.browse-no-results-actions {
+2767:.browse-no-results-tips {
+2776:.browse-no-results-tips li {
+2785:.listing-card-discovery {
+2790:.listing-card-discovery::before {
+2798:.listing-card-topline,
+2799:.browse-card-context,
+2800:.listing-card-price-stack {
+2807:.listing-card-topline {
+2811:.listing-card-topline time,
+2812:.listing-card-price-stack span {
+2818:.browse-card-context {
+2824:.browse-card-context p {
+2831:.listing-card-price-stack {
+2838:  .browse-discovery-paths,
+2839:  .browse-no-results-tips {
+2855:  .browse-no-results-actions a,
+2856:  .browse-card-context a {
+2862:  .listing-card-topline,
+2863:  .browse-card-context {
+
+== seo helper ==
+import type { Metadata } from "next";
+import type { Category, ListingDetail } from "./api";
+import { getApiBaseUrl } from "./api";
+
+export const SITE_NAME = "BabyLoop";
+export const SITE_TAGLINE = "Parent marketplace for baby and child essentials";
+export const SITE_DESCRIPTION =
+  "BabyLoop helps parents buy, sell, donate, and reuse baby and child essentials with safer listings, guided discovery, and marketplace-focused AI help.";
+
+export const DEFAULT_OG_IMAGE_PATH = "/opengraph-image";
+
+type MetadataRobots = NonNullable<Metadata["robots"]>;
+
+type PublicPageMetadataInput = {
+  description: string;
+  imageUrl?: string | null;
+  noIndex?: boolean;
+  path: string;
+  title: string;
+};
+
+export function getSiteUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.BABYLOOP_SITE_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
 }
+
+export function buildCanonicalUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  return new URL(normalizedPath, getSiteUrl()).toString();
+}
+
+export function buildPublicPageMetadata({
+  description,
+  imageUrl,
+  noIndex = false,
+  path,
+  title
+}: PublicPageMetadataInput): Metadata {
+  const canonicalUrl = buildCanonicalUrl(path);
+  const fullTitle = formatFullTitle(title);
+  const image = normalizeMetadataImage(imageUrl);
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl
+    },
+    openGraph: {
+      title: fullTitle,
+      description,
+      type: "website",
+      url: canonicalUrl,
+      siteName: SITE_NAME,
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: `${SITE_NAME} marketplace preview`
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+      images: [image]
+    },
+    robots: noIndex ? noIndexRobots() : indexRobots()
+  };
+}
+
+export function buildNoIndexMetadata(title: string, description: string): Metadata {
+  return {
+    title,
+    description,
+    robots: noIndexRobots()
+  };
+}
+
+export function buildCategoryMetadata(category: Category, noIndex = false): Metadata {
+  return buildPublicPageMetadata({
+    title: `${category.name} listings`,
+    description: `Browse parent-owned ${category.name} listings on BabyLoop. Compare condition, price, photos, saved searches, and second-hand buying checks before messaging a seller.`,
+    path: `/categories/${category.slug}`,
+    noIndex
+  });
+}
+
+export function buildListingMetadata(listing: ListingDetail): Metadata {
+  const isIndexable = listing.status === "active" || listing.status === "reserved";
+  const imageUrl = listing.firstImage?.url ?? listing.images[0]?.url ?? null;
+  const priceText = listing.price
+    ? `${listing.price.amount} ${listing.price.currency}`
+    : "price on request";
+
+  return buildPublicPageMetadata({
+    title: listing.title,
+    description: `${listing.title} on BabyLoop: ${listing.category.name}, ${listing.condition}, ${priceText}. Review photos, seller-safe details, and buyer checks before messaging.`,
+    path: `/listings/${listing.id}`,
+    imageUrl,
+    noIndex: !isIndexable
+  });
+}
+
+export function buildFilteredBrowseNoIndexMetadata(title = "Filtered marketplace results"): Metadata {
+  return buildNoIndexMetadata(
+    title,
+    "Filtered BabyLoop marketplace results are available for browsing, but canonical marketplace discovery starts from the main browse and category pages."
+  );
+}
+
+export function normalizeMetadataImage(imageUrl: string | null | undefined): string {
+  if (!imageUrl) {
+    return buildCanonicalUrl(DEFAULT_OG_IMAGE_PATH);
+  }
+
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  if (imageUrl.startsWith("/")) {
+    return `${getApiBaseUrl()}${imageUrl}`;
+  }
+
+  return buildCanonicalUrl(DEFAULT_OG_IMAGE_PATH);
+}
+
+export function noIndexRobots(): MetadataRobots {
+  return {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true
+    }
+  };
+}
+
+export function indexRobots(): MetadataRobots {
+  return {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1
+    }
+  };
+}
+
+function formatFullTitle(title: string): string {
+  return title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
+}
+
+== api category/listing types ==
+import type { ApiResponse } from "@babyloop/shared";
+
+const DEFAULT_API_BASE_URL = "http://localhost:4000";
+
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+};
+
+export type ListingImage = {
+  id: string;
+  url: string;
+  sortOrder: number;
+};
+
+export type ListingSummary = {
+  id: string;
+  title: string;
+  price: {
+    amount: string;
+    currency: string;
+  } | null;
+  favoriteCount: number;
+  status: string;
+  listingType: string;
+  condition: string;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  firstImage: ListingImage | null;
+  createdAt: string;
+};
+
+export type ListingDetail = ListingSummary & {
+  description: string | null;
+  images: ListingImage[];
+  seller: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+    locationCity: string | null;
+  };
+  updatedAt: string;
+};
+
+export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "firstImage" | "createdAt"> & {
+  favoritedAt: string;
+};
+
+export type CategoriesPayload = {
+  categories: Category[];
+};
+
+export type ListingsPagination = {
+  limit: number;
+  offset: number;
+  total: number;
+  hasNextPage: boolean;
+};
+
+export type BrowseListingsFilters = {
+  q: string;
+  categoryId: string;
+  condition: string;
+  listingType: string;
+  priceMin: string;
+  priceMax: string;
+  hasImages: string;
+  sort: string;
+  limit: number;
+  offset: number;
+};
+
+export type ListingsPayload = {
+  listings: ListingSummary[];
+  pagination?: ListingsPagination;
+};
+
+export type SearchSuggestion = {
+  kind: "category" | "listing";
+  label: string;
+  categoryId?: string;
+  categorySlug?: string;
+  listingId?: string;
+};
+
+export type SearchSuggestionsPayload = {
+  suggestions: SearchSuggestion[];
+};
+
+export type ListingDetailPayload = {
+  listing: ListingDetail;
+};
+
+export type ListingRecommendationsPayload = {
+  recommendations: ListingSummary[];
+};
+
+export type FavoritesPayload = {
+  favorites: FavoriteListing[];
+};
+
+export function getApiBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.BABYLOOP_API_BASE_URL ??
+    DEFAULT_API_BASE_URL
+  ).replace(/\/$/, "");
+}
+
+export async function fetchApi<TData>(path: string): Promise<ApiResponse<TData>> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+      cache: "no-store"
+    });
+    const body = (await response.json()) as ApiResponse<TData>;
+
+    if (!response.ok && body.ok) {
+      return {
+        ok: false,
+        error: {
+          code: "API_ERROR",
+          message: "API request failed."
+        }
+      };
+    }
+
+    return body;
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "API_UNAVAILABLE",
+        message: "BabyLoop API is unavailable."
+      }
+    };
+  }
+}
+
+== dictionary category/listing copy ==
+      confidence: "confidence",
+      myListingsEyebrow: "Seller workspace",
+      myListingsTitle: "My listings",
+      myListingsDescription: "View listings owned by your logged-in BabyLoop profile.",
+      myListingsAriaLabel: "My listings",
+      loginToViewMyListings: "Please log in to view your listings.",
+      loadingMyListings: "Loading your listings",
+      myListingsUnavailable: "Listings unavailable",
+      noListingsTitle: "No listings yet.",
+      noListingsBody: "Create your first BabyLoop listing from the sell page.",
+      sellItem: "Sell an item",
+      editListing: "Edit",
+      saveChanges: "Save changes",
+      saving: "Saving...",
+      cancelEdit: "Cancel",
+      markReserved: "Mark reserved",
+      markSold: "Mark sold",
+      archiveListing: "Archive",
+      reactivateListing: "Reactivate",
+      notPublic: "Not public",
+      lifecycleActionFailed: "Listing action failed",
+      lifecycleActionsAriaLabel: "Listing lifecycle actions",
+      imageMetadata: "Image metadata",
+      noImage: "No image",
+      browseEyebrow: "Browse marketplace",
+      browseTitle: "Browse trusted baby essentials",
+      browseResultsTitle: "Results for \"{query}\"",
+      browseDescription:
+        "Find baby and child items from parent-owned listings. Save favorites or open a listing to message the seller.",
+      browseAriaLabel: "Browse listings",
+      categoriesTitle: "Categories",
+      categoriesAriaLabel: "Category filter placeholder",
+      categoriesNote: "Use categories to understand what is available in the marketplace.",
+      categoriesUnavailable: "Categories are not available right now.",
+      noActiveListingsTitle: "No active listings yet.",
+      noActiveListingsBody:
+        "There are no matching listings yet. Try a different search or browse again later.",
+      noProductImage: "No product image",
+      productImageAlt: "{title} product image",
+      typeLabel: "Type",
+      conditionLabel: "Condition",
+      statusLabel: "Status",
+      favoriteCount: "Favorites: {count}",
+      loadingListingsTitle: "Loading listings",
+      fetchingMarketplaceTitle: "Fetching marketplace data",
+      fetchingMarketplaceMessage: "Reading active listings and categories from the BabyLoop API.",
+      detailEyebrow: "Listing detail",
+      detailUnavailableTitle: "Listing unavailable",
+      detailNotFoundTitle: "Listing not found",
+      detailNotFoundDescription:
+        "The listing may be inactive, removed, or not available in the current seed data.",
+      loadingDetailTitle: "Loading listing",
+      fetchingDetailTitle: "Fetching listing detail",
+      fetchingDetailMessage: "Reading this listing from the BabyLoop API.",
+      imageGalleryAriaLabel: "Listing image gallery",
+      detailImageAlt: "{title} product image {index}",
+      imageUnavailable: "Image unavailable",
+      noPhotosTitle: "No photos added.",
+      noPhotosBody: "Ask the seller for more photos before making a decision.",
+      browseListings: "Browse listings",
+      noDescription: "No description provided yet.",
+      listingActionsAriaLabel: "Listing actions",
+      location: "Location",
+      created: "Created",
+      updated: "Updated",
+      sellerInformationAriaLabel: "Seller information",
+      seller: "Seller",
+      locationNotProvided: "Location not provided"
+    },
+    messaging: {
+      eyebrow: "Messages",
+      conversationsTitle: "Conversations",
+      conversationsDescription: "Keep buyer and seller messages in one conversation per profile pair.",
+      conversationTitle: "Conversation",
+      conversationWith: "Conversation with",
+      listing: "Listing",
+      noListingContext: "No listing context",
+      lastMessage: "Last message",
+      updated: "Updated",
+      created: "Created",
+      loadingConversations: "Loading conversations",
+      confidence: "güven",
+      myListingsEyebrow: "Satıcı alanı",
+      myListingsTitle: "İlanlarım",
+      myListingsDescription: "Giriş yaptığın BabyLoop profiline ait ilanları görüntüle.",
+      myListingsAriaLabel: "İlanlarım",
+      loginToViewMyListings: "İlanlarını görmek için lütfen giriş yap.",
+      loadingMyListings: "İlanların yükleniyor",
+      myListingsUnavailable: "İlanlar kullanılamıyor",
+      noListingsTitle: "Henüz ilan yok.",
+      noListingsBody: "İlk BabyLoop ilanını satış sayfasından oluştur.",
+      sellItem: "Ürün sat",
+      editListing: "Düzenle",
+      saveChanges: "Değişiklikleri kaydet",
+      saving: "Kaydediliyor...",
+      cancelEdit: "Vazgeç",
+      markReserved: "Ayrıldı olarak işaretle",
+      markSold: "Satıldı olarak işaretle",
+      archiveListing: "Arşivle",
+      reactivateListing: "Tekrar aktif yap",
+      notPublic: "Yayında değil",
+      lifecycleActionFailed: "İlan işlemi başarısız",
+      lifecycleActionsAriaLabel: "İlan yaşam döngüsü işlemleri",
+      imageMetadata: "Görsel bilgisi",
+      noImage: "Görsel yok",
+      browseEyebrow: "Pazarı keşfet",
+      browseTitle: "Güvenilir bebek ihtiyaçlarını keşfet",
+      browseResultsTitle: "\"{query}\" için sonuçlar",
+      browseDescription:
+        "Ebeveynlerin yayınladığı bebek ve çocuk ürünlerini bul. Favorilere kaydet ya da satıcıya mesaj atmak için ilana gir.",
+      browseAriaLabel: "İlanları keşfet",
+      categoriesTitle: "Kategoriler",
+      categoriesAriaLabel: "Kategori filtresi alanı",
+      categoriesNote: "Pazarda neler olduğunu anlamak için kategorileri kullan.",
+      categoriesUnavailable: "Kategoriler şu anda kullanılamıyor.",
+      noActiveListingsTitle: "Henüz aktif ilan yok.",
+      noActiveListingsBody:
+        "Eşleşen ilan yok. Farklı bir arama dene ya da daha sonra tekrar bak.",
+      noProductImage: "Ürün görseli yok",
+      productImageAlt: "{title} ürün görseli",
+      typeLabel: "Tip",
+      conditionLabel: "Durum",
+      statusLabel: "Durum",
+      favoriteCount: "Favori: {count}",
+      loadingListingsTitle: "İlanlar yükleniyor",
+      fetchingMarketplaceTitle: "Pazar verileri alınıyor",
+      fetchingMarketplaceMessage: "BabyLoop API'den aktif ilanlar ve kategoriler okunuyor.",
+      detailEyebrow: "İlan detayı",
+      detailUnavailableTitle: "İlan kullanılamıyor",
+      detailNotFoundTitle: "İlan bulunamadı",
+      detailNotFoundDescription:
+        "İlan pasif, kaldırılmış ya da mevcut örnek verilerde bulunmuyor olabilir.",
+      loadingDetailTitle: "İlan yükleniyor",
+      fetchingDetailTitle: "İlan detayı alınıyor",
+      fetchingDetailMessage: "Bu ilan BabyLoop API'den okunuyor.",
+      imageGalleryAriaLabel: "İlan görsel galerisi",
+      detailImageAlt: "{title} ürün görseli {index}",
+      imageUnavailable: "Görsel kullanılamıyor",
+      noPhotosTitle: "Fotoğraf eklenmemiş.",
+      noPhotosBody: "Karar vermeden önce satıcıdan daha fazla fotoğraf iste.",
+      browseListings: "İlanları keşfet",
+      noDescription: "Henüz açıklama eklenmemiş.",
+      listingActionsAriaLabel: "İlan işlemleri",
+      location: "Konum",
+      created: "Oluşturulma",
+      updated: "Güncellenme",
+      sellerInformationAriaLabel: "Satıcı bilgisi",
+      seller: "Satıcı",
+      locationNotProvided: "Konum belirtilmedi"
+    },
+    messaging: {
+      eyebrow: "Mesajlar",
+      conversationsTitle: "Konuşmalar",
+      conversationsDescription: "Alıcı ve satıcı mesajlarını her profil eşleşmesi için tek konuşmada tut.",
+      conversationTitle: "Konuşma",
+      conversationWith: "Konuşulan kişi",
+      listing: "İlan",
+      noListingContext: "İlan bağlantısı yok",
+      lastMessage: "Son mesaj",
+      updated: "Güncellendi",
+      created: "Oluşturuldu",
+      loadingConversations: "Konuşmalar yükleniyor",

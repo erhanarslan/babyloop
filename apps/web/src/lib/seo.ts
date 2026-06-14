@@ -85,8 +85,8 @@ export function buildNoIndexMetadata(title: string, description: string): Metada
 
 export function buildCategoryMetadata(category: Category, noIndex = false): Metadata {
   return buildPublicPageMetadata({
-    title: `${category.name} listings`,
-    description: `Browse parent-owned ${category.name} listings on BabyLoop. Compare condition, price, photos, saved searches, and second-hand buying checks before messaging a seller.`,
+    title: `${category.name} listings for parents`,
+    description: `Browse parent-owned ${category.name} listings on BabyLoop with condition notes, price filters, photos, saved searches, parent guides, and second-hand buying checks before messaging a seller.`,
     path: `/categories/${category.slug}`,
     noIndex
   });
