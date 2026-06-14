@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 
   return {
     title: `${category.name} | BabyLoop`,
-    description: `Browse parent-owned BabyLoop listings in ${category.name}.`
+    description: `Browse parent-owned BabyLoop listings in ${category.name}. Use filters, saved searches, and parent guides to compare safer second-hand options.`
   };
 }
 

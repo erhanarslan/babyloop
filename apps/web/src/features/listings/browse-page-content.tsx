@@ -116,6 +116,14 @@ export function BrowsePageContent({
       />
 
       <PageContainer className="browse-layout" ariaLabel={dictionary.listings.browseAriaLabel}>
+        <BrowseDiscoveryPanel
+          currentCategorySlug={currentCategorySlug}
+          filters={filters}
+          pagination={pagination}
+          searchSuggestions={searchSuggestions}
+          selectedCategory={selectedCategory}
+        />
+
         <Card as="aside" className="filter-panel" aria-label={dictionary.listings.categoriesAriaLabel}>
           <h2>{dictionary.listings.categoriesTitle}</h2>
           <p className="filter-note">{dictionary.listings.categoriesNote}</p>
@@ -149,6 +157,13 @@ export function BrowsePageContent({
                 </datalist>
               ) : null}
             </label>
+
+            <SearchSuggestionLinks
+              basePath={paginationBasePath}
+              currentCategorySlug={currentCategorySlug}
+              filters={filters}
+              searchSuggestions={searchSuggestions}
+            />
 
             {!currentCategorySlug ? (
               <label>
@@ -343,6 +358,145 @@ export function BrowsePageContent({
   );
 }
 
+function BrowseDiscoveryPanel({
+  currentCategorySlug,
+  filters,
+  pagination,
+  searchSuggestions,
+  selectedCategory
+}: {
+  currentCategorySlug: string | null;
+  filters: BrowseListingsFilters;
+  pagination: ListingsPagination;
+  searchSuggestions: SearchSuggestion[];
+  selectedCategory: Category | null;
+}) {
+  const { dictionary } = useI18n();
+  const filterSummary = buildBrowseFilterSummary(filters, selectedCategory, dictionary);
+  const activeFilterCount = countActiveBrowseFilters(filters);
+  const clearFiltersHref = currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse";
+
+  return (
+    <Card as="section" className="browse-discovery-panel">
+      <div className="browse-discovery-main">
+        <div>
+          <p className="eyebrow">Discovery controls</p>
+          <h2>{selectedCategory ? `Browse ${formatCategoryName(selectedCategory, dictionary)}` : "Find the right baby item faster"}</h2>
+          <p className="form-note">
+            {filterSummary}
+          </p>
+        </div>
+
+        <div className="browse-discovery-counts">
+          <strong>{pagination.total}</strong>
+          <span>matching listings</span>
+          <Badge>{activeFilterCount} active filters</Badge>
+        </div>
+      </div>
+
+      <div className="browse-discovery-actions">
+        <Link href={clearFiltersHref}>Clear filters</Link>
+        <Link href="/guides">Read buying guides</Link>
+        <Link href="/assistant">Ask Assistant</Link>
+        <Link href="/account/saved-searches">Saved searches</Link>
+      </div>
+
+      {searchSuggestions.length > 0 ? (
+        <div className="browse-suggestion-strip">
+          <span>Suggested searches</span>
+          <div>
+            {searchSuggestions.slice(0, 4).map((suggestion) => (
+              <Link
+                href={buildBrowseHref(
+                  { ...filters, q: suggestion.label },
+                  0,
+                  {
+                    basePath: currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse",
+                    includeCategoryId: !currentCategorySlug
+                  }
+                )}
+                key={`${suggestion.kind}-${suggestion.label}`}
+              >
+                {suggestion.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+function SearchSuggestionLinks({
+  basePath,
+  currentCategorySlug,
+  filters,
+  searchSuggestions
+}: {
+  basePath: string;
+  currentCategorySlug: string | null;
+  filters: BrowseListingsFilters;
+  searchSuggestions: SearchSuggestion[];
+}) {
+  if (searchSuggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="search-suggestion-links" aria-label="Search suggestions">
+      <span>Try</span>
+      {searchSuggestions.slice(0, 5).map((suggestion) => (
+        <Link
+          href={buildBrowseHref(
+            { ...filters, q: suggestion.label },
+            0,
+            {
+              basePath,
+              includeCategoryId: !currentCategorySlug
+            }
+          )}
+          key={`${suggestion.kind}-${suggestion.label}`}
+        >
+          {suggestion.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function buildBrowseFilterSummary(
+  filters: BrowseListingsFilters,
+  selectedCategory: Category | null,
+  dictionary: ReturnType<typeof useI18n>["dictionary"]
+): string {
+  const parts = [
+    filters.q ? `search "${filters.q}"` : "",
+    selectedCategory ? `category ${formatCategoryName(selectedCategory, dictionary)}` : "",
+    filters.listingType ? `type ${formatListingType(filters.listingType, dictionary)}` : "",
+    filters.condition ? `condition ${formatListingCondition(filters.condition, dictionary)}` : "",
+    filters.priceMin ? `minimum ${filters.priceMin}` : "",
+    filters.priceMax ? `maximum ${filters.priceMax}` : "",
+    filters.hasImages === "true" ? "images only" : "",
+    filters.sort ? `sort ${filters.sort}` : ""
+  ].filter(Boolean);
+
+  return parts.length > 0
+    ? `Current filter set: ${parts.join(" · ")}. Save it if this is a recurring need.`
+    : "Start broad, then narrow by category, condition, price, and images. Save useful filters for later.";
+}
+
+function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
+  return [
+    filters.q,
+    filters.categoryId,
+    filters.listingType,
+    filters.condition,
+    filters.priceMin,
+    filters.priceMax,
+    filters.hasImages === "true" ? "hasImages" : ""
+  ].filter((value) => String(value).trim().length > 0).length;
+}
+
 function CategoryNavigation({
   categories,
   dictionary,
@@ -464,6 +618,10 @@ function ListingCard({
             {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
           </p>
         </div>
+        <p className="listing-card-buyer-hint">
+          Ask about condition, missing parts, and pickup expectations before deciding.
+        </p>
+
         <div className="listing-card-footer">
           <strong>{formatListingPrice(listing.price, dictionary)}</strong>
           <Link
