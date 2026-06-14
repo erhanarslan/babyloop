@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SiteShell } from "../../../components/ui";
 import {
@@ -9,6 +10,7 @@ import {
   getApiBaseUrl,
   type ListingDetailPayload
 } from "../../../lib/api";
+import { buildListingMetadata, buildNoIndexMetadata } from "../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,20 @@ type ListingDetailPageProps = {
     id: string;
   }>;
 };
+
+export async function generateMetadata({ params }: ListingDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const result = await fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`);
+
+  if (!result.ok) {
+    return buildNoIndexMetadata(
+      "Listing unavailable",
+      "This BabyLoop listing is not available."
+    );
+  }
+
+  return buildListingMetadata(result.data.listing);
+}
 
 export default async function ListingDetailPage({ params }: ListingDetailPageProps) {
   const { id } = await params;

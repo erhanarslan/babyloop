@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { buildNoIndexMetadata } from "../../../lib/seo";
 import { SiteShell } from "../../../components/ui";
 import { ConversationPageContent } from "../../../features/messaging/conversation-page-content";
 import { getApiBaseUrl } from "../../../lib/api";
@@ -7,6 +9,11 @@ type ConversationPageProps = {
     id: string;
   }>;
 };
+
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Conversation",
+  "BabyLoop conversation pages are private and not indexed."
+);
 
 export default async function ConversationPage({ params }: ConversationPageProps) {
   const { id } = await params;

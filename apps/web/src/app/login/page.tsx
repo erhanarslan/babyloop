@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { buildNoIndexMetadata } from "../../lib/seo";
 import { Suspense } from "react";
 import { SiteShell } from "../../components/ui";
 import { AuthLinkNote } from "../../features/auth/auth-link-note";
@@ -6,6 +8,11 @@ import { AuthErrorNotice } from "../../features/auth/auth-error-notice";
 import { AuthForm } from "../../features/auth/auth-form";
 import { getApiBaseUrl } from "../../lib/api";
 import { AuthSurfaceGuide } from "../../features/auth/auth-surface-guide";
+
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Login",
+  "Sign in to BabyLoop. Account pages are not indexed."
+);
 
 export default function LoginPage() {
   return (

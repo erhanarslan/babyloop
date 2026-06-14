@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { SiteShell } from "../../components/ui";
 import {
   buildListingsPath,
@@ -13,12 +14,31 @@ import {
   type ListingsPayload,
   type SearchSuggestionsPayload
 } from "../../lib/api";
+import {
+  buildFilteredBrowseNoIndexMetadata,
+  buildPublicPageMetadata
+} from "../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
 type BrowsePageProps = {
   searchParams?: Promise<BrowseSearchParams>;
 };
+
+export async function generateMetadata({ searchParams }: BrowsePageProps): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+
+  if (hasBrowseSeoFilters(resolvedSearchParams)) {
+    return buildFilteredBrowseNoIndexMetadata();
+  }
+
+  return buildPublicPageMetadata({
+    title: "Browse baby and child essentials",
+    description:
+      "Explore parent-owned BabyLoop listings by category, condition, price, photos, saved searches, and second-hand buying guidance.",
+    path: "/browse"
+  });
+}
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const resolvedSearchParams = await searchParams;
@@ -79,4 +99,29 @@ function buildSearchSuggestionsPath(query: string): string | null {
   });
 
   return `/api/v1/search-suggestions?${params.toString()}`;
+}
+
+function hasBrowseSeoFilters(searchParams: BrowseSearchParams): boolean {
+  if (!searchParams) {
+    return false;
+  }
+
+  return [
+    searchParams.q,
+    searchParams.categoryId,
+    searchParams.condition,
+    searchParams.listingType,
+    searchParams.priceMin,
+    searchParams.priceMax,
+    searchParams.hasImages,
+    searchParams.offset
+  ].some((value) => readSeoParam(value).trim().length > 0);
+}
+
+function readSeoParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
 }

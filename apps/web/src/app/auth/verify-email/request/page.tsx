@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
+import { buildNoIndexMetadata } from "../../../../lib/seo";
 import { SiteShell } from "../../../../components/ui";
 import { AuthLinkNote } from "../../../../features/auth/auth-link-note";
 import { AuthPageShell } from "../../../../features/auth/auth-page-shell";
 import { RequestEmailVerificationForm } from "../../../../features/auth/request-email-verification-form";
 import { getApiBaseUrl } from "../../../../lib/api";
 import { AuthSurfaceGuide } from "../../../../features/auth/auth-surface-guide";
+
+export const metadata: Metadata = buildNoIndexMetadata(
+  "Request email verification",
+  "BabyLoop email verification request pages are not indexed."
+);
 
 export default function RequestEmailVerificationPage() {
   return (

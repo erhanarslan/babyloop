@@ -16,6 +16,11 @@ import {
   type ListingsPayload,
   type SearchSuggestionsPayload
 } from "../../../lib/api";
+import {
+  buildCategoryMetadata,
+  buildFilteredBrowseNoIndexMetadata,
+  buildNoIndexMetadata
+} from "../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -26,20 +31,22 @@ type CategoryPageProps = {
   searchParams?: Promise<BrowseSearchParams>;
 };
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
   const slug = decodeURIComponent((await params)?.slug ?? "");
   const category = await findCategoryBySlug(slug);
 
   if (!category) {
-    return {
-      title: "BabyLoop category"
-    };
+    return buildNoIndexMetadata(
+      "BabyLoop category",
+      "This BabyLoop category could not be found."
+    );
   }
 
-  return {
-    title: `${category.name} | BabyLoop`,
-    description: `Browse parent-owned BabyLoop listings in ${category.name}. Use filters, saved searches, and parent guides to compare safer second-hand options.`
-  };
+  if (hasCategorySeoFilters(await searchParams)) {
+    return buildFilteredBrowseNoIndexMetadata(`${category.name} filtered listings`);
+  }
+
+  return buildCategoryMetadata(category);
 }
 
 export default async function CategoryLandingPage({ params, searchParams }: CategoryPageProps) {
@@ -135,6 +142,30 @@ function resolveOffsetForCategoryPage(searchParams: BrowseSearchParams): number 
 }
 
 function readParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
+
+function hasCategorySeoFilters(searchParams: BrowseSearchParams): boolean {
+  if (!searchParams) {
+    return false;
+  }
+
+  return [
+    searchParams.q,
+    searchParams.condition,
+    searchParams.listingType,
+    searchParams.priceMin,
+    searchParams.priceMax,
+    searchParams.hasImages,
+    searchParams.offset
+  ].some((value) => readSeoParam(value).trim().length > 0);
+}
+
+function readSeoParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return value[0] ?? "";
   }
