@@ -99,7 +99,7 @@ export function PublicNavigationDrawer() {
       <button
         aria-expanded={isOpen}
         aria-controls="public-navigation-drawer"
-        className="public-nav-toggle"
+        className={isOpen ? "public-nav-toggle open" : "public-nav-toggle"}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >

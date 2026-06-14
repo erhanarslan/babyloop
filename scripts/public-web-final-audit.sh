@@ -20,6 +20,14 @@ echo "=== web typecheck ==="
 pnpm --filter @babyloop/web typecheck
 
 echo
+echo "=== public web client directive audit ==="
+./scripts/public-web-client-directive-audit.sh
+
+echo
+echo "=== web build ==="
+pnpm --filter @babyloop/web build
+
+echo
 echo "=== public web strict privacy grep ==="
 grep -R "exactBirth\|birthDate\|dateOfBirth\|document.cookie\|sessionStorage\|refreshToken\|passwordHash\|message.body\|rawPrompt\|rawResponse\|userAgent\|referrer" -n \
   apps/web/src/app \
@@ -56,6 +64,10 @@ grep -R "BabyLoop Assistant\|Parent guide\|Common misconception\|Marketplace gui
   apps/web/src/app \
   apps/web/src/features \
   | sort || true
+
+echo
+echo "=== copy audit helper ==="
+echo "Run ./scripts/public-web-copy-audit.sh when reducing hardcoded copy and moving text to dictionaries."
 
 echo
 echo "Public web audit completed."
