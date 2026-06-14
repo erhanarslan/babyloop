@@ -8,16 +8,25 @@ import {
   type NotificationUnreadCountUpdatedPayload
 } from "@babyloop/shared";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, EmptyState, LoadingBlock, PageContainer, PageHeading } from "../../components/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  LoadingBlock,
+  PageContainer,
+  PageHeading
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getAuthToken } from "../../lib/auth-client";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
-import { formatDateTime } from "../listings/listing-display";
 import { AccountSurfaceGuide } from "../account/account-surface-guide";
+import { formatDateTime } from "../listings/listing-display";
 import {
   fetchNotifications,
   fetchUnreadNotificationCount,
@@ -25,22 +34,46 @@ import {
   markNotificationRead,
   type Notification
 } from "./api";
+import { dispatchNotificationUnreadCountUpdated } from "./unread-count-events";
 
 type NotificationsPageContentProps = {
   apiBaseUrl: string;
 };
 
+type NotificationFilter = "all" | "unread" | "messages" | "listings" | "seller";
+
+const FILTERS: NotificationFilter[] = ["all", "unread", "messages", "listings", "seller"];
+
+const activityWorkflowSteps = [
+  {
+    title: "Triage",
+    body: "Open unread updates first, then separate messages from listing activity."
+  },
+  {
+    title: "Act",
+    body: "Jump to the linked conversation, listing, or seller workspace only when the update needs action."
+  },
+  {
+    title: "Clear",
+    body: "Mark items read after review so header counts, inbox state, and realtime feedback stay aligned."
+  }
+];
+
 export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageContentProps) {
   const { dictionary, locale } = useI18n();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const clearProtectedState = useCallback(() => {
     setNotifications([]);
     setUnreadCount(0);
+    setActiveFilter("all");
+    setPendingNotificationId(null);
     setMessage(null);
     setActionMessage(null);
     setIsLoading(false);
@@ -63,8 +96,12 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         return;
       }
 
-      setNotifications(body.data.notifications);
-      setUnreadCount(body.data.notifications.filter((notification) => !notification.readAt).length);
+      const nextNotifications = sortNotifications(body.data.notifications);
+      const nextUnreadCount = nextNotifications.filter((notification) => !notification.readAt).length;
+
+      setNotifications(nextNotifications);
+      setUnreadCount(nextUnreadCount);
+      dispatchNotificationUnreadCountUpdated(nextUnreadCount);
       setMessage(null);
     } catch {
       setMessage(dictionary.common.apiUnavailable);
@@ -91,11 +128,14 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
     const realtimeSocket = socket;
 
     function handleNotificationCreated(payload: NotificationCreatedPayload) {
-      setNotifications((currentNotifications) => [
-        payload.notification,
-        ...currentNotifications.filter((notification) => notification.id !== payload.notification.id)
-      ]);
+      setNotifications((currentNotifications) =>
+        sortNotifications([
+          payload.notification,
+          ...currentNotifications.filter((notification) => notification.id !== payload.notification.id)
+        ])
+      );
       setUnreadCount(payload.unreadCount);
+      dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
 
     function handleNotificationRead(payload: NotificationReadPayload) {
@@ -107,6 +147,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         )
       );
       setUnreadCount(payload.unreadCount);
+      dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
 
     function handleNotificationReadAll(payload: NotificationReadAllPayload) {
@@ -118,10 +159,12 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         }))
       );
       setUnreadCount(payload.unreadCount);
+      dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
 
     function handleUnreadCountUpdated(payload: NotificationUnreadCountUpdatedPayload) {
       setUnreadCount(payload.unreadCount);
+      dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
 
     realtimeSocket.on(REALTIME_EVENTS.notificationCreated, handleNotificationCreated);
@@ -139,8 +182,16 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
     };
   }, [apiBaseUrl, isCheckingAuth, isLoading, loadNotifications, message]);
 
+  const metrics = useMemo(() => buildNotificationMetrics(notifications), [notifications]);
+  const filteredNotifications = useMemo(
+    () =>
+      sortNotifications(notifications.filter((notification) => matchesFilter(notification, activeFilter))),
+    [activeFilter, notifications]
+  );
+
   async function handleMarkRead(notificationId: string) {
     setActionMessage(null);
+    setPendingNotificationId(notificationId);
 
     try {
       const body = await markNotificationRead(apiBaseUrl, notificationId);
@@ -160,9 +211,12 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
 
       if (unreadBody.ok) {
         setUnreadCount(unreadBody.data.count);
+        dispatchNotificationUnreadCountUpdated(unreadBody.data.count);
       }
     } catch {
       setActionMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setPendingNotificationId(null);
     }
   }
 
@@ -186,6 +240,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         }))
       );
       setUnreadCount(0);
+      dispatchNotificationUnreadCountUpdated(0);
     } catch {
       setActionMessage(dictionary.common.apiUnavailable);
     } finally {
@@ -200,11 +255,23 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         title={dictionary.notifications.title}
         description={dictionary.notifications.description}
       />
-      <PageContainer className="notifications-layout">
+      <PageContainer className="notification-center-layout notifications-layout">
+        <NotificationCenterHero unreadCount={unreadCount} />
+
+        <section className="notification-workflow-grid" aria-label="Notification workflow">
+          {activityWorkflowSteps.map((step, index) => (
+            <Card as="article" className="notification-workflow-card" key={step.title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <h2>{step.title}</h2>
+              <p>{step.body}</p>
+            </Card>
+          ))}
+        </section>
+
         <AccountSurfaceGuide kind="notifications" />
 
         {isCheckingAuth || isLoading ? (
-          <LoadingBlock title={dictionary.notifications.loading} />
+          <LoadingBlock title={dictionary.notifications.loading} message="Fetching marketplace updates safely." />
         ) : message ? (
           <EmptyState
             title={dictionary.notifications.unavailable}
@@ -213,8 +280,25 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
             actionLabel={dictionary.common.login}
           />
         ) : (
-          <section className="notifications-panel" aria-label={dictionary.notifications.title}>
-            <div className="notifications-toolbar">
+          <section className="notifications-panel notification-inbox-panel" aria-label={dictionary.notifications.title}>
+            <NotificationOverview metrics={metrics} unreadCount={unreadCount} />
+
+            <div className="notification-filter-tabs" aria-label="Filter notifications">
+              {FILTERS.map((filter) => (
+                <button
+                  aria-pressed={activeFilter === filter}
+                  className={activeFilter === filter ? "active" : ""}
+                  key={filter}
+                  type="button"
+                  onClick={() => setActiveFilter(filter)}
+                >
+                  {getFilterLabel(filter)}
+                  <span>{getFilterCount(metrics, filter)}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="notifications-toolbar notification-toolbar-polished">
               <p>
                 {dictionary.notifications.unreadCount.replace("{count}", String(unreadCount))}
               </p>
@@ -239,10 +323,16 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
                 title={dictionary.notifications.emptyTitle}
                 message={dictionary.notifications.emptyBody}
               />
+            ) : filteredNotifications.length === 0 ? (
+              <EmptyState
+                title="No notifications in this filter"
+                message="Switch filters or wait for new marketplace activity."
+              />
             ) : (
-              <ol className="notification-list">
-                {notifications.map((notification) => (
+              <ol className="notification-list notification-list-polished">
+                {filteredNotifications.map((notification) => (
                   <NotificationItem
+                    isPending={pendingNotificationId === notification.id}
                     key={notification.id}
                     notification={notification}
                     locale={locale}
@@ -258,11 +348,86 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
   );
 }
 
+function NotificationCenterHero({ unreadCount }: { unreadCount: number }) {
+  return (
+    <Card as="section" className="notification-center-hero" aria-label="Notification center overview">
+      <div>
+        <p className="eyebrow">Activity inbox</p>
+        <h2>Review marketplace updates without exposing unnecessary identity details.</h2>
+        <p>
+          Notifications connect messages, listing status changes, and privacy-safe seller activity.
+          Favorite notifications stay actor-anonymous by design.
+        </p>
+        <div className="notification-hero-actions">
+          <Link href="/conversations">Messages</Link>
+          <Link href="/my-listings">My listings</Link>
+          <Link href="/favorites">Saved listings</Link>
+        </div>
+      </div>
+
+      <aside className="notification-hero-principles" aria-label="Notification center principles">
+        <div>
+          <span>Unread</span>
+          <strong>{unreadCount}</strong>
+        </div>
+        <div>
+          <span>Privacy</span>
+          <strong>No favorite actor identity</strong>
+        </div>
+        <div>
+          <span>Realtime</span>
+          <strong>Header badge stays synced</strong>
+        </div>
+      </aside>
+    </Card>
+  );
+}
+
+function NotificationOverview({
+  metrics,
+  unreadCount
+}: {
+  metrics: ReturnType<typeof buildNotificationMetrics>;
+  unreadCount: number;
+}) {
+  return (
+    <Card as="section" className="notification-overview" aria-label="Notification summary">
+      <div>
+        <p className="eyebrow">Inbox summary</p>
+        <h2>Prioritize updates that need action</h2>
+        <p>
+          Messages usually need the fastest review. Listing activity and status updates can be cleared after
+          you check the related listing or seller workspace.
+        </p>
+      </div>
+
+      <div className="notification-metrics">
+        <MetricCard label="Total" value={metrics.total} />
+        <MetricCard label="Unread" value={unreadCount} />
+        <MetricCard label="Messages" value={metrics.messages} />
+        <MetricCard label="Listings" value={metrics.listings} />
+        <MetricCard label="Seller" value={metrics.seller} />
+      </div>
+    </Card>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="notification-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function NotificationItem({
+  isPending,
   locale,
   notification,
   onMarkRead
 }: {
+  isPending: boolean;
   locale: "en" | "tr";
   notification: Notification;
   onMarkRead: (notificationId: string) => Promise<void>;
@@ -272,22 +437,36 @@ function NotificationItem({
   const actionLabel = getNotificationActionLabel(notification, dictionary);
   const displayText = getNotificationDisplayText(notification, dictionary);
   const isUnread = !notification.readAt;
+  const notificationKind = getNotificationKind(notification);
 
   return (
-    <li className={isUnread ? "notification-item notification-item-unread" : "notification-item"}>
-      <div>
-        <p className="listing-meta">{dictionary.notifications.typeLabels[notification.type]}</p>
-        <h2>{displayText.title}</h2>
+    <li className={isUnread ? "notification-item notification-item-unread notification-item-polished" : "notification-item notification-item-polished"}>
+      <div className="notification-item-main">
+        <div className="notification-item-heading">
+          <div>
+            <p className="listing-meta">{dictionary.notifications.typeLabels[notification.type]}</p>
+            <h2>{displayText.title}</h2>
+          </div>
+          <Badge tone={isUnread ? "warning" : "neutral"}>
+            {isUnread ? "Unread" : dictionary.notifications.read}
+          </Badge>
+        </div>
+
         <p className="notification-body">{displayText.body}</p>
-        <time>{formatDateTime(notification.createdAt, locale)}</time>
+
+        <div className="notification-context-strip">
+          <span>{notificationKind}</span>
+          <time>{formatDateTime(notification.createdAt, locale)}</time>
+        </div>
       </div>
-      <div className="notification-actions">
+
+      <div className="notification-actions notification-actions-polished">
         {destination ? (
           <Link href={destination}>{actionLabel}</Link>
         ) : null}
         {isUnread ? (
-          <button type="button" onClick={() => void onMarkRead(notification.id)}>
-            {dictionary.notifications.markAsRead}
+          <button disabled={isPending} type="button" onClick={() => void onMarkRead(notification.id)}>
+            {isPending ? "Marking..." : dictionary.notifications.markAsRead}
           </button>
         ) : (
           <span>{dictionary.notifications.read}</span>
@@ -305,6 +484,20 @@ function getNotificationDisplayText(
     return {
       title: dictionary.notifications.listingFavorited,
       body: dictionary.notifications.listingFavoritedBody
+    };
+  }
+
+  if (notification.type === "message_received") {
+    return {
+      title: dictionary.notifications.messageReceived,
+      body: notification.body
+    };
+  }
+
+  if (notification.type === "listing_status_changed") {
+    return {
+      title: dictionary.notifications.listingStatusChanged,
+      body: notification.body
     };
   }
 
@@ -338,12 +531,121 @@ function getNotificationActionLabel(
     return dictionary.notifications.viewConversation;
   }
 
-  if (
-    notification.type === "listing_favorited" ||
-    notification.type === "listing_status_changed"
-  ) {
+  if (notification.type === "listing_favorited") {
+    return "Review seller workspace";
+  }
+
+  if (notification.type === "listing_status_changed") {
     return dictionary.notifications.viewListing;
   }
 
   return dictionary.common.viewDetails;
+}
+
+function buildNotificationMetrics(notifications: Notification[]) {
+  return notifications.reduce(
+    (metrics, notification) => {
+      metrics.total += 1;
+
+      if (!notification.readAt) {
+        metrics.unread += 1;
+      }
+
+      if (notification.type === "message_received") {
+        metrics.messages += 1;
+      }
+
+      if (notification.type === "listing_status_changed") {
+        metrics.listings += 1;
+      }
+
+      if (notification.type === "listing_favorited") {
+        metrics.seller += 1;
+      }
+
+      return metrics;
+    },
+    {
+      total: 0,
+      unread: 0,
+      messages: 0,
+      listings: 0,
+      seller: 0
+    }
+  );
+}
+
+function matchesFilter(notification: Notification, filter: NotificationFilter): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "unread") {
+    return !notification.readAt;
+  }
+
+  if (filter === "messages") {
+    return notification.type === "message_received";
+  }
+
+  if (filter === "listings") {
+    return notification.type === "listing_status_changed";
+  }
+
+  return notification.type === "listing_favorited";
+}
+
+function getFilterLabel(filter: NotificationFilter): string {
+  const labels = {
+    all: "All",
+    unread: "Unread",
+    messages: "Messages",
+    listings: "Listings",
+    seller: "Seller activity"
+  };
+
+  return labels[filter];
+}
+
+function getFilterCount(
+  metrics: ReturnType<typeof buildNotificationMetrics>,
+  filter: NotificationFilter
+): number {
+  if (filter === "all") {
+    return metrics.total;
+  }
+
+  if (filter === "unread") {
+    return metrics.unread;
+  }
+
+  if (filter === "messages") {
+    return metrics.messages;
+  }
+
+  if (filter === "listings") {
+    return metrics.listings;
+  }
+
+  return metrics.seller;
+}
+
+function getNotificationKind(notification: Notification): string {
+  if (notification.type === "message_received") {
+    return "Conversation update";
+  }
+
+  if (notification.type === "listing_favorited") {
+    return "Privacy-safe seller signal";
+  }
+
+  if (notification.type === "listing_status_changed") {
+    return "Listing lifecycle update";
+  }
+
+  return "Marketplace update";
+}
+
+function sortNotifications(notifications: Notification[]): Notification[] {
+  return [...notifications].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
