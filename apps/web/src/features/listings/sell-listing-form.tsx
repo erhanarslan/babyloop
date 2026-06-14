@@ -51,6 +51,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasCategories = categories.length > 0;
+  const hasListingSuggestion = Boolean(suggestion);
+  const hasPriceSuggestion = Boolean(priceSuggestion);
   const clearSelectedImages = useCallback(() => {
     setSelectedImages((currentImages) => {
       currentImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
@@ -230,9 +232,23 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     <form className="listing-form" ref={formRef} onSubmit={handleSubmit}>
       <SellAiWorkflowCallout />
 
+      <SellDraftProgress
+        categoriesAvailable={hasCategories}
+        hasListingSuggestion={hasListingSuggestion}
+        hasPriceSuggestion={hasPriceSuggestion}
+        selectedImagesCount={selectedImages.length}
+      />
+
+      {!hasCategories ? (
+        <Alert
+          title={dictionary.listings.categoriesUnavailable}
+          message="Categories are required before a listing can be published. You can still review the seller guidance while the API recovers."
+        />
+      ) : null}
+
       <SellListingFields categories={categories} />
 
-      <section className="image-upload-panel" aria-label={dictionary.listings.images}>
+      <section className="image-upload-panel image-upload-panel-product" aria-label={dictionary.listings.images}>
         <div className="image-upload-header">
           <div>
             <label className="file-upload-label">
@@ -254,6 +270,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           <div className="image-upload-empty">
             <strong>Photos help families decide faster.</strong>
             <span>Use clear JPG, PNG, or WEBP photos. BabyLoop validates image safety during upload.</span>
+            <ul className="image-upload-tips">
+              <li>Show the full item and the most worn area.</li>
+              <li>Include accessories, labels, or missing parts when relevant.</li>
+              <li>Avoid private address, phone, or personal documents in photos.</li>
+            </ul>
           </div>
         ) : null}
 
@@ -311,9 +332,13 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         />
       ) : null}
 
-      <SellPublishChecklist selectedImagesCount={selectedImages.length} />
+      <SellPublishChecklist
+        hasListingSuggestion={hasListingSuggestion}
+        hasPriceSuggestion={hasPriceSuggestion}
+        selectedImagesCount={selectedImages.length}
+      />
 
-      <div className="form-actions">
+      <div className="form-actions form-actions-product">
         <p className="form-note">{dictionary.listings.formTrustNote}</p>
         <div className="form-button-row">
           <Button
@@ -345,6 +370,67 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   );
 }
 
+function SellDraftProgress({
+  categoriesAvailable,
+  hasListingSuggestion,
+  hasPriceSuggestion,
+  selectedImagesCount
+}: {
+  categoriesAvailable: boolean;
+  hasListingSuggestion: boolean;
+  hasPriceSuggestion: boolean;
+  selectedImagesCount: number;
+}) {
+  const progressItems = [
+    {
+      label: "Category",
+      value: categoriesAvailable ? "Ready" : "Waiting",
+      isComplete: categoriesAvailable
+    },
+    {
+      label: "Photos",
+      value: `${selectedImagesCount}/5`,
+      isComplete: selectedImagesCount > 0
+    },
+    {
+      label: "AI draft",
+      value: hasListingSuggestion ? "Reviewed" : "Optional",
+      isComplete: hasListingSuggestion
+    },
+    {
+      label: "Price",
+      value: hasPriceSuggestion ? "Suggested" : "Manual",
+      isComplete: hasPriceSuggestion
+    }
+  ];
+
+  return (
+    <section className="sell-draft-progress" aria-label="Listing draft progress">
+      <div>
+        <p className="eyebrow">Draft progress</p>
+        <h2>Prepare enough context before publishing.</h2>
+        <p>
+          Required fields create the listing. Photos, AI suggestions, and price guidance increase clarity
+          but still need your final review.
+        </p>
+      </div>
+
+      <div className="sell-progress-grid">
+        {progressItems.map((item) => (
+          <div
+            className="sell-progress-card"
+            data-state={item.isComplete ? "complete" : "pending"}
+            key={item.label}
+          >
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SellAiWorkflowCallout() {
   return (
     <section className="ai-sell-workflow-callout" aria-label="AI listing workflow">
@@ -365,7 +451,15 @@ function SellAiWorkflowCallout() {
   );
 }
 
-function SellPublishChecklist({ selectedImagesCount }: { selectedImagesCount: number }) {
+function SellPublishChecklist({
+  hasListingSuggestion,
+  hasPriceSuggestion,
+  selectedImagesCount
+}: {
+  hasListingSuggestion: boolean;
+  hasPriceSuggestion: boolean;
+  selectedImagesCount: number;
+}) {
   return (
     <section className="sell-publish-checklist" aria-label="Publish checklist">
       <div>
@@ -374,10 +468,11 @@ function SellPublishChecklist({ selectedImagesCount }: { selectedImagesCount: nu
       </div>
 
       <ul className="question-list">
-        <li>Condition, missing parts, and included accessories are clearly described.</li>
-        <li>{selectedImagesCount > 0 ? "Photos are attached." : "Add photos if possible; they help families decide faster."}</li>
-        <li>No private contact details are needed in the public listing.</li>
-        <li>Price is reviewed manually even if an AI suggestion was applied.</li>
+        <li>Condition, missing parts, included accessories, and pickup expectations are clearly described.</li>
+        <li>{selectedImagesCount > 0 ? "Photos are attached and should avoid private contact details." : "Add photos if possible; they help families decide faster."}</li>
+        <li>{hasListingSuggestion ? "AI draft suggestions were applied or reviewed manually." : "AI draft help is optional; the listing can still be created manually."}</li>
+        <li>{hasPriceSuggestion ? "AI price guidance was reviewed before publishing." : "Price is reviewed manually before publishing."}</li>
+        <li>No phone, address, email, or private child details are needed in the public listing.</li>
       </ul>
     </section>
   );

@@ -256,9 +256,9 @@ export const dictionaries = {
         archived: "Archived"
       },
       sellEyebrow: "Sell on BabyLoop",
-      sellTitle: "Create a listing",
+      sellTitle: "Create a trusted BabyLoop listing",
       sellDescription:
-        "Add clear details so parents understand condition, pickup, included items, and price before they message you.",
+        "Prepare condition notes, photos, pickup context, included parts, and price details so parents can decide with confidence before they message you.",
       createAriaLabel: "Create listing form",
       listingsUnavailable: "Listings are unavailable",
       category: "Category",
@@ -287,7 +287,7 @@ export const dictionaries = {
       requiredFields: "Please complete the required fields.",
       loginBeforeCreate: "Please log in before creating a listing.",
       createFailed: "Listing could not be created",
-      formTrustNote: "Make the listing easy to trust with clear condition and pickup details.",
+      formTrustNote: "Publish only after the details, photos, price, and privacy checks are clear.",
       suggestListingDetails: "Suggest listing details",
       suggesting: "Suggesting...",
       creating: "Creating...",
@@ -806,9 +806,9 @@ export const dictionaries = {
         archived: "Arşivlendi"
       },
       sellEyebrow: "BabyLoop'ta sat",
-      sellTitle: "İlan oluştur",
+      sellTitle: "Güvenilir bir BabyLoop ilanı oluştur",
       sellDescription:
-        "Ebeveynlerin mesaj atmadan önce durum, teslim, dahil olan parçalar ve fiyatı anlayabilmesi için net detaylar ekle.",
+        "Ebeveynlerin mesaj atmadan önce güvenle karar verebilmesi için durum notları, fotoğraflar, teslim bilgisi, dahil parçalar ve fiyat detaylarını hazırla.",
       createAriaLabel: "İlan oluşturma formu",
       listingsUnavailable: "İlanlar kullanılamıyor",
       category: "Kategori",
@@ -837,7 +837,7 @@ export const dictionaries = {
       requiredFields: "Lütfen gerekli alanları doldur.",
       loginBeforeCreate: "İlan oluşturmadan önce lütfen giriş yap.",
       createFailed: "İlan oluşturulamadı",
-      formTrustNote: "Net durum ve teslim detaylarıyla ilana güven kazandır.",
+      formTrustNote: "Detaylar, fotoğraflar, fiyat ve gizlilik kontrolleri netleşmeden ilanı yayınlama.",
       suggestListingDetails: "İlan detayları öner",
       suggesting: "Öneriliyor...",
       creating: "Oluşturuluyor...",
