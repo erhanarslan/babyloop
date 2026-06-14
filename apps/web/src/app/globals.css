@@ -2199,274 +2199,263 @@ body {
 }
 
 /* Mobile marketplace surface polish */
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
 @media (max-width: 900px) {
   .browse-layout,
   .detail-layout,
   .sell-layout,
-  .conversations-layout,
-  .notifications-layout,
   .assistant-layout,
+  .message-thread-layout,
+  .notifications-layout,
+  .conversations-layout,
   .listing-column,
   .conversation-list,
-  .message-thread-layout,
   .detail-media,
   .detail-gallery {
+    grid-template-columns: 1fr !important;
     min-width: 0;
+    width: 100%;
   }
 
   .filter-panel,
-  .listing-card,
-  .listing-card-body,
   .detail-panel,
+  .form-panel,
   .thread-panel,
   .notifications-panel,
-  .form-panel,
-  .seller-insight-callout,
-  .buyer-guidance-card,
   .assistant-hero-card,
   .assistant-chat-shell,
   .assistant-safety-boundary,
-  .conversation-safety-guide,
-  .conversation-safety-overview,
-  .message-composer-guidance {
+  .browse-discovery-panel,
+  .seller-insight-callout,
+  .buyer-guidance-card,
+  .seller-card,
+  .parent-guide-listing-card,
+  .summary-card {
     max-width: 100%;
     min-width: 0;
   }
 
-  .listing-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .listing-grid,
+  .summary-grid,
+  .assistant-mode-grid,
+  .buyer-guidance-grid,
+  .related-listings-grid,
+  .image-preview-list {
+    grid-template-columns: 1fr !important;
   }
 
-  .browse-discovery-panel,
   .browse-discovery-main,
-  .active-filter-panel,
-  .save-search-panel {
-    min-width: 0;
-  }
-
   .browse-discovery-actions,
-  .browse-discovery-counts,
   .browse-suggestion-strip,
   .search-suggestion-links,
+  .home-personalization-actions,
+  .assistant-hero-card,
+  .assistant-hero-actions,
+  .assistant-action-row,
+  .detail-actions,
+  .listing-card-footer,
+  .notification-actions,
+  .notifications-toolbar,
+  .form-actions,
+  .conversation-card-header,
+  .thread-meta-grid p,
+  .message-composer .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .browse-discovery-actions a,
+  .browse-suggestion-strip a,
+  .search-suggestion-links a,
+  .home-personalization-actions a,
+  .home-personalization-actions button,
+  .assistant-hero-actions a,
+  .assistant-action-row a,
+  .detail-actions a,
+  .detail-actions button,
+  .listing-card-footer a,
+  .listing-card-footer button,
+  .notification-actions a,
+  .notification-actions button,
+  .notification-actions span,
+  .form-actions button,
+  .form-actions a,
+  .message-composer .form-actions button {
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+  }
+
   .filter-chip-list,
-  .saved-search-chip-list,
   .listing-card-badges,
-  .listing-card-actions,
   .tag-list,
-  .notification-actions {
+  .form-button-row {
     min-width: 0;
   }
 
   .filter-chip,
-  .browse-discovery-actions a,
-  .search-suggestion-links a,
-  .home-personalization-actions a,
-  .notification-actions a,
-  .notification-actions button,
-  .notification-actions span {
+  .ui-badge,
+  .listing-card-badges > *,
+  .tag-list > * {
     max-width: 100%;
     overflow-wrap: anywhere;
-    text-align: center;
+    white-space: normal;
   }
 
-  .detail-actions,
-  .form-actions,
-  .home-personalization-actions,
-  .assistant-action-row,
-  .listing-card-footer {
-    gap: 0.65rem;
-  }
-
-  .detail-actions a,
-  .detail-actions button,
-  .form-actions a,
-  .form-actions button,
-  .home-personalization-actions a,
-  .assistant-action-row a,
-  .listing-card-footer a,
-  .notification-actions a,
-  .notification-actions button {
-    min-height: 2.75rem;
-  }
-}
-
-@media (max-width: 700px) {
-  .page-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .page-heading {
-    padding-bottom: 1.25rem;
-  }
-
-  .page-heading h1,
-  .assistant-hero-card h1,
-  .detail-panel h1 {
-    font-size: clamp(1.85rem, 8vw, 2.45rem);
-    line-height: 1.08;
-  }
-
-  .filter-panel,
-  .listing-card-body,
-  .detail-panel,
-  .thread-panel,
-  .notifications-panel,
+  .listing-card,
+  .favorite-card,
+  .conversation-card,
+  .notification-item,
   .form-panel,
-  .assistant-hero-card,
-  .assistant-chat-shell,
-  .assistant-safety-boundary,
-  .conversation-safety-guide,
-  .conversation-safety-overview {
+  .thread-panel,
+  .assistant-message-card,
+  .assistant-topic-panel {
+    overflow: hidden;
+  }
+
+  .listing-card-body,
+  .filter-panel,
+  .detail-panel,
+  .conversation-card,
+  .notification-item,
+  .notifications-panel,
+  .thread-panel,
+  .form-panel {
     padding: 1rem;
   }
 
-  .browse-discovery-panel,
-  .seller-insight-callout,
-  .active-filter-panel,
-  .save-search-panel,
-  .buyer-guidance-card {
-    padding: 1rem;
+  .listing-image-frame,
+  .listing-image-fallback,
+  .listing-image {
+    min-height: 13rem;
   }
 
-  .listing-card-footer,
-  .detail-facts div,
-  .conversation-card-header,
-  .conversation-card-meta p,
-  .thread-meta-grid p,
-  .notifications-toolbar,
-  .message-composer-meta {
-    align-items: stretch;
+  .listing-card-image {
+    min-height: 13rem;
+  }
+
+  .detail-image-primary {
+    min-height: 18rem;
+  }
+
+  .detail-facts div {
+    align-items: flex-start;
     flex-direction: column;
+    gap: 0.35rem;
   }
 
   .detail-facts dd {
     text-align: left;
   }
 
-  .detail-price {
-    display: block;
-    font-size: clamp(1.6rem, 9vw, 2.25rem);
-    line-height: 1;
+  .seller-card {
+    grid-template-columns: auto 1fr;
   }
 
-  .detail-image-primary {
-    min-height: 260px;
+  .compact-details,
+  .buyer-guidance-facts,
+  .thread-meta-grid {
+    min-width: 0;
   }
 
-  .listing-card-image {
-    min-height: 210px;
+  .assistant-chat-shell,
+  .assistant-chat-messages,
+  .message-thread-layout,
+  .message-list {
+    min-width: 0;
+    overflow-x: hidden;
   }
 
-  .image-preview-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .image-preview-list img {
-    height: 11rem;
-  }
-
-  .form-button-row,
-  .notification-actions,
-  .assistant-hero-actions,
-  .assistant-action-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .form-button-row button,
-  .form-button-row a,
-  .notification-actions a,
-  .notification-actions button,
-  .assistant-hero-actions a,
-  .assistant-action-row a {
-    justify-content: center;
+  .assistant-composer textarea,
+  .message-composer textarea,
+  .listing-form input,
+  .listing-form select,
+  .listing-form textarea,
+  .filter-panel input,
+  .filter-panel select {
+    max-width: 100%;
+    min-width: 0;
     width: 100%;
   }
 
-  .assistant-mode-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .assistant-chat-messages {
-    max-height: min(62vh, 34rem);
-    overflow-y: auto;
-  }
-
-  .assistant-message-card,
-  .assistant-topic-panel {
-    overflow-wrap: anywhere;
-  }
-
-  .message-list {
-    padding-left: 0;
+  .assistant-selected-mode,
+  .assistant-message-heading,
+  .message-bubble div {
+    align-items: flex-start;
   }
 
   .message-bubble {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-
-  .message-composer textarea,
-  .assistant-composer textarea {
-    min-height: 8rem;
-  }
-
-  .notification-item {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .public-nav-toggle {
-    right: 0.65rem;
-    top: 0.65rem;
-  }
-
-  .browse-discovery-actions,
-  .search-suggestion-links,
-  .filter-chip-list,
-  .saved-search-chip-list,
-  .home-personalization-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .browse-discovery-actions a,
-  .search-suggestion-links a,
-  .filter-chip,
-  .saved-search-chip-list .filter-chip,
-  .home-personalization-actions a {
-    justify-content: center;
     width: 100%;
   }
 
-  .listing-card-body,
-  .detail-panel,
-  .thread-panel,
-  .notifications-panel,
-  .form-panel {
+  .message-bubble-own {
+    text-align: left;
+  }
+
+  .new-messages-button {
+    bottom: 1rem;
+    max-width: calc(100vw - 2rem);
+    width: fit-content;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-hero,
+  .home-section,
+  .home-safety-section,
+  .assistant-home-cta,
+  .browse-discovery-panel,
+  .seller-insight-callout,
+  .buyer-guidance-card {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .hero h1,
+  .home-hero h1 {
+    font-size: clamp(2.35rem, 12vw, 3.5rem);
+    line-height: 1.02;
+  }
+
+  .hero-text,
+  .home-hero p,
+  .detail-description {
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .listing-card-footer,
+  .detail-actions,
+  .notification-actions,
+  .form-actions,
+  .assistant-action-row,
+  .assistant-hero-actions,
+  .home-personalization-actions {
+    gap: 0.65rem;
+  }
+
+  .listing-card-footer a,
+  .listing-card-footer button,
+  .detail-actions a,
+  .detail-actions button,
+  .notification-actions a,
+  .notification-actions button,
+  .form-actions button,
+  .form-actions a {
+    min-height: 2.65rem;
+  }
+
+  .assistant-mode-card,
+  .assistant-message-card,
+  .assistant-topic-panel {
+    border-radius: 0.85rem;
     padding: 0.9rem;
   }
 
-  .listing-card-footer {
+  .notifications-toolbar {
     align-items: stretch;
   }
 
-  .listing-card-footer a {
-    justify-content: center;
+  .notifications-toolbar button {
     width: 100%;
   }
-
-  .assistant-selected-mode {
-    align-items: stretch;
-    flex-direction: column;
-  }
 }
-
