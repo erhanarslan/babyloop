@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type NavigationItem = {
   href: string;
@@ -89,6 +89,14 @@ const NAVIGATION_SECTIONS: NavigationSection[] = [
 
 export function PublicNavigationDrawer() {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("public-nav-open", isOpen);
+
+    return () => {
+      document.documentElement.classList.remove("public-nav-open");
+    };
+  }, [isOpen]);
 
   function closeDrawer() {
     setIsOpen(false);
