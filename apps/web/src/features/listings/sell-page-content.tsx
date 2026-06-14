@@ -1,5 +1,6 @@
-import Link from "next/link";
 "use client";
+
+import Link from "next/link";
 
 import { Alert, Card, PageContainer, PageHeading } from "../../components/ui";
 import type { Category } from "../../lib/api";
