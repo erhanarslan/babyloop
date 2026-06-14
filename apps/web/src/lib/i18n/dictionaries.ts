@@ -475,12 +475,12 @@ export const dictionaries = {
       }
     },
     marketplace: {
-      favoritesTitle: "Saved listings",
-      favoritesDescription: "Favorites are connected to your logged-in BabyLoop profile.",
+      favoritesTitle: "Saved listing shortlist",
+      favoritesDescription: "Compare saved listings, clean up stale items, and prepare better buyer questions before messaging sellers.",
       favoritesLogin: "Please log in to view your saved listings.",
       favoritesUnavailable: "Favorites unavailable",
       favoritesEmptyTitle: "No saved listings yet.",
-      favoritesEmptyBody: "Open a listing detail page and save items you want to revisit.",
+      favoritesEmptyBody: "Browse the marketplace, open listing details, and save items you want to compare before messaging.",
       loadingFavorites: "Loading saved listings",
       favoritesEyebrow: "Your profile",
       favoritesAriaLabel: "Favorite listings",
@@ -1025,12 +1025,12 @@ export const dictionaries = {
       }
     },
     marketplace: {
-      favoritesTitle: "Kaydedilen ilanlar",
-      favoritesDescription: "Favoriler giriş yaptığın BabyLoop profiline bağlıdır.",
+      favoritesTitle: "Kaydedilen ilan kısa listesi",
+      favoritesDescription: "Satıcılara mesaj atmadan önce kaydettiğin ilanları karşılaştır, eskimiş kayıtları temizle ve daha iyi alıcı soruları hazırla.",
       favoritesLogin: "Kaydettiğin ilanları görmek için lütfen giriş yap.",
       favoritesUnavailable: "Favoriler kullanılamıyor",
       favoritesEmptyTitle: "Henüz kaydedilmiş ilan yok.",
-      favoritesEmptyBody: "İlgilendiğin ürünleri tekrar bulmak için ilan detayından favorilere ekle.",
+      favoritesEmptyBody: "Pazarı keşfet, ilan detaylarını aç ve mesaj atmadan önce karşılaştırmak istediğin ürünleri kaydet.",
       loadingFavorites: "Kaydedilen ilanlar yükleniyor",
       favoritesEyebrow: "Profilin",
       favoritesAriaLabel: "Favori ilanlar",
