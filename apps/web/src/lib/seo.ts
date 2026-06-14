@@ -101,7 +101,7 @@ export function buildListingMetadata(listing: ListingDetail): Metadata {
 
   return buildPublicPageMetadata({
     title: listing.title,
-    description: `${listing.title} on BabyLoop: ${listing.category.name}, ${listing.condition}, ${priceText}. Review photos, seller-safe details, and buyer checks before messaging.`,
+    description: `${listing.title} on BabyLoop: ${listing.category.name}, ${listing.condition}, ${priceText}. Review photos, seller-safe details, buyer checklist, related listings, and messaging before meeting.`,
     path: `/listings/${listing.id}`,
     imageUrl,
     noIndex: !isIndexable

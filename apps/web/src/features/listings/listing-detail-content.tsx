@@ -54,6 +54,7 @@ export function ListingDetailContent({
   return (
     <PageContainer className="detail-layout">
       <RecentlyViewedTracker listing={listing} />
+      <DetailDecisionHero listing={listing} />
       <div className="detail-media">
         {listing.images.length > 0 ? (
           <div className="detail-gallery" aria-label={dictionary.listings.imageGalleryAriaLabel}>
@@ -76,6 +77,8 @@ export function ListingDetailContent({
             message={dictionary.listings.noPhotosBody}
           />
         )}
+
+        <ListingImageOverview listing={listing} />
       </div>
 
       <article className="detail-panel">
@@ -103,24 +106,38 @@ export function ListingDetailContent({
           {listing.description ?? dictionary.listings.noDescription}
         </p>
 
-        <BuyerGuidanceCard listing={listing} />
+        <ListingAvailabilityNotice listing={listing} />
 
-        <div className="detail-actions" aria-label={dictionary.listings.listingActionsAriaLabel}>
-          <FavoriteButton
-            apiBaseUrl={apiBaseUrl}
-            initiallyFavorited={false}
-            listingId={listing.id}
-          />
-          <MessageSellerButton
-            apiBaseUrl={apiBaseUrl}
-            categoryId={listing.category.id}
-            listingId={listing.id}
-            sellerProfileId={listing.seller.id}
-          />
-          <ReportAction
-            actionLabel={dictionary.safety.reportListing}
-            onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
-          />
+        <BuyerGuidanceCard listing={listing} />
+        <ListingDecisionSummary listing={listing} />
+
+        <div className="detail-action-panel">
+          <div className="detail-action-panel-header">
+            <p className="listing-meta">Next step</p>
+            <h2>Save, ask, message, or report before moving forward</h2>
+            <p>
+              Keep the decision inside BabyLoop until the listing details, pickup expectations,
+              and seller answers are clear.
+            </p>
+          </div>
+
+          <div className="detail-actions" aria-label={dictionary.listings.listingActionsAriaLabel}>
+            <FavoriteButton
+              apiBaseUrl={apiBaseUrl}
+              initiallyFavorited={false}
+              listingId={listing.id}
+            />
+            <MessageSellerButton
+              apiBaseUrl={apiBaseUrl}
+              categoryId={listing.category.id}
+              listingId={listing.id}
+              sellerProfileId={listing.seller.id}
+            />
+            <ReportAction
+              actionLabel={dictionary.safety.reportListing}
+              onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
+            />
+          </div>
         </div>
 
         <SellerCard listing={listing} />
@@ -171,6 +188,136 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
         </Link>
       </PageContainer>
     </>
+  );
+}
+
+function DetailDecisionHero({ listing }: { listing: ListingDetailPayload["listing"] }) {
+  const { dictionary, locale } = useI18n();
+  const categoryName = formatCategoryName(listing.category, dictionary);
+  const status = formatListingStatus(listing.status, dictionary);
+  const isAvailable = listing.status === "active" || listing.status === "reserved";
+
+  return (
+    <Card as="section" className="detail-decision-hero" aria-label="Listing buyer decision summary">
+      <div>
+        <Link className="back-link" href={`/categories/${listing.category.slug}`}>
+          Browse {categoryName}
+        </Link>
+        <p className="eyebrow">Buyer decision page</p>
+        <h1>{listing.title}</h1>
+        <p>
+          Review price, condition, photos, seller-safe context, parent guidance, and safer buying
+          checks before messaging. {isAvailable ? "This listing can still start a conversation." : "This listing may no longer be available."}
+        </p>
+        <div className="detail-decision-actions">
+          <Link
+            href={buildAssistantHref(
+              "safe_buying",
+              `Create a buyer checklist for ${listing.title} in ${categoryName}.`
+            )}
+          >
+            Ask Assistant
+          </Link>
+          <Link href={`/categories/${listing.category.slug}`}>More in {categoryName}</Link>
+          <Link href="/guides">Parent guides</Link>
+        </div>
+      </div>
+
+      <aside className="detail-hero-metrics" aria-label="Listing status summary">
+        <div className="detail-hero-metric">
+          <span>Price</span>
+          <strong>{formatListingPrice(listing.price, dictionary)}</strong>
+        </div>
+        <div className="detail-hero-metric">
+          <span>Status</span>
+          <strong>{status}</strong>
+        </div>
+        <div className="detail-hero-metric">
+          <span>Updated</span>
+          <strong>{formatDateTime(listing.updatedAt, locale)}</strong>
+        </div>
+      </aside>
+    </Card>
+  );
+}
+
+function ListingImageOverview({ listing }: { listing: ListingDetailPayload["listing"] }) {
+  const imageCount = listing.images.length;
+
+  return (
+    <Card className="detail-image-overview" aria-label="Listing photo review summary">
+      <p className="eyebrow">Photo review</p>
+      <div className="detail-image-overview-list">
+        <div>
+          <span>Photos</span>
+          <strong>{imageCount}</strong>
+        </div>
+        <div>
+          <span>Primary check</span>
+          <strong>{imageCount > 0 ? "Inspect visible wear" : "Ask for photos"}</strong>
+        </div>
+        <div>
+          <span>Buyer note</span>
+          <strong>Request unclear angles</strong>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ListingAvailabilityNotice({ listing }: { listing: ListingDetailPayload["listing"] }) {
+  const { dictionary } = useI18n();
+  const status = formatListingStatus(listing.status, dictionary);
+  const isAvailable = listing.status === "active" || listing.status === "reserved";
+
+  return (
+    <div className={`listing-availability-notice${isAvailable ? "" : " warning"}`}>
+      <strong>{isAvailable ? "Conversation can start from this listing" : `Listing status: ${status}`}</strong>
+      <p>
+        {isAvailable
+          ? "Use BabyLoop messaging to confirm condition, included parts, pickup expectations, and final availability before meeting."
+          : "This listing may not be publicly actionable. Browse related listings or ask the assistant for adjacent options."}
+      </p>
+    </div>
+  );
+}
+
+function ListingDecisionSummary({ listing }: { listing: ListingDetailPayload["listing"] }) {
+  const { dictionary } = useI18n();
+  const categoryName = formatCategoryName(listing.category, dictionary);
+
+  return (
+    <Card className="listing-decision-summary" aria-label="Buyer decision support">
+      <p className="listing-meta">Decision support</p>
+      <h2>What this page helps you decide</h2>
+
+      <div className="detail-summary-grid">
+        <article>
+          <h3>Fit</h3>
+          <p>Check whether this {categoryName} item matches the child stage, size, usage context, and pickup need.</p>
+        </article>
+        <article>
+          <h3>Condition</h3>
+          <p>Compare seller description, photos, listed condition, price, and any missing-part questions before messaging.</p>
+        </article>
+        <article>
+          <h3>Trust</h3>
+          <p>Use privacy-safe seller context, participant-only messaging, reporting, and blocking instead of exposing contact data.</p>
+        </article>
+      </div>
+
+      <div className="detail-summary-actions">
+        <Link href={`/categories/${listing.category.slug}`}>Compare category</Link>
+        <Link
+          href={buildAssistantHref(
+            "safe_buying",
+            `Help me compare this ${listing.title} listing against other ${categoryName} options.`
+          )}
+        >
+          Ask comparison help
+        </Link>
+      </div>
+    </Card>
   );
 }
 
@@ -340,7 +487,7 @@ function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
   const avatarUrl = getSafeImageUrl(listing.seller.avatarUrl);
 
   return (
-    <Card className="seller-card" aria-label={dictionary.listings.sellerInformationAriaLabel}>
+    <Card className="seller-card seller-card-enhanced" aria-label={dictionary.listings.sellerInformationAriaLabel}>
       <div className="seller-avatar" aria-hidden="true">
         {avatarUrl ? (
           <img src={avatarUrl} alt="" />
@@ -352,6 +499,11 @@ function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
         <p className="listing-meta">{dictionary.listings.seller}</p>
         <h2>{listing.seller.displayName}</h2>
         <p className="muted">{listing.seller.locationCity ?? dictionary.listings.locationNotProvided}</p>
+        <ul className="seller-trust-list">
+          <li>Seller contact details stay hidden on the public listing.</li>
+          <li>Questions should start through BabyLoop participant-only messaging.</li>
+          <li>Use report actions if the listing looks misleading, unsafe, or suspicious.</li>
+        </ul>
       </div>
     </Card>
   );

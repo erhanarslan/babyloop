@@ -83,11 +83,22 @@ export function RelatedListings({ apiBaseUrl, listingId }: RelatedListingsProps)
     return null;
   }
 
+  const primaryCategory = relatedListings[0]?.category ?? null;
+
   return (
     <Card className="related-listings-panel">
       <div className="section-heading">
-        <h2>Related listings</h2>
-        <p className="muted">Similar active listings from BabyLoop.</p>
+        <div>
+          <h2>Related listings</h2>
+          <p className="muted">
+            Compare adjacent options before messaging. Similar active listings keep the buyer journey inside BabyLoop.
+          </p>
+        </div>
+        {primaryCategory ? (
+          <Link href={`/categories/${primaryCategory.slug}`}>
+            Browse {formatCategoryName(primaryCategory, dictionary)}
+          </Link>
+        ) : null}
       </div>
 
       <div className="related-listings-grid">
