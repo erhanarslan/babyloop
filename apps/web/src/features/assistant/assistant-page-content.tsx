@@ -1,0 +1,385 @@
+"use client";
+
+import Link from "next/link";
+import { type FormEvent, useMemo, useState } from "react";
+import {
+  Badge,
+  Button,
+  Card,
+  PageContainer,
+  PageHeading,
+  Textarea
+} from "../../components/ui";
+import {
+  parentGuideTopics,
+  type ParentGuideTopic
+} from "../parent-guides/parent-guide-data";
+
+type AssistantMode =
+  | "find_products"
+  | "sell_help"
+  | "age_needs"
+  | "safe_buying"
+  | "platform_help";
+
+type AssistantMessage = {
+  id: string;
+  role: "assistant" | "user";
+  content: string;
+  topic?: ParentGuideTopic;
+  actions?: AssistantAction[];
+};
+
+type AssistantAction = {
+  href: string;
+  label: string;
+};
+
+type QuickPrompt = {
+  mode: AssistantMode;
+  title: string;
+  description: string;
+  prompt: string;
+};
+
+const DEFAULT_QUICK_PROMPT: QuickPrompt = {
+  mode: "age_needs",
+  title: "Plan by age band",
+  description: "Get a stage-based needs list without storing exact birth dates.",
+  prompt: "My child is around 12-24 months. What should I start looking for?"
+};
+
+const quickPrompts: QuickPrompt[] = [
+  DEFAULT_QUICK_PROMPT,
+  {
+    mode: "find_products",
+    title: "Find useful products",
+    description: "Turn a parent need into browse actions and saved-search ideas.",
+    prompt: "I need practical winter items for a toddler. What should I search for?"
+  },
+  {
+    mode: "sell_help",
+    title: "Create a better listing",
+    description: "Get safer listing structure before using the sell form AI panels.",
+    prompt: "I want to sell a stroller. What details should I include?"
+  },
+  {
+    mode: "safe_buying",
+    title: "Buy second-hand safely",
+    description: "Ask better questions before messaging a seller.",
+    prompt: "What should I check before buying second-hand baby gear?"
+  },
+  {
+    mode: "platform_help",
+    title: "Use BabyLoop",
+    description: "Learn how to browse, save searches, message, and create listings.",
+    prompt: "How should I use BabyLoop to find what my child needs?"
+  }
+];
+
+const initialAssistantMessage: AssistantMessage = {
+  id: "assistant-initial",
+  role: "assistant",
+  content:
+    "Hi, I can help you plan age-band needs, find marketplace categories, prepare safer listing details, and understand second-hand buying checks. I use curated BabyLoop guide topics in this first web version.",
+  actions: [
+    { href: "/guides", label: "Open guides" },
+    { href: "/account/children", label: "Add child profile" },
+    { href: "/browse", label: "Browse marketplace" }
+  ]
+};
+
+export function AssistantPageContent() {
+  const [selectedMode, setSelectedMode] = useState<AssistantMode>("age_needs");
+  const [inputValue, setInputValue] = useState("");
+  const [messages, setMessages] = useState<AssistantMessage[]>([initialAssistantMessage]);
+  const selectedPrompt = useMemo(
+    () => quickPrompts.find((prompt) => prompt.mode === selectedMode) ?? DEFAULT_QUICK_PROMPT,
+    [selectedMode]
+  );
+
+  function handlePromptClick(prompt: string, mode: AssistantMode) {
+    setSelectedMode(mode);
+    setInputValue(prompt);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const normalizedInput = inputValue.trim();
+
+    if (!normalizedInput) {
+      return;
+    }
+
+    const userMessage: AssistantMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: normalizedInput
+    };
+    const assistantMessage = buildAssistantReply(normalizedInput, selectedMode);
+
+    setMessages((currentMessages) => [...currentMessages, userMessage, assistantMessage]);
+    setInputValue("");
+  }
+
+  return (
+    <>
+      <PageHeading
+        eyebrow="BabyLoop Assistant"
+        title="Plan, search, and sell with guided help"
+        description="A first assistant surface for parent needs, curated guide topics, safer buying checks, and listing preparation. Full RAG/tool-calling backend comes next."
+      />
+
+      <PageContainer className="assistant-layout" ariaLabel="BabyLoop Assistant">
+        <section className="assistant-hero-card">
+          <div>
+            <p className="eyebrow">Assistant foundation</p>
+            <h2>Curated guidance first, AI orchestration next</h2>
+            <p>
+              This web layer keeps the experience useful now while avoiding premature MCP, vector DB, community comments, or sensitive-message AI processing.
+            </p>
+          </div>
+
+          <div className="assistant-hero-actions">
+            <Link href="/guides">Parent guides</Link>
+            <Link href="/sell">Create listing</Link>
+            <Link href="/account/children">Child profiles</Link>
+          </div>
+        </section>
+
+        <section className="assistant-mode-grid" aria-label="Assistant quick prompts">
+          {quickPrompts.map((prompt) => (
+            <button
+              className={prompt.mode === selectedMode ? "assistant-mode-card active" : "assistant-mode-card"}
+              key={prompt.mode}
+              type="button"
+              onClick={() => handlePromptClick(prompt.prompt, prompt.mode)}
+            >
+              <span>{prompt.title}</span>
+              <small>{prompt.description}</small>
+            </button>
+          ))}
+        </section>
+
+        <section className="assistant-chat-shell" aria-label="Assistant chat">
+          <div className="assistant-chat-messages">
+            {messages.map((message) => (
+              <AssistantMessageCard key={message.id} message={message} />
+            ))}
+          </div>
+
+          <form className="assistant-composer" onSubmit={handleSubmit}>
+            <div className="assistant-selected-mode">
+              <Badge>{selectedPrompt.title}</Badge>
+              <span>{selectedPrompt.description}</span>
+            </div>
+
+            <Textarea
+              label="Ask BabyLoop Assistant"
+              maxLength={1000}
+              onChange={(event) => setInputValue(event.target.value)}
+              placeholder="Example: My child is around 12-24 months. What should I start looking for?"
+              rows={4}
+              value={inputValue}
+              wide
+            />
+
+            <div className="form-actions">
+              <p className="form-note">
+                Do not share private contact details or child-specific medical information here.
+              </p>
+              <Button type="submit" disabled={inputValue.trim().length === 0}>
+                Get guidance
+              </Button>
+            </div>
+          </form>
+        </section>
+
+        <section className="assistant-safety-boundary">
+          <p className="eyebrow">Safety boundary</p>
+          <h2>Marketplace guidance, not medical advice</h2>
+          <p>
+            BabyLoop Assistant helps with product discovery, listing preparation, buying checks, and platform usage.
+            It does not diagnose, treat, prescribe, create diet plans, or replace a qualified professional.
+          </p>
+        </section>
+      </PageContainer>
+    </>
+  );
+}
+
+function AssistantMessageCard({ message }: { message: AssistantMessage }) {
+  return (
+    <article className={`assistant-message-card ${message.role}`}>
+      <div className="assistant-message-heading">
+        <strong>{message.role === "assistant" ? "BabyLoop Assistant" : "You"}</strong>
+        {message.topic ? <Badge>{message.topic.eyebrow}</Badge> : null}
+      </div>
+
+      <p>{message.content}</p>
+
+      {message.topic ? (
+        <div className="assistant-topic-panel">
+          <p className="eyebrow">{message.topic.stageLabel}</p>
+          <h3>{message.topic.title}</h3>
+          <p>{message.topic.summary}</p>
+          <div className="state-panel warning">
+            <strong>Common misconception:</strong> {message.topic.knownMyth}
+          </div>
+          <p className="form-note">
+            <strong>AI note:</strong> {message.topic.aiNote}
+          </p>
+        </div>
+      ) : null}
+
+      {message.actions && message.actions.length > 0 ? (
+        <div className="assistant-action-row">
+          {message.actions.map((action) => (
+            <Link href={action.href} key={action.href}>
+              {action.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessage {
+  const matchedTopic = findRelevantTopic(input, mode);
+  const id = `assistant-${Date.now()}`;
+
+  switch (mode) {
+    case "find_products":
+      return buildMessageWithOptionalTopic({
+        id,
+        content:
+          "Start with the closest category, filter for listings with photos, and save the search if this is an upcoming need. I also recommend opening related guides before messaging sellers.",
+        topic: matchedTopic,
+        actions: [
+          { href: matchedTopic?.browseHref ?? "/browse?hasImages=true&sort=newest", label: "Find listings" },
+          { href: "/account/saved-searches", label: "Saved searches" },
+          { href: "/guides", label: "Read guides" }
+        ]
+      });
+
+    case "sell_help":
+      return buildMessageWithOptionalTopic({
+        id,
+        content:
+          "For a stronger listing, include exact product type, condition, missing parts, accessories, usage history, clear photos, and pickup expectations. Then use the sell form AI draft and price suggestion panels.",
+        topic: matchedTopic,
+        actions: [
+          { href: "/sell", label: "Open sell form" },
+          { href: "/account/seller", label: "Seller dashboard" },
+          { href: "/guides", label: "Read guides" }
+        ]
+      });
+
+    case "age_needs":
+      return buildMessageWithOptionalTopic({
+        id,
+        content:
+          "Use the child profile age band to prepare a lightweight upcoming-needs list. BabyLoop avoids exact birth dates and turns stage needs into category links, guide topics, and saved-search ideas.",
+        topic: matchedTopic ?? getTopicById("newborn-first-needs"),
+        actions: [
+          { href: "/account/children", label: "Manage child profiles" },
+          { href: matchedTopic?.browseHref ?? "/browse?sort=newest", label: "Browse related items" },
+          { href: "/guides", label: "Open parent guides" }
+        ]
+      });
+
+    case "safe_buying":
+      return buildMessageWithOptionalTopic({
+        id,
+        content:
+          "Before buying second-hand, ask about usage history, missing parts, defects, cleaning needs, included accessories, and whether the product has had any safety issue. Be extra careful with safety-sensitive gear.",
+        topic: matchedTopic ?? getTopicById("baby-gear-safety"),
+        actions: [
+          { href: "/guides", label: "Open safety guides" },
+          { href: "/browse?hasImages=true&sort=newest", label: "Browse with photos" }
+        ]
+      });
+
+    case "platform_help":
+      return {
+        id,
+        role: "assistant",
+        content:
+          "Browse categories, open listings, save useful searches, add child age bands for lifecycle suggestions, and message sellers through BabyLoop. Sellers can use AI draft and price guidance before publishing.",
+        actions: [
+          { href: "/browse", label: "Browse" },
+          { href: "/account/children", label: "Child profiles" },
+          { href: "/sell", label: "Sell" }
+        ]
+      };
+  }
+}
+
+function buildMessageWithOptionalTopic({
+  id,
+  content,
+  topic,
+  actions
+}: {
+  id: string;
+  content: string;
+  topic: ParentGuideTopic | null;
+  actions: AssistantAction[];
+}): AssistantMessage {
+  return topic
+    ? {
+        id,
+        role: "assistant",
+        content,
+        topic,
+        actions
+      }
+    : {
+        id,
+        role: "assistant",
+        content,
+        actions
+      };
+}
+
+function getTopicById(id: string): ParentGuideTopic | null {
+  return parentGuideTopics.find((topic) => topic.id === id) ?? null;
+}
+
+function findRelevantTopic(input: string, mode: AssistantMode): ParentGuideTopic | null {
+  const normalizedInput = input.toLowerCase();
+
+  if (mode === "age_needs") {
+    if (normalizedInput.includes("12") || normalizedInput.includes("24") || normalizedInput.includes("toddler")) {
+      return getTopicById("toddler-mobility");
+    }
+
+    if (normalizedInput.includes("6") || normalizedInput.includes("12")) {
+      return getTopicById("six-to-twelve-months");
+    }
+
+    if (normalizedInput.includes("newborn") || normalizedInput.includes("0-3")) {
+      return getTopicById("newborn-first-needs");
+    }
+  }
+
+  if (
+    normalizedInput.includes("safe") ||
+    normalizedInput.includes("second") ||
+    normalizedInput.includes("gear") ||
+    normalizedInput.includes("stroller") ||
+    normalizedInput.includes("car seat")
+  ) {
+    return getTopicById("baby-gear-safety");
+  }
+
+  return parentGuideTopics.find((topic) =>
+    [topic.title, topic.summary, topic.eyebrow, topic.stageLabel]
+      .join(" ")
+      .toLowerCase()
+      .split(/\s+/)
+      .some((token) => token.length > 4 && normalizedInput.includes(token))
+  ) ?? null;
+}

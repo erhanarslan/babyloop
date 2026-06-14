@@ -1485,3 +1485,127 @@
     flex-direction: column;
   }
 }
+
+.assistant-layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.assistant-hero-card,
+.assistant-chat-shell,
+.assistant-safety-boundary {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+  padding: 1.25rem;
+}
+
+.assistant-hero-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.assistant-hero-actions,
+.assistant-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.assistant-mode-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.assistant-mode-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  text-align: left;
+}
+
+.assistant-mode-card.active {
+  background: color-mix(in srgb, var(--card) 82%, var(--primary) 18%);
+  border-color: var(--primary);
+}
+
+.assistant-mode-card span {
+  font-weight: 800;
+}
+
+.assistant-mode-card small {
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+.assistant-chat-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.assistant-chat-messages {
+  display: grid;
+  gap: 1rem;
+}
+
+.assistant-message-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.assistant-message-card.assistant {
+  background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+}
+
+.assistant-message-card.user {
+  background: var(--background);
+}
+
+.assistant-message-heading,
+.assistant-selected-mode {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.assistant-topic-panel {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--background);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.assistant-composer {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.assistant-home-cta {
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+  padding: 2rem;
+}
+
+@media (max-width: 700px) {
+  .assistant-hero-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

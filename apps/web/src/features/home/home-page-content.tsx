@@ -29,6 +29,21 @@ export function HomePageContent({ apiBaseUrl }: HomePageContentProps) {
 
       <ParentGuidePreviewSection />
 
+      <section className="home-section assistant-home-cta">
+        <div className="home-section-heading">
+          <p className="eyebrow">BabyLoop Assistant</p>
+          <h2>Ask for stage needs, seller tips, and safer buying checks</h2>
+          <p>
+            Start with curated guide-based help now. The full RAG and tool-calling assistant can build on this surface later.
+          </p>
+        </div>
+        <div className="home-personalization-actions parent-guide-preview-actions">
+          <a href="/assistant">Open Assistant</a>
+          <a href="/guides">Read guides</a>
+          <a href="/account/children">Add child profile</a>
+        </div>
+      </section>
+
       <section className="home-section">
         <div className="home-section-heading">
           <p className="eyebrow">{dictionary.home.howEyebrow}</p>
