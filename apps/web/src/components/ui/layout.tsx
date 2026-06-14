@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 import { SiteFooter } from "../site-footer";
 import { SiteHeader } from "../site-header";
+import { PublicNavigationDrawer } from "./public-navigation-drawer";
 
 type SiteShellProps = {
   children: ReactNode;
@@ -9,11 +10,14 @@ type SiteShellProps = {
 
 export function SiteShell({ children }: SiteShellProps) {
   return (
-    <main className="app-shell flex min-h-screen flex-col bg-background text-foreground">
-      <SiteHeader />
-      <div className="app-content flex-1">{children}</div>
-      <SiteFooter />
-    </main>
+    <>
+      <PublicNavigationDrawer />
+      <main className="app-shell flex min-h-screen flex-col bg-background text-foreground">
+        <SiteHeader />
+        <div className="app-content flex-1">{children}</div>
+        <SiteFooter />
+      </main>
+    </>
   );
 }
 
