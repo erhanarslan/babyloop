@@ -29,7 +29,7 @@ export function ParentGuidePreviewSection() {
             <p className="form-note">
               <strong>Common misconception:</strong> {topic.knownMyth}
             </p>
-            <Link href="/guides">Read guide</Link>
+            <Link href={`/guides/${topic.id}`}>Read guide</Link>
           </Card>
         ))}
       </div>

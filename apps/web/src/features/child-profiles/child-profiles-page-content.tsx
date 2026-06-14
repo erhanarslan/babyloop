@@ -345,7 +345,7 @@ function ParentGuideTopicsSection({
               <strong>AI note:</strong> {topic.aiNote}
             </p>
             <div className="home-personalization-actions">
-              <Link href="/guides">Read guide</Link>
+              <Link href={`/guides/${topic.id}`}>Read guide</Link>
               <Link href={topic.browseHref}>Find listings</Link>
             </div>
           </Card>

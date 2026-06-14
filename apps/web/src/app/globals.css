@@ -1618,3 +1618,125 @@
   margin: 0;
   padding: 0.9rem 1rem 0.9rem 1.25rem;
 }
+
+/* Public web final responsive pass */
+.parent-guide-detail-hero {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.parent-guide-detail-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+@media (max-width: 900px) {
+  .browse-layout,
+  .detail-layout,
+  .conversations-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-panel {
+    position: static;
+    width: 100%;
+  }
+
+  .listing-card-footer,
+  .detail-actions,
+  .form-actions,
+  .home-personalization-actions,
+  .assistant-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .listing-card-footer a,
+  .detail-actions a,
+  .detail-actions button,
+  .form-actions a,
+  .form-actions button,
+  .home-personalization-actions a,
+  .assistant-action-row a {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .home-hero,
+  .home-section,
+  .home-section-tint,
+  .safety-section,
+  .assistant-home-cta {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .home-card-grid,
+  .home-personalization-grid,
+  .parent-guide-grid,
+  .assistant-mode-grid,
+  .parent-guide-detail-grid,
+  .buyer-guidance-grid,
+  .ai-guidance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parent-guide-detail-hero,
+  .assistant-hero-card,
+  .buyer-guidance-header,
+  .ai-workflow-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-form,
+  .listing-form,
+  .assistant-composer {
+    gap: 1rem;
+  }
+
+  .panel-row,
+  .conversation-safety-strip,
+  .message-composer-meta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .listing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-heading {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-shell,
+  .page-container {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .card,
+  .form-panel,
+  .assistant-chat-shell,
+  .assistant-hero-card,
+  .assistant-safety-boundary,
+  .parent-guide-card,
+  .buyer-guidance-card,
+  .ai-sell-workflow-callout,
+  .sell-publish-checklist {
+    border-radius: 0.85rem;
+  }
+
+  .badge,
+  .ai-confidence-pill {
+    width: fit-content;
+  }
+}

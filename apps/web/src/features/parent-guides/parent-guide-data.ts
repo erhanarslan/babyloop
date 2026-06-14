@@ -121,3 +121,7 @@ export function getGuideTopicsForAgeBand(ageBand: ParentGuideAgeBand): ParentGui
 export function getPrimaryGuideForCategorySlug(categorySlug: string): ParentGuideTopic | null {
   return parentGuideTopics.find((topic) => topic.categorySlugs.includes(categorySlug)) ?? null;
 }
+
+export function getParentGuideTopicById(id: string): ParentGuideTopic | null {
+  return parentGuideTopics.find((topic) => topic.id === id) ?? null;
+}
