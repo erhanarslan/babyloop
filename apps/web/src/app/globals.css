@@ -3743,3 +3743,264 @@ body {
   }
 }
 
+
+/* Seller dashboard insights polish */
+.seller-dashboard-layout {
+  gap: 1.25rem;
+}
+
+.seller-dashboard-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  border-color: rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.12), transparent 32%),
+    var(--card-background);
+}
+
+.seller-dashboard-hero::after {
+  position: absolute;
+  content: "";
+  inset: auto -5rem -6rem auto;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.seller-dashboard-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.seller-dashboard-hero h2,
+.seller-dashboard-section-heading h2,
+.seller-funnel-panel h2,
+.seller-listing-insights h2 {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--foreground);
+  line-height: 1.08;
+}
+
+.seller-dashboard-hero h2 {
+  font-size: clamp(1.9rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.055em;
+}
+
+.seller-dashboard-hero p,
+.seller-dashboard-section-heading p,
+.seller-opportunity-card p,
+.seller-listing-recommendation p,
+.seller-funnel-step small {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.seller-dashboard-actions,
+.seller-dashboard-principles,
+.seller-dashboard-kpi-grid,
+.seller-funnel-grid,
+.seller-opportunity-grid,
+.seller-listing-insights,
+.seller-listing-insight-metrics,
+.seller-listing-insight-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.seller-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.seller-dashboard-actions a,
+.seller-dashboard-section-heading a,
+.seller-opportunity-card a,
+.seller-listing-insight-actions a {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--foreground);
+  font-weight: 850;
+  padding: 0.62rem 0.86rem;
+  text-decoration: none;
+}
+
+.seller-dashboard-principles,
+.seller-dashboard-kpi-grid {
+  grid-template-columns: 1fr;
+}
+
+.seller-dashboard-principles div,
+.seller-summary-card,
+.seller-funnel-step,
+.seller-opportunity-card,
+.seller-listing-insight-card,
+.seller-listing-recommendation {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+}
+
+.seller-dashboard-principles div,
+.seller-summary-card,
+.seller-funnel-step,
+.seller-opportunity-card,
+.seller-listing-insight-card,
+.seller-listing-recommendation {
+  padding: 1rem;
+}
+
+.seller-dashboard-principles span,
+.seller-summary-card span,
+.seller-funnel-step span,
+.seller-listing-insight-metrics dt {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.seller-dashboard-principles strong,
+.seller-summary-card strong,
+.seller-funnel-step strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--foreground);
+}
+
+.seller-dashboard-kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.seller-summary-card strong,
+.seller-funnel-step strong {
+  font-size: 1.55rem;
+}
+
+.seller-summary-card small {
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+.seller-funnel-panel {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.1), transparent 30%),
+    var(--card-background);
+}
+
+.seller-dashboard-section-heading,
+.seller-listing-insight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.seller-funnel-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.seller-opportunity-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.seller-opportunity-card {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.seller-opportunity-card.success {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: rgba(240, 253, 244, 0.78);
+}
+
+.seller-opportunity-card.warning {
+  border-color: rgba(217, 119, 6, 0.3);
+  background: rgba(255, 251, 235, 0.82);
+}
+
+.seller-listing-insights {
+  gap: 1rem;
+}
+
+.seller-listing-insight-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.seller-listing-insight-header h2 {
+  margin: 0.25rem 0 0;
+  color: var(--foreground);
+}
+
+.seller-listing-insight-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.seller-listing-insight-metrics div {
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  background: rgba(248, 250, 252, 0.86);
+  padding: 0.8rem;
+}
+
+.seller-listing-insight-metrics dd {
+  margin: 0.2rem 0 0;
+  color: var(--foreground);
+  font-size: 1.2rem;
+  font-weight: 850;
+}
+
+.seller-listing-recommendation {
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.seller-listing-recommendation strong {
+  color: var(--foreground);
+}
+
+.seller-listing-insight-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+@media (max-width: 980px) {
+  .seller-dashboard-hero,
+  .seller-dashboard-kpi-grid,
+  .seller-funnel-grid,
+  .seller-opportunity-grid,
+  .seller-listing-insight-metrics,
+  .seller-listing-insight-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-dashboard-section-heading,
+  .seller-listing-insight-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .seller-dashboard-actions a,
+  .seller-dashboard-section-heading a,
+  .seller-opportunity-card a,
+  .seller-listing-insight-actions a {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
