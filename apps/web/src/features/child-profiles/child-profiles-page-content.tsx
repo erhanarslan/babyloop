@@ -201,6 +201,14 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
               <Button disabled={isSubmitting || isCheckingAuth} type="submit">
                 {isSubmitting ? "Saving..." : "Save child profile"}
               </Button>
+              <Link
+                href={buildAssistantHref(
+                  "age_needs",
+                  `I am setting up a ${formatAgeBand(ageBand)} child profile. What BabyLoop needs should I plan for?`
+                )}
+              >
+                Ask Assistant
+              </Link>
               <p className="form-note">
                 Recommendations are grouped by age band and category only.
               </p>
@@ -278,11 +286,16 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
                         </p>
                       </div>
                       <div className="form-actions">
-                        <div className="form-actions">
                         <Link href={`/categories/${recommendation.categorySlug}`}>Browse</Link>
                         <Link href={buildLifecycleBrowseHref(recommendation)}>Search need</Link>
-                      </div>
-                        <Link href={buildLifecycleBrowseHref(recommendation)}>Search need</Link>
+                        <Link
+                          href={buildAssistantHref(
+                            "age_needs",
+                            `Help me plan ${recommendation.categoryName} for the ${formatAgeBand(group.ageBand)} stage.`
+                          )}
+                        >
+                          Ask Assistant
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -347,6 +360,14 @@ function ParentGuideTopicsSection({
             <div className="home-personalization-actions">
               <Link href={`/guides/${topic.id}`}>Read guide</Link>
               <Link href={topic.browseHref}>Find listings</Link>
+              <Link
+                href={buildAssistantHref(
+                  "age_needs",
+                  `Turn the ${topic.title} guide into a short checklist for my child profile.`
+                )}
+              >
+                Ask Assistant
+              </Link>
             </div>
           </Card>
         ))}
@@ -397,4 +418,15 @@ function buildParentMilestoneDescription(group: LifecycleRecommendationGroup): s
 
 function formatConfidence(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

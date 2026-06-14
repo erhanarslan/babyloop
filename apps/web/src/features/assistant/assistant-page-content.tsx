@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -65,6 +65,14 @@ const DEFAULT_QUICK_PROMPT: QuickPrompt = {
   prompt: "My child is around 12-24 months. What should I start looking for?"
 };
 
+const assistantModes = new Set<AssistantMode>([
+  "age_needs",
+  "find_products",
+  "sell_help",
+  "safe_buying",
+  "platform_help"
+]);
+
 const quickPrompts: QuickPrompt[] = [
   DEFAULT_QUICK_PROMPT,
   {
@@ -115,6 +123,23 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
     () => quickPrompts.find((prompt) => prompt.mode === selectedMode) ?? DEFAULT_QUICK_PROMPT,
     [selectedMode]
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prompt = params.get("prompt")?.trim();
+
+    if (!prompt) {
+      return;
+    }
+
+    const mode = params.get("mode");
+
+    if (mode && assistantModes.has(mode as AssistantMode)) {
+      setSelectedMode(mode as AssistantMode);
+    }
+
+    setInputValue(prompt.slice(0, 1000));
+  }, []);
 
   function handlePromptClick(prompt: string, mode: AssistantMode) {
     setSelectedMode(mode);

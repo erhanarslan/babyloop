@@ -62,7 +62,14 @@ export function ParentGuideDetailPageContent({ topic }: ParentGuideDetailPageCon
           <div className="home-personalization-actions">
             <Link href={topic.browseHref}>Find related listings</Link>
             <Link href="/account/saved-searches">Saved searches</Link>
-            <Link href="/assistant">Ask Assistant</Link>
+            <Link
+              href={buildAssistantHref(
+                "age_needs",
+                `Turn the ${topic.title} guide into a short BabyLoop checklist.`
+              )}
+            >
+              Ask Assistant
+            </Link>
           </div>
         </Card>
 
@@ -76,4 +83,15 @@ export function ParentGuideDetailPageContent({ topic }: ParentGuideDetailPageCon
       </PageContainer>
     </>
   );
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

@@ -25,6 +25,14 @@ export function ParentGuidesPageContent() {
           <div className="home-personalization-actions">
             <Link href="/account/children">Add child profile</Link>
             <Link href="/browse">Browse marketplace</Link>
+            <Link
+              href={buildAssistantHref(
+                "age_needs",
+                "Help me turn BabyLoop parent guides into a stage-based needs plan."
+              )}
+            >
+              Ask Assistant
+            </Link>
           </div>
         </Card>
 
@@ -59,7 +67,16 @@ export function ParentGuidesPageContent() {
               </p>
 
               <div className="home-personalization-actions">
+                <Link href={`/guides/${topic.id}`}>Read guide</Link>
                 <Link href={topic.browseHref}>Find related listings</Link>
+                <Link
+                  href={buildAssistantHref(
+                    "age_needs",
+                    `Turn the ${topic.title} guide into a short age-band checklist.`
+                  )}
+                >
+                  Ask Assistant
+                </Link>
               </div>
             </Card>
           ))}
@@ -75,4 +92,15 @@ export function ParentGuidesPageContent() {
       </PageContainer>
     </>
   );
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

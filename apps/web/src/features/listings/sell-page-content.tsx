@@ -48,6 +48,14 @@ export function SellPageContent({
           <div className="home-personalization-actions">
             <Link href="/guides">Parent guides</Link>
             <Link href="/account/seller">Seller dashboard</Link>
+            <Link
+              href={buildAssistantHref(
+                "sell_help",
+                "I want to create a clear BabyLoop listing. What details should I include?"
+              )}
+            >
+              Ask Assistant
+            </Link>
           </div>
         </Card>
 
@@ -57,4 +65,15 @@ export function SellPageContent({
       </PageContainer>
     </>
   );
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

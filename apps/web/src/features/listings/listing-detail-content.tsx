@@ -189,7 +189,20 @@ function BuyerGuidanceCard({ listing }: { listing: ListingDetailPayload["listing
             Use these checks to understand condition, included parts, pickup expectations, and safety-sensitive details before deciding.
           </p>
         </div>
-        <Link href="/guides">Open parent guides</Link>
+        <div className="home-personalization-actions">
+          <Link href="/guides">Open parent guides</Link>
+          <Link
+            href={buildAssistantHref(
+              "safe_buying",
+              `What should I check before buying a second-hand ${formatCategoryName(
+                listing.category,
+                dictionary
+              )} item like ${listing.title}?`
+            )}
+          >
+            Ask Assistant
+          </Link>
+        </div>
       </div>
 
       <div className="buyer-guidance-grid">
@@ -308,6 +321,14 @@ function ListingRelatedGuideCard({ categorySlug }: { categorySlug: string }) {
         <div className="home-personalization-actions">
           <Link href="/guides">Read guide</Link>
           <Link href={topic.browseHref}>Find related listings</Link>
+          <Link
+            href={buildAssistantHref(
+              "find_products",
+              `Turn the ${topic.title} guide into a short BabyLoop browsing checklist.`
+            )}
+          >
+            Ask Assistant
+          </Link>
         </div>
       </div>
     </Card>
@@ -348,4 +369,15 @@ function getSafeImageUrl(url: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

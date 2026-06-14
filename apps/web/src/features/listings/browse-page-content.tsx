@@ -397,7 +397,14 @@ function BrowseDiscoveryPanel({
       <div className="browse-discovery-actions">
         <Link href={clearFiltersHref}>Clear filters</Link>
         <Link href="/guides">Read buying guides</Link>
-        <Link href="/assistant">Ask Assistant</Link>
+        <Link
+          href={buildAssistantHref(
+            "find_products",
+            "Help me turn these browse filters into a short BabyLoop search plan."
+          )}
+        >
+          Ask Assistant
+        </Link>
         <Link href="/account/saved-searches">Saved searches</Link>
       </div>
 
@@ -844,4 +851,15 @@ function buildBrowseHref(
   const query = params.toString();
 
   return query ? `${options.basePath}?${query}` : options.basePath;
+}
+
+type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
+
+function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
+  const params = new URLSearchParams({
+    mode,
+    prompt
+  });
+
+  return `/assistant?${params.toString()}`;
 }

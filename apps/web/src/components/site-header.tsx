@@ -63,6 +63,11 @@ export function SiteHeader() {
       href: "/browse",
       label: dictionary.nav.browseListings
     },
+    {
+      description: "Plan needs, buying checks, and listing details with guided help",
+      href: "/assistant",
+      label: "Assistant"
+    },
     ...(currentAuth
       ? [
           {
