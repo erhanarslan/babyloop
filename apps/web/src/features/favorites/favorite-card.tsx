@@ -28,7 +28,11 @@ export function FavoriteCard({ favorite }: FavoriteCardProps) {
           <h2>{favorite.title}</h2>
         </div>
         <p className="muted">{savedDate}</p>
-        <div className="listing-card-footer">
+        <div className="favorite-decision-note">
+        <span>Compare condition, photos, and seller answers before deciding.</span>
+      </div>
+
+      <div className="listing-card-footer">
           <strong>{formatListingPrice(favorite.price, dictionary)}</strong>
           <Link href={`/listings/${favorite.id}`}>{dictionary.common.viewDetails}</Link>
         </div>

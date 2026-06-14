@@ -1740,3 +1740,58 @@
     width: fit-content;
   }
 }
+
+.account-surface-guide {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-surface-guide-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.account-surface-guide-header h2 {
+  margin-bottom: 0.35rem;
+}
+
+.account-surface-guide-body {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.account-surface-guide-body ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.listing-management-note,
+.favorite-decision-note {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--card) 92%, var(--primary) 8%);
+  color: var(--muted-foreground);
+  font-size: 0.86rem;
+  padding: 0.65rem 0.75rem;
+}
+
+@media (max-width: 700px) {
+  .account-surface-guide-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-surface-guide .home-personalization-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-surface-guide .home-personalization-actions a {
+    justify-content: center;
+    width: 100%;
+  }
+}

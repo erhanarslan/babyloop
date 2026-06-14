@@ -17,6 +17,7 @@ import { useI18n } from "../../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { formatDateTime } from "../listings/listing-display";
+import { AccountSurfaceGuide } from "../account/account-surface-guide";
 import {
   fetchNotifications,
   fetchUnreadNotificationCount,
@@ -200,6 +201,8 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         description={dictionary.notifications.description}
       />
       <PageContainer className="notifications-layout">
+        <AccountSurfaceGuide kind="notifications" />
+
         {isCheckingAuth || isLoading ? (
           <LoadingBlock title={dictionary.notifications.loading} />
         ) : message ? (

@@ -486,7 +486,11 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   ))}
                 </div>
 
-                <div className="listing-card-footer">
+                <div className="listing-management-note">
+        <span>Review public view after status or price changes.</span>
+      </div>
+
+      <div className="listing-card-footer">
                   <strong>{formatListingPrice(listing.price, dictionary)}</strong>
                   {listing.status === "active" || listing.status === "reserved" ? (
                     <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>

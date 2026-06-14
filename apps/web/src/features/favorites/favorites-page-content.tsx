@@ -3,6 +3,7 @@
 import { PageContainer, PageHeading } from "../../components/ui";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { FavoritesList } from "./favorites-list";
+import { AccountSurfaceGuide } from "../account/account-surface-guide";
 
 type FavoritesPageContentProps = {
   apiBaseUrl: string;
@@ -20,6 +21,8 @@ export function FavoritesPageContent({ apiBaseUrl }: FavoritesPageContentProps) 
       />
 
       <PageContainer className="listing-column" ariaLabel={dictionary.marketplace.favoritesAriaLabel}>
+        <AccountSurfaceGuide kind="favorites" />
+
         <FavoritesList apiBaseUrl={apiBaseUrl} />
       </PageContainer>
     </>

@@ -14,6 +14,7 @@ import {
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { AccountSurfaceGuide } from "../account/account-surface-guide";
 import {
   deleteSavedSearch,
   fetchSavedSearches,
@@ -75,6 +76,8 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
       />
 
       <PageContainer className="listing-column" ariaLabel="Saved searches">
+        <AccountSurfaceGuide kind="saved_searches" />
+
         {errorMessage ? (
           <Alert title="Saved search action failed" message={errorMessage} />
         ) : null}
