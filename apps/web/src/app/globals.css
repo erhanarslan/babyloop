@@ -1608,4 +1608,13 @@
     align-items: stretch;
     flex-direction: column;
   }
+}\n\n.assistant-disclaimer-list {
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--background);
+  color: var(--muted-foreground);
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.9rem 1rem 0.9rem 1.25rem;
 }

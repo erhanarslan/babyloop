@@ -1,10 +1,11 @@
 import { SiteShell } from "../../components/ui";
 import { AssistantPageContent } from "../../features/assistant/assistant-page-content";
+import { getApiBaseUrl } from "../../lib/api";
 
 export default function AssistantPage() {
   return (
     <SiteShell>
-      <AssistantPageContent />
+      <AssistantPageContent apiBaseUrl={getApiBaseUrl()} />
     </SiteShell>
   );
 }

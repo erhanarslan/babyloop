@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 import {
+  Alert,
   Badge,
   Button,
-  Card,
   PageContainer,
   PageHeading,
   Textarea
@@ -14,25 +14,37 @@ import {
   parentGuideTopics,
   type ParentGuideTopic
 } from "../parent-guides/parent-guide-data";
-
-type AssistantMode =
-  | "find_products"
-  | "sell_help"
-  | "age_needs"
-  | "safe_buying"
-  | "platform_help";
+import {
+  requestAssistantChat,
+  type AssistantChatAction,
+  type AssistantChatReply,
+  type AssistantChatTopic,
+  type AssistantMode
+} from "./api";
 
 type AssistantMessage = {
   id: string;
   role: "assistant" | "user";
   content: string;
-  topic?: ParentGuideTopic;
-  actions?: AssistantAction[];
+  topic?: AssistantDisplayTopic;
+  actions?: AssistantChatAction[];
+  safetyDisclaimers?: string[];
+  meta?: {
+    providerName: string;
+    promptVersion: string;
+    confidenceScore: number;
+  };
 };
 
-type AssistantAction = {
-  href: string;
-  label: string;
+type AssistantDisplayTopic = {
+  id: string;
+  title: string;
+  eyebrow: string;
+  summary: string;
+  stageLabel: string;
+  commonMisconception: string;
+  guidance: string;
+  browseHref: string;
 };
 
 type QuickPrompt = {
@@ -40,6 +52,10 @@ type QuickPrompt = {
   title: string;
   description: string;
   prompt: string;
+};
+
+type AssistantPageContentProps = {
+  apiBaseUrl: string;
 };
 
 const DEFAULT_QUICK_PROMPT: QuickPrompt = {
@@ -81,7 +97,7 @@ const initialAssistantMessage: AssistantMessage = {
   id: "assistant-initial",
   role: "assistant",
   content:
-    "Hi, I can help you plan age-band needs, find marketplace categories, prepare safer listing details, and understand second-hand buying checks. I use curated BabyLoop guide topics in this first web version.",
+    "Hi, I can help you plan age-band needs, find marketplace categories, prepare safer listing details, and understand second-hand buying checks. I use curated BabyLoop guide topics in this first version.",
   actions: [
     { href: "/guides", label: "Open guides" },
     { href: "/account/children", label: "Add child profile" },
@@ -89,10 +105,12 @@ const initialAssistantMessage: AssistantMessage = {
   ]
 };
 
-export function AssistantPageContent() {
+export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) {
   const [selectedMode, setSelectedMode] = useState<AssistantMode>("age_needs");
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([initialAssistantMessage]);
+  const [isPending, setIsPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const selectedPrompt = useMemo(
     () => quickPrompts.find((prompt) => prompt.mode === selectedMode) ?? DEFAULT_QUICK_PROMPT,
     [selectedMode]
@@ -103,12 +121,12 @@ export function AssistantPageContent() {
     setInputValue(prompt);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const normalizedInput = inputValue.trim();
 
-    if (!normalizedInput) {
+    if (!normalizedInput || isPending) {
       return;
     }
 
@@ -117,10 +135,32 @@ export function AssistantPageContent() {
       role: "user",
       content: normalizedInput
     };
-    const assistantMessage = buildAssistantReply(normalizedInput, selectedMode);
 
-    setMessages((currentMessages) => [...currentMessages, userMessage, assistantMessage]);
+    setMessages((currentMessages) => [...currentMessages, userMessage]);
     setInputValue("");
+    setIsPending(true);
+    setErrorMessage(null);
+
+    const response = await requestAssistantChat(apiBaseUrl, {
+      mode: selectedMode,
+      content: normalizedInput
+    });
+
+    if (response.ok) {
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        mapApiReplyToMessage(response.data.reply)
+      ]);
+      setIsPending(false);
+      return;
+    }
+
+    setErrorMessage(`${response.error.code}: ${response.error.message}`);
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      buildLocalFallbackReply(normalizedInput, selectedMode)
+    ]);
+    setIsPending(false);
   }
 
   return (
@@ -128,16 +168,16 @@ export function AssistantPageContent() {
       <PageHeading
         eyebrow="BabyLoop Assistant"
         title="Plan, search, and sell with guided help"
-        description="A first assistant surface for parent needs, curated guide topics, safer buying checks, and listing preparation. Full RAG/tool-calling backend comes next."
+        description="A first assistant surface for parent needs, curated guide topics, safer buying checks, and listing preparation."
       />
 
       <PageContainer className="assistant-layout" ariaLabel="BabyLoop Assistant">
         <section className="assistant-hero-card">
           <div>
             <p className="eyebrow">Assistant foundation</p>
-            <h2>Curated guidance first, AI orchestration next</h2>
+            <h2>Curated API guidance now, AI orchestration next</h2>
             <p>
-              This web layer keeps the experience useful now while avoiding premature MCP, vector DB, community comments, or sensitive-message AI processing.
+              This version calls BabyLoop's assistant endpoint and falls back to local curated guidance if the API is unavailable.
             </p>
           </div>
 
@@ -163,10 +203,27 @@ export function AssistantPageContent() {
         </section>
 
         <section className="assistant-chat-shell" aria-label="Assistant chat">
+          {errorMessage ? (
+            <Alert
+              title="Assistant API fallback"
+              message={`Using local curated guidance because the API request failed. ${errorMessage}`}
+            />
+          ) : null}
+
           <div className="assistant-chat-messages">
             {messages.map((message) => (
               <AssistantMessageCard key={message.id} message={message} />
             ))}
+
+            {isPending ? (
+              <article className="assistant-message-card assistant">
+                <div className="assistant-message-heading">
+                  <strong>BabyLoop Assistant</strong>
+                  <Badge>Thinking</Badge>
+                </div>
+                <p>Preparing curated guidance...</p>
+              </article>
+            ) : null}
           </div>
 
           <form className="assistant-composer" onSubmit={handleSubmit}>
@@ -189,8 +246,8 @@ export function AssistantPageContent() {
               <p className="form-note">
                 Do not share private contact details or child-specific medical information here.
               </p>
-              <Button type="submit" disabled={inputValue.trim().length === 0}>
-                Get guidance
+              <Button type="submit" disabled={isPending || inputValue.trim().length === 0}>
+                {isPending ? "Getting guidance..." : "Get guidance"}
               </Button>
             </div>
           </form>
@@ -225,37 +282,66 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
           <h3>{message.topic.title}</h3>
           <p>{message.topic.summary}</p>
           <div className="state-panel warning">
-            <strong>Common misconception:</strong> {message.topic.knownMyth}
+            <strong>Common misconception:</strong> {message.topic.commonMisconception}
           </div>
           <p className="form-note">
-            <strong>AI note:</strong> {message.topic.aiNote}
+            <strong>Guidance:</strong> {message.topic.guidance}
           </p>
         </div>
+      ) : null}
+
+      {message.safetyDisclaimers && message.safetyDisclaimers.length > 0 ? (
+        <ul className="assistant-disclaimer-list">
+          {message.safetyDisclaimers.map((disclaimer) => (
+            <li key={disclaimer}>{disclaimer}</li>
+          ))}
+        </ul>
       ) : null}
 
       {message.actions && message.actions.length > 0 ? (
         <div className="assistant-action-row">
           {message.actions.map((action) => (
-            <Link href={action.href} key={action.href}>
+            <Link href={action.href} key={`${action.href}-${action.label}`}>
               {action.label}
             </Link>
           ))}
         </div>
       ) : null}
+
+      {message.meta ? (
+        <p className="ai-debug">
+          {message.meta.providerName} · {message.meta.promptVersion} · confidence{" "}
+          {message.meta.confidenceScore}
+        </p>
+      ) : null}
     </article>
   );
 }
 
-function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessage {
+function mapApiReplyToMessage(reply: AssistantChatReply): AssistantMessage {
+  return buildAssistantMessage({
+    id: `assistant-${Date.now()}`,
+    content: reply.content,
+    topic: reply.topic ? mapApiTopic(reply.topic) : null,
+    actions: reply.actions,
+    safetyDisclaimers: reply.safetyDisclaimers,
+    meta: {
+      providerName: reply.providerName,
+      promptVersion: reply.promptVersion,
+      confidenceScore: reply.confidenceScore
+    }
+  });
+}
+
+function buildLocalFallbackReply(input: string, mode: AssistantMode): AssistantMessage {
   const matchedTopic = findRelevantTopic(input, mode);
-  const id = `assistant-${Date.now()}`;
 
   switch (mode) {
     case "find_products":
-      return buildMessageWithOptionalTopic({
-        id,
+      return buildAssistantMessage({
+        id: `assistant-local-${Date.now()}`,
         content:
-          "Start with the closest category, filter for listings with photos, and save the search if this is an upcoming need. I also recommend opening related guides before messaging sellers.",
+          "Start with the closest category, filter for listings with photos, and save the search if this is an upcoming need.",
         topic: matchedTopic,
         actions: [
           { href: matchedTopic?.browseHref ?? "/browse?hasImages=true&sort=newest", label: "Find listings" },
@@ -265,10 +351,10 @@ function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessa
       });
 
     case "sell_help":
-      return buildMessageWithOptionalTopic({
-        id,
+      return buildAssistantMessage({
+        id: `assistant-local-${Date.now()}`,
         content:
-          "For a stronger listing, include exact product type, condition, missing parts, accessories, usage history, clear photos, and pickup expectations. Then use the sell form AI draft and price suggestion panels.",
+          "For a stronger listing, include exact product type, condition, missing parts, accessories, usage history, clear photos, and pickup expectations.",
         topic: matchedTopic,
         actions: [
           { href: "/sell", label: "Open sell form" },
@@ -278,10 +364,10 @@ function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessa
       });
 
     case "age_needs":
-      return buildMessageWithOptionalTopic({
-        id,
+      return buildAssistantMessage({
+        id: `assistant-local-${Date.now()}`,
         content:
-          "Use the child profile age band to prepare a lightweight upcoming-needs list. BabyLoop avoids exact birth dates and turns stage needs into category links, guide topics, and saved-search ideas.",
+          "Use the child profile age band to prepare a lightweight upcoming-needs list without storing exact birth dates.",
         topic: matchedTopic ?? getTopicById("newborn-first-needs"),
         actions: [
           { href: "/account/children", label: "Manage child profiles" },
@@ -291,10 +377,10 @@ function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessa
       });
 
     case "safe_buying":
-      return buildMessageWithOptionalTopic({
-        id,
+      return buildAssistantMessage({
+        id: `assistant-local-${Date.now()}`,
         content:
-          "Before buying second-hand, ask about usage history, missing parts, defects, cleaning needs, included accessories, and whether the product has had any safety issue. Be extra careful with safety-sensitive gear.",
+          "Before buying second-hand, ask about usage history, missing parts, defects, cleaning needs, included accessories, and whether the product has had any safety issue.",
         topic: matchedTopic ?? getTopicById("baby-gear-safety"),
         actions: [
           { href: "/guides", label: "Open safety guides" },
@@ -304,10 +390,10 @@ function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessa
 
     case "platform_help":
       return {
-        id,
+        id: `assistant-local-${Date.now()}`,
         role: "assistant",
         content:
-          "Browse categories, open listings, save useful searches, add child age bands for lifecycle suggestions, and message sellers through BabyLoop. Sellers can use AI draft and price guidance before publishing.",
+          "Browse categories, open listings, save useful searches, add child age bands for lifecycle suggestions, and message sellers through BabyLoop.",
         actions: [
           { href: "/browse", label: "Browse" },
           { href: "/account/children", label: "Child profiles" },
@@ -317,38 +403,76 @@ function buildAssistantReply(input: string, mode: AssistantMode): AssistantMessa
   }
 }
 
-function buildMessageWithOptionalTopic({
+function buildAssistantMessage({
   id,
   content,
   topic,
-  actions
+  actions,
+  safetyDisclaimers,
+  meta
 }: {
   id: string;
   content: string;
-  topic: ParentGuideTopic | null;
-  actions: AssistantAction[];
+  topic: AssistantDisplayTopic | null;
+  actions: AssistantChatAction[];
+  safetyDisclaimers?: string[];
+  meta?: AssistantMessage["meta"];
 }): AssistantMessage {
-  return topic
-    ? {
-        id,
-        role: "assistant",
-        content,
-        topic,
-        actions
-      }
-    : {
-        id,
-        role: "assistant",
-        content,
-        actions
-      };
+  const baseMessage: AssistantMessage = {
+    id,
+    role: "assistant",
+    content,
+    actions
+  };
+
+  if (topic) {
+    baseMessage.topic = topic;
+  }
+
+  if (safetyDisclaimers && safetyDisclaimers.length > 0) {
+    baseMessage.safetyDisclaimers = safetyDisclaimers;
+  }
+
+  if (meta) {
+    baseMessage.meta = meta;
+  }
+
+  return baseMessage;
 }
 
-function getTopicById(id: string): ParentGuideTopic | null {
-  return parentGuideTopics.find((topic) => topic.id === id) ?? null;
+function mapApiTopic(topic: AssistantChatTopic): AssistantDisplayTopic {
+  return {
+    id: topic.id,
+    title: topic.title,
+    eyebrow: topic.eyebrow,
+    summary: topic.summary,
+    stageLabel: topic.stageLabel,
+    commonMisconception: topic.commonMisconception,
+    guidance: topic.guidance,
+    browseHref: topic.browseHref
+  };
 }
 
-function findRelevantTopic(input: string, mode: AssistantMode): ParentGuideTopic | null {
+function mapParentGuideTopic(topic: ParentGuideTopic): AssistantDisplayTopic {
+  return {
+    id: topic.id,
+    title: topic.title,
+    eyebrow: topic.eyebrow,
+    summary: topic.summary,
+    stageLabel: topic.stageLabel,
+    commonMisconception: topic.knownMyth,
+    guidance: topic.aiNote,
+    browseHref: topic.browseHref
+  };
+}
+
+function getTopicById(id: string): AssistantDisplayTopic | null {
+  const topic = parentGuideTopics.find((guideTopic) => guideTopic.id === id);
+
+  return topic ? mapParentGuideTopic(topic) : null;
+}
+
+function findRelevantTopic(input: string, mode: AssistantMode): AssistantDisplayTopic | null {
   const normalizedInput = input.toLowerCase();
 
   if (mode === "age_needs") {
@@ -375,11 +499,13 @@ function findRelevantTopic(input: string, mode: AssistantMode): ParentGuideTopic
     return getTopicById("baby-gear-safety");
   }
 
-  return parentGuideTopics.find((topic) =>
+  const matchedTopic = parentGuideTopics.find((topic) =>
     [topic.title, topic.summary, topic.eyebrow, topic.stageLabel]
       .join(" ")
       .toLowerCase()
       .split(/\s+/)
       .some((token) => token.length > 4 && normalizedInput.includes(token))
-  ) ?? null;
+  );
+
+  return matchedTopic ? mapParentGuideTopic(matchedTopic) : null;
 }
