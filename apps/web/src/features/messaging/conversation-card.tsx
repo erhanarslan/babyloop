@@ -38,6 +38,12 @@ export function ConversationCard({ conversation, isUnread = false }: Conversatio
       ) : (
         <p className="muted">{dictionary.messaging.noMessagesSent}</p>
       )}
+
+      <div className="conversation-safety-strip">
+        <span>Keep details inside BabyLoop</span>
+        {conversation.unreadCount > 0 ? <strong>{conversation.unreadCount} unread</strong> : null}
+      </div>
+
       <div className="listing-card-footer">
         <span className="conversation-status">
           <span>{dictionary.messaging.statusLabel}: {formatListingStatus(conversation.status, dictionary)}</span>

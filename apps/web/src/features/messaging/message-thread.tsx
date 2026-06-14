@@ -426,6 +426,8 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             onBlockedChange={setIsOtherProfileBlocked}
           />
         </div>
+
+        <ConversationSafetyGuide isOtherProfileBlocked={isOtherProfileBlocked} />
       </section>
 
       <section className="thread-panel">
@@ -508,6 +510,28 @@ function isNearPageBottom(): boolean {
 
   return distanceFromBottom < 240;
 }
+
+
+function ConversationSafetyGuide({ isOtherProfileBlocked }: { isOtherProfileBlocked: boolean }) {
+  return (
+    <section className="conversation-safety-guide" aria-label="Conversation safety guide">
+      <div>
+        <p className="eyebrow">Safe messaging</p>
+        <h2>{isOtherProfileBlocked ? "This profile is blocked" : "Keep the conversation useful and safe"}</h2>
+        <p className="form-note">
+          Ask clear item questions, keep arrangements inside BabyLoop, and report anything misleading or unsafe.
+        </p>
+      </div>
+
+      <ul className="question-list">
+        <li>Confirm condition, missing parts, cleaning needs, and included accessories.</li>
+        <li>Use clear pickup timing and avoid sharing unnecessary private details.</li>
+        <li>Report pressure, suspicious requests, misleading item details, or unsafe behavior.</li>
+      </ul>
+    </section>
+  );
+}
+
 
 function getLatestIncomingMessageId(messages: Message[], currentProfileId: string): string | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {

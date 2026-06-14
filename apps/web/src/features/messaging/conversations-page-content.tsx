@@ -19,6 +19,16 @@ export function ConversationsPageContent({ apiBaseUrl }: ConversationsPageConten
         description={dictionary.messaging.conversationsDescription}
       />
       <PageContainer className="conversations-layout">
+        <section className="conversation-safety-overview" aria-label="Messaging safety overview">
+          <div>
+            <p className="eyebrow">Messaging safety</p>
+            <h2>Talk through the details before deciding</h2>
+            <p className="form-note">
+              BabyLoop messages are for item questions, pickup expectations, and safety checks. Report or block when something feels wrong.
+            </p>
+          </div>
+        </section>
+
         <ConversationList apiBaseUrl={apiBaseUrl} />
       </PageContainer>
     </>
