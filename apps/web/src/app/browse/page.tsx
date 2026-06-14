@@ -33,9 +33,9 @@ export async function generateMetadata({ searchParams }: BrowsePageProps): Promi
   }
 
   return buildPublicPageMetadata({
-    title: "Browse baby and child essentials",
+    title: "Browse trusted baby and child essentials",
     description:
-      "Explore parent-owned BabyLoop listings by category, condition, price, photos, saved searches, and second-hand buying guidance.",
+      "Explore parent-owned BabyLoop listings with category filters, condition notes, price ranges, photos, saved searches, parent guides, and AI-assisted buying checks.",
     path: "/browse"
   });
 }

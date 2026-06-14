@@ -5,7 +5,6 @@ import {
   Alert,
   Badge,
   Card,
-  EmptyState,
   PageContainer,
   PageHeading
 } from "../../components/ui";
@@ -98,6 +97,10 @@ export function BrowsePageContent({
     selectedCategory
   });
   const clearFiltersHref = currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse";
+  const browseAssistantHref = buildAssistantHref(
+    "find_products",
+    buildBrowseAssistantPrompt(filters, selectedCategory, dictionary)
+  );
 
   return (
     <>
@@ -117,6 +120,7 @@ export function BrowsePageContent({
 
       <PageContainer className="browse-layout" ariaLabel={dictionary.listings.browseAriaLabel}>
         <BrowseDiscoveryPanel
+          browseAssistantHref={browseAssistantHref}
           currentCategorySlug={currentCategorySlug}
           filters={filters}
           pagination={pagination}
@@ -270,10 +274,22 @@ export function BrowsePageContent({
           ) : null}
 
           {!error ? (
-            <p className="listing-meta">
-              Showing {listings.length} of {pagination.total} listings
-              {selectedCategory ? ` in ${formatCategoryName(selectedCategory, dictionary)}` : ""}
-            </p>
+            <div className="listing-results-summary">
+              <div>
+                <p className="listing-meta">
+                  Showing {listings.length} of {pagination.total} listings
+                  {selectedCategory ? ` in ${formatCategoryName(selectedCategory, dictionary)}` : ""}
+                </p>
+                <p className="listing-results-helper">
+                  Compare condition, photos, price, and seller-safe details before messaging.
+                </p>
+              </div>
+              <div className="listing-results-actions" aria-label="Browse next steps">
+                <Link href={browseAssistantHref}>Ask Assistant</Link>
+                <Link href="/guides">Buying guides</Link>
+                <Link href="/account/saved-searches">Saved searches</Link>
+              </div>
+            </div>
           ) : null}
 
           {!error && activeFilterChips.length > 0 ? (
@@ -297,19 +313,12 @@ export function BrowsePageContent({
           ) : null}
 
           {!error && listings.length === 0 ? (
-            activeFilterChips.length > 0 ? (
-              <EmptyState
-                title="No listings match these filters"
-                message="Clear or loosen one filter to see more marketplace results."
-                actionHref={clearFiltersHref}
-                actionLabel="Clear filters"
-              />
-            ) : (
-              <EmptyState
-                title={dictionary.listings.noActiveListingsTitle}
-                message={dictionary.listings.noActiveListingsBody}
-              />
-            )
+            <BrowseNoResultsPanel
+              assistantHref={browseAssistantHref}
+              clearFiltersHref={clearFiltersHref}
+              hasActiveFilters={activeFilterChips.length > 0}
+              selectedCategory={selectedCategory}
+            />
           ) : null}
 
           <div className="listing-grid">
@@ -359,12 +368,14 @@ export function BrowsePageContent({
 }
 
 function BrowseDiscoveryPanel({
+  browseAssistantHref,
   currentCategorySlug,
   filters,
   pagination,
   searchSuggestions,
   selectedCategory
 }: {
+  browseAssistantHref: string;
   currentCategorySlug: string | null;
   filters: BrowseListingsFilters;
   pagination: ListingsPagination;
@@ -377,14 +388,29 @@ function BrowseDiscoveryPanel({
   const clearFiltersHref = currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse";
 
   return (
-    <Card as="section" className="browse-discovery-panel">
+    <Card as="section" className="browse-discovery-panel browse-discovery-panel-product">
       <div className="browse-discovery-main">
         <div>
-          <p className="eyebrow">Discovery controls</p>
+          <p className="eyebrow">Marketplace discovery</p>
           <h2>{selectedCategory ? `Browse ${formatCategoryName(selectedCategory, dictionary)}` : "Find the right baby item faster"}</h2>
           <p className="form-note">
             {filterSummary}
           </p>
+
+          <div className="browse-discovery-paths" aria-label="BabyLoop discovery paths">
+            <div>
+              <span>Start broad</span>
+              <strong>Category, type, and condition filters</strong>
+            </div>
+            <div>
+              <span>Save intent</span>
+              <strong>Keep useful searches one click away</strong>
+            </div>
+            <div>
+              <span>Ask smarter</span>
+              <strong>Use Assistant for buyer checks</strong>
+            </div>
+          </div>
         </div>
 
         <div className="browse-discovery-counts">
@@ -397,14 +423,7 @@ function BrowseDiscoveryPanel({
       <div className="browse-discovery-actions">
         <Link href={clearFiltersHref}>Clear filters</Link>
         <Link href="/guides">Read buying guides</Link>
-        <Link
-          href={buildAssistantHref(
-            "find_products",
-            "Help me turn these browse filters into a short BabyLoop search plan."
-          )}
-        >
-          Ask Assistant
-        </Link>
+        <Link href={browseAssistantHref}>Ask Assistant</Link>
         <Link href="/account/saved-searches">Saved searches</Link>
       </div>
 
@@ -430,6 +449,52 @@ function BrowseDiscoveryPanel({
           </div>
         </div>
       ) : null}
+    </Card>
+  );
+}
+
+function BrowseNoResultsPanel({
+  assistantHref,
+  clearFiltersHref,
+  hasActiveFilters,
+  selectedCategory
+}: {
+  assistantHref: string;
+  clearFiltersHref: string;
+  hasActiveFilters: boolean;
+  selectedCategory: Category | null;
+}) {
+  const { dictionary } = useI18n();
+  const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : null;
+
+  return (
+    <Card as="section" className="browse-no-results-card">
+      <div>
+        <p className="eyebrow">Discovery reset</p>
+        <h2>
+          {hasActiveFilters
+            ? "No listings match this exact search yet"
+            : "No active listings are available yet"}
+        </h2>
+        <p>
+          {hasActiveFilters
+            ? `Loosen one filter${categoryName ? ` in ${categoryName}` : ""}, save the intent for later, or ask BabyLoop Assistant to turn this search into a broader plan.`
+            : "Start from broader categories, create a saved search, or ask BabyLoop Assistant what to look for while the marketplace grows."}
+        </p>
+      </div>
+
+      <div className="browse-no-results-actions">
+        <Link href={clearFiltersHref}>{hasActiveFilters ? "Clear filters" : "Browse all"}</Link>
+        <Link href={assistantHref}>Ask Assistant</Link>
+        <Link href="/guides">Read buying guides</Link>
+        <Link href="/sell">Create listing</Link>
+      </div>
+
+      <ul className="browse-no-results-tips" aria-label="Ways to continue browsing">
+        <li>Try a wider price range or remove the image-only filter.</li>
+        <li>Use age-band guides to discover adjacent categories.</li>
+        <li>Save recurring searches for future marketplace matches.</li>
+      </ul>
     </Card>
   );
 }
@@ -490,6 +555,27 @@ function buildBrowseFilterSummary(
   return parts.length > 0
     ? `Current filter set: ${parts.join(" · ")}. Save it if this is a recurring need.`
     : "Start broad, then narrow by category, condition, price, and images. Save useful filters for later.";
+}
+
+function buildBrowseAssistantPrompt(
+  filters: BrowseListingsFilters,
+  selectedCategory: Category | null,
+  dictionary: ReturnType<typeof useI18n>["dictionary"]
+): string {
+  const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : "all baby categories";
+  const parts = [
+    filters.q ? `search phrase: ${filters.q}` : "",
+    categoryName ? `category: ${categoryName}` : "",
+    filters.listingType ? `listing type: ${formatListingType(filters.listingType, dictionary)}` : "",
+    filters.condition ? `condition: ${formatListingCondition(filters.condition, dictionary)}` : "",
+    filters.priceMin ? `minimum price: ${filters.priceMin}` : "",
+    filters.priceMax ? `maximum price: ${filters.priceMax}` : "",
+    filters.hasImages === "true" ? "only listings with images" : ""
+  ].filter(Boolean);
+
+  return parts.length > 0
+    ? `Help me turn this BabyLoop browse intent into a short product discovery plan: ${parts.join("; ")}.`
+    : "Help me build a BabyLoop browsing plan for second-hand baby essentials.";
 }
 
 function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
@@ -601,7 +687,7 @@ function ListingCard({
   const { dictionary } = useI18n();
 
   return (
-    <article className="listing-card">
+    <article className="listing-card listing-card-discovery">
       <ListingImageFrame
         alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
         apiBaseUrl={apiBaseUrl}
@@ -611,26 +697,48 @@ function ListingCard({
       />
       <div className="listing-card-body">
         <div>
-          <div className="listing-card-badges">
-            <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
-            <Badge tone="success">
-              {dictionary.listings.typeLabel}: {formatListingType(listing.listingType, dictionary)}
-            </Badge>
-            {listing.status === "reserved" ? (
-              <Badge tone="warning">{formatListingStatus(listing.status, dictionary)}</Badge>
-            ) : null}
+          <div className="listing-card-topline">
+            <div className="listing-card-badges">
+              <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
+              <Badge tone="success">
+                {dictionary.listings.typeLabel}: {formatListingType(listing.listingType, dictionary)}
+              </Badge>
+              {listing.status === "reserved" ? (
+                <Badge tone="warning">{formatListingStatus(listing.status, dictionary)}</Badge>
+              ) : (
+                <Badge>{formatListingStatus(listing.status, dictionary)}</Badge>
+              )}
+            </div>
+            <time dateTime={listing.createdAt}>{formatBrowseListingDate(listing.createdAt)}</time>
           </div>
           <h2>{listing.title}</h2>
           <p className="muted">
             {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
           </p>
         </div>
-        <p className="listing-card-buyer-hint">
-          Ask about condition, missing parts, and pickup expectations before deciding.
-        </p>
+
+        <div className="browse-card-context">
+          <p>
+            Ask about condition, missing parts, pickup expectations, and whether this item fits your current age-band needs.
+          </p>
+          <Link
+            href={buildAssistantHref(
+              "safe_buying",
+              `What should I check before buying a second-hand ${formatCategoryName(
+                listing.category,
+                dictionary
+              )} item like ${listing.title}?`
+            )}
+          >
+            Ask checks
+          </Link>
+        </div>
 
         <div className="listing-card-footer">
-          <strong>{formatListingPrice(listing.price, dictionary)}</strong>
+          <div className="listing-card-price-stack">
+            <strong>{formatListingPrice(listing.price, dictionary)}</strong>
+            <span>{listing.favoriteCount} saved · {formatListingCondition(listing.condition, dictionary)}</span>
+          </div>
           <Link
             href={`/listings/${listing.id}`}
             onClick={() => {
@@ -862,4 +970,17 @@ function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
   });
 
   return `/assistant?${params.toString()}`;
+}
+
+function formatBrowseListingDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Recently listed";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short"
+  }).format(date);
 }
