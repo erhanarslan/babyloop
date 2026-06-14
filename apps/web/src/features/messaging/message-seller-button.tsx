@@ -72,7 +72,7 @@ export function MessageSellerButton({
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, dictionary]);
 
   async function handleMessageSeller() {
     setIsPending(true);
@@ -103,7 +103,11 @@ export function MessageSellerButton({
 
   if (!isLoadingUser && isAuthenticated === false) {
     return (
-      <div className="message-seller-action">
+      <div className="message-seller-action message-seller-action-polished">
+        <div className="message-seller-guidance">
+          <strong>Message inside BabyLoop</strong>
+          <span>Sign in to ask item-specific questions without exposing private contact details.</span>
+        </div>
         <Link className="primary-link compact-link" href="/login">
           {dictionary.messaging.loginToMessageSeller}
         </Link>
@@ -113,7 +117,7 @@ export function MessageSellerButton({
 
   if (isLoadingUser) {
     return (
-      <div className="message-seller-action">
+      <div className="message-seller-action message-seller-action-polished">
         <Button variant="secondary" disabled>
           {dictionary.messaging.checkingSeller}
         </Button>
@@ -123,7 +127,11 @@ export function MessageSellerButton({
 
   if (currentProfileId === sellerProfileId) {
     return (
-      <div className="message-seller-action">
+      <div className="message-seller-action message-seller-action-polished">
+        <div className="message-seller-guidance">
+          <strong>Your listing</strong>
+          <span>Buyers can message you from this page while the listing is active or reserved.</span>
+        </div>
         <Button variant="secondary" disabled>
           {dictionary.messaging.ownListing}
         </Button>
@@ -132,7 +140,11 @@ export function MessageSellerButton({
   }
 
   return (
-    <div className="message-seller-action">
+    <div className="message-seller-action message-seller-action-polished">
+      <div className="message-seller-guidance">
+        <strong>Before messaging</strong>
+        <span>Ask about condition, included parts, more photos, pickup timing, and whether the item is still available.</span>
+      </div>
       <Button disabled={isPending} onClick={handleMessageSeller}>
         {isPending ? dictionary.messaging.opening : dictionary.messaging.messageSeller}
       </Button>

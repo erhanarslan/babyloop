@@ -14,6 +14,13 @@ type MessageComposerProps = {
   onSent: (message: Message) => void;
 };
 
+const SAFE_MESSAGE_PROMPTS = [
+  "Condition and wear",
+  "Included parts",
+  "More photos",
+  "Pickup timing"
+];
+
 export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageComposerProps) {
   const { dictionary } = useI18n();
   const [body, setBody] = useState("");
@@ -56,11 +63,34 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
   }
 
   return (
-    <form className="message-composer" onSubmit={handleSubmit}>
+    <form className="message-composer message-composer-polished" onSubmit={handleSubmit}>
+      <div className="message-composer-heading">
+        <div>
+          <p className="eyebrow">Plain-text message</p>
+          <h2>Ask a clear item-specific question</h2>
+          <p>
+            Keep messages focused on the listing. Avoid unnecessary private details and do not paste HTML,
+            scripts, payment credentials, or sensitive child information.
+          </p>
+        </div>
+      </div>
+
+      <div className="message-prompt-chips" aria-label="Suggested message topics">
+        {SAFE_MESSAGE_PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => setBody((currentBody) => appendPrompt(currentBody, prompt))}
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+
       <Textarea
         label={dictionary.messaging.messageLabel}
         maxLength={5000}
-        rows={3}
+        rows={4}
         value={body}
         onChange={(event) => setBody(event.target.value)}
         placeholder={dictionary.messaging.messagePlaceholder}
@@ -73,12 +103,12 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
 
       <div className="message-composer-meta">
         <p className="form-note">
-          Keep pickup expectations, condition questions, and payment terms clear. Avoid unnecessary private details.
+          Messages are participant-only and moderated as safe plain text. Use report or block if the thread becomes unsafe.
         </p>
         <span>{body.length}/5000</span>
       </div>
 
-      <div className="form-actions">
+      <div className="message-composer-actions">
         {errorMessage ? (
           <Alert title={dictionary.messaging.sendFailed} message={errorMessage} />
         ) : (
@@ -90,6 +120,36 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       </div>
     </form>
   );
+}
+
+function appendPrompt(currentBody: string, prompt: string): string {
+  const addition = buildPromptSentence(prompt);
+
+  if (!currentBody.trim()) {
+    return addition;
+  }
+
+  if (currentBody.includes(addition)) {
+    return currentBody;
+  }
+
+  return `${currentBody.trim()}\n${addition}`;
+}
+
+function buildPromptSentence(prompt: string): string {
+  if (prompt === "Condition and wear") {
+    return "Can you describe the condition, visible wear, and anything I should check closely?";
+  }
+
+  if (prompt === "Included parts") {
+    return "Are all original parts, accessories, straps, manuals, or missing pieces included?";
+  }
+
+  if (prompt === "More photos") {
+    return "Could you share clear photos from a few more angles before we decide?";
+  }
+
+  return "What pickup timing and handover expectations work best for you?";
 }
 
 function buildComposerGuidance(value: string): { tone: "info" | "warning"; message: string } | null {
@@ -106,6 +166,13 @@ function buildComposerGuidance(value: string): { tone: "info" | "warning"; messa
     return {
       tone: "warning",
       message: "This message may look unsafe. Remove code-like text and keep the conversation focused on the item."
+    };
+  }
+
+  if (/\b(phone|telefon|whatsapp|iban|password|şifre|sifre|card number|credit card)\b/i.test(normalized)) {
+    return {
+      tone: "warning",
+      message: "Avoid sharing unnecessary private contact, payment, or credential details in marketplace chat."
     };
   }
 

@@ -4874,3 +4874,251 @@ body {
   }
 }
 
+
+/* Buyer-seller messaging experience polish */
+.messaging-experience-layout,
+.messaging-thread-layout {
+  gap: 1.25rem;
+}
+
+.messaging-hero,
+.thread-context-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  border-color: rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.12), transparent 32%),
+    var(--card-background);
+}
+
+.thread-context-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+}
+
+.messaging-hero::after,
+.thread-context-hero::after {
+  position: absolute;
+  content: "";
+  inset: auto -5rem -6rem auto;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.messaging-hero > *,
+.thread-context-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.messaging-hero h2,
+.thread-context-hero h2 {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--foreground);
+  line-height: 1.08;
+}
+
+.messaging-hero h2 {
+  font-size: clamp(1.9rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.055em;
+}
+
+.messaging-hero p,
+.thread-context-hero p,
+.messaging-workflow-card p,
+.message-composer-heading p,
+.message-seller-guidance span {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.messaging-hero-actions,
+.messaging-hero-principles,
+.thread-context-actions,
+.messaging-workflow-grid,
+.messaging-safety-points,
+.conversation-card-badges,
+.message-prompt-chips,
+.message-composer-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.messaging-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.messaging-hero-actions a,
+.thread-context-actions a {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--foreground);
+  font-weight: 850;
+  padding: 0.62rem 0.86rem;
+  text-decoration: none;
+}
+
+.messaging-hero-principles,
+.thread-context-actions {
+  grid-template-columns: 1fr;
+}
+
+.messaging-hero-principles div,
+.messaging-workflow-card,
+.message-seller-guidance {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+}
+
+.messaging-hero-principles div,
+.messaging-workflow-card,
+.message-seller-guidance {
+  padding: 1rem;
+}
+
+.messaging-hero-principles span,
+.messaging-workflow-card span {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.messaging-hero-principles strong,
+.messaging-workflow-card h2,
+.message-seller-guidance strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--foreground);
+}
+
+.messaging-workflow-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.messaging-workflow-card h2 {
+  margin: 0.65rem 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.messaging-safety-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+  gap: 1rem;
+}
+
+.messaging-safety-points {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.messaging-safety-points span,
+.message-prompt-chips button {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.86);
+  color: var(--foreground);
+  font-weight: 800;
+  padding: 0.62rem 0.78rem;
+}
+
+.conversation-card-polished {
+  position: relative;
+  overflow: hidden;
+}
+
+.conversation-card-polished::before {
+  position: absolute;
+  content: "";
+  inset: 0 0 auto 0;
+  height: 0.22rem;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.85), rgba(34, 197, 94, 0.8));
+}
+
+.conversation-card-badges {
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  align-items: center;
+}
+
+.conversation-card-footer {
+  gap: 0.75rem;
+}
+
+.message-composer-polished {
+  gap: 1rem;
+}
+
+.message-composer-heading {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(248, 250, 252, 0.86);
+  padding: 1rem;
+}
+
+.message-composer-heading h2 {
+  margin: 0.25rem 0 0.45rem;
+  color: var(--foreground);
+}
+
+.message-prompt-chips {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.message-prompt-chips button {
+  cursor: pointer;
+  text-align: center;
+}
+
+.message-composer-actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.message-seller-action-polished {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.message-seller-guidance {
+  background: rgba(248, 250, 252, 0.88);
+}
+
+@media (max-width: 980px) {
+  .messaging-hero,
+  .thread-context-hero,
+  .messaging-workflow-grid,
+  .messaging-safety-overview,
+  .messaging-safety-points,
+  .message-prompt-chips,
+  .message-composer-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-card-badges {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .messaging-hero-actions a,
+  .thread-context-actions a,
+  .message-prompt-chips button,
+  .message-composer-actions button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
