@@ -69,9 +69,9 @@ export const dictionaries = {
     },
     home: {
       eyebrow: "Baby and family essentials",
-      title: "Buy, sell, and reuse baby items with parents nearby.",
+      title: "A trusted loop for baby essentials, parent guidance, and safer second-hand discovery.",
       subtitle:
-        "BabyLoop helps families pass along outgrown essentials with clearer listings, safer conversations, and a calmer marketplace experience.",
+        "BabyLoop connects marketplace listings, seller tools, child age-band planning, parent guides, and assistant-led buying checks so families can reuse essentials with more confidence.",
       heroPrimaryLoggedOut: "Create account",
       heroSecondaryLoggedOut: "Login",
       heroThird: "Browse marketplace",
@@ -85,27 +85,27 @@ export const dictionaries = {
       previewCategory: "Strollers",
       previewTrust: "Verified parent account",
       howEyebrow: "How it works",
-      howTitle: "A simple flow for everyday family items.",
+      howTitle: "A complete loop for everyday family items.",
       howDescription:
-        "BabyLoop keeps the first marketplace loop focused: browse real listings, create clear posts, save favorites, and message safely.",
+        "BabyLoop keeps discovery, listing creation, favorites, saved searches, messaging, and safety actions connected across the parent journey.",
       steps: [
         {
           title: "Find essentials",
-          body: "Browse baby gear, toys, clothes, and nursery items from local families."
+          body: "Browse baby gear, toys, clothes, and nursery items with category, condition, price, photo, and status context."
         },
         {
           title: "List with confidence",
-          body: "Create a listing with practical details, condition, price, and optional photos."
+          body: "Create a listing with practical details, condition, price, photos, and AI-assisted preparation when helpful."
         },
         {
           title: "Talk before you meet",
-          body: "Use built-in messaging to ask questions and agree on next steps."
+          body: "Use built-in messaging, buyer checks, reporting, and blocking to keep next steps inside a safer marketplace flow."
         }
       ],
       categoriesEyebrow: "Marketplace flows",
-      categoriesTitle: "Built around parent decisions, not noisy feeds.",
+      categoriesTitle: "Built around parent decisions, lifecycle needs, and trustworthy reuse.",
       categoriesDescription:
-        "The product stays focused on sale, donation, and swap listings while rental and payment-heavy flows remain deferred.",
+        "BabyLoop organizes discovery around sale, donation, and swap-ready essentials while connecting guides, saved searches, child profiles, and assistant prompts to the same journey.",
       categoryCards: [
         {
           title: "Baby gear",
@@ -123,14 +123,14 @@ export const dictionaries = {
       safetyEyebrow: "Trust and safety",
       safetyTitle: "A calmer marketplace for parents.",
       safetyDescription:
-        "BabyLoop keeps ownership, account state, favorites, and messages tied to authenticated profiles. More moderation and reporting tools will come later.",
+        "BabyLoop keeps ownership, account state, favorites, messages, reports, blocks, moderation cases, and audit-sensitive admin actions connected to privacy-aware profiles.",
       safetyItems: [
         "Parent-owned accounts and authenticated write actions",
-        "Listing details that separate condition, type, seller, and location",
-        "Participant-only messaging between buyers and sellers"
+        "Privacy-safe listing details that separate condition, type, seller, and location",
+        "Participant-only messaging, reporting, blocking, moderation, and audit-aware review"
       ],
       finalTitle: "Ready to give baby essentials another loop?",
-      finalDescription: "Start with browsing, or create a listing when you are ready."
+      finalDescription: "Start by browsing trusted listings, planning family needs, asking the assistant, or creating a clear listing for the next parent."
     },
     auth: {
       loginTitle: "Welcome back",
@@ -619,9 +619,9 @@ export const dictionaries = {
     },
     home: {
       eyebrow: "Bebek ve çocuk ihtiyaçları",
-      title: "Bebek eşyalarını ebeveynler arasında güvenle al, sat ve yeniden kullan.",
+      title: "Bebek ihtiyaçları, ebeveyn rehberliği ve güvenli ikinci el keşfi için güçlü bir döngü.",
       subtitle:
-        "BabyLoop, büyüyen çocuklardan kalan ihtiyaçların daha anlaşılır ilanlarla, daha sakin mesajlaşmayla ve daha güvenli bir akışla el değiştirmesine yardımcı olur.",
+        "BabyLoop; ilanları, satıcı araçlarını, çocuk yaş bandı planlamasını, ebeveyn rehberlerini ve asistan destekli alışveriş kontrollerini tek bir güvenli pazar akışında birleştirir.",
       heroPrimaryLoggedOut: "Hesap oluştur",
       heroSecondaryLoggedOut: "Giriş yap",
       heroThird: "Pazarı keşfet",
@@ -635,27 +635,27 @@ export const dictionaries = {
       previewCategory: "Bebek arabaları",
       previewTrust: "Doğrulanmış ebeveyn hesabı",
       howEyebrow: "Nasıl çalışır",
-      howTitle: "Günlük aile ihtiyaçları için sade bir akış.",
+      howTitle: "Günlük aile ihtiyaçları için uçtan uca bir döngü.",
       howDescription:
-        "BabyLoop ilk aşamada gerçek ilanlara, net ürün bilgisine, favorilere ve güvenli mesajlaşmaya odaklanır.",
+        "BabyLoop keşif, ilan oluşturma, favoriler, kayıtlı aramalar, mesajlaşma ve güvenlik aksiyonlarını ebeveyn yolculuğu boyunca birbirine bağlar.",
       steps: [
         {
           title: "İhtiyacını bul",
-          body: "Bebek ekipmanları, oyuncaklar, kıyafetler ve oda ürünlerini ailelerden keşfet."
+          body: "Bebek ekipmanları, oyuncaklar, kıyafetler ve oda ürünlerini kategori, durum, fiyat, fotoğraf ve statü bilgisiyle keşfet."
         },
         {
           title: "Net ilan oluştur",
-          body: "Durum, fiyat, kategori ve fotoğraf bağlantılarıyla anlaşılır bir ilan yayınla."
+          body: "Durum, fiyat, kategori, fotoğraf ve gerektiğinde AI destekli hazırlıkla daha anlaşılır ilan oluştur."
         },
         {
           title: "Önce konuş",
-          body: "Görüşmeden önce sorularını sor, teslim ve detayları mesajlaşarak netleştir."
+          body: "Mesajlaşma, alıcı kontrolleri, raporlama ve engelleme ile sonraki adımları daha güvenli bir pazar akışı içinde netleştir."
         }
       ],
       categoriesEyebrow: "Pazar akışları",
-      categoriesTitle: "Gürültülü bir akış değil, ebeveyn kararlarına uygun düzen.",
+      categoriesTitle: "Ebeveyn kararlarına, yaş dönemi ihtiyaçlarına ve güvenilir yeniden kullanıma uygun düzen.",
       categoriesDescription:
-        "MVP satış, bağış ve takas ilanlarına odaklanır. Kiralama ve ödeme ağırlıklı akışlar bilinçli olarak sonraya bırakılmıştır.",
+        "BabyLoop keşfi satış, bağış ve takasa uygun ihtiyaçlar etrafında düzenler; rehberleri, kayıtlı aramaları, çocuk profillerini ve asistan yönlendirmelerini aynı yolculuğa bağlar.",
       categoryCards: [
         {
           title: "Bebek ekipmanları",
@@ -673,14 +673,14 @@ export const dictionaries = {
       safetyEyebrow: "Güven ve düzen",
       safetyTitle: "Ebeveynler için daha sakin bir pazar deneyimi.",
       safetyDescription:
-        "BabyLoop sahiplik, hesap durumu, favoriler ve mesajları doğrulanmış profillerle ilişkilendirir. Moderasyon ve raporlama araçları sonraki aşamada güçlendirilecek.",
+        "BabyLoop sahipliği, hesap durumunu, favorileri, mesajları, raporları, engellemeleri, moderasyon vakalarını ve denetlenebilir admin aksiyonlarını gizlilik odaklı profillerle ilişkilendirir.",
       safetyItems: [
         "Ebeveyn hesapları ve giriş gerektiren yazma işlemleri",
-        "Durum, ilan tipi, satıcı ve konumu ayıran net ilan bilgileri",
-        "Yalnızca katılımcıların erişebildiği alıcı-satıcı mesajlaşması"
+        "Durum, ilan tipi, satıcı ve konumu ayıran gizlilik odaklı ilan bilgileri",
+        "Katılımcı mesajlaşması, raporlama, engelleme, moderasyon ve audit destekli inceleme"
       ],
       finalTitle: "Bebek eşyalarına yeni bir döngü vermeye hazır mısın?",
-      finalDescription: "Önce ilanları keşfet ya da hazır olduğunda kendi ilanını oluştur."
+      finalDescription: "Güvenli ilanları keşfet, aile ihtiyaçlarını planla, asistana sor ya da bir sonraki ebeveyn için net bir ilan oluştur."
     },
     auth: {
       loginTitle: "Tekrar hoş geldin",

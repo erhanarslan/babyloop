@@ -5,9 +5,9 @@ import { getApiBaseUrl } from "../lib/api";
 import { buildPublicPageMetadata } from "../lib/seo";
 
 export const metadata: Metadata = buildPublicPageMetadata({
-  title: "Parent marketplace for baby and child essentials",
+  title: "Trusted baby marketplace, parent guides, and AI-assisted discovery",
   description:
-    "Buy, sell, donate, and reuse baby essentials with parent-owned listings, safer conversations, child age-band planning, and BabyLoop Assistant guidance.",
+    "BabyLoop is a parent-focused marketplace for buying, selling, donating, and reusing baby essentials with safer messaging, lifecycle planning, saved searches, and AI-assisted guidance.",
   path: "/"
 });
 

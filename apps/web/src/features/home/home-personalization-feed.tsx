@@ -95,8 +95,9 @@ export function HomePersonalizationFeed({ apiBaseUrl }: HomePersonalizationFeedP
         <p className="eyebrow">Personalized marketplace</p>
         <h2>Continue where your family needs are evolving</h2>
         <p>
-          BabyLoop combines recently viewed listings, saved searches, and age-band lifecycle suggestions
-          without exposing buyer identity or private contact data.
+          BabyLoop turns browsing signals into a practical parent workspace: recently viewed listings,
+          saved searches, lifecycle recommendations, and seller next steps stay connected without exposing
+          buyer identity or private contact data.
         </p>
       </div>
 
@@ -115,6 +116,7 @@ export function HomePersonalizationFeed({ apiBaseUrl }: HomePersonalizationFeedP
             <div className="home-personalization-actions">
               <Link href="/browse">{dictionary.common.browseMarketplace}</Link>
               <Link href="/account/children">Add child profiles</Link>
+              <Link href="/assistant">Ask Assistant</Link>
               <Link href="/sell">{dictionary.common.createListing}</Link>
             </div>
           </Card>
@@ -322,17 +324,19 @@ function SellerActionHomeCard() {
       <div className="home-card-heading-row">
         <div>
           <p className="eyebrow">Seller tools</p>
-          <h3>Improve listings with AI and stats</h3>
+          <h3>Turn outgrown items into clear, safer listings</h3>
         </div>
         <Badge>AI</Badge>
       </div>
 
       <p className="muted">
-        Create listings faster with AI draft and price suggestions, then follow aggregate seller insights.
+        Start with guided listing details, AI draft help, price suggestions, and aggregate seller insights
+        so the next family understands condition, pickup context, and value.
       </p>
 
       <div className="home-personalization-actions">
         <Link href="/sell">Create listing</Link>
+        <Link href="/assistant?mode=sell_help&prompt=Help%20me%20prepare%20a%20clear%20BabyLoop%20listing.">Ask seller assistant</Link>
         <Link href="/account/seller">Seller dashboard</Link>
       </div>
     </Card>
