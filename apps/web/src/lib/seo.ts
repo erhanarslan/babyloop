@@ -93,20 +93,151 @@ export function buildCategoryMetadata(category: Category, noIndex = false): Meta
 }
 
 export function buildListingMetadata(listing: ListingDetail): Metadata {
-  const isIndexable = listing.status === "active" || listing.status === "reserved";
+  const isIndexable = isListingIndexable(listing);
   const imageUrl = listing.firstImage?.url ?? listing.images[0]?.url ?? null;
+  const categoryName = listing.category.name;
+  const conditionText = formatMetadataToken(listing.condition);
+  const listingTypeText = formatMetadataToken(listing.listingType);
   const priceText = listing.price
     ? `${listing.price.amount} ${listing.price.currency}`
-    : "price on request";
+    : listing.listingType === "donation"
+      ? "donation"
+      : "price on request";
 
   return buildPublicPageMetadata({
-    title: listing.title,
-    description: `${listing.title} on BabyLoop: ${listing.category.name}, ${listing.condition}, ${priceText}. Review photos, seller-safe details, buyer checklist, related listings, and messaging before meeting.`,
+    title: `${listing.title} in ${categoryName}`,
+    description: `${listing.title} on BabyLoop: ${categoryName}, ${conditionText}, ${listingTypeText}, ${priceText}. Review photos, buyer checklist, seller-safe details, related listings, and messaging before meeting.`,
     path: `/listings/${listing.id}`,
     imageUrl,
     noIndex: !isIndexable
   });
 }
+
+export function buildListingJsonLd(listing: ListingDetail): Record<string, unknown> {
+  const images = listing.images
+    .map((image) => normalizeMetadataImage(image.url))
+    .filter((url, index, urls) => urls.indexOf(url) === index);
+
+  const product: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: listing.title,
+    description: buildListingStructuredDescription(listing),
+    category: listing.category.name,
+    url: buildCanonicalUrl(`/listings/${listing.id}`)
+  };
+
+  if (images.length > 0) {
+    product.image = images;
+  }
+
+  product.offers = {
+    "@type": "Offer",
+    url: buildCanonicalUrl(`/listings/${listing.id}`),
+    availability: getListingAvailabilitySchema(listing.status),
+    itemCondition: getListingConditionSchema(listing.condition),
+    priceCurrency: listing.price?.currency ?? "TRY",
+    price: listing.price?.amount ?? (listing.listingType === "donation" ? "0" : undefined)
+  };
+
+  return product;
+}
+
+export function buildListingBreadcrumbJsonLd(listing: ListingDetail): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: SITE_NAME,
+        item: buildCanonicalUrl("/")
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Browse marketplace",
+        item: buildCanonicalUrl("/browse")
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `${listing.category.name} listings`,
+        item: buildCanonicalUrl(`/categories/${listing.category.slug}`)
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: listing.title,
+        item: buildCanonicalUrl(`/listings/${listing.id}`)
+      }
+    ]
+  };
+}
+
+export function serializeStructuredData(data: Record<string, unknown>): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+export function isListingIndexable(listing: ListingDetail): boolean {
+  return listing.status === "active" || listing.status === "reserved";
+}
+
+function buildListingStructuredDescription(listing: ListingDetail): string {
+  const fallback = `${listing.title} in ${listing.category.name}: ${formatMetadataToken(
+    listing.condition
+  )}, ${formatMetadataToken(listing.listingType)}.`;
+
+  return compactMetadataText(listing.description ?? fallback, 500);
+}
+
+function getListingAvailabilitySchema(status: string): string {
+  switch (status) {
+    case "active":
+      return "https://schema.org/InStock";
+    case "reserved":
+      return "https://schema.org/LimitedAvailability";
+    case "sold":
+      return "https://schema.org/SoldOut";
+    default:
+      return "https://schema.org/OutOfStock";
+  }
+}
+
+function getListingConditionSchema(condition: string): string {
+  switch (condition) {
+    case "new":
+      return "https://schema.org/NewCondition";
+    case "like_new":
+    case "good":
+    case "fair":
+      return "https://schema.org/UsedCondition";
+    case "needs_repair":
+      return "https://schema.org/DamagedCondition";
+    default:
+      return "https://schema.org/UsedCondition";
+  }
+}
+
+function compactMetadataText(value: string, maxLength: number): string {
+  const compacted = value.replace(/\s+/g, " ").trim();
+
+  if (compacted.length <= maxLength) {
+    return compacted;
+  }
+
+  return `${compacted.slice(0, maxLength - 1).trim()}…`;
+}
+
+function formatMetadataToken(value: string): string {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
 
 export function buildFilteredBrowseNoIndexMetadata(title = "Filtered marketplace results"): Metadata {
   return buildNoIndexMetadata(

@@ -10,7 +10,14 @@ import {
   getApiBaseUrl,
   type ListingDetailPayload
 } from "../../../lib/api";
-import { buildListingMetadata, buildNoIndexMetadata } from "../../../lib/seo";
+import {
+  buildListingBreadcrumbJsonLd,
+  buildListingJsonLd,
+  buildListingMetadata,
+  buildNoIndexMetadata,
+  isListingIndexable,
+  serializeStructuredData
+} from "../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +58,31 @@ export default async function ListingDetailPage({ params }: ListingDetailPagePro
   }
 
   const { listing } = result.data;
+  const shouldRenderStructuredData = isListingIndexable(listing);
+  const listingJsonLd = shouldRenderStructuredData ? buildListingJsonLd(listing) : null;
+  const breadcrumbJsonLd = shouldRenderStructuredData ? buildListingBreadcrumbJsonLd(listing) : null;
 
   return (
-    <SiteShell>
-      <ListingDetailContent apiBaseUrl={getApiBaseUrl()} listing={listing} />
-    </SiteShell>
+    <>
+      {listingJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeStructuredData(listingJsonLd)
+          }}
+        />
+      ) : null}
+      {breadcrumbJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: serializeStructuredData(breadcrumbJsonLd)
+          }}
+        />
+      ) : null}
+      <SiteShell>
+        <ListingDetailContent apiBaseUrl={getApiBaseUrl()} listing={listing} />
+      </SiteShell>
+    </>
   );
 }
