@@ -3456,3 +3456,290 @@ body {
   }
 }
 
+
+/* Seller listing management polish */
+.seller-ops-layout {
+  gap: 1.25rem;
+}
+
+.seller-ops-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  border-color: rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.12), transparent 32%),
+    var(--card-background);
+}
+
+.seller-ops-hero::after {
+  position: absolute;
+  content: "";
+  inset: auto -5rem -6rem auto;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.seller-ops-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.seller-ops-hero h2,
+.seller-listings-overview h2 {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--foreground);
+  line-height: 1.08;
+}
+
+.seller-ops-hero h2 {
+  font-size: clamp(1.9rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.055em;
+}
+
+.seller-ops-hero p,
+.seller-ops-card p,
+.seller-listings-overview p,
+.seller-visibility-note span {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.seller-ops-actions,
+.seller-ops-grid,
+.seller-ops-principles,
+.seller-listings-metrics,
+.seller-status-tabs,
+.seller-listing-facts,
+.seller-management-actions,
+.seller-listing-footer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.seller-ops-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.seller-ops-actions a,
+.seller-listing-footer a {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--foreground);
+  font-weight: 850;
+  padding: 0.62rem 0.86rem;
+  text-decoration: none;
+}
+
+.seller-ops-principles,
+.seller-listings-metrics {
+  grid-template-columns: 1fr;
+}
+
+.seller-ops-principles div,
+.seller-ops-card,
+.seller-listings-overview,
+.seller-listings-metric,
+.seller-visibility-note,
+.seller-management-actions {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+}
+
+.seller-ops-principles div,
+.seller-ops-card,
+.seller-listings-overview,
+.seller-listings-metric,
+.seller-visibility-note,
+.seller-management-actions {
+  padding: 1rem;
+}
+
+.seller-ops-principles span,
+.seller-ops-card span,
+.seller-listings-metric span,
+.seller-listing-facts dt {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.seller-ops-principles strong,
+.seller-ops-card h2,
+.seller-listings-metric strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--foreground);
+}
+
+.seller-ops-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.seller-ops-card h2 {
+  margin: 0.65rem 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.seller-listings-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.1), transparent 30%),
+    var(--card-background);
+}
+
+.seller-listings-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.seller-listings-metric strong {
+  font-size: 1.45rem;
+}
+
+.seller-status-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.seller-status-tabs button {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--card-background);
+  color: var(--foreground);
+  cursor: pointer;
+  font-weight: 850;
+  padding: 0.7rem 0.8rem;
+}
+
+.seller-status-tabs button.active,
+.seller-status-tabs button[aria-pressed="true"] {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(219, 234, 254, 0.85);
+}
+
+.seller-status-tabs span {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  color: var(--muted-foreground);
+}
+
+.seller-management-grid {
+  align-items: stretch;
+}
+
+.seller-listing-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.seller-listing-card::before {
+  position: absolute;
+  content: "";
+  inset: 0 0 auto 0;
+  height: 0.22rem;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.85), rgba(34, 197, 94, 0.8));
+}
+
+.seller-listing-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.seller-listing-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.seller-listing-facts div {
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  background: rgba(248, 250, 252, 0.86);
+  padding: 0.8rem;
+}
+
+.seller-listing-facts dd {
+  margin: 0.2rem 0 0;
+  color: var(--foreground);
+  font-weight: 800;
+}
+
+.seller-visibility-note {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.seller-visibility-note strong {
+  color: var(--foreground);
+}
+
+.seller-visibility-note.muted-state {
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.seller-management-actions {
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.seller-management-actions .listing-card-actions {
+  margin-top: 0.45rem;
+}
+
+.seller-listing-footer {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+.seller-inline-edit {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(248, 250, 252, 0.9);
+  padding: 1rem;
+}
+
+@media (max-width: 980px) {
+  .seller-ops-hero,
+  .seller-ops-grid,
+  .seller-listings-overview,
+  .seller-listings-metrics,
+  .seller-status-tabs,
+  .seller-listing-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .seller-ops-actions a,
+  .seller-listing-footer a,
+  .seller-status-tabs button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .seller-listing-heading {
+    flex-direction: column;
+  }
+
+  .seller-listing-facts {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, EmptyState, LoadingBlock } from "../../components/ui";
 import type { ListingSummary } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -18,8 +18,10 @@ import {
 } from "./api";
 import {
   formatCategoryName,
+  formatListingCondition,
   formatListingPrice,
-  formatListingStatus
+  formatListingStatus,
+  formatListingType
 } from "./listing-display";
 import { ListingImageFrame } from "./listing-image-frame";
 
@@ -33,6 +35,10 @@ type EditDraft = {
   currency: string;
 };
 
+type ListingStatusFilter = "all" | ListingLifecycleStatus;
+
+const STATUS_FILTERS: ListingStatusFilter[] = ["all", "active", "reserved", "sold", "archived"];
+
 export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const { dictionary } = useI18n();
   const [listings, setListings] = useState<ListingSummary[]>([]);
@@ -42,6 +48,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const [editListingId, setEditListingId] = useState<string | null>(null);
   const [editDrafts, setEditDrafts] = useState<Record<string, EditDraft>>({});
   const [pendingListingId, setPendingListingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>("all");
 
   const clearProtectedState = useCallback(() => {
     setListings([]);
@@ -96,6 +103,15 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       isActive = false;
     };
   }, [apiBaseUrl, dictionary, requireAuth]);
+
+  const listingMetrics = useMemo(() => buildListingMetrics(listings), [listings]);
+  const filteredListings = useMemo(
+    () =>
+      statusFilter === "all"
+        ? listings
+        : listings.filter((listing) => listing.status === statusFilter),
+    [listings, statusFilter]
+  );
 
   async function handleStatusChange(listingId: string, status: ListingLifecycleStatus) {
     if (!(await requireAuth())) {
@@ -337,12 +353,38 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
   return (
     <>
+      <SellerListingsOverview metrics={listingMetrics} />
+
+      <div className="seller-status-tabs" aria-label="Filter seller listings by status">
+        {STATUS_FILTERS.map((status) => (
+          <button
+            aria-pressed={statusFilter === status}
+            className={statusFilter === status ? "active" : ""}
+            key={status}
+            type="button"
+            onClick={() => setStatusFilter(status)}
+          >
+            {status === "all" ? "All" : formatListingStatus(status, dictionary)}
+            <span>{getStatusCount(listingMetrics, status)}</span>
+          </button>
+        ))}
+      </div>
+
       {actionMessage ? (
         <Alert title={dictionary.listings.lifecycleActionFailed} message={actionMessage} />
       ) : null}
 
-      <div className="listing-grid">
-        {listings.map((listing) => {
+      {filteredListings.length === 0 ? (
+        <EmptyState
+          title="No listings in this status"
+          message="Switch status tabs or create a new listing to continue managing your seller workspace."
+          actionHref="/sell"
+          actionLabel={dictionary.listings.sellItem}
+        />
+      ) : null}
+
+      <div className="listing-grid seller-management-grid">
+        {filteredListings.map((listing) => {
           const isPending = pendingListingId === listing.id;
           const isEditing = editListingId === listing.id;
           const draft = editDrafts[listing.id] ?? {
@@ -350,9 +392,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
             priceAmount: listing.price?.amount ?? "",
             currency: listing.price?.currency ?? "TRY"
           };
+          const isPublic = listing.status === "active" || listing.status === "reserved";
 
           return (
-            <article className="listing-card" key={listing.id}>
+            <article className="listing-card seller-listing-card" key={listing.id}>
               <ListingImageFrame
                 alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
                 apiBaseUrl={apiBaseUrl}
@@ -362,22 +405,49 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
               />
 
               <div className="listing-card-body">
-                <div>
-                  <p className="listing-meta">
-                    {formatCategoryName(listing.category, dictionary)}
-                  </p>
-                  <h2>{listing.title}</h2>
+                <div className="seller-listing-heading">
+                  <div>
+                    <p className="listing-meta">
+                      {formatCategoryName(listing.category, dictionary)}
+                    </p>
+                    <h2>{listing.title}</h2>
+                  </div>
                   <Badge tone={getListingStatusTone(listing.status)}>
                     {formatListingStatus(listing.status, dictionary)}
                   </Badge>
-                  <p className="listing-meta">
-                    {dictionary.listings.favoriteCount.replace("{count}", String(listing.favoriteCount))}
-                  </p>
+                </div>
+
+                <dl className="seller-listing-facts">
+                  <div>
+                    <dt>Price</dt>
+                    <dd>{formatListingPrice(listing.price, dictionary)}</dd>
+                  </div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd>{formatListingType(listing.listingType, dictionary)}</dd>
+                  </div>
+                  <div>
+                    <dt>Condition</dt>
+                    <dd>{formatListingCondition(listing.condition, dictionary)}</dd>
+                  </div>
+                  <div>
+                    <dt>Favorites</dt>
+                    <dd>{listing.favoriteCount}</dd>
+                  </div>
+                </dl>
+
+                <div className={`seller-visibility-note${isPublic ? "" : " muted-state"}`}>
+                  <strong>{isPublic ? "Public buyer view is available" : "Not public for buyers"}</strong>
+                  <span>
+                    {isPublic
+                      ? "Review this page after price, title, photo, or status changes."
+                      : "Reactivate only when the item is actually available again."}
+                  </span>
                 </div>
 
                 {isEditing ? (
                   <form
-                    className="listing-inline-form"
+                    className="listing-inline-form seller-inline-edit"
                     onSubmit={(event) => {
                       void handleEditSubmit(listing.id, event);
                     }}
@@ -433,66 +503,70 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   </form>
                 ) : null}
 
-                <div
-                  className="listing-card-actions"
-                  aria-label={dictionary.listings.lifecycleActionsAriaLabel}
-                >
-                  <label className="file-upload-label file-upload-label-inline">
-                    <span>{isPending ? dictionary.listings.uploading : dictionary.listings.uploadImage}</span>
-                    <input
-                      accept="image/jpeg,image/png,image/webp"
-                      disabled={isPending}
-                      type="file"
-                      onChange={(event) => {
-                        void handleImageUpload(listing.id, event);
-                      }}
-                    />
-                  </label>
+                <section className="seller-management-actions" aria-label={dictionary.listings.lifecycleActionsAriaLabel}>
+                  <div>
+                    <p className="listing-meta">Media</p>
+                    <div className="listing-card-actions">
+                      <label className="file-upload-label file-upload-label-inline">
+                        <span>{isPending ? dictionary.listings.uploading : dictionary.listings.uploadImage}</span>
+                        <input
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={isPending}
+                          type="file"
+                          onChange={(event) => {
+                            void handleImageUpload(listing.id, event);
+                          }}
+                        />
+                      </label>
 
-                  {listing.firstImage ? (
-                    <Button
-                      variant="ghost"
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        void handleImageDelete(listing.id, listing.firstImage!.id);
-                      }}
-                    >
-                      {dictionary.listings.deleteImage}
-                    </Button>
-                  ) : null}
+                      {listing.firstImage ? (
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
+                            void handleImageDelete(listing.id, listing.firstImage!.id);
+                          }}
+                        >
+                          {dictionary.listings.deleteImage}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
 
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => startEditing(listing)}
-                  >
-                    {dictionary.listings.editListing}
-                  </Button>
+                  <div>
+                    <p className="listing-meta">Listing controls</p>
+                    <div className="listing-card-actions">
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => startEditing(listing)}
+                      >
+                        {dictionary.listings.editListing}
+                      </Button>
 
-                  {getStatusActions(listing.status).map((status) => (
-                    <Button
-                      key={status}
-                      variant="secondary"
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        void handleStatusChange(listing.id, status);
-                      }}
-                    >
-                      {getStatusActionLabel(status, dictionary)}
-                    </Button>
-                  ))}
-                </div>
+                      {getStatusActions(listing.status).map((status) => (
+                        <Button
+                          key={status}
+                          variant="secondary"
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
+                            void handleStatusChange(listing.id, status);
+                          }}
+                        >
+                          {getStatusActionLabel(status, dictionary)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
 
-                <div className="listing-management-note">
-        <span>Review public view after status or price changes.</span>
-      </div>
-
-      <div className="listing-card-footer">
-                  <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-                  {listing.status === "active" || listing.status === "reserved" ? (
+                <div className="seller-listing-footer">
+                  <Link href="/account/seller">Seller insights</Link>
+                  <Link href={`/categories/${listing.category.slug}`}>Compare category</Link>
+                  {isPublic ? (
                     <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>
                   ) : (
                     <span className="muted">{dictionary.listings.notPublic}</span>
@@ -505,6 +579,71 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       </div>
     </>
   );
+}
+
+function SellerListingsOverview({
+  metrics
+}: {
+  metrics: Record<ListingLifecycleStatus, number> & { total: number };
+}) {
+  return (
+    <section className="seller-listings-overview" aria-label="Seller listing status summary">
+      <div>
+        <p className="eyebrow">Listing operations</p>
+        <h2>Your seller workspace at a glance</h2>
+        <p>
+          Keep availability current. Buyers should only see active or reserved listings that can still lead to a useful conversation.
+        </p>
+      </div>
+
+      <div className="seller-listings-metrics">
+        <MetricCard label="Total" value={metrics.total} />
+        <MetricCard label="Active" value={metrics.active} />
+        <MetricCard label="Reserved" value={metrics.reserved} />
+        <MetricCard label="Sold" value={metrics.sold} />
+        <MetricCard label="Archived" value={metrics.archived} />
+      </div>
+    </section>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="seller-listings-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function buildListingMetrics(listings: ListingSummary[]): Record<ListingLifecycleStatus, number> & { total: number } {
+  return listings.reduce(
+    (metrics, listing) => {
+      if (isListingLifecycleStatus(listing.status)) {
+        metrics[listing.status] += 1;
+      }
+
+      return metrics;
+    },
+    {
+      total: listings.length,
+      active: 0,
+      reserved: 0,
+      sold: 0,
+      archived: 0
+    }
+  );
+}
+
+function getStatusCount(
+  metrics: Record<ListingLifecycleStatus, number> & { total: number },
+  status: ListingStatusFilter
+): number {
+  return status === "all" ? metrics.total : metrics[status];
+}
+
+function isListingLifecycleStatus(status: string): status is ListingLifecycleStatus {
+  return ["active", "reserved", "sold", "archived"].includes(status);
 }
 
 function getListingStatusTone(status: string): "success" | "warning" | "neutral" {
