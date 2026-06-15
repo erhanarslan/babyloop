@@ -101,6 +101,28 @@ const quickPrompts: QuickPrompt[] = [
   }
 ];
 
+const assistantPrinciples = [
+  {
+    title: "Grounded",
+    body: "Uses curated BabyLoop guide topics and marketplace flows instead of open-ended parenting claims."
+  },
+  {
+    title: "Bounded",
+    body: "Helps with product discovery, selling, safer buying checks, and platform usage only."
+  },
+  {
+    title: "Actionable",
+    body: "Returns next-step links to guides, browse, saved searches, child profiles, and seller tools."
+  }
+];
+
+const assistantResponsePipeline = [
+  "Classify the intent into one of five controlled modes.",
+  "Match the question to curated parent guide topics where possible.",
+  "Return marketplace-only guidance with explicit safety disclaimers.",
+  "Attach action links instead of pretending to make medical or personal decisions."
+];
+
 const initialAssistantMessage: AssistantMessage = {
   id: "assistant-initial",
   role: "assistant",
@@ -110,6 +132,10 @@ const initialAssistantMessage: AssistantMessage = {
     { href: "/guides", label: "Open guides" },
     { href: "/account/children", label: "Add child profile" },
     { href: "/browse", label: "Browse marketplace" }
+  ],
+  safetyDisclaimers: [
+    "Marketplace guidance only: no diagnosis, treatment, diet, therapy, or child-specific medical advice.",
+    "Avoid sharing private contact details, credentials, or sensitive child information in prompts."
   ]
 };
 
@@ -122,6 +148,10 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   const selectedPrompt = useMemo(
     () => quickPrompts.find((prompt) => prompt.mode === selectedMode) ?? DEFAULT_QUICK_PROMPT,
     [selectedMode]
+  );
+  const matchedPreviewTopic = useMemo(
+    () => findRelevantTopic(inputValue || selectedPrompt.prompt, selectedMode),
+    [inputValue, selectedMode, selectedPrompt.prompt]
   );
 
   useEffect(() => {
@@ -193,27 +223,53 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
       <PageHeading
         eyebrow="BabyLoop Assistant"
         title="Plan, search, and sell with guided help"
-        description="A first assistant surface for parent needs, curated guide topics, safer buying checks, and listing preparation."
+        description="A controlled assistant surface for parent needs, curated guide topics, safer buying checks, and listing preparation."
       />
 
-      <PageContainer className="assistant-layout" ariaLabel="BabyLoop Assistant">
-        <section className="assistant-hero-card">
+      <PageContainer className="assistant-layout assistant-experience-layout" ariaLabel="BabyLoop Assistant">
+        <section className="assistant-hero-card assistant-hero-card-polished">
           <div>
-            <p className="eyebrow">Assistant foundation</p>
-            <h2>Curated API guidance now, AI orchestration next</h2>
+            <p className="eyebrow">Controlled AI assistant</p>
+            <h2>Useful marketplace help without pretending to be a doctor.</h2>
             <p>
-              This version calls BabyLoop's assistant endpoint and falls back to local curated guidance if the API is unavailable.
+              BabyLoop Assistant classifies each request into a controlled mode, grounds answers in guide topics,
+              and turns guidance into concrete marketplace actions.
             </p>
+            <div className="assistant-hero-actions">
+              <Link href="/guides">Parent guides</Link>
+              <Link href="/browse">Browse marketplace</Link>
+              <Link href="/sell">Create listing</Link>
+              <Link href="/account/children">Child profiles</Link>
+            </div>
           </div>
 
-          <div className="assistant-hero-actions">
-            <Link href="/guides">Parent guides</Link>
-            <Link href="/sell">Create listing</Link>
-            <Link href="/account/children">Child profiles</Link>
-          </div>
+          <aside className="assistant-hero-principles" aria-label="Assistant safety principles">
+            <div>
+              <span>Modes</span>
+              <strong>5 controlled entrypoints</strong>
+            </div>
+            <div>
+              <span>Grounding</span>
+              <strong>Curated guide topics</strong>
+            </div>
+            <div>
+              <span>Boundary</span>
+              <strong>No medical or therapy advice</strong>
+            </div>
+          </aside>
         </section>
 
-        <section className="assistant-mode-grid" aria-label="Assistant quick prompts">
+        <section className="assistant-principle-grid" aria-label="Assistant operating principles">
+          {assistantPrinciples.map((principle, index) => (
+            <article className="assistant-principle-card" key={principle.title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <h2>{principle.title}</h2>
+              <p>{principle.body}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="assistant-mode-grid assistant-mode-grid-polished" aria-label="Assistant quick prompts">
           {quickPrompts.map((prompt) => (
             <button
               className={prompt.mode === selectedMode ? "assistant-mode-card active" : "assistant-mode-card"}
@@ -227,7 +283,7 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           ))}
         </section>
 
-        <section className="assistant-chat-shell" aria-label="Assistant chat">
+        <section className="assistant-chat-shell assistant-chat-shell-polished" aria-label="Assistant chat">
           {errorMessage ? (
             <Alert
               title="Assistant API fallback"
@@ -244,18 +300,26 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
               <article className="assistant-message-card assistant">
                 <div className="assistant-message-heading">
                   <strong>BabyLoop Assistant</strong>
-                  <Badge>Thinking</Badge>
+                  <Badge>Preparing</Badge>
                 </div>
-                <p>Preparing curated guidance...</p>
+                <p>Matching the request to a controlled mode, curated guide topic, and safe marketplace actions...</p>
               </article>
             ) : null}
           </div>
 
-          <form className="assistant-composer" onSubmit={handleSubmit}>
+          <form className="assistant-composer assistant-composer-polished" onSubmit={handleSubmit}>
             <div className="assistant-selected-mode">
               <Badge>{selectedPrompt.title}</Badge>
               <span>{selectedPrompt.description}</span>
             </div>
+
+            {matchedPreviewTopic ? (
+              <div className="assistant-grounding-preview" aria-label="Matched guide preview">
+                <p className="eyebrow">Likely grounding topic</p>
+                <strong>{matchedPreviewTopic.title}</strong>
+                <span>{matchedPreviewTopic.summary}</span>
+              </div>
+            ) : null}
 
             <Textarea
               label="Ask BabyLoop Assistant"
@@ -267,9 +331,14 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
               wide
             />
 
+            <div className="assistant-input-guardrails">
+              <span>Do not share phone, address, credentials, exact birth dates, or medical details.</span>
+              <span>{inputValue.length}/1000</span>
+            </div>
+
             <div className="form-actions">
               <p className="form-note">
-                Do not share private contact details or child-specific medical information here.
+                The assistant is marketplace-only. It can prepare product checklists and listing questions, not health or therapy decisions.
               </p>
               <Button type="submit" disabled={isPending || inputValue.trim().length === 0}>
                 {isPending ? "Getting guidance..." : "Get guidance"}
@@ -278,12 +347,28 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           </form>
         </section>
 
-        <section className="assistant-safety-boundary">
+        <section className="assistant-ops-panel" aria-label="Assistant control model">
+          <div>
+            <p className="eyebrow">Hallucination control model</p>
+            <h2>Controlled prompts before full RAG expansion</h2>
+            <p>
+              This public demo shows the intended AI operating model: classify mode, ground to curated guides,
+              attach deterministic actions, and keep unsafe advice out of the assistant response.
+            </p>
+          </div>
+          <ol className="assistant-pipeline-list">
+            {assistantResponsePipeline.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="assistant-safety-boundary assistant-safety-boundary-polished">
           <p className="eyebrow">Safety boundary</p>
           <h2>Marketplace guidance, not medical advice</h2>
           <p>
             BabyLoop Assistant helps with product discovery, listing preparation, buying checks, and platform usage.
-            It does not diagnose, treat, prescribe, create diet plans, or replace a qualified professional.
+            It does not diagnose, treat, prescribe, create diet plans, give therapy guidance, or replace a qualified professional.
           </p>
         </section>
       </PageContainer>
@@ -302,7 +387,7 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
       <p>{message.content}</p>
 
       {message.topic ? (
-        <div className="assistant-topic-panel">
+        <div className="assistant-topic-panel assistant-topic-panel-polished">
           <p className="eyebrow">{message.topic.stageLabel}</p>
           <h3>{message.topic.title}</h3>
           <p>{message.topic.summary}</p>
@@ -310,8 +395,12 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
             <strong>Common misconception:</strong> {message.topic.commonMisconception}
           </div>
           <p className="form-note">
-            <strong>Guidance:</strong> {message.topic.guidance}
+            <strong>Grounded guidance:</strong> {message.topic.guidance}
           </p>
+          <div className="assistant-action-row">
+            <Link href={`/guides/${message.topic.id}`}>Read guide</Link>
+            <Link href={message.topic.browseHref}>Find listings</Link>
+          </div>
         </div>
       ) : null}
 
@@ -335,7 +424,7 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
 
       {message.meta ? (
         <p className="ai-debug">
-          {message.meta.providerName} · {message.meta.promptVersion} · confidence{" "}
+          {message.meta.providerName} - {message.meta.promptVersion} - confidence{" "}
           {message.meta.confidenceScore}
         </p>
       ) : null}
@@ -349,7 +438,7 @@ function mapApiReplyToMessage(reply: AssistantChatReply): AssistantMessage {
     content: reply.content,
     topic: reply.topic ? mapApiTopic(reply.topic) : null,
     actions: reply.actions,
-    safetyDisclaimers: reply.safetyDisclaimers,
+    safetyDisclaimers: normalizeSafetyDisclaimers(reply.safetyDisclaimers),
     meta: {
       providerName: reply.providerName,
       promptVersion: reply.promptVersion,
@@ -409,7 +498,8 @@ function buildLocalFallbackReply(input: string, mode: AssistantMode): AssistantM
         topic: matchedTopic ?? getTopicById("baby-gear-safety"),
         actions: [
           { href: "/guides", label: "Open safety guides" },
-          { href: "/browse?hasImages=true&sort=newest", label: "Browse with photos" }
+          { href: "/browse?hasImages=true&sort=newest", label: "Browse with photos" },
+          { href: "/conversations", label: "Messaging checklist" }
         ]
       });
 
@@ -423,7 +513,8 @@ function buildLocalFallbackReply(input: string, mode: AssistantMode): AssistantM
           { href: "/browse", label: "Browse" },
           { href: "/account/children", label: "Child profiles" },
           { href: "/sell", label: "Sell" }
-        ]
+        ],
+        safetyDisclaimers: normalizeSafetyDisclaimers([])
       };
   }
 }
@@ -447,15 +538,12 @@ function buildAssistantMessage({
     id,
     role: "assistant",
     content,
-    actions
+    actions,
+    safetyDisclaimers: normalizeSafetyDisclaimers(safetyDisclaimers ?? [])
   };
 
   if (topic) {
     baseMessage.topic = topic;
-  }
-
-  if (safetyDisclaimers && safetyDisclaimers.length > 0) {
-    baseMessage.safetyDisclaimers = safetyDisclaimers;
   }
 
   if (meta) {
@@ -463,6 +551,15 @@ function buildAssistantMessage({
   }
 
   return baseMessage;
+}
+
+function normalizeSafetyDisclaimers(disclaimers: string[]): string[] {
+  const defaults = [
+    "Marketplace guidance only: no diagnosis, treatment, diet, therapy, or child-specific medical advice.",
+    "Verify safety-critical products with manufacturer guidance, recalls, labels, and professional sources when needed."
+  ];
+
+  return [...new Set([...disclaimers, ...defaults])].slice(0, 4);
 }
 
 function mapApiTopic(topic: AssistantChatTopic): AssistantDisplayTopic {
@@ -519,18 +616,31 @@ function findRelevantTopic(input: string, mode: AssistantMode): AssistantDisplay
     normalizedInput.includes("second") ||
     normalizedInput.includes("gear") ||
     normalizedInput.includes("stroller") ||
-    normalizedInput.includes("car seat")
+    normalizedInput.includes("car seat") ||
+    normalizedInput.includes("puset") ||
+    normalizedInput.includes("oto")
   ) {
     return getTopicById("baby-gear-safety");
   }
 
-  const matchedTopic = parentGuideTopics.find((topic) =>
-    [topic.title, topic.summary, topic.eyebrow, topic.stageLabel]
-      .join(" ")
-      .toLowerCase()
-      .split(/\s+/)
-      .some((token) => token.length > 4 && normalizedInput.includes(token))
-  );
+  if (
+    normalizedInput.includes("sell") ||
+    normalizedInput.includes("listing") ||
+    normalizedInput.includes("stroller") ||
+    normalizedInput.includes("puset")
+  ) {
+    return getTopicById("baby-gear-safety");
+  }
 
-  return matchedTopic ? mapParentGuideTopic(matchedTopic) : null;
+  if (
+    normalizedInput.includes("preschool") ||
+    normalizedInput.includes("3+") ||
+    normalizedInput.includes("24-36")
+  ) {
+    return getTopicById("preschool-practical-needs");
+  }
+
+  const fallbackTopic = parentGuideTopics[0];
+
+  return fallbackTopic ? mapParentGuideTopic(fallbackTopic) : null;
 }

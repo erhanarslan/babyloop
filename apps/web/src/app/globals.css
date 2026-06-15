@@ -5849,3 +5849,199 @@ body {
   }
 }
 
+
+/* Assistant controlled experience polish */
+.assistant-experience-layout {
+  gap: 1.25rem;
+}
+
+.assistant-hero-card-polished {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  border-color: rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.12), transparent 32%),
+    var(--card-background);
+}
+
+.assistant-hero-card-polished::after {
+  position: absolute;
+  content: "";
+  inset: auto -5rem -6rem auto;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.assistant-hero-card-polished > * {
+  position: relative;
+  z-index: 1;
+}
+
+.assistant-hero-card-polished h2,
+.assistant-ops-panel h2,
+.assistant-safety-boundary-polished h2 {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--foreground);
+  line-height: 1.08;
+}
+
+.assistant-hero-card-polished h2 {
+  font-size: clamp(1.9rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.055em;
+}
+
+.assistant-hero-card-polished p,
+.assistant-principle-card p,
+.assistant-ops-panel p,
+.assistant-safety-boundary-polished p,
+.assistant-grounding-preview span,
+.assistant-input-guardrails {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.assistant-hero-principles,
+.assistant-principle-grid,
+.assistant-ops-panel,
+.assistant-pipeline-list,
+.assistant-input-guardrails {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.assistant-hero-actions {
+  flex-wrap: wrap;
+}
+
+.assistant-hero-principles {
+  grid-template-columns: 1fr;
+}
+
+.assistant-hero-principles div,
+.assistant-principle-card,
+.assistant-ops-panel,
+.assistant-safety-boundary-polished,
+.assistant-grounding-preview {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+}
+
+.assistant-hero-principles span,
+.assistant-principle-card span {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.assistant-hero-principles strong,
+.assistant-principle-card h2 {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--foreground);
+}
+
+.assistant-principle-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.assistant-principle-card h2 {
+  margin: 0.65rem 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.assistant-mode-grid-polished {
+  gap: 0.85rem;
+}
+
+.assistant-chat-shell-polished {
+  border-color: rgba(37, 99, 235, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 30%),
+    var(--card-background);
+}
+
+.assistant-composer-polished {
+  gap: 0.9rem;
+}
+
+.assistant-grounding-preview {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.assistant-grounding-preview strong {
+  display: block;
+  margin: 0.25rem 0;
+  color: var(--foreground);
+}
+
+.assistant-input-guardrails {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.86);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.assistant-topic-panel-polished {
+  position: relative;
+  overflow: hidden;
+}
+
+.assistant-topic-panel-polished::before {
+  position: absolute;
+  content: "";
+  inset: 0 0 auto 0;
+  height: 0.22rem;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.85), rgba(34, 197, 94, 0.8));
+}
+
+.assistant-ops-panel {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.assistant-pipeline-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.assistant-pipeline-list li {
+  color: var(--foreground);
+  font-weight: 760;
+  line-height: 1.55;
+}
+
+@media (max-width: 980px) {
+  .assistant-hero-card-polished,
+  .assistant-principle-grid,
+  .assistant-ops-panel,
+  .assistant-input-guardrails {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .assistant-hero-actions a,
+  .assistant-action-row a,
+  .assistant-composer-polished button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
