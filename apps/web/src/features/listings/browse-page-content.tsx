@@ -51,10 +51,10 @@ type CategoryTreeNode = Category & {
 const CONDITION_OPTIONS = ["new", "like_new", "good", "fair", "needs_repair"] as const;
 const LISTING_TYPE_OPTIONS = ["sale", "swap", "donation"] as const;
 const SORT_OPTIONS = [
-  { label: "Newest", value: "newest" },
-  { label: "Oldest", value: "oldest" },
-  { label: "Price low to high", value: "price_asc" },
-  { label: "Price high to low", value: "price_desc" }
+  { labelKey: "newest", value: "newest" },
+  { labelKey: "oldest", value: "oldest" },
+  { labelKey: "priceAsc", value: "price_asc" },
+  { labelKey: "priceDesc", value: "price_desc" }
 ] as const;
 
 type FilterChip = {
@@ -82,7 +82,7 @@ export function BrowsePageContent({
     ? dictionary.listings.browseResultsTitle.replace("{query}", searchQuery)
     : selectedCategory
       ? formatCategoryName(selectedCategory, dictionary)
-      : dictionary.listings.browseTitle;
+      : dictionary.publicPages.browse.title;
   const hasPreviousPage = pagination.offset > 0;
   const previousOffset = Math.max(0, pagination.offset - pagination.limit);
   const nextOffset = pagination.offset + pagination.limit;
@@ -101,12 +101,6 @@ export function BrowsePageContent({
     "find_products",
     buildBrowseAssistantPrompt(filters, selectedCategory, dictionary)
   );
-  const categoryLandingAssistantHref = selectedCategory
-    ? buildAssistantHref(
-        "find_products",
-        `Help me browse ${formatCategoryName(selectedCategory, dictionary)} listings on BabyLoop with a safer second-hand checklist.`
-      )
-    : browseAssistantHref;
 
   return (
     <>
@@ -120,7 +114,6 @@ export function BrowsePageContent({
 
       {currentCategorySlug && selectedCategory ? (
         <CategoryLandingHero
-          assistantHref={categoryLandingAssistantHref}
           clearFiltersHref={clearFiltersHref}
           filters={filters}
           pagination={pagination}
@@ -131,22 +124,13 @@ export function BrowsePageContent({
       <PageHeading
         eyebrow={dictionary.listings.browseEyebrow}
         title={title}
-        description={dictionary.listings.browseDescription}
+        description={dictionary.publicPages.browse.subtitle}
       />
 
       <PageContainer className="browse-layout" ariaLabel={dictionary.listings.browseAriaLabel}>
-        <BrowseDiscoveryPanel
-          browseAssistantHref={browseAssistantHref}
-          currentCategorySlug={currentCategorySlug}
-          filters={filters}
-          pagination={pagination}
-          searchSuggestions={searchSuggestions}
-          selectedCategory={selectedCategory}
-        />
-
         <Card as="aside" className="filter-panel" aria-label={dictionary.listings.categoriesAriaLabel}>
-          <h2>{dictionary.listings.categoriesTitle}</h2>
-          <p className="filter-note">{dictionary.listings.categoriesNote}</p>
+          <h2>{dictionary.publicPages.browse.filters}</h2>
+          <p className="filter-note">{dictionary.publicPages.browse.subtitle}</p>
 
           <CategoryNavigation
             categories={categoryTree}
@@ -157,13 +141,13 @@ export function BrowsePageContent({
 
           <form action={paginationBasePath} method="get" className="form-stack">
             <label>
-              <span>Search</span>
+              <span>{dictionary.publicPages.browse.search}</span>
               <input
                 defaultValue={filters.q}
                 list="browse-search-suggestions"
                 maxLength={120}
                 name="q"
-                placeholder="Search listings"
+                placeholder={dictionary.publicShell.header.searchPlaceholder}
                 type="search"
               />
               {searchSuggestions.length > 0 ? (
@@ -189,7 +173,7 @@ export function BrowsePageContent({
               <label>
                 <span>{dictionary.listings.categoriesTitle}</span>
                 <select defaultValue={filters.categoryId} name="categoryId">
-                  <option value="">All categories</option>
+                  <option value="">{dictionary.publicPages.browse.allCategories}</option>
                   {orderedCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
@@ -202,7 +186,7 @@ export function BrowsePageContent({
             <label>
               <span>{dictionary.listings.typeLabel}</span>
               <select defaultValue={filters.listingType} name="listingType">
-                <option value="">All types</option>
+                <option value="">{dictionary.publicPages.browse.allTypes}</option>
                 {LISTING_TYPE_OPTIONS.map((listingType) => (
                   <option key={listingType} value={listingType}>
                     {formatListingType(listingType, dictionary)}
@@ -214,7 +198,7 @@ export function BrowsePageContent({
             <label>
               <span>{dictionary.listings.conditionLabel}</span>
               <select defaultValue={filters.condition} name="condition">
-                <option value="">All conditions</option>
+                <option value="">{dictionary.publicPages.browse.allConditions}</option>
                 {CONDITION_OPTIONS.map((condition) => (
                   <option key={condition} value={condition}>
                     {formatListingCondition(condition, dictionary)}
@@ -224,7 +208,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>Minimum price</span>
+              <span>{dictionary.publicPages.browse.minPrice}</span>
               <input
                 defaultValue={filters.priceMin}
                 inputMode="decimal"
@@ -236,7 +220,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>Maximum price</span>
+              <span>{dictionary.publicPages.browse.maxPrice}</span>
               <input
                 defaultValue={filters.priceMax}
                 inputMode="decimal"
@@ -254,23 +238,23 @@ export function BrowsePageContent({
                 type="checkbox"
                 value="true"
               />
-              <span>Only listings with images</span>
+              <span>{dictionary.publicPages.browse.imagesOnly}</span>
             </label>
 
             <label>
-              <span>Sort</span>
+              <span>{dictionary.publicPages.browse.sort}</span>
               <select defaultValue={filters.sort} name="sort">
                 {SORT_OPTIONS.map((sortOption) => (
                   <option key={sortOption.value} value={sortOption.value}>
-                    {sortOption.label}
+                    {getSortLabel(sortOption.labelKey, dictionary)}
                   </option>
                 ))}
               </select>
             </label>
 
-            <button type="submit">Apply filters</button>
+            <button type="submit">{dictionary.publicPages.browse.apply}</button>
             <Link href={currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse"}>
-              Clear filters
+              {dictionary.publicPages.browse.clear}
             </Link>
           </form>
 
@@ -293,17 +277,18 @@ export function BrowsePageContent({
             <div className="listing-results-summary">
               <div>
                 <p className="listing-meta">
-                  Showing {listings.length} of {pagination.total} listings
+                  {dictionary.publicPages.browse.resultCount
+                    .replace("{shown}", String(listings.length))
+                    .replace("{total}", String(pagination.total))}
                   {selectedCategory ? ` in ${formatCategoryName(selectedCategory, dictionary)}` : ""}
                 </p>
                 <p className="listing-results-helper">
-                  Compare condition, photos, price, and seller-safe details before messaging.
+                  {dictionary.publicPages.browse.subtitle}
                 </p>
               </div>
               <div className="listing-results-actions" aria-label="Browse next steps">
-                <Link href={browseAssistantHref}>Ask Assistant</Link>
-                <Link href="/guides">Buying guides</Link>
-                <Link href="/account/saved-searches">Saved searches</Link>
+                <Link href="/account/saved-searches">{dictionary.publicPages.browse.saveSearch}</Link>
+                <Link href={browseAssistantHref}>{dictionary.publicShell.header.assistant}</Link>
               </div>
             </div>
           ) : null}
@@ -311,8 +296,8 @@ export function BrowsePageContent({
           {!error && activeFilterChips.length > 0 ? (
             <div className="active-filter-panel" aria-label="Active browse filters">
               <div>
-                <p className="eyebrow">Active filters</p>
-                <p className="form-note">Remove a chip to broaden the marketplace results.</p>
+                <p className="eyebrow">{dictionary.publicPages.browse.activeFilters}</p>
+                <p className="form-note">{dictionary.publicPages.browse.noResultsBody}</p>
               </div>
               <div className="filter-chip-list">
                 {activeFilterChips.map((chip) => (
@@ -322,7 +307,7 @@ export function BrowsePageContent({
                   </Link>
                 ))}
                 <Link className="filter-chip filter-chip-clear" href={clearFiltersHref}>
-                  Clear all
+                  {dictionary.publicPages.browse.clear}
                 </Link>
               </div>
             </div>
@@ -357,10 +342,10 @@ export function BrowsePageContent({
                   basePath: paginationBasePath,
                   includeCategoryId: !currentCategorySlug
                 })}>
-                  Previous
+                  ‹
                 </Link>
               ) : (
-                <span className="muted">Previous</span>
+                <span className="muted">‹</span>
               )}
               <span className="muted">
                 Offset {pagination.offset}
@@ -370,10 +355,10 @@ export function BrowsePageContent({
                   basePath: paginationBasePath,
                   includeCategoryId: !currentCategorySlug
                 })}>
-                  Next
+                  ›
                 </Link>
               ) : (
-                <span className="muted">Next</span>
+                <span className="muted">›</span>
               )}
             </nav>
           ) : null}
@@ -384,13 +369,11 @@ export function BrowsePageContent({
 }
 
 function CategoryLandingHero({
-  assistantHref,
   clearFiltersHref,
   filters,
   pagination,
   selectedCategory
 }: {
-  assistantHref: string;
   clearFiltersHref: string;
   filters: BrowseListingsFilters;
   pagination: ListingsPagination;
@@ -403,27 +386,13 @@ function CategoryLandingHero({
   return (
     <Card as="section" className="category-landing-hero" aria-label={`${categoryName} category landing`}>
       <div>
-        <p className="eyebrow">Category landing</p>
-        <h2>{categoryName} listings for parent decisions</h2>
-        <p>
-          Compare parent-owned {categoryName} listings with condition, price, photos, listing type,
-          saved searches, and safer second-hand buying checks before starting a conversation.
-        </p>
+        <p className="eyebrow">{dictionary.publicPages.browse.category}</p>
+        <h2>{categoryName}</h2>
+        <p>{dictionary.publicPages.browse.subtitle}</p>
 
         <div className="category-landing-actions">
-          <Link href={clearFiltersHref}>Reset category filters</Link>
-          <Link href={assistantHref}>Ask Assistant</Link>
-          <Link href="/guides">Parent guides</Link>
-          <Link href="/account/saved-searches">Saved searches</Link>
-        </div>
-
-        <div className="category-landing-guide-strip">
-          <strong>Before you message a seller</strong>
-          <ul>
-            <li>Check condition, missing parts, pickup expectations, and photo clarity.</li>
-            <li>Use filters to separate sale, donation, and swap-ready listings.</li>
-            <li>Save useful searches when this category is a recurring family need.</li>
-          </ul>
+          <Link href={clearFiltersHref}>{dictionary.publicPages.browse.clear}</Link>
+          <Link href="/account/saved-searches">{dictionary.publicPages.browse.saveSearch}</Link>
         </div>
       </div>
 
@@ -433,100 +402,10 @@ function CategoryLandingHero({
           <strong>{pagination.total}</strong>
         </div>
         <div className="category-landing-metric">
-          <span>Active filters</span>
+          <span>{dictionary.publicPages.browse.activeFilters}</span>
           <strong>{activeFilterCount}</strong>
         </div>
-        <div className="category-landing-metric">
-          <span>Discovery path</span>
-          <strong>SEO → category → listing</strong>
-        </div>
       </aside>
-    </Card>
-  );
-}
-
-function BrowseDiscoveryPanel({
-  browseAssistantHref,
-  currentCategorySlug,
-  filters,
-  pagination,
-  searchSuggestions,
-  selectedCategory
-}: {
-  browseAssistantHref: string;
-  currentCategorySlug: string | null;
-  filters: BrowseListingsFilters;
-  pagination: ListingsPagination;
-  searchSuggestions: SearchSuggestion[];
-  selectedCategory: Category | null;
-}) {
-  const { dictionary } = useI18n();
-  const filterSummary = buildBrowseFilterSummary(filters, selectedCategory, dictionary);
-  const activeFilterCount = countActiveBrowseFilters(filters);
-  const clearFiltersHref = currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse";
-
-  return (
-    <Card as="section" className="browse-discovery-panel browse-discovery-panel-product">
-      <div className="browse-discovery-main">
-        <div>
-          <p className="eyebrow">Marketplace discovery</p>
-          <h2>{selectedCategory ? `Browse ${formatCategoryName(selectedCategory, dictionary)}` : "Find the right baby item faster"}</h2>
-          <p className="form-note">
-            {filterSummary}
-          </p>
-
-          <div className="browse-discovery-paths" aria-label="BabyLoop discovery paths">
-            <div>
-              <span>Start broad</span>
-              <strong>Category, type, and condition filters</strong>
-            </div>
-            <div>
-              <span>Save intent</span>
-              <strong>Keep useful searches one click away</strong>
-            </div>
-            <div>
-              <span>Ask smarter</span>
-              <strong>Use Assistant for buyer checks</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="browse-discovery-counts">
-          <strong>{pagination.total}</strong>
-          <span>matching listings</span>
-          <Badge>{activeFilterCount} active filters</Badge>
-        </div>
-      </div>
-
-      <div className="browse-discovery-actions">
-        <Link href={clearFiltersHref}>Clear filters</Link>
-        <Link href="/guides">Read buying guides</Link>
-        <Link href={browseAssistantHref}>Ask Assistant</Link>
-        <Link href="/account/saved-searches">Saved searches</Link>
-      </div>
-
-      {searchSuggestions.length > 0 ? (
-        <div className="browse-suggestion-strip">
-          <span>Suggested searches</span>
-          <div>
-            {searchSuggestions.slice(0, 4).map((suggestion) => (
-              <Link
-                href={buildBrowseHref(
-                  { ...filters, q: suggestion.label },
-                  0,
-                  {
-                    basePath: currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse",
-                    includeCategoryId: !currentCategorySlug
-                  }
-                )}
-                key={`${suggestion.kind}-${suggestion.label}`}
-              >
-                {suggestion.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </Card>
   );
 }
@@ -614,27 +493,6 @@ function SearchSuggestionLinks({
   );
 }
 
-function buildBrowseFilterSummary(
-  filters: BrowseListingsFilters,
-  selectedCategory: Category | null,
-  dictionary: ReturnType<typeof useI18n>["dictionary"]
-): string {
-  const parts = [
-    filters.q ? `search "${filters.q}"` : "",
-    selectedCategory ? `category ${formatCategoryName(selectedCategory, dictionary)}` : "",
-    filters.listingType ? `type ${formatListingType(filters.listingType, dictionary)}` : "",
-    filters.condition ? `condition ${formatListingCondition(filters.condition, dictionary)}` : "",
-    filters.priceMin ? `minimum ${filters.priceMin}` : "",
-    filters.priceMax ? `maximum ${filters.priceMax}` : "",
-    filters.hasImages === "true" ? "images only" : "",
-    filters.sort ? `sort ${filters.sort}` : ""
-  ].filter(Boolean);
-
-  return parts.length > 0
-    ? `Current filter set: ${parts.join(" · ")}. Save it if this is a recurring need.`
-    : "Start broad, then narrow by category, condition, price, and images. Save useful filters for later.";
-}
-
 function buildBrowseAssistantPrompt(
   filters: BrowseListingsFilters,
   selectedCategory: Category | null,
@@ -654,6 +512,20 @@ function buildBrowseAssistantPrompt(
   return parts.length > 0
     ? `Help me turn this BabyLoop browse intent into a short product discovery plan: ${parts.join("; ")}.`
     : "Help me build a BabyLoop browsing plan for second-hand baby essentials.";
+}
+
+function getSortLabel(
+  labelKey: (typeof SORT_OPTIONS)[number]["labelKey"],
+  dictionary: ReturnType<typeof useI18n>["dictionary"]
+): string {
+  const labels = {
+    newest: dictionary.publicPages.browse.sortNewest,
+    oldest: dictionary.publicPages.browse.sortOldest,
+    priceAsc: dictionary.publicPages.browse.sortPriceAsc,
+    priceDesc: dictionary.publicPages.browse.sortPriceDesc
+  };
+
+  return labels[labelKey];
 }
 
 function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
@@ -971,7 +843,8 @@ function buildActiveFilterChips({
   }
 
   if (filters.sort && filters.sort !== "newest") {
-    const sortLabel = SORT_OPTIONS.find((sortOption) => sortOption.value === filters.sort)?.label ?? filters.sort;
+    const sortOption = SORT_OPTIONS.find((option) => option.value === filters.sort);
+    const sortLabel = sortOption ? getSortLabel(sortOption.labelKey, dictionary) : filters.sort;
 
     chips.push({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {

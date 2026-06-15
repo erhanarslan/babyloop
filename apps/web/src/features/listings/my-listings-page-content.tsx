@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { Card, PageContainer, PageHeading } from "../../components/ui";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { AccountSurfaceGuide } from "../account/account-surface-guide";
 import { MyListingsList } from "./my-listings-list";
 
 type MyListingsPageContentProps = {
@@ -80,8 +79,6 @@ export function MyListingsPageContent({ apiBaseUrl }: MyListingsPageContentProps
             </Card>
           ))}
         </section>
-
-        <AccountSurfaceGuide kind="my_listings" />
 
         <MyListingsList apiBaseUrl={apiBaseUrl} />
       </PageContainer>

@@ -7,7 +7,6 @@ import { AuthPageShell } from "../../features/auth/auth-page-shell";
 import { AuthErrorNotice } from "../../features/auth/auth-error-notice";
 import { AuthForm } from "../../features/auth/auth-form";
 import { getApiBaseUrl } from "../../lib/api";
-import { AuthSurfaceGuide } from "../../features/auth/auth-surface-guide";
 
 export const metadata: Metadata = buildNoIndexMetadata(
   "Login",
@@ -17,7 +16,6 @@ export const metadata: Metadata = buildNoIndexMetadata(
 export default function LoginPage() {
   return (
     <SiteShell>
-      <AuthSurfaceGuide kind="login" />
       <AuthPageShell ariaLabel="Login form" kind="login">
         <Suspense fallback={null}>
           <AuthErrorNotice />

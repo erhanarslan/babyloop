@@ -102,9 +102,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       ) : null}
 
       <div className="message-composer-meta">
-        <p className="form-note">
-          Messages are participant-only and moderated as safe plain text. Use report or block if the thread becomes unsafe.
-        </p>
+        <p className="form-note">{dictionary.publicPages.messaging.composerHint}</p>
         <span>{body.length}/5000</span>
       </div>
 

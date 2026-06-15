@@ -54,7 +54,6 @@ export function ListingDetailContent({
   return (
     <PageContainer className="detail-layout">
       <RecentlyViewedTracker listing={listing} />
-      <DetailDecisionHero listing={listing} />
       <div className="detail-media">
         {listing.images.length > 0 ? (
           <div className="detail-gallery" aria-label={dictionary.listings.imageGalleryAriaLabel}>
@@ -108,17 +107,11 @@ export function ListingDetailContent({
 
         <ListingAvailabilityNotice listing={listing} />
 
-        <BuyerGuidanceCard listing={listing} />
-        <ListingDecisionSummary listing={listing} />
-
         <div className="detail-action-panel">
           <div className="detail-action-panel-header">
-            <p className="listing-meta">Next step</p>
-            <h2>Save, ask, message, or report before moving forward</h2>
-            <p>
-              Keep the decision inside BabyLoop until the listing details, pickup expectations,
-              and seller answers are clear.
-            </p>
+            <p className="listing-meta">{dictionary.publicPages.listingDetail.details}</p>
+            <h2>{dictionary.publicPages.listingDetail.messageSeller}</h2>
+            <p>{dictionary.publicPages.listingDetail.safetyBody}</p>
           </div>
 
           <div className="detail-actions" aria-label={dictionary.listings.listingActionsAriaLabel}>
@@ -133,15 +126,25 @@ export function ListingDetailContent({
               listingId={listing.id}
               sellerProfileId={listing.seller.id}
             />
+            <Link href={`/assistant?mode=safe_buying&prompt=${encodeURIComponent(`What should I check before buying ${listing.title}?`)}`}>
+              {dictionary.publicPages.listingDetail.askAssistant}
+            </Link>
+          </div>
+
+          <details className="listing-secondary-actions">
+            <summary>{dictionary.publicPages.listingDetail.safety}</summary>
             <ReportAction
               actionLabel={dictionary.safety.reportListing}
               onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
             />
-          </div>
+          </details>
         </div>
 
         <SellerCard listing={listing} />
-        <ListingRelatedGuideCard categorySlug={listing.category.slug} />
+        <details className="listing-secondary-actions">
+          <summary>{dictionary.publicPages.support.guidesTitle}</summary>
+          <ListingRelatedGuideCard categorySlug={listing.category.slug} />
+        </details>
         <RecentlyViewedListings apiBaseUrl={apiBaseUrl} currentListingId={listing.id} />
         <RelatedListings apiBaseUrl={apiBaseUrl} listingId={listing.id} />
 
@@ -191,56 +194,6 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
   );
 }
 
-function DetailDecisionHero({ listing }: { listing: ListingDetailPayload["listing"] }) {
-  const { dictionary, locale } = useI18n();
-  const categoryName = formatCategoryName(listing.category, dictionary);
-  const status = formatListingStatus(listing.status, dictionary);
-  const isAvailable = listing.status === "active" || listing.status === "reserved";
-
-  return (
-    <Card as="section" className="detail-decision-hero" aria-label="Listing buyer decision summary">
-      <div>
-        <Link className="back-link" href={`/categories/${listing.category.slug}`}>
-          Browse {categoryName}
-        </Link>
-        <p className="eyebrow">Buyer decision page</p>
-        <h1>{listing.title}</h1>
-        <p>
-          Review price, condition, photos, seller-safe context, parent guidance, and safer buying
-          checks before messaging. {isAvailable ? "This listing can still start a conversation." : "This listing may no longer be available."}
-        </p>
-        <div className="detail-decision-actions">
-          <Link
-            href={buildAssistantHref(
-              "safe_buying",
-              `Create a buyer checklist for ${listing.title} in ${categoryName}.`
-            )}
-          >
-            Ask Assistant
-          </Link>
-          <Link href={`/categories/${listing.category.slug}`}>More in {categoryName}</Link>
-          <Link href="/guides">Parent guides</Link>
-        </div>
-      </div>
-
-      <aside className="detail-hero-metrics" aria-label="Listing status summary">
-        <div className="detail-hero-metric">
-          <span>Price</span>
-          <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-        </div>
-        <div className="detail-hero-metric">
-          <span>Status</span>
-          <strong>{status}</strong>
-        </div>
-        <div className="detail-hero-metric">
-          <span>Updated</span>
-          <strong>{formatDateTime(listing.updatedAt, locale)}</strong>
-        </div>
-      </aside>
-    </Card>
-  );
-}
-
 function ListingImageOverview({ listing }: { listing: ListingDetailPayload["listing"] }) {
   const imageCount = listing.images.length;
 
@@ -280,173 +233,6 @@ function ListingAvailabilityNotice({ listing }: { listing: ListingDetailPayload[
       </p>
     </div>
   );
-}
-
-function ListingDecisionSummary({ listing }: { listing: ListingDetailPayload["listing"] }) {
-  const { dictionary } = useI18n();
-  const categoryName = formatCategoryName(listing.category, dictionary);
-
-  return (
-    <Card className="listing-decision-summary" aria-label="Buyer decision support">
-      <p className="listing-meta">Decision support</p>
-      <h2>What this page helps you decide</h2>
-
-      <div className="detail-summary-grid">
-        <article>
-          <h3>Fit</h3>
-          <p>Check whether this {categoryName} item matches the child stage, size, usage context, and pickup need.</p>
-        </article>
-        <article>
-          <h3>Condition</h3>
-          <p>Compare seller description, photos, listed condition, price, and any missing-part questions before messaging.</p>
-        </article>
-        <article>
-          <h3>Trust</h3>
-          <p>Use privacy-safe seller context, participant-only messaging, reporting, and blocking instead of exposing contact data.</p>
-        </article>
-      </div>
-
-      <div className="detail-summary-actions">
-        <Link href={`/categories/${listing.category.slug}`}>Compare category</Link>
-        <Link
-          href={buildAssistantHref(
-            "safe_buying",
-            `Help me compare this ${listing.title} listing against other ${categoryName} options.`
-          )}
-        >
-          Ask comparison help
-        </Link>
-      </div>
-    </Card>
-  );
-}
-
-function BuyerGuidanceCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
-  const { dictionary } = useI18n();
-  const questions = getBuyerQuestions(listing);
-  const safetyChecks = getSafetyChecks(listing);
-
-  return (
-    <Card className="buyer-guidance-card" aria-label="Buyer guidance">
-      <div className="buyer-guidance-header">
-        <div>
-          <p className="listing-meta">Buyer guide</p>
-          <h2>Ask better questions before messaging</h2>
-          <p className="muted">
-            Use these checks to understand condition, included parts, pickup expectations, and safety-sensitive details before deciding.
-          </p>
-        </div>
-        <div className="home-personalization-actions">
-          <Link href="/guides">Open parent guides</Link>
-          <Link
-            href={buildAssistantHref(
-              "safe_buying",
-              `What should I check before buying a second-hand ${formatCategoryName(
-                listing.category,
-                dictionary
-              )} item like ${listing.title}?`
-            )}
-          >
-            Ask Assistant
-          </Link>
-        </div>
-      </div>
-
-      <div className="buyer-guidance-grid">
-        <div>
-          <h3>Suggested seller questions</h3>
-          <ul className="question-list">
-            {questions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h3>Quick safety checklist</h3>
-          <ul className="question-list">
-            {safetyChecks.map((check) => (
-              <li key={check}>{check}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div className="state-panel warning">
-        Keep payment, pickup, and contact details inside BabyLoop messages until you feel comfortable. Report listings that look misleading or unsafe.
-      </div>
-
-      <dl className="compact-details buyer-guidance-facts">
-        <div>
-          <dt>Type</dt>
-          <dd>{formatListingType(listing.listingType, dictionary)}</dd>
-        </div>
-        <div>
-          <dt>Condition</dt>
-          <dd>{formatListingCondition(listing.condition, dictionary)}</dd>
-        </div>
-        <div>
-          <dt>Category</dt>
-          <dd>{formatCategoryName(listing.category, dictionary)}</dd>
-        </div>
-      </dl>
-    </Card>
-  );
-}
-
-function getBuyerQuestions(listing: ListingDetailPayload["listing"]): string[] {
-  const questions = [
-    "Are there any stains, missing parts, repairs, or defects that are not visible in the photos?",
-    "Which accessories, manuals, spare parts, or boxes are included?",
-    "How long was it used, and why are you selling it?",
-    "Can you share one more clear photo of the most worn area?"
-  ];
-
-  if (listing.price) {
-    questions.push("Is the listed price final, or is there room for a reasonable offer?");
-  }
-
-  if (listing.listingType === "swap") {
-    questions.push("What kind of item would you consider for a swap?");
-  }
-
-  if (listing.listingType === "donation") {
-    questions.push("Is pickup timing flexible for donation handover?");
-  }
-
-  if (isSafetySensitiveCategory(listing.category.slug)) {
-    questions.push("Has the product ever been involved in an accident, recall, or safety issue?");
-  }
-
-  return questions;
-}
-
-function getSafetyChecks(listing: ListingDetailPayload["listing"]): string[] {
-  const checks = [
-    "Confirm the product matches the child's current stage and size.",
-    "Check photos for fabric wear, broken parts, missing straps, loose screws, and hygiene.",
-    "Prefer clear pickup expectations before arranging handover."
-  ];
-
-  if (listing.condition === "fair" || listing.condition === "needs_repair") {
-    checks.push("This condition needs extra review before use; ask what repair or cleaning is required.");
-  }
-
-  if (isSafetySensitiveCategory(listing.category.slug)) {
-    checks.push("For safety-sensitive gear, verify history, stability, labels, and all locking mechanisms before use.");
-  }
-
-  return checks;
-}
-
-function isSafetySensitiveCategory(categorySlug: string): boolean {
-  return [
-    "car-seats",
-    "strollers",
-    "feeding",
-    "sleep",
-    "travel"
-  ].includes(categorySlug);
 }
 
 function ListingRelatedGuideCard({ categorySlug }: { categorySlug: string }) {

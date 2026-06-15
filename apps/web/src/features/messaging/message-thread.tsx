@@ -414,20 +414,22 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             <span>{formatDateTime(conversation.lastMessageAt ?? conversation.updatedAt, locale)}</span>
           </p>
         </div>
-        <div className="detail-actions" aria-label={dictionary.safety.safetyActionsAriaLabel}>
-          <ReportAction
-            actionLabel={dictionary.safety.reportUser}
-            onSubmitReport={(payload) => reportProfile(apiBaseUrl, conversation.otherProfile.id, payload)}
-          />
-          <BlockProfileAction
-            apiBaseUrl={apiBaseUrl}
-            initialBlocked={isOtherProfileBlocked}
-            profileId={conversation.otherProfile.id}
-            onBlockedChange={setIsOtherProfileBlocked}
-          />
-        </div>
-
-        <ConversationSafetyGuide isOtherProfileBlocked={isOtherProfileBlocked} />
+        <details className="thread-safety-menu">
+          <summary>{dictionary.publicPages.messaging.safetyMenu}</summary>
+          <div className="detail-actions" aria-label={dictionary.safety.safetyActionsAriaLabel}>
+            <ReportAction
+              actionLabel={dictionary.safety.reportUser}
+              onSubmitReport={(payload) => reportProfile(apiBaseUrl, conversation.otherProfile.id, payload)}
+            />
+            <BlockProfileAction
+              apiBaseUrl={apiBaseUrl}
+              initialBlocked={isOtherProfileBlocked}
+              profileId={conversation.otherProfile.id}
+              onBlockedChange={setIsOtherProfileBlocked}
+            />
+          </div>
+          <p className="form-note">{dictionary.publicPages.support.compactBoundary}</p>
+        </details>
       </section>
 
       <section className="thread-panel">
@@ -456,10 +458,13 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
                   </div>
                   <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
                   {item.sender.id !== currentProfileId ? (
-                    <ReportAction
-                      actionLabel={dictionary.safety.reportMessage}
-                      onSubmitReport={(payload) => reportMessage(apiBaseUrl, item.id, payload)}
-                    />
+                    <details className="message-action-menu">
+                      <summary>{dictionary.publicPages.messaging.safetyMenu}</summary>
+                      <ReportAction
+                        actionLabel={dictionary.safety.reportMessage}
+                        onSubmitReport={(payload) => reportMessage(apiBaseUrl, item.id, payload)}
+                      />
+                    </details>
                   ) : null}
                 </li>
               ))}
@@ -509,27 +514,6 @@ function isNearPageBottom(): boolean {
   const distanceFromBottom = page.scrollHeight - window.scrollY - window.innerHeight;
 
   return distanceFromBottom < 240;
-}
-
-
-function ConversationSafetyGuide({ isOtherProfileBlocked }: { isOtherProfileBlocked: boolean }) {
-  return (
-    <section className="conversation-safety-guide" aria-label="Conversation safety guide">
-      <div>
-        <p className="eyebrow">Safe messaging</p>
-        <h2>{isOtherProfileBlocked ? "This profile is blocked" : "Keep the conversation useful and safe"}</h2>
-        <p className="form-note">
-          Ask clear item questions, keep arrangements inside BabyLoop, and report anything misleading or unsafe.
-        </p>
-      </div>
-
-      <ul className="question-list">
-        <li>Confirm condition, missing parts, cleaning needs, and included accessories.</li>
-        <li>Use clear pickup timing and avoid sharing unnecessary private details.</li>
-        <li>Report pressure, suspicious requests, misleading item details, or unsafe behavior.</li>
-      </ul>
-    </section>
-  );
 }
 
 

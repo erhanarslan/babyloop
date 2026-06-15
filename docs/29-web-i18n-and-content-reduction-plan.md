@@ -290,3 +290,7 @@ Examples:
 - Marketplace pages have fewer explanatory paragraphs and stronger primary actions.
 - Assistant/guides/safety copy is supporting content, not first-order navigation.
 - Account/private pages use concise utility language.
+
+## Implementation Follow-Up
+
+The first UX rebuild moved the new public shell, search, location, account hub, home, browse, listing-detail, and messaging copy onto dictionary-backed labels where new UI was introduced. Legacy feature surfaces still contain hardcoded text and need a follow-up extraction pass before this checklist can be considered complete.

@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { Card, PageContainer, PageHeading } from "../../components/ui";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { AccountSurfaceGuide } from "../account/account-surface-guide";
 import { FavoritesList } from "./favorites-list";
 
 type FavoritesPageContentProps = {
@@ -80,8 +79,6 @@ export function FavoritesPageContent({ apiBaseUrl }: FavoritesPageContentProps) 
             </Card>
           ))}
         </section>
-
-        <AccountSurfaceGuide kind="favorites" />
 
         <FavoritesList apiBaseUrl={apiBaseUrl} />
       </PageContainer>

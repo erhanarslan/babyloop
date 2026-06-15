@@ -271,3 +271,7 @@ Future:
 6. Content reduction across home/account/guides/assistant/auth.
 7. i18n dictionary consolidation.
 8. Visual polish and responsive QA.
+
+## Implementation Follow-Up
+
+Steps 1-5 are implemented in the first UX rebuild pass: desktop two-row header, shared category IA, mobile drawer, search overlay, location selector, account menu, and `/account/profile` hub now exist. Steps 6-8 remain ongoing and are summarized in `docs/30-public-web-ux-implementation-report.md`.

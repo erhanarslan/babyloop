@@ -25,7 +25,6 @@ import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
-import { AccountSurfaceGuide } from "../account/account-surface-guide";
 import { formatDateTime } from "../listings/listing-display";
 import {
   fetchNotifications,
@@ -267,8 +266,6 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
             </Card>
           ))}
         </section>
-
-        <AccountSurfaceGuide kind="notifications" />
 
         {isCheckingAuth || isLoading ? (
           <LoadingBlock title={dictionary.notifications.loading} message="Fetching marketplace updates safely." />

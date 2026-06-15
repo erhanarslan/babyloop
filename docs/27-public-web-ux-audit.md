@@ -235,3 +235,7 @@ Recommended account model:
 4. Simplify messaging into inbox/thread/composer first; move report/block to safety menus.
 5. Add a real account hub IA and simplify user menu.
 6. Start i18n/content reduction because the mixed EN/TR copy is now visible across core routes.
+
+## Implementation Follow-Up
+
+The first implementation pass landed the P0 shell/navigation/search/location rebuild, added `/account/profile`, simplified home/browse/listing-detail/messaging hierarchy, and reduced auth/account explainer panels. Remaining audit items are tracked in `docs/30-public-web-ux-implementation-report.md`.

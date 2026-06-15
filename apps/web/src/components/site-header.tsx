@@ -2,14 +2,14 @@
 
 import {
   REALTIME_EVENTS,
+  type ApiResponse,
   type NotificationCreatedPayload,
   type NotificationReadAllPayload,
   type NotificationReadPayload,
-  type NotificationUnreadCountUpdatedPayload,
-  type ApiResponse
+  type NotificationUnreadCountUpdatedPayload
 } from "@babyloop/shared";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
@@ -20,32 +20,27 @@ import {
   type AuthMe
 } from "../lib/auth-client";
 import { getApiBaseUrl } from "../lib/api";
-import type { ListingsPayload, ListingSummary } from "../lib/api";
 import { type Locale, locales } from "../lib/i18n/dictionaries";
 import { useI18n } from "../lib/i18n/i18n-provider";
+import { getRealtimeSocket } from "../lib/realtime-client";
 import { useTheme } from "../lib/theme/theme-provider";
-import { cn } from "../lib/utils";
-import {
-  formatCategoryName,
-  formatListingCondition,
-  formatListingPrice
-} from "../features/listings/listing-display";
 import { fetchUnreadNotificationCount } from "../features/notifications/api";
 import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notifications/unread-count-events";
-import { getRealtimeSocket } from "../lib/realtime-client";
+import { CategoryMegaMenu } from "./navigation/category-mega-menu";
+import {
+  DEFAULT_LOCATION,
+  LocationSelector,
+  readStoredLocation,
+  storeLocation
+} from "./navigation/location-selector";
+import { MobileNavigationDrawer } from "./navigation/mobile-navigation-drawer";
+import {
+  accountLinks,
+  quickCategoryLinks
+} from "./navigation/public-navigation-model";
+import { SearchOverlay } from "./navigation/search-overlay";
 
-type OpenMenu = "marketplace" | "sell" | "account" | "mobile" | null;
-
-type NavItem = {
-  description: string;
-  href: string;
-  label: string;
-};
-
-type AccountItem = {
-  href: string;
-  label: string;
-};
+type HeaderMenu = "categories" | "account" | null;
 
 export function SiteHeader() {
   const apiBaseUrl = getApiBaseUrl();
@@ -55,80 +50,14 @@ export function SiteHeader() {
   const { theme, toggleTheme } = useTheme();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [selectedCity, setSelectedCityState] = useState(DEFAULT_LOCATION);
 
-  const marketplaceItems: NavItem[] = [
-    {
-      description: dictionary.nav.browseDescription,
-      href: "/browse",
-      label: dictionary.nav.browseListings
-    },
-    {
-      description: "Plan needs, buying checks, and listing details with guided help",
-      href: "/assistant",
-      label: "Assistant"
-    },
-    ...(currentAuth
-      ? [
-          {
-            description: dictionary.nav.favoritesDescription,
-            href: "/favorites",
-            label: dictionary.nav.favorites
-          },
-          {
-            description: dictionary.nav.messagesDescription,
-            href: "/conversations",
-            label: dictionary.nav.messages
-          },
-          {
-            description: dictionary.nav.notificationsDescription,
-            href: "/notifications",
-            label: unreadNotificationCount > 0
-              ? dictionary.nav.notificationsWithCount.replace(
-                  "{count}",
-                  formatBadgeCount(unreadNotificationCount)
-                )
-              : dictionary.nav.notifications
-          }
-        ]
-      : [])
-  ];
-
-  const sellItems: NavItem[] = currentAuth
-    ? [
-        {
-          description: dictionary.nav.myListingsDescription,
-          href: "/sell",
-          label: dictionary.common.createListing
-        },
-        {
-          description: dictionary.nav.myListingsDescription,
-          href: "/my-listings",
-          label: dictionary.nav.myListings
-        }
-      ]
-    : [];
-
-  const accountItems: AccountItem[] = currentAuth
-    ? [
-        { href: "/account/children", label: "Child profiles" },
-        { href: "/account/saved-searches", label: "Saved searches" },
-        { href: "/account/seller", label: "Seller dashboard" },
-        { href: "/favorites", label: dictionary.nav.favorites },
-        { href: "/my-listings", label: dictionary.nav.myListings },
-        {
-          href: "/notifications",
-          label: unreadNotificationCount > 0
-            ? dictionary.nav.notificationsWithCount.replace(
-                "{count}",
-                formatBadgeCount(unreadNotificationCount)
-              )
-            : dictionary.nav.notifications
-        },
-        { href: "/account/password", label: dictionary.nav.changePassword },
-        { href: "/auth/verify-email/request", label: dictionary.nav.verifyEmail }
-      ]
-    : [];
+  useEffect(() => {
+    setSelectedCityState(readStoredLocation());
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -266,7 +195,7 @@ export function SiteHeader() {
   }, [apiBaseUrl, currentAuth]);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handlePointerDown(event: MouseEvent) {
       if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
         setOpenMenu(null);
       }
@@ -274,407 +203,275 @@ export function SiteHeader() {
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpenMenu(null);
+        closeTransientSurfaces();
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
+  function setSelectedCity(city: string) {
+    setSelectedCityState(city);
+    storeLocation(city);
+  }
+
   function closeMenus() {
     setOpenMenu(null);
+    setIsDrawerOpen(false);
+  }
+
+  function closeTransientSurfaces() {
+    setOpenMenu(null);
+    setIsDrawerOpen(false);
+    setIsLoginModalOpen(false);
   }
 
   function handleLogout() {
-    closeMenus();
+    closeTransientSurfaces();
     setCurrentAuth(null);
     logoutAndRedirectToHome(apiBaseUrl);
   }
 
   return (
-    <header ref={headerRef} className="site-header" aria-label="Main navigation">
-      <div className="site-header-inner">
-        <Link className="brand" href="/" aria-label="BabyLoop home" onClick={closeMenus}>
-          <span className="brand-mark" aria-hidden="true">
-            BL
-          </span>
-          <span>
-            {dictionary.common.babyloop}
-            <small>{dictionary.nav.tagline}</small>
-          </span>
+    <header ref={headerRef} className="market-header" aria-label="Main navigation">
+      <div className="market-header-top">
+        <button
+          aria-controls="mobile-market-navigation"
+          aria-expanded={isDrawerOpen}
+          aria-label={dictionary.publicShell.header.openMenu}
+          className="market-mobile-menu-button"
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+        >
+          <span aria-hidden="true" />
+        </button>
+
+        <Link className="market-wordmark" href="/" onClick={closeMenus}>
+          babyloop
         </Link>
 
-        <HeaderSearch apiBaseUrl={apiBaseUrl} onNavigate={closeMenus} />
+        <SearchOverlay
+          className="market-header-search"
+          dictionary={dictionary}
+          isAuthenticated={Boolean(currentAuth)}
+          selectedCity={selectedCity}
+          onNavigate={closeMenus}
+        />
 
-        <nav className="desktop-nav" aria-label="Primary navigation">
-          <Link href="/" onClick={closeMenus}>
-            {dictionary.nav.home}
-          </Link>
-
-          <NavDropdown
-            id="marketplace"
-            label={dictionary.nav.marketplace}
-            items={marketplaceItems}
-            openMenu={openMenu}
-            setOpenMenu={setOpenMenu}
+        <div className="market-header-actions">
+          <LocationSelector
+            dictionary={dictionary}
+            selectedCity={selectedCity}
+            setSelectedCity={setSelectedCity}
           />
-
-          {currentAuth ? (
-            <NavDropdown
-              id="sell"
-              label={dictionary.nav.sell}
-              items={sellItems}
-              openMenu={openMenu}
-              setOpenMenu={setOpenMenu}
-            />
-          ) : null}
-        </nav>
-
-        <div className="header-tools" aria-label="Preferences">
           <LanguageSwitcher locale={locale} setLocale={setLocale} />
-          <button
-            className="theme-toggle"
-            type="button"
-            aria-label={dictionary.common.theme}
-            onClick={toggleTheme}
-          >
-            {theme === "dark" ? dictionary.common.light : dictionary.common.dark}
+          <button className="market-icon-button" type="button" aria-label={dictionary.common.theme} onClick={toggleTheme}>
+            {theme === "dark" ? "☀" : "◐"}
           </button>
+          <Link className="market-sell-cta" href="/sell" onClick={closeMenus}>
+            {dictionary.publicShell.header.sell}
+          </Link>
+          <HeaderAccount
+            currentAuth={currentAuth}
+            dictionary={dictionary}
+            onLogin={() => setIsLoginModalOpen(true)}
+            onLogout={handleLogout}
+            onOpenAccount={() => setOpenMenu(openMenu === "account" ? null : "account")}
+            openMenu={openMenu}
+            unreadNotificationCount={unreadNotificationCount}
+          />
         </div>
-
-        <div className="header-auth">
-          {currentAuth ? (
-            <>
-              <Link
-                className="notification-header-link"
-                href="/notifications"
-                onClick={closeMenus}
-                aria-label={dictionary.nav.notifications}
-              >
-                <span>{dictionary.nav.notifications}</span>
-                {unreadNotificationCount > 0 ? (
-                  <strong>{formatBadgeCount(unreadNotificationCount)}</strong>
-                ) : null}
-              </Link>
-              <AccountMenu
-                currentAuth={currentAuth}
-                items={accountItems}
-                label={dictionary.nav.account}
-                logoutLabel={dictionary.common.logout}
-                onLogout={handleLogout}
-                openMenu={openMenu}
-                setOpenMenu={setOpenMenu}
-              />
-            </>
-          ) : (
-            <div className="auth-actions">
-              <Link className="ghost-auth-link" href="/login" onClick={closeMenus}>
-                {dictionary.common.login}
-              </Link>
-              <Link className="solid-auth-link" href="/register" onClick={closeMenus}>
-                {dictionary.common.register}
-              </Link>
-            </div>
-          )}
-        </div>
-
-        <button
-          className="mobile-menu-trigger"
-          type="button"
-          aria-expanded={openMenu === "mobile"}
-          aria-controls="mobile-navigation"
-          onClick={() => setOpenMenu(openMenu === "mobile" ? null : "mobile")}
-        >
-          {dictionary.nav.mobileMenu} <span aria-hidden="true">⌄</span>
-        </button>
       </div>
 
-      <div
-        id="mobile-navigation"
-        className={cn("mobile-nav-panel", openMenu === "mobile" && "mobile-nav-panel-open")}
-      >
-        <nav aria-label="Mobile navigation">
-          <Link href="/" onClick={closeMenus}>
-            {dictionary.nav.home}
-          </Link>
+      <div className="market-mobile-search-row">
+        <SearchOverlay
+          dictionary={dictionary}
+          isAuthenticated={Boolean(currentAuth)}
+          selectedCity={selectedCity}
+          onNavigate={closeMenus}
+        />
+      </div>
 
-          <p>{dictionary.nav.marketplace}</p>
-          {marketplaceItems.map((item) => (
-            <Link key={item.href} href={item.href} onClick={closeMenus}>
+      <div className="market-header-bottom">
+        <button
+          aria-controls="babyloop-category-mega-menu"
+          aria-expanded={openMenu === "categories"}
+          className={openMenu === "categories" ? "market-category-trigger active" : "market-category-trigger"}
+          type="button"
+          onClick={() => setOpenMenu(openMenu === "categories" ? null : "categories")}
+        >
+          <span aria-hidden="true">☰</span>
+          {dictionary.publicShell.header.allCategories}
+        </button>
+
+        <nav className="market-quick-categories" aria-label={dictionary.publicShell.header.allCategories}>
+          {quickCategoryLinks.map((item) => (
+            <Link href={item.href} key={item.href} onClick={closeMenus}>
               {item.label}
             </Link>
           ))}
-
-          {currentAuth ? (
-            <>
-              <p>{dictionary.nav.sell}</p>
-              {sellItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={closeMenus}>
-                  {item.label}
-                </Link>
-              ))}
-
-              <p>{dictionary.nav.account}</p>
-              <span className="mobile-user-label">{currentAuth.profile.displayName}</span>
-
-              {accountItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={closeMenus}>
-                  {item.label}
-                </Link>
-              ))}
-
-              <button type="button" onClick={() => void handleLogout()}>
-                {dictionary.common.logout}
-              </button>
-            </>
-          ) : (
-            <>
-              <p>{dictionary.nav.account}</p>
-              <Link href="/login" onClick={closeMenus}>
-                {dictionary.common.login}
-              </Link>
-              <Link href="/register" onClick={closeMenus}>
-                {dictionary.common.register}
-              </Link>
-            </>
-          )}
-
-          <p>{dictionary.common.language}</p>
-          <div className="mobile-preferences">
-            <LanguageSwitcher locale={locale} setLocale={setLocale} />
-            <button className="theme-toggle" type="button" onClick={toggleTheme}>
-              {theme === "dark" ? dictionary.common.light : dictionary.common.dark}
-            </button>
-          </div>
         </nav>
+
+        <Link className="market-header-assistant" href="/assistant" onClick={closeMenus}>
+          {dictionary.publicShell.header.assistant}
+        </Link>
       </div>
+
+      <CategoryMegaMenu
+        dictionary={dictionary}
+        isOpen={openMenu === "categories"}
+        onNavigate={closeMenus}
+      />
+
+      <MobileNavigationDrawer
+        currentAuth={currentAuth}
+        dictionary={dictionary}
+        isOpen={isDrawerOpen}
+        locale={locale}
+        onClose={() => setIsDrawerOpen(false)}
+        onLogin={() => {
+          setIsDrawerOpen(false);
+          setIsLoginModalOpen(true);
+        }}
+        onLogout={handleLogout}
+        selectedCity={selectedCity}
+        setLocale={setLocale}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
+
+      <LoginPromptModal
+        apiBaseUrl={apiBaseUrl}
+        dictionary={dictionary}
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </header>
   );
 }
 
-function HeaderSearch({
-  apiBaseUrl,
-  onNavigate
+function HeaderAccount({
+  currentAuth,
+  dictionary,
+  onLogin,
+  onLogout,
+  onOpenAccount,
+  openMenu,
+  unreadNotificationCount
 }: {
-  apiBaseUrl: string;
-  onNavigate: () => void;
+  currentAuth: AuthMe | null;
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  onLogin: () => void;
+  onLogout: () => void;
+  onOpenAccount: () => void;
+  openMenu: HeaderMenu;
+  unreadNotificationCount: number;
 }) {
-  const router = useRouter();
-  const { dictionary } = useI18n();
-  const searchRef = useRef<HTMLDivElement | null>(null);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ListingSummary[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const trimmedQuery = query.trim();
-
-  useEffect(() => {
-    if (trimmedQuery.length < 3) {
-      setResults([]);
-      setIsLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      setIsLoading(true);
-      setIsOpen(true);
-
-      try {
-        const response = await fetch(
-          `${apiBaseUrl}/api/v1/listings?q=${encodeURIComponent(trimmedQuery)}`,
-          {
-            cache: "no-store",
-            signal: controller.signal
-          }
-        );
-        const body = (await response.json()) as ApiResponse<ListingsPayload>;
-
-        if (body.ok) {
-          setResults(body.data.listings.slice(0, 5));
-        }
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          setResults([]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }, 500);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
-  }, [apiBaseUrl, trimmedQuery]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  function goToBrowse() {
-    const destination =
-      trimmedQuery.length >= 3 ? `/browse?q=${encodeURIComponent(trimmedQuery)}` : "/browse";
-
-    setIsOpen(false);
-    onNavigate();
-    router.push(destination);
+  if (!currentAuth) {
+    return (
+      <button className="market-login-button" type="button" onClick={onLogin}>
+        {dictionary.common.login}
+      </button>
+    );
   }
 
-  return (
-    <div ref={searchRef} className="header-search" role="search">
-      <label className="sr-only" htmlFor="header-listing-search">
-        {dictionary.nav.searchPlaceholder}
-      </label>
-      <span aria-hidden="true">{dictionary.nav.searchLabel}</span>
-      <input
-        id="header-listing-search"
-        value={query}
-        placeholder={dictionary.nav.searchHint}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setIsOpen(event.target.value.trim().length >= 3);
-        }}
-        onFocus={() => setIsOpen(trimmedQuery.length >= 3)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            goToBrowse();
-          }
+  const displayName = currentAuth.profile.displayName || dictionary.nav.account;
+  const initial = displayName.slice(0, 1).toUpperCase();
 
-          if (event.key === "Escape") {
-            setIsOpen(false);
-          }
-        }}
-      />
-      <button type="button" onClick={goToBrowse}>
-        {dictionary.nav.searchViewAll}
+  return (
+    <div className="market-account">
+      <Link className="market-activity-link" href="/conversations">
+        {dictionary.publicShell.header.messages}
+      </Link>
+      <Link className="market-activity-link" href="/notifications">
+        {dictionary.publicShell.header.notifications}
+        {unreadNotificationCount > 0 ? <span>{formatBadgeCount(unreadNotificationCount)}</span> : null}
+      </Link>
+      <button
+        aria-expanded={openMenu === "account"}
+        className="market-account-trigger"
+        type="button"
+        onClick={onOpenAccount}
+      >
+        <span aria-hidden="true">{initial}</span>
+        <strong>{displayName}</strong>
       </button>
 
-      {isOpen ? (
-        <div className="search-results-panel">
-          {isLoading ? <p>{dictionary.nav.searchLoading}</p> : null}
-          {!isLoading && results.length === 0 ? <p>{dictionary.nav.searchEmpty}</p> : null}
-          {!isLoading
-            ? results.map((listing) => (
-                <Link
-                  key={listing.id}
-                  href={`/listings/${listing.id}`}
-                  onClick={() => {
-                    setIsOpen(false);
-                    onNavigate();
-                  }}
-                >
-                  <strong>{listing.title}</strong>
-                  <span>
-                    {formatCategoryName(listing.category, dictionary)} ·{" "}
-                    {formatListingCondition(listing.condition, dictionary)} ·{" "}
-                    {formatListingPrice(listing.price, dictionary)}
-                  </span>
-                </Link>
-              ))
-            : null}
+      {openMenu === "account" ? (
+        <div className="market-account-menu">
+          {accountLinks.map((item) => (
+            <Link href={item.href} key={item.href}>
+              {dictionary.publicShell.accountMenu[item.label as keyof typeof dictionary.publicShell.accountMenu]}
+            </Link>
+          ))}
+          <button type="button" onClick={onLogout}>
+            {dictionary.publicShell.accountMenu.logout}
+          </button>
         </div>
       ) : null}
     </div>
   );
 }
 
-type NavDropdownProps = {
-  id: Exclude<OpenMenu, "account" | "mobile" | null>;
-  items: NavItem[];
-  label: string;
-  openMenu: OpenMenu;
-  setOpenMenu: (menu: OpenMenu) => void;
-};
+function LoginPromptModal({
+  apiBaseUrl,
+  dictionary,
+  isOpen,
+  onClose
+}: {
+  apiBaseUrl: string;
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  if (!isOpen) {
+    return null;
+  }
 
-function NavDropdown({ id, items, label, openMenu, setOpenMenu }: NavDropdownProps) {
-  const isOpen = openMenu === id;
-
-  return (
-    <div className="nav-dropdown">
-      <button
-        className={cn("nav-dropdown-trigger", isOpen && "nav-dropdown-trigger-active")}
-        type="button"
-        aria-expanded={isOpen}
-        onClick={() => setOpenMenu(isOpen ? null : id)}
-      >
-        {label} <span aria-hidden="true">⌄</span>
-      </button>
-      <div className={cn("nav-dropdown-menu", isOpen && "nav-dropdown-menu-open")}>
-        {items.map((item) => (
-          <Link key={item.href} href={item.href} onClick={() => setOpenMenu(null)}>
-            <strong>{item.label}</strong>
-            <span>{item.description}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type AccountMenuProps = {
-  currentAuth: AuthMe;
-  items: AccountItem[];
-  label: string;
-  logoutLabel: string;
-  onLogout: () => void;
-  openMenu: OpenMenu;
-  setOpenMenu: (menu: OpenMenu) => void;
-};
-
-function AccountMenu({
-  currentAuth,
-  items,
-  label,
-  logoutLabel,
-  onLogout,
-  openMenu,
-  setOpenMenu
-}: AccountMenuProps) {
-  const isOpen = openMenu === "account";
-  const displayName = currentAuth.profile.displayName || "Account";
-  const initial = displayName.slice(0, 1).toUpperCase();
+  function openGoogleLogin() {
+    window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+  }
 
   return (
-    <div className="nav-dropdown account-dropdown">
+    <div className="market-modal-layer" role="presentation">
       <button
-        className={cn("account-trigger", isOpen && "account-trigger-active")}
+        aria-label={dictionary.publicShell.header.close}
+        className="market-modal-backdrop"
         type="button"
-        aria-expanded={isOpen}
-        aria-label={label}
-        onClick={() => setOpenMenu(isOpen ? null : "account")}
-      >
-        <span>{initial}</span>
-        <strong>{displayName}</strong>
-        <em aria-hidden="true">⌄</em>
-      </button>
-      <div className={cn("nav-dropdown-menu account-menu", isOpen && "nav-dropdown-menu-open")}>
-        {items.map((item) => (
-          <Link key={item.href} href={item.href} onClick={() => setOpenMenu(null)}>
-            <strong>{item.label}</strong>
+        onClick={onClose}
+      />
+      <section className="market-modal-card" role="dialog" aria-modal="true" aria-labelledby="market-login-title">
+        <div className="market-modal-heading">
+          <div>
+            <p className="eyebrow">{dictionary.common.babyloop}</p>
+            <h2 id="market-login-title">{dictionary.auth.loginTitle}</h2>
+          </div>
+          <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <p>{dictionary.publicShell.header.loginUnlocks}</p>
+        <div className="market-modal-actions">
+          <Link className="market-sell-cta" href="/login" onClick={onClose}>
+            {dictionary.common.login}
           </Link>
-        ))}
-        <button type="button" onClick={onLogout}>
-          {logoutLabel}
-        </button>
-      </div>
+          <Link className="market-login-button" href="/register" onClick={onClose}>
+            {dictionary.common.register}
+          </Link>
+          <button className="market-login-button" type="button" onClick={openGoogleLogin}>
+            {dictionary.auth.continueGoogle}
+          </button>
+        </div>
+        <Link className="market-muted-link" href="/forgot-password" onClick={onClose}>
+          {dictionary.auth.forgotPassword}
+        </Link>
+      </section>
     </div>
   );
 }
@@ -687,12 +484,12 @@ function LanguageSwitcher({
   setLocale: (locale: Locale) => void;
 }) {
   return (
-    <div className="language-switcher" aria-label="Language">
+    <div className="market-language-switcher" aria-label="Language">
       {locales.map((item) => (
         <button
+          aria-pressed={locale === item}
           key={item}
           type="button"
-          aria-pressed={locale === item}
           onClick={() => setLocale(item)}
         >
           {item.toUpperCase()}

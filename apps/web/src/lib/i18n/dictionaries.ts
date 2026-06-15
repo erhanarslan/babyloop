@@ -2,7 +2,7 @@ export const locales = ["en", "tr"] as const;
 
 export type Locale = (typeof locales)[number];
 
-export const defaultLocale: Locale = "en";
+export const defaultLocale: Locale = "tr";
 
 export const dictionaries = {
   en: {
@@ -33,6 +33,143 @@ export const dictionaries = {
       viewDetails: "View details",
       backToBrowse: "Back to browse",
       notProvided: "Not provided"
+    },
+    publicShell: {
+      header: {
+        allCategories: "All categories",
+        assistant: "Assistant",
+        browse: "Browse",
+        close: "Close",
+        location: "Location",
+        locationAria: "Choose marketplace location",
+        loginUnlocks: "Login unlocks messages, favorites, saved searches, and selling.",
+        menu: "Menu",
+        messages: "Messages",
+        notifications: "Notifications",
+        openMenu: "Open menu",
+        popularSearches: "Popular searches",
+        recentSearches: "Recent searches",
+        clearRecent: "Clear",
+        savedSearches: "Saved searches",
+        searchPlaceholder: "Stroller, car seat, high chair...",
+        searchTitle: "What are you looking for?",
+        sell: "Sell",
+        settingsComingSoon: "Coming soon",
+        suggestedCategories: "Suggested categories",
+        viewResults: "View results"
+      },
+      accountMenu: {
+        profile: "My profile",
+        myListings: "My listings",
+        sellerDashboard: "Seller dashboard",
+        messages: "Messages",
+        notifications: "Notifications",
+        savedSearches: "Saved searches",
+        childProfiles: "Child needs",
+        favorites: "Favorites",
+        security: "Security and password",
+        logout: "Logout"
+      },
+      location: {
+        allTurkey: "All Turkey",
+        current: "Current location",
+        helper: "City filtering is carried in the browse URL while backend matching is expanded.",
+        selectCity: "Select city"
+      },
+      categoryGroups: {
+        travel: "Strollers & travel",
+        safety: "Car seats & safety",
+        sleep: "Nursery & sleep",
+        feeding: "Feeding",
+        clothing: "Baby clothing",
+        play: "Toys & books",
+        care: "Bath & care",
+        parent: "Parent products",
+        kids: "3-7 years",
+        reuse: "Donation / swap / free"
+      }
+    },
+    publicPages: {
+      home: {
+        heroEyebrow: "BabyLoop marketplace",
+        heroTitle: "Find baby and child essentials near you.",
+        heroBody: "Search parent-owned strollers, car seats, toys, clothes, donation items, and swap-ready needs in one focused marketplace.",
+        sellCta: "List an item",
+        browseCta: "Browse listings",
+        popularTitle: "Popular searches",
+        categoriesTitle: "Shop by need",
+        trustTitle: "A calmer second-hand flow",
+        trustBody: "Message inside BabyLoop, keep contact details private, and use reports only when something feels unsafe."
+      },
+      browse: {
+        title: "Marketplace results",
+        subtitle: "Search, filter, and open the listing that fits your family need.",
+        filters: "Filters",
+        category: "Category",
+        search: "Search",
+        type: "Type",
+        condition: "Condition",
+        minPrice: "Min price",
+        maxPrice: "Max price",
+        imagesOnly: "Images only",
+        sort: "Sort",
+        sortNewest: "Newest",
+        sortOldest: "Oldest",
+        sortPriceAsc: "Price low to high",
+        sortPriceDesc: "Price high to low",
+        apply: "Apply",
+        clear: "Clear",
+        allCategories: "All categories",
+        allTypes: "All types",
+        allConditions: "All conditions",
+        activeFilters: "Active filters",
+        resultCount: "Showing {shown} of {total} listings",
+        noResultsTitle: "No listings match this search yet",
+        noResultsBody: "Try a broader term, remove one filter, or save the need for later.",
+        saveSearch: "Save search"
+      },
+      listingDetail: {
+        back: "Back to results",
+        messageSeller: "Message seller",
+        favorite: "Favorite",
+        report: "Report listing",
+        seller: "Seller",
+        details: "Details",
+        safety: "Quick safety check",
+        safetyBody: "Confirm condition, included parts, pickup expectations, and safety-sensitive history before meeting.",
+        askAssistant: "Ask what to check",
+        related: "More like this"
+      },
+      messaging: {
+        inboxTitle: "Messages",
+        inboxBody: "Open unread threads and keep item questions inside BabyLoop.",
+        threadTitle: "Conversation",
+        safetyMenu: "Safety actions",
+        reportUser: "Report user",
+        blockUser: "Block user",
+        reportMessage: "Report message",
+        context: "Listing context",
+        composerTitle: "Message",
+        composerHint: "Ask about condition, included parts, photos, or pickup timing."
+      },
+      account: {
+        hubTitle: "My account",
+        hubBody: "Manage marketplace shortcuts, seller tools, family planning, and account security.",
+        profileSummary: "Profile summary",
+        marketplaceShortcuts: "Marketplace shortcuts",
+        sellerTools: "Seller tools",
+        familyPlanning: "Family planning",
+        security: "Security",
+        preferences: "Preferences",
+        payments: "Payment tools",
+        notificationPreferences: "Notification preferences",
+        comingSoon: "Coming soon"
+      },
+      support: {
+        compactBoundary: "Marketplace guidance only. BabyLoop does not replace professional medical, safety, or legal advice.",
+        guidesTitle: "Parent guides",
+        assistantTitle: "BabyLoop Assistant"
+      }
     },
     nav: {
       tagline: "Parent marketplace",
@@ -588,6 +725,143 @@ export const dictionaries = {
       viewDetails: "Detayları gör",
       backToBrowse: "Keşfe dön",
       notProvided: "Belirtilmedi"
+    },
+    publicShell: {
+      header: {
+        allCategories: "Tüm kategoriler",
+        assistant: "Asistan",
+        browse: "Keşfet",
+        close: "Kapat",
+        location: "Konum",
+        locationAria: "Pazar konumunu seç",
+        loginUnlocks: "Giriş yapınca mesajlar, favoriler, kayıtlı aramalar ve satış açılır.",
+        menu: "Menü",
+        messages: "Mesajlar",
+        notifications: "Bildirimler",
+        openMenu: "Menüyü aç",
+        popularSearches: "Popüler aramalar",
+        recentSearches: "Son aramalar",
+        clearRecent: "Temizle",
+        savedSearches: "Kayıtlı aramalar",
+        searchPlaceholder: "Bebek arabası, oto koltuğu, mama sandalyesi...",
+        searchTitle: "Ne arıyorsun?",
+        sell: "İlan ver",
+        settingsComingSoon: "Yakında",
+        suggestedCategories: "Önerilen kategoriler",
+        viewResults: "Sonuçları gör"
+      },
+      accountMenu: {
+        profile: "Profilim",
+        myListings: "İlanlarım",
+        sellerDashboard: "Satıcı paneli",
+        messages: "Mesajlar",
+        notifications: "Bildirimler",
+        savedSearches: "Kayıtlı aramalar",
+        childProfiles: "Çocuğum / ihtiyaçlar",
+        favorites: "Favoriler",
+        security: "Güvenlik ve şifre",
+        logout: "Çıkış yap"
+      },
+      location: {
+        allTurkey: "Tüm Türkiye",
+        current: "Seçili konum",
+        helper: "Şehir seçimi şimdilik browse URL'sine eklenir; backend eşleşmesi genişletilecek.",
+        selectCity: "Şehir seç"
+      },
+      categoryGroups: {
+        travel: "Bebek Arabası & Seyahat",
+        safety: "Oto Koltuğu & Güvenlik",
+        sleep: "Bebek Odası & Uyku",
+        feeding: "Beslenme",
+        clothing: "Bebek Giyim",
+        play: "Oyuncak & Kitap",
+        care: "Banyo & Bakım",
+        parent: "Anne Ürünleri",
+        kids: "3-7 Yaş Çocuk",
+        reuse: "Bağış / Takas / Ücretsiz"
+      }
+    },
+    publicPages: {
+      home: {
+        heroEyebrow: "BabyLoop pazarı",
+        heroTitle: "Bebek ve çocuk ihtiyaçlarını yakınında bul.",
+        heroBody: "Bebek arabası, oto koltuğu, oyuncak, kıyafet, bağış ve takas ürünlerini tek odaklı aile pazarında ara.",
+        sellCta: "İlan ver",
+        browseCta: "İlanları keşfet",
+        popularTitle: "Popüler aramalar",
+        categoriesTitle: "İhtiyaca göre keşfet",
+        trustTitle: "Daha sakin ikinci el akışı",
+        trustBody: "Mesajlaşmayı BabyLoop içinde tut, iletişim bilgilerini gizli bırak ve yalnızca güvensiz durumda bildir."
+      },
+      browse: {
+        title: "Pazar sonuçları",
+        subtitle: "Ara, filtrele ve aile ihtiyacına uyan ilanı aç.",
+        filters: "Filtreler",
+        category: "Kategori",
+        search: "Arama",
+        type: "Tip",
+        condition: "Durum",
+        minPrice: "En az fiyat",
+        maxPrice: "En çok fiyat",
+        imagesOnly: "Sadece görselli",
+        sort: "Sıralama",
+        sortNewest: "En yeni",
+        sortOldest: "En eski",
+        sortPriceAsc: "Fiyat artan",
+        sortPriceDesc: "Fiyat azalan",
+        apply: "Uygula",
+        clear: "Temizle",
+        allCategories: "Tüm kategoriler",
+        allTypes: "Tüm tipler",
+        allConditions: "Tüm durumlar",
+        activeFilters: "Aktif filtreler",
+        resultCount: "{total} ilandan {shown} tanesi gösteriliyor",
+        noResultsTitle: "Bu aramaya uygun ilan yok",
+        noResultsBody: "Daha geniş bir kelime dene, bir filtreyi kaldır ya da ihtiyacı sonra takip etmek için kaydet.",
+        saveSearch: "Aramayı kaydet"
+      },
+      listingDetail: {
+        back: "Sonuçlara dön",
+        messageSeller: "Satıcıya mesaj at",
+        favorite: "Favorile",
+        report: "İlanı bildir",
+        seller: "Satıcı",
+        details: "İlan bilgileri",
+        safety: "Hızlı güvenlik kontrolü",
+        safetyBody: "Buluşmadan önce durum, eksik parça, teslim beklentisi ve güvenlik geçmişini netleştir.",
+        askAssistant: "Neye bakmalıyım?",
+        related: "Benzer ilanlar"
+      },
+      messaging: {
+        inboxTitle: "Mesajlar",
+        inboxBody: "Okunmamış konuşmaları aç ve ürün sorularını BabyLoop içinde tut.",
+        threadTitle: "Konuşma",
+        safetyMenu: "Güvenlik işlemleri",
+        reportUser: "Kullanıcıyı bildir",
+        blockUser: "Kullanıcıyı engelle",
+        reportMessage: "Mesajı bildir",
+        context: "İlan bağlamı",
+        composerTitle: "Mesaj",
+        composerHint: "Durum, eksik parça, ek fotoğraf veya teslim zamanı sor."
+      },
+      account: {
+        hubTitle: "Hesabım",
+        hubBody: "Pazar kısayollarını, satıcı araçlarını, aile planlamasını ve güvenliği yönet.",
+        profileSummary: "Profil özeti",
+        marketplaceShortcuts: "Pazar kısayolları",
+        sellerTools: "Satıcı araçları",
+        familyPlanning: "Aile ihtiyaçları",
+        security: "Güvenlik",
+        preferences: "Tercihler",
+        payments: "Ödeme araçları",
+        notificationPreferences: "Bildirim tercihleri",
+        comingSoon: "Yakında"
+      },
+      support: {
+        compactBoundary: "Yalnızca pazar rehberliği. BabyLoop profesyonel tıbbi, güvenlik veya hukuki tavsiye yerine geçmez.",
+        guidesTitle: "Ebeveyn rehberleri",
+        assistantTitle: "BabyLoop Asistan"
+      }
     },
     nav: {
       tagline: "Ebeveyn pazarı",
