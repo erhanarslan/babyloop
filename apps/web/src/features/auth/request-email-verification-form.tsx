@@ -51,7 +51,16 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
+    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
+      <div className="auth-form-intro">
+        <p className="eyebrow">Email verification</p>
+        <h2>Request a fresh verification link</h2>
+        <p>
+          Verification helps keep account-only actions clearer. Use only official BabyLoop verification links
+          and never forward verification tokens to another person.
+        </p>
+      </div>
+
       <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
 
       {errorMessage ? (
@@ -67,7 +76,7 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
       ) : null}
 
       {devEmailVerificationToken ? (
-        <div className="dev-token-panel">
+        <div className="dev-token-panel auth-dev-panel">
           <h2>{dictionary.auth.emailVerificationDevTitle}</h2>
           <p>{dictionary.auth.emailDevLink}</p>
           <Link href={`/auth/verify-email?token=${encodeURIComponent(devEmailVerificationToken)}`}>
@@ -76,7 +85,7 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
         </div>
       ) : null}
 
-      <div className="form-actions">
+      <div className="form-actions auth-form-actions">
         <p className="form-note">{dictionary.auth.resetNoReveal}</p>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? dictionary.auth.preparing : dictionary.auth.requestVerification}

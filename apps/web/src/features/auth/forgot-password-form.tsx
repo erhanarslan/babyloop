@@ -50,8 +50,28 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
+    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
+      <div className="auth-form-intro">
+        <p className="eyebrow">Account recovery</p>
+        <h2>Request a password reset safely</h2>
+        <p>
+          Enter your account email. BabyLoop gives the same neutral response pattern so this page does not
+          reveal whether an account exists.
+        </p>
+      </div>
+
       <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
+
+      <div className="auth-security-summary" aria-label="Recovery safety summary">
+        <div>
+          <strong>Do not share links</strong>
+          <span>Recovery links and local development tokens should only be used by the account owner.</span>
+        </div>
+        <div>
+          <strong>After reset</strong>
+          <span>Sign in again and avoid using shared devices for marketplace messages or seller tools.</span>
+        </div>
+      </div>
 
       {errorMessage ? (
         <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
@@ -66,14 +86,14 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
       ) : null}
 
       {devResetToken ? (
-        <div className="dev-token-panel">
+        <div className="dev-token-panel auth-dev-panel">
           <h2>{dictionary.auth.resetDevTitle}</h2>
           <p>{dictionary.auth.resetDevBody}</p>
           <code>{devResetToken}</code>
         </div>
       ) : null}
 
-      <div className="form-actions">
+      <div className="form-actions auth-form-actions">
         <p className="form-note">{dictionary.auth.resetNoReveal}</p>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? dictionary.auth.preparing : dictionary.auth.requestResetButton}

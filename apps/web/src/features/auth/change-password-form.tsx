@@ -81,7 +81,15 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
+    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
+      <div className="auth-form-intro">
+        <p className="eyebrow">Account security</p>
+        <h2>Rotate your password deliberately</h2>
+        <p>
+          Changing your password ends active refresh sessions. You will return to login after the password update.
+        </p>
+      </div>
+
       <div className="form-grid">
         <TextInput
           label={dictionary.auth.currentPassword}
@@ -111,9 +119,20 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
         />
       </div>
 
+      <div className="auth-security-summary">
+        <div>
+          <strong>Session reset</strong>
+          <span>{dictionary.auth.passwordChangeNote}</span>
+        </div>
+        <div>
+          <strong>Credential hygiene</strong>
+          <span>Use a unique password and keep it out of BabyLoop messages, listings, and assistant prompts.</span>
+        </div>
+      </div>
+
       {errorMessage ? <Alert title={dictionary.auth.passwordChangeFailed} message={errorMessage} /> : null}
 
-      <div className="form-actions">
+      <div className="form-actions auth-form-actions">
         <p className="form-note">{dictionary.auth.passwordChangeNote}</p>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? dictionary.auth.changing : dictionary.auth.changePassword}

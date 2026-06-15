@@ -5403,3 +5403,162 @@ body {
   }
 }
 
+
+/* Auth and account recovery polish */
+.auth-hero-polished {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.12), transparent 32%),
+    var(--card-background);
+}
+
+.auth-hero-polished::after {
+  position: absolute;
+  content: "";
+  inset: auto -5rem -6rem auto;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.auth-hero-polished > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-hero-assurance,
+.auth-trust-rail,
+.auth-form-intro,
+.auth-security-summary,
+.auth-field-guidance {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+}
+
+.auth-hero-assurance span,
+.auth-security-summary strong,
+.auth-field-guidance strong {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.auth-hero-assurance strong,
+.auth-trust-rail h2,
+.auth-form-intro h2 {
+  display: block;
+  margin: 0.25rem 0 0.45rem;
+  color: var(--foreground);
+}
+
+.auth-hero-assurance p,
+.auth-form-intro p,
+.auth-security-summary span,
+.auth-field-guidance span {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.auth-layout-polished {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.auth-panel-polished,
+.auth-recovery-form,
+.auth-form-polished,
+.auth-fields-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-trust-rail {
+  position: sticky;
+  top: 5.5rem;
+}
+
+.auth-trust-rail ul {
+  margin: 0.75rem 0 0;
+}
+
+.auth-security-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.auth-security-summary div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.auth-field-guidance {
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.google-auth-actions-polished {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.google-auth-actions-polished button {
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-form-actions {
+  align-items: center;
+}
+
+.auth-success-panel,
+.auth-dev-panel {
+  border-color: rgba(37, 99, 235, 0.28);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.1), transparent 30%),
+    rgba(248, 250, 252, 0.95);
+}
+
+.auth-dev-panel code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 980px) {
+  .auth-hero-polished,
+  .auth-layout-polished,
+  .auth-security-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-trust-rail {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-form-actions,
+  .auth-form-actions button,
+  .google-auth-actions-polished button {
+    width: 100%;
+  }
+}
+

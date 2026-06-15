@@ -52,21 +52,35 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
 
   if (state === "loading") {
     return (
-      <LoadingBlock
-        title={dictionary.auth.verifyingEmail}
-        message={dictionary.auth.verifyingEmailBody}
-      />
+      <div className="auth-recovery-form">
+        <LoadingBlock
+          title={dictionary.auth.verifyingEmail}
+          message={dictionary.auth.verifyingEmailBody}
+        />
+        <div className="auth-security-summary">
+          <div>
+            <strong>Verification in progress</strong>
+            <span>BabyLoop is validating the token before enabling account-only confidence signals.</span>
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (state === "success") {
     return (
-      <div className="listing-form">
+      <div className="listing-form auth-recovery-form">
         <Alert
           tone="info"
           title={dictionary.auth.emailVerified}
           message={dictionary.auth.emailVerifiedBody}
         />
+        <div className="auth-security-summary">
+          <div>
+            <strong>Verified</strong>
+            <span>You can now return to login and continue using private BabyLoop account features.</span>
+          </div>
+        </div>
         <Link className="primary-link" href="/login">
           {dictionary.common.backToLogin}
         </Link>
@@ -75,11 +89,17 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
   }
 
   return (
-    <div className="listing-form">
+    <div className="listing-form auth-recovery-form">
       <Alert
         title={dictionary.auth.verificationFailed}
         message={dictionary.auth.verificationFailedBody}
       />
+      <div className="auth-security-summary">
+        <div>
+          <strong>Expired or invalid link</strong>
+          <span>Request a fresh verification link from BabyLoop instead of reusing old forwarded links.</span>
+        </div>
+      </div>
       <Link className="primary-link" href="/auth/verify-email/request">
         {dictionary.auth.requestNewVerification}
       </Link>

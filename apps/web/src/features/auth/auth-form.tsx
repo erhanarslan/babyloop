@@ -68,8 +68,18 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
-      <div className="google-auth-actions">
+    <form className="listing-form auth-form-polished" onSubmit={handleSubmit}>
+      <div className="auth-form-intro">
+        <p className="eyebrow">{isRegister ? "Create protected access" : "Protected sign in"}</p>
+        <h2>{isRegister ? "Create your BabyLoop account" : "Continue to your BabyLoop workspace"}</h2>
+        <p>
+          {isRegister
+            ? "Use account access for listing creation, messages, saved searches, child age-band planning, and seller tools."
+            : "Sign in to reach private marketplace tools without storing long-lived tokens in browser storage."}
+        </p>
+      </div>
+
+      <div className="google-auth-actions google-auth-actions-polished">
         <Button
           type="button"
           variant="secondary"
@@ -96,6 +106,9 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
           <GoogleIcon />
           {isGoogleRedirecting ? dictionary.auth.openingGoogle : dictionary.auth.continueGoogle}
         </Button>
+        <p className="form-note">
+          Google sign-in falls back to email and password when it is not configured for this environment.
+        </p>
       </div>
 
       <div className="auth-divider" aria-hidden="true">
@@ -104,12 +117,23 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
       <AuthFields mode={mode} />
 
+      <div className="auth-security-summary" aria-label="Auth security summary">
+        <div>
+          <strong>Session boundary</strong>
+          <span>Logout clears the client session and asks the API to end the cookie-backed session.</span>
+        </div>
+        <div>
+          <strong>Private surfaces</strong>
+          <span>Messages, favorites, seller tools, and account pages stay behind authenticated requests.</span>
+        </div>
+      </div>
+
       {errorMessage ? (
         <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
 
       {registrationComplete ? (
-        <div className="dev-token-panel">
+        <div className="dev-token-panel auth-success-panel">
           <h2>{dictionary.auth.registrationSuccess}</h2>
           {devEmailVerificationToken ? (
             <>
@@ -124,7 +148,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         </div>
       ) : null}
 
-      <div className="form-actions">
+      <div className="form-actions auth-form-actions">
         <p className="form-note">
           {isRegister ? dictionary.auth.registerNote : dictionary.auth.loginNote}
         </p>

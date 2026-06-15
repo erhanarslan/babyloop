@@ -70,12 +70,18 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
 
   if (wasReset) {
     return (
-      <div className="listing-form">
+      <div className="listing-form auth-recovery-form">
         <Alert
           tone="info"
           title={dictionary.auth.passwordReset}
           message={dictionary.auth.passwordResetBody}
         />
+        <div className="auth-security-summary">
+          <div>
+            <strong>Next step</strong>
+            <span>Sign in with the new password and avoid reusing the old credential elsewhere.</span>
+          </div>
+        </div>
         <Link className="primary-link" href="/login">
           {dictionary.common.backToLogin}
         </Link>
@@ -84,7 +90,16 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
   }
 
   return (
-    <form className="listing-form" onSubmit={handleSubmit}>
+    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
+      <div className="auth-form-intro">
+        <p className="eyebrow">Set new password</p>
+        <h2>Choose a unique password</h2>
+        <p>
+          Use a password you do not use on other sites. Do not paste recovery tokens or credentials into
+          BabyLoop messages, listings, or assistant prompts.
+        </p>
+      </div>
+
       <div className="form-grid">
         <TextInput
           label={dictionary.auth.newPassword}
@@ -106,9 +121,20 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
         />
       </div>
 
+      <div className="auth-security-summary">
+        <div>
+          <strong>Single-use token</strong>
+          <span>{dictionary.auth.resetSecurityNote}</span>
+        </div>
+        <div>
+          <strong>After reset</strong>
+          <span>Return to login and confirm that private account pages open correctly.</span>
+        </div>
+      </div>
+
       {errorMessage ? <Alert title={dictionary.auth.accountFailed} message={errorMessage} /> : null}
 
-      <div className="form-actions">
+      <div className="form-actions auth-form-actions">
         <p className="form-note">{dictionary.auth.resetSecurityNote}</p>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? dictionary.auth.changing : dictionary.auth.changePassword}
