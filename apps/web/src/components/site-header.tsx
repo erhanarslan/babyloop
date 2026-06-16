@@ -252,8 +252,9 @@ export function SiteHeader() {
           <span aria-hidden="true" />
         </button>
 
-        <Link className="market-wordmark" href="/" onClick={closeMenus}>
-          babyloop
+        <Link className="market-wordmark market-brand-logo" href="/" aria-label="BabyLoop home" onClick={closeMenus}>
+          <img src="/brand/babyloop-logo-compact.png" alt="" aria-hidden="true" />
+          <span className="sr-only">BabyLoop</span>
         </Link>
 
         <SearchOverlay

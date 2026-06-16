@@ -6637,7 +6637,6 @@ body {
     left: 50%;
     z-index: 65;
     width: min(100% - 2rem, 1180px);
-    transform: translateX(-50%);
   }
 
   .category-mega-menu-inner {
@@ -8112,6 +8111,349 @@ body {
 
   .category-mega-tab {
     min-height: 3.15rem;
+  }
+}
+
+/* BabyLoop brand asset rollout */
+body {
+  background-color: #fffaf4;
+  background-image:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.84), rgba(255, 250, 244, 0.92)),
+    url("/brand/babyloop-site-background.png");
+  background-attachment: fixed;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.dark body {
+  background-image:
+    linear-gradient(180deg, rgba(24, 22, 20, 0.88), rgba(24, 22, 20, 0.94)),
+    url("/brand/babyloop-site-background.png");
+  background-attachment: fixed;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.market-brand-logo,
+.mobile-market-brand-logo,
+.footer-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.market-brand-logo img {
+  display: block;
+  width: clamp(8.4rem, 11vw, 11.2rem);
+  height: auto;
+  object-fit: contain;
+}
+
+.mobile-market-brand-logo img {
+  display: block;
+  width: 9.5rem;
+  height: auto;
+  object-fit: contain;
+}
+
+.footer-brand-logo img {
+  display: block;
+  width: min(12rem, 68vw);
+  height: auto;
+  object-fit: contain;
+}
+
+.market-wordmark.market-brand-logo {
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+
+.footer-brand .brand.footer-brand-logo {
+  gap: 0;
+}
+
+.category-mega-menu {
+  left: max(1rem, calc((100vw - 1370px) / 2));
+  right: max(1rem, calc((100vw - 1370px) / 2));
+  transform: none;
+}
+
+@media (max-width: 920px) {
+  .market-brand-logo img {
+    width: 8.5rem;
+  }
+
+  .category-mega-menu {
+    left: 0.75rem;
+    right: 0.75rem;
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .market-brand-logo img {
+    width: 7.6rem;
+  }
+
+  .mobile-market-brand-logo img {
+    width: 8.4rem;
+  }
+}
+
+/* BabyLoop footer full logo adjustment */
+.footer-brand {
+  max-width: 30rem;
+}
+
+.footer-brand-logo.footer-brand-logo-full {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.footer-brand-logo.footer-brand-logo-full img {
+  display: block;
+  width: 100%;
+  max-width: 26rem;
+  min-width: 20rem;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 900px) {
+  .footer-brand {
+    max-width: 100%;
+  }
+
+  .footer-brand-logo.footer-brand-logo-full {
+    max-width: 22rem;
+  }
+
+  .footer-brand-logo.footer-brand-logo-full img {
+    max-width: 22rem;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-brand-logo.footer-brand-logo-full,
+  .footer-brand-logo.footer-brand-logo-full img {
+    max-width: min(100%, 18rem);
+  }
+}
+
+/* BabyLoop global pattern background */
+html {
+  background-color: #fffaf4;
+}
+
+html.dark {
+  background-color: #1e1712;
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background-color: transparent;
+  background-image: none;
+  background-attachment: initial;
+  background-position: initial;
+  background-repeat: initial;
+  background-size: initial;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-color: #fffaf4;
+  background-image: url("/brand/babyloop-bg-pattern.png");
+  background-repeat: repeat;
+  background-size: 836px 93px;
+  background-position: top center;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.68), rgba(255, 250, 244, 0.82)),
+    radial-gradient(circle at top left, rgba(255, 122, 122, 0.08), transparent 32%),
+    radial-gradient(circle at top right, rgba(114, 199, 184, 0.08), transparent 34%);
+}
+
+.dark body {
+  background-color: transparent;
+  background-image: none;
+  background-attachment: initial;
+  background-position: initial;
+  background-repeat: initial;
+  background-size: initial;
+}
+
+.dark body::before {
+  background-color: #1e1712;
+  background-image: url("/brand/babyloop-bg-pattern-dark.png");
+  background-repeat: repeat;
+  background-size: 836px 93px;
+  background-position: top center;
+}
+
+.dark body::after {
+  background:
+    linear-gradient(180deg, rgba(30, 23, 18, 0.66), rgba(30, 23, 18, 0.78)),
+    radial-gradient(circle at top left, rgba(117, 175, 255, 0.08), transparent 34%),
+    radial-gradient(circle at top right, rgba(114, 199, 184, 0.08), transparent 34%);
+}
+
+@media (max-width: 720px) {
+  body::before,
+  .dark body::before {
+    background-size: 668px 74px;
+  }
+}
+
+/* BabyLoop fixed global pattern layer */
+html {
+  background: #fffaf4;
+}
+
+html.dark {
+  background: #1e1712;
+}
+
+body,
+.dark body {
+  min-height: 100vh;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+body::before,
+body::after {
+  content: none !important;
+}
+
+.babyloop-global-pattern {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #fffaf4;
+  background-image:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.18), rgba(255, 250, 244, 0.34)),
+    url("/brand/babyloop-bg-pattern.png");
+  background-repeat: repeat;
+  background-size: auto, 836px 93px;
+  background-position: center top;
+}
+
+.dark .babyloop-global-pattern {
+  background-color: #1e1712;
+  background-image:
+    linear-gradient(180deg, rgba(30, 23, 18, 0.30), rgba(30, 23, 18, 0.50)),
+    url("/brand/babyloop-bg-pattern-dark.png");
+  background-repeat: repeat;
+  background-size: auto, 836px 93px;
+  background-position: center top;
+}
+
+.babyloop-app-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+@media (max-width: 720px) {
+  .babyloop-global-pattern,
+  .dark .babyloop-global-pattern {
+    background-size: auto, 668px 74px;
+  }
+}
+
+/* BabyLoop final visible app pattern background */
+html,
+body {
+  background-color: #fffaf4 !important;
+  background-image: none !important;
+}
+
+html.dark,
+html.dark body,
+.dark body {
+  background-color: #1e1712 !important;
+  background-image: none !important;
+}
+
+body::before,
+body::after {
+  content: none !important;
+}
+
+.babyloop-global-pattern {
+  display: none !important;
+}
+
+.babyloop-app-content {
+  min-height: 100vh;
+  background: transparent !important;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background-color: #fffaf4 !important;
+  background-image:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.06), rgba(255, 250, 244, 0.14)),
+    url("/brand/babyloop-bg-pattern.png") !important;
+  background-repeat: repeat !important;
+  background-size: auto, 836px 93px !important;
+  background-position: top center !important;
+  background-attachment: fixed !important;
+}
+
+.dark .app-shell {
+  background-color: #1e1712 !important;
+  background-image:
+    linear-gradient(180deg, rgba(30, 23, 18, 0.18), rgba(30, 23, 18, 0.30)),
+    url("/brand/babyloop-bg-pattern-dark.png") !important;
+  background-repeat: repeat !important;
+  background-size: auto, 836px 93px !important;
+  background-position: top center !important;
+  background-attachment: fixed !important;
+}
+
+.market-wordmark::before,
+.market-brand-logo::before {
+  content: none !important;
+  display: none !important;
+}
+
+.market-brand-logo {
+  background: transparent !important;
+}
+
+.market-brand-logo img,
+.footer-brand-logo img,
+.mobile-market-brand-logo img {
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .app-shell,
+  .dark .app-shell {
+    background-size: auto, 668px 74px !important;
   }
 }
 

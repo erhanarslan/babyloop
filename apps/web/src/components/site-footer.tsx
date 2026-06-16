@@ -38,14 +38,13 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="footer-brand">
-          <Link className="brand" href="/" aria-label="BabyLoop home">
-            <span className="brand-mark" aria-hidden="true">BL</span>
-            <span>
+          <Link className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
+            <img src="/brand/babyloop-logo-full.png" alt="" aria-hidden="true" />
+            <span className="sr-only">
               {dictionary.common.babyloop}
-              <small>{dictionary.nav.tagline}</small>
+              {dictionary.nav.tagline}
             </span>
           </Link>
-          <p>{dictionary.footer.description}</p>
         </div>
 
         <div className="footer-links">

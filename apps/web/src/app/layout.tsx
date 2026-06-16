@@ -18,6 +18,15 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`
   },
   description: SITE_DESCRIPTION,
+  icons: {
+    icon: [
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/icon.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/brand/apple-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
   alternates: {
     canonical: buildCanonicalUrl("/")
   },
@@ -48,7 +57,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <div className="babyloop-global-pattern" aria-hidden="true" />
+        <div className="babyloop-app-content">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );
