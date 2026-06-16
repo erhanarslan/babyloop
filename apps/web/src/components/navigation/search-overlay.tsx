@@ -6,7 +6,6 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import {
-  babyCategoryGroups,
   getLocationLabel,
   popularSearches
 } from "./public-navigation-model";
@@ -32,6 +31,7 @@ export function SearchOverlay({
 }: SearchOverlayProps) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const panelInputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -40,6 +40,16 @@ export function SearchOverlay({
   useEffect(() => {
     setRecentSearches(readRecentSearches());
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      panelInputRef.current?.focus();
+    }, 0);
+  }, [isOpen]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -131,6 +141,22 @@ export function SearchOverlay({
               </button>
             </div>
 
+            <form className="market-search-panel-form" onSubmit={handleSubmit}>
+              <label className="sr-only" htmlFor={className ? "desktop-market-search-panel" : "mobile-market-search-panel"}>
+                {dictionary.publicShell.header.searchTitle}
+              </label>
+              <input
+                id={className ? "desktop-market-search-panel" : "mobile-market-search-panel"}
+                maxLength={MAX_SEARCH_LENGTH}
+                placeholder={dictionary.publicShell.header.searchPlaceholder}
+                ref={panelInputRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <button type="submit">{dictionary.nav.searchLabel}</button>
+            </form>
+
             <button className="market-search-submit" type="button" onClick={() => submitSearch()}>
               {sanitizedQuery
                 ? `${dictionary.publicShell.header.viewResults}: ${sanitizedQuery}`
@@ -167,19 +193,18 @@ export function SearchOverlay({
             </section>
 
             <section className="market-search-section secondary">
-              <h3>{dictionary.publicShell.header.suggestedCategories}</h3>
-              <div className="market-search-category-grid">
-                {babyCategoryGroups.slice(0, 6).map((group) => (
+              <h3>{dictionary.publicShell.header.filterTitle}</h3>
+              <div className="market-search-filter-grid">
+                {buildSearchFilters(dictionary).map((filter) => (
                   <Link
-                    href={buildBrowseHref(group.query, selectedCity)}
-                    key={group.id}
+                    href={buildBrowseHref(sanitizedQuery, selectedCity, filter.params)}
+                    key={filter.label}
                     onClick={() => {
                       setIsOpen(false);
                       onNavigate?.();
                     }}
                   >
-                    <span aria-hidden="true">{group.icon}</span>
-                    {dictionary.publicShell.categoryGroups[group.id]}
+                    {filter.label}
                   </Link>
                 ))}
               </div>
@@ -201,7 +226,11 @@ export function SearchOverlay({
   );
 }
 
-export function buildBrowseHref(query: string, city: string): string {
+export function buildBrowseHref(
+  query: string,
+  city: string,
+  filters: Record<string, string> = {}
+): string {
   const params = new URLSearchParams();
 
   if (query.trim()) {
@@ -212,8 +241,47 @@ export function buildBrowseHref(query: string, city: string): string {
     params.set("city", city);
   }
 
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value.trim()) {
+      params.set(key, value.trim());
+    }
+  });
+
   const searchParams = params.toString();
   return searchParams ? `/browse?${searchParams}` : "/browse";
+}
+
+function buildSearchFilters(dictionary: Dictionary) {
+  return [
+    {
+      label: dictionary.publicShell.header.filterSale,
+      params: { listingType: "sale" }
+    },
+    {
+      label: dictionary.publicShell.header.filterDonation,
+      params: { listingType: "donation" }
+    },
+    {
+      label: dictionary.publicShell.header.filterSwap,
+      params: { listingType: "swap" }
+    },
+    {
+      label: dictionary.publicShell.header.filterImages,
+      params: { hasImages: "true" }
+    },
+    {
+      label: dictionary.publicShell.header.filterNew,
+      params: { condition: "new" }
+    },
+    {
+      label: dictionary.publicShell.header.filterLikeNew,
+      params: { condition: "like_new" }
+    },
+    {
+      label: dictionary.publicPages.browse.sortPriceAsc,
+      params: { sort: "price_asc" }
+    }
+  ];
 }
 
 function readRecentSearches(): string[] {

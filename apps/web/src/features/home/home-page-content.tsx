@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import {
-  babyCategoryGroups,
-  popularSearches,
-  quickCategoryLinks
+  babyCategoryGroups
 } from "../../components/navigation/public-navigation-model";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { HomeAuthActions } from "./home-auth-actions";
 import { HomePersonalizationFeed } from "./home-personalization-feed";
+import { LatestListingRotator } from "./latest-listing-rotator";
 import { ParentGuidePreviewSection } from "../parent-guides/parent-guide-preview-section";
 
 type HomePageContentProps = {
@@ -20,36 +19,20 @@ export function HomePageContent({ apiBaseUrl }: HomePageContentProps) {
 
   return (
     <>
-      <section className="home-hero home-marketplace-hero">
-        <div className="home-hero-copy">
-          <p className="eyebrow">{dictionary.publicPages.home.heroEyebrow}</p>
-          <h1>{dictionary.publicPages.home.heroTitle}</h1>
-          <p>{dictionary.publicPages.home.heroBody}</p>
-
-          <div className="home-marketplace-actions">
-            <Link href="/browse">{dictionary.publicPages.home.browseCta}</Link>
-            <Link href="/sell">{dictionary.publicPages.home.sellCta}</Link>
-          </div>
-
-          <div className="home-popular-searches" aria-label={dictionary.publicPages.home.popularTitle}>
-            {popularSearches.map((term) => (
-              <Link href={`/browse?q=${encodeURIComponent(term)}`} key={term}>
-                {term}
+      <section className="home-hero-banner" aria-label={dictionary.publicPages.home.marketHeroLabel}>
+        <div className="home-hero-banner-inner">
+          <div className="home-hero-banner-copy">
+            <h1>{dictionary.publicPages.home.marketHeroTitle}</h1>
+            <p>{dictionary.publicPages.home.marketHeroBody}</p>
+            <div className="home-hero-actions-compact">
+              <Link className="home-hero-banner-cta" href="/browse">
+                {dictionary.publicPages.home.browseCta}
               </Link>
-            ))}
+            </div>
           </div>
+
+          <LatestListingRotator apiBaseUrl={apiBaseUrl} />
         </div>
-
-        <aside className="home-marketplace-preview" aria-label={dictionary.publicPages.home.categoriesTitle}>
-          <strong>{dictionary.publicPages.home.categoriesTitle}</strong>
-          <div>
-            {quickCategoryLinks.map((item) => (
-              <Link href={item.href} key={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </aside>
       </section>
 
       <section className="home-section home-category-strip">

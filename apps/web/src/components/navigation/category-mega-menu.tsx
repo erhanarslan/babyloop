@@ -20,14 +20,14 @@ export function CategoryMegaMenu({
   const activeGroup =
     babyCategoryGroups.find((group) => group.id === activeGroupId) ?? babyCategoryGroups[0];
 
-  if (!activeGroup) {
+  if (!isOpen || !activeGroup) {
     return null;
   }
 
   return (
     <div
-      aria-hidden={!isOpen}
-      className={isOpen ? "category-mega-menu open" : "category-mega-menu"}
+      aria-hidden={false}
+      className="category-mega-menu open"
       id="babyloop-category-mega-menu"
     >
       <div className="category-mega-menu-inner">
