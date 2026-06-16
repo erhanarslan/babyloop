@@ -39,7 +39,7 @@ export function SiteFooter() {
       <div className="site-footer-inner">
         <div className="footer-brand">
           <Link className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
-            <img src="/brand/babyloop-logo-full.png" alt="" aria-hidden="true" />
+            <img src="/brand/home/babyloop-logo-full-transparent.png" alt="" aria-hidden="true" />
             <span className="sr-only">
               {dictionary.common.babyloop}
               {dictionary.nav.tagline}

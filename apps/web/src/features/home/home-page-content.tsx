@@ -9,6 +9,7 @@ import { HomeAuthActions } from "./home-auth-actions";
 import { HomePersonalizationFeed } from "./home-personalization-feed";
 import { LatestListingRotator } from "./latest-listing-rotator";
 import { ParentGuidePreviewSection } from "../parent-guides/parent-guide-preview-section";
+import { HomeFeaturedShowcase } from "./home-featured-showcase";
 
 type HomePageContentProps = {
   apiBaseUrl: string;
@@ -19,21 +20,7 @@ export function HomePageContent({ apiBaseUrl }: HomePageContentProps) {
 
   return (
     <>
-      <section className="home-hero-banner" aria-label={dictionary.publicPages.home.marketHeroLabel}>
-        <div className="home-hero-banner-inner">
-          <div className="home-hero-banner-copy">
-            <h1>{dictionary.publicPages.home.marketHeroTitle}</h1>
-            <p>{dictionary.publicPages.home.marketHeroBody}</p>
-            <div className="home-hero-actions-compact">
-              <Link className="home-hero-banner-cta" href="/browse">
-                {dictionary.publicPages.home.browseCta}
-              </Link>
-            </div>
-          </div>
-
-          <LatestListingRotator apiBaseUrl={apiBaseUrl} />
-        </div>
-      </section>
+      <HomeFeaturedShowcase />
 
       <section className="home-section home-category-strip">
         <div className="home-section-heading">

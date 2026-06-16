@@ -154,12 +154,10 @@ export const babyCategoryGroups: CategoryGroup[] = [
 ];
 
 export const quickCategoryLinks: NavigationLink[] = [
-  { href: "/browse?q=bebek%20arabası", label: "Bebek arabası" },
-  { href: "/categories/car-seats", label: "Oto koltuğu" },
-  { href: "/browse?q=mama%20sandalyesi", label: "Beslenme" },
-  { href: "/categories/montessori-toys", label: "Oyuncak" },
-  { href: "/browse?q=bebek%20giyim", label: "Bebek giyim" },
-  { href: "/browse?q=ücretsiz", label: "Ücretsiz" }
+  { href: "/guides", label: "Ebeveyn rehberi" },
+  { href: "/account/children", label: "Çocuğum" },
+  { href: "/assistant", label: "Asistan" },
+  { href: "/guides?topic=parent-reviews", label: "Ebeveyn yorumları" }
 ];
 
 export const accountLinks: NavigationLink[] = [

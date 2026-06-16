@@ -76,7 +76,7 @@ export function MobileNavigationDrawer({
       >
         <div className="mobile-market-drawer-header">
           <Link className="mobile-market-brand-logo" href="/" aria-label="BabyLoop home" onClick={onClose}>
-            <img src="/brand/babyloop-logo-compact.png" alt="" aria-hidden="true" />
+            <img src="/brand/home/babyloop-logo-compact-transparent.png" alt="" aria-hidden="true" />
             <span className="sr-only">BabyLoop</span>
           </Link>
           <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>

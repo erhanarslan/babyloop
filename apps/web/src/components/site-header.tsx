@@ -253,7 +253,7 @@ export function SiteHeader() {
         </button>
 
         <Link className="market-wordmark market-brand-logo" href="/" aria-label="BabyLoop home" onClick={closeMenus}>
-          <img src="/brand/babyloop-logo-compact.png" alt="" aria-hidden="true" />
+          <img src="/brand/home/babyloop-logo-compact-transparent.png" alt="" aria-hidden="true" />
           <span className="sr-only">BabyLoop</span>
         </Link>
 
@@ -318,10 +318,6 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-
-        <Link className="market-header-assistant" href="/assistant" onClick={closeMenus}>
-          {dictionary.publicShell.header.assistant}
-        </Link>
       </div>
 
       <CategoryMegaMenu
