@@ -28,7 +28,6 @@ import { useProtectedRoute } from "../../lib/use-protected-route";
 import { formatDateTime } from "../listings/listing-display";
 import {
   fetchNotifications,
-  fetchUnreadNotificationCount,
   markAllNotificationsRead,
   markNotificationRead,
   type Notification
@@ -163,7 +162,6 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
 
     function handleUnreadCountUpdated(payload: NotificationUnreadCountUpdatedPayload) {
       setUnreadCount(payload.unreadCount);
-      dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
 
     realtimeSocket.on(REALTIME_EVENTS.notificationCreated, handleNotificationCreated);
@@ -200,18 +198,18 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
         return;
       }
 
+      const wasUnread = notifications.some(
+        (notification) => notification.id === notificationId && !notification.readAt
+      );
+      const nextUnreadCount = wasUnread ? Math.max(unreadCount - 1, 0) : unreadCount;
+
       setNotifications((currentNotifications) =>
         currentNotifications.map((notification) =>
           notification.id === notificationId ? body.data.notification : notification
         )
       );
-
-      const unreadBody = await fetchUnreadNotificationCount(apiBaseUrl);
-
-      if (unreadBody.ok) {
-        setUnreadCount(unreadBody.data.count);
-        dispatchNotificationUnreadCountUpdated(unreadBody.data.count);
-      }
+      setUnreadCount(nextUnreadCount);
+      dispatchNotificationUnreadCountUpdated(nextUnreadCount);
     } catch {
       setActionMessage(dictionary.common.apiUnavailable);
     } finally {

@@ -27,6 +27,13 @@ const showcaseSlides = [
 export function HomeFeaturedShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
 
+  function scrollToLatestListings() {
+    document.getElementById("latest-listings")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % showcaseSlides.length);
@@ -59,7 +66,9 @@ export function HomeFeaturedShowcase() {
         </div>
 
         <div className="home-featured-actions">
-          <Link href="/browse">Alışverişe başla</Link>
+          <button type="button" onClick={scrollToLatestListings}>
+            Alışverişe başla
+          </button>
           <Link href="/sell" className="secondary">İlan oluştur</Link>
         </div>
 

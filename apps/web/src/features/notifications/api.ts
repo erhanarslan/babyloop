@@ -29,12 +29,70 @@ export async function fetchNotifications(
   return response.json() as Promise<ApiResponse<NotificationsPayload>>;
 }
 
-export async function fetchUnreadNotificationCount(
-  apiBaseUrl: string
-): Promise<ApiResponse<UnreadCountPayload>> {
-  const response = await authFetch(apiBaseUrl, "/api/v1/notifications/unread-count");
+const UNREAD_COUNT_DEDUPE_WINDOW_MS = 1500;
 
-  return response.json() as Promise<ApiResponse<UnreadCountPayload>>;
+let unreadCountInFlight:
+  | {
+      apiBaseUrl: string;
+      request: Promise<ApiResponse<UnreadCountPayload>>;
+    }
+  | null = null;
+
+let unreadCountCache:
+  | {
+      apiBaseUrl: string;
+      body: ApiResponse<UnreadCountPayload>;
+      timestamp: number;
+    }
+  | null = null;
+
+export async function fetchUnreadNotificationCount(
+  apiBaseUrl: string,
+  options: { force?: boolean } = {}
+): Promise<ApiResponse<UnreadCountPayload>> {
+  const now = Date.now();
+
+  if (
+    !options.force &&
+    unreadCountCache &&
+    unreadCountCache.apiBaseUrl === apiBaseUrl &&
+    now - unreadCountCache.timestamp < UNREAD_COUNT_DEDUPE_WINDOW_MS
+  ) {
+    return unreadCountCache.body;
+  }
+
+  if (
+    !options.force &&
+    unreadCountInFlight &&
+    unreadCountInFlight.apiBaseUrl === apiBaseUrl
+  ) {
+    return unreadCountInFlight.request;
+  }
+
+  const request = authFetch(apiBaseUrl, "/api/v1/notifications/unread-count")
+    .then((response) => response.json() as Promise<ApiResponse<UnreadCountPayload>>)
+    .then((body) => {
+      unreadCountCache = {
+        apiBaseUrl,
+        body,
+        timestamp: Date.now()
+      };
+
+      return body;
+    });
+
+  unreadCountInFlight = {
+    apiBaseUrl,
+    request
+  };
+
+  try {
+    return await request;
+  } finally {
+    if (unreadCountInFlight?.request === request) {
+      unreadCountInFlight = null;
+    }
+  }
 }
 
 export async function markNotificationRead(
