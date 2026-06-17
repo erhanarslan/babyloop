@@ -8,6 +8,7 @@ import type { Category } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { useAuthPrompt } from "../auth/auth-prompt-provider";
 import { AiSuggestionPanel } from "./ai-suggestion-panel";
 import { AiPriceSuggestionPanel } from "./ai-price-suggestion-panel";
 import {
@@ -40,6 +41,7 @@ const MAX_IMAGE_COUNT = 5;
 export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps) {
   const { dictionary } = useI18n();
   const router = useRouter();
+  const { openAuthPrompt } = useAuthPrompt();
   const formRef = useRef<HTMLFormElement | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
@@ -70,10 +72,23 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     setIsSuggestingPrice(false);
     setIsSubmitting(false);
   }, [clearSelectedImages]);
-  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+  const { isCheckingAuth, isAuthenticated, requireAuth } = useProtectedRoute({
     apiBaseUrl,
-    onUnauthenticated: clearProtectedState
+    onUnauthenticated: clearProtectedState,
+    redirectTo: null
   });
+
+  useEffect(() => {
+    if (!isCheckingAuth && !isAuthenticated) {
+      openAuthPrompt({
+        title: "İlan oluşturmak için giriş yap",
+        returnTo: "/sell",
+        onAuthenticated: () => {
+          void requireAuth();
+        }
+      });
+    }
+  }, [isCheckingAuth, isAuthenticated, openAuthPrompt, requireAuth]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,6 +102,13 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
 
     if (!(await requireAuth())) {
+      openAuthPrompt({
+        title: "İlan oluşturmak için giriş yap",
+        returnTo: "/sell",
+        onAuthenticated: () => {
+          void requireAuth();
+        }
+      });
       return;
     }
 

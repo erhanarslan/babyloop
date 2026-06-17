@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { AuthPromptProvider } from "../../features/auth/auth-prompt-provider";
+import { getApiBaseUrl } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { SiteFooter } from "../site-footer";
 import { SiteHeader } from "../site-header";
@@ -9,13 +11,13 @@ type SiteShellProps = {
 
 export function SiteShell({ children }: SiteShellProps) {
   return (
-    <>
+    <AuthPromptProvider apiBaseUrl={getApiBaseUrl()}>
       <main className="app-shell flex min-h-screen flex-col text-foreground">
         <SiteHeader />
         <div className="app-content flex-1">{children}</div>
         <SiteFooter />
       </main>
-    </>
+    </AuthPromptProvider>
   );
 }
 

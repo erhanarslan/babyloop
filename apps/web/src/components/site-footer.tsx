@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ProtectedActionLink } from "../features/auth/protected-action-link";
 import { useI18n } from "../lib/i18n/i18n-provider";
 
 export function SiteFooter() {
@@ -38,13 +38,13 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="footer-brand">
-          <Link className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
+          <ProtectedActionLink className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
             <img src="/brand/home/babyloop-logo-full-transparent.png" alt="" aria-hidden="true" />
             <span className="sr-only">
               {dictionary.common.babyloop}
               {dictionary.nav.tagline}
             </span>
-          </Link>
+          </ProtectedActionLink>
         </div>
 
         <div className="footer-links">
@@ -52,9 +52,9 @@ export function SiteFooter() {
             <nav key={group.title} aria-label={group.title}>
               <h2>{group.title}</h2>
               {group.links.map((link) => (
-                <Link key={link.href} href={link.href}>
+                <ProtectedActionLink key={link.href} href={link.href}>
                   {link.label}
-                </Link>
+                </ProtectedActionLink>
               ))}
             </nav>
           ))}

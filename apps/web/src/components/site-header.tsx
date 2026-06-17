@@ -8,7 +8,7 @@ import {
   type NotificationReadPayload,
   type NotificationUnreadCountUpdatedPayload
 } from "@babyloop/shared";
-import Link from "next/link";
+import { ProtectedActionLink as Link } from "../features/auth/protected-action-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -24,7 +24,7 @@ import { type Locale, locales } from "../lib/i18n/dictionaries";
 import { useI18n } from "../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../lib/realtime-client";
 import { useTheme } from "../lib/theme/theme-provider";
-import { AuthActionPromptModal } from "../features/auth/auth-action-prompt-modal";
+import { useAuthPrompt } from "../features/auth/auth-prompt-provider";
 import { fetchUnreadNotificationCount } from "../features/notifications/api";
 import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notifications/unread-count-events";
 import { CategoryMegaMenu } from "./navigation/category-mega-menu";
@@ -53,7 +53,7 @@ export function SiteHeader() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
+  const { openAuthPrompt } = useAuthPrompt();
   const [selectedCity, setSelectedCityState] = useState(DEFAULT_LOCATION);
 
   useEffect(() => {
@@ -276,13 +276,18 @@ export function SiteHeader() {
           <button className="market-icon-button" type="button" aria-label={dictionary.common.theme} onClick={toggleTheme}>
             {theme === "dark" ? "☀" : "◐"}
           </button>
-          <Link className="market-sell-cta" href="/sell" onClick={closeMenus}>
+          <Link
+            authTitle="İlan oluşturmak için giriş yap"
+            className="market-sell-cta"
+            href="/sell"
+            onClick={closeMenus}
+          >
             {dictionary.publicShell.header.sell}
           </Link>
           <HeaderAccount
             currentAuth={currentAuth}
             dictionary={dictionary}
-            onLogin={() => setIsAuthPromptOpen(true)}
+            onLogin={() => openAuthPrompt({ title: "BabyLoop’a giriş yap" })}
             onLogout={handleLogout}
             onOpenAccount={() => setOpenMenu(openMenu === "account" ? null : "account")}
             openMenu={openMenu}
@@ -337,7 +342,7 @@ export function SiteHeader() {
         onClose={() => setIsDrawerOpen(false)}
         onLogin={() => {
           setIsDrawerOpen(false);
-          setIsAuthPromptOpen(true);
+          openAuthPrompt({ title: "BabyLoop’a giriş yap" });
         }}
         onLogout={handleLogout}
         selectedCity={selectedCity}
@@ -346,12 +351,6 @@ export function SiteHeader() {
         toggleTheme={toggleTheme}
       />
 
-      <AuthActionPromptModal
-        apiBaseUrl={apiBaseUrl}
-        isOpen={isAuthPromptOpen}
-        title="BabyLoop’a giriş yap"
-        onClose={() => setIsAuthPromptOpen(false)}
-      />
     </header>
   );
 }

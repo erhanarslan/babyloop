@@ -14,6 +14,7 @@ type AuthActionPromptModalProps = {
   isOpen: boolean;
   onAuthenticated?: (payload: AuthPayload) => void;
   onClose: () => void;
+  returnTo?: string | undefined;
   title: string;
 };
 
@@ -24,6 +25,7 @@ export function AuthActionPromptModal({
   isOpen,
   onAuthenticated,
   onClose,
+  returnTo,
   title
 }: AuthActionPromptModalProps) {
   const { dictionary } = useI18n();

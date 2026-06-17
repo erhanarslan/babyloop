@@ -11,32 +11,40 @@ import {
 type UseProtectedRouteOptions = {
   apiBaseUrl: string;
   onUnauthenticated?: () => void;
+  redirectTo?: string | null;
 };
 
 export function useProtectedRoute({
   apiBaseUrl,
-  onUnauthenticated
+  onUnauthenticated,
+  redirectTo = "/"
 }: UseProtectedRouteOptions) {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const redirectHome = useCallback(() => {
-  setIsCheckingAuth(true);
-  onUnauthenticated?.();
-  router.replace("/");
-}, [onUnauthenticated, router]);
+  const handleUnauthenticated = useCallback(() => {
+    setIsAuthenticated(false);
+    setIsCheckingAuth(false);
+    onUnauthenticated?.();
+
+    if (redirectTo) {
+      router.replace(redirectTo);
+    }
+  }, [onUnauthenticated, redirectTo, router]);
 
   const requireAuth = useCallback(async () => {
     const token = await getOrRefreshAuthToken(apiBaseUrl);
 
     if (!token) {
-      redirectHome();
+      handleUnauthenticated();
       return false;
     }
 
+    setIsAuthenticated(true);
     setIsCheckingAuth(false);
     return true;
-  }, [apiBaseUrl, redirectHome]);
+  }, [apiBaseUrl, handleUnauthenticated]);
 
   useEffect(() => {
     let isActive = true;
@@ -49,17 +57,22 @@ export function useProtectedRoute({
       }
 
       if (!token) {
-        redirectHome();
+        handleUnauthenticated();
         return;
       }
 
+      setIsAuthenticated(true);
       setIsCheckingAuth(false);
     }
 
     function handleAuthChange() {
       if (!getAuthToken()) {
-        redirectHome();
+        handleUnauthenticated();
+        return;
       }
+
+      setIsAuthenticated(true);
+      setIsCheckingAuth(false);
     }
 
     void checkAuth();
@@ -69,10 +82,11 @@ export function useProtectedRoute({
       isActive = false;
       window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
     };
-  }, [apiBaseUrl, redirectHome]);
+  }, [apiBaseUrl, handleUnauthenticated]);
 
   return {
     isCheckingAuth,
+    isAuthenticated,
     requireAuth
   };
 }

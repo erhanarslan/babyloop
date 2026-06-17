@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ProtectedActionLink as Link } from "../../features/auth/protected-action-link";
 import { useEffect, useState } from "react";
 import type { AuthMe } from "../../lib/auth-client";
 import type { Dictionary, Locale } from "../../lib/i18n/dictionaries";
@@ -113,7 +113,13 @@ export function MobileNavigationDrawer({
         />
 
         <nav className="mobile-market-quick-links" aria-label="Mobile marketplace links">
-          <Link href="/sell" onClick={onClose}>{dictionary.publicShell.header.sell}</Link>
+          <Link
+            authTitle="İlan oluşturmak için giriş yap"
+            href="/sell"
+            onClick={onClose}
+          >
+            {dictionary.publicShell.header.sell}
+          </Link>
           <Link href="/browse" onClick={onClose}>{dictionary.common.browseMarketplace}</Link>
           <Link href="/conversations" onClick={onClose}>{dictionary.publicShell.header.messages}</Link>
           <Link href="/notifications" onClick={onClose}>{dictionary.publicShell.header.notifications}</Link>
