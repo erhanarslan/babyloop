@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { LoadingBlock } from "../../components/ui";
 import { clearAuthToken, getAuthToken, refreshSession } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import {
+  clearStoredAuthReturnTo,
+  getStoredAuthReturnTo
+} from "./auth-action-prompt-modal";
 
 type AuthCallbackProps = {
   apiBaseUrl: string;
@@ -50,7 +54,9 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
         return;
       }
 
-      router.replace("/");
+      const returnTo = getStoredAuthReturnTo("/");
+      clearStoredAuthReturnTo();
+      router.replace(returnTo);
       router.refresh();
     }
 

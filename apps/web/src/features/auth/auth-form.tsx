@@ -9,6 +9,10 @@ import { setAuthToken } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { AuthFields } from "./auth-fields";
+import {
+  clearStoredAuthReturnTo,
+  getStoredAuthReturnTo
+} from "./auth-action-prompt-modal";
 import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
 
 type AuthFormProps = {
@@ -58,7 +62,9 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         return;
       }
 
-      router.push("/browse");
+      const returnTo = getStoredAuthReturnTo("/browse");
+      clearStoredAuthReturnTo();
+      router.push(returnTo);
       router.refresh();
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);

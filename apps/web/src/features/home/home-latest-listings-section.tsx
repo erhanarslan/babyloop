@@ -16,6 +16,7 @@ import type {
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { AuthActionPromptModal } from "../auth/auth-action-prompt-modal";
 import { fetchFavorites, saveFavorite } from "../favorites/api";
 import { ListingImageFrame } from "../listings/listing-image-frame";
 import {
@@ -60,6 +61,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
     () => new Set()
   );
   const [favoriteActionMessage, setFavoriteActionMessage] = useState<string | null>(null);
+  const [isFavoriteLoginPromptOpen, setIsFavoriteLoginPromptOpen] = useState(false);
+  const [favoritePromptListingId, setFavoritePromptListingId] = useState<string | null>(null);
 
   const fetchListingBatch = useCallback(
     async (limit: number, offset: number): Promise<HomeListing[]> => {
@@ -301,7 +304,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
     }
 
     if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
-      setFavoriteActionMessage(dictionary.marketplace.favoriteLoginRequired);
+      setFavoritePromptListingId(listingId);
+      setIsFavoriteLoginPromptOpen(true);
       return;
     }
 
@@ -406,6 +410,25 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
           ) : null}
         </>
       ) : null}
+      <AuthActionPromptModal
+        apiBaseUrl={apiBaseUrl}
+        isOpen={isFavoriteLoginPromptOpen}
+        title="Favoriye eklemek için giriş yapmalısın"
+        onAuthenticated={() => {
+          const listingId = favoritePromptListingId;
+
+          setIsFavoriteLoginPromptOpen(false);
+          setFavoritePromptListingId(null);
+
+          if (listingId) {
+            void handleFavoriteToggle(listingId, favoriteListingIds.has(listingId));
+          }
+        }}
+        onClose={() => {
+          setIsFavoriteLoginPromptOpen(false);
+          setFavoritePromptListingId(null);
+        }}
+      />
     </section>
   );
 }

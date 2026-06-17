@@ -9428,3 +9428,123 @@ body::after {
   background: rgba(94, 34, 42, 0.78);
   color: #ff8998;
 }
+
+/* Auth modal real form */
+.market-auth-modal-card {
+  max-width: min(92vw, 31rem);
+}
+
+.market-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  border-radius: 999px;
+  background: rgba(55, 48, 42, 0.06);
+  padding: 0.35rem;
+}
+
+.market-auth-tabs button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  padding: 0.75rem 1rem;
+}
+
+.market-auth-tabs button.active {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text);
+  box-shadow: 0 10px 24px rgba(55, 48, 42, 0.08);
+}
+
+.market-google-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  width: 100%;
+  border: 1px solid rgba(55, 48, 42, 0.12);
+  border-radius: 1rem;
+  background: rgba(228, 246, 255, 0.75);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  padding: 0.9rem 1rem;
+}
+
+.market-google-auth-button span {
+  color: #4285f4;
+  font-weight: 950;
+}
+
+.market-auth-modal-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.market-auth-modal-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-text);
+  font-weight: 850;
+}
+
+.market-auth-modal-form input {
+  width: 100%;
+  border: 1px solid rgba(55, 48, 42, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 250, 244, 0.92);
+  color: var(--color-text);
+  font: inherit;
+  padding: 0.9rem 1rem;
+  outline: none;
+}
+
+.market-auth-modal-form input:focus {
+  border-color: rgba(36, 132, 108, 0.42);
+  box-shadow: 0 0 0 4px rgba(36, 132, 108, 0.1);
+}
+
+.market-auth-modal-error {
+  border-radius: 1rem;
+  background: rgba(255, 232, 235, 0.95);
+  color: #9f2434;
+  font-weight: 850;
+  margin: 0;
+  padding: 0.8rem 1rem;
+}
+
+.market-auth-submit-button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Auth/action modal overlay normalization */
+.market-modal-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.25rem !important;
+}
+
+.market-modal-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  border: 0 !important;
+  background: rgba(39, 34, 29, 0.48) !important;
+  backdrop-filter: blur(2px) !important;
+  cursor: default !important;
+}
+
+.market-modal-card {
+  position: relative !important;
+  z-index: 1 !important;
+}

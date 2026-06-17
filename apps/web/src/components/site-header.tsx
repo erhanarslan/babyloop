@@ -24,6 +24,7 @@ import { type Locale, locales } from "../lib/i18n/dictionaries";
 import { useI18n } from "../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../lib/realtime-client";
 import { useTheme } from "../lib/theme/theme-provider";
+import { AuthActionPromptModal } from "../features/auth/auth-action-prompt-modal";
 import { fetchUnreadNotificationCount } from "../features/notifications/api";
 import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notifications/unread-count-events";
 import { CategoryMegaMenu } from "./navigation/category-mega-menu";
@@ -52,7 +53,7 @@ export function SiteHeader() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
   const [selectedCity, setSelectedCityState] = useState(DEFAULT_LOCATION);
 
   useEffect(() => {
@@ -229,7 +230,6 @@ export function SiteHeader() {
   function closeTransientSurfaces() {
     setOpenMenu(null);
     setIsDrawerOpen(false);
-    setIsLoginModalOpen(false);
   }
 
   function handleLogout() {
@@ -281,7 +281,7 @@ export function SiteHeader() {
           <HeaderAccount
             currentAuth={currentAuth}
             dictionary={dictionary}
-            onLogin={() => setIsLoginModalOpen(true)}
+            onLogin={() => setIsAuthPromptOpen(true)}
             onLogout={handleLogout}
             onOpenAccount={() => setOpenMenu(openMenu === "account" ? null : "account")}
             openMenu={openMenu}
@@ -334,7 +334,7 @@ export function SiteHeader() {
         onClose={() => setIsDrawerOpen(false)}
         onLogin={() => {
           setIsDrawerOpen(false);
-          setIsLoginModalOpen(true);
+          setIsAuthPromptOpen(true);
         }}
         onLogout={handleLogout}
         selectedCity={selectedCity}
@@ -343,11 +343,11 @@ export function SiteHeader() {
         toggleTheme={toggleTheme}
       />
 
-      <LoginPromptModal
+      <AuthActionPromptModal
         apiBaseUrl={apiBaseUrl}
-        dictionary={dictionary}
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        isOpen={isAuthPromptOpen}
+        title="BabyLoop’a giriş yap"
+        onClose={() => setIsAuthPromptOpen(false)}
       />
     </header>
   );
@@ -416,62 +416,6 @@ function HeaderAccount({
   );
 }
 
-function LoginPromptModal({
-  apiBaseUrl,
-  dictionary,
-  isOpen,
-  onClose
-}: {
-  apiBaseUrl: string;
-  dictionary: ReturnType<typeof useI18n>["dictionary"];
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  if (!isOpen) {
-    return null;
-  }
-
-  function openGoogleLogin() {
-    window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
-  }
-
-  return (
-    <div className="market-modal-layer" role="presentation">
-      <button
-        aria-label={dictionary.publicShell.header.close}
-        className="market-modal-backdrop"
-        type="button"
-        onClick={onClose}
-      />
-      <section className="market-modal-card" role="dialog" aria-modal="true" aria-labelledby="market-login-title">
-        <div className="market-modal-heading">
-          <div>
-            <p className="eyebrow">{dictionary.common.babyloop}</p>
-            <h2 id="market-login-title">{dictionary.auth.loginTitle}</h2>
-          </div>
-          <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <p>{dictionary.publicShell.header.loginUnlocks}</p>
-        <div className="market-modal-actions">
-          <Link className="market-sell-cta" href="/login" onClick={onClose}>
-            {dictionary.common.login}
-          </Link>
-          <Link className="market-login-button" href="/register" onClick={onClose}>
-            {dictionary.common.register}
-          </Link>
-          <button className="market-login-button" type="button" onClick={openGoogleLogin}>
-            {dictionary.auth.continueGoogle}
-          </button>
-        </div>
-        <Link className="market-muted-link" href="/forgot-password" onClick={onClose}>
-          {dictionary.auth.forgotPassword}
-        </Link>
-      </section>
-    </div>
-  );
-}
 
 function LanguageSwitcher({
   locale,
