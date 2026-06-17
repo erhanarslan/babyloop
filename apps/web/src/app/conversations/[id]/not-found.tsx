@@ -6,14 +6,14 @@ export default function ConversationNotFound() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Conversation not found"
-          description="This message thread is unavailable, blocked, or you no longer have access."
+          title="Konuşma bulunamadı"
+          description="Bu konuşma kapalı, engellenmiş veya artık erişimine açık olmayabilir."
         />
         <EmptyState
-          title="Conversation not found"
-          message="This message thread is unavailable, blocked, or you no longer have access."
+          title="Konuşma bulunamadı"
+          message="Bu konuşma kapalı, engellenmiş veya artık erişimine açık olmayabilir."
           actionHref="/conversations"
-          actionLabel="Back to conversations"
+          actionLabel="Mesajlara dön"
         />
       </PageContainer>
     </SiteShell>

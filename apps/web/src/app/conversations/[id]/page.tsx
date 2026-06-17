@@ -11,8 +11,8 @@ type ConversationPageProps = {
 };
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Conversation",
-  "BabyLoop conversation pages are private and not indexed."
+  "Konuşma",
+  "BabyLoop konuşma sayfaları özeldir ve indekslenmez."
 );
 
 export default async function ConversationPage({ params }: ConversationPageProps) {

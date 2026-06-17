@@ -6,12 +6,12 @@ export default function ConversationThreadLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading conversation"
-          description="Fetching the selected message thread safely."
+          title="Konuşma yükleniyor"
+          description="Seçili konuşma hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading conversation"
-          message="Fetching the selected message thread safely."
+          title="Konuşma yükleniyor"
+          message="Seçili konuşma hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

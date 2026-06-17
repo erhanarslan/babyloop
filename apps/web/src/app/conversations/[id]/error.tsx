@@ -10,10 +10,10 @@ export default function ConversationThreadError({ error: _error, reset }: RouteE
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Conversation could not load</h1>
-        <p>The selected message thread hit an unexpected error.</p>
+        <h1>Konuşma yüklenemedi</h1>
+        <p>Seçili konuşma açılırken beklenmeyen bir hata oluştu.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

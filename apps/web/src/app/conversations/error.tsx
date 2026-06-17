@@ -10,10 +10,10 @@ export default function ConversationsError({ error: _error, reset }: RouteErrorP
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Conversations could not load</h1>
-        <p>Message threads hit an unexpected error.</p>
+        <h1>Mesajlar yüklenemedi</h1>
+        <p>Konuşmalar açılırken beklenmeyen bir hata oluştu.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

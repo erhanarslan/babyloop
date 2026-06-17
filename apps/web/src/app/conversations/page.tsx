@@ -5,14 +5,28 @@ import { ConversationsPageContent } from "../../features/messaging/conversations
 import { getApiBaseUrl } from "../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Messages",
-  "BabyLoop message pages are private and not indexed."
+  "Mesajlar",
+  "BabyLoop mesaj sayfaları özeldir ve indekslenmez."
 );
 
-export default function ConversationsPage() {
+type ConversationsPageProps = {
+  searchParams: Promise<{
+    conversationId?: string | string[];
+  }>;
+};
+
+export default async function ConversationsPage({ searchParams }: ConversationsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const selectedConversationId = Array.isArray(resolvedSearchParams.conversationId)
+    ? resolvedSearchParams.conversationId[0]
+    : resolvedSearchParams.conversationId;
+
   return (
     <SiteShell>
-      <ConversationsPageContent apiBaseUrl={getApiBaseUrl()} />
+      <ConversationsPageContent
+        apiBaseUrl={getApiBaseUrl()}
+        selectedConversationId={selectedConversationId}
+      />
     </SiteShell>
   );
 }

@@ -1,78 +1,129 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "../../components/ui";
-import { cn } from "../../lib/utils";
-import { useI18n } from "../../lib/i18n/i18n-provider";
-import { formatDateTime } from "../listings/listing-display";
 import type { ConversationSummary } from "./api";
 
 type ConversationCardProps = {
   conversation: ConversationSummary;
+  currentProfileId?: string | null;
+  href?: string | undefined;
+  isSelected?: boolean;
   isUnread?: boolean;
 };
 
-export function ConversationCard({ conversation, isUnread = false }: ConversationCardProps) {
-  const { dictionary, locale } = useI18n();
+export function ConversationCard({
+  conversation,
+  currentProfileId,
+  href,
+  isSelected = false,
+  isUnread = false
+}: ConversationCardProps) {
   const timestamp = conversation.lastMessageAt ?? conversation.updatedAt;
-  const hasListingContext = Boolean(conversation.contextListing);
   const latestMessage = conversation.latestMessage?.body?.trim() ?? "";
-  const statusLabel = humanizeStatus(conversation.status);
-  const unreadLabel = conversation.unreadCount === 1 ? "1 unread" : `${conversation.unreadCount} unread`;
+  const previewPrefix =
+    conversation.latestMessage?.senderProfileId && conversation.latestMessage.senderProfileId === currentProfileId
+      ? "Sen: "
+      : "";
+  const unreadCount = Math.max(conversation.unreadCount, isUnread ? 1 : 0);
+  const statusLabel = conversation.contextListing ? "Aktif ilan" : "İlan kapalı";
+  const initials = getInitials(conversation.otherProfile.displayName);
 
   return (
-    <article className={cn("conversation-card conversation-card-polished", isUnread && "conversation-card-unread")}>
-      <div className="conversation-card-header">
-        <div>
-          <p className="listing-meta">
-            {isUnread ? <span className="unread-dot" aria-label={dictionary.messaging.unreadConversation} /> : null}
-            {dictionary.messaging.conversationWith}
-          </p>
-          <h2>{conversation.otherProfile.displayName}</h2>
-        </div>
-        <time>{formatDateTime(timestamp, locale)}</time>
-      </div>
+    <Link
+      aria-current={isSelected ? "page" : undefined}
+      className={[
+        "group flex gap-3 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:border-rose-200 hover:bg-white/95 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 dark:hover:bg-neutral-900/80",
+        isSelected ? "border-rose-300 bg-rose-50/80 dark:border-rose-700 dark:bg-rose-950/25" : "border-border bg-white/75 dark:bg-neutral-950/60",
+        isUnread ? "shadow-[inset_3px_0_0_rgba(244,99,99,0.85)]" : ""
+      ].join(" ")}
+      href={href ?? `/conversations/${conversation.id}`}
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-teal-100 text-sm font-black text-neutral-800 dark:from-rose-900/50 dark:to-teal-900/50 dark:text-neutral-100"
+      >
+        {initials}
+      </span>
 
-      <div className="conversation-card-badges" aria-label="Conversation status">
-        <Badge tone={isUnread ? "warning" : "neutral"}>
-          {conversation.unreadCount > 0 ? unreadLabel : "Read"}
-        </Badge>
-        <Badge tone={hasListingContext ? "success" : "neutral"}>
-          {hasListingContext ? "Listing context" : "No listing context"}
-        </Badge>
-        <Badge>{statusLabel}</Badge>
-      </div>
-
-      <div className="conversation-card-meta">
-        <p>
-          <strong>{dictionary.messaging.listing}</strong>
-          <span>{conversation.contextListing?.title ?? dictionary.messaging.noListingContext}</span>
-        </p>
-      </div>
-
-      {latestMessage ? (
-        <p className="message-preview">{latestMessage}</p>
-      ) : (
-        <p className="muted">{dictionary.messaging.noMessagesSent}</p>
-      )}
-
-      <div className="conversation-safety-strip">
-        <span>Participant-only thread · keep item details inside BabyLoop</span>
-        {conversation.unreadCount > 0 ? <strong>{unreadLabel}</strong> : null}
-      </div>
-
-      <div className="listing-card-footer conversation-card-footer">
-        <span className="conversation-status">
-          <span>Use for condition, photos, pickup, and availability.</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-black text-foreground">
+              {conversation.otherProfile.displayName}
+            </span>
+            <span className="mt-0.5 block truncate text-xs font-semibold text-muted-foreground">
+              {conversation.contextListing?.title ?? "İlan bilgisi yok"}
+            </span>
+          </span>
+          <time className="shrink-0 text-[0.72rem] font-semibold text-muted-foreground">
+            {formatInboxTime(timestamp)}
+          </time>
         </span>
-        <Link href={`/conversations/${conversation.id}`}>{dictionary.messaging.open}</Link>
-      </div>
-    </article>
+
+        <span className="mt-2 flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {latestMessage ? `${previewPrefix}${latestMessage}` : "Henüz mesaj yok"}
+          </span>
+          {unreadCount > 0 ? (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[0.68rem] font-black text-white">
+              {unreadCount}
+            </span>
+          ) : null}
+        </span>
+
+        <span className="mt-2 flex flex-wrap items-center gap-2">
+          <span
+            className={[
+              "rounded-full px-2 py-1 text-[0.68rem] font-black",
+              unreadCount > 0
+                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-200"
+                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200"
+            ].join(" ")}
+          >
+            {unreadCount > 0 ? "Okunmadı" : "Okundu"}
+          </span>
+          <span className="rounded-full bg-muted px-2 py-1 text-[0.68rem] font-black text-muted-foreground">
+            {statusLabel}
+          </span>
+        </span>
+      </span>
+    </Link>
   );
 }
 
-function humanizeStatus(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+function formatInboxTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+
+  if (isToday) {
+    return new Intl.DateTimeFormat("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "short"
+  }).format(date);
+}
+
+function getInitials(value: string): string {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) {
+    return "BL";
+  }
+
+  return parts.map((part) => part[0]?.toLocaleUpperCase("tr-TR") ?? "").join("");
 }

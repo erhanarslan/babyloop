@@ -6,12 +6,12 @@ export default function ConversationsLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading conversations"
-          description="Checking your marketplace message threads."
+          title="Mesajlar yükleniyor"
+          description="Konuşmaların hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading conversations"
-          message="Checking your marketplace message threads."
+          title="Mesajlar yükleniyor"
+          message="Konuşmaların hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

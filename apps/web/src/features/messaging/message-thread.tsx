@@ -4,16 +4,12 @@ import { REALTIME_EVENTS } from "@babyloop/shared";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, EmptyState, LoadingBlock } from "../../components/ui";
-import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getAuthToken } from "../../lib/auth-client";
-import type { Dictionary } from "../../lib/i18n/dictionaries";
-import { useI18n } from "../../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
-import { formatDateTime } from "../listings/listing-display";
 import { dispatchNotificationUnreadCountUpdated } from "../notifications/unread-count-events";
-import { fetchBlockedProfiles, reportMessage, reportProfile } from "../safety/api";
+import { fetchBlockedProfiles, reportProfile } from "../safety/api";
 import { BlockProfileAction } from "../safety/block-profile-action";
 import { ReportAction } from "../safety/report-action";
 import {
@@ -31,7 +27,6 @@ type MessageThreadProps = {
 };
 
 export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps) {
-  const { dictionary, locale } = useI18n();
   const highlightTimersRef = useRef<number[]>([]);
   const hasInitialScrollRef = useRef(false);
   const markedReadKeyRef = useRef<string | null>(null);
@@ -111,19 +106,19 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
 
       if (!currentUserBody.ok) {
         setState("auth");
-        setMessage(getApiErrorMessage(currentUserBody.error, dictionary));
+        setMessage("Konuşmayı görmek için giriş yapmalısın.");
         return;
       }
 
       if (!conversationBody.ok) {
         setState(getErrorState(conversationBody.error.code));
-        setMessage(getApiErrorMessage(conversationBody.error, dictionary));
+        setMessage(getThreadErrorMessage(conversationBody.error.code));
         return;
       }
 
       if (!messagesBody.ok) {
         setState(getErrorState(messagesBody.error.code));
-        setMessage(getApiErrorMessage(messagesBody.error, dictionary));
+        setMessage(getThreadErrorMessage(messagesBody.error.code));
         return;
       }
 
@@ -146,11 +141,11 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       setReadCandidateMessageId(initialReadCandidateId);
     } catch {
       setState("error");
-      setMessage(dictionary.common.apiUnavailable);
+      setMessage("Konuşma şu anda yüklenemiyor.");
     } finally {
       setIsLoading(false);
     }
-  }, [apiBaseUrl, conversationId, dictionary.common.apiUnavailable, dictionary, requireAuth]);
+  }, [apiBaseUrl, conversationId, requireAuth]);
 
   const markCurrentThreadRead = useCallback(async () => {
     try {
@@ -368,16 +363,16 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   }, [apiBaseUrl, appendMessage, conversation?.id, conversationId, currentProfileId, loadThread, markCurrentThreadRead, message]);
 
   if (isCheckingAuth || isLoading) {
-    return <LoadingBlock title={dictionary.messaging.loadingConversation} />;
+    return <LoadingBlock title="Konuşma yükleniyor" />;
   }
 
   if (message) {
     return (
       <EmptyState
-        title={getErrorTitle(state, dictionary)}
+        title={getErrorTitle(state)}
         message={message}
         actionHref={state === "auth" ? "/login" : "/conversations"}
-        actionLabel={state === "auth" ? dictionary.common.login : dictionary.messaging.backToMessages}
+        actionLabel={state === "auth" ? "Giriş yap" : "Mesajlara dön"}
       />
     );
   }
@@ -386,39 +381,65 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
     return null;
   }
 
+  const listingTitle = conversation.contextListing?.title ?? "İlan bilgisi yok";
+  const listingStatusLabel = conversation.contextListing ? "Aktif ilan" : "İlan kapalı";
+
   return (
-    <div className="message-thread-layout">
-      <section className="thread-panel">
-        <Link className="back-link" href="/conversations">
-          {dictionary.messaging.backToMessages}
+    <div className="flex min-h-[calc(100dvh-150px)] w-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-background shadow-sm lg:h-[calc(100dvh-190px)] lg:min-h-[620px]">
+      <section className="border-b border-border bg-background/95 p-4 sm:p-5">
+        <Link
+          className="mb-4 inline-flex items-center gap-2 text-sm font-black text-rose-700 hover:text-rose-800 dark:text-rose-200 lg:hidden"
+          href="/conversations"
+        >
+          <span aria-hidden="true">&#8592;</span>
+          Mesajlara dön
         </Link>
-        <p className="listing-meta">{dictionary.messaging.conversationWith}</p>
-        <h1>{conversation.otherProfile.displayName}</h1>
-        <div className="thread-meta-grid">
-          <p>
-            <strong>{dictionary.messaging.listing}</strong>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              aria-hidden="true"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-teal-100 text-sm font-black text-neutral-800 dark:from-rose-900/50 dark:to-teal-900/50 dark:text-neutral-100"
+            >
+              {getInitials(conversation.otherProfile.displayName)}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-black tracking-tight text-foreground">
+                {conversation.otherProfile.displayName}
+              </h1>
+              <p className="truncate text-sm font-semibold text-muted-foreground">{listingTitle}</p>
+            </div>
+          </div>
+          <span className="w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
+            {listingStatusLabel}
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">İlan</p>
             {conversation.contextListing ? (
-              <Link href={`/listings/${conversation.contextListing.id}`}>
+              <Link
+                className="mt-1 block truncate text-sm font-black text-foreground hover:text-rose-700"
+                href={`/listings/${conversation.contextListing.id}`}
+              >
                 {conversation.contextListing.title}
               </Link>
             ) : (
-              <span>{dictionary.messaging.noListingContext}</span>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">Bu konuşmaya bağlı ilan kapalı olabilir.</p>
             )}
-          </p>
-          <p>
-            <strong>{dictionary.messaging.created}</strong>
-            <span>{formatDateTime(conversation.createdAt, locale)}</span>
-          </p>
-          <p>
-            <strong>{conversation.lastMessageAt ? dictionary.messaging.lastMessage : dictionary.messaging.updated}</strong>
-            <span>{formatDateTime(conversation.lastMessageAt ?? conversation.updatedAt, locale)}</span>
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground">
+            Son hareket: {formatTurkishDateTime(conversation.lastMessageAt ?? conversation.updatedAt)}
           </p>
         </div>
-        <details className="thread-safety-menu">
-          <summary>{dictionary.publicPages.messaging.safetyMenu}</summary>
-          <div className="detail-actions" aria-label={dictionary.safety.safetyActionsAriaLabel}>
+
+        <details className="mt-3 rounded-2xl border border-border bg-background px-3 py-2 text-sm">
+          <summary className="cursor-pointer font-black text-muted-foreground">Güvenlik</summary>
+          <div className="mt-3 grid gap-3" aria-label="Güvenlik işlemleri">
+            <p className="text-xs font-black text-muted-foreground">Bu konuşmada sorun mu var?</p>
             <ReportAction
-              actionLabel={dictionary.safety.reportUser}
+              actionLabel="Konuşmayı bildir"
               onSubmitReport={(payload) => reportProfile(apiBaseUrl, conversation.otherProfile.id, payload)}
             />
             <BlockProfileAction
@@ -428,58 +449,65 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
               onBlockedChange={setIsOtherProfileBlocked}
             />
           </div>
-          <p className="form-note">{dictionary.publicPages.support.compactBoundary}</p>
+          <p className="mt-3 text-xs font-semibold leading-5 text-muted-foreground">
+            Rahatsız edici davranış, dolandırıcılık veya uygunsuz içerik görürsen buradan bildirebilirsin.
+          </p>
         </details>
       </section>
 
-      <section className="thread-panel">
+      <section className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-muted/25 to-background">
         {messages.length === 0 ? (
-          <EmptyState
-            title={dictionary.messaging.noMessagesYet}
-            message={dictionary.messaging.sendFirstMessage}
-          />
+          <div className="flex flex-1 items-center justify-center p-4">
+            <EmptyState
+              title="Henüz mesaj yok"
+              message="İlanla ilgili ilk sorunu yazarak konuşmayı başlatabilirsin."
+            />
+          </div>
         ) : (
           <>
-            <ol className="message-list">
+            <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
               {messages.map((item) => (
                 <li
                   className={[
-                    item.sender.id === currentProfileId
-                      ? "message-bubble message-bubble-own"
-                      : "message-bubble",
-                    highlightedMessageIds.has(item.id) ? "message-bubble-new" : ""
+                    "flex",
+                    item.sender.id === currentProfileId ? "justify-end" : "justify-start"
                   ].filter(Boolean).join(" ")}
                   key={item.id}
                   ref={item.id === readCandidateMessageId ? readTargetRef : null}
                 >
-                  <div>
-                    <strong>{item.sender.id === currentProfileId ? dictionary.messaging.you : item.sender.displayName}</strong>
-                    <time>{formatDateTime(item.createdAt, locale)}</time>
+                  <div
+                    className={[
+                      "max-w-[82%] rounded-3xl px-4 py-3 shadow-sm sm:max-w-[68%]",
+                      item.sender.id === currentProfileId
+                        ? "rounded-br-md bg-rose-500 text-white"
+                        : "rounded-bl-md border border-border bg-background text-foreground",
+                      highlightedMessageIds.has(item.id) ? "ring-2 ring-rose-300" : ""
+                    ].join(" ")}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-3 text-[0.7rem] font-black opacity-80">
+                      <strong>{item.sender.id === currentProfileId ? "Sen" : item.sender.displayName}</strong>
+                      <time>{formatTurkishDateTime(item.createdAt)}</time>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm leading-6">
+                      {item.deletedAt ? "Bu mesaj silindi." : item.body}
+                    </p>
                   </div>
-                  <p>{item.deletedAt ? dictionary.messaging.deletedMessage : item.body}</p>
-                  {item.sender.id !== currentProfileId ? (
-                    <details className="message-action-menu">
-                      <summary>{dictionary.publicPages.messaging.safetyMenu}</summary>
-                      <ReportAction
-                        actionLabel={dictionary.safety.reportMessage}
-                        onSubmitReport={(payload) => reportMessage(apiBaseUrl, item.id, payload)}
-                      />
-                    </details>
-                  ) : null}
                 </li>
               ))}
+              <li aria-hidden="true" className="h-1">
+                <div ref={messageEndRef} />
+              </li>
             </ol>
-            <div ref={messageEndRef} />
             {hasNewMessages ? (
               <button
-                className="new-messages-button"
+                className="mx-auto mb-3 rounded-full bg-rose-500 px-4 py-2 text-sm font-black text-white shadow-sm"
                 type="button"
                 onClick={() => {
                   setHasNewMessages(false);
                   scrollToLatestMessage("smooth");
                 }}
               >
-                {dictionary.messaging.newMessages}
+                Yeni mesajlar
               </button>
             ) : null}
           </>
@@ -487,8 +515,8 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         {isOtherProfileBlocked ? (
           <Alert
             tone="info"
-            title={dictionary.safety.messagingBlockedTitle}
-            message={dictionary.safety.cannotMessageUser}
+            title="Mesajlaşma durduruldu"
+            message="Bu kullanıcı engellendiği için yeni mesaj gönderemezsin."
           />
         ) : (
           <MessageComposer
@@ -546,20 +574,64 @@ function getErrorState(code: string): "auth" | "forbidden" | "not-found" | "erro
 }
 
 function getErrorTitle(
-  state: "auth" | "forbidden" | "not-found" | "error" | null,
-  dictionary: Dictionary
+  state: "auth" | "forbidden" | "not-found" | "error" | null
 ): string {
   if (state === "auth") {
-    return dictionary.messaging.loginRequired;
+    return "Giriş gerekli";
   }
 
   if (state === "forbidden") {
-    return dictionary.messaging.accessDenied;
+    return "Bu konuşmaya erişemezsin";
   }
 
   if (state === "not-found") {
-    return dictionary.messaging.conversationNotFound;
+    return "Konuşma bulunamadı";
   }
 
-  return dictionary.messaging.conversationUnavailable;
+  return "Konuşma açılamadı";
+}
+
+function getThreadErrorMessage(code: string): string {
+  if (code === "UNAUTHORIZED") {
+    return "Konuşmayı görmek için giriş yapmalısın.";
+  }
+
+  if (code === "FORBIDDEN") {
+    return "Bu konuşma yalnızca katılımcılar tarafından görülebilir.";
+  }
+
+  if (code === "NOT_FOUND") {
+    return "Konuşma bulunamadı.";
+  }
+
+  return "Konuşma şu anda yüklenemiyor.";
+}
+
+function formatTurkishDateTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short"
+  }).format(date);
+}
+
+function getInitials(value: string): string {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) {
+    return "BL";
+  }
+
+  return parts.map((part) => part[0]?.toLocaleUpperCase("tr-TR") ?? "").join("");
 }
