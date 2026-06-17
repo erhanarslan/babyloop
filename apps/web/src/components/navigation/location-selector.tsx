@@ -13,12 +13,29 @@ type LocationSelectorProps = {
   setSelectedCity: (city: string) => void;
 };
 
+type LocationStatus = "idle" | "loading" | "success" | "error";
+
+const cityCoordinates: Record<string, { latitude: number; longitude: number }> = {
+  istanbul: { latitude: 41.0082, longitude: 28.9784 },
+  ankara: { latitude: 39.9334, longitude: 32.8597 },
+  izmir: { latitude: 38.4237, longitude: 27.1428 },
+  bursa: { latitude: 40.1828, longitude: 29.0663 },
+  antalya: { latitude: 36.8969, longitude: 30.7133 },
+  konya: { latitude: 37.8746, longitude: 32.4932 },
+  kocaeli: { latitude: 40.7654, longitude: 29.9408 },
+  sakarya: { latitude: 40.7569, longitude: 30.3781 },
+  eskisehir: { latitude: 39.7767, longitude: 30.5206 },
+  adana: { latitude: 37.0, longitude: 35.3213 }
+};
+
 export function LocationSelector({
   dictionary,
   selectedCity,
   setSelectedCity
 }: LocationSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -43,8 +60,47 @@ export function LocationSelector({
     };
   }, []);
 
-  function selectCity(city: string) {
-    setSelectedCity(city);
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setLocationStatus("error");
+      setLocationMessage("Tarayıcın konum paylaşımını desteklemiyor.");
+      return;
+    }
+
+    setLocationStatus("loading");
+    setLocationMessage("Konumun alınıyor...");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearestCity = findNearestSupportedCity(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+
+        setSelectedCity(nearestCity);
+        setLocationStatus("success");
+        setLocationMessage(`${getLocationLabel(nearestCity)} seçildi.`);
+
+        window.setTimeout(() => {
+          setIsOpen(false);
+        }, 900);
+      },
+      () => {
+        setLocationStatus("error");
+        setLocationMessage("Konum izni verilmedi.");
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: 1000 * 60 * 10,
+        timeout: 8000
+      }
+    );
+  }
+
+  function useAllTurkey() {
+    setSelectedCity("turkiye");
+    setLocationStatus("idle");
+    setLocationMessage(null);
     setIsOpen(false);
   }
 
@@ -63,28 +119,43 @@ export function LocationSelector({
       </button>
 
       {isOpen ? (
-        <div className="market-location-menu" id="market-location-menu" role="dialog">
+        <div className="market-location-menu market-location-menu-detect-only" id="market-location-menu" role="dialog">
           <div className="market-location-heading">
-            <strong>{dictionary.publicShell.location.selectCity}</strong>
-            <button type="button" onClick={() => setIsOpen(false)}>
-              {dictionary.publicShell.header.close}
+            <div>
+              <strong>Konum</strong>
+            </div>
+
+            <button type="button" aria-label="Kapat" onClick={() => setIsOpen(false)}>
+              ×
             </button>
           </div>
-          <p>{dictionary.publicShell.location.helper}</p>
-          <div className="market-location-options">
-            {locationOptions.map((option) => (
-              <button
-                aria-pressed={selectedCity === option.value}
-                key={option.value}
-                type="button"
-                onClick={() => selectCity(option.value)}
-              >
-                {option.value === "turkiye"
-                  ? dictionary.publicShell.location.allTurkey
-                  : option.label}
-              </button>
-            ))}
+
+          <div className="market-location-current">
+            <span>Seçili konum</span>
+            <strong>{getLocationLabel(selectedCity)}</strong>
           </div>
+
+          <button
+            className="market-location-detect"
+            type="button"
+            disabled={locationStatus === "loading"}
+            onClick={useCurrentLocation}
+          >
+            <span aria-hidden="true">📍</span>
+            <strong>
+              {locationStatus === "loading" ? "Konum alınıyor..." : "Konumumu kullan"}
+            </strong>
+          </button>
+
+          {locationMessage ? (
+            <p className={`market-location-status is-${locationStatus}`} role="status">
+              {locationMessage}
+            </p>
+          ) : null}
+
+          <button className="market-location-all-country" type="button" onClick={useAllTurkey}>
+            Türkiye genelinde ara
+          </button>
         </div>
       ) : null}
     </div>
@@ -94,6 +165,7 @@ export function LocationSelector({
 export function readStoredLocation(): string {
   try {
     const storedCity = window.localStorage.getItem(LOCATION_STORAGE_KEY);
+
     return locationOptions.some((option) => option.value === storedCity)
       ? storedCity ?? DEFAULT_LOCATION
       : DEFAULT_LOCATION;
@@ -108,4 +180,34 @@ export function storeLocation(city: string): void {
   } catch {
     return;
   }
+}
+
+function findNearestSupportedCity(latitude: number, longitude: number): string {
+  let nearestCity = DEFAULT_LOCATION;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  Object.entries(cityCoordinates).forEach(([city, coordinates]) => {
+    const distance = getDistanceScore(
+      latitude,
+      longitude,
+      coordinates.latitude,
+      coordinates.longitude
+    );
+
+    if (distance < nearestDistance) {
+      nearestCity = city;
+      nearestDistance = distance;
+    }
+  });
+
+  return nearestCity;
+}
+
+function getDistanceScore(
+  latitudeA: number,
+  longitudeA: number,
+  latitudeB: number,
+  longitudeB: number
+): number {
+  return Math.hypot(latitudeA - latitudeB, longitudeA - longitudeB);
 }
