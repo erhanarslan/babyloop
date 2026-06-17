@@ -1,5 +1,13 @@
 import type { ApiResponse } from "@babyloop/shared";
-import type { FastifyInstance } from "fastify";
+import { productCategories } from "@babyloop/database/schema";
+import { asc } from "drizzle-orm";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import type {
+  ListingDraftSuggestionImageInput,
+  ListingDraftSuggestionOutput,
+  ListingDraftSuggestionProvider
+} from "@babyloop/ai-core";
+import { aiListingDraftFieldsSchema } from "../schemas/ai-listing-draft-suggestions.schemas.js";
 import {
   createListingBodySchema,
   listingImageParamsSchema,
@@ -10,6 +18,7 @@ import {
   updateListingStatusBodySchema
 } from "../schemas/listings.schemas.js";
 import {
+  MAX_LISTING_IMAGES,
   MAX_LISTING_IMAGE_BYTES,
   validateListingImage
 } from "../services/image-safety.service.js";
@@ -65,6 +74,10 @@ type ListingImagesApiResponse = ApiResponse<{
   images: ListingImageResponse[];
 }>;
 
+type AiListingDraftSuggestionResponse = ApiResponse<{
+  suggestion: ListingDraftSuggestionOutput;
+}>;
+
 type DeleteListingImageResponse = ApiResponse<{
   deleted: true;
 }>;
@@ -80,6 +93,7 @@ type ListingImageParams = ListingParams & {
 type ListingsQuery = Record<string, unknown>;
 
 type ListingRouteOptions = {
+  listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   uploadRoot: string;
 };
 
@@ -163,6 +177,119 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       data: result
     };
   });
+
+  app.post<{ Reply: AiListingDraftSuggestionResponse }>(
+    "/listings/ai-draft-suggestions",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const provider = options.listingDraftSuggestionProvider ?? null;
+
+      if (!provider) {
+        return reply.status(503).send({
+          ok: false,
+          error: {
+            code: "AI_LISTING_DRAFT_UNAVAILABLE",
+            message: "AI önerisi şu an yapılandırılmadı."
+          }
+        });
+      }
+
+      const collected = await collectListingDraftMultipart(request);
+
+      if (collected.status === "too_large") {
+        return reply.status(413).send({
+          ok: false,
+          error: {
+            code: "IMAGE_TOO_LARGE",
+            message: "Görsel çok büyük."
+          }
+        });
+      }
+
+      if (collected.status === "invalid_image") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: collected.code,
+            message: collected.code === "IMAGE_TOO_LARGE" ? "Görsel çok büyük." : "Görsel dosyası desteklenmiyor."
+          }
+        });
+      }
+
+      if (collected.status === "too_many_images") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "TOO_MANY_IMAGES",
+            message: "En fazla 5 görsel incelenebilir."
+          }
+        });
+      }
+
+      const parsedFields = aiListingDraftFieldsSchema.safeParse(collected.fields);
+
+      if (!parsedFields.success) {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "AI önerisi isteği geçersiz."
+          }
+        });
+      }
+
+      if (collected.images.length === 0 && !hasDraftTextFields(parsedFields.data)) {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "AI önerisi için önce bir bilgi veya görsel ekle."
+          }
+        });
+      }
+
+      const categoryCandidates = await app.db
+        .select({
+          id: productCategories.id,
+          name: productCategories.name,
+          slug: productCategories.slug
+        })
+        .from(productCategories)
+        .orderBy(asc(productCategories.name));
+      const selectedCategory = parsedFields.data.categoryId
+        ? categoryCandidates.find((category) => category.id === parsedFields.data.categoryId)
+        : undefined;
+
+      try {
+        const suggestion = await provider.suggestListingDraft({
+          ...buildListingDraftSuggestionInputFields(parsedFields.data),
+          ...(selectedCategory ? { categoryName: selectedCategory.name } : {}),
+          images: collected.images,
+          categoryCandidates
+        });
+
+        return {
+          ok: true,
+          data: {
+            suggestion: sanitizeListingDraftSuggestion(suggestion, categoryCandidates)
+          }
+        };
+      } catch {
+        return reply.status(503).send({
+          ok: false,
+          error: {
+            code: "AI_LISTING_DRAFT_UNAVAILABLE",
+            message: "AI önerisi şu an kullanılamıyor. Bilgileri manuel girebilirsin."
+          }
+        });
+      }
+    }
+  );
 
   app.get<{ Reply: MyListingsResponse }>("/me/listings", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
@@ -555,6 +682,149 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       });
     }
   );
+}
+
+type ListingDraftMultipartResult =
+  | {
+      status: "ok";
+      fields: Record<string, string>;
+      images: ListingDraftSuggestionImageInput[];
+    }
+  | { status: "too_large" }
+  | { status: "too_many_images" }
+  | { status: "invalid_image"; code: "INVALID_IMAGE" | "IMAGE_TOO_LARGE"; message: string };
+
+async function collectListingDraftMultipart(
+  request: FastifyRequest
+): Promise<ListingDraftMultipartResult> {
+  const fields: Record<string, string> = {};
+  const images: ListingDraftSuggestionImageInput[] = [];
+
+  try {
+    for await (const part of request.parts({
+      limits: {
+        fileSize: MAX_LISTING_IMAGE_BYTES,
+        files: MAX_LISTING_IMAGES
+      }
+    })) {
+      if (part.type === "file") {
+        if (part.fieldname !== "images" && part.fieldname !== "image") {
+          continue;
+        }
+
+        if (images.length >= MAX_LISTING_IMAGES) {
+          return { status: "too_many_images" };
+        }
+
+        let buffer: Buffer;
+
+        try {
+          buffer = await part.toBuffer();
+        } catch {
+          return { status: "too_large" };
+        }
+
+        const imageSafety = validateListingImage({
+          buffer,
+          filename: part.filename,
+          mimetype: part.mimetype
+        });
+
+        if (!imageSafety.ok) {
+          return {
+            status: "invalid_image",
+            code: imageSafety.code,
+            message: imageSafety.message
+          };
+        }
+
+        const id = `image-${images.length + 1}`;
+        images.push({
+          id,
+          ...(part.filename ? { filename: part.filename } : {}),
+          contentType: imageSafety.image.contentType,
+          dataUrl: `data:${imageSafety.image.contentType};base64,${imageSafety.image.buffer.toString("base64")}`
+        });
+        continue;
+      }
+
+      if (typeof part.value === "string") {
+        fields[part.fieldname] = part.value;
+      }
+    }
+  } catch {
+    return { status: "too_large" };
+  }
+
+  return {
+    status: "ok",
+    fields,
+    images
+  };
+}
+
+function hasDraftTextFields(fields: Partial<Record<"categoryId" | "listingType" | "title" | "description" | "condition" | "priceAmount" | "city", string | undefined>>): boolean {
+  return Boolean(
+    fields.categoryId ||
+      fields.listingType ||
+      fields.title ||
+      fields.description ||
+      fields.condition ||
+      fields.priceAmount ||
+      fields.city
+  );
+}
+
+function buildListingDraftSuggestionInputFields(fields: {
+  categoryId?: string | undefined;
+  listingType?: "sale" | "swap" | "donation" | undefined;
+  title?: string | undefined;
+  description?: string | undefined;
+  condition?: "new" | "like_new" | "good" | "fair" | "needs_repair" | undefined;
+  priceAmount?: string | undefined;
+  currency: "TRY";
+  city?: string | undefined;
+  locale: "tr";
+}) {
+  return {
+    locale: fields.locale,
+    currency: fields.currency,
+    ...(fields.categoryId ? { categoryId: fields.categoryId } : {}),
+    ...(fields.listingType ? { listingType: fields.listingType } : {}),
+    ...(fields.title ? { title: fields.title } : {}),
+    ...(fields.description ? { description: fields.description } : {}),
+    ...(fields.condition ? { condition: fields.condition } : {}),
+    ...(fields.priceAmount ? { priceAmount: fields.priceAmount } : {}),
+    ...(fields.city ? { city: fields.city } : {})
+  };
+}
+
+function sanitizeListingDraftSuggestion(
+  suggestion: ListingDraftSuggestionOutput,
+  categoryCandidates: Array<{ id: string; name: string; slug: string }>
+): ListingDraftSuggestionOutput {
+  const categoryId = suggestion.categoryId && categoryCandidates.some((category) => category.id === suggestion.categoryId)
+    ? suggestion.categoryId
+    : undefined;
+
+  return {
+    ...(suggestion.title ? { title: suggestion.title.slice(0, 160) } : {}),
+    ...(suggestion.description ? { description: suggestion.description.slice(0, 2000) } : {}),
+    ...(categoryId ? { categoryId } : {}),
+    ...(suggestion.condition ? { condition: suggestion.condition } : {}),
+    ...(suggestion.priceSuggestion ? { priceSuggestion: suggestion.priceSuggestion } : {}),
+    imageFeedback: suggestion.imageFeedback.slice(0, MAX_LISTING_IMAGES).map((item) => ({
+      imageIdOrUrl: item.imageIdOrUrl,
+      status: item.status,
+      message: item.message.slice(0, 240)
+    })),
+    missingDetails: suggestion.missingDetails.slice(0, 8).map((item) => item.slice(0, 120)),
+    warnings: suggestion.warnings.slice(0, 8).map((item) => item.slice(0, 180)),
+    confidence: suggestion.confidence,
+    providerName: suggestion.providerName,
+    promptVersion: suggestion.promptVersion,
+    ...(suggestion.modelName ? { modelName: suggestion.modelName } : {})
+  };
 }
 
 function invalidListingRequest(message: string): ApiResponse<never> {

@@ -92,6 +92,37 @@ type PriceSuggestionPayload = {
   suggestion: PriceSuggestion;
 };
 
+export type AiListingDraftSuggestionConfidence = "low" | "medium" | "high";
+
+export type AiListingDraftSuggestion = {
+  title?: string;
+  description?: string;
+  categoryId?: string;
+  condition?: ListingCondition;
+  priceSuggestion?: {
+    min: number;
+    max: number;
+    currency: "TRY";
+    confidence: AiListingDraftSuggestionConfidence;
+    reason: string;
+  };
+  imageFeedback: Array<{
+    imageIdOrUrl: string;
+    status: "good" | "unclear" | "possibly_irrelevant" | "needs_review";
+    message: string;
+  }>;
+  missingDetails: string[];
+  warnings: string[];
+  confidence: AiListingDraftSuggestionConfidence;
+  providerName: string;
+  promptVersion: string;
+  modelName?: string;
+};
+
+type AiListingDraftSuggestionPayload = {
+  suggestion: AiListingDraftSuggestion;
+};
+
 export async function createListingRequest(
   apiBaseUrl: string,
   payload: CreateListingRequest
@@ -201,4 +232,16 @@ export async function requestPriceSuggestion(
   });
 
   return response.json() as Promise<ApiResponse<PriceSuggestionPayload>>;
+}
+
+export async function requestListingDraftSuggestion(
+  apiBaseUrl: string,
+  formData: FormData
+): Promise<ApiResponse<AiListingDraftSuggestionPayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/listings/ai-draft-suggestions", {
+    method: "POST",
+    body: formData
+  });
+
+  return response.json() as Promise<ApiResponse<AiListingDraftSuggestionPayload>>;
 }

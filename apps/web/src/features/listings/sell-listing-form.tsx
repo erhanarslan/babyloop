@@ -9,19 +9,17 @@ import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { useAuthPrompt } from "../auth/auth-prompt-provider";
-import { AiSuggestionPanel } from "./ai-suggestion-panel";
-import { AiPriceSuggestionPanel } from "./ai-price-suggestion-panel";
 import {
   createListingRequest,
-  requestListingSuggestion,
-  requestPriceSuggestion,
+  requestListingDraftSuggestion,
   uploadListingImageRequest,
-  type CreateListingRequest,
-  type ListingSuggestion,
-  type ListingSuggestionRequest,
-  type PriceSuggestion,
-  type PriceSuggestionRequest
+  type AiListingDraftSuggestion,
+  type CreateListingRequest
 } from "./api";
+import {
+  formatCategoryName,
+  formatListingCondition
+} from "./listing-display";
 import type { ListingCondition, ListingType } from "./listing-form-options";
 import { SellListingFields } from "./sell-listing-fields";
 
@@ -45,16 +43,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const formRef = useRef<HTMLFormElement | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
-  const [priceAiErrorMessage, setPriceAiErrorMessage] = useState<string | null>(null);
-  const [suggestion, setSuggestion] = useState<ListingSuggestion | null>(null);
-  const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestion | null>(null);
+  const [draftSuggestion, setDraftSuggestion] = useState<AiListingDraftSuggestion | null>(null);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hasCategories = categories.length > 0;
-  const hasListingSuggestion = Boolean(suggestion);
-  const hasPriceSuggestion = Boolean(priceSuggestion);
   const clearSelectedImages = useCallback(() => {
     setSelectedImages((currentImages) => {
       currentImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
@@ -64,12 +57,9 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const clearProtectedState = useCallback(() => {
     setErrorMessage(null);
     setAiErrorMessage(null);
-    setPriceAiErrorMessage(null);
-    setSuggestion(null);
-    setPriceSuggestion(null);
+    setDraftSuggestion(null);
     clearSelectedImages();
     setIsSuggesting(false);
-    setIsSuggestingPrice(false);
     setIsSubmitting(false);
   }, [clearSelectedImages]);
   const { isCheckingAuth, isAuthenticated, requireAuth } = useProtectedRoute({
@@ -90,6 +80,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
   }, [isCheckingAuth, isAuthenticated, openAuthPrompt, requireAuth]);
 
+  useEffect(() => clearSelectedImages, [clearSelectedImages]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
@@ -97,7 +89,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     const payload = buildCreateListingPayload(new FormData(event.currentTarget));
 
     if (!payload) {
-      setErrorMessage(dictionary.listings.requiredFields);
+      setErrorMessage("Zorunlu alanları kontrol et.");
       return;
     }
 
@@ -116,7 +108,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
     try {
       if ((payload.imageUrls?.length ?? 0) + selectedImages.length > MAX_IMAGE_COUNT) {
-        setErrorMessage(dictionary.listings.imageLimitHelp);
+        setErrorMessage("En fazla 5 görsel ekleyebilirsin.");
         return;
       }
 
@@ -131,7 +123,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         const uploadBody = await uploadListingImageRequest(apiBaseUrl, body.data.listing.id, selectedImage.file);
 
         if (!uploadBody.ok) {
-          setErrorMessage(getApiErrorMessage(uploadBody.error, dictionary, dictionary.listings.imageUploadFailed));
+          setErrorMessage(getApiErrorMessage(uploadBody.error, dictionary, "Görsel yüklenemedi."));
           return;
         }
       }
@@ -140,13 +132,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       router.push(`/listings/${body.data.listing.id}`);
       router.refresh();
     } catch {
-      setErrorMessage(dictionary.common.apiUnavailable);
+      setErrorMessage("İlan şu an oluşturulamadı. Biraz sonra tekrar dene.");
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  useEffect(() => clearSelectedImages, [clearSelectedImages]);
 
   function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -157,11 +147,13 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
 
     if (selectedImages.length + files.length > MAX_IMAGE_COUNT) {
-      setErrorMessage(dictionary.listings.imageLimitHelp);
+      setErrorMessage("En fazla 5 görsel ekleyebilirsin.");
       return;
     }
 
     setErrorMessage(null);
+    setAiErrorMessage(null);
+    setDraftSuggestion(null);
     setSelectedImages((currentImages) => [
       ...currentImages,
       ...files.map((file) => ({
@@ -182,321 +174,282 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
       return currentImages.filter((currentImage) => currentImage.id !== id);
     });
+    setDraftSuggestion(null);
   }
 
-  async function handleGenerateSuggestion(form: HTMLFormElement | null) {
+  async function handleGenerateDraftSuggestion(form: HTMLFormElement | null) {
     if (!form) {
       return;
     }
 
     setAiErrorMessage(null);
-    const payload = buildSuggestionPayload(form);
+    setDraftSuggestion(null);
 
-    if (Object.keys(payload).length === 0) {
-      setAiErrorMessage(dictionary.listings.aiNeedsDetails);
+    if (!(await requireAuth())) {
+      openAuthPrompt({
+        title: "AI önerisi için giriş yap",
+        returnTo: "/sell",
+        onAuthenticated: () => {
+          void requireAuth();
+        }
+      });
+      return;
+    }
+
+    const formData = buildDraftSuggestionFormData(form, selectedImages);
+
+    if (!hasDraftSuggestionContext(formData)) {
+      setAiErrorMessage("AI önerisi için en az bir bilgi veya görsel ekle.");
       return;
     }
 
     setIsSuggesting(true);
 
     try {
-      const body = await requestListingSuggestion(apiBaseUrl, payload);
+      const body = await requestListingDraftSuggestion(apiBaseUrl, formData);
 
       if (!body.ok) {
-        setAiErrorMessage(getApiErrorMessage(body.error, dictionary, dictionary.listings.aiUnavailableManual));
+        setAiErrorMessage(getApiErrorMessage(body.error, dictionary, "AI önerisi şu an kullanılamıyor. Bilgileri manuel girebilirsin."));
         return;
       }
 
-      setSuggestion(body.data.suggestion);
+      setDraftSuggestion(body.data.suggestion);
     } catch {
-      setAiErrorMessage(dictionary.listings.aiUnavailableManual);
+      setAiErrorMessage("AI önerisi şu an kullanılamıyor. Bilgileri manuel girebilirsin.");
     } finally {
       setIsSuggesting(false);
     }
   }
 
-  async function handleGeneratePriceSuggestion(form: HTMLFormElement | null) {
-    if (!form) {
-      return;
-    }
-
-    setPriceAiErrorMessage(null);
-    const payload = buildPriceSuggestionPayload(form);
-
-    if (Object.keys(payload).length === 0) {
-      setPriceAiErrorMessage("Add category, condition, listing type, title, or a current price first.");
-      return;
-    }
-
-    setIsSuggestingPrice(true);
-
-    try {
-      const body = await requestPriceSuggestion(apiBaseUrl, payload);
-
-      if (!body.ok) {
-        setPriceAiErrorMessage(getApiErrorMessage(body.error, dictionary, "AI price suggestion is unavailable. You can continue manually."));
-        return;
-      }
-
-      setPriceSuggestion(body.data.suggestion);
-    } catch {
-      setPriceAiErrorMessage("AI price suggestion is unavailable. You can continue manually.");
-    } finally {
-      setIsSuggestingPrice(false);
-    }
-  }
-
   if (isCheckingAuth) {
-    return <LoadingBlock title={dictionary.common.loading} />;
+    return <LoadingBlock title="Yükleniyor" />;
   }
 
   return (
-    <form className="listing-form" ref={formRef} onSubmit={handleSubmit}>
-      <SellAiWorkflowCallout />
+    <form className="sell-create-workspace" ref={formRef} onSubmit={handleSubmit}>
+      <section className="sell-create-fields" aria-label="İlan bilgileri">
+        {!hasCategories ? (
+          <Alert
+            title="Kategoriler yüklenemedi"
+            message="Kategori seçimi olmadan ilan oluşturulamaz. Biraz sonra tekrar dene."
+          />
+        ) : null}
 
-      <SellDraftProgress
-        categoriesAvailable={hasCategories}
-        hasListingSuggestion={hasListingSuggestion}
-        hasPriceSuggestion={hasPriceSuggestion}
-        selectedImagesCount={selectedImages.length}
-      />
-
-      {!hasCategories ? (
-        <Alert
-          title={dictionary.listings.categoriesUnavailable}
-          message="Categories are required before a listing can be published. You can still review the seller guidance while the API recovers."
-        />
-      ) : null}
-
-      <SellListingFields categories={categories} />
-
-      <section className="image-upload-panel image-upload-panel-product" aria-label={dictionary.listings.images}>
-        <div className="image-upload-header">
-          <div>
-            <label className="file-upload-label">
-              <span>{dictionary.listings.uploadImage}</span>
-              <input
-                accept="image/jpeg,image/png,image/webp"
-                disabled={isSubmitting || selectedImages.length >= MAX_IMAGE_COUNT}
-                multiple
-                type="file"
-                onChange={handleImageSelection}
-              />
-            </label>
-            <p className="muted">{dictionary.listings.imageLimitHelp}</p>
-          </div>
-          <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} images</Badge>
+        <div className="sell-section-heading">
+          <h2>İlan bilgileri</h2>
+          <p>Yayınlamadan önce bilgileri kontrol et.</p>
         </div>
+        <SellListingFields categories={categories} />
 
-        {selectedImages.length === 0 ? (
-          <div className="image-upload-empty">
-            <strong>Photos help families decide faster.</strong>
-            <span>Use clear JPG, PNG, or WEBP photos. BabyLoop validates image safety during upload.</span>
-            <ul className="image-upload-tips">
-              <li>Show the full item and the most worn area.</li>
-              <li>Include accessories, labels, or missing parts when relevant.</li>
-              <li>Avoid private address, phone, or personal documents in photos.</li>
-            </ul>
+        {errorMessage ? (
+          <Alert title="İlan oluşturulamadı" message={errorMessage} />
+        ) : null}
+
+        <div className="form-actions form-actions-product">
+          <p className="form-note">Telefon, e-posta veya açık adres yazmana gerek yok.</p>
+          <div className="form-button-row">
+            <Button type="submit" disabled={isSubmitting || !hasCategories}>
+              {isSubmitting ? "Kaydediliyor..." : "İlanı oluştur"}
+            </Button>
           </div>
-        ) : null}
-
-        {selectedImages.length > 0 ? (
-          <ul className="image-preview-list">
-            {selectedImages.map((image) => (
-              <li key={image.id}>
-                <img src={image.previewUrl} alt="" />
-                <span>{image.file.name}</span>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => removeSelectedImage(image.id)}
-                >
-                  {dictionary.listings.deleteImage}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        </div>
       </section>
 
-      {errorMessage ? (
-        <Alert title={dictionary.listings.createFailed} message={errorMessage} />
-      ) : null}
+      <aside className="sell-create-side-panel" aria-label="Görseller ve AI önerileri">
+        <section className="sell-image-panel" aria-label="Görseller">
+          <div className="image-upload-header">
+            <div>
+              <h2>Görseller</h2>
+              <p>En fazla 5 görsel ekleyebilirsin.</p>
+            </div>
+            <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} görsel</Badge>
+          </div>
 
-      {aiErrorMessage ? (
-        <Alert title={dictionary.listings.aiSuggestionUnavailable} message={aiErrorMessage} />
-      ) : null}
+          <label className="file-upload-label sell-file-upload-label">
+            <span>Görsel ekle</span>
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              disabled={isSubmitting || selectedImages.length >= MAX_IMAGE_COUNT}
+              multiple
+              type="file"
+              onChange={handleImageSelection}
+            />
+          </label>
 
-      {priceAiErrorMessage ? (
-        <Alert title="AI price suggestion unavailable" message={priceAiErrorMessage} />
-      ) : null}
+          {selectedImages.length === 0 ? (
+            <div className="sell-image-empty">
+              <strong>Ürünü net gösteren fotoğraflar ekle.</strong>
+              <span>Ön, yan, kullanım izi ve varsa aksesuarları göstermek ailelerin kararını kolaylaştırır.</span>
+            </div>
+          ) : (
+            <ul className="sell-image-preview-grid">
+              {selectedImages.map((image) => (
+                <li key={image.id}>
+                  <img src={image.previewUrl} alt="" />
+                  <div>
+                    <span>{image.file.name}</span>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => removeSelectedImage(image.id)}
+                    >
+                      Kaldır
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      {suggestion ? (
-        <AiSuggestionPanel
-          suggestion={suggestion}
-          onApplySuggestion={() => {
-            if (formRef.current) {
-              fillSuggestionFields(formRef.current, suggestion, categories);
-            }
-          }}
-        />
-      ) : null}
+        <section className="sell-ai-panel" aria-label="AI önerileri">
+          <div className="sell-section-heading">
+            <h2>AI önerileri</h2>
+            <p>Görselleri ve mevcut alanları inceler; önerileri sen onaylamadan forma yazmaz.</p>
+          </div>
 
-      {priceSuggestion ? (
-        <AiPriceSuggestionPanel
-          suggestion={priceSuggestion}
-          onApplyPrice={() => {
-            if (formRef.current) {
-              fillPriceSuggestionFields(formRef.current, priceSuggestion);
-            }
-          }}
-        />
-      ) : null}
-
-      <SellPublishChecklist
-        hasListingSuggestion={hasListingSuggestion}
-        hasPriceSuggestion={hasPriceSuggestion}
-        selectedImagesCount={selectedImages.length}
-      />
-
-      <div className="form-actions form-actions-product">
-        <p className="form-note">{dictionary.listings.formTrustNote}</p>
-        <div className="form-button-row">
           <Button
             variant="secondary"
             type="button"
             disabled={isSuggesting}
-            onClick={(event) => {
-              void handleGenerateSuggestion(event.currentTarget.form);
+            onClick={() => {
+              void handleGenerateDraftSuggestion(formRef.current);
             }}
           >
-            {isSuggesting ? dictionary.listings.suggesting : dictionary.listings.suggestListingDetails}
+            {isSuggesting ? "AI inceliyor..." : "AI ile düzenle"}
           </Button>
-          <Button
-            variant="secondary"
-            type="button"
-            disabled={isSuggestingPrice}
-            onClick={(event) => {
-              void handleGeneratePriceSuggestion(event.currentTarget.form);
-            }}
-          >
-            {isSuggestingPrice ? "Suggesting price..." : "Suggest price"}
-          </Button>
-          <Button type="submit" disabled={isSubmitting || !hasCategories}>
-            {isSubmitting ? dictionary.listings.creating : dictionary.common.createListing}
-          </Button>
-        </div>
-      </div>
+
+          {aiErrorMessage ? (
+            <Alert title="AI önerisi alınamadı" message={aiErrorMessage} />
+          ) : null}
+
+          {draftSuggestion ? (
+            <AiDraftSuggestionReview
+              categories={categories}
+              suggestion={draftSuggestion}
+              onApplySuggestion={() => {
+                if (formRef.current) {
+                  applyDraftSuggestion(formRef.current, draftSuggestion);
+                }
+              }}
+              onDismiss={() => setDraftSuggestion(null)}
+            />
+          ) : (
+            <p className="muted">AI önerisi başlık, açıklama, kategori, durum ve görsel kontrol notlarını önerebilir.</p>
+          )}
+        </section>
+      </aside>
     </form>
   );
 }
 
-function SellDraftProgress({
-  categoriesAvailable,
-  hasListingSuggestion,
-  hasPriceSuggestion,
-  selectedImagesCount
+function AiDraftSuggestionReview({
+  categories,
+  suggestion,
+  onApplySuggestion,
+  onDismiss
 }: {
-  categoriesAvailable: boolean;
-  hasListingSuggestion: boolean;
-  hasPriceSuggestion: boolean;
-  selectedImagesCount: number;
+  categories: Category[];
+  suggestion: AiListingDraftSuggestion;
+  onApplySuggestion: () => void;
+  onDismiss: () => void;
 }) {
-  const progressItems = [
-    {
-      label: "Category",
-      value: categoriesAvailable ? "Ready" : "Waiting",
-      isComplete: categoriesAvailable
-    },
-    {
-      label: "Photos",
-      value: `${selectedImagesCount}/5`,
-      isComplete: selectedImagesCount > 0
-    },
-    {
-      label: "AI draft",
-      value: hasListingSuggestion ? "Reviewed" : "Optional",
-      isComplete: hasListingSuggestion
-    },
-    {
-      label: "Price",
-      value: hasPriceSuggestion ? "Suggested" : "Manual",
-      isComplete: hasPriceSuggestion
-    }
-  ];
+  const { dictionary } = useI18n();
+  const category = suggestion.categoryId
+    ? categories.find((candidate) => candidate.id === suggestion.categoryId)
+    : undefined;
 
   return (
-    <section className="sell-draft-progress" aria-label="Listing draft progress">
-      <div>
-        <p className="eyebrow">Draft progress</p>
-        <h2>Prepare enough context before publishing.</h2>
-        <p>
-          Required fields create the listing. Photos, AI suggestions, and price guidance increase clarity
-          but still need your final review.
-        </p>
+    <div className="sell-ai-suggestion-review">
+      <div className="sell-ai-suggestion-header">
+        <strong>Öneri güveni: {formatConfidence(suggestion.confidence)}</strong>
       </div>
 
-      <div className="sell-progress-grid">
-        {progressItems.map((item) => (
-          <div
-            className="sell-progress-card"
-            data-state={item.isComplete ? "complete" : "pending"}
-            key={item.label}
-          >
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
+      <dl>
+        {suggestion.title ? (
+          <div>
+            <dt>Başlık</dt>
+            <dd>{suggestion.title}</dd>
           </div>
-        ))}
+        ) : null}
+
+        {suggestion.description ? (
+          <div>
+            <dt>Açıklama</dt>
+            <dd>{suggestion.description}</dd>
+          </div>
+        ) : null}
+
+        {category ? (
+          <div>
+            <dt>Kategori</dt>
+            <dd>{formatCategoryName(category, dictionary)}</dd>
+          </div>
+        ) : null}
+
+        {suggestion.condition ? (
+          <div>
+            <dt>Durum</dt>
+            <dd>{formatListingCondition(suggestion.condition, dictionary)}</dd>
+          </div>
+        ) : null}
+
+        {suggestion.priceSuggestion ? (
+          <div>
+            <dt>Fiyat aralığı</dt>
+            <dd>
+              {suggestion.priceSuggestion.min.toLocaleString("tr-TR")} - {suggestion.priceSuggestion.max.toLocaleString("tr-TR")} TRY
+              <span>{suggestion.priceSuggestion.reason}</span>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {suggestion.imageFeedback.length > 0 ? (
+        <div className="sell-ai-list-block">
+          <strong>Görsel notları</strong>
+          <ul>
+            {suggestion.imageFeedback.map((item, index) => (
+              <li key={`${item.imageIdOrUrl}-${index}`}>
+                {item.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {suggestion.missingDetails.length > 0 ? (
+        <div className="sell-ai-list-block">
+          <strong>Eksik bilgiler</strong>
+          <ul>
+            {suggestion.missingDetails.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {suggestion.warnings.length > 0 ? (
+        <div className="sell-ai-list-block">
+          <strong>Kontrol et</strong>
+          <ul>
+            {suggestion.warnings.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="form-button-row">
+        <Button type="button" onClick={onApplySuggestion}>
+          Önerileri uygula
+        </Button>
+        <Button variant="ghost" type="button" onClick={onDismiss}>
+          Vazgeç
+        </Button>
       </div>
-    </section>
-  );
-}
-
-function SellAiWorkflowCallout() {
-  return (
-    <section className="ai-sell-workflow-callout" aria-label="AI listing workflow">
-      <div>
-        <p className="eyebrow">AI-assisted listing</p>
-        <h2>Draft faster, publish manually</h2>
-        <p className="form-note">
-          Generate a better draft, check missing details, get a price range, then publish only after your review.
-        </p>
-      </div>
-
-      <ol>
-        <li>Write a few product details or select a category.</li>
-        <li>Ask AI for listing details and price guidance.</li>
-        <li>Review condition, photos, accessories, and safety notes.</li>
-      </ol>
-    </section>
-  );
-}
-
-function SellPublishChecklist({
-  hasListingSuggestion,
-  hasPriceSuggestion,
-  selectedImagesCount
-}: {
-  hasListingSuggestion: boolean;
-  hasPriceSuggestion: boolean;
-  selectedImagesCount: number;
-}) {
-  return (
-    <section className="sell-publish-checklist" aria-label="Publish checklist">
-      <div>
-        <p className="eyebrow">Before publishing</p>
-        <h2>Quick seller checklist</h2>
-      </div>
-
-      <ul className="question-list">
-        <li>Condition, missing parts, included accessories, and pickup expectations are clearly described.</li>
-        <li>{selectedImagesCount > 0 ? "Photos are attached and should avoid private contact details." : "Add photos if possible; they help families decide faster."}</li>
-        <li>{hasListingSuggestion ? "AI draft suggestions were applied or reviewed manually." : "AI draft help is optional; the listing can still be created manually."}</li>
-        <li>{hasPriceSuggestion ? "AI price guidance was reviewed before publishing." : "Price is reviewed manually before publishing."}</li>
-        <li>No phone, address, email, or private child details are needed in the public listing.</li>
-      </ul>
-    </section>
+    </div>
   );
 }
 
@@ -529,21 +482,49 @@ function buildCreateListingPayload(formData: FormData): CreateListingRequest | n
   };
 }
 
-function buildSuggestionPayload(form: HTMLFormElement): ListingSuggestionRequest {
-  const formData = new FormData(form);
-  const title = getString(formData, "title");
-  const description = getString(formData, "description");
-  const categoryName = getSelectedOptionText(form, "categoryId");
-  const condition = getString(formData, "condition");
-  const listingType = getString(formData, "listingType") as ListingType;
+function buildDraftSuggestionFormData(form: HTMLFormElement, images: SelectedImage[]): FormData {
+  const source = new FormData(form);
+  const formData = new FormData();
+  const fieldKeys = [
+    "categoryId",
+    "listingType",
+    "title",
+    "description",
+    "condition",
+    "priceAmount",
+    "currency",
+    "city"
+  ];
 
-  return {
-    ...(title ? { title } : {}),
-    ...(description ? { description } : {}),
-    ...(categoryName ? { categoryName } : {}),
-    ...(condition ? { condition } : {}),
-    ...(listingType ? { listingType } : {})
-  };
+  for (const key of fieldKeys) {
+    const value = getString(source, key);
+
+    if (value) {
+      formData.append(key, value);
+    }
+  }
+
+  formData.append("locale", "tr");
+
+  for (const image of images) {
+    formData.append("images", image.file, image.file.name);
+  }
+
+  return formData;
+}
+
+function hasDraftSuggestionContext(formData: FormData): boolean {
+  for (const [, value] of formData.entries()) {
+    if (value instanceof File) {
+      return true;
+    }
+
+    if (typeof value === "string" && value.trim() && value !== "tr" && value !== "TRY") {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getString(formData: FormData, key: string): string {
@@ -551,40 +532,21 @@ function getString(formData: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function getSelectedOptionText(form: HTMLFormElement, key: string): string {
-  const field = form.elements.namedItem(key);
-
-  if (!(field instanceof HTMLSelectElement)) {
-    return "";
+function applyDraftSuggestion(form: HTMLFormElement, suggestion: AiListingDraftSuggestion): void {
+  if (suggestion.title) {
+    setTextInputValue(form, "title", suggestion.title);
   }
 
-  return field.selectedOptions[0]?.textContent?.trim() ?? "";
-}
-
-function fillSuggestionFields(
-  form: HTMLFormElement,
-  suggestion: ListingSuggestion,
-  categories: Category[]
-): void {
-  setTextInputValue(form, "title", suggestion.suggestedTitle);
-  setTextareaValue(form, "description", suggestion.suggestedDescription);
-
-  if (suggestion.suggestedCategorySlug) {
-    const matchingCategory = categories.find(
-      (category) => category.slug === suggestion.suggestedCategorySlug
-    );
-
-    if (matchingCategory) {
-      setSelectValue(form, "categoryId", matchingCategory.id);
-    }
+  if (suggestion.description) {
+    setTextareaValue(form, "description", suggestion.description);
   }
 
-  if (suggestion.suggestedCondition) {
-    setSelectValue(form, "condition", suggestion.suggestedCondition);
+  if (suggestion.categoryId) {
+    setSelectValue(form, "categoryId", suggestion.categoryId);
   }
 
-  if (suggestion.suggestedListingType) {
-    setSelectValue(form, "listingType", suggestion.suggestedListingType);
+  if (suggestion.condition) {
+    setSelectValue(form, "condition", suggestion.condition);
   }
 }
 
@@ -615,35 +577,12 @@ function setSelectValue(form: HTMLFormElement, key: string, value: string): void
   }
 }
 
-function buildPriceSuggestionPayload(form: HTMLFormElement): PriceSuggestionRequest {
-  const formData = new FormData(form);
-  const title = getString(formData, "title");
-  const categoryName = getSelectedOptionText(form, "categoryId");
-  const condition = getString(formData, "condition");
-  const listingType = getString(formData, "listingType") as ListingType;
-  const currentPriceAmount = getString(formData, "priceAmount");
-  const currency = getString(formData, "currency").toUpperCase() || "TRY";
-
-  return {
-    ...(title ? { title } : {}),
-    ...(categoryName ? { categoryName } : {}),
-    ...(condition ? { condition } : {}),
-    ...(listingType ? { listingType } : {}),
-    ...(currentPriceAmount ? { currentPriceAmount } : {}),
-    currency
+function formatConfidence(confidence: AiListingDraftSuggestion["confidence"]): string {
+  const labels: Record<AiListingDraftSuggestion["confidence"], string> = {
+    low: "düşük",
+    medium: "orta",
+    high: "yüksek"
   };
-}
 
-
-function fillPriceSuggestionFields(form: HTMLFormElement, suggestion: PriceSuggestion): void {
-  const priceField = form.elements.namedItem("priceAmount");
-  const currencyField = form.elements.namedItem("currency");
-
-  if (priceField instanceof HTMLInputElement && suggestion.recommendedPriceAmount) {
-    priceField.value = suggestion.recommendedPriceAmount;
-  }
-
-  if (currencyField instanceof HTMLInputElement) {
-    currencyField.value = suggestion.currency;
-  }
+  return labels[confidence];
 }

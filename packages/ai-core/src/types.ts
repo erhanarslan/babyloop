@@ -26,6 +26,71 @@ export type ListingSuggestionProvider = {
   suggestListing(input: ListingSuggestionInput): Promise<ListingSuggestionOutput>;
 };
 
+export type ListingDraftSuggestionCondition = "new" | "like_new" | "good" | "fair" | "needs_repair";
+
+export type ListingDraftSuggestionListingType = "sale" | "swap" | "donation";
+
+export type ListingDraftSuggestionConfidence = "low" | "medium" | "high";
+
+export type ListingDraftSuggestionImageInput = {
+  id: string;
+  filename?: string;
+  contentType: "image/jpeg" | "image/png" | "image/webp";
+  dataUrl?: string;
+};
+
+export type ListingDraftSuggestionCategoryCandidate = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type ListingDraftSuggestionInput = {
+  locale?: "tr";
+  categoryId?: string;
+  categoryName?: string;
+  listingType?: ListingDraftSuggestionListingType;
+  title?: string;
+  description?: string;
+  condition?: ListingDraftSuggestionCondition;
+  priceAmount?: string;
+  currency?: "TRY";
+  city?: string;
+  images: ListingDraftSuggestionImageInput[];
+  categoryCandidates: ListingDraftSuggestionCategoryCandidate[];
+};
+
+export type ListingDraftSuggestionOutput = {
+  title?: string;
+  description?: string;
+  categoryId?: string;
+  condition?: ListingDraftSuggestionCondition;
+  priceSuggestion?: {
+    min: number;
+    max: number;
+    currency: "TRY";
+    confidence: ListingDraftSuggestionConfidence;
+    reason: string;
+  };
+  imageFeedback: Array<{
+    imageIdOrUrl: string;
+    status: "good" | "unclear" | "possibly_irrelevant" | "needs_review";
+    message: string;
+  }>;
+  missingDetails: string[];
+  warnings: string[];
+  confidence: ListingDraftSuggestionConfidence;
+  providerName: string;
+  promptVersion: string;
+  modelName?: string;
+};
+
+export type ListingDraftSuggestionProvider = {
+  readonly providerName: string;
+  readonly modelName?: string;
+  suggestListingDraft(input: ListingDraftSuggestionInput): Promise<ListingDraftSuggestionOutput>;
+};
+
 export type PriceSuggestionInput = {
   title?: string;
   categoryName?: string;

@@ -6,11 +6,16 @@ export {
   validateSafeModerationSummaryOutput
 } from "./moderation-summary.js";
 export { suggestListing } from "./listing-suggestion.js";
+export { suggestListingDraft } from "./listing-draft-suggestion.js";
 export { suggestPrice } from "./price-suggestion.js";
 export {
   MockListingSuggestionProvider,
   mockListingSuggestionProvider
 } from "./mock-listing-suggestion-provider.js";
+export {
+  MockListingDraftSuggestionProvider,
+  mockListingDraftSuggestionProvider
+} from "./mock-listing-draft-suggestion-provider.js";
 export {
   MockPriceSuggestionProvider,
   mockPriceSuggestionProvider
@@ -24,6 +29,12 @@ export {
   type OpenAiModerationSummaryProviderOptions
 } from "./openai-moderation-summary-provider.js";
 export {
+  OpenAiListingDraftSuggestionProvider,
+  type OpenAiListingDraftSuggestionProviderOptions
+} from "./openai-listing-draft-suggestion-provider.js";
+export {
+  LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION,
+  LISTING_DRAFT_SUGGESTION_PROMPT_VERSION,
   LISTING_SUGGESTION_PROMPT_VERSION,
   PRICE_SUGGESTION_PROMPT_VERSION,
   MODERATION_SUMMARY_OPENAI_PROMPT_VERSION,
@@ -33,6 +44,14 @@ export type {
   ListingSuggestionInput,
   ListingSuggestionOutput,
   ListingSuggestionProvider,
+  ListingDraftSuggestionCategoryCandidate,
+  ListingDraftSuggestionCondition,
+  ListingDraftSuggestionConfidence,
+  ListingDraftSuggestionImageInput,
+  ListingDraftSuggestionInput,
+  ListingDraftSuggestionListingType,
+  ListingDraftSuggestionOutput,
+  ListingDraftSuggestionProvider,
   PriceSuggestionInput,
   PriceSuggestionOutput,
   PriceSuggestionProvider,

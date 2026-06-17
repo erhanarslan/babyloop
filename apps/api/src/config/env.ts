@@ -10,7 +10,18 @@ export type AiModerationSummaryRuntimeConfig =
       endpoint?: string;
     };
 
+export type AiListingDraftRuntimeConfig =
+  | { provider: "unavailable" }
+  | { provider: "mock" }
+  | {
+      provider: "openai";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
+    };
+
 export type ApiRuntimeConfig = {
+  aiListingDraft: AiListingDraftRuntimeConfig;
   aiModerationSummary: AiModerationSummaryRuntimeConfig;
   allowAuthUnavailable: boolean;
   authRateLimitMax: number;
@@ -33,6 +44,7 @@ const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiRuntimeConfig {
   const allowAuthUnavailable = readBoolean(env.ALLOW_AUTH_UNAVAILABLE, false);
   const config: ApiRuntimeConfig = {
+    aiListingDraft: readAiListingDraftConfig(env),
     aiModerationSummary: readAiModerationSummaryConfig(env),
     allowAuthUnavailable,
     authRateLimitMax: readPositiveInteger(env.AUTH_RATE_LIMIT_MAX, 10),
@@ -72,6 +84,42 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+
+function readAiListingDraftConfig(env: NodeJS.ProcessEnv): AiListingDraftRuntimeConfig {
+  const provider = (env.AI_LISTING_DRAFT_PROVIDER ?? "unavailable").trim().toLowerCase();
+
+  if (!provider || provider === "unavailable" || provider === "off" || provider === "none") {
+    return { provider: "unavailable" };
+  }
+
+  if (provider === "mock") {
+    return { provider: "mock" };
+  }
+
+  if (provider !== "openai") {
+    throw new Error("AI_LISTING_DRAFT_PROVIDER must be unavailable, mock, or openai.");
+  }
+
+  const apiKey = env.OPENAI_API_KEY?.trim();
+  const model = env.OPENAI_LISTING_DRAFT_MODEL?.trim();
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is required when AI_LISTING_DRAFT_PROVIDER=openai.");
+  }
+
+  if (!model) {
+    throw new Error("OPENAI_LISTING_DRAFT_MODEL is required when AI_LISTING_DRAFT_PROVIDER=openai.");
+  }
+
+  const endpoint = env.OPENAI_RESPONSES_ENDPOINT?.trim();
+
+  return {
+    provider: "openai",
+    apiKey,
+    model,
+    ...(endpoint ? { endpoint } : {})
+  };
 }
 
 function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSummaryRuntimeConfig {

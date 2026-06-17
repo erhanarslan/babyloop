@@ -16,7 +16,7 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
 
   return (
     <div className="form-grid">
-      <Select label={dictionary.listings.category} name="categoryId" required disabled={!hasCategories}>
+      <Select label="Kategori" name="categoryId" required disabled={!hasCategories}>
           {hasCategories ? (
             categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -24,11 +24,11 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
               </option>
             ))
           ) : (
-            <option value="">{dictionary.listings.noCategoriesAvailable}</option>
+            <option value="">Kategori bulunamadı</option>
           )}
       </Select>
 
-      <Select label={dictionary.listings.listingType} name="listingType" defaultValue="sale" required>
+      <Select label="İlan tipi" name="listingType" defaultValue="sale" required>
           {listingTypes.map((type) => (
             <option key={type.value} value={type.value}>
               {formatListingType(type.value, dictionary)}
@@ -37,27 +37,27 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
       </Select>
 
       <TextInput
-        label={dictionary.listings.title}
+        label="Başlık"
         name="title"
         type="text"
         minLength={4}
         maxLength={160}
         required
-        placeholder={dictionary.listings.titlePlaceholder}
+        placeholder="Örn. temiz bebek arabası"
         wide
       />
 
       <Textarea
-        label={dictionary.listings.description}
+        label="Açıklama"
         name="description"
         maxLength={2000}
         rows={5}
-        placeholder={dictionary.listings.descriptionPlaceholder}
+        placeholder="Ürünün durumu, kullanım süresi, eksik parça ve teslim bilgisini yaz."
         wide
       />
 
       <TextInput
-        label={dictionary.listings.priceAmount}
+        label="Fiyat"
         name="priceAmount"
         type="text"
         inputMode="decimal"
@@ -65,7 +65,7 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
       />
 
       <TextInput
-        label={dictionary.listings.currency}
+        label="Para birimi"
         name="currency"
         type="text"
         defaultValue="TRY"
@@ -73,7 +73,7 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
         required
       />
 
-      <Select label={dictionary.listings.condition} name="condition" defaultValue="good" required>
+      <Select label="Durum" name="condition" defaultValue="good" required>
           {conditions.map((conditionOption) => (
             <option key={conditionOption.value} value={conditionOption.value}>
               {formatListingCondition(conditionOption.value, dictionary)}
@@ -81,16 +81,27 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
           ))}
       </Select>
 
-      <Textarea
-        label={dictionary.listings.imageUrls}
-        name="imageUrls"
-        rows={3}
-        placeholder={dictionary.listings.imageUrlsPlaceholder}
-        wide
+      <TextInput
+        label="Şehir"
+        name="city"
+        type="text"
+        maxLength={120}
+        placeholder="Örn. İstanbul"
       />
-      <p className="muted form-field-wide">
-        {dictionary.listings.imageUrlsHelp}
-      </p>
+
+      <details className="form-field-wide sell-url-image-details">
+        <summary>URL ile görsel ekle</summary>
+        <Textarea
+          label="Görsel URL'leri"
+          name="imageUrls"
+          rows={3}
+          placeholder="Her satıra bir görsel URL'si ekle"
+          wide
+        />
+        <p className="muted">
+          Ana akışta görsel dosyası yüklemeni öneriyoruz. URL alanı yalnızca mevcut bağlantıların varsa kullanılmalı.
+        </p>
+      </details>
     </div>
   );
 }

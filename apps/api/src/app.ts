@@ -35,7 +35,10 @@ import { registerSavedSearchRoutes } from "./routes/saved-searches.routes.js";
 import { registerSellerDashboardRoutes } from "./routes/seller-dashboard.routes.js";
 import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
-import { MAX_LISTING_IMAGE_BYTES } from "./services/image-safety.service.js";
+import {
+  MAX_LISTING_IMAGE_BYTES,
+  MAX_LISTING_IMAGES
+} from "./services/image-safety.service.js";
 import {
   createEmailDeliveryService,
   type EmailDeliveryService
@@ -50,12 +53,17 @@ import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
 import { registerAdminAiOpsRoutes } from "./routes/admin-ai-ops.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
-import type { ModerationSummaryProvider } from "@babyloop/ai-core";
+import { createListingDraftAiProvider } from "./services/listing-draft-ai-provider.service.js";
+import type {
+  ListingDraftSuggestionProvider,
+  ModerationSummaryProvider
+} from "@babyloop/ai-core";
 
 type CreateAppOptions = {
   config?: ApiRuntimeConfig;
   emailDelivery?: EmailDeliveryService;
   googleOAuthClient?: GoogleOAuthClient;
+  listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   moderationSummaryProvider?: ModerationSummaryProvider;
 };
 
@@ -67,6 +75,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const moderationSummaryProvider =
     options.moderationSummaryProvider ??
     createAdminModerationAiSummaryProvider(config.aiModerationSummary);
+  const listingDraftSuggestionProvider =
+    options.listingDraftSuggestionProvider ??
+    createListingDraftAiProvider(config.aiListingDraft);
 
   const emailDelivery =
     options.emailDelivery ??
@@ -105,7 +116,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   app.register(multipart, {
     limits: {
       fileSize: MAX_LISTING_IMAGE_BYTES,
-      files: 1
+      files: MAX_LISTING_IMAGES
     }
   });
 
@@ -218,7 +229,11 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
-    app.register(registerListingRoutes, { prefix: API_PREFIX, uploadRoot: config.uploadRoot });
+    app.register(registerListingRoutes, {
+      listingDraftSuggestionProvider,
+      prefix: API_PREFIX,
+      uploadRoot: config.uploadRoot
+    });
     app.register(registerListingRecommendationRoutes, { prefix: API_PREFIX });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });

@@ -9738,3 +9738,258 @@ body::after {
 .dark .market-auth-submit-button {
   color: #ffffff !important;
 }
+
+/* Focused /sell listing creation workspace */
+.sell-page-compact-heading {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 760px;
+}
+
+.sell-page-compact-heading h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.sell-page-compact-heading p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 1.02rem;
+}
+
+.form-panel.sell-form-panel {
+  overflow: hidden;
+  padding: 0;
+}
+
+.sell-create-workspace {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: stretch;
+}
+
+.sell-create-fields,
+.sell-create-side-panel,
+.sell-image-panel,
+.sell-ai-panel,
+.sell-ai-suggestion-review {
+  display: grid;
+  gap: 1rem;
+}
+
+.sell-create-fields {
+  align-content: start;
+  padding: clamp(1rem, 2vw, 1.75rem);
+}
+
+.sell-create-side-panel {
+  align-content: start;
+  align-self: stretch;
+  height: 100%;
+  border-left: 1px solid rgba(107, 86, 73, 0.14);
+  background: rgba(255, 250, 244, 0.5);
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.sell-image-panel,
+.sell-ai-panel,
+.sell-ai-suggestion-review {
+  border: 1px solid rgba(107, 86, 73, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 1rem;
+}
+
+.sell-section-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sell-section-heading h2,
+.sell-image-panel h2 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 1.1rem;
+}
+
+.sell-section-heading p,
+.sell-image-panel p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.sell-url-image-details {
+  border: 1px dashed rgba(107, 86, 73, 0.22);
+  border-radius: 18px;
+  padding: 0.85rem;
+}
+
+.sell-url-image-details summary {
+  cursor: pointer;
+  color: var(--color-text-strong);
+  font-weight: 750;
+}
+
+.sell-url-image-details[open] summary {
+  margin-bottom: 0.8rem;
+}
+
+.sell-file-upload-label {
+  justify-content: center;
+  min-height: 54px;
+  border-radius: 18px;
+}
+
+.sell-image-empty {
+  display: grid;
+  gap: 0.35rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 122, 105, 0.12), rgba(80, 168, 150, 0.12));
+  padding: 1rem;
+  color: var(--color-text-muted);
+}
+
+.sell-image-empty strong {
+  color: var(--color-text-strong);
+}
+
+.sell-image-preview-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sell-image-preview-grid li {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid rgba(107, 86, 73, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.55rem;
+}
+
+.sell-image-preview-grid img {
+  width: 88px;
+  height: 88px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #fff1e8, #eaf7f3);
+}
+
+.sell-image-preview-grid div {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sell-image-preview-grid span {
+  overflow: hidden;
+  color: var(--color-text-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sell-ai-suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sell-ai-suggestion-review dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.sell-ai-suggestion-review dl > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sell-ai-suggestion-review dt,
+.sell-ai-list-block strong {
+  color: var(--color-text-strong);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.sell-ai-suggestion-review dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.sell-ai-suggestion-review dd span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.sell-ai-list-block {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sell-ai-list-block ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+.dark .sell-image-panel,
+.dark .sell-ai-panel,
+.dark .sell-ai-suggestion-review,
+.dark .sell-url-image-details {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.06);
+}
+
+.dark .sell-create-side-panel {
+  border-left-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.04);
+}
+
+.dark .sell-image-preview-grid li {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.08);
+}
+
+@media (max-width: 1100px) {
+  .sell-create-workspace {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}
+
+@media (max-width: 980px) {
+  .sell-create-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sell-create-side-panel {
+    border-left: 0;
+    border-top: 1px solid rgba(107, 86, 73, 0.14);
+  }
+}
+
+@media (max-width: 640px) {
+  .sell-image-preview-grid li {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .sell-image-preview-grid img {
+    width: 72px;
+    height: 72px;
+  }
+}
