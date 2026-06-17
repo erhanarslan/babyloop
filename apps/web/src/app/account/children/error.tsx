@@ -10,10 +10,10 @@ export default function AccountChildrenError({ error: _error, reset }: RouteErro
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Child profiles could not load</h1>
-        <p>The family profile area hit an unexpected error.</p>
+        <h1>Çocuk bilgileri yüklenemedi</h1>
+        <p>Çocuğum alanı açılırken beklenmeyen bir hata oluştu.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

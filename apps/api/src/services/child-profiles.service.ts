@@ -6,6 +6,8 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   ChildAgeBand,
+  ChildProfileGender,
+  ChildProfileNotificationCadence,
   CreateChildProfileBody,
   UpdateChildProfileBody
 } from "../schemas/child-profiles.schemas.js";
@@ -14,6 +16,11 @@ export type ChildProfileResponse = {
   id: string;
   label: string;
   ageBand: ChildAgeBand;
+  ageMonths: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
+  gender: ChildProfileGender | null;
+  notificationCadence: ChildProfileNotificationCadence;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -168,6 +175,11 @@ export async function createChildProfile(
       profileId,
       label: body.label,
       ageBand: body.ageBand,
+      ageMonths: body.ageMonths ?? null,
+      birthMonth: body.birthMonth ?? null,
+      birthYear: body.birthYear ?? null,
+      gender: body.gender ?? null,
+      notificationCadence: body.notificationCadence,
       isActive: body.isActive
     })
     .returning();
@@ -190,6 +202,11 @@ export async function updateChildProfile(
     .set({
       ...(body.label !== undefined ? { label: body.label } : {}),
       ...(body.ageBand !== undefined ? { ageBand: body.ageBand } : {}),
+      ...(body.ageMonths !== undefined ? { ageMonths: body.ageMonths } : {}),
+      ...(body.birthMonth !== undefined ? { birthMonth: body.birthMonth } : {}),
+      ...(body.birthYear !== undefined ? { birthYear: body.birthYear } : {}),
+      ...(body.gender !== undefined ? { gender: body.gender } : {}),
+      ...(body.notificationCadence !== undefined ? { notificationCadence: body.notificationCadence } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       updatedAt: new Date()
     })
@@ -291,6 +308,11 @@ function mapChildProfile(row: typeof childProfiles.$inferSelect): ChildProfileRe
     id: row.id,
     label: row.label,
     ageBand: row.ageBand,
+    ageMonths: row.ageMonths,
+    birthMonth: row.birthMonth,
+    birthYear: row.birthYear,
+    gender: row.gender,
+    notificationCadence: row.notificationCadence,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()

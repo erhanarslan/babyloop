@@ -6,12 +6,12 @@ export default function AccountChildrenLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading child profiles"
-          description="Checking family profile settings and lifecycle suggestions."
+          title="Çocuğum yükleniyor"
+          description="Çocuk bilgileri hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading child profiles"
-          message="Checking family profile settings and lifecycle suggestions."
+          title="Çocuğum yükleniyor"
+          message="Çocuk bilgileri hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

@@ -8,8 +8,11 @@ import {
 describe("child profile schemas", () => {
   it("accepts a safe child profile create payload", () => {
     const result = createChildProfileBodySchema.safeParse({
-      label: "Baby 1",
+      label: "Çocuğum",
       ageBand: "infant_6_12",
+      ageMonths: 9,
+      gender: "prefer_not_to_say",
+      notificationCadence: "monthly",
       isActive: true
     });
 
@@ -26,8 +29,9 @@ describe("child profile schemas", () => {
       return;
     }
 
-    expect(result.data.label).toBe("Child profile");
+    expect(result.data.label).toBe("Çocuğum");
     expect(result.data.isActive).toBe(true);
+    expect(result.data.notificationCadence).toBe("off");
   });
 
   it("rejects unsupported child age bands", () => {
@@ -47,6 +51,29 @@ describe("child profile schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts birth month and year without exact birth day", () => {
+    const result = createChildProfileBodySchema.safeParse({
+      label: "Kızım",
+      ageBand: "toddler_12_24",
+      birthMonth: 1,
+      birthYear: 2024,
+      gender: "female",
+      notificationCadence: "yearly"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects incomplete birth month and year details", () => {
+    const result = createChildProfileBodySchema.safeParse({
+      label: "Oğlum",
+      ageBand: "toddler_12_24",
+      birthMonth: 1
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("requires at least one update field", () => {
     const result = updateChildProfileBodySchema.safeParse({});
 
@@ -56,6 +83,8 @@ describe("child profile schemas", () => {
   it("accepts safe child profile update payloads", () => {
     const result = updateChildProfileBodySchema.safeParse({
       ageBand: "toddler_12_24",
+      ageMonths: 18,
+      notificationCadence: "off",
       isActive: false
     });
 

@@ -67,6 +67,18 @@ export const childAgeBandEnum = pgEnum("child_age_band", [
   "child_3_plus"
 ]);
 
+export const childProfileGenderEnum = pgEnum("child_profile_gender", [
+  "female",
+  "male",
+  "prefer_not_to_say"
+]);
+
+export const childProfileNotificationCadenceEnum = pgEnum("child_profile_notification_cadence", [
+  "off",
+  "monthly",
+  "yearly"
+]);
+
 export const aiModelRunStatusEnum = pgEnum("ai_model_run_status", [
   "success",
   "error",
@@ -189,8 +201,13 @@ export const childProfiles = pgTable(
     profileId: uuid("profile_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    label: varchar("label", { length: 80 }).notNull().default("Child profile"),
+    label: varchar("label", { length: 80 }).notNull().default("Çocuğum"),
     ageBand: childAgeBandEnum("age_band").notNull(),
+    ageMonths: integer("age_months"),
+    birthMonth: integer("birth_month"),
+    birthYear: integer("birth_year"),
+    gender: childProfileGenderEnum("gender"),
+    notificationCadence: childProfileNotificationCadenceEnum("notification_cadence").notNull().default("off"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -199,7 +216,10 @@ export const childProfiles = pgTable(
     index("child_profiles_profile_id_idx").on(table.profileId),
     index("child_profiles_age_band_idx").on(table.ageBand),
     index("child_profiles_profile_active_idx").on(table.profileId, table.isActive),
-    check("child_profiles_label_not_blank_check", sql`length(trim(${table.label})) > 0`)
+    check("child_profiles_label_not_blank_check", sql`length(trim(${table.label})) > 0`),
+    check("child_profiles_age_months_check", sql`${table.ageMonths} is null or ${table.ageMonths} between 0 and 96`),
+    check("child_profiles_birth_month_check", sql`${table.birthMonth} is null or ${table.birthMonth} between 1 and 12`),
+    check("child_profiles_birth_year_check", sql`${table.birthYear} is null or ${table.birthYear} between 2016 and 2035`)
   ]
 );
 

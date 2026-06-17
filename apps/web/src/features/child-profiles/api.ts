@@ -12,10 +12,19 @@ export type ChildAgeBand =
   | "preschool_24_36"
   | "child_3_plus";
 
+export type ChildProfileGender = "female" | "male" | "prefer_not_to_say";
+
+export type ChildProfileNotificationCadence = "off" | "monthly" | "yearly";
+
 export type ChildProfile = {
   id: string;
   label: string;
   ageBand: ChildAgeBand;
+  ageMonths: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
+  gender: ChildProfileGender | null;
+  notificationCadence: ChildProfileNotificationCadence;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -60,7 +69,16 @@ export async function fetchChildProfiles(
 
 export async function createChildProfile(
   apiBaseUrl: string,
-  payload: { label: string; ageBand: ChildAgeBand; isActive: boolean }
+  payload: {
+    label: string;
+    ageBand: ChildAgeBand;
+    ageMonths?: number | null;
+    birthMonth?: number | null;
+    birthYear?: number | null;
+    gender?: ChildProfileGender | null;
+    notificationCadence: ChildProfileNotificationCadence;
+    isActive: boolean;
+  }
 ): Promise<ApiResponse<ChildProfilePayload>> {
   const response = await authFetch(apiBaseUrl, "/api/v1/child-profiles", {
     method: "POST",
@@ -76,7 +94,16 @@ export async function createChildProfile(
 export async function updateChildProfile(
   apiBaseUrl: string,
   childProfileId: string,
-  payload: Partial<{ label: string; ageBand: ChildAgeBand; isActive: boolean }>
+  payload: Partial<{
+    label: string;
+    ageBand: ChildAgeBand;
+    ageMonths: number | null;
+    birthMonth: number | null;
+    birthYear: number | null;
+    gender: ChildProfileGender | null;
+    notificationCadence: ChildProfileNotificationCadence;
+    isActive: boolean;
+  }>
 ): Promise<ApiResponse<ChildProfilePayload>> {
   const response = await authFetch(apiBaseUrl, `/api/v1/child-profiles/${childProfileId}`, {
     method: "PATCH",

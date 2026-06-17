@@ -5,8 +5,8 @@ import { ChildProfilesPageContent } from "../../../features/child-profiles/child
 import { getApiBaseUrl } from "../../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Child profiles",
-  "BabyLoop account child profile pages are private and not indexed."
+  "Çocuğum",
+  "BabyLoop çocuk bilgileri sayfası özeldir ve indekslenmez."
 );
 
 export default function AccountChildrenPage() {
