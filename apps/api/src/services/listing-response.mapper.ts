@@ -25,6 +25,7 @@ export type ListingSummaryResponse = {
   condition: string;
   category: CategoryBasicResponse;
   firstImage: ListingImageResponse | null;
+  images: ListingImageResponse[];
   createdAt: string;
 };
 
@@ -52,6 +53,7 @@ export function mapListingSummary(value: {
   createdAt: Date;
   category: CategoryBasicResponse;
   firstImage: ListingImageResponse | null;
+  images?: ListingImageResponse[];
 }): ListingSummaryResponse {
   return {
     id: value.id,
@@ -63,6 +65,7 @@ export function mapListingSummary(value: {
     condition: value.condition,
     category: value.category,
     firstImage: value.firstImage,
+    images: value.images ?? (value.firstImage ? [value.firstImage] : []),
     createdAt: value.createdAt.toISOString()
   };
 }

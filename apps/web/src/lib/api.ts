@@ -32,6 +32,7 @@ export type ListingSummary = {
     slug: string;
   };
   firstImage: ListingImage | null;
+  images: ListingImage[];
   createdAt: string;
 };
 
@@ -47,7 +48,7 @@ export type ListingDetail = ListingSummary & {
   updatedAt: string;
 };
 
-export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "firstImage" | "createdAt"> & {
+export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "firstImage" | "images" | "createdAt"> & {
   favoritedAt: string;
 };
 

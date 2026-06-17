@@ -9359,3 +9359,72 @@ body::after {
   border-color: rgba(255, 250, 244, 0.1);
   background: rgba(38, 30, 24, 0.78);
 }
+
+/* Home listing card quick actions */
+.home-product-card {
+  position: relative;
+}
+
+.home-product-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-product-card-favorite {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 1px solid rgba(55, 48, 42, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #8a7868;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 12px 26px rgba(55, 48, 42, 0.14);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.home-product-card-favorite:hover {
+  border-color: rgba(232, 86, 102, 0.32);
+  color: #e85666;
+  transform: scale(1.04);
+}
+
+.home-product-card-favorite.is-favorited {
+  border-color: rgba(232, 86, 102, 0.38);
+  background: rgba(255, 240, 242, 0.95);
+  color: #e85666;
+}
+
+.home-product-card-favorite:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
+}
+
+.dark .home-product-card-favorite {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(38, 30, 24, 0.88);
+  color: #d8c8b8;
+}
+
+.dark .home-product-card-favorite.is-favorited {
+  border-color: rgba(255, 137, 152, 0.36);
+  background: rgba(94, 34, 42, 0.78);
+  color: #ff8998;
+}

@@ -191,10 +191,10 @@ export async function selectListingSummaryRow(app: FastifyInstance, id: string) 
   return row ?? null;
 }
 
-export async function getPublicFirstListingImages(
+export async function getPublicListingImagesByListingIds(
   app: FastifyInstance,
   listingIds: string[]
-): Promise<Map<string, ListingImageResponse>> {
+): Promise<Map<string, ListingImageResponse[]>> {
   if (listingIds.length === 0) {
     return new Map();
   }
@@ -215,21 +215,24 @@ export async function getPublicFirstListingImages(
     )
     .orderBy(asc(listingImages.listingId), asc(listingImages.sortOrder));
 
-  const firstImages = new Map<string, ListingImageResponse>();
+  const imagesByListingId = new Map<string, ListingImageResponse[]>();
 
   for (const image of imageRows) {
-    if (firstImages.has(image.listingId)) {
+    const images = imagesByListingId.get(image.listingId) ?? [];
+
+    if (images.length >= 5) {
       continue;
     }
 
-    firstImages.set(image.listingId, {
+    images.push({
       id: image.id,
       url: image.url,
       sortOrder: image.sortOrder
     });
+    imagesByListingId.set(image.listingId, images);
   }
 
-  return firstImages;
+  return imagesByListingId;
 }
 
 export async function getPublicListingImages(

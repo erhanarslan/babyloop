@@ -18,8 +18,8 @@ import {
   findCategory,
   getFavoriteCounts,
   getOwnerListingImages,
-  getPublicFirstListingImages,
   getPublicListingImages,
+  getPublicListingImagesByListingIds,
   selectActiveListingRows,
   selectListingsBySellerProfileId,
   selectListingDetailRow,
@@ -576,11 +576,8 @@ async function mapListingRows(
   }>
 ): Promise<ListingSummaryResponse[]> {
   const listingIds = rows.map((row) => row.id);
-  const [firstImages, favoriteCounts] = await Promise.all([
-    getPublicFirstListingImages(
-      app,
-      listingIds
-    ),
+  const [imagesByListingId, favoriteCounts] = await Promise.all([
+    getPublicListingImagesByListingIds(app, listingIds),
     getFavoriteCounts(app, listingIds)
   ]);
 
@@ -593,7 +590,8 @@ async function mapListingRows(
         slug: row.categorySlug
       },
       favoriteCount: favoriteCounts.get(row.id) ?? 0,
-      firstImage: firstImages.get(row.id) ?? null
+      firstImage: imagesByListingId.get(row.id)?.[0] ?? null,
+      images: imagesByListingId.get(row.id) ?? []
     })
   );
 }
@@ -621,7 +619,8 @@ async function getListingSummary(
       slug: row.categorySlug
     },
     favoriteCount: favoriteCounts.get(row.id) ?? 0,
-    firstImage: images[0] ?? null
+    firstImage: images[0] ?? null,
+    images
   });
 }
 
