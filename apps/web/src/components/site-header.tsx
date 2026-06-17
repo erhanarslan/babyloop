@@ -258,6 +258,7 @@ export function SiteHeader() {
         </Link>
 
         <SearchOverlay
+            apiBaseUrl={apiBaseUrl}
           className="market-header-search"
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
@@ -292,6 +293,7 @@ export function SiteHeader() {
 
       <div className="market-mobile-search-row">
         <SearchOverlay
+            apiBaseUrl={apiBaseUrl}
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
           selectedCity={selectedCity}
@@ -327,6 +329,7 @@ export function SiteHeader() {
       />
 
       <MobileNavigationDrawer
+        apiBaseUrl={apiBaseUrl}
         currentAuth={currentAuth}
         dictionary={dictionary}
         isOpen={isDrawerOpen}

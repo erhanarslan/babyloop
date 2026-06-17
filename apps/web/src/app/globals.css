@@ -9548,3 +9548,65 @@ body::after {
   position: relative !important;
   z-index: 1 !important;
 }
+
+/* Header search suggestions */
+.market-search {
+  position: relative;
+}
+
+.market-search-suggestions {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid rgba(55, 48, 42, 0.1);
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 42px rgba(55, 48, 42, 0.16);
+  padding: 0.5rem;
+  backdrop-filter: blur(14px);
+}
+
+.market-search-suggestions button {
+  display: grid;
+  gap: 0.16rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+}
+
+.market-search-suggestions button:hover,
+.market-search-suggestions button:focus-visible {
+  background: rgba(36, 132, 108, 0.09);
+  outline: none;
+}
+
+.market-search-suggestions strong {
+  font-weight: 950;
+}
+
+.market-search-suggestions span,
+.market-search-suggestions p {
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  font-weight: 750;
+  margin: 0;
+}
+
+.market-search-suggestions p {
+  padding: 0.8rem 0.85rem;
+}
+
+.dark .market-search-suggestions {
+  border-color: rgba(255, 250, 244, 0.11);
+  background: rgba(38, 30, 24, 0.96);
+}

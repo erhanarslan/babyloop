@@ -11,6 +11,7 @@ import {
 import { SearchOverlay } from "./search-overlay";
 
 type MobileNavigationDrawerProps = {
+  apiBaseUrl: string;
   currentAuth: AuthMe | null;
   dictionary: Dictionary;
   isOpen: boolean;
@@ -25,6 +26,7 @@ type MobileNavigationDrawerProps = {
 };
 
 export function MobileNavigationDrawer({
+  apiBaseUrl,
   currentAuth,
   dictionary,
   isOpen,
@@ -103,6 +105,7 @@ export function MobileNavigationDrawer({
         </section>
 
         <SearchOverlay
+        apiBaseUrl={apiBaseUrl}
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
           selectedCity={selectedCity}
