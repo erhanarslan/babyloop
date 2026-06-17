@@ -15,5 +15,13 @@ export const assistantChatBodySchema = z
   })
   .strict();
 
+export const assistantMessageBodySchema = z
+  .object({
+    message: z.string().trim().min(1).max(1000),
+    locale: z.enum(["tr", "en"]).optional().default("tr")
+  })
+  .strict();
+
 export type AssistantMode = z.infer<typeof assistantModeSchema>;
 export type AssistantChatBody = z.infer<typeof assistantChatBodySchema>;
+export type AssistantMessageBody = z.infer<typeof assistantMessageBodySchema>;

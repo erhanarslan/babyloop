@@ -9739,6 +9739,144 @@ body::after {
   color: #ffffff !important;
 }
 
+/* Simple /assistant Q&A surface */
+.assistant-simple-layout {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.assistant-simple-heading {
+  width: min(100%, 840px);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.assistant-simple-heading h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.assistant-simple-heading p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.assistant-simple-card {
+  width: min(100%, 840px);
+  display: grid;
+  gap: 1rem;
+  border: 1px solid rgba(107, 86, 73, 0.14);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(80, 168, 150, 0.1), transparent 32%),
+    rgba(255, 250, 244, 0.86);
+  padding: clamp(1rem, 2vw, 1.5rem);
+  box-shadow: 0 20px 54px rgba(78, 62, 50, 0.08);
+}
+
+.assistant-simple-composer {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.assistant-simple-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.assistant-simple-answer-area {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.assistant-simple-empty,
+.assistant-simple-message {
+  border: 1px solid rgba(107, 86, 73, 0.12);
+  border-radius: 20px;
+  padding: 1rem;
+}
+
+.assistant-simple-empty {
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.assistant-simple-message {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 92%;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.assistant-simple-message.user {
+  justify-self: end;
+  background: rgba(255, 122, 105, 0.12);
+}
+
+.assistant-simple-message.assistant {
+  justify-self: start;
+}
+
+.assistant-simple-message strong {
+  color: var(--color-text-strong);
+  font-size: 0.9rem;
+}
+
+.assistant-simple-message p {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+}
+
+.assistant-simple-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.assistant-simple-action-row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid rgba(107, 86, 73, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.45rem 0.75rem;
+  color: var(--color-text-strong);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.dark .assistant-simple-card,
+.dark .assistant-simple-empty,
+.dark .assistant-simple-message,
+.dark .assistant-simple-action-row a {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.06);
+}
+
+@media (max-width: 640px) {
+  .assistant-simple-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .assistant-simple-message {
+    max-width: 100%;
+  }
+}
+
 /* Focused /sell listing creation workspace */
 .sell-page-compact-heading {
   display: grid;

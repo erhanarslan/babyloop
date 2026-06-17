@@ -53,13 +53,16 @@ import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
 import { registerAdminAiOpsRoutes } from "./routes/admin-ai-ops.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
+import { createAssistantMessageProvider } from "./services/assistant-ai-provider.service.js";
 import { createListingDraftAiProvider } from "./services/listing-draft-ai-provider.service.js";
 import type {
+  AssistantMessageProvider,
   ListingDraftSuggestionProvider,
   ModerationSummaryProvider
 } from "@babyloop/ai-core";
 
 type CreateAppOptions = {
+  assistantProvider?: AssistantMessageProvider | null;
   config?: ApiRuntimeConfig;
   emailDelivery?: EmailDeliveryService;
   googleOAuthClient?: GoogleOAuthClient;
@@ -75,6 +78,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const moderationSummaryProvider =
     options.moderationSummaryProvider ??
     createAdminModerationAiSummaryProvider(config.aiModerationSummary);
+  const assistantProvider =
+    options.assistantProvider ??
+    createAssistantMessageProvider(config.assistant);
   const listingDraftSuggestionProvider =
     options.listingDraftSuggestionProvider ??
     createListingDraftAiProvider(config.aiListingDraft);
@@ -225,7 +231,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
-    app.register(registerAssistantRoutes, { prefix: API_PREFIX });
+    app.register(registerAssistantRoutes, { assistantProvider, prefix: API_PREFIX });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
@@ -258,7 +264,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
-    app.register(registerAssistantRoutes, { prefix: API_PREFIX });
+    app.register(registerAssistantRoutes, { assistantProvider, prefix: API_PREFIX });
 
     if (config.allowAuthUnavailable) {
       app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });

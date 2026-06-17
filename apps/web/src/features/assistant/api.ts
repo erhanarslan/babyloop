@@ -45,6 +45,16 @@ export type AssistantChatPayload = {
   reply: AssistantChatReply;
 };
 
+export type AssistantMessageAction = {
+  href: string;
+  label: string;
+};
+
+export type AssistantMessagePayload = {
+  answer: string;
+  actions?: AssistantMessageAction[];
+};
+
 export async function requestAssistantChat(
   apiBaseUrl: string,
   payload: AssistantChatRequest
@@ -65,7 +75,36 @@ export async function requestAssistantChat(
       ok: false,
       error: {
         code: "API_UNAVAILABLE",
-        message: "BabyLoop Assistant is unavailable."
+        message: "Asistan şu an yapılandırılmadı. Daha sonra tekrar deneyebilirsin."
+      }
+    };
+  }
+}
+
+export async function requestAssistantMessage(
+  apiBaseUrl: string,
+  payload: {
+    message: string;
+    locale?: "tr" | "en";
+  }
+): Promise<ApiResponse<AssistantMessagePayload>> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/assistant/messages`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return response.json() as Promise<ApiResponse<AssistantMessagePayload>>;
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "API_UNAVAILABLE",
+        message: "Asistan şu an yapılandırılmadı. Daha sonra tekrar deneyebilirsin."
       }
     };
   }

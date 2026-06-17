@@ -26,6 +26,30 @@ export type ListingSuggestionProvider = {
   suggestListing(input: ListingSuggestionInput): Promise<ListingSuggestionOutput>;
 };
 
+export type AssistantMessageInput = {
+  message: string;
+  locale?: "tr" | "en";
+};
+
+export type AssistantMessageAction = {
+  label: string;
+  href: string;
+};
+
+export type AssistantMessageOutput = {
+  answer: string;
+  actions: AssistantMessageAction[];
+  providerName: string;
+  promptVersion: string;
+  modelName?: string;
+};
+
+export type AssistantMessageProvider = {
+  readonly providerName: string;
+  readonly modelName?: string;
+  answerMessage(input: AssistantMessageInput): Promise<AssistantMessageOutput>;
+};
+
 export type ListingDraftSuggestionCondition = "new" | "like_new" | "good" | "fair" | "needs_repair";
 
 export type ListingDraftSuggestionListingType = "sale" | "swap" | "donation";

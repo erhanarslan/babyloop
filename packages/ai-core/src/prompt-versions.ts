@@ -1,5 +1,9 @@
 export const LISTING_SUGGESTION_PROMPT_VERSION = "listing_suggestion.mock.v1" as const;
 
+export const ASSISTANT_MESSAGE_PROMPT_VERSION = "assistant_message.mock.v1" as const;
+
+export const ASSISTANT_MESSAGE_OPENAI_PROMPT_VERSION = "assistant_message.openai.v1" as const;
+
 export const LISTING_DRAFT_SUGGESTION_PROMPT_VERSION = "listing_draft_suggestion.mock.v1" as const;
 
 export const LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION = "listing_draft_suggestion.openai.v1" as const;

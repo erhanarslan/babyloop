@@ -5,9 +5,9 @@ import { getApiBaseUrl } from "../../lib/api";
 import { buildPublicPageMetadata } from "../../lib/seo";
 
 export const metadata: Metadata = buildPublicPageMetadata({
-  title: "BabyLoop Assistant",
+  title: "BabyLoop Asistan",
   description:
-    "Use BabyLoop Assistant for marketplace-focused product discovery, seller listing preparation, safer second-hand buying checks, and age-band planning.",
+    "BabyLoop Asistan ile ürün, ilan ve ebeveynlik sorularını kısa ve anlaşılır şekilde sor.",
   path: "/assistant"
 });
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assistantChatBodySchema } from "../src/schemas/assistant.schemas.js";
+import { mockAssistantMessageProvider } from "@babyloop/ai-core";
+import {
+  assistantChatBodySchema,
+  assistantMessageBodySchema
+} from "../src/schemas/assistant.schemas.js";
 
 describe("assistant schemas", () => {
   it("accepts a valid assistant chat request", () => {
@@ -48,5 +52,44 @@ describe("assistant schemas", () => {
         extra: true
       }).success
     ).toBe(false);
+  });
+
+  it("accepts a valid Turkish assistant message request", () => {
+    const result = assistantMessageBodySchema.safeParse({
+      message: "  12 aylık bebeğim var nelere dikkat etmeliyim  ",
+      locale: "tr"
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.success ? result.data.message : "").toBe(
+      "12 aylık bebeğim var nelere dikkat etmeliyim"
+    );
+  });
+
+  it("rejects empty assistant message requests and unknown fields", () => {
+    expect(
+      assistantMessageBodySchema.safeParse({
+        message: "   "
+      }).success
+    ).toBe(false);
+
+    expect(
+      assistantMessageBodySchema.safeParse({
+        message: "Merhaba",
+        rawPrompt: true
+      }).success
+    ).toBe(false);
+  });
+
+  it("mock assistant provider answers Turkish 12-month questions directly", async () => {
+    const answer = await mockAssistantMessageProvider.answerMessage({
+      locale: "tr",
+      message: "12 aylık bebeğim var nelere dikkat etmeliyim"
+    });
+
+    expect(answer.answer).toContain("12 aylık dönemde");
+    expect(answer.answer).toContain("Evde sivri köşe");
+    expect(answer.answer).not.toContain("privacy-light");
+    expect(answer.answer).not.toContain("upcoming-needs");
   });
 });

@@ -35,62 +35,62 @@ export type AssistantChatReply = {
 
 const NEWBORN_TOPIC: AssistantTopic = {
   id: "newborn-first-needs",
-  title: "Newborn first needs",
-  eyebrow: "0-3 months",
-  summary: "A practical starter list for parents preparing the first weeks at home.",
-  stageLabel: "Newborn stage",
-  commonMisconception: "Everything must be bought brand new before birth.",
+  title: "İlk aylar için temel ihtiyaçlar",
+  eyebrow: "0-3 ay",
+  summary: "İlk haftaları sade planlamak isteyen ebeveynler için kısa ihtiyaç özeti.",
+  stageLabel: "Yenidoğan dönemi",
+  commonMisconception: "Her şey doğumdan önce sıfır alınmalı.",
   guidance:
-    "Plan low-risk items gradually and check safety-critical products carefully for missing parts, hygiene, and current condition.",
-  browseHref: "/browse?q=newborn&sort=newest"
+    "Acil olmayan ürünleri zamana yay; güvenlik açısından kritik ürünlerde eksik parça, hijyen ve mevcut durumu dikkatle kontrol et.",
+  browseHref: "/browse?q=yenidoğan&sort=newest"
 };
 
 const GEAR_SAFETY_TOPIC: AssistantTopic = {
   id: "baby-gear-safety",
-  title: "Second-hand baby gear safety",
-  eyebrow: "Buying guide",
-  summary: "A simple checklist for strollers, carriers, feeding chairs, and similar gear.",
-  stageLabel: "Gear decisions",
-  commonMisconception: "If the product looks clean in photos, it is automatically safe.",
+  title: "İkinci el bebek ürünlerinde kontrol",
+  eyebrow: "Alışveriş kontrolü",
+  summary: "Bebek arabası, taşıyıcı, mama sandalyesi ve benzeri ürünler için kısa kontrol listesi.",
+  stageLabel: "Ürün kontrolü",
+  commonMisconception: "Fotoğrafta temiz görünüyorsa otomatik olarak güvenlidir.",
   guidance:
-    "Ask about product history, missing parts, stability, moving mechanisms, fabric condition, and whether extra photos are available.",
+    "Ürünün kullanım geçmişini, eksik parçasını, dengesini, hareketli mekanizmalarını, kumaş durumunu ve ek fotoğraf olup olmadığını sor.",
   browseHref: "/browse?hasImages=true&sort=newest"
 };
 
 const SIX_TO_TWELVE_TOPIC: AssistantTopic = {
   id: "six-to-twelve-months",
-  title: "6-12 month discovery list",
-  eyebrow: "6-12 months",
-  summary: "Useful categories as babies start sitting, exploring, eating, and moving more.",
-  stageLabel: "Exploration stage",
-  commonMisconception: "More toys always means better development.",
+  title: "6-12 ay keşif listesi",
+  eyebrow: "6-12 ay",
+  summary: "Oturma, keşif, beslenme ve hareketin arttığı dönem için pratik kategori özeti.",
+  stageLabel: "Keşif dönemi",
+  commonMisconception: "Daha çok oyuncak her zaman daha iyi gelişim demektir.",
   guidance:
-    "A smaller set of age-appropriate, easy-to-clean, safe items is often more useful than buying many similar products at once.",
-  browseHref: "/browse?q=6-12&sort=newest"
+    "Yaşa uygun, kolay temizlenen ve güvenli az sayıda ürün çoğu zaman çok sayıda benzer üründen daha faydalıdır.",
+  browseHref: "/browse?q=6-12 ay&sort=newest"
 };
 
 const TODDLER_TOPIC: AssistantTopic = {
   id: "toddler-mobility",
-  title: "Toddler mobility and play",
-  eyebrow: "12-24 months",
-  summary: "A parent-friendly list for movement, outdoor time, toys, clothing, and daily routines.",
-  stageLabel: "Toddler stage",
-  commonMisconception: "Toddlers only need toys; routine products do not matter much.",
+  title: "12-24 ay hareket ve oyun",
+  eyebrow: "12-24 ay",
+  summary: "Hareket, dışarı çıkma, oyuncak, kıyafet ve günlük rutinler için kısa özet.",
+  stageLabel: "Hareket dönemi",
+  commonMisconception: "Bu dönemde sadece oyuncak gerekir; rutin ürünleri çok önemli değildir.",
   guidance:
-    "Practical daily-use products such as weather-ready clothing, feeding helpers, and safe activity toys can be as useful as larger gear.",
-  browseHref: "/browse?q=toddler&sort=newest"
+    "Mevsime uygun kıyafet, beslenme yardımcısı ve güvenli aktivite oyuncakları büyük ürünler kadar işe yarayabilir.",
+  browseHref: "/browse?q=12-24 ay&sort=newest"
 };
 
 const PRESCHOOL_TOPIC: AssistantTopic = {
   id: "preschool-practical-needs",
-  title: "Preschool practical needs",
-  eyebrow: "24-36 months",
-  summary: "A compact guide for parents planning the next stage of clothing, play, travel, and routines.",
-  stageLabel: "Preschool stage",
-  commonMisconception: "Older toddlers need fewer marketplace checks.",
+  title: "24-36 ay pratik ihtiyaçlar",
+  eyebrow: "24-36 ay",
+  summary: "Kıyafet, oyun, seyahat ve rutinleri planlamak için kısa rehber.",
+  stageLabel: "Okul öncesi hazırlık",
+  commonMisconception: "Çocuk büyüdükçe ikinci el ürün kontrolü daha az önemlidir.",
   guidance:
-    "Needs change quickly around this stage. Saved searches can help parents follow size, season, and category needs without browsing from scratch.",
-  browseHref: "/browse?q=preschool&sort=newest"
+    "Bu dönemde ihtiyaçlar hızlı değişir. Kayıtlı aramalar beden, sezon ve kategori takibini kolaylaştırabilir.",
+  browseHref: "/browse?q=24-36 ay&sort=newest"
 };
 
 const ASSISTANT_TOPICS = [
@@ -102,9 +102,9 @@ const ASSISTANT_TOPICS = [
 ];
 
 const SAFETY_DISCLAIMERS = [
-  "BabyLoop Assistant provides marketplace guidance, not diagnosis, treatment, diet, therapy, or child-specific medical advice.",
-  "Do not share unnecessary private contact details or sensitive child information.",
-  "For safety-sensitive products, verify condition, missing parts, and product history before use."
+  "BabyLoop Asistan tanı, tedavi, ilaç, terapi veya beslenme planı vermez.",
+  "Gereksiz özel iletişim bilgisi veya hassas çocuk bilgisi paylaşma.",
+  "Güvenlik açısından önemli ürünlerde kullanım öncesi durumu, eksik parçaları ve ürün geçmişini kontrol et."
 ];
 
 export function createAssistantChatReply(input: AssistantChatBody): AssistantChatReply {
@@ -115,12 +115,12 @@ export function createAssistantChatReply(input: AssistantChatBody): AssistantCha
       return buildReply({
         mode: input.mode,
         content:
-          "Start with the closest category, filter for listings with photos, and save the search if this is an upcoming need. Related guide topics can help you ask better questions before messaging a seller.",
+          "En yakın kategoriyle başla, fotoğraflı ilanları öne al ve bu ihtiyaç yakında olacaksa aramayı kaydet. Satıcıya yazmadan önce ürün durumu, eksik parça ve teslim bilgisini sorman iyi olur.",
         topic,
         actions: [
-          { href: topic?.browseHref ?? "/browse?hasImages=true&sort=newest", label: "Find listings" },
-          { href: "/account/saved-searches", label: "Saved searches" },
-          { href: "/guides", label: "Read guides" }
+          { href: topic?.browseHref ?? "/browse?hasImages=true&sort=newest", label: "İlanlara bak" },
+          { href: "/account/saved-searches", label: "Kayıtlı aramalar" },
+          { href: "/guides", label: "Ebeveyn rehberi" }
         ],
         confidenceScore: topic ? 0.82 : 0.68
       });
@@ -129,12 +129,12 @@ export function createAssistantChatReply(input: AssistantChatBody): AssistantCha
       return buildReply({
         mode: input.mode,
         content:
-          "For a stronger listing, include product type, condition, missing parts, accessories, usage history, clear photos, pickup expectations, and whether the price is flexible. Then use the listing draft and price suggestion tools before publishing.",
+          "Daha net bir ilan için ürün tipini, durumunu, eksik parçaları, aksesuarları, kullanım süresini, temiz fotoğrafları, teslim beklentisini ve fiyatın esnek olup olmadığını yaz.",
         topic,
         actions: [
-          { href: "/sell", label: "Open sell form" },
-          { href: "/account/seller", label: "Seller dashboard" },
-          { href: "/guides", label: "Read guides" }
+          { href: "/sell", label: "İlan oluştur" },
+          { href: "/account/seller", label: "Satıcı paneli" },
+          { href: "/guides", label: "Ebeveyn rehberi" }
         ],
         confidenceScore: topic ? 0.8 : 0.7
       });
@@ -143,12 +143,12 @@ export function createAssistantChatReply(input: AssistantChatBody): AssistantCha
       return buildReply({
         mode: input.mode,
         content:
-          "Use a privacy-light child age band to prepare an upcoming-needs list. BabyLoop can turn stage needs into category links, guide topics, and saved-search ideas without storing exact birth dates.",
+          "Yaş dönemini kabaca düşünerek yaklaşan ihtiyaçları sade bir listeye çevirebilirsin. Kesin doğum günü gibi hassas bilgi vermeden kategori, rehber ve kayıtlı arama fikirleri oluşturabilirsin.",
         topic: topic ?? NEWBORN_TOPIC,
         actions: [
-          { href: "/account/children", label: "Manage child profiles" },
-          { href: topic?.browseHref ?? "/browse?sort=newest", label: "Browse related items" },
-          { href: "/guides", label: "Open parent guides" }
+          { href: "/account/children", label: "Çocuğum" },
+          { href: topic?.browseHref ?? "/browse?sort=newest", label: "İlanlara bak" },
+          { href: "/guides", label: "Ebeveyn rehberi" }
         ],
         confidenceScore: topic ? 0.86 : 0.72
       });
@@ -157,11 +157,11 @@ export function createAssistantChatReply(input: AssistantChatBody): AssistantCha
       return buildReply({
         mode: input.mode,
         content:
-          "Before buying second-hand, ask about usage history, missing parts, defects, cleaning needs, included accessories, and whether the product has had any safety issue. Be extra careful with safety-sensitive gear.",
+          "İkinci el ürün almadan önce kullanım geçmişini, eksik parçaları, kusurları, temizlik ihtiyacını, dahil olan aksesuarları ve güvenlik sorunu yaşanıp yaşanmadığını sor. Oto koltuğu ve benzeri ürünlerde daha dikkatli ol.",
         topic: topic ?? GEAR_SAFETY_TOPIC,
         actions: [
-          { href: "/guides", label: "Open safety guides" },
-          { href: "/browse?hasImages=true&sort=newest", label: "Browse with photos" }
+          { href: "/guides", label: "Ebeveyn rehberi" },
+          { href: "/browse?hasImages=true&sort=newest", label: "İlanlara bak" }
         ],
         confidenceScore: topic ? 0.9 : 0.78
       });
@@ -170,12 +170,12 @@ export function createAssistantChatReply(input: AssistantChatBody): AssistantCha
       return buildReply({
         mode: input.mode,
         content:
-          "Browse categories, open listings, save useful searches, add child age bands for lifecycle suggestions, and message sellers through BabyLoop. Sellers can use draft and price guidance before publishing.",
+          "Kategorilerden gezebilir, ilanları açabilir, faydalı aramaları kaydedebilir, Çocuğum alanıyla ihtiyaçları takip edebilir ve satıcılara BabyLoop içinden mesaj yazabilirsin.",
         topic: null,
         actions: [
-          { href: "/browse", label: "Browse" },
-          { href: "/account/children", label: "Child profiles" },
-          { href: "/sell", label: "Sell" }
+          { href: "/browse", label: "İlanlara bak" },
+          { href: "/account/children", label: "Çocuğum" },
+          { href: "/sell", label: "İlan oluştur" }
         ],
         confidenceScore: 0.76
       });
