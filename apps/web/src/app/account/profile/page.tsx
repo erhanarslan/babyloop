@@ -5,8 +5,8 @@ import { getApiBaseUrl } from "../../../lib/api";
 import { buildNoIndexMetadata } from "../../../lib/seo";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Account profile",
-  "BabyLoop account profile pages are private and not indexed."
+  "Hesabım",
+  "BabyLoop hesap sayfaları özel alandır ve indekslenmez."
 );
 
 export default function AccountProfilePage() {
