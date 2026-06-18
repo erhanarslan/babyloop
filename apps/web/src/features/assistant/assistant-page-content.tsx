@@ -12,6 +12,7 @@ import {
   requestAssistantMessage,
   type AssistantMessageAction
 } from "./api";
+import styles from "./assistant-page-content.module.css";
 
 type AssistantMessage = {
   id: string;
@@ -83,14 +84,14 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   }
 
   return (
-    <PageContainer className="assistant-simple-layout" ariaLabel="BabyLoop Asistan">
-      <header className="assistant-simple-heading">
+    <PageContainer className={styles.layout ?? ""} ariaLabel="BabyLoop Asistan">
+      <header className={styles.heading}>
         <h1>BabyLoop Asistan</h1>
         <p>Ürün, ilan ve ebeveynlik sorularını kısa şekilde sorabilirsin.</p>
       </header>
 
-      <section className="assistant-simple-card" aria-label="Sorunu yaz">
-        <form className="assistant-simple-composer" onSubmit={handleSubmit}>
+      <section className={styles.card} aria-label="Sorunu yaz">
+        <form className={styles.composer} onSubmit={handleSubmit}>
           <Textarea
             label="Sorunu yaz"
             maxLength={1000}
@@ -100,7 +101,7 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
             value={inputValue}
             wide
           />
-          <div className="assistant-simple-actions">
+          <div className={styles.actions}>
             <span>{inputValue.length}/1000</span>
             <Button type="submit" disabled={isPending || inputValue.trim().length === 0}>
               {isPending ? "Yanıt hazırlanıyor..." : "Sor"}
@@ -112,9 +113,9 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           <Alert title="Asistan kullanılamıyor" message={errorMessage} />
         ) : null}
 
-        <div className="assistant-simple-answer-area" aria-live="polite">
+        <div className={styles.answerArea} aria-live="polite">
           {messages.length === 0 && !isPending ? (
-            <div className="assistant-simple-empty">
+            <div className={styles.empty}>
               Sorunu yaz, kısa ve anlaşılır bir yanıt hazırlayalım.
             </div>
           ) : null}
@@ -124,7 +125,7 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           ))}
 
           {isPending ? (
-            <article className="assistant-simple-message assistant">
+            <article className={`${styles.message} ${styles.assistant}`}>
               <strong>Yanıt hazırlanıyor...</strong>
             </article>
           ) : null}
@@ -135,13 +136,15 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
 }
 
 function AssistantMessageCard({ message }: { message: AssistantMessage }) {
+  const roleClassName = message.role === "assistant" ? styles.assistant : styles.user;
+
   return (
-    <article className={`assistant-simple-message ${message.role}`}>
+    <article className={`${styles.message} ${roleClassName}`}>
       <strong>{message.role === "assistant" ? "Yanıt" : "Sen"}</strong>
       <p>{message.content}</p>
 
       {message.actions && message.actions.length > 0 ? (
-        <div className="assistant-simple-action-row">
+        <div className={styles.actionRow}>
           {message.actions.map((action) => (
             <Link href={action.href} key={`${action.href}-${action.label}`}>
               {localizeActionLabel(action.label, action.href)}

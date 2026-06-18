@@ -29,6 +29,7 @@ import {
   formatListingStatus,
   formatListingType
 } from "./listing-display";
+import styles from "./browse-page-content.module.css";
 
 type BrowsePageContentProps = {
   apiBaseUrl: string;
@@ -266,16 +267,16 @@ export function BrowsePageContent({
           ) : null}
 
           {!error ? (
-            <div className="listing-results-summary">
+            <div className={styles.resultsSummary}>
               <div>
                 <h1 className="text-2xl font-black tracking-tight text-foreground">
                   {pagination.total} ilan
                 </h1>
-                <p className="listing-results-helper">
+                <p className={styles.resultsHelper}>
                   {filters.sort === "newest" ? "En yeni ilanlar listeleniyor." : title}
                 </p>
               </div>
-              <div className="listing-results-actions" aria-label="Browse next steps">
+              <div className={styles.resultsActions} aria-label="Browse next steps">
                 <Link href="/account/saved-searches">Kayıtlı aramalar</Link>
                 <Link href={browseAssistantHref}>Asistana sor</Link>
               </div>
@@ -411,7 +412,7 @@ function BrowseNoResultsPanel({
   const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : null;
 
   return (
-    <Card as="section" className="browse-no-results-card">
+    <Card as="section" className={styles.noResultsCard ?? ""}>
       <div>
         <p className="eyebrow">Sonuç yok</p>
         <h2>
@@ -426,13 +427,13 @@ function BrowseNoResultsPanel({
         </p>
       </div>
 
-      <div className="browse-no-results-actions">
+      <div className={styles.noResultsActions}>
         <Link href={clearFiltersHref}>{hasActiveFilters ? "Filtreleri temizle" : "Tüm ilanlar"}</Link>
         <Link href={assistantHref}>Asistana sor</Link>
         <Link href="/sell">İlan ver</Link>
       </div>
 
-      <ul className="browse-no-results-tips" aria-label="Ways to continue browsing">
+      <ul className={styles.noResultsTips} aria-label="Ways to continue browsing">
         <li>Fiyat aralığını genişletmeyi dene.</li>
         <li>Sadece görselli filtreliyse bu seçimi kaldır.</li>
         <li>Benzer ihtiyaçlar için aramayı kaydet.</li>
@@ -620,7 +621,7 @@ function ListingCard({
   const { dictionary } = useI18n();
 
   return (
-    <article className="listing-card listing-card-discovery">
+    <article className={`listing-card ${styles.listingCard}`}>
       <ListingImageFrame
         alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
         apiBaseUrl={apiBaseUrl}
@@ -630,7 +631,7 @@ function ListingCard({
       />
       <div className="listing-card-body">
         <div>
-          <div className="listing-card-topline">
+          <div className={styles.cardTopline}>
             <div className="listing-card-badges">
               <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
               <Badge tone="success">
@@ -651,7 +652,7 @@ function ListingCard({
         </div>
 
         <div className="listing-card-footer">
-          <div className="listing-card-price-stack">
+          <div className={styles.priceStack}>
             <strong>{formatListingPrice(listing.price, dictionary)}</strong>
             <span>{listing.favoriteCount} favori · {formatListingCondition(listing.condition, dictionary)}</span>
           </div>

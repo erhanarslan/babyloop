@@ -424,7 +424,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         />
       ) : null}
 
-      <div className="listing-grid seller-management-grid">
+      <div className="listing-grid items-stretch">
         {filteredListings.map((listing) => {
           const isPending = pendingListingId === listing.id;
           const isEditing = editListingId === listing.id;
@@ -437,7 +437,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
           const firstImageId = listing.firstImage?.id ?? null;
 
           return (
-            <article className="listing-card seller-listing-card" key={listing.id}>
+            <article
+              className="listing-card relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[0.22rem] before:bg-gradient-to-r before:from-sky-500/85 before:to-emerald-500/80 before:content-['']"
+              key={listing.id}
+            >
               <ListingImageFrame
                 alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
                 apiBaseUrl={apiBaseUrl}
@@ -469,7 +472,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
                 {isEditing ? (
                   <form
-                    className="listing-inline-form seller-inline-edit"
+                    className="listing-inline-form rounded-[1.25rem] border border-border bg-slate-50/90 p-4"
                     onSubmit={(event) => {
                       void handleEditSubmit(listing.id, event);
                     }}

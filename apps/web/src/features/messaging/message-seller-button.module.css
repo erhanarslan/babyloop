@@ -1,0 +1,23 @@
+.action {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.guidance {
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  background: rgba(248, 250, 252, 0.88);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+}
+
+.guidance strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--foreground);
+}
+
+.guidance span {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}

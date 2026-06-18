@@ -118,24 +118,24 @@ export function AccountSurfaceGuide({ kind }: AccountSurfaceGuideProps) {
   const config = GUIDE_CONFIGS[kind];
 
   return (
-    <Card as="section" className="account-surface-guide">
-      <div className="account-surface-guide-header">
+    <Card as="section" className="grid gap-4">
+      <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
         <div>
           <p className="eyebrow">{config.eyebrow}</p>
-          <h2>{config.title}</h2>
+          <h2 className="mb-1">{config.title}</h2>
           <p className="form-note">{config.description}</p>
         </div>
         <Badge>{config.badge}</Badge>
       </div>
 
-      <div className="account-surface-guide-body">
-        <ul className="question-list">
+      <div className="grid gap-4 border-t border-border pt-4">
+        <ul className="question-list m-0 pl-5">
           {config.steps.map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ul>
 
-        <div className="home-personalization-actions">
+        <div className="home-personalization-actions max-[700px]:flex-col max-[700px]:items-stretch [&_a]:max-[700px]:w-full [&_a]:max-[700px]:justify-center">
           {config.actions.map((action) => (
             <Link href={action.href} key={`${action.href}-${action.label}`}>
               {action.label}

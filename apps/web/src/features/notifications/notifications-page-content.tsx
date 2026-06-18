@@ -34,6 +34,7 @@ import {
   getNotificationTitle,
   sortNotifications
 } from "./notification-summary";
+import styles from "./notifications-page-content.module.css";
 import { dispatchNotificationUnreadCountUpdated } from "./unread-count-events";
 
 type NotificationsPageContentProps = {
@@ -194,8 +195,8 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
   }
 
   return (
-    <PageContainer className="notifications-archive">
-      <section className="notifications-archive-header">
+    <PageContainer className={styles.archive ?? ""}>
+      <section className={styles.archiveHeader}>
         <div>
           <h1>Bildirimler</h1>
           <p>Mesaj ve ilan hareketlerini burada görebilirsin.</p>
@@ -219,12 +220,12 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
           actionLabel={dictionary.common.login}
         />
       ) : (
-        <section className="notifications-archive-card" aria-label="Bildirim özeti">
+        <section className={styles.archiveCard} aria-label="Bildirim özeti">
           {actionMessage ? (
             <Alert title="İşlem tamamlanamadı" message={actionMessage} />
           ) : null}
 
-          <div className="notifications-summary-grid">
+          <div className={styles.summaryGrid}>
             <div>
               <span>Okunmamış mesaj</span>
               <strong>{summary.unreadMessageCount}</strong>
@@ -237,7 +238,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
             </div>
           </div>
 
-          <section className="notifications-favorite-group" aria-label="Favori hareketleri">
+          <section className={styles.favoriteGroup} aria-label="Favori hareketleri">
             <h2>Favoriler</h2>
             {summary.favoriteAggregates.length > 0 ? (
               <ol>
@@ -257,7 +258,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
             )}
           </section>
 
-          <section className="notifications-recent-list" aria-label="Son bildirimler">
+          <section className={styles.recentList} aria-label="Son bildirimler">
             <h2>Son hareketler</h2>
             {recentNotifications.length > 0 ? (
               <ol>
@@ -293,13 +294,13 @@ function NotificationArchiveItem({
   const isUnread = !notification.readAt;
 
   return (
-    <li className={isUnread ? "notifications-archive-item unread" : "notifications-archive-item"}>
+    <li className={isUnread ? `${styles.archiveItem} ${styles.unread}` : styles.archiveItem}>
       <div>
         <strong>{getNotificationTitle(notification)}</strong>
         <p>{getNotificationBody(notification)}</p>
         <time>{formatDateTime(notification.createdAt, locale)}</time>
       </div>
-      <div className="notifications-archive-item-actions">
+      <div className={styles.archiveItemActions}>
         <span>{isUnread ? "Okunmadı" : "Okundu"}</span>
         {destination ? <Link href={destination}>Aç</Link> : null}
       </div>

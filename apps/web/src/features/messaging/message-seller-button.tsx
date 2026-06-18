@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "../../lib/api-error-message";
 import { recordProductEvent } from "../product-events/api";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { createOrGetConversation } from "./api";
+import styles from "./message-seller-button.module.css";
 
 type MessageSellerButtonProps = {
   apiBaseUrl: string;
@@ -103,8 +104,8 @@ export function MessageSellerButton({
 
   if (!isLoadingUser && isAuthenticated === false) {
     return (
-      <div className="message-seller-action message-seller-action-polished">
-        <div className="message-seller-guidance">
+      <div className={styles.action}>
+        <div className={styles.guidance}>
           <strong>BabyLoop içinde mesajlaş</strong>
           <span>Özel iletişim bilgisi paylaşmadan ilanla ilgili soru sormak için giriş yap.</span>
         </div>
@@ -117,7 +118,7 @@ export function MessageSellerButton({
 
   if (isLoadingUser) {
     return (
-      <div className="message-seller-action message-seller-action-polished">
+      <div className={styles.action}>
         <Button variant="secondary" disabled>
           {dictionary.messaging.checkingSeller}
         </Button>
@@ -127,8 +128,8 @@ export function MessageSellerButton({
 
   if (currentProfileId === sellerProfileId) {
     return (
-      <div className="message-seller-action message-seller-action-polished">
-        <div className="message-seller-guidance">
+      <div className={styles.action}>
+        <div className={styles.guidance}>
           <strong>Senin ilanın</strong>
           <span>İlan aktif veya rezerve durumdayken alıcılar sana bu sayfadan mesaj yazabilir.</span>
         </div>
@@ -140,8 +141,8 @@ export function MessageSellerButton({
   }
 
   return (
-    <div className="message-seller-action message-seller-action-polished">
-      <div className="message-seller-guidance">
+    <div className={styles.action}>
+      <div className={styles.guidance}>
         <strong>Mesaj atmadan önce</strong>
         <span>Ürünün durumu, eksik parça, ek fotoğraf, teslim zamanı ve müsaitlik hakkında sorabilirsin.</span>
       </div>

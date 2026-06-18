@@ -21,6 +21,7 @@ import {
   formatListingCondition
 } from "./listing-display";
 import type { ListingCondition, ListingType } from "./listing-form-options";
+import styles from "./sell-listing-form.module.css";
 import { SellListingFields } from "./sell-listing-fields";
 
 type SellListingFormProps = {
@@ -226,8 +227,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   }
 
   return (
-    <form className="sell-create-workspace" ref={formRef} onSubmit={handleSubmit}>
-      <section className="sell-create-fields" aria-label="İlan bilgileri">
+    <form className={styles.workspace} ref={formRef} onSubmit={handleSubmit}>
+      <section className={styles.fields} aria-label="İlan bilgileri">
         {!hasCategories ? (
           <Alert
             title="Kategoriler yüklenemedi"
@@ -235,7 +236,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           />
         ) : null}
 
-        <div className="sell-section-heading">
+        <div className={styles.sectionHeading}>
           <h2>İlan bilgileri</h2>
           <p>Yayınlamadan önce bilgileri kontrol et.</p>
         </div>
@@ -255,8 +256,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         </div>
       </section>
 
-      <aside className="sell-create-side-panel" aria-label="Görseller ve AI önerileri">
-        <section className="sell-image-panel" aria-label="Görseller">
+      <aside className={styles.sidePanel} aria-label="Görseller ve AI önerileri">
+        <section className={styles.imagePanel} aria-label="Görseller">
           <div className="image-upload-header">
             <div>
               <h2>Görseller</h2>
@@ -265,7 +266,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
             <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} görsel</Badge>
           </div>
 
-          <label className="file-upload-label sell-file-upload-label">
+          <label className={`file-upload-label ${styles.fileUploadLabel}`}>
             <span>Görsel ekle</span>
             <input
               accept="image/jpeg,image/png,image/webp"
@@ -277,12 +278,12 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           </label>
 
           {selectedImages.length === 0 ? (
-            <div className="sell-image-empty">
+            <div className={styles.imageEmpty}>
               <strong>Ürünü net gösteren fotoğraflar ekle.</strong>
               <span>Ön, yan, kullanım izi ve varsa aksesuarları göstermek ailelerin kararını kolaylaştırır.</span>
             </div>
           ) : (
-            <ul className="sell-image-preview-grid">
+            <ul className={styles.previewGrid}>
               {selectedImages.map((image) => (
                 <li key={image.id}>
                   <img src={image.previewUrl} alt="" />
@@ -303,8 +304,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           )}
         </section>
 
-        <section className="sell-ai-panel" aria-label="AI önerileri">
-          <div className="sell-section-heading">
+        <section className={styles.aiPanel} aria-label="AI önerileri">
+          <div className={styles.sectionHeading}>
             <h2>AI önerileri</h2>
             <p>Görselleri ve mevcut alanları inceler; önerileri sen onaylamadan forma yazmaz.</p>
           </div>
@@ -361,8 +362,8 @@ function AiDraftSuggestionReview({
     : undefined;
 
   return (
-    <div className="sell-ai-suggestion-review">
-      <div className="sell-ai-suggestion-header">
+    <div className={styles.suggestionReview}>
+      <div className={styles.suggestionHeader}>
         <strong>Öneri güveni: {formatConfidence(suggestion.confidence)}</strong>
       </div>
 
@@ -407,7 +408,7 @@ function AiDraftSuggestionReview({
       </dl>
 
       {suggestion.imageFeedback.length > 0 ? (
-        <div className="sell-ai-list-block">
+        <div className={styles.listBlock}>
           <strong>Görsel notları</strong>
           <ul>
             {suggestion.imageFeedback.map((item, index) => (
@@ -420,7 +421,7 @@ function AiDraftSuggestionReview({
       ) : null}
 
       {suggestion.missingDetails.length > 0 ? (
-        <div className="sell-ai-list-block">
+        <div className={styles.listBlock}>
           <strong>Eksik bilgiler</strong>
           <ul>
             {suggestion.missingDetails.map((item) => (
@@ -431,7 +432,7 @@ function AiDraftSuggestionReview({
       ) : null}
 
       {suggestion.warnings.length > 0 ? (
-        <div className="sell-ai-list-block">
+        <div className={styles.listBlock}>
           <strong>Kontrol et</strong>
           <ul>
             {suggestion.warnings.map((item) => (

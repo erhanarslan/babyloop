@@ -1,0 +1,233 @@
+.formPanel {
+  overflow: hidden;
+  padding: 0;
+}
+
+.workspace {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: stretch;
+}
+
+.fields,
+.sidePanel,
+.imagePanel,
+.aiPanel,
+.suggestionReview {
+  display: grid;
+  gap: 1rem;
+}
+
+.fields {
+  align-content: start;
+  padding: clamp(1rem, 2vw, 1.75rem);
+}
+
+.sidePanel {
+  align-content: start;
+  align-self: stretch;
+  height: 100%;
+  border-left: 1px solid rgba(107, 86, 73, 0.14);
+  background: rgba(255, 250, 244, 0.5);
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.imagePanel,
+.aiPanel,
+.suggestionReview {
+  border: 1px solid rgba(107, 86, 73, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 1rem;
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sectionHeading h2,
+.imagePanel h2 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 1.1rem;
+}
+
+.sectionHeading p,
+.imagePanel p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.urlImageDetails {
+  border: 1px dashed rgba(107, 86, 73, 0.22);
+  border-radius: 18px;
+  padding: 0.85rem;
+}
+
+.urlImageDetails summary {
+  cursor: pointer;
+  color: var(--color-text-strong);
+  font-weight: 750;
+}
+
+.urlImageDetails[open] summary {
+  margin-bottom: 0.8rem;
+}
+
+.fileUploadLabel {
+  justify-content: center;
+  min-height: 54px;
+  border-radius: 18px;
+}
+
+.imageEmpty {
+  display: grid;
+  gap: 0.35rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 122, 105, 0.12), rgba(80, 168, 150, 0.12));
+  padding: 1rem;
+  color: var(--color-text-muted);
+}
+
+.imageEmpty strong {
+  color: var(--color-text-strong);
+}
+
+.previewGrid {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.previewGrid li {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid rgba(107, 86, 73, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.55rem;
+}
+
+.previewGrid img {
+  width: 88px;
+  height: 88px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #fff1e8, #eaf7f3);
+}
+
+.previewGrid div {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.previewGrid span {
+  overflow: hidden;
+  color: var(--color-text-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.suggestionReview dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.suggestionReview dl > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.suggestionReview dt,
+.listBlock strong {
+  color: var(--color-text-strong);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.suggestionReview dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.suggestionReview dd span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.listBlock {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.listBlock ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+:global(.dark) .imagePanel,
+:global(.dark) .aiPanel,
+:global(.dark) .suggestionReview,
+:global(.dark) .urlImageDetails {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.06);
+}
+
+:global(.dark) .sidePanel {
+  border-left-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.04);
+}
+
+:global(.dark) .previewGrid li {
+  border-color: rgba(255, 250, 244, 0.12);
+  background: rgba(255, 250, 244, 0.08);
+}
+
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}
+
+@media (max-width: 980px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    border-left: 0;
+    border-top: 1px solid rgba(107, 86, 73, 0.14);
+  }
+}
+
+@media (max-width: 640px) {
+  .previewGrid li {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .previewGrid img {
+    width: 72px;
+    height: 72px;
+  }
+}

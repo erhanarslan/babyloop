@@ -26,7 +26,7 @@ export function FavoriteCard({ favorite, isPending, onRemove }: FavoriteCardProp
   const isPublic = favorite.status === "active" || favorite.status === "reserved";
 
   return (
-    <article className={`listing-card favorite-card overflow-hidden${isPublic ? "" : " favorite-card-muted"}`}>
+    <article className="listing-card overflow-hidden">
       <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
         <div className="grid size-16 place-items-center rounded-full bg-background/80 text-2xl font-black text-primary shadow-sm">
           {categoryName.slice(0, 1).toLocaleUpperCase("tr-TR")}

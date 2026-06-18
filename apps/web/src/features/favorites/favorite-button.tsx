@@ -79,7 +79,7 @@ export function FavoriteButton({
   }
 
   return (
-    <div className="favorite-action">
+    <div className="grid gap-3">
       <Button
         variant={isFavorited ? "secondary" : "primary"}
         disabled={isPending}
