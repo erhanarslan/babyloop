@@ -10,10 +10,10 @@ export default function MyListingsError({ error: _error, reset }: RouteErrorProp
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Your listings could not load</h1>
-        <p>Listing management hit an unexpected error.</p>
+        <h1>İlanların yüklenemedi</h1>
+        <p>İlan yönetimi şu an gösterilemiyor.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

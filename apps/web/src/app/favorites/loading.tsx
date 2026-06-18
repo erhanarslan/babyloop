@@ -6,12 +6,12 @@ export default function FavoritesLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading favorites"
-          description="Fetching your saved marketplace listings."
+          title="Favoriler yükleniyor"
+          description="Kaydettiğin ilanlar hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading favorites"
-          message="Fetching your saved marketplace listings."
+          title="Favoriler yükleniyor"
+          message="Kaydettiğin ilanlar hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

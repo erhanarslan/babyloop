@@ -5,8 +5,8 @@ import { MyListingsPageContent } from "../../features/listings/my-listings-page-
 import { getApiBaseUrl } from "../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "My listings",
-  "BabyLoop seller listing management pages are private and not indexed."
+  "İlanlarım",
+  "BabyLoop ilan yönetimi sayfaları özel alandır ve indekslenmez."
 );
 
 export default function MyListingsPage() {

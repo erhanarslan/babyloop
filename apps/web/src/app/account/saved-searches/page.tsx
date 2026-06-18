@@ -5,8 +5,8 @@ import { SavedSearchesPageContent } from "../../../features/saved-searches/saved
 import { getApiBaseUrl } from "../../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Saved searches",
-  "BabyLoop saved search pages are private and not indexed."
+  "Kayıtlı aramalar",
+  "BabyLoop kayıtlı arama sayfaları özel alandır ve indekslenmez."
 );
 
 export default function AccountSavedSearchesPage() {

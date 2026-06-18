@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Alert, Badge, Button, EmptyState, LoadingBlock } from "../../components/ui";
 import type { ListingSummary } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -37,7 +38,20 @@ type EditDraft = {
 
 type ListingStatusFilter = "all" | ListingLifecycleStatus;
 
+type ListingActionMenuItem = {
+  status: ListingLifecycleStatus;
+  label: string;
+};
+
+type MenuPosition = {
+  top: number;
+  left: number;
+  width: number;
+};
+
 const STATUS_FILTERS: ListingStatusFilter[] = ["all", "active", "reserved", "sold", "archived"];
+const ACTION_MENU_WIDTH = 240;
+const ACTION_MENU_MARGIN = 12;
 
 export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const { dictionary } = useI18n();
@@ -49,6 +63,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const [editDrafts, setEditDrafts] = useState<Record<string, EditDraft>>({});
   const [pendingListingId, setPendingListingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>("all");
+  const [openMenuListingId, setOpenMenuListingId] = useState<string | null>(null);
 
   const clearProtectedState = useCallback(() => {
     setListings([]);
@@ -352,23 +367,49 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   }
 
   return (
-    <>
-      <SellerListingsOverview metrics={listingMetrics} />
+    <section className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]" aria-label="İlan yönetimi">
+      <aside className="self-start rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
+        <nav aria-label="İlan durumu" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
+          {STATUS_FILTERS.map((status) => (
+            <button
+              aria-pressed={statusFilter === status}
+              className={[
+                "min-w-[150px] rounded-2xl border px-3 py-2 text-left text-sm font-black transition lg:min-w-0",
+                statusFilter === status
+                  ? "border-primary/40 bg-background text-primary shadow-sm"
+                  : "border-transparent text-foreground hover:bg-background/75"
+              ].join(" ")}
+              key={status}
+              type="button"
+              onClick={() => {
+                setOpenMenuListingId(null);
+                setStatusFilter(status);
+              }}
+            >
+              <span>{getStatusFilterLabel(status, dictionary)}</span>
+              <small className="mt-1 block text-xs font-bold text-muted-foreground">
+                {getStatusCount(listingMetrics, status)}
+              </small>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      <div className="seller-status-tabs" aria-label="Filter seller listings by status">
-        {STATUS_FILTERS.map((status) => (
-          <button
-            aria-pressed={statusFilter === status}
-            className={statusFilter === status ? "active" : ""}
-            key={status}
-            type="button"
-            onClick={() => setStatusFilter(status)}
+      <div className="grid min-w-0 gap-4">
+        <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/70 bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">İlanlarım</h1>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">
+              {filteredListings.length} ilan gösteriliyor.
+            </p>
+          </div>
+          <Link
+            className="inline-flex rounded-full bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground"
+            href="/sell"
           >
-            {status === "all" ? "All" : formatListingStatus(status, dictionary)}
-            <span>{getStatusCount(listingMetrics, status)}</span>
-          </button>
-        ))}
-      </div>
+            Yeni ilan ver
+          </Link>
+        </div>
 
       {actionMessage ? (
         <Alert title={dictionary.listings.lifecycleActionFailed} message={actionMessage} />
@@ -376,8 +417,8 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
       {filteredListings.length === 0 ? (
         <EmptyState
-          title="No listings in this status"
-          message="Switch status tabs or create a new listing to continue managing your seller workspace."
+          title="Bu durumda ilan yok"
+          message="Başka bir durum seçebilir veya yeni ilan oluşturabilirsin."
           actionHref="/sell"
           actionLabel={dictionary.listings.sellItem}
         />
@@ -393,6 +434,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
             currency: listing.price?.currency ?? "TRY"
           };
           const isPublic = listing.status === "active" || listing.status === "reserved";
+          const firstImageId = listing.firstImage?.id ?? null;
 
           return (
             <article className="listing-card seller-listing-card" key={listing.id}>
@@ -404,46 +446,26 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                 url={listing.firstImage?.url ?? null}
               />
 
-              <div className="listing-card-body">
-                <div className="seller-listing-heading">
-                  <div>
-                    <p className="listing-meta">
+              <div className="listing-card-body gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="listing-meta truncate">
                       {formatCategoryName(listing.category, dictionary)}
                     </p>
-                    <h2>{listing.title}</h2>
+                    <h2 className="line-clamp-2 text-lg font-black leading-snug">{listing.title}</h2>
+                    <p className="mt-2 text-xl font-black text-foreground">
+                      {formatListingPrice(listing.price, dictionary)}
+                    </p>
                   </div>
                   <Badge tone={getListingStatusTone(listing.status)}>
                     {formatListingStatus(listing.status, dictionary)}
                   </Badge>
                 </div>
 
-                <dl className="seller-listing-facts">
-                  <div>
-                    <dt>Price</dt>
-                    <dd>{formatListingPrice(listing.price, dictionary)}</dd>
-                  </div>
-                  <div>
-                    <dt>Type</dt>
-                    <dd>{formatListingType(listing.listingType, dictionary)}</dd>
-                  </div>
-                  <div>
-                    <dt>Condition</dt>
-                    <dd>{formatListingCondition(listing.condition, dictionary)}</dd>
-                  </div>
-                  <div>
-                    <dt>Favorites</dt>
-                    <dd>{listing.favoriteCount}</dd>
-                  </div>
-                </dl>
-
-                <div className={`seller-visibility-note${isPublic ? "" : " muted-state"}`}>
-                  <strong>{isPublic ? "Public buyer view is available" : "Not public for buyers"}</strong>
-                  <span>
-                    {isPublic
-                      ? "Review this page after price, title, photo, or status changes."
-                      : "Reactivate only when the item is actually available again."}
-                  </span>
-                </div>
+                <p className="text-sm font-semibold leading-6 text-muted-foreground">
+                  Durum: {formatListingCondition(listing.condition, dictionary)} · Favori:{" "}
+                  {listing.favoriteCount} · Tip: {formatListingType(listing.listingType, dictionary)}
+                </p>
 
                 {isEditing ? (
                   <form
@@ -503,117 +525,261 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   </form>
                 ) : null}
 
-                <section className="seller-management-actions" aria-label={dictionary.listings.lifecycleActionsAriaLabel}>
-                  <div>
-                    <p className="listing-meta">Media</p>
-                    <div className="listing-card-actions">
-                      <label className="file-upload-label file-upload-label-inline">
-                        <span>{isPending ? dictionary.listings.uploading : dictionary.listings.uploadImage}</span>
-                        <input
-                          accept="image/jpeg,image/png,image/webp"
-                          disabled={isPending}
-                          type="file"
-                          onChange={(event) => {
-                            void handleImageUpload(listing.id, event);
-                          }}
-                        />
-                      </label>
-
-                      {listing.firstImage ? (
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            void handleImageDelete(listing.id, listing.firstImage!.id);
-                          }}
-                        >
-                          {dictionary.listings.deleteImage}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="listing-meta">Listing controls</p>
-                    <div className="listing-card-actions">
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => startEditing(listing)}
-                      >
-                        {dictionary.listings.editListing}
-                      </Button>
-
-                      {getStatusActions(listing.status).map((status) => (
-                        <Button
-                          key={status}
-                          variant="secondary"
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => {
-                            void handleStatusChange(listing.id, status);
-                          }}
-                        >
-                          {getStatusActionLabel(status, dictionary)}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-
-                <div className="seller-listing-footer">
-                  <Link href="/account/seller">Seller insights</Link>
-                  <Link href={`/categories/${listing.category.slug}`}>Compare category</Link>
+                <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <Button
+                    className="min-h-10 flex-1 px-3"
+                    variant="secondary"
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => startEditing(listing)}
+                  >
+                    {dictionary.listings.editListing}
+                  </Button>
                   {isPublic ? (
-                    <Link href={`/listings/${listing.id}`}>{dictionary.common.viewDetails}</Link>
+                    <Link
+                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-black text-primary-foreground"
+                      href={`/listings/${listing.id}`}
+                    >
+                      {dictionary.common.viewDetails}
+                    </Link>
                   ) : (
-                    <span className="muted">{dictionary.listings.notPublic}</span>
+                    <span className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-black text-muted-foreground">
+                      {dictionary.listings.notPublic}
+                    </span>
                   )}
+
+                  <MyListingActionsMenu
+                    actions={getStatusActions(listing.status).map((status) => ({
+                      status,
+                      label: getStatusActionLabel(status, dictionary)
+                    }))}
+                    hasImage={Boolean(listing.firstImage)}
+                    isOpen={openMenuListingId === listing.id}
+                    isPending={isPending}
+                    onImageDelete={
+                      firstImageId
+                        ? () => {
+                            void handleImageDelete(listing.id, firstImageId);
+                          }
+                        : null
+                    }
+                    onImageUpload={(event) => {
+                      void handleImageUpload(listing.id, event);
+                    }}
+                    onOpenChange={(isOpen) => {
+                      setOpenMenuListingId(isOpen ? listing.id : null);
+                    }}
+                    onStatusChange={(status) => {
+                      void handleStatusChange(listing.id, status);
+                    }}
+                  />
                 </div>
               </div>
             </article>
           );
         })}
       </div>
-    </>
-  );
-}
-
-function SellerListingsOverview({
-  metrics
-}: {
-  metrics: Record<ListingLifecycleStatus, number> & { total: number };
-}) {
-  return (
-    <section className="seller-listings-overview" aria-label="Seller listing status summary">
-      <div>
-        <p className="eyebrow">Listing operations</p>
-        <h2>Your seller workspace at a glance</h2>
-        <p>
-          Keep availability current. Buyers should only see active or reserved listings that can still lead to a useful conversation.
-        </p>
-      </div>
-
-      <div className="seller-listings-metrics">
-        <MetricCard label="Total" value={metrics.total} />
-        <MetricCard label="Active" value={metrics.active} />
-        <MetricCard label="Reserved" value={metrics.reserved} />
-        <MetricCard label="Sold" value={metrics.sold} />
-        <MetricCard label="Archived" value={metrics.archived} />
       </div>
     </section>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MyListingActionsMenu({
+  actions,
+  hasImage,
+  isOpen,
+  isPending,
+  onImageDelete,
+  onImageUpload,
+  onOpenChange,
+  onStatusChange
+}: {
+  actions: ListingActionMenuItem[];
+  hasImage: boolean;
+  isOpen: boolean;
+  isPending: boolean;
+  onImageDelete: (() => void) | null;
+  onImageUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onOpenChange: (isOpen: boolean) => void;
+  onStatusChange: (status: ListingLifecycleStatus) => void;
+}) {
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<MenuPosition | null>(null);
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) {
+      return;
+    }
+
+    setPosition(calculateActionMenuPosition(triggerRef.current));
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPosition(null);
+      return;
+    }
+
+    updatePosition();
+
+    function handlePointerDown(event: PointerEvent) {
+      const eventPath = event.composedPath();
+
+      if (
+        (triggerRef.current && eventPath.includes(triggerRef.current)) ||
+        (menuRef.current && eventPath.includes(menuRef.current))
+      ) {
+        return;
+      }
+
+      onOpenChange(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
+    }
+
+    function closeForViewportChange() {
+      onOpenChange(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", closeForViewportChange);
+    window.addEventListener("scroll", closeForViewportChange, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", closeForViewportChange);
+      window.removeEventListener("scroll", closeForViewportChange, true);
+    };
+  }, [isOpen, onOpenChange, updatePosition]);
+
+  const menu =
+    isOpen && position
+      ? createPortal(
+          <div
+            className="fixed z-[80] max-h-[min(70vh,420px)] overflow-y-auto rounded-2xl border border-border bg-background p-2 shadow-xl"
+            id={menuId}
+            ref={menuRef}
+            role="menu"
+            style={{
+              left: position.left,
+              top: position.top,
+              width: position.width
+            }}
+          >
+            <label
+              className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted focus-within:bg-muted"
+              role="menuitem"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") {
+                  return;
+                }
+
+                event.preventDefault();
+                event.currentTarget.querySelector("input")?.click();
+              }}
+            >
+              <span className="truncate">{isPending ? "Yükleniyor" : "Görseli yönet"}</span>
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={isPending}
+                type="file"
+                onChange={(event) => {
+                  onImageUpload(event);
+                  onOpenChange(false);
+                }}
+              />
+            </label>
+
+            {hasImage && onImageDelete ? (
+              <button
+                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-55"
+                disabled={isPending}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  onImageDelete();
+                }}
+              >
+                Görseli sil
+              </button>
+            ) : null}
+
+            {actions.length > 0 ? (
+              <div className="my-1 border-t border-border/70" role="separator" />
+            ) : null}
+
+            {actions.map((action) => (
+              <button
+                className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-55"
+                disabled={isPending}
+                key={action.status}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  onStatusChange(action.status);
+                }}
+              >
+                <span className="truncate">{action.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="seller-listings-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+    <>
+      <button
+        aria-controls={isOpen ? menuId : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-black text-foreground transition hover:bg-muted disabled:opacity-55 sm:w-auto"
+        disabled={isPending}
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          onOpenChange(!isOpen);
+        }}
+      >
+        İşlemler
+      </button>
+      {menu}
+    </>
   );
+}
+
+function calculateActionMenuPosition(trigger: HTMLButtonElement): MenuPosition {
+  const rect = trigger.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(ACTION_MENU_WIDTH, viewportWidth - ACTION_MENU_MARGIN * 2);
+  const left = Math.min(
+    Math.max(ACTION_MENU_MARGIN, rect.right - width),
+    viewportWidth - width - ACTION_MENU_MARGIN
+  );
+  const preferredTop = rect.bottom + 8;
+  const top =
+    preferredTop > viewportHeight - 96
+      ? Math.max(ACTION_MENU_MARGIN, rect.top - 8)
+      : preferredTop;
+
+  return {
+    left,
+    top,
+    width
+  };
 }
 
 function buildListingMetrics(listings: ListingSummary[]): Record<ListingLifecycleStatus, number> & { total: number } {
@@ -640,6 +806,29 @@ function getStatusCount(
   status: ListingStatusFilter
 ): number {
   return status === "all" ? metrics.total : metrics[status];
+}
+
+function getStatusFilterLabel(
+  status: ListingStatusFilter,
+  dictionary: ReturnType<typeof useI18n>["dictionary"]
+): string {
+  if (status === "all") {
+    return "Tüm ilanlar";
+  }
+
+  if (status === "active") {
+    return "Aktif";
+  }
+
+  if (status === "reserved") {
+    return "Rezerve";
+  }
+
+  if (status === "sold") {
+    return "Satıldı";
+  }
+
+  return formatListingStatus(status, dictionary);
 }
 
 function isListingLifecycleStatus(status: string): status is ListingLifecycleStatus {

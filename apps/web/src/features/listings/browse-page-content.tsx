@@ -5,8 +5,7 @@ import {
   Alert,
   Badge,
   Card,
-  PageContainer,
-  PageHeading
+  PageContainer
 } from "../../components/ui";
 import type {
   BrowseListingsFilters,
@@ -121,16 +120,9 @@ export function BrowsePageContent({
         />
       ) : null}
 
-      <PageHeading
-        eyebrow={dictionary.listings.browseEyebrow}
-        title={title}
-        description={dictionary.publicPages.browse.subtitle}
-      />
-
-      <PageContainer className="browse-layout" ariaLabel={dictionary.listings.browseAriaLabel}>
-        <Card as="aside" className="filter-panel" aria-label={dictionary.listings.categoriesAriaLabel}>
-          <h2>{dictionary.publicPages.browse.filters}</h2>
-          <p className="filter-note">{dictionary.publicPages.browse.subtitle}</p>
+      <PageContainer className="grid gap-5 pb-12 pt-5 lg:grid-cols-[300px_minmax(0,1fr)]" ariaLabel={dictionary.listings.browseAriaLabel}>
+        <Card as="aside" className="filter-panel self-start" aria-label="Filtreler">
+          <h2>Filtreler</h2>
 
           <CategoryNavigation
             categories={categoryTree}
@@ -141,7 +133,7 @@ export function BrowsePageContent({
 
           <form action={paginationBasePath} method="get" className="form-stack">
             <label>
-              <span>{dictionary.publicPages.browse.search}</span>
+              <span>Arama</span>
               <input
                 defaultValue={filters.q}
                 list="browse-search-suggestions"
@@ -171,7 +163,7 @@ export function BrowsePageContent({
 
             {!currentCategorySlug ? (
               <label>
-                <span>{dictionary.listings.categoriesTitle}</span>
+                <span>Kategoriler</span>
                 <select defaultValue={filters.categoryId} name="categoryId">
                   <option value="">{dictionary.publicPages.browse.allCategories}</option>
                   {orderedCategories.map((category) => (
@@ -184,7 +176,7 @@ export function BrowsePageContent({
             ) : null}
 
             <label>
-              <span>{dictionary.listings.typeLabel}</span>
+              <span>İlan tipi</span>
               <select defaultValue={filters.listingType} name="listingType">
                 <option value="">{dictionary.publicPages.browse.allTypes}</option>
                 {LISTING_TYPE_OPTIONS.map((listingType) => (
@@ -196,7 +188,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>{dictionary.listings.conditionLabel}</span>
+              <span>Durum</span>
               <select defaultValue={filters.condition} name="condition">
                 <option value="">{dictionary.publicPages.browse.allConditions}</option>
                 {CONDITION_OPTIONS.map((condition) => (
@@ -208,7 +200,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>{dictionary.publicPages.browse.minPrice}</span>
+              <span>En az</span>
               <input
                 defaultValue={filters.priceMin}
                 inputMode="decimal"
@@ -220,7 +212,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>{dictionary.publicPages.browse.maxPrice}</span>
+              <span>En çok</span>
               <input
                 defaultValue={filters.priceMax}
                 inputMode="decimal"
@@ -242,7 +234,7 @@ export function BrowsePageContent({
             </label>
 
             <label>
-              <span>{dictionary.publicPages.browse.sort}</span>
+              <span>Sıralama</span>
               <select defaultValue={filters.sort} name="sort">
                 {SORT_OPTIONS.map((sortOption) => (
                   <option key={sortOption.value} value={sortOption.value}>
@@ -252,9 +244,9 @@ export function BrowsePageContent({
               </select>
             </label>
 
-            <button type="submit">{dictionary.publicPages.browse.apply}</button>
+            <button type="submit">Uygula</button>
             <Link href={currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse"}>
-              {dictionary.publicPages.browse.clear}
+              Temizle
             </Link>
           </form>
 
@@ -276,29 +268,23 @@ export function BrowsePageContent({
           {!error ? (
             <div className="listing-results-summary">
               <div>
-                <p className="listing-meta">
-                  {dictionary.publicPages.browse.resultCount
-                    .replace("{shown}", String(listings.length))
-                    .replace("{total}", String(pagination.total))}
-                  {selectedCategory ? ` in ${formatCategoryName(selectedCategory, dictionary)}` : ""}
-                </p>
+                <h1 className="text-2xl font-black tracking-tight text-foreground">
+                  {pagination.total} ilan
+                </h1>
                 <p className="listing-results-helper">
-                  {dictionary.publicPages.browse.subtitle}
+                  {filters.sort === "newest" ? "En yeni ilanlar listeleniyor." : title}
                 </p>
               </div>
               <div className="listing-results-actions" aria-label="Browse next steps">
-                <Link href="/account/saved-searches">{dictionary.publicPages.browse.saveSearch}</Link>
-                <Link href={browseAssistantHref}>{dictionary.publicShell.header.assistant}</Link>
+                <Link href="/account/saved-searches">Kayıtlı aramalar</Link>
+                <Link href={browseAssistantHref}>Asistana sor</Link>
               </div>
             </div>
           ) : null}
 
           {!error && activeFilterChips.length > 0 ? (
             <div className="active-filter-panel" aria-label="Active browse filters">
-              <div>
-                <p className="eyebrow">{dictionary.publicPages.browse.activeFilters}</p>
-                <p className="form-note">{dictionary.publicPages.browse.noResultsBody}</p>
-              </div>
+              <p className="eyebrow">Aktif filtreler</p>
               <div className="filter-chip-list">
                 {activeFilterChips.map((chip) => (
                   <Link className="filter-chip" href={chip.href} key={chip.label}>
@@ -307,7 +293,7 @@ export function BrowsePageContent({
                   </Link>
                 ))}
                 <Link className="filter-chip filter-chip-clear" href={clearFiltersHref}>
-                  {dictionary.publicPages.browse.clear}
+                  Temizle
                 </Link>
               </div>
             </div>
@@ -348,7 +334,7 @@ export function BrowsePageContent({
                 <span className="muted">‹</span>
               )}
               <span className="muted">
-                Offset {pagination.offset}
+                {Math.floor(pagination.offset / pagination.limit) + 1}. sayfa
               </span>
               {pagination.hasNextPage ? (
                 <Link href={buildBrowseHref(filters, nextOffset, {
@@ -427,30 +413,29 @@ function BrowseNoResultsPanel({
   return (
     <Card as="section" className="browse-no-results-card">
       <div>
-        <p className="eyebrow">Discovery reset</p>
+        <p className="eyebrow">Sonuç yok</p>
         <h2>
           {hasActiveFilters
-            ? "No listings match this exact search yet"
-            : "No active listings are available yet"}
+            ? "Bu filtrelerle ilan bulunamadı"
+            : "Henüz uygun ilan yok"}
         </h2>
         <p>
           {hasActiveFilters
-            ? `Loosen one filter${categoryName ? ` in ${categoryName}` : ""}, save the intent for later, or ask BabyLoop Assistant to turn this search into a broader plan.`
-            : "Start from broader categories, create a saved search, or ask BabyLoop Assistant what to look for while the marketplace grows."}
+            ? `${categoryName ? `${categoryName} içinde ` : ""}Bir filtreyi gevşet veya aramayı daha sonra kullanmak için kaydet.`
+            : "Daha geniş kategorilerden başlayabilir veya yeni ilanları takip etmek için arama kaydedebilirsin."}
         </p>
       </div>
 
       <div className="browse-no-results-actions">
-        <Link href={clearFiltersHref}>{hasActiveFilters ? "Clear filters" : "Browse all"}</Link>
-        <Link href={assistantHref}>Ask Assistant</Link>
-        <Link href="/guides">Read buying guides</Link>
-        <Link href="/sell">Create listing</Link>
+        <Link href={clearFiltersHref}>{hasActiveFilters ? "Filtreleri temizle" : "Tüm ilanlar"}</Link>
+        <Link href={assistantHref}>Asistana sor</Link>
+        <Link href="/sell">İlan ver</Link>
       </div>
 
       <ul className="browse-no-results-tips" aria-label="Ways to continue browsing">
-        <li>Try a wider price range or remove the image-only filter.</li>
-        <li>Use age-band guides to discover adjacent categories.</li>
-        <li>Save recurring searches for future marketplace matches.</li>
+        <li>Fiyat aralığını genişletmeyi dene.</li>
+        <li>Sadece görselli filtreliyse bu seçimi kaldır.</li>
+        <li>Benzer ihtiyaçlar için aramayı kaydet.</li>
       </ul>
     </Card>
   );
@@ -472,8 +457,8 @@ function SearchSuggestionLinks({
   }
 
   return (
-    <div className="search-suggestion-links" aria-label="Search suggestions">
-      <span>Try</span>
+    <div className="search-suggestion-links" aria-label="Arama önerileri">
+      <span>Öneriler</span>
       {searchSuggestions.slice(0, 5).map((suggestion) => (
         <Link
           href={buildBrowseHref(
@@ -498,20 +483,20 @@ function buildBrowseAssistantPrompt(
   selectedCategory: Category | null,
   dictionary: ReturnType<typeof useI18n>["dictionary"]
 ): string {
-  const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : "all baby categories";
+  const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : "tüm bebek kategorileri";
   const parts = [
-    filters.q ? `search phrase: ${filters.q}` : "",
-    categoryName ? `category: ${categoryName}` : "",
-    filters.listingType ? `listing type: ${formatListingType(filters.listingType, dictionary)}` : "",
-    filters.condition ? `condition: ${formatListingCondition(filters.condition, dictionary)}` : "",
-    filters.priceMin ? `minimum price: ${filters.priceMin}` : "",
-    filters.priceMax ? `maximum price: ${filters.priceMax}` : "",
-    filters.hasImages === "true" ? "only listings with images" : ""
+    filters.q ? `arama: ${filters.q}` : "",
+    categoryName ? `kategori: ${categoryName}` : "",
+    filters.listingType ? `ilan tipi: ${formatListingType(filters.listingType, dictionary)}` : "",
+    filters.condition ? `durum: ${formatListingCondition(filters.condition, dictionary)}` : "",
+    filters.priceMin ? `en az fiyat: ${filters.priceMin}` : "",
+    filters.priceMax ? `en çok fiyat: ${filters.priceMax}` : "",
+    filters.hasImages === "true" ? "sadece görselli ilanlar" : ""
   ].filter(Boolean);
 
   return parts.length > 0
-    ? `Help me turn this BabyLoop browse intent into a short product discovery plan: ${parts.join("; ")}.`
-    : "Help me build a BabyLoop browsing plan for second-hand baby essentials.";
+    ? `Bu BabyLoop araması için kısa bir ürün keşif planı hazırla: ${parts.join("; ")}.`
+    : "İkinci el bebek ürünleri için kısa bir BabyLoop keşif planı hazırla.";
 }
 
 function getSortLabel(
@@ -564,10 +549,10 @@ function CategoryNavigation({
               basePath: "/browse",
               includeCategoryId: false
             })}>
-              All categories
+              Tüm kategoriler
             </Link>
           ) : (
-            <strong>All categories</strong>
+            <strong>Tüm kategoriler</strong>
           )}
         </li>
         {categories.map((category) => (
@@ -606,8 +591,6 @@ function CategoryNavigationItem({
           {formatCategoryName(category, dictionary)}
         </Link>
       )}
-      <small>{category.slug}</small>
-
       {category.children.length > 0 ? (
         <ul>
           {category.children.map((child) => (
@@ -667,27 +650,10 @@ function ListingCard({
           </p>
         </div>
 
-        <div className="browse-card-context">
-          <p>
-            Ask about condition, missing parts, pickup expectations, and whether this item fits your current age-band needs.
-          </p>
-          <Link
-            href={buildAssistantHref(
-              "safe_buying",
-              `What should I check before buying a second-hand ${formatCategoryName(
-                listing.category,
-                dictionary
-              )} item like ${listing.title}?`
-            )}
-          >
-            Ask checks
-          </Link>
-        </div>
-
         <div className="listing-card-footer">
           <div className="listing-card-price-stack">
             <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-            <span>{listing.favoriteCount} saved · {formatListingCondition(listing.condition, dictionary)}</span>
+            <span>{listing.favoriteCount} favori · {formatListingCondition(listing.condition, dictionary)}</span>
           </div>
           <Link
             href={`/listings/${listing.id}`}

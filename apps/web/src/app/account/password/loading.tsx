@@ -6,12 +6,12 @@ export default function AccountPasswordLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading password settings"
-          description="Preparing account security controls."
+          title="Güvenlik ve şifre"
+          description="Şifre ayarları hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading password settings"
-          message="Preparing account security controls."
+          title="Şifre ayarları yükleniyor"
+          message="Güvenlik bilgileri hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

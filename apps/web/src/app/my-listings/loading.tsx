@@ -6,12 +6,12 @@ export default function MyListingsLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading your listings"
-          description="Fetching your marketplace listings and actions."
+          title="İlanların yükleniyor"
+          description="İlanların ve işlem seçeneklerin hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading your listings"
-          message="Fetching your marketplace listings and actions."
+          title="İlanların yükleniyor"
+          message="İlanların ve işlem seçeneklerin hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

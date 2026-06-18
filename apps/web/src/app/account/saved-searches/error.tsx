@@ -10,10 +10,10 @@ export default function SavedSearchesError({ error: _error, reset }: RouteErrorP
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Saved searches could not load</h1>
-        <p>The saved search area hit an unexpected error.</p>
+        <h1>Kayıtlı aramalar yüklenemedi</h1>
+        <p>Kayıtlı arama alanı şu an gösterilemiyor.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

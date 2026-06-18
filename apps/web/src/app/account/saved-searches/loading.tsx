@@ -6,12 +6,12 @@ export default function SavedSearchesLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading saved searches"
-          description="Checking your saved marketplace filters."
+          title="Kayıtlı aramalar yükleniyor"
+          description="Kaydettiğin arama filtreleri hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading saved searches"
-          message="Checking your saved marketplace filters."
+          title="Kayıtlı aramalar yükleniyor"
+          message="Kaydettiğin arama filtreleri hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

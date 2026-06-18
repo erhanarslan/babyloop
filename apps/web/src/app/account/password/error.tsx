@@ -10,10 +10,10 @@ export default function AccountPasswordError({ error: _error, reset }: RouteErro
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Password settings could not load</h1>
-        <p>The account security area hit an unexpected error.</p>
+        <h1>Şifre ayarları yüklenemedi</h1>
+        <p>Güvenlik alanı şu an gösterilemiyor.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

@@ -5,8 +5,8 @@ import { FavoritesPageContent } from "../../features/favorites/favorites-page-co
 import { getApiBaseUrl } from "../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Saved listings",
-  "BabyLoop favorites pages are private and not indexed."
+  "Favoriler",
+  "BabyLoop favori sayfaları özel alandır ve indekslenmez."
 );
 
 export default function FavoritesPage() {

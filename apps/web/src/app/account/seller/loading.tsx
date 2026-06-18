@@ -6,12 +6,12 @@ export default function SellerDashboardLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading seller dashboard"
-          description="Preparing listing insights and seller metrics."
+          title="Satıcı paneli yükleniyor"
+          description="İlanların ve temel satıcı bilgilerin hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading seller dashboard"
-          message="Preparing listing insights and seller metrics."
+          title="Satıcı paneli yükleniyor"
+          message="İlanların ve temel satıcı bilgilerin hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

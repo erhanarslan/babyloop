@@ -22,71 +22,59 @@ type FavoriteCardProps = {
 export function FavoriteCard({ favorite, isPending, onRemove }: FavoriteCardProps) {
   const { dictionary, locale } = useI18n();
   const categoryName = formatCategoryName(favorite.category, dictionary);
-  const savedDate = dictionary.marketplace.savedDate.replace(
-    "{date}",
-    formatDate(favorite.favoritedAt, locale)
-  );
+  const savedDate = `${formatDate(favorite.favoritedAt, locale)} tarihinde kaydedildi`;
   const isPublic = favorite.status === "active" || favorite.status === "reserved";
-  const assistantPrompt = `Help me compare this BabyLoop favorite: ${favorite.title} in ${categoryName}. What should I check before messaging?`;
 
   return (
-    <article className={`listing-card favorite-card favorite-card-decision${isPublic ? "" : " favorite-card-muted"}`}>
-      <div className="listing-card-body">
-        <div className="favorite-card-header">
-          <div>
-            <p className="listing-meta">{categoryName}</p>
-            <h2>{favorite.title}</h2>
+    <article className={`listing-card favorite-card overflow-hidden${isPublic ? "" : " favorite-card-muted"}`}>
+      <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
+        <div className="grid size-16 place-items-center rounded-full bg-background/80 text-2xl font-black text-primary shadow-sm">
+          {categoryName.slice(0, 1).toLocaleUpperCase("tr-TR")}
+        </div>
+      </div>
+
+      <div className="listing-card-body gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="listing-meta truncate">{categoryName}</p>
+            <h2 className="line-clamp-2 text-lg font-black leading-snug">{favorite.title}</h2>
+            <p className="mt-2 text-xl font-black text-foreground">
+              {formatListingPrice(favorite.price, dictionary)}
+            </p>
           </div>
           <Badge tone={isPublic ? "success" : "neutral"}>
             {formatListingStatus(favorite.status, dictionary)}
           </Badge>
         </div>
 
-        <dl className="favorite-facts">
-          <div>
-            <dt>Price</dt>
-            <dd>{formatListingPrice(favorite.price, dictionary)}</dd>
-          </div>
-          <div>
-            <dt>Type</dt>
-            <dd>{formatListingType(favorite.listingType, dictionary)}</dd>
-          </div>
-          <div>
-            <dt>Condition</dt>
-            <dd>{formatListingCondition(favorite.condition, dictionary)}</dd>
-          </div>
-          <div>
-            <dt>Saved</dt>
-            <dd>{savedDate}</dd>
-          </div>
-        </dl>
+        <p className="text-sm font-semibold leading-6 text-muted-foreground">
+          Durum: {formatListingCondition(favorite.condition, dictionary)} · Tip:{" "}
+          {formatListingType(favorite.listingType, dictionary)}
+        </p>
+        <p className="text-xs font-bold text-muted-foreground">{savedDate}</p>
 
-        <div className={`favorite-decision-note${isPublic ? "" : " muted-state"}`}>
-          <strong>{isPublic ? "Ready to compare" : "Review before acting"}</strong>
-          <span>
-            {isPublic
-              ? "Open details, review photos, compare condition, and prepare seller questions before messaging."
-              : "This saved listing may be sold, archived, or unavailable. Remove it if it no longer helps your decision."}
-          </span>
-        </div>
-
-        <div className="favorite-next-actions">
+        <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-3">
           {isPublic ? (
-            <Link href={`/listings/${favorite.id}`}>{dictionary.common.viewDetails}</Link>
+            <Link
+              className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-black text-primary-foreground"
+              href={`/listings/${favorite.id}`}
+            >
+              {dictionary.common.viewDetails}
+            </Link>
           ) : (
-            <span className="muted">{dictionary.listings.notPublic}</span>
+            <span className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-black text-muted-foreground">
+              {dictionary.listings.notPublic}
+            </span>
           )}
-          <Link href={`/categories/${favorite.category.slug}`}>Compare category</Link>
-          <Link href={`/assistant?mode=safe_buying&prompt=${encodeURIComponent(assistantPrompt)}`}>
-            Ask Assistant
-          </Link>
           <Button
+            className="min-h-10 shrink-0 px-3"
             variant="ghost"
             type="button"
             disabled={isPending}
             onClick={onRemove}
+            aria-label="Favoriden çıkar"
           >
-            {isPending ? dictionary.marketplace.savingFavorite : dictionary.marketplace.unfavorite}
+            {isPending ? "Kaldırılıyor" : "Favoriden çıkar"}
           </Button>
         </div>
       </div>

@@ -10,10 +10,10 @@ export default function FavoritesError({ error: _error, reset }: RouteErrorProps
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Favorites could not load</h1>
-        <p>Favorite listings hit an unexpected error.</p>
+        <h1>Favoriler yüklenemedi</h1>
+        <p>Favori ilanların şu an gösterilemiyor.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

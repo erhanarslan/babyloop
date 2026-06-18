@@ -5,8 +5,8 @@ import { SellerDashboardPageContent } from "../../../features/seller-dashboard/s
 import { getApiBaseUrl } from "../../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Seller dashboard",
-  "BabyLoop seller dashboard pages are private and not indexed."
+  "Satıcı paneli",
+  "BabyLoop satıcı paneli sayfaları özel alandır ve indekslenmez."
 );
 
 export default function AccountSellerPage() {

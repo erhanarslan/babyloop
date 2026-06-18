@@ -83,10 +83,10 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
   return (
     <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
-        <p className="eyebrow">Account security</p>
-        <h2>Rotate your password deliberately</h2>
+        <p className="eyebrow">Şifre</p>
+        <h2>Şifreni güncelle</h2>
         <p>
-          Changing your password ends active refresh sessions. You will return to login after the password update.
+          Şifre değişince tekrar giriş yapman gerekir.
         </p>
       </div>
 
@@ -121,12 +121,12 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
 
       <div className="auth-security-summary">
         <div>
-          <strong>Session reset</strong>
+          <strong>Oturum yenilenir</strong>
           <span>{dictionary.auth.passwordChangeNote}</span>
         </div>
         <div>
-          <strong>Credential hygiene</strong>
-          <span>Use a unique password and keep it out of BabyLoop messages, listings, and assistant prompts.</span>
+          <strong>Güvenli kullanım</strong>
+          <span>Şifreni mesajlarda, ilanlarda veya asistan sorularında paylaşma.</span>
         </div>
       </div>
 

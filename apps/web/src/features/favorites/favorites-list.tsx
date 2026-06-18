@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Card, EmptyState, LoadingBlock } from "../../components/ui";
+import { Alert, EmptyState, LoadingBlock } from "../../components/ui";
 import type { FavoriteListing } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -143,32 +143,47 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
   if (favorites.length === 0) {
     return (
       <EmptyState
-        title={dictionary.marketplace.favoritesEmptyTitle}
-        message={dictionary.marketplace.favoritesEmptyBody}
+        title="Henüz favori ilan yok."
+        message="Beğendiğin ilanları favorilerine ekleyerek burada görebilirsin."
         actionHref="/browse"
-        actionLabel={dictionary.common.browseMarketplace}
+        actionLabel="İlanları keşfet"
       />
     );
   }
 
   return (
-    <section className="favorites-workspace" aria-label="Saved listing decision workspace">
-      <FavoritesOverview metrics={metrics} />
+    <section className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]" aria-label="Favoriler">
+      <aside className="self-start rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
+        <nav aria-label="Favori filtreleri" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
+          {STATUS_FILTERS.map((status) => (
+            <button
+              aria-pressed={statusFilter === status}
+              className={[
+                "min-w-[150px] rounded-2xl border px-3 py-2 text-left text-sm font-black transition lg:min-w-0",
+                statusFilter === status
+                  ? "border-primary/40 bg-background text-primary shadow-sm"
+                  : "border-transparent text-foreground hover:bg-background/75"
+              ].join(" ")}
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+            >
+              <span>{getFilterLabel(status)}</span>
+              <small className="mt-1 block text-xs font-bold text-muted-foreground">
+                {getFilterCount(metrics, status)}
+              </small>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      <div className="favorite-status-tabs" aria-label="Filter saved listings by availability">
-        {STATUS_FILTERS.map((status) => (
-          <button
-            aria-pressed={statusFilter === status}
-            className={statusFilter === status ? "active" : ""}
-            key={status}
-            type="button"
-            onClick={() => setStatusFilter(status)}
-          >
-            {getFilterLabel(status)}
-            <span>{getFilterCount(metrics, status)}</span>
-          </button>
-        ))}
-      </div>
+      <div className="grid min-w-0 gap-4">
+        <div className="rounded-[1.25rem] border border-border/70 bg-background p-4">
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Favoriler</h1>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
+            Beğendiğin ilanları hızlıca tekrar aç.
+          </p>
+        </div>
 
       {actionMessage ? (
         <Alert title={dictionary.marketplace.favoriteActionFailed} message={actionMessage} />
@@ -176,15 +191,15 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
 
       {sortedFavorites.length === 0 ? (
         <EmptyState
-          title="No saved listings in this status"
-          message="Switch filters or browse the marketplace to refresh your shortlist."
+          title="Bu filtrede favori yok"
+          message="Başka bir filtre seçebilir veya ilanları keşfedebilirsin."
           actionHref="/browse"
-          actionLabel={dictionary.common.browseMarketplace}
+          actionLabel="İlanları keşfet"
         />
       ) : null}
 
       {sortedFavorites.length > 0 ? (
-        <div className="favorite-grid">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {sortedFavorites.map((favorite) => (
             <FavoriteCard
               favorite={favorite}
@@ -197,42 +212,8 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
           ))}
         </div>
       ) : null}
+      </div>
     </section>
-  );
-}
-
-function FavoritesOverview({
-  metrics
-}: {
-  metrics: ReturnType<typeof buildFavoriteMetrics>;
-}) {
-  return (
-    <Card as="section" className="favorites-overview" aria-label="Saved listings summary">
-      <div>
-        <p className="eyebrow">Saved item summary</p>
-        <h2>Keep the shortlist actionable</h2>
-        <p>
-          Revisit public listings first, remove stale items, and use saved searches for recurring needs
-          that are not solved by the current shortlist.
-        </p>
-      </div>
-
-      <div className="favorites-metrics">
-        <MetricCard label="Saved" value={metrics.total} />
-        <MetricCard label="Active" value={metrics.active} />
-        <MetricCard label="Reserved" value={metrics.reserved} />
-        <MetricCard label="Needs cleanup" value={metrics.notPublic} />
-      </div>
-    </Card>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="favorites-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
@@ -291,10 +272,10 @@ function isPublicFavorite(favorite: FavoriteListing): boolean {
 
 function getFilterLabel(status: FavoriteStatusFilter): string {
   const labels = {
-    all: "All",
-    active: "Active",
-    reserved: "Reserved",
-    not_public: "Needs cleanup"
+    all: "Tüm favoriler",
+    active: "Aktif ilanlar",
+    reserved: "Rezerve",
+    not_public: "Satıldı / kaldırıldı"
   };
 
   return labels[status];

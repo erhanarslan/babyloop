@@ -31,7 +31,7 @@ export function SaveSearchButton({
     const token = await getOrRefreshAuthToken(apiBaseUrl);
 
     if (!token) {
-      setMessage({ tone: "error", text: "Sign in to save this search." });
+      setMessage({ tone: "error", text: "Aramayı kaydetmek için giriş yap." });
       setIsSaving(false);
       return;
     }
@@ -56,18 +56,18 @@ export function SaveSearchButton({
       return;
     }
 
-    setMessage({ tone: "success", text: "Search saved. You can reuse it from your account." });
+    setMessage({ tone: "success", text: "Arama kaydedildi. Hesabından tekrar açabilirsin." });
   }
 
   return (
     <div className="save-search-panel">
       <div>
-        <p className="eyebrow">Saved search</p>
+        <p className="eyebrow">Aramayı kaydet</p>
         <p className="save-search-summary">{summary}</p>
-        <p className="form-note">Notifications stay off by default; this only stores your filter set.</p>
+        <p className="form-note">Bildirimler varsayılan olarak kapalı kalır; sadece filtrelerin kaydedilir.</p>
       </div>
       <Button disabled={isSaving} onClick={() => void handleSaveSearch()} type="button" variant="secondary">
-        {isSaving ? "Saving search..." : "Save this search"}
+        {isSaving ? "Kaydediliyor..." : "Bu aramayı kaydet"}
       </Button>
       {message ? (
         <p className={`form-note ${message.tone === "success" ? "text-success" : "text-warning"}`} aria-live="polite">
@@ -80,27 +80,27 @@ export function SaveSearchButton({
 
 function buildSavedSearchName(filters: BrowseListingsFilters, categoryName?: string): string {
   if (filters.q.trim().length > 0) {
-    return `Search: ${filters.q.trim()}`.slice(0, 120);
+    return `Arama: ${filters.q.trim()}`.slice(0, 120);
   }
 
   if (categoryName) {
-    return `Category: ${categoryName}`.slice(0, 120);
+    return `Kategori: ${categoryName}`.slice(0, 120);
   }
 
-  return "Saved BabyLoop search";
+  return "BabyLoop araması";
 }
 
 function buildSavedSearchSummary(filters: BrowseListingsFilters, categoryName?: string): string {
   const parts = [
-    filters.q.trim() ? `Search: ${filters.q.trim()}` : "",
-    categoryName ? `Category: ${categoryName}` : "",
-    filters.listingType ? `Type: ${filters.listingType}` : "",
-    filters.condition ? `Condition: ${filters.condition}` : "",
-    filters.priceMin ? `Min: ${filters.priceMin}` : "",
-    filters.priceMax ? `Max: ${filters.priceMax}` : "",
-    filters.hasImages === "true" ? "Images only" : "",
-    filters.sort && filters.sort !== "newest" ? `Sort: ${filters.sort}` : ""
+    filters.q.trim() ? `Arama: ${filters.q.trim()}` : "",
+    categoryName ? `Kategori: ${categoryName}` : "",
+    filters.listingType ? `Tip: ${filters.listingType}` : "",
+    filters.condition ? `Durum: ${filters.condition}` : "",
+    filters.priceMin ? `En az: ${filters.priceMin}` : "",
+    filters.priceMax ? `En çok: ${filters.priceMax}` : "",
+    filters.hasImages === "true" ? "Sadece görselli" : "",
+    filters.sort && filters.sort !== "newest" ? `Sıralama: ${filters.sort}` : ""
   ].filter(Boolean);
 
-  return parts.length > 0 ? parts.join(" · ") : "All active marketplace listings";
+  return parts.length > 0 ? parts.join(" · ") : "Tüm aktif ilanlar";
 }
