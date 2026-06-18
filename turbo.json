@@ -2,22 +2,54 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "cache": false,
-      "env": ["TEST_DATABASE_URL"],
+      "env": [
+        "TEST_DATABASE_URL"
+      ],
       "outputs": []
     },
     "dev": {
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalEnv": [
+    "DATABASE_URL",
+    "TEST_DATABASE_URL",
+    "AUTH_SECRET",
+    "ALLOW_AUTH_UNAVAILABLE",
+    "ASSISTANT_PROVIDER",
+    "AI_LISTING_DRAFT_PROVIDER",
+    "AI_MODERATION_SUMMARY_PROVIDER",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_ASSISTANT_MODEL",
+    "GEMINI_LISTING_DRAFT_MODEL",
+    "GEMINI_MODERATION_SUMMARY_MODEL",
+    "GEMINI_API_ENDPOINT",
+    "OPENAI_API_KEY",
+    "OPENAI_ASSISTANT_MODEL",
+    "OPENAI_LISTING_DRAFT_MODEL",
+    "OPENAI_MODERATION_SUMMARY_MODEL",
+    "OPENAI_RESPONSES_ENDPOINT"
+  ]
 }

@@ -12,6 +12,19 @@ BACKOFFICE_PORT="${BACKOFFICE_PORT:-3001}"
 # Eski/bozuk env değerlerini ez.
 unset DATABASE_URL
 unset TEST_DATABASE_URL
+
+load_env_file() {
+  if [ -f "$1" ]; then
+    echo "Loading $1"
+    set -a
+    . "$1"
+    set +a
+  fi
+}
+
+load_env_file ".env.local"
+load_env_file "apps/api/.env.local"
+
 unset DATABASE_DIRECT_URL
 
 export NODE_ENV="development"
@@ -23,6 +36,17 @@ export BACKOFFICE_PORT="$BACKOFFICE_PORT"
 
 export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/babyloop_dev"
 export TEST_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test"
+export ASSISTANT_PROVIDER="${ASSISTANT_PROVIDER:-gemini}"
+export AI_LISTING_DRAFT_PROVIDER="${AI_LISTING_DRAFT_PROVIDER:-gemini}"
+export AI_MODERATION_SUMMARY_PROVIDER="${AI_MODERATION_SUMMARY_PROVIDER:-gemini}"
+export GEMINI_ASSISTANT_MODEL="${GEMINI_ASSISTANT_MODEL:-gemini-2.5-flash-lite}"
+export GEMINI_LISTING_DRAFT_MODEL="${GEMINI_LISTING_DRAFT_MODEL:-gemini-2.5-flash}"
+export GEMINI_MODERATION_SUMMARY_MODEL="${GEMINI_MODERATION_SUMMARY_MODEL:-gemini-2.5-flash-lite}"
+export GEMINI_API_ENDPOINT="${GEMINI_API_ENDPOINT:-https://generativelanguage.googleapis.com}"
+export OPENAI_ASSISTANT_MODEL="${OPENAI_ASSISTANT_MODEL:-gpt-5.4-mini}"
+export OPENAI_LISTING_DRAFT_MODEL="${OPENAI_LISTING_DRAFT_MODEL:-gpt-5.4-mini}"
+export OPENAI_MODERATION_SUMMARY_MODEL="${OPENAI_MODERATION_SUMMARY_MODEL:-gpt-5.4-mini}"
+export OPENAI_RESPONSES_ENDPOINT="${OPENAI_RESPONSES_ENDPOINT:-https://api.openai.com/v1/responses}"
 
 export AUTH_SECRET="babyloop_local_dev_auth_secret_please_change_later_123456"
 
@@ -40,6 +64,9 @@ echo "Using BACKOFFICE_PORT=$BACKOFFICE_PORT"
 echo "Using CORS_ORIGINS=$CORS_ORIGINS"
 echo "Using NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL"
 echo "Using NEXT_PUBLIC_BACKOFFICE_BASE_URL=$NEXT_PUBLIC_BACKOFFICE_BASE_URL"
+echo "Using ASSISTANT_PROVIDER=$ASSISTANT_PROVIDER model=$GEMINI_ASSISTANT_MODEL"
+echo "Using AI_LISTING_DRAFT_PROVIDER=$AI_LISTING_DRAFT_PROVIDER model=$GEMINI_LISTING_DRAFT_MODEL"
+echo "Using AI_MODERATION_SUMMARY_PROVIDER=$AI_MODERATION_SUMMARY_PROVIDER model=$GEMINI_MODERATION_SUMMARY_MODEL"
 echo ""
 
 echo "Stopping old dev servers..."

@@ -301,3 +301,11 @@ dependency-check-report.html
 *~
 *.zip
 manual-test-assets/
+
+# Local environment secrets
+.env.local
+.env.*.local
+apps/*/.env
+apps/*/.env.local
+packages/*/.env
+packages/*/.env.local

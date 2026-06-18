@@ -2,9 +2,16 @@ import { fileURLToPath } from "node:url";
 import type { GoogleOAuthConfig } from "../services/google-oauth.service.js";
 
 export type AiModerationSummaryRuntimeConfig =
+  | { provider: "unavailable" }
   | { provider: "mock" }
   | {
       provider: "openai";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
+    }
+  | {
+      provider: "gemini";
       apiKey: string;
       model: string;
       endpoint?: string;
@@ -18,6 +25,12 @@ export type AiListingDraftRuntimeConfig =
       apiKey: string;
       model: string;
       endpoint?: string;
+    }
+  | {
+      provider: "gemini";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
     };
 
 export type AssistantRuntimeConfig =
@@ -25,6 +38,12 @@ export type AssistantRuntimeConfig =
   | { provider: "mock" }
   | {
       provider: "openai";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
+    }
+  | {
+      provider: "gemini";
       apiKey: string;
       model: string;
       endpoint?: string;
@@ -109,8 +128,19 @@ function readAssistantConfig(env: NodeJS.ProcessEnv): AssistantRuntimeConfig {
     return { provider: "mock" };
   }
 
+  if (provider === "gemini") {
+    const endpoint = readGeminiEndpoint(env);
+
+    return {
+      provider: "gemini",
+      apiKey: readGeminiApiKey(env),
+      model: env.GEMINI_ASSISTANT_MODEL?.trim() || "gemini-2.5-flash-lite",
+      ...(endpoint ? { endpoint } : {})
+    };
+  }
+
   if (provider !== "openai") {
-    throw new Error("ASSISTANT_PROVIDER must be unavailable, mock, or openai.");
+    throw new Error("ASSISTANT_PROVIDER must be unavailable, mock, openai, or gemini.");
   }
 
   const apiKey = env.OPENAI_API_KEY?.trim();
@@ -145,8 +175,19 @@ function readAiListingDraftConfig(env: NodeJS.ProcessEnv): AiListingDraftRuntime
     return { provider: "mock" };
   }
 
+  if (provider === "gemini") {
+    const endpoint = readGeminiEndpoint(env);
+
+    return {
+      provider: "gemini",
+      apiKey: readGeminiApiKey(env),
+      model: env.GEMINI_LISTING_DRAFT_MODEL?.trim() || "gemini-2.5-flash",
+      ...(endpoint ? { endpoint } : {})
+    };
+  }
+
   if (provider !== "openai") {
-    throw new Error("AI_LISTING_DRAFT_PROVIDER must be unavailable, mock, or openai.");
+    throw new Error("AI_LISTING_DRAFT_PROVIDER must be unavailable, mock, openai, or gemini.");
   }
 
   const apiKey = env.OPENAI_API_KEY?.trim();
@@ -173,12 +214,27 @@ function readAiListingDraftConfig(env: NodeJS.ProcessEnv): AiListingDraftRuntime
 function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSummaryRuntimeConfig {
   const provider = (env.AI_MODERATION_SUMMARY_PROVIDER ?? "mock").trim().toLowerCase();
 
-  if (!provider || provider === "mock") {
+  if (!provider || provider === "unavailable" || provider === "off" || provider === "none") {
+    return { provider: "unavailable" };
+  }
+
+  if (provider === "mock") {
     return { provider: "mock" };
   }
 
+  if (provider === "gemini") {
+    const endpoint = readGeminiEndpoint(env);
+
+    return {
+      provider: "gemini",
+      apiKey: readGeminiApiKey(env),
+      model: env.GEMINI_MODERATION_SUMMARY_MODEL?.trim() || "gemini-2.5-flash-lite",
+      ...(endpoint ? { endpoint } : {})
+    };
+  }
+
   if (provider !== "openai") {
-    throw new Error("AI_MODERATION_SUMMARY_PROVIDER must be mock or openai.");
+    throw new Error("AI_MODERATION_SUMMARY_PROVIDER must be unavailable, mock, openai, or gemini.");
   }
 
   const apiKey = env.OPENAI_API_KEY?.trim();
@@ -200,6 +256,22 @@ function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSumm
     model,
     ...(endpoint ? { endpoint } : {})
   };
+}
+
+function readGeminiApiKey(env: NodeJS.ProcessEnv): string {
+  const apiKey = env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is required when an AI provider is set to gemini.");
+  }
+
+  return apiKey;
+}
+
+function readGeminiEndpoint(env: NodeJS.ProcessEnv): string | undefined {
+  const endpoint = env.GEMINI_API_ENDPOINT?.trim();
+
+  return endpoint || undefined;
 }
 
 function readEmailDeliveryMode(value: string | undefined): "noop" {

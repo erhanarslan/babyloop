@@ -1,4 +1,5 @@
 import {
+  GeminiModerationSummaryProvider,
   MockModerationSummaryProvider,
   OpenAiModerationSummaryProvider,
   type ModerationSummaryProvider
@@ -8,8 +9,25 @@ import type { AiModerationSummaryRuntimeConfig } from "../config/env.js";
 export function createAdminModerationAiSummaryProvider(
   config: AiModerationSummaryRuntimeConfig
 ): ModerationSummaryProvider {
+  if (config.provider === "unavailable") {
+    return {
+      providerName: "unavailable-moderation-summary",
+      async summarizeModerationCase() {
+        throw new Error("Moderation summary provider is unavailable.");
+      }
+    };
+  }
+
   if (config.provider === "openai") {
     return new OpenAiModerationSummaryProvider({
+      apiKey: config.apiKey,
+      model: config.model,
+      ...(config.endpoint ? { endpoint: config.endpoint } : {})
+    });
+  }
+
+  if (config.provider === "gemini") {
+    return new GeminiModerationSummaryProvider({
       apiKey: config.apiKey,
       model: config.model,
       ...(config.endpoint ? { endpoint: config.endpoint } : {})

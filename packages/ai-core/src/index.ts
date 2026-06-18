@@ -38,14 +38,29 @@ export {
   type OpenAiAssistantMessageProviderOptions
 } from "./openai-assistant-message-provider.js";
 export {
+  GeminiAssistantMessageProvider,
+  type GeminiAssistantMessageProviderOptions
+} from "./gemini-assistant-message-provider.js";
+export {
   OpenAiListingDraftSuggestionProvider,
   type OpenAiListingDraftSuggestionProviderOptions
 } from "./openai-listing-draft-suggestion-provider.js";
 export {
+  GeminiListingDraftSuggestionProvider,
+  type GeminiListingDraftSuggestionProviderOptions
+} from "./gemini-listing-draft-suggestion-provider.js";
+export {
+  GeminiModerationSummaryProvider,
+  type GeminiModerationSummaryProviderOptions
+} from "./gemini-moderation-summary-provider.js";
+export {
+  ASSISTANT_MESSAGE_GEMINI_PROMPT_VERSION,
   ASSISTANT_MESSAGE_OPENAI_PROMPT_VERSION,
   ASSISTANT_MESSAGE_PROMPT_VERSION,
+  LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION,
   LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION,
   LISTING_DRAFT_SUGGESTION_PROMPT_VERSION,
+  MODERATION_SUMMARY_GEMINI_PROMPT_VERSION,
   LISTING_SUGGESTION_PROMPT_VERSION,
   PRICE_SUGGESTION_PROMPT_VERSION,
   MODERATION_SUMMARY_OPENAI_PROMPT_VERSION,

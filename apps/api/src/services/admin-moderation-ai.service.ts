@@ -1,4 +1,5 @@
 import {
+  MODERATION_SUMMARY_GEMINI_PROMPT_VERSION,
   MODERATION_SUMMARY_OPENAI_PROMPT_VERSION,
   MODERATION_SUMMARY_PROMPT_VERSION,
   summarizeModerationCase,
@@ -465,9 +466,15 @@ function requireCreatedId(
 }
 
 function getPromptVersionForProvider(provider: ModerationSummaryProvider | undefined): string {
-  return provider?.providerName === "openai-responses"
-    ? MODERATION_SUMMARY_OPENAI_PROMPT_VERSION
-    : MODERATION_SUMMARY_PROMPT_VERSION;
+  if (provider?.providerName === "openai-responses") {
+    return MODERATION_SUMMARY_OPENAI_PROMPT_VERSION;
+  }
+
+  if (provider?.providerName === "gemini-generate-content") {
+    return MODERATION_SUMMARY_GEMINI_PROMPT_VERSION;
+  }
+
+  return MODERATION_SUMMARY_PROMPT_VERSION;
 }
 
 function riskScoreForLevel(level: ModerationSummaryOutput["riskLevel"]): number {

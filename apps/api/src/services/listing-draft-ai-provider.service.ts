@@ -1,4 +1,5 @@
 import {
+  GeminiListingDraftSuggestionProvider,
   mockListingDraftSuggestionProvider,
   OpenAiListingDraftSuggestionProvider,
   type ListingDraftSuggestionProvider
@@ -14,6 +15,14 @@ export function createListingDraftAiProvider(
 
   if (config.provider === "mock") {
     return mockListingDraftSuggestionProvider;
+  }
+
+  if (config.provider === "gemini") {
+    return new GeminiListingDraftSuggestionProvider({
+      apiKey: config.apiKey,
+      model: config.model,
+      ...(config.endpoint ? { endpoint: config.endpoint } : {})
+    });
   }
 
   return new OpenAiListingDraftSuggestionProvider({

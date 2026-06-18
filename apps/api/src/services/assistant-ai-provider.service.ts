@@ -1,4 +1,5 @@
 import {
+  GeminiAssistantMessageProvider,
   mockAssistantMessageProvider,
   OpenAiAssistantMessageProvider,
   type AssistantMessageProvider
@@ -14,6 +15,14 @@ export function createAssistantMessageProvider(
 
   if (config.provider === "mock") {
     return mockAssistantMessageProvider;
+  }
+
+  if (config.provider === "gemini") {
+    return new GeminiAssistantMessageProvider({
+      apiKey: config.apiKey,
+      model: config.model,
+      ...(config.endpoint ? { endpoint: config.endpoint } : {})
+    });
   }
 
   return new OpenAiAssistantMessageProvider({
