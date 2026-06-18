@@ -1,27 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Badge,
-  Card,
   EmptyState,
   PageContainer,
   PageHeading
 } from "../../components/ui";
 import { FavoriteButton } from "../../features/favorites/favorite-button";
 import { MessageSellerButton } from "../../features/messaging/message-seller-button";
+import { fetchCurrentUser } from "../../features/auth/api";
 import { reportListing } from "../../features/safety/api";
 import { ReportAction } from "../../features/safety/report-action";
 import { recordProductEvent } from "../../features/product-events/api";
 import type { ListingDetailPayload } from "../../lib/api";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
+import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { getPrimaryGuideForCategorySlug } from "../parent-guides/parent-guide-data";
-import { ListingImageFrame } from "./listing-image-frame";
-import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
-import { RelatedListings } from "./related-listings";
 import {
   formatCategoryName,
   formatDateTime,
@@ -36,11 +33,20 @@ type ListingDetailContentProps = {
   listing: ListingDetailPayload["listing"];
 };
 
+type CurrentUserState = {
+  status: "checking" | "guest" | "known" | "error";
+  profileId: string | null;
+};
+
 export function ListingDetailContent({
   apiBaseUrl,
   listing
 }: ListingDetailContentProps) {
   const { dictionary, locale } = useI18n();
+  const [currentUser, setCurrentUser] = useState<CurrentUserState>({
+    status: "checking",
+    profileId: null
+  });
 
   useEffect(() => {
     void recordProductEvent(apiBaseUrl, {
@@ -51,125 +57,163 @@ export function ListingDetailContent({
     });
   }, [apiBaseUrl, listing.category.id, listing.id]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadCurrentUser() {
+      if (!(await getOrRefreshAuthToken(apiBaseUrl))) {
+        if (isActive) {
+          setCurrentUser({ status: "guest", profileId: null });
+        }
+        return;
+      }
+
+      try {
+        const body = await fetchCurrentUser(apiBaseUrl);
+
+        if (!isActive) {
+          return;
+        }
+
+        setCurrentUser(
+          body.ok
+            ? { status: "known", profileId: body.data.profile.id }
+            : { status: "error", profileId: null }
+        );
+      } catch {
+        if (isActive) {
+          setCurrentUser({ status: "error", profileId: null });
+        }
+      }
+    }
+
+    void loadCurrentUser();
+
+    return () => {
+      isActive = false;
+    };
+  }, [apiBaseUrl]);
+
+  const isOwner = currentUser.status === "known" && currentUser.profileId === listing.seller.id;
+  const canShowBuyerActions = currentUser.status === "guest" || (currentUser.status === "known" && !isOwner);
+  const categoryName = formatCategoryName(listing.category, dictionary);
+  const condition = formatListingCondition(listing.condition, dictionary);
+  const listingType = formatListingType(listing.listingType, dictionary);
+  const listingStatus = formatListingStatus(listing.status, dictionary);
+
   return (
-    <PageContainer className="detail-layout">
-      <RecentlyViewedTracker listing={listing} />
-      <div className="detail-media">
-        {listing.images.length > 0 ? (
-          <div className="detail-gallery" aria-label={dictionary.listings.imageGalleryAriaLabel}>
-            {listing.images.map((image, index) => (
-              <ListingImageFrame
-                alt={dictionary.listings.detailImageAlt
-                  .replace("{title}", listing.title)
-                  .replace("{index}", String(index + 1))}
-                apiBaseUrl={apiBaseUrl}
-                className={index === 0 ? "detail-image detail-image-primary" : "detail-image"}
-                fallbackLabel={dictionary.listings.imageUnavailable}
-                key={image.id}
-                url={image.url}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={dictionary.listings.noPhotosTitle}
-            message={dictionary.listings.noPhotosBody}
-          />
-        )}
+    <PageContainer className="grid gap-5 pb-12 pt-5 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,760px)_420px]">
+      {!isOwner && currentUser.status !== "checking" ? <RecentlyViewedTracker listing={listing} /> : null}
 
-        <ListingImageOverview listing={listing} />
-      </div>
+      <section className="min-w-0" aria-label={dictionary.listings.imageGalleryAriaLabel}>
+        <ListingDetailGallery
+          apiBaseUrl={apiBaseUrl}
+          listing={listing}
+        />
+      </section>
 
-      <article className="detail-panel">
-        <Link className="back-link" href="/browse">
-          {dictionary.listings.browseListings}
-        </Link>
-        <div className="listing-card-badges">
-          <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
-          <Badge tone="success">
-            {dictionary.listings.typeLabel}: {formatListingType(listing.listingType, dictionary)}
-          </Badge>
-          <Badge>
-            {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
-          </Badge>
-          <Badge tone={listing.status === "reserved" ? "warning" : "success"}>
-            {dictionary.listings.statusLabel}: {formatListingStatus(listing.status, dictionary)}
-          </Badge>
-        </div>
-        <h1>{listing.title}</h1>
-        <strong className="detail-price">{formatListingPrice(listing.price, dictionary)}</strong>
-        <p className="listing-meta">
-          {dictionary.listings.favoriteCount.replace("{count}", String(listing.favoriteCount))}
-        </p>
-        <p className="detail-description">
-          {listing.description ?? dictionary.listings.noDescription}
-        </p>
-
-        <ListingAvailabilityNotice listing={listing} />
-
-        <div className="detail-action-panel">
-          <div className="detail-action-panel-header">
-            <p className="listing-meta">{dictionary.publicPages.listingDetail.details}</p>
-            <h2>{dictionary.publicPages.listingDetail.messageSeller}</h2>
-            <p>{dictionary.publicPages.listingDetail.safetyBody}</p>
-          </div>
-
-          <div className="detail-actions" aria-label={dictionary.listings.listingActionsAriaLabel}>
-            <FavoriteButton
-              apiBaseUrl={apiBaseUrl}
-              initiallyFavorited={false}
-              listingId={listing.id}
-            />
-            <MessageSellerButton
-              apiBaseUrl={apiBaseUrl}
-              categoryId={listing.category.id}
-              listingId={listing.id}
-              sellerProfileId={listing.seller.id}
-            />
-            <Link href={`/assistant?mode=safe_buying&prompt=${encodeURIComponent(`What should I check before buying ${listing.title}?`)}`}>
-              {dictionary.publicPages.listingDetail.askAssistant}
-            </Link>
-          </div>
-
-          <details className="listing-secondary-actions">
-            <summary>{dictionary.publicPages.listingDetail.safety}</summary>
-            <ReportAction
-              actionLabel={dictionary.safety.reportListing}
-              onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
-            />
-          </details>
+      <article className="self-start rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm sm:p-5 lg:sticky lg:top-28">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link className="text-sm font-black text-primary hover:underline" href="/browse">
+            {dictionary.common.backToBrowse}
+          </Link>
+          {isOwner ? <Badge tone="success">Bu senin ilanın</Badge> : null}
         </div>
 
-        <SellerCard listing={listing} />
-        <details className="listing-secondary-actions">
-          <summary>{dictionary.publicPages.support.guidesTitle}</summary>
-          <ListingRelatedGuideCard categorySlug={listing.category.slug} />
-        </details>
-        <RecentlyViewedListings apiBaseUrl={apiBaseUrl} currentListingId={listing.id} />
-        <RelatedListings apiBaseUrl={apiBaseUrl} listingId={listing.id} />
+        <div className="flex flex-wrap gap-2">
+          <Badge>{categoryName}</Badge>
+          <Badge>{listingType}</Badge>
+          <Badge>{condition}</Badge>
+          <Badge tone={listing.status === "reserved" ? "warning" : "success"}>{listingStatus}</Badge>
+        </div>
 
-        <dl className="detail-facts">
-          <div>
-            <dt>{dictionary.listings.location}</dt>
-            <dd>{listing.seller.locationCity ?? dictionary.common.notProvided}</dd>
+        <h1 className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl">
+          {listing.title}
+        </h1>
+        <p className="mt-3 text-3xl font-black text-foreground">
+          {formatListingPrice(listing.price, dictionary)}
+        </p>
+        <p className="mt-2 text-sm font-semibold text-muted-foreground">
+          {listing.favoriteCount} favori · {listing.seller.locationCity ?? "Şehir belirtilmedi"} ·{" "}
+          {formatDateTime(listing.createdAt, locale)}
+        </p>
+
+        <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <h2 className="text-sm font-black text-foreground">Açıklama</h2>
+          <p className="mt-2 line-clamp-5 text-sm font-semibold leading-6 text-muted-foreground">
+            {listing.description?.trim() || dictionary.listings.noDescription}
+          </p>
+        </div>
+
+        <dl className="mt-4 grid gap-2 text-sm font-semibold text-muted-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <dt>Kategori</dt>
+            <dd className="text-right text-foreground">{categoryName}</dd>
           </div>
-          <div>
-            <dt>{dictionary.listings.condition}</dt>
-            <dd>{formatListingCondition(listing.condition, dictionary)}</dd>
+          <div className="flex items-center justify-between gap-3">
+            <dt>Tip</dt>
+            <dd className="text-right text-foreground">{listingType}</dd>
           </div>
-          <div>
-            <dt>{dictionary.listings.listingType}</dt>
-            <dd>{formatListingType(listing.listingType, dictionary)}</dd>
+          <div className="flex items-center justify-between gap-3">
+            <dt>Durum</dt>
+            <dd className="text-right text-foreground">{condition}</dd>
           </div>
-          <div>
-            <dt>{dictionary.listings.created}</dt>
-            <dd>{formatDateTime(listing.createdAt, locale)}</dd>
-          </div>
-          <div>
-            <dt>{dictionary.listings.updated}</dt>
-            <dd>{formatDateTime(listing.updatedAt, locale)}</dd>
+          <div className="flex items-center justify-between gap-3">
+            <dt>İlan durumu</dt>
+            <dd className="text-right text-foreground">{listingStatus}</dd>
           </div>
         </dl>
+
+        {isOwner ? (
+          <OwnerListingActions />
+        ) : null}
+
+        {currentUser.status === "checking" ? (
+          <p className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm font-bold text-muted-foreground">
+            Aksiyonlar hazırlanıyor.
+          </p>
+        ) : null}
+
+        {currentUser.status === "error" ? (
+          <p className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm font-bold text-muted-foreground">
+            Hesap bilgisi şu an kontrol edilemedi.
+          </p>
+        ) : null}
+
+        {canShowBuyerActions ? (
+          <>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <MessageSellerButton
+                apiBaseUrl={apiBaseUrl}
+                categoryId={listing.category.id}
+                listingId={listing.id}
+                sellerProfileId={listing.seller.id}
+              />
+              <FavoriteButton
+                apiBaseUrl={apiBaseUrl}
+                initiallyFavorited={false}
+                listingId={listing.id}
+              />
+            </div>
+
+            <SellerCard listing={listing} />
+
+            <details className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-3">
+              <summary className="cursor-pointer text-sm font-black text-foreground">
+                Güvenli alışveriş
+              </summary>
+              <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+                Ödeme ve teslim detaylarını BabyLoop mesajlaşmasında netleştir.
+              </p>
+              <div className="mt-3">
+                <ReportAction
+                  actionLabel={dictionary.safety.reportListing}
+                  onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
+                />
+              </div>
+            </details>
+          </>
+        ) : null}
       </article>
     </PageContainer>
   );
@@ -194,110 +238,116 @@ export function ListingDetailUnavailable({ error }: { error: ApiError }) {
   );
 }
 
-function ListingImageOverview({ listing }: { listing: ListingDetailPayload["listing"] }) {
-  const imageCount = listing.images.length;
+function ListingDetailGallery({
+  apiBaseUrl,
+  listing
+}: {
+  apiBaseUrl: string;
+  listing: ListingDetailPayload["listing"];
+}) {
+  const primaryImage = listing.images[0] ?? null;
+  const primaryImageUrl = getSafeImageUrl(primaryImage?.url ?? null, apiBaseUrl);
 
   return (
-    <Card className="detail-image-overview" aria-label="Listing photo review summary">
-      <p className="eyebrow">Photo review</p>
-      <div className="detail-image-overview-list">
-        <div>
-          <span>Photos</span>
-          <strong>{imageCount}</strong>
-        </div>
-        <div>
-          <span>Primary check</span>
-          <strong>{imageCount > 0 ? "Inspect visible wear" : "Ask for photos"}</strong>
-        </div>
-        <div>
-          <span>Buyer note</span>
-          <strong>Request unclear angles</strong>
-        </div>
+    <div className="grid gap-3">
+      <div className="grid aspect-[4/3] max-h-[560px] min-h-[260px] place-items-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-muted/30">
+        {primaryImageUrl ? (
+          <img
+            alt={`Ürün görseli: ${listing.title}`}
+            className="h-full w-full object-contain"
+            loading="eager"
+            src={primaryImageUrl}
+          />
+        ) : (
+          <span className="text-sm font-black text-muted-foreground">Ürün görseli yok</span>
+        )}
       </div>
-    </Card>
-  );
-}
 
-function ListingAvailabilityNotice({ listing }: { listing: ListingDetailPayload["listing"] }) {
-  const { dictionary } = useI18n();
-  const status = formatListingStatus(listing.status, dictionary);
-  const isAvailable = listing.status === "active" || listing.status === "reserved";
+      {listing.images.length > 1 ? (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+          {listing.images.slice(0, 5).map((image, index) => {
+            const imageUrl = getSafeImageUrl(image.url, apiBaseUrl);
 
-  return (
-    <div className={`listing-availability-notice${isAvailable ? "" : " warning"}`}>
-      <strong>{isAvailable ? "Conversation can start from this listing" : `Listing status: ${status}`}</strong>
-      <p>
-        {isAvailable
-          ? "Use BabyLoop messaging to confirm condition, included parts, pickup expectations, and final availability before meeting."
-          : "This listing may not be publicly actionable. Browse related listings or ask the assistant for adjacent options."}
-      </p>
+            return (
+              <div
+                className="grid aspect-square place-items-center overflow-hidden rounded-2xl border border-border/70 bg-muted/30"
+                key={image.id}
+              >
+                {imageUrl ? (
+                  <img
+                    alt={`${listing.title} görseli ${index + 1}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    src={imageUrl}
+                  />
+                ) : (
+                  <span className="text-xs font-bold text-muted-foreground">Görsel yok</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function ListingRelatedGuideCard({ categorySlug }: { categorySlug: string }) {
-  const topic = getPrimaryGuideForCategorySlug(categorySlug);
-
-  if (!topic) {
-    return null;
-  }
-
+function OwnerListingActions() {
   return (
-    <Card className="seller-card parent-guide-listing-card" aria-label="Related parent guide">
-      <div>
-        <p className="listing-meta">Parent guide</p>
-        <h2>{topic.title}</h2>
-        <p className="muted">{topic.summary}</p>
-        <p className="form-note">
-          <strong>Common misconception:</strong> {topic.knownMyth}
-        </p>
-        <div className="home-personalization-actions">
-          <Link href="/guides">Read guide</Link>
-          <Link href={topic.browseHref}>Find related listings</Link>
-          <Link
-            href={buildAssistantHref(
-              "find_products",
-              `Turn the ${topic.title} guide into a short BabyLoop browsing checklist.`
-            )}
-          >
-            Ask Assistant
-          </Link>
-        </div>
-      </div>
-    </Card>
+    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <Link
+        className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
+        href="/my-listings"
+      >
+        Düzenle
+      </Link>
+      <Link
+        className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-secondary px-4 py-2 text-sm font-black text-secondary-foreground"
+        href="/my-listings"
+      >
+        İlanlarım
+      </Link>
+    </div>
   );
 }
 
 function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
   const { dictionary } = useI18n();
-  const avatarUrl = getSafeImageUrl(listing.seller.avatarUrl);
+  const avatarUrl = getSafeImageUrl(listing.seller.avatarUrl, undefined);
 
   return (
-    <Card className="seller-card seller-card-enhanced" aria-label={dictionary.listings.sellerInformationAriaLabel}>
-      <div className="seller-avatar" aria-hidden="true">
+    <section
+      className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/20 p-3"
+      aria-label={dictionary.listings.sellerInformationAriaLabel}
+    >
+      <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 text-base font-black text-primary" aria-hidden="true">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" />
+          <img className="h-full w-full object-cover" src={avatarUrl} alt="" />
         ) : (
           <span>{listing.seller.displayName.slice(0, 1).toUpperCase()}</span>
         )}
       </div>
-      <div>
+      <div className="min-w-0">
         <p className="listing-meta">{dictionary.listings.seller}</p>
-        <h2>{listing.seller.displayName}</h2>
-        <p className="muted">{listing.seller.locationCity ?? dictionary.listings.locationNotProvided}</p>
-        <ul className="seller-trust-list">
-          <li>Seller contact details stay hidden on the public listing.</li>
-          <li>Questions should start through BabyLoop participant-only messaging.</li>
-          <li>Use report actions if the listing looks misleading, unsafe, or suspicious.</li>
-        </ul>
+        <h2 className="truncate text-base font-black text-foreground">{listing.seller.displayName}</h2>
+        <p className="text-sm font-semibold text-muted-foreground">
+          {listing.seller.locationCity ?? dictionary.listings.locationNotProvided}
+        </p>
+        <p className="mt-1 text-xs font-bold text-muted-foreground">
+          Mesajlaşma BabyLoop üzerinden yapılır.
+        </p>
       </div>
-    </Card>
+    </section>
   );
 }
 
-function getSafeImageUrl(url: string | null): string | null {
+function getSafeImageUrl(url: string | null, apiBaseUrl: string | undefined): string | null {
   if (!url) {
     return null;
+  }
+
+  if (url.startsWith("/api/v1/uploads/") && apiBaseUrl) {
+    return `${apiBaseUrl}${url}`;
   }
 
   try {
@@ -307,15 +357,4 @@ function getSafeImageUrl(url: string | null): string | null {
   } catch {
     return null;
   }
-}
-
-type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";
-
-function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
-  const params = new URLSearchParams({
-    mode,
-    prompt
-  });
-
-  return `/assistant?${params.toString()}`;
 }
