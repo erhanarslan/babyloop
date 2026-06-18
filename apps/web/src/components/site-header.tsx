@@ -25,7 +25,16 @@ import { useI18n } from "../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../lib/realtime-client";
 import { useTheme } from "../lib/theme/theme-provider";
 import { useAuthPrompt } from "../features/auth/auth-prompt-provider";
-import { fetchUnreadNotificationCount } from "../features/notifications/api";
+import {
+  fetchNotifications,
+  fetchUnreadNotificationCount,
+  markAllNotificationsRead,
+  type Notification
+} from "../features/notifications/api";
+import {
+  buildNotificationSummary,
+  sortNotifications
+} from "../features/notifications/notification-summary";
 import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notifications/unread-count-events";
 import { CategoryMegaMenu } from "./navigation/category-mega-menu";
 import {
@@ -41,7 +50,7 @@ import {
 } from "./navigation/public-navigation-model";
 import { SearchOverlay } from "./navigation/search-overlay";
 
-type HeaderMenu = "categories" | "account" | null;
+type HeaderMenu = "categories" | "account" | "notifications" | null;
 
 export function SiteHeader() {
   const apiBaseUrl = getApiBaseUrl();
@@ -50,6 +59,10 @@ export function SiteHeader() {
   const { dictionary, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
+  const [headerNotifications, setHeaderNotifications] = useState<Notification[]>([]);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [isMarkingNotificationsRead, setIsMarkingNotificationsRead] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -116,6 +129,8 @@ export function SiteHeader() {
   useEffect(() => {
     if (!currentAuth) {
       setUnreadNotificationCount(0);
+      setHeaderNotifications([]);
+      setNotificationMessage(null);
       return;
     }
 
@@ -161,14 +176,34 @@ export function SiteHeader() {
 
     function handleNotificationCreated(payload: NotificationCreatedPayload) {
       setUnreadNotificationCount(payload.unreadCount);
+      setHeaderNotifications((currentNotifications) =>
+        sortNotifications([
+          payload.notification,
+          ...currentNotifications.filter((notification) => notification.id !== payload.notification.id)
+        ])
+      );
     }
 
     function handleNotificationRead(payload: NotificationReadPayload) {
       setUnreadNotificationCount(payload.unreadCount);
+      setHeaderNotifications((currentNotifications) =>
+        currentNotifications.map((notification) =>
+          notification.id === payload.notificationId
+            ? { ...notification, readAt: payload.readAt }
+            : notification
+        )
+      );
     }
 
     function handleNotificationReadAll(payload: NotificationReadAllPayload) {
       setUnreadNotificationCount(payload.unreadCount);
+      const readAt = new Date().toISOString();
+      setHeaderNotifications((currentNotifications) =>
+        currentNotifications.map((notification) => ({
+          ...notification,
+          readAt: notification.readAt ?? readAt
+        }))
+      );
     }
 
     function handleUnreadCountUpdated(payload: NotificationUnreadCountUpdatedPayload) {
@@ -238,6 +273,74 @@ export function SiteHeader() {
     logoutAndRedirectToHome(apiBaseUrl);
   }
 
+  async function loadHeaderNotifications() {
+    if (!currentAuth) {
+      return;
+    }
+
+    setIsNotificationsLoading(true);
+    setNotificationMessage(null);
+
+    try {
+      const body = await fetchNotifications(apiBaseUrl);
+
+      if (!body.ok) {
+        setNotificationMessage("Bildirimler şu an yüklenemedi.");
+        return;
+      }
+
+      const nextNotifications = sortNotifications(body.data.notifications);
+      setHeaderNotifications(nextNotifications);
+      setUnreadNotificationCount(nextNotifications.filter((notification) => !notification.readAt).length);
+    } catch {
+      setNotificationMessage("Bildirimler şu an yüklenemedi.");
+    } finally {
+      setIsNotificationsLoading(false);
+    }
+  }
+
+  async function handleOpenNotifications() {
+    const nextOpen = openMenu === "notifications" ? null : "notifications";
+
+    setOpenMenu(nextOpen);
+
+    if (nextOpen === "notifications") {
+      await loadHeaderNotifications();
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    setIsMarkingNotificationsRead(true);
+    setNotificationMessage(null);
+
+    try {
+      const body = await markAllNotificationsRead(apiBaseUrl);
+
+      if (!body.ok) {
+        setNotificationMessage("Bildirimler okundu işaretlenemedi.");
+        return;
+      }
+
+      const readAt = new Date().toISOString();
+      setHeaderNotifications((currentNotifications) =>
+        currentNotifications.map((notification) => ({
+          ...notification,
+          readAt: notification.readAt ?? readAt
+        }))
+      );
+      setUnreadNotificationCount(0);
+      window.dispatchEvent(
+        new CustomEvent(NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT, {
+          detail: { unreadCount: 0 }
+        })
+      );
+    } catch {
+      setNotificationMessage("Bildirimler okundu işaretlenemedi.");
+    } finally {
+      setIsMarkingNotificationsRead(false);
+    }
+  }
+
   return (
     <header ref={headerRef} className="market-header" aria-label="Main navigation">
       <div className="market-header-top">
@@ -287,9 +390,15 @@ export function SiteHeader() {
           <HeaderAccount
             currentAuth={currentAuth}
             dictionary={dictionary}
+            headerNotifications={headerNotifications}
+            isMarkingNotificationsRead={isMarkingNotificationsRead}
+            isNotificationsLoading={isNotificationsLoading}
+            notificationMessage={notificationMessage}
+            onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
             onLogin={() => openAuthPrompt({ title: "BabyLoop’a giriş yap" })}
             onLogout={handleLogout}
             onOpenAccount={() => setOpenMenu(openMenu === "account" ? null : "account")}
+            onOpenNotifications={() => void handleOpenNotifications()}
             openMenu={openMenu}
             unreadNotificationCount={unreadNotificationCount}
           />
@@ -358,17 +467,29 @@ export function SiteHeader() {
 function HeaderAccount({
   currentAuth,
   dictionary,
+  headerNotifications,
+  isMarkingNotificationsRead,
+  isNotificationsLoading,
+  notificationMessage,
+  onMarkAllNotificationsRead,
   onLogin,
   onLogout,
   onOpenAccount,
+  onOpenNotifications,
   openMenu,
   unreadNotificationCount
 }: {
   currentAuth: AuthMe | null;
   dictionary: ReturnType<typeof useI18n>["dictionary"];
+  headerNotifications: Notification[];
+  isMarkingNotificationsRead: boolean;
+  isNotificationsLoading: boolean;
+  notificationMessage: string | null;
+  onMarkAllNotificationsRead: () => void;
   onLogin: () => void;
   onLogout: () => void;
   onOpenAccount: () => void;
+  onOpenNotifications: () => void;
   openMenu: HeaderMenu;
   unreadNotificationCount: number;
 }) {
@@ -382,16 +503,23 @@ function HeaderAccount({
 
   const displayName = currentAuth.profile.displayName || dictionary.nav.account;
   const initial = displayName.slice(0, 1).toUpperCase();
+  const notificationPopoverId = "market-notifications-popover";
 
   return (
     <div className="market-account">
       <Link className="market-activity-link" href="/conversations">
         {dictionary.publicShell.header.messages}
       </Link>
-      <Link className="market-activity-link" href="/notifications">
+      <button
+        aria-controls={notificationPopoverId}
+        aria-expanded={openMenu === "notifications"}
+        className="market-activity-link market-notifications-trigger"
+        type="button"
+        onClick={onOpenNotifications}
+      >
         {dictionary.publicShell.header.notifications}
         {unreadNotificationCount > 0 ? <span>{formatBadgeCount(unreadNotificationCount)}</span> : null}
-      </Link>
+      </button>
       <button
         aria-expanded={openMenu === "account"}
         className="market-account-trigger"
@@ -414,6 +542,90 @@ function HeaderAccount({
           </button>
         </div>
       ) : null}
+
+      {openMenu === "notifications" ? (
+        <HeaderNotificationsPopover
+          id={notificationPopoverId}
+          isLoading={isNotificationsLoading}
+          isMarkingAllRead={isMarkingNotificationsRead}
+          message={notificationMessage}
+          notifications={headerNotifications}
+          onMarkAllRead={onMarkAllNotificationsRead}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function HeaderNotificationsPopover({
+  id,
+  isLoading,
+  isMarkingAllRead,
+  message,
+  notifications,
+  onMarkAllRead
+}: {
+  id: string;
+  isLoading: boolean;
+  isMarkingAllRead: boolean;
+  message: string | null;
+  notifications: Notification[];
+  onMarkAllRead: () => void;
+}) {
+  const summary = buildNotificationSummary(notifications);
+  const favoriteTotal = summary.favoriteAggregates.reduce(
+    (total, item) => total + item.totalCount,
+    0
+  );
+
+  return (
+    <div
+      aria-label="Bildirimler"
+      className="market-notifications-popover"
+      id={id}
+      role="dialog"
+    >
+      <div className="market-notifications-popover-header">
+        <strong>Bildirimler</strong>
+        <Link href="/notifications">Arşiv</Link>
+      </div>
+
+      {isLoading ? <p className="market-notifications-muted">Bildirimler yükleniyor...</p> : null}
+      {message ? <p className="market-notifications-error">{message}</p> : null}
+
+      <div className="market-notifications-summary-row">
+        <span>Okunmamış mesaj: {summary.unreadMessageCount}</span>
+        <Link href="/conversations">Mesajlara git</Link>
+      </div>
+
+      <div className="market-notifications-favorites">
+        <p>{favoriteTotal} kullanıcı ürünlerini favori ürünlere ekledi</p>
+        {summary.favoriteAggregates.length > 0 ? (
+          <ol>
+            {summary.favoriteAggregates.slice(0, 4).map((item) => (
+              <li key={item.listingId ?? item.title}>
+                <div>
+                  {item.href ? <Link href={item.href}>{item.title}</Link> : <span>{item.title}</span>}
+                  <small>
+                    {item.totalCount} favori · Bugün +{item.todayCount}
+                  </small>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <span className="market-notifications-muted">Henüz favori hareketi yok.</span>
+        )}
+      </div>
+
+      <button
+        className="market-notifications-read-all"
+        disabled={isMarkingAllRead || summary.unreadCount === 0}
+        type="button"
+        onClick={onMarkAllRead}
+      >
+        {isMarkingAllRead ? "İşaretleniyor..." : "Tümünü okundu işaretle"}
+      </button>
     </div>
   );
 }

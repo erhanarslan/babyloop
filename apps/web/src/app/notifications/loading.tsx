@@ -6,12 +6,12 @@ export default function NotificationsLoading() {
       <PageContainer>
         <PageHeading
           eyebrow="BabyLoop"
-          title="Loading notifications"
-          description="Fetching marketplace updates safely."
+          title="Bildirimler"
+          description="Mesaj ve ilan hareketleri hazırlanıyor."
         />
         <LoadingBlock
-          title="Loading notifications"
-          message="Fetching marketplace updates safely."
+          title="Bildirimler yükleniyor"
+          message="Mesaj ve ilan hareketleri hazırlanıyor."
         />
       </PageContainer>
     </SiteShell>

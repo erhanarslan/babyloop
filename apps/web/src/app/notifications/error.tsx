@@ -10,10 +10,10 @@ export default function NotificationsError({ error: _error, reset }: RouteErrorP
     <main className="page-container" role="alert">
       <section className="empty-state">
         <p className="eyebrow">BabyLoop</p>
-        <h1>Notifications could not load</h1>
-        <p>Marketplace notifications hit an unexpected error.</p>
+        <h1>Bildirimler yüklenemedi</h1>
+        <p>Mesaj ve ilan hareketleri şu an gösterilemiyor.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

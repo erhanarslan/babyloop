@@ -5,8 +5,8 @@ import { NotificationsPageContent } from "../../features/notifications/notificat
 import { getApiBaseUrl } from "../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Notifications",
-  "BabyLoop notification pages are private and not indexed."
+  "Bildirimler",
+  "BabyLoop bildirim sayfaları özel alandır ve indekslenmez."
 );
 
 export default function NotificationsPage() {
