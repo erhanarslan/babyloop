@@ -32,6 +32,14 @@ export type GeminiGenerateJsonOptions = {
   temperature?: number;
 };
 
+export type GeminiEmbeddingOptions = {
+  apiKey: string;
+  endpoint?: string;
+  fetch?: FetchLike;
+  model: string;
+  text: string;
+};
+
 const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com";
 
 export async function generateGeminiJson(options: GeminiGenerateJsonOptions): Promise<unknown> {
@@ -108,6 +116,55 @@ export function dataUrlToGeminiInlineData(dataUrl: string): GeminiPart | null {
   };
 }
 
+export async function generateGeminiEmbedding(options: GeminiEmbeddingOptions): Promise<number[]> {
+  const apiKey = options.apiKey.trim();
+  const model = options.model.trim();
+  const text = options.text.trim();
+
+  if (!apiKey) {
+    throw new Error("Gemini embedding provider requires GEMINI_API_KEY.");
+  }
+
+  if (!model) {
+    throw new Error("Gemini embedding provider requires a model.");
+  }
+
+  if (!text) {
+    throw new Error("Gemini embedding provider requires non-empty text.");
+  }
+
+  const endpoint = (options.endpoint?.trim() || DEFAULT_GEMINI_ENDPOINT).replace(/\/$/, "");
+  const fetchFn = options.fetch ?? getDefaultFetch();
+  const response = await fetchFn(
+    `${endpoint}/v1beta/models/${encodeURIComponent(model)}:embedContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        content: {
+          parts: [{ text }]
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini embedding request failed with status ${response.status}.`);
+  }
+
+  const payload = await response.json();
+  const values = extractGeminiEmbeddingValues(payload);
+
+  if (values.length === 0) {
+    throw new Error("Gemini embedding response did not include vector values.");
+  }
+
+  return values;
+}
+
 function getDefaultFetch(): FetchLike {
   const fetchFn = (globalThis as unknown as { fetch?: FetchLike }).fetch;
 
@@ -172,4 +229,24 @@ function stripJsonFence(value: string): string {
     .replace(/^```\s*/u, "")
     .replace(/\s*```$/u, "")
     .trim();
+}
+
+function extractGeminiEmbeddingValues(payload: unknown): number[] {
+  if (typeof payload !== "object" || payload === null) {
+    return [];
+  }
+
+  const embedding = (payload as { embedding?: unknown }).embedding;
+
+  if (typeof embedding !== "object" || embedding === null) {
+    return [];
+  }
+
+  const values = (embedding as { values?: unknown }).values;
+
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 }

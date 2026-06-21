@@ -32,6 +32,15 @@ services:
       timeout: 5s
       retries: 5
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: babyloop-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - babyloop_qdrant_data:/qdrant/storage
+
 volumes:
   babyloop_postgres_data:
   babyloop_redis_data:
+  babyloop_qdrant_data:

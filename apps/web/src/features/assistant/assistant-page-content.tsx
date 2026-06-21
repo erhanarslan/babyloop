@@ -10,7 +10,8 @@ import {
 } from "../../components/ui";
 import {
   requestAssistantMessage,
-  type AssistantMessageAction
+  type AssistantMessageAction,
+  type AssistantMessageSource
 } from "./api";
 import styles from "./assistant-page-content.module.css";
 
@@ -19,6 +20,7 @@ type AssistantMessage = {
   role: "assistant" | "user";
   content: string;
   actions?: AssistantMessageAction[];
+  sources?: AssistantMessageSource[];
 };
 
 type AssistantPageContentProps = {
@@ -72,7 +74,8 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           id: `assistant-${Date.now()}`,
           role: "assistant",
           content: response.data.answer,
-          actions: response.data.actions ?? []
+          actions: response.data.actions ?? [],
+          sources: response.data.sources ?? []
         }
       ]);
       setIsPending(false);
@@ -150,6 +153,20 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
               {localizeActionLabel(action.label, action.href)}
             </Link>
           ))}
+        </div>
+      ) : null}
+
+      {message.sources && message.sources.length > 0 ? (
+        <div className={styles.sources} aria-label="Kaynaklar">
+          <span>Kaynaklar</span>
+          <ul>
+            {message.sources.map((source) => (
+              <li key={`${source.sourcePath}-${source.section ?? source.title}`}>
+                {source.title}
+                {source.section ? ` · ${source.section}` : ""}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </article>

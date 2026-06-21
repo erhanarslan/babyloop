@@ -13,6 +13,8 @@ import {
   createAssistantChatReply,
   type AssistantChatReply
 } from "../services/assistant-chat.service.js";
+import type { RagAssistantService } from "../services/rag-assistant.service.js";
+import type { RagCitation } from "../services/rag.types.js";
 
 type AssistantChatResponse = ApiResponse<{
   reply: AssistantChatReply;
@@ -21,10 +23,14 @@ type AssistantChatResponse = ApiResponse<{
 type AssistantMessageResponse = ApiResponse<{
   answer: string;
   actions?: AssistantMessageOutput["actions"];
+  sources?: RagCitation[];
+  mode?: "rag" | "boundary" | "no_sources";
+  grounded?: boolean;
 }>;
 
 type AssistantRouteOptions = {
   assistantProvider?: AssistantMessageProvider | null;
+  ragAssistantService?: RagAssistantService | null;
 };
 
 export function registerAssistantRoutes(app: FastifyInstance, options: AssistantRouteOptions = {}): void {
@@ -41,6 +47,32 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
             message: "Asistan isteği geçersiz."
           }
         });
+      }
+
+      const ragAssistantService = options.ragAssistantService ?? null;
+
+      if (ragAssistantService) {
+        try {
+          const answer = await ragAssistantService.answerMessage(parsedBody.data);
+
+          return {
+            ok: true,
+            data: {
+              answer: answer.answer,
+              mode: answer.mode,
+              grounded: answer.grounded,
+              ...(answer.sources.length > 0 ? { sources: answer.sources } : {})
+            }
+          };
+        } catch {
+          return reply.status(503).send({
+            ok: false,
+            error: {
+              code: "ASSISTANT_UNAVAILABLE",
+              message: "Asistan şu an yapılandırılmadı. Daha sonra tekrar deneyebilirsin."
+            }
+          });
+        }
       }
 
       const provider = options.assistantProvider ?? null;

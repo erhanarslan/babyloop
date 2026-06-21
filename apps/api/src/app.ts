@@ -29,6 +29,7 @@ import { registerListingRecommendationRoutes } from "./routes/listing-recommenda
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
 import { registerProductEventRoutes } from "./routes/product-events.routes.js";
+import { registerRagRoutes } from "./routes/rag.routes.js";
 import { registerSearchSuggestionRoutes } from "./routes/search-suggestions.routes.js";
 import { registerSafetyRoutes } from "./routes/safety.routes.js";
 import { registerSavedSearchRoutes } from "./routes/saved-searches.routes.js";
@@ -55,6 +56,10 @@ import { registerAdminAiOpsRoutes } from "./routes/admin-ai-ops.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
 import { createAssistantMessageProvider } from "./services/assistant-ai-provider.service.js";
 import { createListingDraftAiProvider } from "./services/listing-draft-ai-provider.service.js";
+import {
+  createRagRuntimeServices,
+  type RagRuntimeServices
+} from "./services/rag-runtime.service.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -68,6 +73,7 @@ type CreateAppOptions = {
   googleOAuthClient?: GoogleOAuthClient;
   listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   moderationSummaryProvider?: ModerationSummaryProvider;
+  ragServices?: RagRuntimeServices | null;
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
@@ -84,6 +90,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const listingDraftSuggestionProvider =
     options.listingDraftSuggestionProvider ??
     createListingDraftAiProvider(config.aiListingDraft);
+  const ragServices = options.ragServices ?? createRagRuntimeServices(config.rag);
 
   const emailDelivery =
     options.emailDelivery ??
@@ -231,7 +238,11 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
-    app.register(registerAssistantRoutes, { assistantProvider, prefix: API_PREFIX });
+    app.register(registerAssistantRoutes, {
+      assistantProvider,
+      ragAssistantService: ragServices?.assistantService ?? null,
+      prefix: API_PREFIX
+    });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
     app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
@@ -244,6 +255,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
+    app.register(registerRagRoutes, {
+      ragSearchService: ragServices?.searchService ?? null,
+      prefix: API_PREFIX
+    });
     app.register(registerSearchSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
     app.register(registerSavedSearchRoutes, { prefix: API_PREFIX });
@@ -264,7 +279,15 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.log.warn("DATABASE_URL is not set. Marketplace API routes will return 503.");
     app.register(registerAiListingSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
-    app.register(registerAssistantRoutes, { assistantProvider, prefix: API_PREFIX });
+    app.register(registerAssistantRoutes, {
+      assistantProvider,
+      ragAssistantService: ragServices?.assistantService ?? null,
+      prefix: API_PREFIX
+    });
+    app.register(registerRagRoutes, {
+      ragSearchService: ragServices?.searchService ?? null,
+      prefix: API_PREFIX
+    });
 
     if (config.allowAuthUnavailable) {
       app.register(registerAuthUnavailableRoutes, { prefix: API_PREFIX });

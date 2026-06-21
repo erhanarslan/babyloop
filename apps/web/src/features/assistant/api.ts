@@ -50,9 +50,19 @@ export type AssistantMessageAction = {
   label: string;
 };
 
+export type AssistantMessageSource = {
+  title: string;
+  sourcePath: string;
+  section?: string;
+  topic?: string;
+};
+
 export type AssistantMessagePayload = {
   answer: string;
   actions?: AssistantMessageAction[];
+  sources?: AssistantMessageSource[];
+  mode?: "rag" | "boundary" | "no_sources";
+  grounded?: boolean;
 };
 
 export async function requestAssistantChat(

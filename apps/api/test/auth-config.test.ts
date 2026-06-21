@@ -169,6 +169,49 @@ describe("auth runtime config", () => {
     ).toThrow("GEMINI_API_KEY is required");
   });
 
+  it("keeps RAG disabled by default", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test"
+    });
+
+    expect(config.rag).toEqual({ enabled: false });
+  });
+
+  it("accepts RAG Gemini configuration without OpenAI keys", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+      GEMINI_API_KEY: "gemini-test-key",
+      RAG_ENABLED: "true",
+      RAG_QDRANT_URL: "http://localhost:6333",
+      RAG_QDRANT_COLLECTION: "babyloop_rag_test"
+    });
+
+    expect(config.rag).toMatchObject({
+      enabled: true,
+      vectorStore: "qdrant",
+      qdrantUrl: "http://localhost:6333",
+      qdrantCollection: "babyloop_rag_test",
+      qdrantVectorSize: 3072,
+      embeddingProvider: "gemini",
+      embeddingModel: "gemini-embedding-001",
+      chatProvider: "gemini",
+      chatModel: "gemini-2.5-flash",
+      geminiApiKey: "gemini-test-key"
+    });
+  });
+
+  it("requires a Gemini key when RAG is enabled", () => {
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        RAG_ENABLED: "true"
+      })
+    ).toThrow("GEMINI_API_KEY is required");
+  });
+
   it("allows moderation summaries to be explicitly unavailable", () => {
     const config = readApiRuntimeConfig({
       AI_MODERATION_SUMMARY_PROVIDER: "unavailable",

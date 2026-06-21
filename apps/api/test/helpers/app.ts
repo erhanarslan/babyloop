@@ -38,7 +38,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const app = createApp({
     config: {
+      aiListingDraft: { provider: "mock" },
       aiModerationSummary: { provider: "mock" },
+      assistant: { provider: "mock" },
       allowAuthUnavailable: false,
       authRateLimitMax: options.authRateLimitMax ?? 100,
       authRateLimitWindowSeconds: options.authRateLimitWindowSeconds ?? 60,
@@ -50,6 +52,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       ...(googleOAuth ? { googleOAuth } : {}),
       host: "127.0.0.1",
       port: 0,
+      rag: { enabled: false },
       uploadRoot: options.uploadRoot ?? path.join(tmpdir(), "babyloop-test-uploads"),
       webAppUrl: "http://localhost:3000"
     },

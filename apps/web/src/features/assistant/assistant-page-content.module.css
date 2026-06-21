@@ -116,6 +116,28 @@
   text-decoration: none;
 }
 
+.sources {
+  display: grid;
+  gap: 0.25rem;
+  border-top: 1px solid rgba(107, 86, 73, 0.12);
+  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.sources span {
+  color: var(--color-text-strong);
+  font-weight: 750;
+}
+
+.sources ul {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
 :global(.dark) .card,
 :global(.dark) .empty,
 :global(.dark) .message,

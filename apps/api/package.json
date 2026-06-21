@@ -6,6 +6,7 @@
   "scripts": {
     "build:deps": "pnpm --filter '@babyloop/api^...' build",
     "dev": "pnpm build:deps && pnpm build && node dist/server.js",
+    "rag:ingest": "pnpm exec tsx src/scripts/rag-ingest.ts",
     "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run --config vitest.config.ts",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@vitest/coverage-v8": "4.1.6",
     "socket.io-client": "^4.8.3",
+    "tsx": "^4.22.4",
     "vitest": "^4.1.6"
   }
 }

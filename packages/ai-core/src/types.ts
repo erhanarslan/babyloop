@@ -36,11 +36,21 @@ export type AssistantMessageAction = {
   href: string;
 };
 
+export type AssistantMessageSource = {
+  title: string;
+  sourcePath: string;
+  section?: string;
+  topic?: string;
+};
+
 export type AssistantMessageOutput = {
   answer: string;
   actions: AssistantMessageAction[];
   providerName: string;
   promptVersion: string;
+  sources?: AssistantMessageSource[];
+  mode?: "provider" | "rag" | "boundary" | "no_sources";
+  grounded?: boolean;
   modelName?: string;
 };
 
@@ -48,6 +58,50 @@ export type AssistantMessageProvider = {
   readonly providerName: string;
   readonly modelName?: string;
   answerMessage(input: AssistantMessageInput): Promise<AssistantMessageOutput>;
+};
+
+export type EmbeddingInput = {
+  text: string;
+};
+
+export type EmbeddingOutput = {
+  embedding: number[];
+  providerName: string;
+  promptVersion: string;
+  modelName?: string;
+};
+
+export type EmbeddingProvider = {
+  readonly providerName: string;
+  readonly modelName?: string;
+  embedText(input: EmbeddingInput): Promise<EmbeddingOutput>;
+};
+
+export type RagGroundedAnswerSource = {
+  title: string;
+  sourcePath: string;
+  text: string;
+  section?: string;
+  topic?: string;
+};
+
+export type RagGroundedAnswerInput = {
+  message: string;
+  locale?: "tr" | "en";
+  sources: RagGroundedAnswerSource[];
+};
+
+export type RagGroundedAnswerOutput = {
+  answer: string;
+  providerName: string;
+  promptVersion: string;
+  modelName?: string;
+};
+
+export type RagGroundedAnswerProvider = {
+  readonly providerName: string;
+  readonly modelName?: string;
+  answerWithSources(input: RagGroundedAnswerInput): Promise<RagGroundedAnswerOutput>;
 };
 
 export type ListingDraftSuggestionCondition = "new" | "like_new" | "good" | "fair" | "needs_repair";

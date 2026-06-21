@@ -54,6 +54,14 @@ export {
   type GeminiModerationSummaryProviderOptions
 } from "./gemini-moderation-summary-provider.js";
 export {
+  GeminiEmbeddingProvider,
+  type GeminiEmbeddingProviderOptions
+} from "./gemini-embedding-provider.js";
+export {
+  GeminiRagGroundedAnswerProvider,
+  type GeminiRagGroundedAnswerProviderOptions
+} from "./gemini-rag-grounded-answer-provider.js";
+export {
   ASSISTANT_MESSAGE_GEMINI_PROMPT_VERSION,
   ASSISTANT_MESSAGE_OPENAI_PROMPT_VERSION,
   ASSISTANT_MESSAGE_PROMPT_VERSION,
@@ -64,13 +72,19 @@ export {
   LISTING_SUGGESTION_PROMPT_VERSION,
   PRICE_SUGGESTION_PROMPT_VERSION,
   MODERATION_SUMMARY_OPENAI_PROMPT_VERSION,
-  MODERATION_SUMMARY_PROMPT_VERSION
+  MODERATION_SUMMARY_PROMPT_VERSION,
+  RAG_EMBEDDING_GEMINI_PROMPT_VERSION,
+  RAG_GROUNDED_ANSWER_GEMINI_PROMPT_VERSION
 } from "./prompt-versions.js";
 export type {
   AssistantMessageAction,
   AssistantMessageInput,
   AssistantMessageOutput,
   AssistantMessageProvider,
+  AssistantMessageSource,
+  EmbeddingInput,
+  EmbeddingOutput,
+  EmbeddingProvider,
   ListingSuggestionInput,
   ListingSuggestionOutput,
   ListingSuggestionProvider,
@@ -89,5 +103,9 @@ export type {
   ModerationSummaryInput,
   ModerationSummaryOutput,
   ModerationSummaryProvider,
-  ModerationSummaryTargetType
+  ModerationSummaryTargetType,
+  RagGroundedAnswerInput,
+  RagGroundedAnswerOutput,
+  RagGroundedAnswerProvider,
+  RagGroundedAnswerSource
 } from "./types.js";

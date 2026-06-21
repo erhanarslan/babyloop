@@ -49,6 +49,27 @@ export type AssistantRuntimeConfig =
       endpoint?: string;
     };
 
+export type RagRuntimeConfig =
+  | { enabled: false }
+  | {
+      enabled: true;
+      vectorStore: "qdrant";
+      qdrantUrl: string;
+      qdrantApiKey?: string;
+      qdrantCollection: string;
+      qdrantVectorSize: number;
+      embeddingProvider: "gemini";
+      embeddingModel: string;
+      chatProvider: "gemini";
+      chatModel: string;
+      minScore: number;
+      maxChunks: number;
+      maxContextChars: number;
+      requireSources: boolean;
+      geminiApiKey: string;
+      geminiEndpoint?: string;
+    };
+
 export type ApiRuntimeConfig = {
   aiListingDraft: AiListingDraftRuntimeConfig;
   aiModerationSummary: AiModerationSummaryRuntimeConfig;
@@ -65,6 +86,7 @@ export type ApiRuntimeConfig = {
   googleOAuth?: GoogleOAuthConfig;
   host: string;
   port: number;
+  rag: RagRuntimeConfig;
   uploadRoot: string;
   webAppUrl: string;
 };
@@ -85,6 +107,7 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     emailDeliveryMode: readEmailDeliveryMode(env.EMAIL_DELIVERY_MODE),
     host: env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT),
+    rag: readRagConfig(env),
     uploadRoot: readUploadRoot(env.UPLOAD_ROOT),
     webAppUrl: readWebAppUrl(env.WEB_APP_URL)
   };
@@ -258,6 +281,49 @@ function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSumm
   };
 }
 
+function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
+  if (!readBoolean(env.RAG_ENABLED, false)) {
+    return { enabled: false };
+  }
+
+  const vectorStore = (env.RAG_VECTOR_STORE ?? "qdrant").trim().toLowerCase();
+  const embeddingProvider = (env.RAG_EMBEDDING_PROVIDER ?? "gemini").trim().toLowerCase();
+  const chatProvider = (env.RAG_CHAT_PROVIDER ?? "gemini").trim().toLowerCase();
+  const qdrantApiKey = env.RAG_QDRANT_API_KEY?.trim();
+  const geminiEndpoint = readGeminiEndpoint(env);
+
+  if (vectorStore !== "qdrant") {
+    throw new Error("RAG_VECTOR_STORE must be qdrant.");
+  }
+
+  if (embeddingProvider !== "gemini") {
+    throw new Error("RAG_EMBEDDING_PROVIDER must be gemini.");
+  }
+
+  if (chatProvider !== "gemini") {
+    throw new Error("RAG_CHAT_PROVIDER must be gemini.");
+  }
+
+  return {
+    enabled: true,
+    vectorStore: "qdrant",
+    qdrantUrl: env.RAG_QDRANT_URL?.trim() || "http://localhost:6333",
+    ...(qdrantApiKey ? { qdrantApiKey } : {}),
+    qdrantCollection: env.RAG_QDRANT_COLLECTION?.trim() || "babyloop_rag",
+    qdrantVectorSize: readPositiveInteger(env.RAG_QDRANT_VECTOR_SIZE, 3072),
+    embeddingProvider: "gemini",
+    embeddingModel: env.RAG_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+    chatProvider: "gemini",
+    chatModel: env.RAG_CHAT_MODEL?.trim() || "gemini-2.5-flash",
+    minScore: readNumberInRange(env.RAG_MIN_SCORE, 0.72, 0, 1),
+    maxChunks: readPositiveInteger(env.RAG_MAX_CHUNKS, 5),
+    maxContextChars: readPositiveInteger(env.RAG_MAX_CONTEXT_CHARS, 8_000),
+    requireSources: readBoolean(env.RAG_REQUIRE_SOURCES, true),
+    geminiApiKey: readGeminiApiKey(env),
+    ...(geminiEndpoint ? { geminiEndpoint } : {})
+  };
+}
+
 function readGeminiApiKey(env: NodeJS.ProcessEnv): string {
   const apiKey = env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim();
 
@@ -371,6 +437,25 @@ function readPositiveInteger(value: string | undefined, fallback: number): numbe
 
   if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error(`Invalid positive integer value: ${value}`);
+  }
+
+  return parsed;
+}
+
+function readNumberInRange(
+  value: string | undefined,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new Error(`Invalid number value: ${value}`);
   }
 
   return parsed;

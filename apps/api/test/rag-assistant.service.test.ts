@@ -1,0 +1,97 @@
+import { describe, expect, it, vi } from "vitest";
+import type { RagGroundedAnswerProvider } from "@babyloop/ai-core";
+import { RagAssistantService } from "../src/services/rag-assistant.service.js";
+import type { RagSearchService } from "../src/services/rag-search.service.js";
+
+function createAnswerProvider(): RagGroundedAnswerProvider {
+  return {
+    providerName: "mock-rag-answer",
+    async answerWithSources() {
+      return {
+        answer: "Bebek arabasında fren, tekerlek ve kumaş durumunu kontrol et.",
+        providerName: "mock-rag-answer",
+        promptVersion: "test"
+      };
+    }
+  };
+}
+
+describe("rag assistant service", () => {
+  it("returns boundary answer without calling Gemini for unsafe medical questions", async () => {
+    const answerProvider = createAnswerProvider();
+    const answerSpy = vi.spyOn(answerProvider, "answerWithSources");
+    const searchService = {
+      search: vi.fn()
+    } as unknown as RagSearchService;
+    const service = new RagAssistantService({
+      answerProvider,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage({
+      message: "çocuğuma hangi ilacı vereyim",
+      locale: "tr"
+    });
+
+    expect(answer.mode).toBe("boundary");
+    expect(answer.answer).toContain("ilaç");
+    expect(answerSpy).not.toHaveBeenCalled();
+    expect(searchService.search).not.toHaveBeenCalled();
+  });
+
+  it("returns no-source answer when retrieval has no matches", async () => {
+    const searchService = {
+      search: vi.fn().mockResolvedValue([])
+    } as unknown as RagSearchService;
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage({
+      message: "bilgi tabanında olmayan konu",
+      locale: "tr"
+    });
+
+    expect(answer.mode).toBe("no_sources");
+    expect(answer.grounded).toBe(false);
+    expect(answer.sources).toEqual([]);
+  });
+
+  it("returns grounded answer and sources for safe sourced questions", async () => {
+    const searchService = {
+      search: vi.fn().mockResolvedValue([
+        {
+          score: 0.91,
+          text: "Bebek arabasında fren ve tekerlek kontrol edilir.",
+          citation: {
+            title: "Ürün seçimi kontrol rehberleri",
+            sourcePath: "docs/rag/04-product-buying-guides.md",
+            section: "Bebek arabası",
+            topic: "product-buying"
+          }
+        }
+      ])
+    } as unknown as RagSearchService;
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage({
+      message: "bebek arabası alırken nelere bakayım",
+      locale: "tr"
+    });
+
+    expect(answer.mode).toBe("rag");
+    expect(answer.grounded).toBe(true);
+    expect(answer.sources).toHaveLength(1);
+    expect(answer.answer).toContain("Bebek arabasında");
+  });
+});

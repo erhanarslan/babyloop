@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mockAssistantMessageProvider } from "@babyloop/ai-core";
 import {
   assistantChatBodySchema,
-  assistantMessageBodySchema
+  assistantMessageBodySchema,
+  assistantMessageResponseDataSchema
 } from "../src/schemas/assistant.schemas.js";
 
 describe("assistant schemas", () => {
@@ -91,5 +92,23 @@ describe("assistant schemas", () => {
     expect(answer.answer).toContain("Evde sivri köşe");
     expect(answer.answer).not.toContain("privacy-light");
     expect(answer.answer).not.toContain("upcoming-needs");
+  });
+
+  it("accepts backward-compatible RAG assistant response data", () => {
+    const result = assistantMessageResponseDataSchema.safeParse({
+      answer: "Bebek arabasında fren ve tekerlek kontrol edilir.",
+      mode: "rag",
+      grounded: true,
+      sources: [
+        {
+          title: "Ürün seçimi kontrol rehberleri",
+          sourcePath: "docs/rag/04-product-buying-guides.md",
+          section: "Bebek arabası",
+          topic: "product-buying"
+        }
+      ]
+    });
+
+    expect(result.success).toBe(true);
   });
 });

@@ -22,6 +22,35 @@ export const assistantMessageBodySchema = z
   })
   .strict();
 
+export const assistantMessageSourceSchema = z
+  .object({
+    title: z.string(),
+    sourcePath: z.string(),
+    section: z.string().optional(),
+    topic: z.string().optional()
+  })
+  .strict();
+
+export const assistantMessageResponseDataSchema = z
+  .object({
+    answer: z.string(),
+    actions: z
+      .array(
+        z
+          .object({
+            label: z.string(),
+            href: z.string()
+          })
+          .strict()
+      )
+      .optional(),
+    sources: z.array(assistantMessageSourceSchema).optional(),
+    mode: z.enum(["rag", "boundary", "no_sources"]).optional(),
+    grounded: z.boolean().optional()
+  })
+  .strict();
+
 export type AssistantMode = z.infer<typeof assistantModeSchema>;
 export type AssistantChatBody = z.infer<typeof assistantChatBodySchema>;
 export type AssistantMessageBody = z.infer<typeof assistantMessageBodySchema>;
+export type AssistantMessageResponseData = z.infer<typeof assistantMessageResponseDataSchema>;
