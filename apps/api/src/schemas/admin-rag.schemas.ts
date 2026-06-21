@@ -61,7 +61,22 @@ export const adminRagHealthSchema = z
         maxChunks: z.number(),
         maxSourcesPerDocument: z.number(),
         cacheEnabled: z.boolean(),
+        cacheBackend: z.string(),
+        cacheBackendEffective: z.string(),
+        usageLimitsEnabled: z.boolean(),
+        usageBackend: z.string(),
+        usageBackendEffective: z.string(),
+        metricsEnabled: z.boolean(),
+        metricsBackend: z.string(),
+        metricsBackendEffective: z.string(),
         liveEvalEnabled: z.boolean()
+      })
+      .strict(),
+    redis: z
+      .object({
+        enabled: z.boolean(),
+        connected: z.boolean(),
+        backendEffective: z.enum(["redis", "memory", "disabled"])
       })
       .strict()
   })
@@ -106,10 +121,44 @@ export const adminRagEvalRunResponseSchema = z
 export const adminRagCacheStatsSchema = z
   .object({
     enabled: z.boolean(),
+    backend: z.enum(["memory", "redis", "disabled"]),
+    backendEffective: z.enum(["memory", "redis", "disabled"]),
     entries: z.number(),
     hits: z.number(),
     misses: z.number(),
+    sets: z.number(),
+    clears: z.number(),
     hitRate: z.number()
+  })
+  .strict();
+
+export const adminRagMetricsResponseSchema = z
+  .object({
+    enabled: z.boolean(),
+    backend: z.enum(["memory", "redis", "disabled"]),
+    backendEffective: z.enum(["memory", "redis", "disabled"]),
+    date: z.string(),
+    counters: z.record(z.string(), z.number()),
+    byIntent: z.record(z.string(), z.number()),
+    byMode: z.record(z.string(), z.number()),
+    byTopic: z.record(z.string(), z.number())
+  })
+  .strict();
+
+export const adminRagUsageResponseSchema = z
+  .object({
+    enabled: z.boolean(),
+    backend: z.enum(["memory", "redis", "disabled"]),
+    backendEffective: z.enum(["memory", "redis", "disabled"]),
+    limits: z
+      .object({
+        hourlyGuest: z.number(),
+        dailyGuest: z.number(),
+        hourlyUser: z.number(),
+        dailyUser: z.number(),
+        adminBypass: z.boolean()
+      })
+      .strict()
   })
   .strict();
 

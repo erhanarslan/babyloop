@@ -18,6 +18,33 @@ curl -s http://localhost:6333/collections/babyloop_rag | python3 -m json.tool
 
 Beklenen vector size Gemini `gemini-embedding-001` için `3072` olmalıdır.
 
+## Redis başlatma
+
+Local Redis docker compose içinde vardır:
+
+```bash
+docker compose -f docker-compose.dev.yml up redis
+```
+
+Tek başına:
+
+```bash
+docker run -p 6379:6379 redis:7-alpine
+```
+
+Redis production backend için örnek env:
+
+```env
+RAG_REDIS_ENABLED=true
+RAG_REDIS_URL=redis://localhost:6379
+RAG_REDIS_KEY_PREFIX=babyloop:rag
+RAG_CACHE_BACKEND=redis
+RAG_USAGE_LIMITS_BACKEND=redis
+RAG_METRICS_BACKEND=redis
+```
+
+Redis kapalıysa veya bağlantı zaman aşımına uğrarsa uygulama crash etmez; ilgili servis memory effective backend’e düşer.
+
 ## Ingestion
 
 ```bash
@@ -49,6 +76,28 @@ curl -s -X POST http://127.0.0.1:4000/api/v1/admin/rag/cache/clear | python3 -m 
 
 Backoffice `/rag` ekranındaki “Cache temizle” butonu aynı endpointi kullanır.
 
+Cache stats:
+
+```bash
+curl -s http://127.0.0.1:4000/api/v1/admin/rag/cache/stats | python3 -m json.tool
+```
+
+## Metrics ve usage
+
+Metrics:
+
+```bash
+curl -s http://127.0.0.1:4000/api/v1/admin/rag/metrics | python3 -m json.tool
+```
+
+Usage limit config:
+
+```bash
+curl -s http://127.0.0.1:4000/api/v1/admin/rag/usage | python3 -m json.tool
+```
+
+429 görülürse `Retry-After` header’ı kontrol edilebilir. Guest limit raw IP saklamaz; hash’li identifier kullanır.
+
 ## Sık hatalar
 
 ### Vector size mismatch
@@ -68,6 +117,21 @@ Qdrant çalışmıyor ya da `RAG_QDRANT_URL` yanlış. Local için `http://local
 ### Gemini quota/rate limit
 
 Live eval veya assistant cevap üretimi Gemini kotasına takılabilir. Mock eval dış servis çağırmaz.
+
+### RAG usage limit
+
+Çok sık `/assistant/messages` veya `/rag/search` çağrısı yapılırsa 429 dönebilir. Local testte limitleri geçici artırmak için:
+
+```env
+RAG_HOURLY_GUEST_LIMIT=100
+RAG_DAILY_GUEST_LIMIT=500
+```
+
+Admin kullanıcılar için `RAG_ADMIN_LIMIT_BYPASS=true` olduğunda limit uygulanmaz.
+
+### Redis fallback
+
+Backoffice RAG health içinde `redis.enabled=true` ama `backendEffective=memory` görünüyorsa Redis erişilemiyor olabilir. `RAG_REDIS_URL`, container durumu ve port erişimi kontrol edilmelidir.
 
 ### No sources found
 

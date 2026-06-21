@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { authHeader, createUser } from "./api-helpers.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 
+const uniqueAdminRagEmail = () =>
+  `admin-rag-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+
 describe("admin rag routes", () => {
   let app: TestApp;
 
@@ -14,7 +17,7 @@ describe("admin rag routes", () => {
   });
 
   it("requires admin permissions", async () => {
-    const user = await createUser(app);
+    const user = await createUser(app, { email: uniqueAdminRagEmail() });
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/admin/rag/health",
@@ -25,7 +28,7 @@ describe("admin rag routes", () => {
   });
 
   it("returns RAG health and documents for admin users", async () => {
-    const admin = await createUser(app, { role: "admin" });
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
 
     const healthResponse = await app.inject({
       method: "GET",
@@ -43,7 +46,10 @@ describe("admin rag routes", () => {
       ok: true,
       data: {
         health: {
-          enabled: false
+          enabled: false,
+          redis: {
+            enabled: false
+          }
         }
       }
     });
@@ -52,7 +58,7 @@ describe("admin rag routes", () => {
   });
 
   it("runs mock eval and rejects live eval when disabled", async () => {
-    const admin = await createUser(app, { role: "admin" });
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
 
     const mockResponse = await app.inject({
       method: "POST",
@@ -91,7 +97,7 @@ describe("admin rag routes", () => {
   });
 
   it("returns cache stats and can clear cache", async () => {
-    const admin = await createUser(app, { role: "admin" });
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
 
     const statsResponse = await app.inject({
       method: "GET",
@@ -109,10 +115,48 @@ describe("admin rag routes", () => {
       ok: true,
       data: {
         cache: {
-          enabled: false
+          enabled: false,
+          backend: "disabled",
+          backendEffective: "disabled"
         }
       }
     });
     expect(clearResponse.statusCode).toBe(200);
+  });
+
+  it("returns metrics and usage summaries", async () => {
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
+
+    const metricsResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/rag/metrics",
+      headers: authHeader(admin.accessToken)
+    });
+    const usageResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/rag/usage",
+      headers: authHeader(admin.accessToken)
+    });
+
+    expect(metricsResponse.statusCode).toBe(200);
+    expect(metricsResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        metrics: {
+          enabled: false,
+          backend: "disabled"
+        }
+      }
+    });
+    expect(usageResponse.statusCode).toBe(200);
+    expect(usageResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        usage: {
+          enabled: false,
+          backend: "disabled"
+        }
+      }
+    });
   });
 });

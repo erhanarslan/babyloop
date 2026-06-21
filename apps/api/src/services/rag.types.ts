@@ -47,6 +47,7 @@ export type RagAnswer = {
   sources: RagCitation[];
   mode: "rag" | "boundary" | "no_sources";
   grounded: boolean;
+  cacheHit?: boolean;
   intent?: AssistantIntent;
   toolsUsed?: string[];
 };

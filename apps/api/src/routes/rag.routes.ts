@@ -3,6 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { ragSearchBodySchema } from "../schemas/rag.schemas.js";
 import type { RagSearchService } from "../services/rag-search.service.js";
 import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
+import type { RagCacheService } from "../services/rag-cache.service.js";
+import type { RagMetricsService } from "../services/rag-metrics.service.js";
 import type { RagSearchResult } from "../services/rag.types.js";
 
 type RagSearchResponse = ApiResponse<{
@@ -11,6 +13,8 @@ type RagSearchResponse = ApiResponse<{
 }>;
 
 type RagRouteOptions = {
+  ragCacheService?: RagCacheService | null;
+  ragMetricsService?: RagMetricsService | null;
   ragSearchService?: RagSearchService | null;
   ragUsageLimitService?: RagUsageLimitService | null;
 };
@@ -44,22 +48,59 @@ export function registerRagRoutes(app: FastifyInstance, options: RagRouteOptions
       }
 
       try {
-        const usage = options.ragUsageLimitService?.consume({
+        await options.ragMetricsService?.recordRequest("search");
+        const usage = await options.ragUsageLimitService?.consume({
           authenticated: Boolean(request.currentUser),
-          key: `ip:${request.ip}`
+          currentUser: request.currentUser,
+          identifier: request.ip,
+          scope: "rag_search"
         });
 
         if (usage && !usage.allowed) {
+          await options.ragMetricsService?.recordRateLimited();
+          if (usage.retryAfterSeconds) {
+            reply.header("Retry-After", String(usage.retryAfterSeconds));
+          }
           return reply.status(429).send({
             ok: false,
             error: {
               code: "RAG_USAGE_LIMIT_EXCEEDED",
-              message: "Bugün için RAG arama sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
+              message: "RAG arama sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
             }
           });
         }
 
+        const cacheKey = options.ragCacheService?.buildKey({
+          kind: "search",
+          intent: "search",
+          locale: "tr",
+          message: `${parsedBody.data.query}:limit:${parsedBody.data.limit ?? 5}`
+        });
+        const cachedResults = cacheKey ? await options.ragCacheService?.getSearch(cacheKey) : null;
+
+        if (cachedResults) {
+          await options.ragMetricsService?.recordSearchResult({
+            cacheHit: true,
+            sources: cachedResults.map((result) => result.citation)
+          });
+
+          return {
+            ok: true,
+            data: {
+              query: parsedBody.data.query,
+              results: cachedResults
+            }
+          };
+        }
+
         const results = await service.search(parsedBody.data.query, parsedBody.data.limit);
+        if (cacheKey) {
+          await options.ragCacheService?.setSearch(cacheKey, results);
+        }
+        await options.ragMetricsService?.recordSearchResult({
+          cacheHit: false,
+          sources: results.map((result) => result.citation)
+        });
 
         return {
           ok: true,
@@ -69,6 +110,7 @@ export function registerRagRoutes(app: FastifyInstance, options: RagRouteOptions
           }
         };
       } catch {
+        await options.ragMetricsService?.recordError();
         return reply.status(503).send({
           ok: false,
           error: {

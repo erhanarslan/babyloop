@@ -5,6 +5,8 @@ import type { RagRuntimeConfig } from "../src/config/env.js";
 
 const config: RagRuntimeConfig = {
   enabled: true,
+  adminLimitBypass: true,
+  cacheBackend: "memory",
   cacheEnabled: true,
   cacheMaxEntries: 200,
   cacheTtlSeconds: 900,
@@ -15,6 +17,8 @@ const config: RagRuntimeConfig = {
   embeddingModel: "gemini-embedding-001",
   embeddingProvider: "gemini",
   geminiApiKey: "test",
+  hourlyGuestLimit: 10,
+  hourlyUserLimit: 50,
   liveEvalEnabled: false,
   maxChunks: 5,
   maxContextChars: 8000,
@@ -24,8 +28,16 @@ const config: RagRuntimeConfig = {
   qdrantUrl: "http://localhost:6333",
   qdrantVectorSize: 3072,
   requireSources: true,
+  redisConnectTimeoutMs: 1000,
+  redisEnabled: false,
+  redisKeyPrefix: "babyloop:rag",
+  redisUrl: "redis://localhost:6379",
+  metricsBackend: "memory",
+  metricsEnabled: true,
   sourceReliabilityBonus: 0.02,
   topicMatchBonus: 0.03,
+  usageLimitsBackend: "memory",
+  usageLimitsEnabled: true,
   vectorStore: "qdrant"
 };
 

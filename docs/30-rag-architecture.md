@@ -45,11 +45,23 @@ RAG_MAX_CHUNKS=5
 RAG_MAX_SOURCES_PER_DOCUMENT=2
 RAG_MAX_CONTEXT_CHARS=8000
 RAG_REQUIRE_SOURCES=true
+RAG_REDIS_ENABLED=false
+RAG_REDIS_URL=redis://localhost:6379
+RAG_REDIS_KEY_PREFIX=babyloop:rag
+RAG_REDIS_CONNECT_TIMEOUT_MS=1000
 RAG_CACHE_ENABLED=true
+RAG_CACHE_BACKEND=memory
 RAG_CACHE_TTL_SECONDS=900
 RAG_CACHE_MAX_ENTRIES=200
+RAG_USAGE_LIMITS_ENABLED=true
+RAG_USAGE_LIMITS_BACKEND=memory
+RAG_HOURLY_GUEST_LIMIT=10
 RAG_DAILY_GUEST_LIMIT=20
+RAG_HOURLY_USER_LIMIT=50
 RAG_DAILY_USER_LIMIT=100
+RAG_ADMIN_LIMIT_BYPASS=true
+RAG_METRICS_ENABLED=true
+RAG_METRICS_BACKEND=memory
 RAG_LIVE_EVAL_ENABLED=false
 RAG_TOPIC_MATCH_BONUS=0.03
 RAG_SOURCE_RELIABILITY_BONUS=0.02
@@ -122,8 +134,10 @@ Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunu
 - `GET /api/v1/admin/rag/documents`: `docs/rag` markdown dosyaları, topic, sourceReliability, version, chunk estimate ve metadata durumu.
 - `GET /api/v1/admin/rag/eval/cases`: eval case listesi.
 - `POST /api/v1/admin/rag/eval/run`: mock veya live eval çalıştırır.
-- `GET /api/v1/admin/rag/cache/stats`: in-memory cache istatistikleri.
+- `GET /api/v1/admin/rag/cache/stats`: cache backend/effective backend ve hit/miss istatistikleri.
 - `POST /api/v1/admin/rag/cache/clear`: cache temizler.
+- `GET /api/v1/admin/rag/metrics`: günlük RAG/assistant/search/cache/rate-limit sayaçları.
+- `GET /api/v1/admin/rag/usage`: aktif usage limit backend’i ve limitleri.
 
 Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache ve eval bilgilerini gösterir.
 
@@ -142,16 +156,46 @@ Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache ve e
 
 RAG kapalıysa mevcut assistant provider davranışı korunur.
 
-## Cache ve usage limit
+## Redis, cache ve usage limit
 
-RAG assistant cevapları kısa süreli in-memory cache’e alınabilir. Cache key; redacted ve normalize edilmiş mesaj, intent ve locale bilgisinden oluşur. Ham prompt, API key veya embedding vector cache key’e girmez.
+Redis opsiyoneldir. Local default memory backend’tir. Production çoklu instance ortamında Redis önerilir.
+
+Cache backend:
+
+- `memory`
+- `redis`
+- `disabled`
+
+`RAG_CACHE_BACKEND=redis` seçili ama Redis erişilemezse uygulama crash etmez; servis effective backend’i memory’ye düşürür. Cache key normalize/redacted query, intent, locale ve config/model versiyon bilgisinden hash üretir. Ham prompt, API key veya embedding vector cache key’e girmez.
 
 Usage limit şimdilik in-memory foundation seviyesindedir:
 
+- hourly guest/user
 - guest limit: `RAG_DAILY_GUEST_LIMIT`
 - user limit: `RAG_DAILY_USER_LIMIT`
+- admin bypass: `RAG_ADMIN_LIMIT_BYPASS`
 
-Production için Redis veya edge-compatible merkezi limit deposu sonraki faza bırakılmıştır.
+Guest identifier raw IP olarak saklanmaz; SHA-256 hash kullanılır. Redis backend aktifse sayaçlar Redis `INCR` + expire ile tutulur.
+
+## Metrics
+
+RAG metrics günlük bucket ile tutulur. Memory default, Redis opsiyoneldir.
+
+Sayaçlar:
+
+- totalRequests
+- assistantRequests
+- searchRequests
+- ragResponses
+- boundaryResponses
+- noSourceResponses
+- listingToolResponses
+- cacheHits/cacheMisses
+- rateLimitedRequests
+- evalMockRuns/liveEvalRuns/liveEvalBlocked
+- byIntent/byMode/byTopic
+
+Metrics hatası ana request’i bozmaz.
 
 ## Eval runner
 
@@ -222,7 +266,8 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 
 ## Bilinen sınırlamalar
 
-- Cache ve usage limit in-memory olduğu için çoklu instance production ortamında merkezi değildir.
+- Memory cache/usage/metrics çoklu instance production ortamında merkezi değildir; Redis production için önerilir.
+- Redis client küçük RESP wrapper’dır; managed Redis cluster/sentinel topolojileri bu fazda hedeflenmedi.
 - Live eval Gemini/Qdrant kotası kullanır ve varsayılan olarak kapalıdır.
 - Listing search tool sadece read-only public listing özetleri döndürür; write action yoktur.
 - Retrieval heuristic reranker değildir.

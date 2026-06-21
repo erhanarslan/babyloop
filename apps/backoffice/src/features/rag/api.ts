@@ -28,7 +28,20 @@ export type RagHealth = {
     maxChunks: number;
     maxSourcesPerDocument: number;
     cacheEnabled: boolean;
+    cacheBackend: string;
+    cacheBackendEffective: string;
+    usageLimitsEnabled: boolean;
+    usageBackend: string;
+    usageBackendEffective: string;
+    metricsEnabled: boolean;
+    metricsBackend: string;
+    metricsBackendEffective: string;
     liveEvalEnabled: boolean;
+  };
+  redis: {
+    enabled: boolean;
+    connected: boolean;
+    backendEffective: "redis" | "memory" | "disabled";
   };
 };
 
@@ -45,10 +58,38 @@ export type RagDocumentSummary = {
 
 export type RagCacheStats = {
   enabled: boolean;
+  backend: "memory" | "redis" | "disabled";
+  backendEffective: "memory" | "redis" | "disabled";
   entries: number;
   hits: number;
   misses: number;
+  sets: number;
+  clears: number;
   hitRate: number;
+};
+
+export type RagMetrics = {
+  enabled: boolean;
+  backend: "memory" | "redis" | "disabled";
+  backendEffective: "memory" | "redis" | "disabled";
+  date: string;
+  counters: Record<string, number>;
+  byIntent: Record<string, number>;
+  byMode: Record<string, number>;
+  byTopic: Record<string, number>;
+};
+
+export type RagUsage = {
+  enabled: boolean;
+  backend: "memory" | "redis" | "disabled";
+  backendEffective: "memory" | "redis" | "disabled";
+  limits: {
+    hourlyGuest: number;
+    dailyGuest: number;
+    hourlyUser: number;
+    dailyUser: number;
+    adminBypass: boolean;
+  };
 };
 
 export type RagEvalCase = {
@@ -108,6 +149,14 @@ export function runAdminRagEval(
 
 export function getAdminRagCacheStats(): Promise<ApiResponse<{ cache: RagCacheStats }>> {
   return adminRequest("/api/v1/admin/rag/cache/stats");
+}
+
+export function getAdminRagMetrics(): Promise<ApiResponse<{ metrics: RagMetrics }>> {
+  return adminRequest("/api/v1/admin/rag/metrics");
+}
+
+export function getAdminRagUsage(): Promise<ApiResponse<{ usage: RagUsage }>> {
+  return adminRequest("/api/v1/admin/rag/usage");
 }
 
 export function clearAdminRagCache(): Promise<ApiResponse<{ cache: RagCacheStats }>> {

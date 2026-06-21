@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminRagCacheStatsSchema,
   adminRagEvalRunBodySchema,
   adminRagHealthSchema,
-  adminRagSourceReliabilitySchema
+  adminRagMetricsResponseSchema,
+  adminRagSourceReliabilitySchema,
+  adminRagUsageResponseSchema
 } from "../src/schemas/admin-rag.schemas.js";
 
 describe("admin rag schemas", () => {
@@ -46,10 +49,69 @@ describe("admin rag schemas", () => {
         maxChunks: 5,
         maxSourcesPerDocument: 2,
         cacheEnabled: true,
+        cacheBackend: "memory",
+        cacheBackendEffective: "memory",
+        usageLimitsEnabled: true,
+        usageBackend: "memory",
+        usageBackendEffective: "memory",
+        metricsEnabled: true,
+        metricsBackend: "memory",
+        metricsBackendEffective: "memory",
         liveEvalEnabled: false
+      },
+      redis: {
+        enabled: false,
+        connected: false,
+        backendEffective: "memory"
       }
     });
 
     expect(parsed.qdrant.vectorSize).toBe(3072);
+  });
+
+  it("validates cache, metrics and usage operation responses", () => {
+    expect(adminRagCacheStatsSchema.parse({
+      enabled: true,
+      backend: "memory",
+      backendEffective: "memory",
+      entries: 1,
+      hits: 2,
+      misses: 1,
+      sets: 1,
+      clears: 0,
+      hitRate: 0.67
+    }).backendEffective).toBe("memory");
+
+    expect(adminRagMetricsResponseSchema.parse({
+      enabled: true,
+      backend: "redis",
+      backendEffective: "redis",
+      date: "2026-06-21",
+      counters: {
+        totalRequests: 3
+      },
+      byIntent: {
+        rag_knowledge: 2
+      },
+      byMode: {
+        rag: 2
+      },
+      byTopic: {
+        "safe-shopping": 1
+      }
+    }).counters.totalRequests).toBe(3);
+
+    expect(adminRagUsageResponseSchema.parse({
+      enabled: true,
+      backend: "memory",
+      backendEffective: "memory",
+      limits: {
+        hourlyGuest: 10,
+        dailyGuest: 20,
+        hourlyUser: 50,
+        dailyUser: 100,
+        adminBypass: true
+      }
+    }).limits.adminBypass).toBe(true);
   });
 });

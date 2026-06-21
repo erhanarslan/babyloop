@@ -18,6 +18,7 @@ import type { RagCitation } from "../services/rag.types.js";
 import type { AssistantIntent } from "../services/assistant-intent-router.service.js";
 import type { AssistantListingSearchResult } from "../services/assistant-tools.types.js";
 import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
+import type { RagMetricsService } from "../services/rag-metrics.service.js";
 
 type AssistantChatResponse = ApiResponse<{
   reply: AssistantChatReply;
@@ -36,6 +37,7 @@ type AssistantMessageResponse = ApiResponse<{
 type AssistantRouteOptions = {
   assistantProvider?: AssistantMessageProvider | null;
   listingSearch?: (input: { query: string; city?: string; limit?: number }) => Promise<AssistantListingSearchResult[]>;
+  ragMetricsService?: RagMetricsService | null;
   ragAssistantService?: RagAssistantService | null;
   ragUsageLimitService?: RagUsageLimitService | null;
 };
@@ -60,17 +62,24 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
 
       if (ragAssistantService) {
         try {
-          const usage = options.ragUsageLimitService?.consume({
+          await options.ragMetricsService?.recordRequest("assistant");
+          const usage = await options.ragUsageLimitService?.consume({
             authenticated: Boolean(request.currentUser),
-            key: `ip:${request.ip}`
+            currentUser: request.currentUser,
+            identifier: request.ip,
+            scope: "assistant"
           });
 
           if (usage && !usage.allowed) {
+            await options.ragMetricsService?.recordRateLimited();
+            if (usage.retryAfterSeconds) {
+              reply.header("Retry-After", String(usage.retryAfterSeconds));
+            }
             return reply.status(429).send({
               ok: false,
               error: {
                 code: "RAG_USAGE_LIMIT_EXCEEDED",
-                message: "Bugün için asistan kullanım sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
+                message: "Asistan kullanım sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
               }
             });
           }
@@ -79,6 +88,14 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
           const listingAnswer = answer.intent === "listing_search" && options.listingSearch
             ? await buildListingSearchAnswer(parsedBody.data.message, options.listingSearch)
             : null;
+
+          await options.ragMetricsService?.recordAnswer({
+            ...answer,
+            ...(listingAnswer ? { toolsUsed: listingAnswer.toolsUsed } : {})
+          });
+          if (!answer.cacheHit) {
+            await options.ragMetricsService?.recordCacheMiss();
+          }
 
           return {
             ok: true,
@@ -94,6 +111,7 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
             }
           };
         } catch {
+          await options.ragMetricsService?.recordError();
           return reply.status(503).send({
             ok: false,
             error: {

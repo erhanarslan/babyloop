@@ -253,6 +253,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAssistantRoutes, {
       assistantProvider,
       listingSearch: (input: AssistantListingSearchInput) => searchPublicListingsForAssistant(app, input),
+      ragMetricsService: ragServices?.metricsService ?? null,
       ragAssistantService: ragServices?.assistantService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
@@ -270,6 +271,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
     app.register(registerRagRoutes, {
+      ragCacheService: ragServices?.cacheService ?? null,
+      ragMetricsService: ragServices?.metricsService ?? null,
       ragSearchService: ragServices?.searchService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
@@ -301,11 +304,14 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAssistantRoutes, {
       assistantProvider,
+      ragMetricsService: ragServices?.metricsService ?? null,
       ragAssistantService: ragServices?.assistantService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
     });
     app.register(registerRagRoutes, {
+      ragCacheService: ragServices?.cacheService ?? null,
+      ragMetricsService: ragServices?.metricsService ?? null,
       ragSearchService: ragServices?.searchService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX

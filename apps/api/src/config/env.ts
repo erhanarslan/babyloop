@@ -67,11 +67,23 @@ export type RagRuntimeConfig =
       maxSourcesPerDocument: number;
       maxContextChars: number;
       requireSources: boolean;
+      redisEnabled: boolean;
+      redisUrl: string;
+      redisKeyPrefix: string;
+      redisConnectTimeoutMs: number;
       cacheEnabled: boolean;
+      cacheBackend: "memory" | "redis";
       cacheTtlSeconds: number;
       cacheMaxEntries: number;
+      usageLimitsEnabled: boolean;
+      usageLimitsBackend: "memory" | "redis";
+      hourlyGuestLimit: number;
       dailyGuestLimit: number;
+      hourlyUserLimit: number;
       dailyUserLimit: number;
+      adminLimitBypass: boolean;
+      metricsEnabled: boolean;
+      metricsBackend: "memory" | "redis";
       liveEvalEnabled: boolean;
       topicMatchBonus: number;
       sourceReliabilityBonus: number;
@@ -329,17 +341,39 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     maxSourcesPerDocument: readPositiveInteger(env.RAG_MAX_SOURCES_PER_DOCUMENT, 2),
     maxContextChars: readPositiveInteger(env.RAG_MAX_CONTEXT_CHARS, 8_000),
     requireSources: readBoolean(env.RAG_REQUIRE_SOURCES, true),
+    redisEnabled: readBoolean(env.RAG_REDIS_ENABLED, false),
+    redisUrl: env.RAG_REDIS_URL?.trim() || "redis://localhost:6379",
+    redisKeyPrefix: env.RAG_REDIS_KEY_PREFIX?.trim() || "babyloop:rag",
+    redisConnectTimeoutMs: readPositiveInteger(env.RAG_REDIS_CONNECT_TIMEOUT_MS, 1_000),
     cacheEnabled: readBoolean(env.RAG_CACHE_ENABLED, true),
+    cacheBackend: readBackend(env.RAG_CACHE_BACKEND, "memory", "RAG_CACHE_BACKEND"),
     cacheTtlSeconds: readPositiveInteger(env.RAG_CACHE_TTL_SECONDS, 900),
     cacheMaxEntries: readPositiveInteger(env.RAG_CACHE_MAX_ENTRIES, 200),
+    usageLimitsEnabled: readBoolean(env.RAG_USAGE_LIMITS_ENABLED, true),
+    usageLimitsBackend: readBackend(env.RAG_USAGE_LIMITS_BACKEND, "memory", "RAG_USAGE_LIMITS_BACKEND"),
+    hourlyGuestLimit: readPositiveInteger(env.RAG_HOURLY_GUEST_LIMIT, 10),
     dailyGuestLimit: readPositiveInteger(env.RAG_DAILY_GUEST_LIMIT, 20),
+    hourlyUserLimit: readPositiveInteger(env.RAG_HOURLY_USER_LIMIT, 50),
     dailyUserLimit: readPositiveInteger(env.RAG_DAILY_USER_LIMIT, 100),
+    adminLimitBypass: readBoolean(env.RAG_ADMIN_LIMIT_BYPASS, true),
+    metricsEnabled: readBoolean(env.RAG_METRICS_ENABLED, true),
+    metricsBackend: readBackend(env.RAG_METRICS_BACKEND, "memory", "RAG_METRICS_BACKEND"),
     liveEvalEnabled: readBoolean(env.RAG_LIVE_EVAL_ENABLED, false),
     topicMatchBonus: readNumberInRange(env.RAG_TOPIC_MATCH_BONUS, 0.03, 0, 1),
     sourceReliabilityBonus: readNumberInRange(env.RAG_SOURCE_RELIABILITY_BONUS, 0.02, 0, 1),
     geminiApiKey: readGeminiApiKey(env),
     ...(geminiEndpoint ? { geminiEndpoint } : {})
   };
+}
+
+function readBackend(value: string | undefined, fallback: "memory" | "redis", name: string): "memory" | "redis" {
+  const normalized = (value ?? fallback).trim().toLowerCase();
+
+  if (normalized === "memory" || normalized === "redis") {
+    return normalized;
+  }
+
+  throw new Error(`${name} must be memory or redis.`);
 }
 
 function readGeminiApiKey(env: NodeJS.ProcessEnv): string {

@@ -44,7 +44,7 @@ export class RagAssistantService {
       locale: input.locale ?? "tr",
       message: redacted.redactedText
     });
-    const cached = cacheKey ? this.cacheService?.get(cacheKey) : null;
+    const cached = cacheKey ? await this.cacheService?.get(cacheKey) : null;
 
     if (cached) {
       return cached;
@@ -104,9 +104,9 @@ export class RagAssistantService {
     });
   }
 
-  private cacheAndReturn(cacheKey: string | undefined, answer: RagAnswer): RagAnswer {
+  private async cacheAndReturn(cacheKey: string | undefined, answer: RagAnswer): Promise<RagAnswer> {
     if (cacheKey) {
-      this.cacheService?.set(cacheKey, answer);
+      await this.cacheService?.set(cacheKey, answer);
     }
 
     return answer;
