@@ -19,7 +19,8 @@ const PROMPT_INJECTION_PATTERNS = [
   /developer\s+message/iu,
   /kaynaklar[ıi]\s+yok\s+say/iu,
   /rag\s+kurallar[ıi]n[ıi]\s+bypass/iu,
-  /talimatlar[ıi]\s+yok\s+say/iu
+  /talimatlar[ıi]\s+yok\s+say/iu,
+  /talimatlar[ıi]n[ıi]\s+unut/iu
 ];
 
 const UNSAFE_MEDICAL_PATTERNS = [

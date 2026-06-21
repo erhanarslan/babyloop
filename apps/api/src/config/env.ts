@@ -67,6 +67,14 @@ export type RagRuntimeConfig =
       maxSourcesPerDocument: number;
       maxContextChars: number;
       requireSources: boolean;
+      hybridEnabled: boolean;
+      lexicalScoreWeight: number;
+      vectorScoreWeight: number;
+      titleMatchBonus: number;
+      sectionMatchBonus: number;
+      duplicatePenalty: number;
+      noSourceMinScore: number;
+      minSourceCoverage: number;
       redisEnabled: boolean;
       redisUrl: string;
       redisKeyPrefix: string;
@@ -341,6 +349,14 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     maxSourcesPerDocument: readPositiveInteger(env.RAG_MAX_SOURCES_PER_DOCUMENT, 2),
     maxContextChars: readPositiveInteger(env.RAG_MAX_CONTEXT_CHARS, 8_000),
     requireSources: readBoolean(env.RAG_REQUIRE_SOURCES, true),
+    hybridEnabled: readBoolean(env.RAG_HYBRID_ENABLED, true),
+    lexicalScoreWeight: readNumberInRange(env.RAG_LEXICAL_SCORE_WEIGHT, 0.18, 0, 2),
+    vectorScoreWeight: readNumberInRange(env.RAG_VECTOR_SCORE_WEIGHT, 1, 0, 2),
+    titleMatchBonus: readNumberInRange(env.RAG_TITLE_MATCH_BONUS, 0.04, 0, 1),
+    sectionMatchBonus: readNumberInRange(env.RAG_SECTION_MATCH_BONUS, 0.03, 0, 1),
+    duplicatePenalty: readNumberInRange(env.RAG_DUPLICATE_PENALTY, 0.05, 0, 1),
+    noSourceMinScore: readNumberInRange(env.RAG_NO_SOURCE_MIN_SCORE, 0.68, 0, 1),
+    minSourceCoverage: readPositiveInteger(env.RAG_MIN_SOURCE_COVERAGE, 1),
     redisEnabled: readBoolean(env.RAG_REDIS_ENABLED, false),
     redisUrl: env.RAG_REDIS_URL?.trim() || "redis://localhost:6379",
     redisKeyPrefix: env.RAG_REDIS_KEY_PREFIX?.trim() || "babyloop:rag",

@@ -137,6 +137,40 @@ Backoffice RAG health içinde `redis.enabled=true` ama `backendEffective=memory`
 
 Sorgu bilgi tabanı kapsamı dışında olabilir ya da `RAG_MIN_SCORE` yüksek kalmış olabilir. Kaynak yoksa asistan cevap uydurmaz.
 
+Yeni retrieval kalite katmanı ayrıca final score ve source coverage kontrolü yapar. Ayarlanabilecek env’ler:
+
+```env
+RAG_HYBRID_ENABLED=true
+RAG_LEXICAL_SCORE_WEIGHT=0.18
+RAG_VECTOR_SCORE_WEIGHT=1
+RAG_TITLE_MATCH_BONUS=0.04
+RAG_SECTION_MATCH_BONUS=0.03
+RAG_TOPIC_MATCH_BONUS=0.03
+RAG_SOURCE_RELIABILITY_BONUS=0.02
+RAG_DUPLICATE_PENALTY=0.05
+RAG_NO_SOURCE_MIN_SCORE=0.68
+RAG_MIN_SOURCE_COVERAGE=1
+```
+
+`RAG_NO_SOURCE_MIN_SCORE` yükselirse asistan daha temkinli olur ama bazı doğru kaynakları kaçırabilir. Düşerse daha fazla kaynak döner ama alakasız cevap riski artar.
+
+### Typo normalization kontrolü
+
+Aşağıdaki sorgular normalizer tarafından canonical ürün sinyallerine çevrilir:
+
+- `bebek arabasi` -> `bebek arabası`
+- `oto koltugu` -> `oto koltuğu`
+- `ana kucagi` -> `ana kucağı`
+- `stroller` veya `puset` -> `bebek arabası`
+
+Bu katman LLM çağırmaz ve ingestion payload metadata’sını değiştirmez.
+
+### Hybrid-lite ile gerçek sparse search farkı
+
+Hybrid-lite mevcut dense Qdrant sonucunu alır ve lexical/topic/sourceReliability sinyalleriyle yeniden sıralar. Qdrant collection schema değişmez.
+
+Gerçek sparse+dense search ise Qdrant collection’da sparse vector veya ayrı lexical index gerektirir. Bu daha güçlüdür ama migration ve ingestion payload değişikliği ister; sonraki faza bırakılmıştır.
+
 ## Güvenlik notları
 
 - API key, raw prompt, system prompt ve embedding vector loglanmaz.

@@ -18,7 +18,7 @@ export type RagAssistantServiceOptions = {
 };
 
 const NO_SOURCE_ANSWER =
-  "Bu konuda BabyLoop bilgi tabanında yeterli kaynak bulamadım. İlan hazırlama, güvenli alışveriş, ürün kontrol listeleri veya BabyLoop kullanımı hakkında daha net bir soru sorabilirsin.";
+  "Bu konuda BabyLoop bilgi tabanında yeterli kaynak bulamadım. BabyLoop içindeki güvenli alışveriş, ilan hazırlama, ürün kontrol listeleri ve BabyLoop kullanımı hakkında yardımcı olabilirim.";
 
 export class RagAssistantService {
   private readonly answerProvider: RagGroundedAnswerProvider;

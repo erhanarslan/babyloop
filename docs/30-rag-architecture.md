@@ -63,8 +63,16 @@ RAG_ADMIN_LIMIT_BYPASS=true
 RAG_METRICS_ENABLED=true
 RAG_METRICS_BACKEND=memory
 RAG_LIVE_EVAL_ENABLED=false
+RAG_HYBRID_ENABLED=true
+RAG_LEXICAL_SCORE_WEIGHT=0.18
+RAG_VECTOR_SCORE_WEIGHT=1
+RAG_TITLE_MATCH_BONUS=0.04
+RAG_SECTION_MATCH_BONUS=0.03
 RAG_TOPIC_MATCH_BONUS=0.03
 RAG_SOURCE_RELIABILITY_BONUS=0.02
+RAG_DUPLICATE_PENALTY=0.05
+RAG_NO_SOURCE_MIN_SCORE=0.68
+RAG_MIN_SOURCE_COVERAGE=1
 GEMINI_API_KEY=
 GEMINI_API_ENDPOINT=https://generativelanguage.googleapis.com
 ```
@@ -219,14 +227,54 @@ Write action yoktur. Saved search oluşturma, favori ekleme, mesaj gönderme ve 
 
 ## Retrieval quality
 
-Retrieval katmanı şu heuristic iyileştirmeleri uygular:
+Retrieval kalite motoru dense vector search sonucunu kırmadan deterministik bir hybrid-lite katman ekler.
 
-- Aynı document+section tekrarlarını azaltır.
-- Aynı dokümandan dönen kaynak sayısını `RAG_MAX_SOURCES_PER_DOCUMENT` ile sınırlar.
-- Intent/topic eşleşmesinde küçük bonus uygular.
-- `sourceReliability` metadata’sına göre küçük güvenilirlik bonusu uygular.
+### Query normalization
 
-Bu bir reranker değildir; hızlı ve deterministik kalite katmanıdır. Hybrid sparse+dense search ve proper reranker sonraki fazların konusudur.
+`rag-query-normalizer.service.ts` kullanıcı sorgusunu retrieval için analiz eder:
+
+- Türkçe lowercase ve whitespace normalization.
+- Kontrollü noktalama temizliği.
+- Typo/synonym canonicalization: `bebek arabasi`, `puset`, `stroller` -> `bebek arabası`; `oto koltugu` -> `oto koltuğu`; `ana kucagi` -> `ana kucağı`.
+- Product signal extraction: bebek arabası, oto koltuğu, oyuncak, beşik, park yatak, tekstil, ayakkabı, scooter, bisiklet, kanguru, biberon vb.
+- Age signal extraction: yenidoğan, 0-3 ay, 6 aylık, 12 aylık, 18 aylık, 2 yaş, okul öncesi vb.
+- Topic hint extraction: product-buying, safe-shopping, age-based-needs, listing-writing, messaging-privacy, dispute-reporting, seasonal-needs, recall-safety, second-hand-risk.
+- Location signal extraction şehirleri yakalar ama RAG dokümanlarında şehir kapsamı yoksa scoring’i zorlamaz.
+
+Dense embedding için `retrievalQuery` kullanılır. Bu query orijinal metni, canonical ürün terimlerini, yaş sinyallerini ve topic hint’leri birleştirir.
+
+### Hybrid-lite reranking
+
+Gerçek sparse vector migration yapılmadan şu sinyaller final score’a eklenir:
+
+- `vectorScore`: Qdrant dense score, `RAG_VECTOR_SCORE_WEIGHT`.
+- `lexicalScore`: query token overlap, `RAG_LEXICAL_SCORE_WEIGHT`.
+- `titleMatch`: kaynak başlığında ürün/topic eşleşmesi, `RAG_TITLE_MATCH_BONUS`.
+- `sectionMatch`: markdown section eşleşmesi, `RAG_SECTION_MATCH_BONUS`.
+- `topicMatch`: query topic hint ile citation topic eşleşmesi, `RAG_TOPIC_MATCH_BONUS`.
+- `sourceReliability`: context-aware reliability bonus, `RAG_SOURCE_RELIABILITY_BONUS`.
+- duplicate penalty: aynı kaynak/section tekrarlarını aşağı iter, `RAG_DUPLICATE_PENALTY`.
+
+Final score public response’taki mevcut `score` alanına map edilir; response shape breaking şekilde değişmez.
+
+### Context-aware source reliability
+
+- `internal-policy`: boundary, policy ve assistant-boundaries sorgularında öne çıkar.
+- `official-source-note`: recall, risk, safety ve yüksek riskli ikinci el ürün sorgularında bonus alır.
+- `internal`: BabyLoop kullanım, messaging/privacy, dispute/reporting konularında öne çıkar.
+- `editorial`: product-buying, age-based-needs ve seasonal-needs konularında uygundur.
+
+Bu bonus küçük tutulur; ürün checklist sorgularında policy dokümanlarının gereksiz baskın gelmesi engellenir.
+
+### Dedup ve no-source discipline
+
+- Aynı `sourcePath + section` tekrarları collapse edilir.
+- Aynı dokümandan dönen kaynak sayısı `RAG_MAX_SOURCES_PER_DOCUMENT` ile sınırlanır.
+- Best final score `RAG_NO_SOURCE_MIN_SCORE` altındaysa sonuç dönmez.
+- `RAG_MIN_SOURCE_COVERAGE` kadar yeterli kaynak yoksa no-source fallback uygulanır.
+- Alakasız teknik sorgularda dense sonuç yüksek gelse bile lexical/topic sinyal yoksa kaynaklı cevap uydurulmaz.
+
+Bu hâlâ gerçek sparse+dense search değildir; hızlı, deterministik ve schema kırmayan bir kalite katmanıdır. Gelecekte Qdrant sparse vector, BM25/hybrid search ve model-based reranker eklenebilir.
 
 ## Güvenlik sınırları
 
@@ -271,12 +319,15 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 - Live eval Gemini/Qdrant kotası kullanır ve varsayılan olarak kapalıdır.
 - Listing search tool sadece read-only public listing özetleri döndürür; write action yoktur.
 - Retrieval heuristic reranker değildir.
+- Hybrid-lite scoring gerçek sparse vector search değildir.
+- Query normalization deterministiktir; agresif stemming yapmaz, bu yüzden bazı serbest metin varyasyonları hâlâ kaçabilir.
 - Resmi kaynak notları derin dış kaynak araştırmasıyla zenginleştirilebilir.
 
 ## Sonraki işler
 
 - Hybrid sparse+dense search
 - Proper reranker
+- Knowledge Base Governance
 - MCP server
 - Production Redis cache/rate limit
 - Daha derin official source research

@@ -7,7 +7,8 @@ const PROMPT_INJECTION_PATTERNS = [
   /kaynaklar[ıi]\s+yok\s+say/iu,
   /rag\s+kurallar[ıi]n[ıi]\s+bypass/iu,
   /prompt['’` ]?u\s+göster/iu,
-  /talimatlar[ıi]\s+yok\s+say/iu
+  /talimatlar[ıi]\s+yok\s+say/iu,
+  /talimatlar[ıi]n[ıi]\s+unut/iu
 ];
 
 const UNSAFE_MEDICAL_PATTERNS = [

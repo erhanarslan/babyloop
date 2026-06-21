@@ -73,6 +73,85 @@ describe("rag search service", () => {
     expect(results[0]?.citation.title).toBe("Ürün seçimi kontrol rehberleri");
   });
 
+  it("uses normalized retrieval query for dense embedding", async () => {
+    const embeddedTexts: string[] = [];
+    const vectorStore: RagVectorStore = {
+      async ensureCollection() {},
+      async upsertChunks() {},
+      async search() {
+        return [
+          {
+            score: 0.9,
+            text: "Bebek arabası fren kontrolü kaynak metni.",
+            citation: {
+              title: "Bebek arabası ikinci el kontrol listesi",
+              sourcePath: "docs/rag/07-stroller-buying-checklist.md",
+              section: "Genel",
+              topic: "stroller-safety",
+              sourceReliability: "editorial"
+            }
+          }
+        ];
+      }
+    };
+    const service = new RagSearchService({
+      embeddingProvider: {
+        providerName: "mock-embedding",
+        async embedText(input) {
+          embeddedTexts.push(input.text);
+
+          return {
+            embedding: [0.1, 0.2, 0.3],
+            providerName: "mock-embedding",
+            promptVersion: "test"
+          };
+        }
+      },
+      maxChunks: 5,
+      maxSourcesPerDocument: 2,
+      minScore: 0.72,
+      vectorSize: 3,
+      vectorStore
+    });
+
+    await service.search("bebek arabasi alirken nelere bakmaliyim");
+
+    expect(embeddedTexts[0]).toContain("bebek arabası");
+    expect(embeddedTexts[0]).toContain("stroller-safety");
+  });
+
+  it("returns no sources for irrelevant high-score dense results", async () => {
+    const vectorStore: RagVectorStore = {
+      async ensureCollection() {},
+      async upsertChunks() {},
+      async search() {
+        return [
+          {
+            score: 0.95,
+            text: "Bebek arabası fren kontrolü kaynak metni.",
+            citation: {
+              title: "Bebek arabası",
+              sourcePath: "docs/rag/07-stroller-buying-checklist.md",
+              section: "Genel",
+              topic: "stroller-safety",
+              sourceReliability: "editorial"
+            }
+          }
+        ];
+      }
+    };
+    const service = new RagSearchService({
+      embeddingProvider,
+      maxChunks: 5,
+      maxSourcesPerDocument: 2,
+      minScore: 0.72,
+      vectorSize: 3,
+      vectorStore
+    });
+
+    await expect(service.search("React server component nedir")).resolves.toEqual([]);
+  });
+
   it("deduplicates repeated sections and caps sources per document", () => {
     const results = dedupeSearchResults(
       [

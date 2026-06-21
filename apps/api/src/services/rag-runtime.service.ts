@@ -43,12 +43,20 @@ export function createRagRuntimeServices(config: RagRuntimeConfig): RagRuntimeSe
     ...(config.geminiEndpoint ? { endpoint: config.geminiEndpoint } : {})
   });
   const searchService = new RagSearchService({
+    duplicatePenalty: config.duplicatePenalty,
     embeddingProvider,
+    hybridEnabled: config.hybridEnabled,
+    lexicalScoreWeight: config.lexicalScoreWeight,
     maxChunks: config.maxChunks,
     maxSourcesPerDocument: config.maxSourcesPerDocument,
     minScore: config.minScore,
+    minSourceCoverage: config.minSourceCoverage,
+    noSourceMinScore: config.noSourceMinScore,
+    sectionMatchBonus: config.sectionMatchBonus,
     sourceReliabilityBonus: config.sourceReliabilityBonus,
+    titleMatchBonus: config.titleMatchBonus,
     topicMatchBonus: config.topicMatchBonus,
+    vectorScoreWeight: config.vectorScoreWeight,
     vectorSize: config.qdrantVectorSize,
     vectorStore
   });
