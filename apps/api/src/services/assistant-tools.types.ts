@@ -9,6 +9,9 @@ export type AssistantToolContext = {
 export type AssistantListingSearchResult = {
   id: string;
   title: string;
+  category?: string;
+  condition?: string;
+  imageUrl?: string;
   price?: string;
   city?: string;
   href: string;

@@ -40,6 +40,44 @@ describe("assistant tool registry", () => {
     });
   });
 
+  it("executes connected listing search and returns safe summary DTOs", async () => {
+    const registry = new AssistantToolRegistry();
+    const result = await registry.execute(
+      "listing_search",
+      {
+        async listingSearch() {
+          return [
+            {
+              id: "listing-1",
+              title: "Temiz bebek arabası",
+              href: "/listings/listing-1",
+              price: "3200 TRY",
+              category: "Bebek Arabaları",
+              condition: "good",
+              city: "İstanbul",
+              imageUrl: "/uploads/listing.jpg"
+            }
+          ];
+        }
+      },
+      { query: "bebek arabası" }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data : undefined).toMatchObject({
+      available: true,
+      results: [
+        {
+          id: "listing-1",
+          title: "Temiz bebek arabası",
+          href: "/listings/listing-1"
+        }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toContain("email");
+    expect(JSON.stringify(result)).not.toContain("phone");
+  });
+
   it("explains child age bands without writing data", async () => {
     const registry = new AssistantToolRegistry();
     const result = await registry.execute("child_age_band_explain", {}, { ageMonths: 18 });

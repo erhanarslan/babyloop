@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { EmbeddingProvider } from "@babyloop/ai-core";
 import {
   dedupeSearchResults,
-  RagSearchService
+  RagSearchService,
+  rankSearchResults
 } from "../src/services/rag-search.service.js";
 import type { RagVectorStore } from "../src/services/rag.types.js";
 
@@ -92,6 +93,42 @@ describe("rag search service", () => {
       "docs/rag/a.md:Tekerlek",
       "docs/rag/b.md:Genel"
     ]);
+  });
+
+  it("applies topic and source reliability bonuses before dedupe", () => {
+    const ranked = rankSearchResults(
+      [
+        {
+          score: 0.9,
+          text: "Genel metin",
+          citation: {
+            title: "Genel",
+            sourcePath: "docs/rag/general.md",
+            section: "Genel",
+            topic: "general",
+            sourceReliability: "editorial"
+          }
+        },
+        {
+          score: 0.88,
+          text: "Oto koltuğu metni",
+          citation: {
+            title: "Oto koltuğu",
+            sourcePath: "docs/rag/car-seat.md",
+            section: "Genel",
+            topic: "car-seat-safety",
+            sourceReliability: "official-source-note"
+          }
+        }
+      ],
+      {
+        query: "oto koltuğu ikinci el alınır mı",
+        sourceReliabilityBonus: 0.02,
+        topicMatchBonus: 0.03
+      }
+    );
+
+    expect(ranked[0]?.citation.topic).toBe("car-seat-safety");
   });
 });
 

@@ -16,6 +16,8 @@ import {
 import type { RagAssistantService } from "../services/rag-assistant.service.js";
 import type { RagCitation } from "../services/rag.types.js";
 import type { AssistantIntent } from "../services/assistant-intent-router.service.js";
+import type { AssistantListingSearchResult } from "../services/assistant-tools.types.js";
+import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
 
 type AssistantChatResponse = ApiResponse<{
   reply: AssistantChatReply;
@@ -28,11 +30,14 @@ type AssistantMessageResponse = ApiResponse<{
   mode?: "rag" | "boundary" | "no_sources";
   grounded?: boolean;
   intent?: AssistantIntent;
+  toolsUsed?: string[];
 }>;
 
 type AssistantRouteOptions = {
   assistantProvider?: AssistantMessageProvider | null;
+  listingSearch?: (input: { query: string; city?: string; limit?: number }) => Promise<AssistantListingSearchResult[]>;
   ragAssistantService?: RagAssistantService | null;
+  ragUsageLimitService?: RagUsageLimitService | null;
 };
 
 export function registerAssistantRoutes(app: FastifyInstance, options: AssistantRouteOptions = {}): void {
@@ -55,16 +60,37 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
 
       if (ragAssistantService) {
         try {
+          const usage = options.ragUsageLimitService?.consume({
+            authenticated: Boolean(request.currentUser),
+            key: `ip:${request.ip}`
+          });
+
+          if (usage && !usage.allowed) {
+            return reply.status(429).send({
+              ok: false,
+              error: {
+                code: "RAG_USAGE_LIMIT_EXCEEDED",
+                message: "Bugün için asistan kullanım sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
+              }
+            });
+          }
+
           const answer = await ragAssistantService.answerMessage(parsedBody.data);
+          const listingAnswer = answer.intent === "listing_search" && options.listingSearch
+            ? await buildListingSearchAnswer(parsedBody.data.message, options.listingSearch)
+            : null;
 
           return {
             ok: true,
             data: {
-              answer: answer.answer,
+              answer: listingAnswer?.answer ?? answer.answer,
               mode: answer.mode,
               grounded: answer.grounded,
               ...(answer.intent ? { intent: answer.intent } : {}),
-              ...(answer.sources.length > 0 ? { sources: answer.sources } : {})
+              ...(answer.sources.length > 0 ? { sources: answer.sources } : {}),
+              ...((listingAnswer?.toolsUsed ?? answer.toolsUsed)?.length
+                ? { toolsUsed: listingAnswer?.toolsUsed ?? answer.toolsUsed }
+                : {})
             }
           };
         } catch {
@@ -135,6 +161,41 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
       };
     }
   );
+}
+
+async function buildListingSearchAnswer(
+  query: string,
+  listingSearch: NonNullable<AssistantRouteOptions["listingSearch"]>
+): Promise<{ answer: string; toolsUsed: string[] }> {
+  const results = await listingSearch({
+    query,
+    limit: 5
+  });
+  const params = new URLSearchParams({ q: query.trim() });
+  const browseHref = `/browse?${params.toString()}`;
+
+  if (results.length === 0) {
+    return {
+      answer: `Bu sorguya uygun ilan bulamadım. Aramayı genişletmek için ${browseHref} sayfasını kullanabilirsin.`,
+      toolsUsed: ["listing_search"]
+    };
+  }
+
+  const lines = results.slice(0, 5).map((listing) => {
+    const details = [
+      listing.price,
+      listing.category,
+      listing.condition,
+      listing.city
+    ].filter(Boolean).join(" · ");
+
+    return `- ${listing.title}${details ? ` · ${details}` : ""} (${listing.href})`;
+  });
+
+  return {
+    answer: `Bulduğum bazı ilanlar:\n${lines.join("\n")}\n\nDaha fazla sonuç için ${browseHref} sayfasına bakabilirsin.`,
+    toolsUsed: ["listing_search"]
+  };
 }
 
 function sanitizeActions(actions: AssistantMessageOutput["actions"]): AssistantMessageOutput["actions"] {

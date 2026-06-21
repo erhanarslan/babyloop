@@ -41,6 +41,11 @@ import {
   MAX_LISTING_IMAGES
 } from "./services/image-safety.service.js";
 import {
+  getPublicListingImagesByListingIds,
+  selectActiveListingRows
+} from "./services/listing-queries.service.js";
+import type { AssistantListingSearchResult } from "./services/assistant-tools.types.js";
+import {
   createEmailDeliveryService,
   type EmailDeliveryService
 } from "./services/email-delivery.service.js";
@@ -53,6 +58,7 @@ import { registerAdminProfileRoutes } from "./routes/admin-profiles.routes.js";
 import { registerAdminListingRoutes } from "./routes/admin-listings.routes.js";
 import { registerAdminAuditRoutes } from "./routes/admin-audit.routes.js";
 import { registerAdminAiOpsRoutes } from "./routes/admin-ai-ops.routes.js";
+import { registerAdminRagRoutes } from "./routes/admin-rag.routes.js";
 import { createAdminModerationAiSummaryProvider } from "./services/admin-moderation-ai-provider.service.js";
 import { createAssistantMessageProvider } from "./services/assistant-ai-provider.service.js";
 import { createListingDraftAiProvider } from "./services/listing-draft-ai-provider.service.js";
@@ -65,6 +71,12 @@ import type {
   ListingDraftSuggestionProvider,
   ModerationSummaryProvider
 } from "@babyloop/ai-core";
+
+type AssistantListingSearchInput = {
+  query: string;
+  city?: string;
+  limit?: number;
+};
 
 type CreateAppOptions = {
   assistantProvider?: AssistantMessageProvider | null;
@@ -240,7 +252,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAiPriceSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerAssistantRoutes, {
       assistantProvider,
+      listingSearch: (input: AssistantListingSearchInput) => searchPublicListingsForAssistant(app, input),
       ragAssistantService: ragServices?.assistantService ?? null,
+      ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
     });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
@@ -257,6 +271,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
     app.register(registerRagRoutes, {
       ragSearchService: ragServices?.searchService ?? null,
+      ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
     });
     app.register(registerSearchSuggestionRoutes, { prefix: API_PREFIX });
@@ -270,6 +285,11 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAdminListingRoutes, { prefix: API_PREFIX });
     app.register(registerAdminProfileRoutes, { prefix: API_PREFIX });
     app.register(registerAdminProductAnalyticsRoutes, { prefix: API_PREFIX });
+    app.register(registerAdminRagRoutes, {
+      config: config.rag,
+      ragServices,
+      prefix: API_PREFIX
+    });
     app.register(registerAdminModerationRoutes, {
       aiSummaryProvider: moderationSummaryProvider,
       prefix: API_PREFIX
@@ -282,10 +302,12 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAssistantRoutes, {
       assistantProvider,
       ragAssistantService: ragServices?.assistantService ?? null,
+      ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
     });
     app.register(registerRagRoutes, {
       ragSearchService: ragServices?.searchService ?? null,
+      ragUsageLimitService: ragServices?.usageLimitService ?? null,
       prefix: API_PREFIX
     });
 
@@ -297,6 +319,35 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   }
 
   return app;
+}
+
+async function searchPublicListingsForAssistant(
+  app: FastifyInstance,
+  input: AssistantListingSearchInput
+): Promise<AssistantListingSearchResult[]> {
+  const rows = await selectActiveListingRows(app, {
+    q: input.query,
+    limit: Math.min(Math.max(input.limit ?? 5, 1), 5),
+    offset: 0,
+    sort: "newest"
+  });
+  const imagesByListingId = await getPublicListingImagesByListingIds(app, rows.map((row) => row.id));
+
+  return rows.map((row) => {
+    const firstImage = imagesByListingId.get(row.id)?.[0] ?? null;
+    const price = row.priceAmount ? `${row.priceAmount} ${row.currency}` : undefined;
+
+    return {
+      id: row.id,
+      title: row.title,
+      href: `/listings/${row.id}`,
+      ...(row.categoryName ? { category: row.categoryName } : {}),
+      ...(row.condition ? { condition: row.condition } : {}),
+      ...(row.sellerLocationCity ? { city: row.sellerLocationCity } : {}),
+      ...(firstImage?.url ? { imageUrl: firstImage.url } : {}),
+      ...(price ? { price } : {})
+    };
+  });
 }
 
 function assertAuthConfig(config: ApiRuntimeConfig): void {

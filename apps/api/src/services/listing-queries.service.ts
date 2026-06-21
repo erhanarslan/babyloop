@@ -67,7 +67,8 @@ export async function selectActiveListingRows(
       createdAt: listings.createdAt,
       categoryId: productCategories.id,
       categoryName: productCategories.name,
-      categorySlug: productCategories.slug
+      categorySlug: productCategories.slug,
+      sellerLocationCity: profiles.locationCity
     })
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))

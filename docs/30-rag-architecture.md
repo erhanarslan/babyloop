@@ -45,6 +45,14 @@ RAG_MAX_CHUNKS=5
 RAG_MAX_SOURCES_PER_DOCUMENT=2
 RAG_MAX_CONTEXT_CHARS=8000
 RAG_REQUIRE_SOURCES=true
+RAG_CACHE_ENABLED=true
+RAG_CACHE_TTL_SECONDS=900
+RAG_CACHE_MAX_ENTRIES=200
+RAG_DAILY_GUEST_LIMIT=20
+RAG_DAILY_USER_LIMIT=100
+RAG_LIVE_EVAL_ENABLED=false
+RAG_TOPIC_MATCH_BONUS=0.03
+RAG_SOURCE_RELIABILITY_BONUS=0.02
 GEMINI_API_KEY=
 GEMINI_API_ENDPOINT=https://generativelanguage.googleapis.com
 ```
@@ -106,6 +114,19 @@ Yanıt:
 
 RAG kapalıysa endpoint kontrollü `RAG_UNAVAILABLE` döner.
 
+## Operations endpoints
+
+Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunur. Bu endpointler `ai_ops_view` yetkisi ister ve secret, API key, raw prompt, system prompt veya full vector döndürmez.
+
+- `GET /api/v1/admin/rag/health`: RAG açık/kapalı durumu, Qdrant collection özeti, doküman sayıları ve güvenli config summary.
+- `GET /api/v1/admin/rag/documents`: `docs/rag` markdown dosyaları, topic, sourceReliability, version, chunk estimate ve metadata durumu.
+- `GET /api/v1/admin/rag/eval/cases`: eval case listesi.
+- `POST /api/v1/admin/rag/eval/run`: mock veya live eval çalıştırır.
+- `GET /api/v1/admin/rag/cache/stats`: in-memory cache istatistikleri.
+- `POST /api/v1/admin/rag/cache/clear`: cache temizler.
+
+Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache ve eval bilgilerini gösterir.
+
 ## Assistant entegrasyonu
 
 `POST /api/v1/assistant/messages` RAG açıkken şu sırayı izler:
@@ -120,6 +141,48 @@ RAG kapalıysa endpoint kontrollü `RAG_UNAVAILABLE` döner.
 8. Response içinde `sources`, `mode` ve `grounded` alanlarını opsiyonel olarak döndürür.
 
 RAG kapalıysa mevcut assistant provider davranışı korunur.
+
+## Cache ve usage limit
+
+RAG assistant cevapları kısa süreli in-memory cache’e alınabilir. Cache key; redacted ve normalize edilmiş mesaj, intent ve locale bilgisinden oluşur. Ham prompt, API key veya embedding vector cache key’e girmez.
+
+Usage limit şimdilik in-memory foundation seviyesindedir:
+
+- guest limit: `RAG_DAILY_GUEST_LIMIT`
+- user limit: `RAG_DAILY_USER_LIMIT`
+
+Production için Redis veya edge-compatible merkezi limit deposu sonraki faza bırakılmıştır.
+
+## Eval runner
+
+Eval runner iki mod destekler:
+
+- `mock`: gerçek Gemini/Qdrant çağırmaz, deterministik kalite kontrolü yapar.
+- `live`: gerçek RAG assistant akışını kullanır; kota kullanabileceği için `RAG_LIVE_EVAL_ENABLED=true` olmadan çalışmaz.
+
+Eval sonuçlarında mode mismatch, required source topic eksikleri, forbidden phrase, source yokluğu, düşük skor ve beklenmeyen hata issue olarak raporlanır.
+
+## Read-only tools
+
+Assistant tool registry sadece read-only araçlar içerir:
+
+- `rag_search`: RAG search service çağırır.
+- `category_lookup`: BabyLoop odaklı kategori eşleştirme döndürür.
+- `listing_search`: public active/reserved listing sorgusuna güvenli şekilde bağlanır ve yalnızca safe listing summary DTO döndürür.
+- `child_age_band_explain`: yaş bandını genel ürün ihtiyacı diliyle açıklar.
+
+Write action yoktur. Saved search oluşturma, favori ekleme, mesaj gönderme ve ilan güncelleme kullanıcı onayı/audit gerektirdiği için sonraki faza bırakılmıştır.
+
+## Retrieval quality
+
+Retrieval katmanı şu heuristic iyileştirmeleri uygular:
+
+- Aynı document+section tekrarlarını azaltır.
+- Aynı dokümandan dönen kaynak sayısını `RAG_MAX_SOURCES_PER_DOCUMENT` ile sınırlar.
+- Intent/topic eşleşmesinde küçük bonus uygular.
+- `sourceReliability` metadata’sına göre küçük güvenilirlik bonusu uygular.
+
+Bu bir reranker değildir; hızlı ve deterministik kalite katmanıdır. Hybrid sparse+dense search ve proper reranker sonraki fazların konusudur.
 
 ## Güvenlik sınırları
 
@@ -146,19 +209,29 @@ Basit kural tabanlı guard şu tür istekleri engeller:
 
 Yanıt BabyLoop bilgi tabanı kapsamına geri çeker.
 
+## Source reliability metadata
+
+Her markdown dokümanı `sourceReliability` frontmatter alanı taşır:
+
+- `internal-policy`
+- `official-source-note`
+- `internal`
+- `editorial`
+
+Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik garantisi vermez.
+
 ## Bilinen sınırlamalar
 
-- Rate limit RAG endpoint özelinde henüz ayrılaştırılmadı.
-- RAG eval set yok.
-- Cevap cache’i yok.
-- Backoffice RAG yönetim paneli yok.
-- Kaynak dokümanları kısa başlangıç setidir.
-- Qdrant Cloud/self-host deployment dokümantasyonu sonraki faza bırakıldı.
+- Cache ve usage limit in-memory olduğu için çoklu instance production ortamında merkezi değildir.
+- Live eval Gemini/Qdrant kotası kullanır ve varsayılan olarak kapalıdır.
+- Listing search tool sadece read-only public listing özetleri döndürür; write action yoktur.
+- Retrieval heuristic reranker değildir.
+- Resmi kaynak notları derin dış kaynak araştırmasıyla zenginleştirilebilir.
 
 ## Sonraki işler
 
-- Backoffice RAG paneli
-- RAG eval set ve regresyon ölçümü
-- Answer cache
-- RAG endpoint rate limit
-- Qdrant Cloud/self-host deployment rehberi
+- Hybrid sparse+dense search
+- Proper reranker
+- MCP server
+- Production Redis cache/rate limit
+- Daha derin official source research

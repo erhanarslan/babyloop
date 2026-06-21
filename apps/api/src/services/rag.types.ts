@@ -33,6 +33,7 @@ export type RagCitation = {
   sourcePath: string;
   section?: string;
   topic?: string;
+  sourceReliability?: string;
 };
 
 export type RagSearchResult = {
@@ -47,6 +48,7 @@ export type RagAnswer = {
   mode: "rag" | "boundary" | "no_sources";
   grounded: boolean;
   intent?: AssistantIntent;
+  toolsUsed?: string[];
 };
 
 export type RagSafetyDecision = {
@@ -78,4 +80,11 @@ export type RagVectorStore = {
     limit: number;
     minScore: number;
   }): Promise<RagSearchResult[]>;
+};
+
+export type RagCollectionInfo = {
+  status: "green" | "yellow" | "red" | "unknown";
+  pointsCount: number;
+  vectorSize: number;
+  indexedVectorsCount: number;
 };

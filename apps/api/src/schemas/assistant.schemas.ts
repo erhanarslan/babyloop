@@ -27,7 +27,8 @@ export const assistantMessageSourceSchema = z
     title: z.string(),
     sourcePath: z.string(),
     section: z.string().optional(),
-    topic: z.string().optional()
+    topic: z.string().optional(),
+    sourceReliability: z.string().optional()
   })
   .strict();
 
@@ -58,7 +59,8 @@ export const assistantMessageResponseDataSchema = z
         "child_needs",
         "unknown"
       ])
-      .optional()
+      .optional(),
+    toolsUsed: z.array(z.string()).optional()
   })
   .strict();
 

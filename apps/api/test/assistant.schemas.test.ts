@@ -100,6 +100,7 @@ describe("assistant schemas", () => {
       mode: "rag",
       grounded: true,
       intent: "rag_knowledge",
+      toolsUsed: ["rag_search"],
       sources: [
         {
           title: "Ürün seçimi kontrol rehberleri",

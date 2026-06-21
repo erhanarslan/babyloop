@@ -12,7 +12,8 @@ export const ragCitationSchema = z
     title: z.string(),
     sourcePath: z.string(),
     section: z.string().optional(),
-    topic: z.string().optional()
+    topic: z.string().optional(),
+    sourceReliability: z.string().optional()
   })
   .strict();
 

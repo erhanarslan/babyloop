@@ -2,6 +2,7 @@ import type { ApiFailure, ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import { ragSearchBodySchema } from "../schemas/rag.schemas.js";
 import type { RagSearchService } from "../services/rag-search.service.js";
+import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
 import type { RagSearchResult } from "../services/rag.types.js";
 
 type RagSearchResponse = ApiResponse<{
@@ -11,6 +12,7 @@ type RagSearchResponse = ApiResponse<{
 
 type RagRouteOptions = {
   ragSearchService?: RagSearchService | null;
+  ragUsageLimitService?: RagUsageLimitService | null;
 };
 
 export function registerRagRoutes(app: FastifyInstance, options: RagRouteOptions = {}): void {
@@ -42,6 +44,21 @@ export function registerRagRoutes(app: FastifyInstance, options: RagRouteOptions
       }
 
       try {
+        const usage = options.ragUsageLimitService?.consume({
+          authenticated: Boolean(request.currentUser),
+          key: `ip:${request.ip}`
+        });
+
+        if (usage && !usage.allowed) {
+          return reply.status(429).send({
+            ok: false,
+            error: {
+              code: "RAG_USAGE_LIMIT_EXCEEDED",
+              message: "Bugün için RAG arama sınırına ulaşıldı. Daha sonra tekrar deneyebilirsin."
+            }
+          });
+        }
+
         const results = await service.search(parsedBody.data.query, parsedBody.data.limit);
 
         return {

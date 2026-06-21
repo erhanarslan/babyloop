@@ -1,6 +1,7 @@
 import type {
   RagChunk,
   RagChunkMetadata,
+  RagCollectionInfo,
   RagSearchResult,
   RagVectorStore
 } from "./rag.types.js";
@@ -135,6 +136,45 @@ export class QdrantVectorStore implements RagVectorStore {
     return result.flatMap((point) => toSearchResult(point));
   }
 
+  async getCollectionInfo(): Promise<RagCollectionInfo> {
+    const response = await this.request(`/collections/${encodeURIComponent(this.collectionName)}`, {
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      return {
+        status: "unknown",
+        pointsCount: 0,
+        vectorSize: this.vectorSize,
+        indexedVectorsCount: 0
+      };
+    }
+
+    const payload = await response.json() as { result?: unknown };
+    const result = typeof payload.result === "object" && payload.result !== null
+      ? payload.result as Record<string, unknown>
+      : {};
+    const config = typeof result.config === "object" && result.config !== null
+      ? result.config as Record<string, unknown>
+      : {};
+    const params = typeof config.params === "object" && config.params !== null
+      ? config.params as Record<string, unknown>
+      : {};
+    const vectors = typeof params.vectors === "object" && params.vectors !== null
+      ? params.vectors as Record<string, unknown>
+      : {};
+    const status = typeof result.status === "string" && ["green", "yellow", "red"].includes(result.status)
+      ? result.status as RagCollectionInfo["status"]
+      : "unknown";
+
+    return {
+      status,
+      pointsCount: numberOrZero(result.points_count),
+      vectorSize: numberOrDefault(vectors.size, this.vectorSize),
+      indexedVectorsCount: numberOrZero(result.indexed_vectors_count)
+    };
+  }
+
   private request(path: string, init: { body?: string; method: "GET" | "POST" | "PUT" }): Promise<Response> {
     return this.fetch(`${this.url}${path}`, {
       method: init.method,
@@ -175,8 +215,17 @@ function toSearchResult(point: unknown): RagSearchResult[] {
         title: metadata.title,
         sourcePath: metadata.sourcePath,
         ...(metadata.section ? { section: metadata.section } : {}),
-        ...(metadata.topic ? { topic: metadata.topic } : {})
+        ...(metadata.topic ? { topic: metadata.topic } : {}),
+        ...(metadata.sourceReliability ? { sourceReliability: metadata.sourceReliability } : {})
       }
     }
   ];
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function numberOrDefault(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }

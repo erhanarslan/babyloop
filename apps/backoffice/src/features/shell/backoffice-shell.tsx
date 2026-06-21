@@ -77,6 +77,12 @@ const navigationItems: NavigationItem[] = [
     description: "AI-assisted operations",
     status: "active",
   },
+  {
+    label: "RAG",
+    href: "/rag",
+    description: "Knowledge base ops",
+    status: "active",
+  },
 ];
 
 export function BackofficeShell({ children }: BackofficeShellProps) {

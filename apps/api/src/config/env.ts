@@ -67,6 +67,14 @@ export type RagRuntimeConfig =
       maxSourcesPerDocument: number;
       maxContextChars: number;
       requireSources: boolean;
+      cacheEnabled: boolean;
+      cacheTtlSeconds: number;
+      cacheMaxEntries: number;
+      dailyGuestLimit: number;
+      dailyUserLimit: number;
+      liveEvalEnabled: boolean;
+      topicMatchBonus: number;
+      sourceReliabilityBonus: number;
       geminiApiKey: string;
       geminiEndpoint?: string;
     };
@@ -321,6 +329,14 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     maxSourcesPerDocument: readPositiveInteger(env.RAG_MAX_SOURCES_PER_DOCUMENT, 2),
     maxContextChars: readPositiveInteger(env.RAG_MAX_CONTEXT_CHARS, 8_000),
     requireSources: readBoolean(env.RAG_REQUIRE_SOURCES, true),
+    cacheEnabled: readBoolean(env.RAG_CACHE_ENABLED, true),
+    cacheTtlSeconds: readPositiveInteger(env.RAG_CACHE_TTL_SECONDS, 900),
+    cacheMaxEntries: readPositiveInteger(env.RAG_CACHE_MAX_ENTRIES, 200),
+    dailyGuestLimit: readPositiveInteger(env.RAG_DAILY_GUEST_LIMIT, 20),
+    dailyUserLimit: readPositiveInteger(env.RAG_DAILY_USER_LIMIT, 100),
+    liveEvalEnabled: readBoolean(env.RAG_LIVE_EVAL_ENABLED, false),
+    topicMatchBonus: readNumberInRange(env.RAG_TOPIC_MATCH_BONUS, 0.03, 0, 1),
+    sourceReliabilityBonus: readNumberInRange(env.RAG_SOURCE_RELIABILITY_BONUS, 0.02, 0, 1),
     geminiApiKey: readGeminiApiKey(env),
     ...(geminiEndpoint ? { geminiEndpoint } : {})
   };
