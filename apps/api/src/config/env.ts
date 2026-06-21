@@ -64,6 +64,7 @@ export type RagRuntimeConfig =
       chatModel: string;
       minScore: number;
       maxChunks: number;
+      maxSourcesPerDocument: number;
       maxContextChars: number;
       requireSources: boolean;
       geminiApiKey: string;
@@ -317,6 +318,7 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     chatModel: env.RAG_CHAT_MODEL?.trim() || "gemini-2.5-flash",
     minScore: readNumberInRange(env.RAG_MIN_SCORE, 0.72, 0, 1),
     maxChunks: readPositiveInteger(env.RAG_MAX_CHUNKS, 5),
+    maxSourcesPerDocument: readPositiveInteger(env.RAG_MAX_SOURCES_PER_DOCUMENT, 2),
     maxContextChars: readPositiveInteger(env.RAG_MAX_CONTEXT_CHARS, 8_000),
     requireSources: readBoolean(env.RAG_REQUIRE_SOURCES, true),
     geminiApiKey: readGeminiApiKey(env),

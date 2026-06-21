@@ -4,6 +4,7 @@ title: İlan hazırlama rehberi
 locale: tr
 topic: listing-writing
 safetyScope: marketplace-guidance
+sourceReliability: internal
 version: 2026-06-18
 ---
 

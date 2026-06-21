@@ -4,6 +4,7 @@ title: BabyLoop Asistan sınırları
 locale: tr
 topic: assistant-boundaries
 safetyScope: marketplace-guidance
+sourceReliability: internal-policy
 version: 2026-06-18
 ---
 

@@ -99,6 +99,7 @@ describe("assistant schemas", () => {
       answer: "Bebek arabasında fren ve tekerlek kontrol edilir.",
       mode: "rag",
       grounded: true,
+      intent: "rag_knowledge",
       sources: [
         {
           title: "Ürün seçimi kontrol rehberleri",

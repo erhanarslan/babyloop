@@ -42,6 +42,7 @@ RAG_CHAT_PROVIDER=gemini
 RAG_CHAT_MODEL=gemini-2.5-flash
 RAG_MIN_SCORE=0.72
 RAG_MAX_CHUNKS=5
+RAG_MAX_SOURCES_PER_DOCUMENT=2
 RAG_MAX_CONTEXT_CHARS=8000
 RAG_REQUIRE_SOURCES=true
 GEMINI_API_KEY=
@@ -66,6 +67,8 @@ Script:
 6. Deterministik point id ile upsert yapar.
 
 Gemini embedding çıktısı mevcut `gemini-embedding-001` modeliyle 3072 boyuttur. `RAG_QDRANT_VECTOR_SIZE` bu değerle eşleşmelidir. Model değişirse collection vector size da yeniden oluşturulmalıdır.
+
+`RAG_MAX_SOURCES_PER_DOCUMENT`, aynı dokümandan çok benzer chunk tekrarlarını sınırlamak için kullanılır. Varsayılan değer `2` olduğu için cevap kaynakları farklı doküman ve bölümlere daha dengeli yayılır.
 
 ## Search endpoint
 

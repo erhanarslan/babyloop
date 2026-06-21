@@ -4,6 +4,7 @@ import type {
 } from "@babyloop/ai-core";
 import { redactPii } from "./rag-pii-redaction.service.js";
 import { decideRagSafety } from "./rag-safety.service.js";
+import { routeAssistantIntent } from "./assistant-intent-router.service.js";
 import type { RagAnswer, RagCitation } from "./rag.types.js";
 import type { RagSearchService } from "./rag-search.service.js";
 
@@ -32,6 +33,7 @@ export class RagAssistantService {
 
   async answerMessage(input: AssistantMessageInput): Promise<RagAnswer> {
     const redacted = redactPii(input.message);
+    const intentDecision = routeAssistantIntent(redacted.redactedText);
     const safety = decideRagSafety(redacted.redactedText);
 
     if (!safety.allowed) {
@@ -39,7 +41,20 @@ export class RagAssistantService {
         answer: safety.boundaryAnswer ?? NO_SOURCE_ANSWER,
         sources: [],
         mode: "boundary",
-        grounded: false
+        grounded: false,
+        intent: intentDecision.intent
+      };
+    }
+
+    if (intentDecision.intent === "listing_search") {
+      const params = new URLSearchParams({ q: redacted.redactedText });
+
+      return {
+        answer: `İlan araması için arama sayfasını kullanabilirsin: /browse?${params.toString()}`,
+        sources: [],
+        mode: "no_sources",
+        grounded: false,
+        intent: intentDecision.intent
       };
     }
 
@@ -50,7 +65,8 @@ export class RagAssistantService {
         answer: NO_SOURCE_ANSWER,
         sources: [],
         mode: "no_sources",
-        grounded: false
+        grounded: false,
+        intent: intentDecision.intent
       };
     }
 
@@ -68,7 +84,8 @@ export class RagAssistantService {
       answer: answer.answer,
       sources: uniqueCitations(limitedSources.map((result) => result.citation)),
       mode: "rag",
-      grounded: true
+      grounded: true,
+      intent: intentDecision.intent
     };
   }
 }

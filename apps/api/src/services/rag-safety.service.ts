@@ -2,7 +2,7 @@ import type { RagSafetyDecision } from "./rag.types.js";
 
 const PROMPT_INJECTION_PATTERNS = [
   /önceki\s+talimatlar[ıi]\s+unut/iu,
-  /system\s+prompt/iu,
+  /(?:system|sistem)\s+prompt(?:u|unu)?/iu,
   /developer\s+message/iu,
   /kaynaklar[ıi]\s+yok\s+say/iu,
   /rag\s+kurallar[ıi]n[ıi]\s+bypass/iu,
@@ -19,7 +19,8 @@ const UNSAFE_MEDICAL_PATTERNS = [
   /\btedavi\b/iu,
   /\bterapi\b/iu,
   /\bdiyet\s+plan[ıi]\b/iu,
-  /\b(teşhis|teshis)\b/iu
+  /\b(teşhis|teshis)\b/iu,
+  /\bate[şs](?:i|ı)?\s+var/iu
 ];
 
 const LISTING_HELP_PATTERNS = [/ilan/iu, /sat/iu, /fiyat/iu, /a[cç][ıi]klama/iu, /foto/iu];

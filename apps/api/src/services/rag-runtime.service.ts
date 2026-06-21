@@ -37,6 +37,7 @@ export function createRagRuntimeServices(config: RagRuntimeConfig): RagRuntimeSe
   const searchService = new RagSearchService({
     embeddingProvider,
     maxChunks: config.maxChunks,
+    maxSourcesPerDocument: config.maxSourcesPerDocument,
     minScore: config.minScore,
     vectorSize: config.qdrantVectorSize,
     vectorStore

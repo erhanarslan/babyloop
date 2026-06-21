@@ -9,6 +9,7 @@ const document: RagDocument = {
     locale: "tr",
     topic: "safe-shopping",
     safetyScope: "marketplace-guidance",
+    sourceReliability: "internal",
     version: "2026-06-18",
     sourcePath: "docs/rag/test.md"
   },

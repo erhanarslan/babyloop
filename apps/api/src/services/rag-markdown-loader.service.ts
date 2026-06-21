@@ -83,6 +83,7 @@ function normalizeDocumentMetadata(frontmatter: Frontmatter, sourcePath: string)
     locale: frontmatter.locale ?? "tr",
     topic: frontmatter.topic ?? "general",
     safetyScope: frontmatter.safetyScope ?? "marketplace-guidance",
+    sourceReliability: frontmatter.sourceReliability ?? "internal",
     version: frontmatter.version ?? "2026-06-18",
     sourcePath
   };

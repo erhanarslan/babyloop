@@ -4,6 +4,7 @@ title: BabyLoop pazar yeri kullanım rehberi
 locale: tr
 topic: marketplace-usage
 safetyScope: marketplace-guidance
+sourceReliability: internal
 version: 2026-06-18
 ---
 

@@ -4,6 +4,7 @@ title: Ürün seçimi kontrol rehberleri
 locale: tr
 topic: product-buying
 safetyScope: marketplace-guidance
+sourceReliability: editorial
 version: 2026-06-18
 ---
 

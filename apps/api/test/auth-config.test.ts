@@ -198,6 +198,7 @@ describe("auth runtime config", () => {
       embeddingModel: "gemini-embedding-001",
       chatProvider: "gemini",
       chatModel: "gemini-2.5-flash",
+      maxSourcesPerDocument: 2,
       geminiApiKey: "gemini-test-key"
     });
   });

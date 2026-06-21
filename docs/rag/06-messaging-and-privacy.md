@@ -4,6 +4,7 @@ title: Mesajlaşma ve gizlilik rehberi
 locale: tr
 topic: messaging-privacy
 safetyScope: marketplace-guidance
+sourceReliability: internal
 version: 2026-06-18
 ---
 

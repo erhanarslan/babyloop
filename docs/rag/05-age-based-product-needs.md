@@ -4,6 +4,7 @@ title: Yaş dönemine göre genel ürün ihtiyaçları
 locale: tr
 topic: age-based-needs
 safetyScope: marketplace-guidance
+sourceReliability: editorial
 version: 2026-06-18
 ---
 

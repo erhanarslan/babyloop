@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EmbeddingProvider } from "@babyloop/ai-core";
-import { RagSearchService } from "../src/services/rag-search.service.js";
+import {
+  dedupeSearchResults,
+  RagSearchService
+} from "../src/services/rag-search.service.js";
 import type { RagVectorStore } from "../src/services/rag.types.js";
 
 const embeddingProvider: EmbeddingProvider = {
@@ -26,6 +29,7 @@ describe("rag search service", () => {
     const service = new RagSearchService({
       embeddingProvider,
       maxChunks: 5,
+      maxSourcesPerDocument: 2,
       minScore: 0.72,
       vectorSize: 3,
       vectorStore
@@ -56,6 +60,7 @@ describe("rag search service", () => {
     const service = new RagSearchService({
       embeddingProvider,
       maxChunks: 5,
+      maxSourcesPerDocument: 2,
       minScore: 0.72,
       vectorSize: 3,
       vectorStore
@@ -66,4 +71,39 @@ describe("rag search service", () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.citation.title).toBe("Ürün seçimi kontrol rehberleri");
   });
+
+  it("deduplicates repeated sections and caps sources per document", () => {
+    const results = dedupeSearchResults(
+      [
+        createResult("docs/rag/a.md", "Fren", 0.95),
+        createResult("docs/rag/a.md", "Fren", 0.94),
+        createResult("docs/rag/a.md", "Tekerlek", 0.93),
+        createResult("docs/rag/a.md", "Kumaş", 0.92),
+        createResult("docs/rag/b.md", "Genel", 0.91)
+      ],
+      {
+        limit: 5,
+        maxSourcesPerDocument: 2
+      }
+    );
+
+    expect(results.map((result) => `${result.citation.sourcePath}:${result.citation.section}`)).toEqual([
+      "docs/rag/a.md:Fren",
+      "docs/rag/a.md:Tekerlek",
+      "docs/rag/b.md:Genel"
+    ]);
+  });
 });
+
+function createResult(sourcePath: string, section: string, score: number) {
+  return {
+    score,
+    text: `${section} kaynak metni.`,
+    citation: {
+      title: "Test kaynak",
+      sourcePath,
+      section,
+      topic: "test"
+    }
+  };
+}

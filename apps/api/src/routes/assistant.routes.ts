@@ -15,6 +15,7 @@ import {
 } from "../services/assistant-chat.service.js";
 import type { RagAssistantService } from "../services/rag-assistant.service.js";
 import type { RagCitation } from "../services/rag.types.js";
+import type { AssistantIntent } from "../services/assistant-intent-router.service.js";
 
 type AssistantChatResponse = ApiResponse<{
   reply: AssistantChatReply;
@@ -26,6 +27,7 @@ type AssistantMessageResponse = ApiResponse<{
   sources?: RagCitation[];
   mode?: "rag" | "boundary" | "no_sources";
   grounded?: boolean;
+  intent?: AssistantIntent;
 }>;
 
 type AssistantRouteOptions = {
@@ -61,6 +63,7 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
               answer: answer.answer,
               mode: answer.mode,
               grounded: answer.grounded,
+              ...(answer.intent ? { intent: answer.intent } : {}),
               ...(answer.sources.length > 0 ? { sources: answer.sources } : {})
             }
           };

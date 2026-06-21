@@ -4,6 +4,7 @@ title: Güvenli alışveriş rehberi
 locale: tr
 topic: safe-shopping
 safetyScope: marketplace-guidance
+sourceReliability: internal
 version: 2026-06-18
 ---
 

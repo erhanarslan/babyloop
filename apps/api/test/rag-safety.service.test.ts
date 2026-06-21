@@ -23,4 +23,11 @@ describe("rag safety", () => {
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("prompt_injection");
   });
+
+  it("blocks health symptom requests that need professional guidance", () => {
+    const decision = decideRagSafety("ateşi var ne yapayım");
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("unsafe_medical");
+  });
 });

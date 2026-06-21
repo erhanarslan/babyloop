@@ -1,9 +1,12 @@
+import type { AssistantIntent } from "./assistant-intent-router.service.js";
+
 export type RagDocumentMetadata = {
   id: string;
   title: string;
   locale: string;
   topic: string;
   safetyScope: string;
+  sourceReliability: string;
   version: string;
   sourcePath: string;
 };
@@ -43,6 +46,7 @@ export type RagAnswer = {
   sources: RagCitation[];
   mode: "rag" | "boundary" | "no_sources";
   grounded: boolean;
+  intent?: AssistantIntent;
 };
 
 export type RagSafetyDecision = {

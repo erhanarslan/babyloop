@@ -46,7 +46,19 @@ export const assistantMessageResponseDataSchema = z
       .optional(),
     sources: z.array(assistantMessageSourceSchema).optional(),
     mode: z.enum(["rag", "boundary", "no_sources"]).optional(),
-    grounded: z.boolean().optional()
+    grounded: z.boolean().optional(),
+    intent: z
+      .enum([
+        "unsafe_medical",
+        "prompt_injection",
+        "rag_knowledge",
+        "listing_search",
+        "listing_help",
+        "babyloop_usage",
+        "child_needs",
+        "unknown"
+      ])
+      .optional()
   })
   .strict();
 
