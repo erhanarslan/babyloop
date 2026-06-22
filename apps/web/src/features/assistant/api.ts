@@ -1,3 +1,16 @@
+export type AssistantSuggestedAction = {
+  type: string;
+  label: string;
+  href?: string;
+  payload?: Record<string, unknown>;
+};
+
+export type AssistantToolResultPreview = {
+  tool: string;
+  title: string;
+  summary: string;
+};
+
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
@@ -65,8 +78,8 @@ export type AssistantMessagePayload = {
   grounded?: boolean;
   intent?: string;
   toolsUsed?: string[];
-  toolResultsPreview?: Array<{ tool: string; title: string; summary: string }>;
-  suggestedActions?: Array<{ type: string; label: string; href?: string; payload?: Record<string, unknown> }>;
+  toolResultsPreview?: AssistantToolResultPreview[];
+  suggestedActions?: AssistantSuggestedAction[];
 };
 
 export async function requestAssistantChat(

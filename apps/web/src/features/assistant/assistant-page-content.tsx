@@ -11,7 +11,8 @@ import {
 import {
   requestAssistantMessage,
   type AssistantMessageAction,
-  type AssistantMessageSource
+  type AssistantMessageSource,
+  type AssistantSuggestedAction
 } from "./api";
 import styles from "./assistant-page-content.module.css";
 
@@ -21,6 +22,7 @@ type AssistantMessage = {
   content: string;
   actions?: AssistantMessageAction[];
   sources?: AssistantMessageSource[];
+  suggestedActions?: AssistantSuggestedAction[];
 };
 
 type AssistantPageContentProps = {
@@ -75,7 +77,8 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           role: "assistant",
           content: response.data.answer,
           actions: response.data.actions ?? [],
-          sources: response.data.sources ?? []
+          sources: response.data.sources ?? [],
+          suggestedActions: response.data.suggestedActions ?? []
         }
       ]);
       setIsPending(false);
@@ -146,6 +149,8 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
       <strong>{message.role === "assistant" ? "Yanıt" : "Sen"}</strong>
       <p>{message.content}</p>
 
+      <AssistantSuggestedActions actions={message.suggestedActions} />
+
       {message.actions && message.actions.length > 0 ? (
         <div className={styles.actionRow}>
           {message.actions.map((action) => (
@@ -204,4 +209,146 @@ function normalizeText(value: string): string {
     .toLocaleLowerCase("tr-TR")
     .normalize("NFKD")
     .replace(/\p{Diacritic}/gu, "");
+}
+
+
+function AssistantSuggestedActions({ actions }: { actions: AssistantSuggestedAction[] | undefined }) {
+  if (!actions?.length) {
+    return null;
+  }
+
+  return (
+    <div className={styles["assistant-suggested-actions"]} aria-label="Önerilen aksiyonlar">
+      {actions.map((action, index) => (
+        <AssistantSuggestedActionCard action={action} key={`${action.type}-${action.label}-${index}`} />
+      ))}
+    </div>
+  );
+}
+
+function AssistantSuggestedActionCard({ action }: { action: AssistantSuggestedAction }) {
+  if (action.href) {
+    return (
+      <a className={styles["assistant-suggested-action-card"]} href={action.href}>
+        <strong>{action.label}</strong>
+        <span>{describeSuggestedAction(action)}</span>
+      </a>
+    );
+  }
+
+  if (action.type === "copy_questions") {
+    const questions = extractStringArray(action.payload, "questions");
+
+    return (
+      <button
+        className={styles["assistant-suggested-action-card"]}
+        type="button"
+        onClick={() => {
+          if (questions.length > 0) {
+            void navigator.clipboard?.writeText(questions.join("\n"));
+          }
+        }}
+      >
+        <strong>{action.label}</strong>
+        <span>{questions.length > 0 ? `${questions.length} soru kopyalanabilir.` : describeSuggestedAction(action)}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className={styles["assistant-suggested-action-card"]}>
+      <strong>{action.label}</strong>
+      <span>{describeSuggestedAction(action)}</span>
+      <SuggestedActionPayloadPreview action={action} />
+    </div>
+  );
+}
+
+function SuggestedActionPayloadPreview({ action }: { action: AssistantSuggestedAction }) {
+  if (action.type === "review_child_recommendations") {
+    const recommendations = extractArrayOfRecords(action.payload, "childRecommendations");
+
+    if (recommendations.length === 0) {
+      return null;
+    }
+
+    return (
+      <ul className={styles["assistant-suggested-action-list"]}>
+        {recommendations.slice(0, 4).map((item, index) => (
+          <li key={index}>
+            <strong>{formatUnknownRecordValue(item.label) || formatUnknownRecordValue(item.query) || "Öneri"}</strong>
+            <span>{formatUnknownRecordValue(item.reason)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (action.type === "review_saved_search_draft") {
+    const savedSearches = extractArrayOfRecords(action.payload, "suggestedSearches");
+
+    if (savedSearches.length === 0) {
+      return null;
+    }
+
+    return (
+      <ul className={styles["assistant-suggested-action-list"]}>
+        {savedSearches.slice(0, 4).map((item, index) => (
+          <li key={index}>
+            <strong>{formatUnknownRecordValue(item.label) || "Kayıtlı arama taslağı"}</strong>
+            <span>{formatUnknownRecordValue(item.query)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (action.type === "review_listing_draft") {
+    return <span className={styles["assistant-suggested-action-note"]}>Bu yalnızca taslaktır; ilan kullanıcı onayı olmadan oluşturulmaz.</span>;
+  }
+
+  return null;
+}
+
+function describeSuggestedAction(action: AssistantSuggestedAction): string {
+  switch (action.type) {
+    case "open_listing":
+      return "İlan detayını açar.";
+    case "open_search":
+      return "Arama sonuçlarını açar.";
+    case "copy_questions":
+      return "Satıcıya sorulacak güvenli soruları kopyalar.";
+    case "review_saved_search_draft":
+      return "Kayıtlı arama taslağını gösterir; otomatik kaydetmez.";
+    case "review_listing_draft":
+      return "İlan taslağını gösterir; otomatik ilan oluşturmaz.";
+    case "review_child_recommendations":
+      return "Yaş ve mevsime göre çocuk önerilerini gösterir; otomatik bildirim oluşturmaz.";
+    default:
+      return "Önerilen güvenli aksiyon.";
+  }
+}
+
+function extractStringArray(payload: Record<string, unknown> | undefined, key: string): string[] {
+  const value = payload?.[key];
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function extractArrayOfRecords(payload: Record<string, unknown> | undefined, key: string): Array<Record<string, unknown>> {
+  const value = payload?.[key];
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+}
+
+function formatUnknownRecordValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }

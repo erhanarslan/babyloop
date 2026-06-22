@@ -496,3 +496,7 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 ## Assistant child personalization
 
 Paket 6 ile assistant, oturum açmış kullanıcı için aktif çocuk profili bağlamını read-only olarak kullanabilir. Bu bağlam yalnızca yaş bandı, güvenli label, bildirim sıklığı ve lifecycle kategori önerileri gibi privacy-light alanlardan oluşur. Çocuk profili verisi seller/public DTO'lara taşınmaz; öneriler sağlık, tanı, tedavi veya gelişim değerlendirmesi üretmez. Tool çıktıları kayıtlı arama ve bildirim için sadece taslak üretir; kullanıcı onayı olmadan write action yapılmaz.
+
+## Public assistant suggested actions
+
+Public assistant UI artık assistant response içindeki `suggestedActions` alanını güvenli kartlar olarak gösterebilir. `review_child_recommendations` ve `review_saved_search_draft` aksiyonları yalnızca taslak/önizleme davranışıdır; kayıtlı arama, bildirim, favori, mesaj veya ilan kullanıcı onayı olmadan oluşturulmaz.

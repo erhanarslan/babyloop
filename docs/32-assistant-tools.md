@@ -137,3 +137,7 @@ Bu paket write action çalıştırmaz.
 ## child_needs_recommendations
 
 `child_needs_recommendations` tool'u aktif çocuk profili, ageBand ve mevsim bilgisiyle ürün takip ve kayıtlı arama taslakları üretir. Tool read-only/draft-only çalışır. Çocuk adı/label yalnızca oturumdaki kullanıcıya cevap üretmek için kısa ve sanitize edilmiş şekilde kullanılır; seller/public DTO'lara taşınmaz. Otomatik kayıtlı arama, bildirim veya mesaj oluşturmaz.
+
+## Public suggested actions
+
+Assistant tool orchestration sonucu dönen `suggestedActions`, public UI'da kısa kartlar halinde render edilir. Linkli aksiyonlar ilan veya arama sayfası açar; draft aksiyonları ise çocuk önerisi, kayıtlı arama taslağı veya ilan taslağını gösterir. Bu alanlar write action değildir.
