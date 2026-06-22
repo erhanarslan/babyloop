@@ -133,3 +133,7 @@ Write action'lar ayrı bir fazda ele alınmalıdır:
 5. CSRF/auth/RBAC kontrolleri write endpoint üzerinde uygulanır.
 
 Bu paket write action çalıştırmaz.
+
+## child_needs_recommendations
+
+`child_needs_recommendations` tool'u aktif çocuk profili, ageBand ve mevsim bilgisiyle ürün takip ve kayıtlı arama taslakları üretir. Tool read-only/draft-only çalışır. Çocuk adı/label yalnızca oturumdaki kullanıcıya cevap üretmek için kısa ve sanitize edilmiş şekilde kullanılır; seller/public DTO'lara taşınmaz. Otomatik kayıtlı arama, bildirim veya mesaj oluşturmaz.

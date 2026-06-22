@@ -63,6 +63,10 @@ export type AssistantMessagePayload = {
   sources?: AssistantMessageSource[];
   mode?: "rag" | "boundary" | "no_sources";
   grounded?: boolean;
+  intent?: string;
+  toolsUsed?: string[];
+  toolResultsPreview?: Array<{ tool: string; title: string; summary: string }>;
+  suggestedActions?: Array<{ type: string; label: string; href?: string; payload?: Record<string, unknown> }>;
 };
 
 export async function requestAssistantChat(

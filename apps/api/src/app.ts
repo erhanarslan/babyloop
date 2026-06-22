@@ -74,6 +74,7 @@ import {
   type RagRuntimeServices
 } from "./services/rag-runtime.service.js";
 import { RagEvalHistoryService } from "./services/rag-eval-history.service.js";
+import { getAssistantChildPersonalizationContext } from "./services/assistant-child-personalization.service.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -268,6 +269,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       listingSearch: (input: AssistantListingSearchInput) => searchPublicListingsForAssistant(app, input),
       listingDetail: (input: { listingId: string }) => getPublicListingDetailForAssistant(app, input.listingId),
       sellerPublicSummary: (input: { listingId?: string; profileId?: string }) => getPublicSellerSummaryForAssistant(app, input),
+      childPersonalizationContext: (profileId: string) => getAssistantChildPersonalizationContext(app, profileId),
       ragMetricsService: ragServices?.metricsService ?? null,
       ragAssistantService: ragServices?.assistantService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,

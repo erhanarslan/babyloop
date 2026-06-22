@@ -1,7 +1,9 @@
 import type { z } from "zod";
 import type { RagSearchResult } from "./rag.types.js";
+import type { AssistantChildPersonalizationContext } from "./assistant-child-personalization.service.js";
 
 export type AssistantToolContext = {
+  childPersonalization?: AssistantChildPersonalizationContext | null;
   ragSearch?: (query: string, limit?: number) => Promise<RagSearchResult[]>;
   listingSearch?: (input: {
     categoryId?: string;

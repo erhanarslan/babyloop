@@ -235,4 +235,55 @@ describe("rag assistant service", () => {
   });
 
 
+  it("uses child personalization context for child needs intent", async () => {
+    const searchService = {
+      search: vi.fn().mockResolvedValue([
+        {
+          score: 0.91,
+          text: "Yaş dönemine göre ürün ihtiyaçları kaynak metni.",
+          citation: {
+            title: "Yaş dönemine göre genel ürün ihtiyaçları",
+            sourcePath: "docs/rag/05-age-based-product-needs.md",
+            section: "Genel",
+            topic: "age-based-needs"
+          }
+        }
+      ])
+    } as unknown as RagSearchService;
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage(
+      {
+        message: "Çocuğum için kışlık ürünleri takip etmek istiyorum",
+        locale: "tr"
+      },
+      {
+        childPersonalization: {
+          activeChild: {
+            label: "Kızım",
+            ageBand: "toddler_12_24",
+            ageBandLabel: "12-24 ay",
+            ageMonths: 18,
+            notificationCadence: "monthly"
+          },
+          children: [],
+          season: "winter",
+          seasonLabel: "Kış",
+          recommendations: []
+        }
+      }
+    );
+
+    expect(answer.intent).toBe("child_needs");
+    expect(answer.toolsUsed).toContain("child_needs_recommendations");
+    expect(answer.suggestedActions?.map((action) => action.type)).toContain("review_child_recommendations");
+    expect(answer.answer).toContain("Kızım");
+    expect(answer.answer).toContain("Kullanıcı onayı olmadan");
+  });
+
 });

@@ -86,7 +86,8 @@ export const assistantMessageResponseDataSchema = z
               "open_search",
               "copy_questions",
               "review_saved_search_draft",
-              "review_listing_draft"
+              "review_listing_draft",
+              "review_child_recommendations"
             ]),
             label: z.string(),
             href: z.string().optional(),

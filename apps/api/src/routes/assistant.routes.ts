@@ -16,6 +16,7 @@ import {
 import type { RagAssistantService } from "../services/rag-assistant.service.js";
 import type { RagCitation } from "../services/rag.types.js";
 import type { AssistantIntent } from "../services/assistant-intent-router.service.js";
+import type { AssistantChildPersonalizationContext } from "../services/assistant-child-personalization.service.js";
 import type {
   AssistantListingDetailSummary,
   AssistantListingSearchResult,
@@ -42,7 +43,7 @@ type AssistantMessageResponse = ApiResponse<{
     summary: string;
   }>;
   suggestedActions?: Array<{
-    type: "open_listing" | "open_search" | "copy_questions" | "review_saved_search_draft" | "review_listing_draft";
+    type: "open_listing" | "open_search" | "copy_questions" | "review_saved_search_draft" | "review_listing_draft" | "review_child_recommendations";
     label: string;
     href?: string;
     payload?: Record<string, unknown>;
@@ -60,6 +61,7 @@ type AssistantRouteOptions = {
   }) => Promise<AssistantListingSearchResult[]>;
   listingDetail?: (input: { listingId: string }) => Promise<AssistantListingDetailSummary | null>;
   sellerPublicSummary?: (input: { listingId?: string; profileId?: string }) => Promise<AssistantSellerPublicSummary | null>;
+  childPersonalizationContext?: (profileId: string) => Promise<AssistantChildPersonalizationContext | null>;
   ragMetricsService?: RagMetricsService | null;
   ragAssistantService?: RagAssistantService | null;
   ragUsageLimitService?: RagUsageLimitService | null;
@@ -107,7 +109,11 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
             });
           }
 
+          const childPersonalization = request.currentUser && options.childPersonalizationContext
+            ? await options.childPersonalizationContext(request.currentUser.profile.id)
+            : null;
           const answer = await ragAssistantService.answerMessage(parsedBody.data, {
+            ...(childPersonalization ? { childPersonalization } : {}),
             ...(options.listingSearch ? { listingSearch: options.listingSearch } : {}),
             ...(options.listingDetail ? { listingDetail: options.listingDetail } : {}),
             ...(options.sellerPublicSummary ? { sellerPublicSummary: options.sellerPublicSummary } : {})

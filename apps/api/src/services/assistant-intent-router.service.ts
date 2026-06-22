@@ -85,6 +85,10 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
     return { intent: "buyer_questions", confidence: "high" };
   }
 
+  if (matchesAny(normalized, CHILD_NEEDS_PATTERNS)) {
+    return { intent: "child_needs", confidence: "high" };
+  }
+
   if (matchesAny(normalized, SAVED_SEARCH_PATTERNS)) {
     return { intent: "saved_search_suggestion", confidence: "high" };
   }
@@ -103,10 +107,6 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
 
   if (matchesAny(normalized, BABYLOOP_USAGE_PATTERNS)) {
     return { intent: "babyloop_usage", confidence: "medium" };
-  }
-
-  if (matchesAny(normalized, CHILD_NEEDS_PATTERNS)) {
-    return { intent: "child_needs", confidence: "medium" };
   }
 
   if (matchesAny(normalized, RAG_KNOWLEDGE_PATTERNS)) {

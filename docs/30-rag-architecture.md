@@ -492,3 +492,7 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 - MCP server
 - Production Redis cache/rate limit
 - Daha derin official source research
+
+## Assistant child personalization
+
+Paket 6 ile assistant, oturum açmış kullanıcı için aktif çocuk profili bağlamını read-only olarak kullanabilir. Bu bağlam yalnızca yaş bandı, güvenli label, bildirim sıklığı ve lifecycle kategori önerileri gibi privacy-light alanlardan oluşur. Çocuk profili verisi seller/public DTO'lara taşınmaz; öneriler sağlık, tanı, tedavi veya gelişim değerlendirmesi üretmez. Tool çıktıları kayıtlı arama ve bildirim için sadece taslak üretir; kullanıcı onayı olmadan write action yapılmaz.

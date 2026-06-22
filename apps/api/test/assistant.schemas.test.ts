@@ -120,6 +120,13 @@ describe("assistant schemas", () => {
           payload: {
             questions: ["Ürünün kaç yıldır kullanıldığını paylaşabilir misiniz?"]
           }
+        },
+        {
+          type: "review_child_recommendations",
+          label: "Çocuk önerilerini gözden geçir",
+          payload: {
+            childRecommendations: []
+          }
         }
       ],
       sources: [

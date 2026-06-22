@@ -95,6 +95,30 @@ export class AssistantToolOrchestrator {
       ];
     }
 
+    if (intent === "child_needs") {
+      return [
+        {
+          tool: "child_needs_recommendations",
+          input: {
+            query: message,
+            ...(city ? { city } : {}),
+            ...(analysis.ageSignals[0] ? { ageSignal: analysis.ageSignals[0] } : {}),
+            ...(analysis.productTerms.length > 0 ? { productTerms: analysis.productTerms } : {})
+          }
+        },
+        {
+          tool: "saved_search_suggest_draft",
+          input: {
+            query: primaryProduct === "ürün" ? message : primaryProduct,
+            ...(city ? { city } : {}),
+            ...(analysis.ageSignals[0] ? { ageSignal: analysis.ageSignals[0] } : {}),
+            ...(analysis.productTerms.length > 0 ? { productTerms: analysis.productTerms } : {})
+          }
+        },
+        { tool: "rag_search", input: { query: `${message} yaşa göre ürün ihtiyaçları mevsimsel ihtiyaçlar`, limit: 3 } }
+      ];
+    }
+
     if (intent === "saved_search_suggestion") {
       return [
         {
@@ -206,6 +230,49 @@ export class AssistantToolOrchestrator {
             label: "Taslağı gözden geçir",
             payload: draft ? { draft } : {}
           }]
+        }
+      };
+    }
+
+    if (intent === "child_needs") {
+      const childDraft = dataFor<{
+        hasChildContext: boolean;
+        childLabel: string;
+        ageBand: string | null;
+        ageBandLabel: string | null;
+        seasonLabel: string;
+        suggestedSearches: Array<{ label: string; query: string; reason: string; filters: Record<string, string> }>;
+        productFocus: string[];
+        note: string;
+      }>(results, "child_needs_recommendations");
+      const savedSearchDraft = dataFor<{ suggestedSearches: Array<{ label: string; query: string; filters: Record<string, string>; reason: string }> }>(results, "saved_search_suggest_draft");
+      const suggestions = childDraft?.suggestedSearches ?? savedSearchDraft?.suggestedSearches ?? [];
+      const heading = childDraft?.hasChildContext
+        ? `${childDraft.childLabel} için ${childDraft.ageBandLabel ?? "genel dönem"} önerileri`
+        : "Yaş ve mevsime göre genel takip önerileri";
+
+      return {
+        handled: true,
+        answer: {
+          answer: suggestions.length > 0
+            ? `${heading}:\n${suggestions.slice(0, 5).map((item) => `- ${item.label}: ${item.query} — ${item.reason}`).join("\n")}\n\n${childDraft?.note ?? "Bu sadece taslaktır; kullanıcı onayı olmadan kayıtlı arama veya bildirim oluşturulmaz."}`
+            : "Çocuk yaş dönemi ve mevsime göre takip edilecek ürün taslakları hazırlayabilirim. Bu yalnızca öneridir; otomatik kayıt veya bildirim oluşturulmaz.",
+          sources,
+          grounded: sources.length > 0,
+          toolsUsed,
+          toolResultsPreview: preview,
+          suggestedActions: [
+            {
+              type: "review_child_recommendations",
+              label: "Çocuk önerilerini gözden geçir",
+              payload: childDraft ? { childRecommendations: childDraft.suggestedSearches } : {}
+            },
+            {
+              type: "review_saved_search_draft",
+              label: "Kayıtlı arama taslağını gözden geçir",
+              payload: { suggestedSearches: suggestions }
+            }
+          ]
         }
       };
     }
@@ -358,6 +425,14 @@ function previewToolResult(tool: AssistantToolName, data: unknown): { tool: stri
       tool,
       title: "İlan taslağı",
       summary: "Başlık, açıklama ve fotoğraf kontrol listesi taslağı"
+    };
+  }
+
+  if (tool === "child_needs_recommendations" && "suggestedSearches" in data && Array.isArray((data as { suggestedSearches?: unknown }).suggestedSearches)) {
+    return {
+      tool,
+      title: "Çocuk önerileri",
+      summary: `${(data as { suggestedSearches: unknown[] }).suggestedSearches.length} yaş/mevsim önerisi`
     };
   }
 

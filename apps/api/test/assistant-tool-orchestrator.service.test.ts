@@ -99,4 +99,47 @@ describe("assistant tool orchestrator", () => {
     expect(result.answer?.answer).toContain("uygun ilan bulamadım");
     expect(result.answer?.toolsUsed).toEqual(["rag_search"]);
   });
+  it("orchestrates child needs into child recommendations and saved search draft", async () => {
+    const orchestrator = new AssistantToolOrchestrator();
+    const ragSearch = vi.fn(async () => [
+      {
+        score: 0.9,
+        text: "Yaş dönemine göre ürün ihtiyaçları kaynak metni.",
+        citation: {
+          title: "Yaş dönemine göre genel ürün ihtiyaçları",
+          sourcePath: "docs/rag/05-age-based-product-needs.md",
+          section: "Genel",
+          topic: "age-based-needs"
+        }
+      }
+    ]);
+
+    const result = await orchestrator.orchestrate({
+      context: {
+        ragSearch,
+        childPersonalization: {
+          activeChild: {
+            label: "Kızım",
+            ageBand: "toddler_12_24",
+            ageBandLabel: "12-24 ay",
+            ageMonths: 18,
+            notificationCadence: "monthly"
+          },
+          children: [],
+          season: "winter",
+          seasonLabel: "Kış",
+          recommendations: []
+        }
+      },
+      intent: "child_needs",
+      message: "Çocuğum için kışlık ürünleri takip etmek istiyorum"
+    });
+
+    expect(result.handled).toBe(true);
+    expect(result.answer?.toolsUsed).toContain("child_needs_recommendations");
+    expect(result.answer?.toolsUsed).toContain("saved_search_suggest_draft");
+    expect(result.answer?.suggestedActions?.map((action) => action.type)).toContain("review_child_recommendations");
+    expect(result.answer?.answer).toContain("Kızım");
+  });
+
 });

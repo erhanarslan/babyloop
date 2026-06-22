@@ -28,4 +28,12 @@ describe("assistant intent router", () => {
     expect(routeAssistantIntent("Kayıtlı arama nasıl oluşturulur?").intent).toBe("babyloop_usage");
     expect(routeAssistantIntent("18 aylık çocuk için hangi ürünler iyi olur?").intent).toBe("child_needs");
   });
+  it("routes child profile follow-up tracking requests to child_needs before saved search", () => {
+    expect(routeAssistantIntent("Çocuğum için kışlık ürünleri takip etmek istiyorum")).toMatchObject({
+      intent: "child_needs",
+      confidence: "high"
+    });
+  });
+
+
 });

@@ -8,6 +8,7 @@ import type {
   AssistantToolResult
 } from "./assistant-tools.types.js";
 import type { RagSearchResult } from "./rag.types.js";
+import { buildChildNeedDraft, type AssistantChildNeedDraft } from "./assistant-child-personalization.service.js";
 
 const categoryLookupInputSchema = z
   .object({
@@ -42,6 +43,17 @@ const childAgeBandInputSchema = z
   .object({
     ageMonths: z.number().int().min(0).max(96).optional(),
     ageBand: z.string().trim().min(1).max(40).optional()
+  })
+  .strict();
+
+const childNeedsRecommendationsInputSchema = z
+  .object({
+    query: z.string().trim().min(1).max(160),
+    city: z.string().trim().min(1).max(80).optional(),
+    ageBand: z.string().trim().min(1).max(40).optional(),
+    ageSignal: z.string().trim().min(1).max(40).optional(),
+    productTerms: z.array(z.string().trim().min(1).max(80)).max(6).optional(),
+    season: z.string().trim().min(1).max(40).optional()
   })
   .strict();
 
@@ -91,6 +103,7 @@ export type AssistantToolName =
   | "listing_search"
   | "listing_detail"
   | "child_age_band_explain"
+  | "child_needs_recommendations"
   | "buyer_question_templates"
   | "listing_draft_helper"
   | "saved_search_suggest_draft"
@@ -105,6 +118,7 @@ export class AssistantToolRegistry {
     this.register(createListingSearchTool());
     this.register(createListingDetailTool());
     this.register(createChildAgeBandExplainTool());
+    this.register(createChildNeedsRecommendationsTool());
     this.register(createBuyerQuestionTemplatesTool());
     this.register(createListingDraftHelperTool());
     this.register(createSavedSearchSuggestDraftTool());
@@ -308,6 +322,33 @@ function createChildAgeBandExplainTool(): AssistantToolDefinition<
   };
 }
 
+function createChildNeedsRecommendationsTool(): AssistantToolDefinition<
+  z.infer<typeof childNeedsRecommendationsInputSchema>,
+  AssistantChildNeedDraft
+> {
+  return {
+    name: "child_needs_recommendations",
+    description: "Aktif çocuk profili, ageBand ve mevsime göre read-only ihtiyaç ve kayıtlı arama taslakları üretir.",
+    inputSchema: childNeedsRecommendationsInputSchema,
+    readOnly: true,
+    draftOnly: true,
+    riskLevel: "medium",
+    category: "draft",
+    returnsPrivateData: false,
+    async execute(context, input) {
+      return buildChildNeedDraft({
+        context: context.childPersonalization ?? null,
+        query: input.query,
+        ...(input.city ? { city: input.city } : {}),
+        ...(input.ageBand ? { ageBand: input.ageBand } : {}),
+        ...(input.ageSignal ? { ageSignal: input.ageSignal } : {}),
+        ...(input.productTerms?.length ? { productTerms: input.productTerms } : {}),
+        ...(input.season ? { season: input.season } : {})
+      });
+    }
+  };
+}
+
 function createBuyerQuestionTemplatesTool(): AssistantToolDefinition<
   z.infer<typeof buyerQuestionTemplatesInputSchema>,
   { topic: string; questions: string[]; sources: Array<{ title: string; sourcePath: string; topic: string }> }
@@ -401,19 +442,33 @@ function createSavedSearchSuggestDraftTool(): AssistantToolDefinition<
     riskLevel: "medium",
     category: "draft",
     returnsPrivateData: false,
-    async execute(_context, input) {
-      const terms = input.productTerms?.length ? input.productTerms : [input.query];
+    async execute(context, input) {
+      const childDraft = buildChildNeedDraft({
+        context: context.childPersonalization ?? null,
+        query: input.query,
+        ...(input.city ? { city: input.city } : {}),
+        ...(input.ageSignal ? { ageSignal: input.ageSignal } : {}),
+        ...(input.productTerms?.length ? { productTerms: input.productTerms } : {})
+      });
+      const terms = uniqueTerms([
+        ...(input.productTerms?.length ? input.productTerms : [input.query]),
+        ...childDraft.suggestedSearches.map((item) => item.query)
+      ]);
       const city = input.city;
 
       return {
-        suggestedSearches: terms.slice(0, 3).map((term) => ({
+        suggestedSearches: terms.slice(0, 5).map((term) => ({
           label: city ? `${term} · ${city}` : term,
           query: term,
           filters: {
             ...(city ? { city } : {}),
-            ...(input.ageSignal ? { age: input.ageSignal } : {})
+            ...(input.ageSignal ? { age: input.ageSignal } : {}),
+            ...(childDraft.ageBand ? { ageBand: childDraft.ageBand } : {}),
+            season: childDraft.season
           },
-          reason: "Bu taslak, ihtiyacı tekrar aramak yerine uygun ilanları takip etmeyi kolaylaştırır."
+          reason: childDraft.hasChildContext
+            ? `${childDraft.childLabel} profiline ve ${childDraft.seasonLabel.toLocaleLowerCase("tr")} dönemine göre takip edilebilir.`
+            : "Bu taslak, ihtiyacı tekrar aramak yerine uygun ilanları takip etmeyi kolaylaştırır."
         })),
         note: "Bu sadece taslaktır; kullanıcı onayı olmadan kayıtlı arama oluşturulmaz."
       };
@@ -602,3 +657,18 @@ function toSellerPublicSummaryInput(input: {
   return result;
 }
 
+
+function uniqueTerms(values: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const value of values) {
+    const normalized = value.replace(/\s+/gu, " ").trim();
+    const key = normalized.toLocaleLowerCase("tr");
+    if (!normalized || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(normalized);
+  }
+
+  return unique;
+}

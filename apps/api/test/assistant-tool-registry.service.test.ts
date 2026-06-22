@@ -10,6 +10,7 @@ describe("assistant tool registry", () => {
       "buyer_question_templates",
       "category_lookup",
       "child_age_band_explain",
+      "child_needs_recommendations",
       "listing_detail",
       "listing_draft_helper",
       "listing_search",
@@ -185,5 +186,38 @@ describe("assistant tool registry", () => {
     expect(legacyToddler.ok ? legacyToddler.data : undefined).toMatchObject({ label: "24-36 ay" });
   });
 
+
+  it("generates child needs recommendations with child personalization context", async () => {
+    const registry = new AssistantToolRegistry();
+    const result = await registry.execute(
+      "child_needs_recommendations",
+      {
+        childPersonalization: {
+          activeChild: {
+            label: "Kızım",
+            ageBand: "toddler_12_24",
+            ageBandLabel: "12-24 ay",
+            ageMonths: 18,
+            notificationCadence: "monthly"
+          },
+          children: [],
+          season: "winter",
+          seasonLabel: "Kış",
+          recommendations: []
+        }
+      },
+      { query: "kış için ne takip edeyim", city: "İstanbul" }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data : undefined).toMatchObject({
+      hasChildContext: true,
+      childLabel: "Kızım",
+      ageBand: "toddler_12_24",
+      season: "winter"
+    });
+    expect(JSON.stringify(result)).toContain("Kullanıcı onayı olmadan");
+    expect(JSON.stringify(result)).not.toContain("tedavi");
+  });
 
 });

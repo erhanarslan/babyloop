@@ -368,3 +368,7 @@ Production’da reindex job queue veya workflow runner ile yapılmalıdır. Bu p
 - Backoffice RAG paneli secret göstermez.
 - Listing search tool seller email, phone veya ham user/profile bilgisi döndürmez.
 - Write tool yoktur.
+
+## Child personalization diagnostics
+
+Child needs sorularında `child_needs_recommendations`, `saved_search_suggest_draft` ve `rag_search` birlikte çalışabilir. Backoffice playground'da `toolsUsed`, `toolResultsPreview` ve `suggestedActions` alanları kontrol edilmelidir. Çocuk profili yoksa assistant genel yaş/mevsim önerisi üretir; çocuk profili varsa aktif profil ageBand ve mevcut mevsim önerilere eklenir. Bu akış no-write prensibiyle çalışır.
