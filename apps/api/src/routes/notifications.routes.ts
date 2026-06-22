@@ -1,5 +1,6 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
+import { listNotificationDeliveryDrafts } from "../services/notification-delivery-drafts.service.js";
 import { z } from "zod";
 import {
   emitNotificationRead,
@@ -40,6 +41,19 @@ const notificationParamsSchema = z.object({
 });
 
 export function registerNotificationRoutes(app: FastifyInstance): void {
+  app.get("/notifications/delivery-drafts", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return {
+      ok: true,
+      data: await listNotificationDeliveryDrafts(app, currentUser.profile.id)
+    };
+  });
+
   app.get<{ Reply: NotificationsResponse }>("/notifications", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 

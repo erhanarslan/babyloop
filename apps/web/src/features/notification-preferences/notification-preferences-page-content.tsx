@@ -23,6 +23,11 @@ import {
   fetchSavedSearches,
   type SavedSearch
 } from "../saved-searches/api";
+import {
+  fetchNotificationDeliveryDrafts,
+  type NotificationDeliveryDraft,
+  type NotificationDeliveryDraftsPayload
+} from "./api";
 
 type NotificationPreferencesPageContentProps = {
   apiBaseUrl: string;
@@ -44,6 +49,7 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
   const [lifecycleGroups, setLifecycleGroups] = useState<LifecycleRecommendationGroup[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [deliveryDraftsPayload, setDeliveryDraftsPayload] = useState<NotificationDeliveryDraftsPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -56,10 +62,11 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
     setErrorMessage(null);
 
     try {
-      const [childProfilesResponse, lifecycleResponse, savedSearchesResponse] = await Promise.all([
+      const [childProfilesResponse, lifecycleResponse, savedSearchesResponse, deliveryDraftsResponse] = await Promise.all([
         fetchChildProfiles(apiBaseUrl),
         fetchLifecycleRecommendations(apiBaseUrl),
-        fetchSavedSearches(apiBaseUrl)
+        fetchSavedSearches(apiBaseUrl),
+        fetchNotificationDeliveryDrafts(apiBaseUrl)
       ]);
 
       if (!childProfilesResponse.ok) {
@@ -67,6 +74,8 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
         setChildProfiles([]);
         setLifecycleGroups([]);
         setSavedSearches([]);
+      setDeliveryDraftsPayload(null);
+        setDeliveryDraftsPayload(null);
         return;
       }
 
@@ -75,12 +84,14 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
         setChildProfiles([]);
         setLifecycleGroups([]);
         setSavedSearches([]);
+        setDeliveryDraftsPayload(null);
         return;
       }
 
       setChildProfiles(childProfilesResponse.data.childProfiles);
       setLifecycleGroups(lifecycleResponse.ok ? lifecycleResponse.data.groups : []);
       setSavedSearches(savedSearchesResponse.data.savedSearches);
+      setDeliveryDraftsPayload(deliveryDraftsResponse.ok ? deliveryDraftsResponse.data : null);
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
       setChildProfiles([]);
@@ -145,8 +156,8 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
             />
             <MetricCard
               label="Hazır bildirim taslağı"
-              value={`${childDrafts.length}`}
-              description="Yaş dönemine göre gönderime hazır olmayan, sadece önizleme taslakları."
+              value={`${deliveryDraftsPayload?.summary.total ?? childDrafts.length}`}
+              description="Delivery endpoint tarafından üretilen no-write taslak sayısı."
             />
           </section>
 
@@ -154,6 +165,8 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
             childDrafts={childDrafts}
             childProfiles={childProfiles}
           />
+
+          <DeliveryDraftSection payload={deliveryDraftsPayload} />
 
           <SavedSearchNotificationSection
             metrics={savedSearchMetrics}
@@ -296,6 +309,93 @@ function ChildCadenceList({ childProfiles }: { childProfiles: ChildProfile[] }) 
     </div>
   );
 }
+
+
+function DeliveryDraftSection({ payload }: { payload: NotificationDeliveryDraftsPayload | null }) {
+  const drafts = payload?.drafts ?? [];
+
+  return (
+    <section className="grid gap-4 rounded-[1.5rem] border border-border/70 bg-background p-5">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">
+          Delivery drafts
+        </p>
+        <h2 className="mt-1 text-xl font-black text-foreground">Bildirim gönderim taslakları</h2>
+        <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-muted-foreground">
+          Bu kartlar email, push veya in-app bildirim göndermez. Sadece sonraki delivery paketinde işlenecek adayları gösterir.
+        </p>
+      </div>
+
+      {payload ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MetricCard
+            label="Toplam taslak"
+            value={`${payload.summary.total}`}
+            description="No-write delivery draft sayısı."
+          />
+          <MetricCard
+            label="Çocuk lifecycle"
+            value={`${payload.summary.childLifecycle}`}
+            description="Çocuk profili yaş döneminden gelen adaylar."
+          />
+          <MetricCard
+            label="Kayıtlı arama"
+            value={`${payload.summary.savedSearch}`}
+            description="Bildirim açık kayıtlı arama adayları."
+          />
+        </div>
+      ) : null}
+
+      {drafts.length === 0 ? (
+        <div className="rounded-[1.25rem] border border-dashed border-border bg-muted/20 p-4">
+          <strong className="text-base font-black text-foreground">Gönderim taslağı yok</strong>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+            Bildirim açık çocuk profili veya kayıtlı arama olduğunda taslaklar burada görünür.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {drafts.slice(0, 8).map((draft) => (
+            <DeliveryDraftCard draft={draft} key={draft.id} />
+          ))}
+        </div>
+      )}
+
+      {payload?.note ? (
+        <p className="rounded-2xl border border-border bg-muted/20 p-3 text-xs font-bold leading-5 text-muted-foreground">
+          {payload.note}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function DeliveryDraftCard({ draft }: { draft: NotificationDeliveryDraft }) {
+  return (
+    <article className="grid gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="text-base font-black text-foreground">{draft.title}</strong>
+          <span className="rounded-full bg-background px-2.5 py-1 text-xs font-black text-muted-foreground">
+            {formatDraftKind(draft.kind)}
+          </span>
+          <span className="rounded-full bg-background px-2.5 py-1 text-xs font-black text-muted-foreground">
+            {formatDraftChannel(draft.channel)}
+          </span>
+        </div>
+        <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">{draft.body}</p>
+        <p className="mt-2 text-xs font-bold leading-5 text-muted-foreground">{draft.reason}</p>
+      </div>
+      <Link
+        className="w-fit rounded-full bg-foreground px-4 py-2 text-sm font-black text-background"
+        href={draft.action.href}
+      >
+        {draft.action.label}
+      </Link>
+    </article>
+  );
+}
+
 
 function SavedSearchNotificationSection({
   metrics,
@@ -517,4 +617,22 @@ function formatChildLabel(label: string): string {
   const normalized = label.replace(/\s+/gu, " ").trim();
 
   return normalized.length > 0 ? normalized.slice(0, 40) : "Çocuğum";
+}
+
+function formatDraftKind(kind: NotificationDeliveryDraft["kind"]): string {
+  const labels: Record<NotificationDeliveryDraft["kind"], string> = {
+    child_lifecycle: "Çocuk önerisi",
+    saved_search: "Kayıtlı arama"
+  };
+
+  return labels[kind];
+}
+
+function formatDraftChannel(channel: NotificationDeliveryDraft["channel"]): string {
+  const labels: Record<NotificationDeliveryDraft["channel"], string> = {
+    in_app: "In-app taslak",
+    email_draft: "Email taslak"
+  };
+
+  return labels[channel];
 }

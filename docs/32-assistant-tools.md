@@ -153,3 +153,7 @@ Child recommendation ve saved search taslakları artık notification preferences
 ## Saved search notification handoff
 
 Assistant ve notification preference yüzeyleri kayıtlı arama bildirim taslaklarına yönlendirebilir. Kullanıcı `/account/saved-searches` üzerinden bildirim tercihini açıp kapatabilir. Bu tercih notification delivery altyapısı için input olarak kullanılacaktır; assistant tool'ları doğrudan bildirim göndermez.
+
+## Notification delivery draft boundary
+
+Notification delivery draft yüzeyi assistant ve personalization akışlarından gelen önerileri kullanıcıya gösterir ancak gönderim yapmaz. Draft kartları yalnızca kullanıcıyı browse veya ilgili yönetim sayfasına yönlendirir. Gerçek delivery sağlayıcıları ayrı ops/delivery paketinde bağlanmalıdır.

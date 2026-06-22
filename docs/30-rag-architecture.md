@@ -512,3 +512,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Saved search notification toggle
 
 `PATCH /api/v1/saved-searches/:savedSearchId/notifications` endpoint'i kayıtlı arama bildirim tercihinin açılıp kapatılmasını sağlar. Bu endpoint yalnızca kullanıcının kendi kayıtlı aramasında `notificationsEnabled` alanını günceller; bildirim göndermez, delivery log oluşturmaz ve match hesaplaması yapmaz. Gerçek gönderim bir sonraki delivery paketinde ayrı kontrol edilecektir.
+
+## Notification delivery drafts
+
+`GET /api/v1/notifications/delivery-drafts` endpoint'i oturum açmış kullanıcı için çocuk lifecycle ve kayıtlı arama tabanlı no-write bildirim taslakları üretir. Endpoint email, push, n8n, queue veya delivery log çalıştırmaz. Bu endpoint sonraki gerçek delivery paketinde dedup/frequency/send-log süreçlerinin güvenli girdisi olacaktır.
