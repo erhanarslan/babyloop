@@ -301,7 +301,7 @@ function createChildAgeBandExplainTool(): AssistantToolDefinition<
     category: "safety",
     returnsPrivateData: false,
     async execute(_context, input) {
-      const ageBand = input.ageBand ?? deriveAgeBand(input.ageMonths);
+      const ageBand = normalizeAgeBand(input.ageBand ?? deriveAgeBand(input.ageMonths));
 
       return explainAgeBand(ageBand);
     }
@@ -339,7 +339,7 @@ function createBuyerQuestionTemplatesTool(): AssistantToolDefinition<
           {
             title: "Alıcı soru şablonları",
             sourcePath: "docs/rag/14-buyer-question-templates.md",
-            topic: "buyer-question-templates"
+            topic: "buyer-questions"
           }
         ]
       };
@@ -515,14 +515,27 @@ function deriveAgeBand(ageMonths: number | undefined): string {
 
   if (ageMonths <= 3) return "newborn_0_3";
   if (ageMonths <= 6) return "infant_3_6";
-  if (ageMonths <= 12) return "crawler_6_12";
+  if (ageMonths <= 12) return "infant_6_12";
   if (ageMonths <= 24) return "toddler_12_24";
-  if (ageMonths <= 36) return "toddler_24_36";
+  if (ageMonths <= 36) return "preschool_24_36";
   return "child_3_plus";
+}
+
+function normalizeAgeBand(ageBand: string): string {
+  const aliases: Record<string, string> = {
+    crawler_6_12: "infant_6_12",
+    toddler_24_36: "preschool_24_36"
+  };
+
+  return aliases[ageBand] ?? ageBand;
 }
 
 function explainAgeBand(ageBand: string): { label: string; explanation: string } {
   const explanations: Record<string, { label: string; explanation: string }> = {
+    expecting: {
+      label: "Bekleniyor",
+      explanation: "Doğum öncesi hazırlıkta temel bakım, taşıma, uyku ve ilk kıyafet ihtiyaçları planlanabilir."
+    },
     newborn_0_3: {
       label: "0-3 ay",
       explanation: "Taşıma, uyku, bakım ve yedek kıyafet hazırlıkları öne çıkar."
@@ -531,7 +544,7 @@ function explainAgeBand(ageBand: string): { label: string; explanation: string }
       label: "3-6 ay",
       explanation: "Gündüz rutinleri, basit oyuncaklar ve dışarı çıkma hazırlıkları pratikleşir."
     },
-    crawler_6_12: {
+    infant_6_12: {
       label: "6-12 ay",
       explanation: "Ek gıda, emekleme alanı, kolay temizlenen ürünler ve güvenli oyuncaklar öne çıkar."
     },
@@ -539,7 +552,7 @@ function explainAgeBand(ageBand: string): { label: string; explanation: string }
       label: "12-24 ay",
       explanation: "Yürüme, dışarı çantası, dayanıklı kıyafet ve yaşa uygun oyun ürünleri önem kazanır."
     },
-    toddler_24_36: {
+    preschool_24_36: {
       label: "24-36 ay",
       explanation: "Bağımsızlık, paylaşma, uyku rutini ve daha dayanıklı oyun ürünleri gündeme gelir."
     },

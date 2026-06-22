@@ -154,4 +154,85 @@ describe("rag assistant service", () => {
     expect(answer.sources).toHaveLength(1);
     expect(answer.answer).toContain("Bebek arabasında");
   });
+  it("does not read or write cache for tool-handled answers", async () => {
+    const cacheService = {
+      buildKey: vi.fn(() => "assistant-cache-key"),
+      get: vi.fn(),
+      set: vi.fn()
+    };
+    const searchService = {
+      search: vi.fn().mockResolvedValue([])
+    } as unknown as RagSearchService;
+    const listingSearch = vi.fn(async () => [
+      {
+        listingId: "listing-1",
+        title: "Temiz bebek arabası",
+        href: "/listings/listing-1",
+        city: "İstanbul"
+      }
+    ]);
+
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      cacheService: cacheService as never,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage(
+      {
+        message: "İstanbul'da bebek arabası var mı?",
+        locale: "tr"
+      },
+      { listingSearch }
+    );
+
+    expect(answer.toolsUsed).toContain("listing_search");
+    expect(cacheService.buildKey).not.toHaveBeenCalled();
+    expect(cacheService.get).not.toHaveBeenCalled();
+    expect(cacheService.set).not.toHaveBeenCalled();
+  });
+
+  it("keeps cache behavior for pure RAG answers", async () => {
+    const cacheService = {
+      buildKey: vi.fn(() => "assistant-cache-key"),
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn()
+    };
+    const searchService = {
+      search: vi.fn().mockResolvedValue([
+        {
+          score: 0.91,
+          text: "Bebek arabasında fren ve tekerlek kontrol edilir.",
+          citation: {
+            title: "Bebek arabası ikinci el kontrol listesi",
+            sourcePath: "docs/rag/07-stroller-buying-checklist.md",
+            section: "Genel",
+            topic: "stroller-safety"
+          }
+        }
+      ])
+    } as unknown as RagSearchService;
+
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      cacheService: cacheService as never,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage({
+      message: "bebek arabası alırken nelere bakmalıyım",
+      locale: "tr"
+    });
+
+    expect(answer.mode).toBe("rag");
+    expect(cacheService.buildKey).toHaveBeenCalledOnce();
+    expect(cacheService.get).toHaveBeenCalledOnce();
+    expect(cacheService.set).toHaveBeenCalledOnce();
+  });
+
+
 });

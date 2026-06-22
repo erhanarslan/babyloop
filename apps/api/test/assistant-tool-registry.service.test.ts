@@ -140,6 +140,7 @@ describe("assistant tool registry", () => {
       topic: "oto koltuğu"
     });
     expect(JSON.stringify(result)).toContain("kaza");
+    expect(result.ok ? result.data.sources?.[0]?.topic : undefined).toBe("buyer-questions");
     expect(JSON.stringify(result)).not.toContain("kesin güvenlidir");
   });
 
@@ -170,4 +171,19 @@ describe("assistant tool registry", () => {
       label: "12-24 ay"
     });
   });
+  it("supports canonical child profile ageBand values and legacy aliases", async () => {
+    const registry = new AssistantToolRegistry();
+
+    const infant = await registry.execute("child_age_band_explain", {}, { ageBand: "infant_6_12" });
+    const preschool = await registry.execute("child_age_band_explain", {}, { ageBand: "preschool_24_36" });
+    const legacyCrawler = await registry.execute("child_age_band_explain", {}, { ageBand: "crawler_6_12" });
+    const legacyToddler = await registry.execute("child_age_band_explain", {}, { ageBand: "toddler_24_36" });
+
+    expect(infant.ok ? infant.data : undefined).toMatchObject({ label: "6-12 ay" });
+    expect(preschool.ok ? preschool.data : undefined).toMatchObject({ label: "24-36 ay" });
+    expect(legacyCrawler.ok ? legacyCrawler.data : undefined).toMatchObject({ label: "6-12 ay" });
+    expect(legacyToddler.ok ? legacyToddler.data : undefined).toMatchObject({ label: "24-36 ay" });
+  });
+
+
 });

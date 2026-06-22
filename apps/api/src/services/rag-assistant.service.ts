@@ -4,7 +4,7 @@ import type {
 } from "@babyloop/ai-core";
 import { redactPii } from "./rag-pii-redaction.service.js";
 import { decideRagSafety } from "./rag-safety.service.js";
-import { routeAssistantIntent } from "./assistant-intent-router.service.js";
+import { type AssistantIntent, routeAssistantIntent } from "./assistant-intent-router.service.js";
 import type { RagAnswer, RagCitation } from "./rag.types.js";
 import type { RagSearchService } from "./rag-search.service.js";
 import type { RagCacheService } from "./rag-cache.service.js";
@@ -24,6 +24,21 @@ export type RagAssistantServiceOptions = {
 
 const NO_SOURCE_ANSWER =
   "Bu konuda BabyLoop bilgi tabanında yeterli kaynak bulamadım. BabyLoop içindeki güvenli alışveriş, ilan hazırlama, ürün kontrol listeleri ve BabyLoop kullanımı hakkında yardımcı olabilirim.";
+
+const TOOL_CACHE_BYPASS_INTENTS = new Set<AssistantIntent>([
+  "listing_search",
+  "listing_detail",
+  "listing_help",
+  "buyer_questions",
+  "saved_search_suggestion",
+  "category_lookup",
+  "seller_summary",
+  "child_needs"
+]);
+
+function shouldBypassAssistantAnswerCache(intent: AssistantIntent, toolsEnabled: boolean): boolean {
+  return toolsEnabled && TOOL_CACHE_BYPASS_INTENTS.has(intent);
+}
 
 export class RagAssistantService {
   private readonly answerProvider: RagGroundedAnswerProvider;
@@ -51,11 +66,14 @@ export class RagAssistantService {
     const redacted = redactPii(input.message);
     const intentDecision = routeAssistantIntent(redacted.redactedText);
     const safety = decideRagSafety(redacted.redactedText);
-    const cacheKey = this.cacheService?.buildKey({
-      intent: intentDecision.intent,
-      locale: input.locale ?? "tr",
-      message: redacted.redactedText
-    });
+    const shouldBypassCache = shouldBypassAssistantAnswerCache(intentDecision.intent, this.toolsEnabled);
+    const cacheKey = shouldBypassCache
+      ? undefined
+      : this.cacheService?.buildKey({
+          intent: intentDecision.intent,
+          locale: input.locale ?? "tr",
+          message: redacted.redactedText
+        });
     const cached = cacheKey ? await this.cacheService?.get(cacheKey) : null;
 
     if (cached) {
