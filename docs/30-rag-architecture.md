@@ -74,6 +74,9 @@ RAG_DUPLICATE_PENALTY=0.05
 RAG_NO_SOURCE_MIN_SCORE=0.68
 RAG_MIN_SOURCE_COVERAGE=1
 RAG_GOVERNANCE_TEXT_PREVIEW_CHARS=280
+RAG_PLAYGROUND_ENABLED=true
+RAG_EVAL_HISTORY_MAX_RUNS=20
+RAG_REINDEX_ACTION_ENABLED=false
 GEMINI_API_KEY=
 GEMINI_API_ENDPOINT=https://generativelanguage.googleapis.com
 ```
@@ -143,14 +146,58 @@ Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunu
 - `GET /api/v1/admin/rag/documents`: `docs/rag` markdown dosyaları, topic, sourceReliability, version, chunk estimate ve metadata durumu.
 - `GET /api/v1/admin/rag/documents/:documentId/chunks`: doküman chunk önizlemeleri. Raw vector veya full embedding dönmez.
 - `GET /api/v1/admin/rag/reindex/check`: stale/missing/unknown ve reindex gerekli doküman sayıları.
+- `POST /api/v1/admin/rag/reindex/run`: check veya full reindex workflow planı. Full mode `REINDEX_RAG` onayı ister ve varsayılan olarak manuel komut döndürür.
+- `POST /api/v1/admin/rag/playground/query`: admin-only search diagnostics veya answer preview üretir.
 - `GET /api/v1/admin/rag/eval/cases`: eval case listesi.
 - `POST /api/v1/admin/rag/eval/run`: mock veya live eval çalıştırır.
+- `GET /api/v1/admin/rag/eval/history`: son eval run kayıtları.
+- `GET /api/v1/admin/rag/eval/history/:runId`: tek eval run detayı ve failed case sonuçları.
 - `GET /api/v1/admin/rag/cache/stats`: cache backend/effective backend ve hit/miss istatistikleri.
 - `POST /api/v1/admin/rag/cache/clear`: cache temizler.
 - `GET /api/v1/admin/rag/metrics`: günlük RAG/assistant/search/cache/rate-limit sayaçları.
 - `GET /api/v1/admin/rag/usage`: aktif usage limit backend’i ve limitleri.
 
-Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache ve eval bilgilerini gösterir.
+Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache, playground, eval history ve reindex workflow bilgilerini gösterir.
+
+## Admin RAG playground
+
+Backoffice playground admin-only diagnostic yüzeyidir. Public `/rag/search` ve `/assistant/messages` contract’ını değiştirmez.
+
+`search` mode:
+
+- Query normalizer çıktısını gösterir: normalized query, retrieval query, tokenlar, ürün/yaş/konum/topic sinyalleri.
+- RAG retrieval sonuçlarını kısa chunk preview ile gösterir.
+- Quality signal görünürlüğü sağlar: vector score, lexical score, topic match, source reliability bonus.
+- Gemini answer generation yapmaz.
+
+`answer` mode:
+
+- Mevcut RAG assistant flow’unu kullanır.
+- Cevap önizlemesi, sources, grounded, intent ve toolsUsed alanlarını gösterir.
+- Gerçek model çağrısı yapabilir ve Gemini kotası kullanabilir.
+
+Güvenlik kısıtları:
+
+- raw vector dönmez
+- embedding dönmez
+- system prompt dönmez
+- API key veya secret dönmez
+- text preview truncate edilir
+
+## Eval history
+
+Eval run history in-memory tutulur ve `RAG_EVAL_HISTORY_MAX_RUNS` ile sınırlanır. Restart sonrası history kaybolabilir; production persistence sonraki hardening paketine bırakılmıştır.
+
+History kayıtları run id, mode, startedAt/finishedAt, duration, total/passed/failed, status ve case sonuçlarını içerir. Liste endpointi uzun result payload’u döndürmez; detay endpointi failed case incelemesi için kullanılır.
+
+## Reindex workflow
+
+`/admin/rag/reindex/check` read-only governance summary döndürür. `reindex/run` endpointi iki mod destekler:
+
+- `check`: yalnızca summary döndürür.
+- `full`: `confirm=REINDEX_RAG` ister ve varsayılan olarak manuel komut döndürür: `pnpm --filter @babyloop/api rag:ingest`.
+
+API process içinde child process ile ingestion başlatılmaz. Production’da job queue tabanlı reindex önerilir.
 
 ## Knowledge governance
 
@@ -370,6 +417,7 @@ Her markdown dokümanı `sourceReliability` frontmatter alanı taşır:
 
 - `internal-policy`
 - `official-source-note`
+- `official-referenced`
 - `internal`
 - `editorial`
 
@@ -383,6 +431,9 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 - Listing search tool sadece read-only public listing özetleri döndürür; write action yoktur.
 - Retrieval heuristic reranker değildir.
 - Hybrid-lite scoring gerçek sparse vector search değildir.
+- Admin playground answer mode gerçek model çağrısı yapabilir ve kota kullanabilir.
+- Eval history bu fazda in-memory tutulur; servis restart sonrası kaybolabilir.
+- Reindex workflow API içinde otomatik ingestion çalıştırmaz; güvenli manuel komut veya ileride job queue önerilir.
 - Query normalization deterministiktir; agresif stemming yapmaz, bu yüzden bazı serbest metin varyasyonları hâlâ kaçabilir.
 - Resmi kaynak notları derin dış kaynak araştırmasıyla zenginleştirilebilir.
 
@@ -390,7 +441,9 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 
 - Hybrid sparse+dense search
 - Proper reranker
-- Knowledge Base Governance
+- Backoffice RAG Playground
+- Tool-Augmented Assistant
+- Eval/Red Team Reports
 - MCP server
 - Production Redis cache/rate limit
 - Daha derin official source research

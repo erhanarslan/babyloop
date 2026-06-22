@@ -92,6 +92,16 @@ export type RagReindexCheck = {
   stale: number;
   missing: number;
   unknown: number;
+  documents: Array<{
+    id: string;
+    title: string;
+    topic: string;
+    sourcePath: string;
+    version: string;
+    checksumShort: string;
+    indexingStatus: "indexed" | "stale" | "missing" | "unknown";
+    reindexRequired: boolean;
+  }>;
 };
 
 export type RagCacheStats = {
@@ -141,6 +151,7 @@ export type RagEvalCase = {
 };
 
 export type RagEvalRunSummary = {
+  runId?: string;
   mode: "mock" | "live";
   total: number;
   passed: number;
@@ -163,6 +174,86 @@ export type RagEvalRunSummary = {
   }>;
 };
 
+export type RagPlaygroundResponse = {
+  query: {
+    original: string;
+    normalized: string;
+    retrievalQuery: string;
+    tokens: string[];
+    productTerms: string[];
+    ageSignals: string[];
+    locationSignals: string[];
+    topicHints: string[];
+  };
+  mode: "search" | "answer";
+  diagnostics: {
+    noSource: boolean;
+    minScore: number;
+    hybridEnabled: boolean;
+    limit: number;
+    warnings: string[];
+  };
+  results: Array<{
+    rank: number;
+    score: number;
+    vectorScore: number;
+    finalScore: number;
+    title: string;
+    section?: string;
+    topic?: string;
+    sourceReliability?: string;
+    sourcePath: string;
+    textPreview: string;
+    qualitySignals: {
+      lexicalScore: number;
+      titleMatch: boolean;
+      sectionMatch: boolean;
+      topicMatch: boolean;
+      sourceReliabilityBonus: number;
+      duplicatePenalty: number;
+    };
+  }>;
+  answerPreview: null | {
+    answer: string;
+    mode: "rag" | "boundary" | "no_sources";
+    grounded: boolean;
+    sources: Array<{
+      title: string;
+      topic?: string;
+      sourcePath: string;
+      section?: string;
+      sourceReliability?: string;
+    }>;
+    intent?: string;
+    toolsUsed?: string[];
+  };
+};
+
+export type RagEvalHistoryListItem = {
+  runId: string;
+  mode: "mock" | "live";
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  total: number;
+  passed: number;
+  failed: number;
+  status: "completed" | "failed";
+};
+
+export type RagEvalHistoryDetail = RagEvalHistoryListItem & {
+  results: RagEvalRunSummary["results"];
+};
+
+export type RagReindexRunResult = {
+  mode: "check" | "full";
+  status: "checked" | "manual_command_required";
+  check: RagReindexCheck;
+  manualCommand?: string;
+  automaticExecutionEnabled: boolean;
+  warning?: string;
+};
+
 export function getAdminRagHealth(): Promise<ApiResponse<{ health: RagHealth }>> {
   return adminRequest("/api/v1/admin/rag/health");
 }
@@ -179,6 +270,18 @@ export function getAdminRagReindexCheck(): Promise<ApiResponse<RagReindexCheck>>
   return adminRequest("/api/v1/admin/rag/reindex/check");
 }
 
+export function runAdminRagPlaygroundQuery(input: {
+  query: string;
+  mode: "search" | "answer";
+  limit: number;
+  debug?: boolean;
+}): Promise<ApiResponse<RagPlaygroundResponse>> {
+  return adminRequest("/api/v1/admin/rag/playground/query", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export function listAdminRagEvalCases(): Promise<ApiResponse<{ cases: RagEvalCase[] }>> {
   return adminRequest("/api/v1/admin/rag/eval/cases");
 }
@@ -191,6 +294,14 @@ export function runAdminRagEval(
     method: "POST",
     body: JSON.stringify({ mode, limit }),
   });
+}
+
+export function getAdminRagEvalHistory(): Promise<ApiResponse<{ runs: RagEvalHistoryListItem[] }>> {
+  return adminRequest("/api/v1/admin/rag/eval/history");
+}
+
+export function getAdminRagEvalHistoryDetail(runId: string): Promise<ApiResponse<{ run: RagEvalHistoryDetail }>> {
+  return adminRequest(`/api/v1/admin/rag/eval/history/${encodeURIComponent(runId)}`);
 }
 
 export function getAdminRagCacheStats(): Promise<ApiResponse<{ cache: RagCacheStats }>> {
@@ -208,6 +319,16 @@ export function getAdminRagUsage(): Promise<ApiResponse<{ usage: RagUsage }>> {
 export function clearAdminRagCache(): Promise<ApiResponse<{ cache: RagCacheStats }>> {
   return adminRequest("/api/v1/admin/rag/cache/clear", {
     method: "POST",
+  });
+}
+
+export function runAdminRagReindex(input: {
+  mode: "check" | "full";
+  confirm?: string;
+}): Promise<ApiResponse<RagReindexRunResult>> {
+  return adminRequest("/api/v1/admin/rag/reindex/run", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
 

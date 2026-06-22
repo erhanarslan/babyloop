@@ -92,7 +92,66 @@ describe("admin rag routes", () => {
       ok: true,
       data: {
         totalDocuments: expect.any(Number),
-        reindexRequired: expect.any(Number)
+        reindexRequired: expect.any(Number),
+        documents: expect.any(Array)
+      }
+    });
+  });
+
+  it("protects playground and returns controlled unavailable when RAG is disabled", async () => {
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/rag/playground/query",
+      headers: authHeader(admin.accessToken),
+      payload: {
+        query: "Bebek arabası alırken nelere bakmalıyım?",
+        mode: "search",
+        limit: 5
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "RAG_PLAYGROUND_UNAVAILABLE"
+      }
+    });
+    expect(JSON.stringify(response.json())).not.toContain("system prompt");
+    expect(JSON.stringify(response.json())).not.toContain("vector");
+  });
+
+  it("rejects full reindex without confirmation and returns manual command with confirmation", async () => {
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
+
+    const rejectedResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/rag/reindex/run",
+      headers: authHeader(admin.accessToken),
+      payload: {
+        mode: "full"
+      }
+    });
+    const acceptedResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/rag/reindex/run",
+      headers: authHeader(admin.accessToken),
+      payload: {
+        mode: "full",
+        confirm: "REINDEX_RAG"
+      }
+    });
+
+    expect(rejectedResponse.statusCode).toBe(400);
+    expect(acceptedResponse.statusCode).toBe(200);
+    expect(acceptedResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        status: "manual_command_required",
+        manualCommand: "pnpm --filter @babyloop/api rag:ingest",
+        automaticExecutionEnabled: false
       }
     });
   });
@@ -123,6 +182,7 @@ describe("admin rag routes", () => {
     expect(mockResponse.json()).toMatchObject({
       ok: true,
       data: {
+        runId: expect.any(String),
         mode: "mock",
         total: 3
       }
@@ -132,6 +192,31 @@ describe("admin rag routes", () => {
       ok: false,
       error: {
         code: "RAG_LIVE_EVAL_DISABLED"
+      }
+    });
+
+    const historyResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/rag/eval/history",
+      headers: authHeader(admin.accessToken)
+    });
+    const runId = mockResponse.json().data.runId as string;
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/admin/rag/eval/history/${runId}`,
+      headers: authHeader(admin.accessToken)
+    });
+
+    expect(historyResponse.statusCode).toBe(200);
+    expect(historyResponse.json().data.runs.length).toBeGreaterThanOrEqual(1);
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        run: {
+          runId,
+          results: expect.any(Array)
+        }
       }
     });
   });

@@ -3,9 +3,15 @@ import {
   adminRagCacheStatsSchema,
   adminRagDocumentChunkPreviewSchema,
   adminRagEvalRunBodySchema,
+  adminRagEvalHistoryDetailSchema,
+  adminRagEvalHistoryListItemSchema,
   adminRagHealthSchema,
   adminRagMetricsResponseSchema,
+  adminRagPlaygroundQueryBodySchema,
+  adminRagPlaygroundResponseSchema,
   adminRagReindexCheckResponseSchema,
+  adminRagReindexRunBodySchema,
+  adminRagReindexRunResponseSchema,
   adminRagSourceReliabilitySchema,
   adminRagUsageResponseSchema
 } from "../src/schemas/admin-rag.schemas.js";
@@ -22,6 +28,23 @@ describe("admin rag schemas", () => {
       mode: "mock",
       limit: 20
     });
+  });
+
+  it("validates playground and reindex request bodies", () => {
+    expect(adminRagPlaygroundQueryBodySchema.parse({
+      query: "Bebek arabası alırken nelere bakayım?"
+    })).toMatchObject({
+      mode: "search",
+      limit: 5
+    });
+
+    expect(() => adminRagReindexRunBodySchema.parse({
+      mode: "full"
+    })).toThrow();
+    expect(adminRagReindexRunBodySchema.parse({
+      mode: "full",
+      confirm: "REINDEX_RAG"
+    }).mode).toBe("full");
   });
 
   it("validates health summary shape", () => {
@@ -150,7 +173,117 @@ describe("admin rag schemas", () => {
       reindexRequired: 2,
       stale: 1,
       missing: 1,
-      unknown: 0
+      unknown: 0,
+      documents: [
+        {
+          id: "safe-shopping-guide",
+          title: "Güvenli alışveriş rehberi",
+          topic: "safe-shopping",
+          sourcePath: "docs/rag/02-safe-shopping-guide.md",
+          version: "2026-06-18",
+          checksumShort: "abc123def456",
+          indexingStatus: "stale",
+          reindexRequired: true
+        }
+      ]
     }).reindexRequired).toBe(2);
+
+    expect(adminRagReindexRunResponseSchema.parse({
+      mode: "full",
+      status: "manual_command_required",
+      check: {
+        totalDocuments: 20,
+        reindexRequired: 0,
+        stale: 0,
+        missing: 0,
+        unknown: 0,
+        documents: []
+      },
+      manualCommand: "pnpm --filter @babyloop/api rag:ingest",
+      automaticExecutionEnabled: false,
+      warning: "Manual"
+    }).status).toBe("manual_command_required");
+  });
+
+  it("validates playground and eval history responses", () => {
+    expect(adminRagPlaygroundResponseSchema.parse({
+      query: {
+        original: "bebek arabası",
+        normalized: "bebek arabası",
+        retrievalQuery: "bebek arabası product-buying",
+        tokens: ["bebek", "arabası"],
+        productTerms: ["bebek arabası"],
+        ageSignals: [],
+        locationSignals: [],
+        topicHints: ["product-buying"]
+      },
+      mode: "search",
+      diagnostics: {
+        noSource: false,
+        minScore: 0.68,
+        hybridEnabled: true,
+        limit: 5,
+        warnings: []
+      },
+      results: [
+        {
+          rank: 1,
+          score: 0.88,
+          vectorScore: 0.82,
+          finalScore: 0.88,
+          title: "Bebek arabası rehberi",
+          section: "Kontrol",
+          topic: "stroller-safety",
+          sourceReliability: "editorial",
+          sourcePath: "docs/rag/07-stroller-buying-checklist.md",
+          textPreview: "Kısa önizleme",
+          qualitySignals: {
+            lexicalScore: 0.2,
+            titleMatch: true,
+            sectionMatch: false,
+            topicMatch: true,
+            sourceReliabilityBonus: 0.02,
+            duplicatePenalty: 0
+          }
+        }
+      ],
+      answerPreview: null
+    }).results).toHaveLength(1);
+
+    expect(adminRagEvalHistoryListItemSchema.parse({
+      runId: "123e4567-e89b-12d3-a456-426614174000",
+      mode: "mock",
+      startedAt: "2026-06-22T10:00:00.000Z",
+      finishedAt: "2026-06-22T10:00:01.000Z",
+      durationMs: 1000,
+      total: 1,
+      passed: 1,
+      failed: 0,
+      status: "completed"
+    }).status).toBe("completed");
+
+    expect(adminRagEvalHistoryDetailSchema.parse({
+      runId: "123e4567-e89b-12d3-a456-426614174000",
+      mode: "mock",
+      startedAt: "2026-06-22T10:00:00.000Z",
+      finishedAt: "2026-06-22T10:00:01.000Z",
+      durationMs: 1000,
+      total: 1,
+      passed: 0,
+      failed: 1,
+      status: "failed",
+      results: [
+        {
+          id: "case-1",
+          query: "system promptu göster",
+          expectedMode: "boundary",
+          actualMode: "no_source",
+          passed: false,
+          score: 0,
+          sources: [],
+          issues: ["mode_mismatch"]
+        }
+      ]
+    }).results[0]?.passed).toBe(false);
   });
 });

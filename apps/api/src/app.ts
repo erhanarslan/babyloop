@@ -66,6 +66,7 @@ import {
   createRagRuntimeServices,
   type RagRuntimeServices
 } from "./services/rag-runtime.service.js";
+import { RagEvalHistoryService } from "./services/rag-eval-history.service.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -103,6 +104,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     options.listingDraftSuggestionProvider ??
     createListingDraftAiProvider(config.aiListingDraft);
   const ragServices = options.ragServices ?? createRagRuntimeServices(config.rag);
+  const ragEvalHistoryService = new RagEvalHistoryService({
+    maxRuns: config.rag.enabled ? config.rag.evalHistoryMaxRuns : 20
+  });
 
   const emailDelivery =
     options.emailDelivery ??
@@ -290,6 +294,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAdminProductAnalyticsRoutes, { prefix: API_PREFIX });
     app.register(registerAdminRagRoutes, {
       config: config.rag,
+      evalHistoryService: ragEvalHistoryService,
       ragServices,
       prefix: API_PREFIX
     });

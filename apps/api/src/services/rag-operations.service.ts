@@ -68,6 +68,15 @@ export type RagOperationsServiceOptions = {
   vectorStore?: Pick<QdrantVectorStore, "getCollectionInfo"> & Partial<RagKnowledgeGovernanceVectorStore> | null;
 };
 
+export type RagReindexRunResult = {
+  mode: "check" | "full";
+  status: "checked" | "manual_command_required";
+  check: RagReindexCheckSummary;
+  manualCommand?: string;
+  automaticExecutionEnabled: boolean;
+  warning?: string;
+};
+
 export class RagOperationsService {
   private readonly config: RagRuntimeConfig;
   private readonly cacheService: Pick<RagCacheService, "getBackendSummary"> | null;
@@ -171,6 +180,28 @@ export class RagOperationsService {
 
   async getReindexCheck(): Promise<RagReindexCheckSummary> {
     return this.createGovernanceService().getReindexCheck();
+  }
+
+  async runReindexWorkflow(input: { mode: "check" | "full" }): Promise<RagReindexRunResult> {
+    const check = await this.getReindexCheck();
+
+    if (input.mode === "check") {
+      return {
+        mode: "check",
+        status: "checked",
+        check,
+        automaticExecutionEnabled: this.config.enabled ? this.config.reindexActionEnabled : false
+      };
+    }
+
+    return {
+      mode: "full",
+      status: "manual_command_required",
+      check,
+      manualCommand: "pnpm --filter @babyloop/api rag:ingest",
+      automaticExecutionEnabled: this.config.enabled ? this.config.reindexActionEnabled : false,
+      warning: "API process içinde otomatik reindex çalıştırılmadı. Production için job queue önerilir."
+    };
   }
 
   private createGovernanceService(): RagKnowledgeGovernanceService {

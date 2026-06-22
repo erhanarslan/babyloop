@@ -235,6 +235,94 @@ Backoffice doküman satırındaki `Chunk önizle` butonu kısa chunk önizlemele
 
 Raw vector, embedding, system prompt veya secret gösterilmez.
 
+## RAG playground kullanımı
+
+Backoffice `/rag` ekranındaki RAG Playground, production kullanıcı akışını bozmadan retrieval kalitesini incelemek içindir.
+
+İlgili env:
+
+```env
+RAG_PLAYGROUND_ENABLED=true
+RAG_EVAL_HISTORY_MAX_RUNS=20
+RAG_REINDEX_ACTION_ENABLED=false
+```
+
+1. Test sorusunu yaz.
+2. `Sadece kaynakları getir` moduyla önce retrieval sonucunu kontrol et.
+3. Gerekirse `Cevap önizlemesi üret` moduna geç.
+
+Arama modu dış model cevabı üretmez. Cevap önizlemesi modu mevcut RAG assistant flow’unu kullanır; gerçek Gemini çağrısı yapabilir ve kota kullanabilir.
+
+### Query analizi nasıl okunur?
+
+- `normalized`: Türkçe normalization ve typo/synonym dönüşümü sonrası sorgu.
+- `retrievalQuery`: embedding için kullanılan zenginleştirilmiş sorgu.
+- `productTerms`: bebek arabası, oto koltuğu, oyuncak gibi ürün sinyalleri.
+- `ageSignals`: 12 ay, 2 yaş, yenidoğan gibi yaş sinyalleri.
+- `locationSignals`: şehir sinyalleri. RAG dokümanlarında şehir kapsamı yoksa scoring’i zorlamaz.
+- `topicHints`: product-buying, safe-shopping, age-based-needs gibi retrieval topic ipuçları.
+
+### Düşük skor ve no-source
+
+Playground `Kaynak bulunamadı` veya no-source warning gösteriyorsa:
+
+- Sorgu BabyLoop bilgi tabanı kapsamı dışında olabilir.
+- `RAG_NO_SOURCE_MIN_SCORE` çok yüksek olabilir.
+- İlgili docs/rag dokümanı eksik olabilir.
+- Query normalizer yeni bir synonym/ürün sinyali gerektiriyor olabilir.
+
+Kaynak yoksa asistan cevap uydurmamalıdır. Önce docs/rag kapsamını veya retrieval env ayarlarını iyileştir.
+
+### Quality signal yorumlama
+
+- `vektör`: Qdrant dense skorunun rerank öncesi sinyali.
+- `sözcük`: query token overlap sinyali.
+- `konu`: topic hint ile source topic eşleşmesi.
+- `kaynak bonusu`: sourceReliability ve sorgu bağlamına göre küçük güvenilirlik katkısı.
+
+Bu sinyaller diagnostic amaçlıdır; public response’a raw debug olarak eklenmez.
+
+## Eval history
+
+Mock veya live eval çalıştırıldığında backoffice son run kayıtlarını gösterir.
+
+- `mode`: mock veya live.
+- `passed/total`: geçen case oranı.
+- `failed`: başarısız case sayısı.
+- `Detay göster`: başarısız case listesi, issue ve kısa source bilgileri.
+
+History in-memory tutulur ve `RAG_EVAL_HISTORY_MAX_RUNS` ile sınırlanır. Servis restart sonrası kayıtlar kaybolabilir. Kalıcı eval history production hardening için sonraki pakete bırakılmıştır.
+
+Failed case yorumlama:
+
+- `mode_mismatch`: beklenen boundary/rag/no_source modu tutmadı.
+- `missing_required_source_topic`: beklenen topic kaynaklarda yok.
+- `forbidden_phrase_found`: cevap yasaklı ifade içerdi.
+- `no_sources`: RAG beklenen yerde kaynak yok.
+- `low_score`: RAG skor eşiği düşük kaldı.
+- `live_eval_disabled`: live eval env flag kapalı.
+
+## Reindex workflow
+
+Backoffice `Reindex workflow` bölümü read-only check ve güvenli full reindex hazırlığı sunar.
+
+Check:
+
+- stale, missing, unknown ve reindexRequired sayılarını gösterir.
+- reindex gereken dokümanları kısa listeler.
+
+Full reindex:
+
+1. Confirm alanına `REINDEX_RAG` yaz.
+2. `Full reindex akışını hazırla` butonuna bas.
+3. API otomatik child process çalıştırmaz; manuel komut döndürür:
+
+```bash
+pnpm --filter @babyloop/api rag:ingest
+```
+
+Production’da reindex job queue veya workflow runner ile yapılmalıdır. Bu paket yanlışlıkla uzun ingestion işini API request içinde başlatmaz.
+
 ## Güvenlik notları
 
 - API key, raw prompt, system prompt ve embedding vector loglanmaz.

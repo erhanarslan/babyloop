@@ -76,6 +76,9 @@ export type RagRuntimeConfig =
       noSourceMinScore: number;
       minSourceCoverage: number;
       governanceTextPreviewChars: number;
+      playgroundEnabled: boolean;
+      evalHistoryMaxRuns: number;
+      reindexActionEnabled: boolean;
       redisEnabled: boolean;
       redisUrl: string;
       redisKeyPrefix: string;
@@ -359,6 +362,9 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     noSourceMinScore: readNumberInRange(env.RAG_NO_SOURCE_MIN_SCORE, 0.68, 0, 1),
     minSourceCoverage: readPositiveInteger(env.RAG_MIN_SOURCE_COVERAGE, 1),
     governanceTextPreviewChars: readPositiveInteger(env.RAG_GOVERNANCE_TEXT_PREVIEW_CHARS, 280),
+    playgroundEnabled: readBoolean(env.RAG_PLAYGROUND_ENABLED, true),
+    evalHistoryMaxRuns: readPositiveInteger(env.RAG_EVAL_HISTORY_MAX_RUNS, 20),
+    reindexActionEnabled: readBoolean(env.RAG_REINDEX_ACTION_ENABLED, false),
     redisEnabled: readBoolean(env.RAG_REDIS_ENABLED, false),
     redisUrl: env.RAG_REDIS_URL?.trim() || "redis://localhost:6379",
     redisKeyPrefix: env.RAG_REDIS_KEY_PREFIX?.trim() || "babyloop:rag",

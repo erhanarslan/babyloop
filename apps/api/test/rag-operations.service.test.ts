@@ -18,6 +18,9 @@ const config: RagRuntimeConfig = {
   embeddingProvider: "gemini",
   geminiApiKey: "test",
   governanceTextPreviewChars: 280,
+  playgroundEnabled: true,
+  evalHistoryMaxRuns: 20,
+  reindexActionEnabled: false,
   hybridEnabled: true,
   hourlyGuestLimit: 10,
   hourlyUserLimit: 50,
@@ -86,5 +89,19 @@ describe("rag operations service", () => {
 
     expect(documents.length).toBeGreaterThanOrEqual(20);
     expect(documents.every((document) => document.hasRequiredMetadata)).toBe(true);
+  });
+
+  it("returns manual command for full reindex workflow", async () => {
+    const service = new RagOperationsService({
+      config,
+      docsRoot: path.resolve(process.cwd(), "../../docs/rag")
+    });
+
+    const result = await service.runReindexWorkflow({ mode: "full" });
+
+    expect(result.status).toBe("manual_command_required");
+    expect(result.manualCommand).toBe("pnpm --filter @babyloop/api rag:ingest");
+    expect(result.automaticExecutionEnabled).toBe(false);
+    expect(result.check.documents).toEqual(expect.any(Array));
   });
 });

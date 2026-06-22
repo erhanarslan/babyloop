@@ -44,6 +44,10 @@ export type RagReindexCheckSummary = {
   stale: number;
   missing: number;
   unknown: number;
+  documents: Array<Pick<
+    RagDocumentGovernanceSummary,
+    "checksumShort" | "id" | "indexingStatus" | "reindexRequired" | "sourcePath" | "title" | "topic" | "version"
+  >>;
 };
 
 export class RagKnowledgeGovernanceService {
@@ -104,7 +108,19 @@ export class RagKnowledgeGovernanceService {
       reindexRequired: documents.filter((document) => document.reindexRequired).length,
       stale: documents.filter((document) => document.indexingStatus === "stale").length,
       missing: documents.filter((document) => document.indexingStatus === "missing").length,
-      unknown: documents.filter((document) => document.indexingStatus === "unknown").length
+      unknown: documents.filter((document) => document.indexingStatus === "unknown").length,
+      documents: documents
+        .filter((document) => document.reindexRequired)
+        .map((document) => ({
+          id: document.id,
+          title: document.title,
+          topic: document.topic,
+          sourcePath: document.sourcePath,
+          version: document.version,
+          checksumShort: document.checksumShort,
+          indexingStatus: document.indexingStatus,
+          reindexRequired: document.reindexRequired
+        }))
     };
   }
 

@@ -16,6 +16,31 @@ export const adminRagEvalRunBodySchema = z
   })
   .strict();
 
+export const adminRagPlaygroundQueryBodySchema = z
+  .object({
+    query: z.string().trim().min(2).max(1000),
+    mode: z.enum(["search", "answer"]).optional().default("search"),
+    limit: z.number().int().min(1).max(10).optional().default(5),
+    debug: z.boolean().optional().default(false)
+  })
+  .strict();
+
+export const adminRagReindexRunBodySchema = z
+  .object({
+    mode: z.enum(["check", "full"]).optional().default("check"),
+    confirm: z.string().optional()
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.mode === "full" && value.confirm !== "REINDEX_RAG") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Full reindex için confirm REINDEX_RAG olmalı.",
+        path: ["confirm"]
+      });
+    }
+  });
+
 export const adminRagCollectionInfoSchema = z
   .object({
     status: z.enum(["green", "yellow", "red", "unknown"]),
@@ -120,6 +145,7 @@ export const adminRagEvalResultSchema = z
 
 export const adminRagEvalRunResponseSchema = z
   .object({
+    runId: z.string().optional(),
     mode: z.enum(["mock", "live"]),
     total: z.number(),
     passed: z.number(),
@@ -128,6 +154,24 @@ export const adminRagEvalRunResponseSchema = z
     results: z.array(adminRagEvalResultSchema)
   })
   .strict();
+
+export const adminRagEvalHistoryListItemSchema = z
+  .object({
+    runId: z.string(),
+    mode: z.enum(["mock", "live"]),
+    startedAt: z.string(),
+    finishedAt: z.string(),
+    durationMs: z.number(),
+    total: z.number(),
+    passed: z.number(),
+    failed: z.number(),
+    status: z.enum(["completed", "failed"])
+  })
+  .strict();
+
+export const adminRagEvalHistoryDetailSchema = adminRagEvalHistoryListItemSchema.extend({
+  results: z.array(adminRagEvalResultSchema)
+}).strict();
 
 export const adminRagCacheStatsSchema = z
   .object({
@@ -207,7 +251,96 @@ export const adminRagReindexCheckResponseSchema = z
     reindexRequired: z.number(),
     stale: z.number(),
     missing: z.number(),
-    unknown: z.number()
+    unknown: z.number(),
+    documents: z.array(
+      z
+        .object({
+          id: z.string(),
+          title: z.string(),
+          topic: z.string(),
+          sourcePath: z.string(),
+          version: z.string(),
+          checksumShort: z.string(),
+          indexingStatus: z.enum(["indexed", "stale", "missing", "unknown"]),
+          reindexRequired: z.boolean()
+        })
+        .strict()
+    )
+  })
+  .strict();
+
+export const adminRagReindexRunResponseSchema = z
+  .object({
+    mode: z.enum(["check", "full"]),
+    status: z.enum(["checked", "manual_command_required"]),
+    check: adminRagReindexCheckResponseSchema,
+    manualCommand: z.string().optional(),
+    automaticExecutionEnabled: z.boolean(),
+    warning: z.string().optional()
+  })
+  .strict();
+
+export const adminRagPlaygroundResponseSchema = z
+  .object({
+    query: z
+      .object({
+        original: z.string(),
+        normalized: z.string(),
+        retrievalQuery: z.string(),
+        tokens: z.array(z.string()),
+        productTerms: z.array(z.string()),
+        ageSignals: z.array(z.string()),
+        locationSignals: z.array(z.string()),
+        topicHints: z.array(z.string())
+      })
+      .strict(),
+    mode: z.enum(["search", "answer"]),
+    diagnostics: z
+      .object({
+        noSource: z.boolean(),
+        minScore: z.number(),
+        hybridEnabled: z.boolean(),
+        limit: z.number(),
+        warnings: z.array(z.string())
+      })
+      .strict(),
+    results: z.array(
+      z
+        .object({
+          rank: z.number(),
+          score: z.number(),
+          vectorScore: z.number(),
+          finalScore: z.number(),
+          title: z.string(),
+          section: z.string().optional(),
+          topic: z.string().optional(),
+          sourceReliability: z.string().optional(),
+          sourcePath: z.string(),
+          textPreview: z.string(),
+          qualitySignals: z
+            .object({
+              lexicalScore: z.number(),
+              titleMatch: z.boolean(),
+              sectionMatch: z.boolean(),
+              topicMatch: z.boolean(),
+              sourceReliabilityBonus: z.number(),
+              duplicatePenalty: z.number()
+            })
+            .strict()
+        })
+        .strict()
+    ),
+    answerPreview: z
+      .object({
+        answer: z.string(),
+        mode: z.enum(["rag", "boundary", "no_sources"]),
+        grounded: z.boolean(),
+        sources: z.array(ragCitationSchema),
+        intent: z.string().optional(),
+        toolsUsed: z.array(z.string()).optional()
+      })
+      .strict()
+      .nullable()
   })
   .strict();
 
