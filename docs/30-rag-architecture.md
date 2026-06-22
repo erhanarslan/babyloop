@@ -500,3 +500,7 @@ Paket 6 ile assistant, oturum açmış kullanıcı için aktif çocuk profili ba
 ## Public assistant suggested actions
 
 Public assistant UI artık assistant response içindeki `suggestedActions` alanını güvenli kartlar olarak gösterebilir. `review_child_recommendations` ve `review_saved_search_draft` aksiyonları yalnızca taslak/önizleme davranışıdır; kayıtlı arama, bildirim, favori, mesaj veya ilan kullanıcı onayı olmadan oluşturulmaz.
+
+## Child lifecycle recommendations surface
+
+`/account/children` sayfası aktif çocuk profili için lifecycle recommendation endpoint'inden gelen kategori önerilerini gösterir. Bu yüzey yalnızca read-only öneri ve CTA üretir: kullanıcı ilan aramasına veya asistana yönlendirilir. Kayıtlı arama veya bildirim kullanıcı onayı olmadan oluşturulmaz.

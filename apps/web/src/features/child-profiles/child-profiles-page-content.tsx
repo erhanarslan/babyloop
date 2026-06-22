@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -15,11 +16,13 @@ import {
   createChildProfile,
   deleteChildProfile,
   fetchChildProfiles,
+  fetchLifecycleRecommendations,
   updateChildProfile,
   type ChildAgeBand,
   type ChildProfile,
   type ChildProfileGender,
-  type ChildProfileNotificationCadence
+  type ChildProfileNotificationCadence,
+  type LifecycleRecommendationGroup
 } from "./api";
 
 type ChildProfilesPageContentProps = {
@@ -69,6 +72,7 @@ const YEAR_OPTIONS = Array.from({ length: 11 }, (_, index) => String(new Date().
 export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageContentProps) {
   const { isCheckingAuth, requireAuth } = useProtectedRoute({ apiBaseUrl });
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
+  const [recommendationGroups, setRecommendationGroups] = useState<LifecycleRecommendationGroup[]>([]);
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>("new");
   const [formState, setFormState] = useState<ChildProfileFormState>(DEFAULT_FORM_STATE);
@@ -81,6 +85,14 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     [childProfiles, selectedChildProfileId]
   );
 
+  const selectedRecommendationGroup = useMemo(
+    () =>
+      selectedChildProfile
+        ? recommendationGroups.find((group) => group.childProfileId === selectedChildProfile.id) ?? null
+        : null,
+    [recommendationGroups, selectedChildProfile]
+  );
+
   const loadChildProfiles = useCallback(async () => {
     if (!(await requireAuth())) {
       setIsLoading(false);
@@ -91,7 +103,10 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     setMessage(null);
 
     try {
-      const childProfilesResponse = await fetchChildProfiles(apiBaseUrl);
+      const [childProfilesResponse, lifecycleRecommendationsResponse] = await Promise.all([
+        fetchChildProfiles(apiBaseUrl),
+        fetchLifecycleRecommendations(apiBaseUrl)
+      ]);
 
       if (!childProfilesResponse.ok) {
         setMessage({ tone: "error", text: "Çocuk bilgileri şu anda yüklenemiyor." });
@@ -100,6 +115,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
 
       const nextChildProfiles = childProfilesResponse.data.childProfiles;
       setChildProfiles(nextChildProfiles);
+      setRecommendationGroups(lifecycleRecommendationsResponse.ok ? lifecycleRecommendationsResponse.data.groups : []);
       setSelectedChildProfileId((currentId) => {
         if (currentId && nextChildProfiles.some((childProfile) => childProfile.id === currentId)) {
           return currentId;
@@ -109,6 +125,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       });
       setEditorMode(nextChildProfiles.length > 0 ? "view" : "new");
     } catch {
+      setRecommendationGroups([]);
       setMessage({ tone: "error", text: "Çocuk bilgileri şu anda yüklenemiyor." });
     } finally {
       setIsLoading(false);
@@ -295,6 +312,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
           ) : selectedChildProfile ? (
             <ChildProfileSummary
               childProfile={selectedChildProfile}
+              recommendationGroup={selectedRecommendationGroup}
               onDelete={() => void handleDelete(selectedChildProfile)}
               onEdit={() => startEditProfile(selectedChildProfile)}
               onToggleActive={() => void handleToggleActive(selectedChildProfile)}
@@ -444,11 +462,13 @@ function ChildProfileForm({
 
 function ChildProfileSummary({
   childProfile,
+  recommendationGroup,
   onDelete,
   onEdit,
   onToggleActive
 }: {
   childProfile: ChildProfile;
+  recommendationGroup: LifecycleRecommendationGroup | null;
   onDelete: () => void;
   onEdit: () => void;
   onToggleActive: () => void;
@@ -476,6 +496,11 @@ function ChildProfileSummary({
         <SummaryItem label="Kayıt durumu" value={childProfile.isActive ? "Aktif" : "Pasif"} />
       </dl>
 
+      <ChildLifecycleRecommendations
+        childProfile={childProfile}
+        recommendationGroup={recommendationGroup}
+      />
+
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={onEdit}>
           Düzenle
@@ -490,6 +515,102 @@ function ChildProfileSummary({
     </div>
   );
 }
+
+
+function ChildLifecycleRecommendations({
+  childProfile,
+  recommendationGroup
+}: {
+  childProfile: ChildProfile;
+  recommendationGroup: LifecycleRecommendationGroup | null;
+}) {
+  const recommendations = recommendationGroup?.recommendations ?? [];
+  const ageBandLabel = recommendationGroup
+    ? formatAgeBand(recommendationGroup.ageBand)
+    : formatAgeBand(childProfile.ageBand);
+
+  if (!childProfile.isActive) {
+    return (
+      <section className="rounded-[1.35rem] border border-dashed border-border bg-muted/20 p-4">
+        <p className="text-sm font-black text-foreground">Öneriler pasif</p>
+        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+          Bu çocuk profili pasif olduğu için yaşa göre ürün önerileri gösterilmiyor.
+        </p>
+      </section>
+    );
+  }
+
+  if (recommendations.length === 0) {
+    return (
+      <section className="rounded-[1.35rem] border border-dashed border-border bg-muted/20 p-4">
+        <p className="text-sm font-black text-foreground">Henüz öneri yok</p>
+        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+          Kategori verileri hazır olduğunda yaş dönemine göre takip edilebilecek ürünler burada görünür.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3 rounded-[1.35rem] border border-rose-100 bg-rose-50/55 p-4 dark:border-rose-900/60 dark:bg-rose-950/15">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-700 dark:text-rose-200">
+          Yaşa göre öneriler
+        </p>
+        <h3 className="mt-1 text-lg font-black text-foreground">
+          {formatChildLabel(childProfile.label)} için takip edilebilecek ürünler
+        </h3>
+        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+          Bu alan alışveriş takibi içindir; otomatik bildirim veya kayıtlı arama oluşturmaz.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {recommendations.slice(0, 4).map((recommendation) => (
+          <article
+            className="rounded-2xl border border-border bg-background/88 p-4 shadow-sm"
+            key={`${recommendation.categoryId}-${recommendation.reasonCode}`}
+          >
+            <div className="flex flex-col gap-1">
+              <strong className="text-base font-black text-foreground">{recommendation.categoryName}</strong>
+              <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                {ageBandLabel}
+              </span>
+            </div>
+            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+              {recommendation.whyNow}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="rounded-full bg-foreground px-3 py-2 text-xs font-black text-background"
+                href={buildRecommendationBrowseHref(recommendation)}
+              >
+                İlanlara bak
+              </Link>
+              <Link
+                className="rounded-full border border-border bg-background px-3 py-2 text-xs font-black text-foreground"
+                href={buildAssistantPromptHref(childProfile, recommendation)}
+              >
+                Asistana sor
+              </Link>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {childProfile.notificationCadence === "off" ? (
+        <p className="rounded-2xl border border-border bg-background/80 p-3 text-xs font-bold leading-5 text-muted-foreground">
+          Bildirimler kapalı. İstersen “Düzenle” ile aylık/yıllık hatırlatma tercihini açabilirsin.
+        </p>
+      ) : (
+        <p className="rounded-2xl border border-border bg-background/80 p-3 text-xs font-bold leading-5 text-muted-foreground">
+          Bildirim tercihi: {formatNotificationCadence(childProfile.notificationCadence)}. Gönderim altyapısı sonraki notification paketinde bağlanacak.
+        </p>
+      )}
+    </section>
+  );
+}
+
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
@@ -676,3 +797,24 @@ function buildModeButtonClass(isActive: boolean): string {
       : "border-border bg-background text-muted-foreground hover:border-rose-200 hover:text-foreground"
   ].join(" ");
 }
+
+function buildRecommendationBrowseHref(
+  recommendation: LifecycleRecommendationGroup["recommendations"][number]
+): string {
+  const params = new URLSearchParams({
+    categoryId: recommendation.categoryId,
+    sort: "newest"
+  });
+
+  return `/browse?${params.toString()}`;
+}
+
+function buildAssistantPromptHref(
+  childProfile: ChildProfile,
+  recommendation: LifecycleRecommendationGroup["recommendations"][number]
+): string {
+  const prompt = `${formatChildLabel(childProfile.label)} için ${formatAgeBand(childProfile.ageBand)} döneminde ${recommendation.categoryName} alırken nelere dikkat etmeliyim?`;
+
+  return `/assistant?${new URLSearchParams({ prompt }).toString()}`;
+}
+

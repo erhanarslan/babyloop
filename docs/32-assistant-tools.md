@@ -141,3 +141,7 @@ Bu paket write action çalıştırmaz.
 ## Public suggested actions
 
 Assistant tool orchestration sonucu dönen `suggestedActions`, public UI'da kısa kartlar halinde render edilir. Linkli aksiyonlar ilan veya arama sayfası açar; draft aksiyonları ise çocuk önerisi, kayıtlı arama taslağı veya ilan taslağını gösterir. Bu alanlar write action değildir.
+
+## Child recommendation UI handoff
+
+Çocuk profili önerileri public web'de iki şekilde görünür: assistant `review_child_recommendations` aksiyonları ve `/account/children` lifecycle öneri kartları. İki yüzey de no-write çalışır; notification gönderimi ve saved search oluşturma sonraki paketlerin kontrollü akışına bırakılmıştır.
