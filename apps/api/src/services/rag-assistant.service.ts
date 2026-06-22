@@ -8,6 +8,8 @@ import { routeAssistantIntent } from "./assistant-intent-router.service.js";
 import type { RagAnswer, RagCitation } from "./rag.types.js";
 import type { RagSearchService } from "./rag-search.service.js";
 import type { RagCacheService } from "./rag-cache.service.js";
+import type { AssistantToolContext } from "./assistant-tools.types.js";
+import { AssistantToolOrchestrator } from "./assistant-tool-orchestrator.service.js";
 
 export type RagAssistantServiceOptions = {
   answerProvider: RagGroundedAnswerProvider;
@@ -15,6 +17,9 @@ export type RagAssistantServiceOptions = {
   maxContextChars: number;
   requireSources: boolean;
   searchService: RagSearchService;
+  toolsEnabled?: boolean;
+  maxToolCalls?: number;
+  toolTimeoutMs?: number;
 };
 
 const NO_SOURCE_ANSWER =
@@ -26,6 +31,8 @@ export class RagAssistantService {
   private readonly maxContextChars: number;
   private readonly requireSources: boolean;
   private readonly searchService: RagSearchService;
+  private readonly toolsEnabled: boolean;
+  private readonly toolOrchestrator: AssistantToolOrchestrator;
 
   constructor(options: RagAssistantServiceOptions) {
     this.answerProvider = options.answerProvider;
@@ -33,9 +40,14 @@ export class RagAssistantService {
     this.maxContextChars = options.maxContextChars;
     this.requireSources = options.requireSources;
     this.searchService = options.searchService;
+    this.toolsEnabled = options.toolsEnabled ?? true;
+    this.toolOrchestrator = new AssistantToolOrchestrator({
+      maxToolCalls: options.maxToolCalls ?? 3,
+      timeoutMs: options.toolTimeoutMs ?? 1_500
+    });
   }
 
-  async answerMessage(input: AssistantMessageInput): Promise<RagAnswer> {
+  async answerMessage(input: AssistantMessageInput, toolContext: AssistantToolContext = {}): Promise<RagAnswer> {
     const redacted = redactPii(input.message);
     const intentDecision = routeAssistantIntent(redacted.redactedText);
     const safety = decideRagSafety(redacted.redactedText);
@@ -60,17 +72,28 @@ export class RagAssistantService {
       });
     }
 
-    if (intentDecision.intent === "listing_search") {
-      const params = new URLSearchParams({ q: redacted.redactedText });
-
-      return this.cacheAndReturn(cacheKey, {
-        answer: `İlan araması için arama sayfasını kullanabilirsin: /browse?${params.toString()}`,
-        sources: [],
-        mode: "no_sources",
-        grounded: false,
+    if (this.toolsEnabled) {
+      const toolAnswer = await this.toolOrchestrator.orchestrate({
+        context: {
+          ragSearch: (query, limit) => this.searchService.search(query, limit),
+          ...toolContext
+        },
         intent: intentDecision.intent,
-        toolsUsed: ["listing_search"]
+        message: redacted.redactedText
       });
+
+      if (toolAnswer.handled && toolAnswer.answer) {
+        return this.cacheAndReturn(cacheKey, {
+          answer: toolAnswer.answer.answer,
+          sources: toolAnswer.answer.sources,
+          mode: toolAnswer.answer.mode ?? (toolAnswer.answer.grounded ? "rag" : "no_sources"),
+          grounded: toolAnswer.answer.grounded,
+          intent: intentDecision.intent,
+          ...(toolAnswer.answer.toolsUsed?.length ? { toolsUsed: toolAnswer.answer.toolsUsed } : {}),
+          ...(toolAnswer.answer.toolResultsPreview?.length ? { toolResultsPreview: toolAnswer.answer.toolResultsPreview } : {}),
+          ...(toolAnswer.answer.suggestedActions?.length ? { suggestedActions: toolAnswer.answer.suggestedActions } : {})
+        });
+      }
     }
 
     const results = await this.searchService.search(redacted.redactedText);

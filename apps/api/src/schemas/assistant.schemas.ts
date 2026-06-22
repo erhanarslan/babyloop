@@ -54,13 +54,47 @@ export const assistantMessageResponseDataSchema = z
         "prompt_injection",
         "rag_knowledge",
         "listing_search",
+        "listing_detail",
         "listing_help",
+        "buyer_questions",
+        "saved_search_suggestion",
+        "category_lookup",
+        "seller_summary",
         "babyloop_usage",
         "child_needs",
         "unknown"
       ])
       .optional(),
-    toolsUsed: z.array(z.string()).optional()
+    toolsUsed: z.array(z.string()).optional(),
+    toolResultsPreview: z
+      .array(
+        z
+          .object({
+            tool: z.string(),
+            title: z.string(),
+            summary: z.string()
+          })
+          .strict()
+      )
+      .optional(),
+    suggestedActions: z
+      .array(
+        z
+          .object({
+            type: z.enum([
+              "open_listing",
+              "open_search",
+              "copy_questions",
+              "review_saved_search_draft",
+              "review_listing_draft"
+            ]),
+            label: z.string(),
+            href: z.string().optional(),
+            payload: z.record(z.unknown()).optional()
+          })
+          .strict()
+      )
+      .optional()
   })
   .strict();
 

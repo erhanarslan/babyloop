@@ -96,9 +96,12 @@ export function createRagRuntimeServices(config: RagRuntimeConfig): RagRuntimeSe
     assistantService: new RagAssistantService({
       answerProvider,
       cacheService,
+      maxToolCalls: config.assistantMaxToolCalls,
       maxContextChars: config.maxContextChars,
       requireSources: config.requireSources,
-      searchService
+      searchService,
+      toolsEnabled: config.assistantToolsEnabled,
+      toolTimeoutMs: config.assistantToolTimeoutMs
     }),
     cacheService,
     metricsService,

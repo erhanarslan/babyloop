@@ -109,6 +109,17 @@ export type RagAnswer = {
   cacheHit?: boolean;
   intent?: AssistantIntent;
   toolsUsed?: string[];
+  toolResultsPreview?: Array<{
+    tool: string;
+    title: string;
+    summary: string;
+  }>;
+  suggestedActions?: Array<{
+    type: "open_listing" | "open_search" | "copy_questions" | "review_saved_search_draft" | "review_listing_draft";
+    label: string;
+    href?: string;
+    payload?: Record<string, unknown>;
+  }>;
 };
 
 export type RagSafetyDecision = {

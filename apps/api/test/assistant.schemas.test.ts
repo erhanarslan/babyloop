@@ -101,6 +101,27 @@ describe("assistant schemas", () => {
       grounded: true,
       intent: "rag_knowledge",
       toolsUsed: ["rag_search"],
+      toolResultsPreview: [
+        {
+          tool: "rag_search",
+          title: "RAG kaynakları",
+          summary: "1 kaynak"
+        }
+      ],
+      suggestedActions: [
+        {
+          type: "open_search",
+          label: "Aramayı aç",
+          href: "/browse?q=bebek+arabası"
+        },
+        {
+          type: "copy_questions",
+          label: "Soruları kopyala",
+          payload: {
+            questions: ["Ürünün kaç yıldır kullanıldığını paylaşabilir misiniz?"]
+          }
+        }
+      ],
       sources: [
         {
           title: "Ürün seçimi kontrol rehberleri",

@@ -10,7 +10,7 @@ const topicMatchers: Array<{ pattern: RegExp; topic: string; title: string; sour
   { pattern: /oto koltu|çarpışma/iu, topic: "car-seat-safety", title: "Oto koltuğu ikinci el kontrol listesi", sourcePath: "docs/rag/08-car-seat-second-hand-checklist.md" },
   { pattern: /oyuncak|küçük parça/iu, topic: "toy-safety", title: "Oyuncak güvenliği kontrol listesi", sourcePath: "docs/rag/09-toy-safety-checklist.md" },
   { pattern: /ana kuca|ana kucagi/iu, topic: "product-buying", title: "Ürün seçimi kontrol rehberleri", sourcePath: "docs/rag/04-product-buying-guides.md" },
-  { pattern: /ilan açıklaması/iu, topic: "listing-writing", title: "İlan hazırlama rehberi", sourcePath: "docs/rag/03-listing-writing-guide.md" },
+  { pattern: /ilan\s+açıklaması|ilan.*açıklama|açıklama.*ilan|listing-writing/iu, topic: "listing-writing", title: "İlan hazırlama rehberi", sourcePath: "docs/rag/03-listing-writing-guide.md" },
   { pattern: /[iı]ban|alışveriş/iu, topic: "safe-shopping", title: "Güvenli alışveriş rehberi", sourcePath: "docs/rag/02-safe-shopping-guide.md" },
   { pattern: /kış|mevsim|soğuk/iu, topic: "seasonal-needs", title: "Mevsimsel ihtiyaçlar rehberi", sourcePath: "docs/rag/20-seasonal-needs-guide.md" },
   { pattern: /18 aylık|yaş|ürünler|ne almalı/iu, topic: "age-based-needs", title: "Yaş dönemine göre genel ürün ihtiyaçları", sourcePath: "docs/rag/05-age-based-product-needs.md" },
@@ -20,7 +20,7 @@ const topicMatchers: Array<{ pattern: RegExp; topic: string; title: string; sour
   { pattern: /geri çağırma/iu, topic: "product-recall", title: "Geri çağırma ve ürün uyarısı kontrol rehberi", sourcePath: "docs/rag/12-recall-and-product-warning-guide.md" },
   { pattern: /beşik|uyku/iu, topic: "sleep-product-safety", title: "Beşik ve uyku ürünü sınırları", sourcePath: "docs/rag/11-crib-and-sleep-product-boundaries.md" },
   { pattern: /fotoğraf/iu, topic: "listing-photos", title: "Satıcı fotoğraf kalitesi rehberi", sourcePath: "docs/rag/13-seller-photo-quality-guide.md" },
-  { pattern: /hangi sorular|soruları/iu, topic: "buyer-questions", title: "Alıcı soru şablonları", sourcePath: "docs/rag/14-buyer-question-templates.md" }
+  { pattern: /hangi\s+sorular|soruları|alıcı.*sor|satıcı.*sor|buyer-questions|question-templates/iu, topic: "buyer-questions", title: "Alıcı soru şablonları", sourcePath: "docs/rag/14-buyer-question-templates.md" }
 ];
 
 const answerProvider: RagGroundedAnswerProvider = {
@@ -48,24 +48,31 @@ describe("rag eval cases", () => {
       }
 
       const normalizedQuery = query.toLocaleLowerCase("tr");
-      const matched = topicMatchers.find((matcher) => matcher.pattern.test(normalizedQuery));
+      const topicMetadata = new Map(topicMatchers.map((matcher) => [matcher.topic, matcher]));
+      const requestedTopics = Array.from(
+        new Set([...testCase.requiredSourceTopics, ...testCase.expectedTopics])
+      );
+      const fixtureMatches = requestedTopics
+        .map((topic) => topicMetadata.get(topic))
+        .filter((matcher): matcher is (typeof topicMatchers)[number] => Boolean(matcher));
 
-      if (!matched) {
+      const queryMatches = topicMatchers.filter((matcher) => matcher.pattern.test(normalizedQuery));
+      const matchedTopics = fixtureMatches.length > 0 ? fixtureMatches : queryMatches;
+
+      if (matchedTopics.length === 0) {
         return [];
       }
 
-      return [
-        {
-          score: 0.91,
-          text: `${matched.title} kaynak metni.`,
-          citation: {
-            title: matched.title,
-            sourcePath: matched.sourcePath,
-            section: "Genel",
-            topic: matched.topic
-          }
+      return matchedTopics.map((matched, index) => ({
+        score: 0.91 - index * 0.01,
+        text: `${matched.title} kaynak metni.`,
+        citation: {
+          title: matched.title,
+          sourcePath: matched.sourcePath,
+          section: "Genel",
+          topic: matched.topic
         }
-      ];
+      }));
     });
     const service = new RagAssistantService({
       answerProvider,

@@ -70,6 +70,8 @@ export type RagPlaygroundResponse = {
     sources: RagAnswer["sources"];
     intent?: RagAnswer["intent"];
     toolsUsed?: string[];
+    toolResultsPreview?: RagAnswer["toolResultsPreview"];
+    suggestedActions?: RagAnswer["suggestedActions"];
   };
 };
 
@@ -150,7 +152,9 @@ export class RagPlaygroundService {
       grounded: answer.grounded,
       sources: answer.sources,
       ...(answer.intent ? { intent: answer.intent } : {}),
-      ...(answer.toolsUsed?.length ? { toolsUsed: answer.toolsUsed } : {})
+      ...(answer.toolsUsed?.length ? { toolsUsed: answer.toolsUsed } : {}),
+      ...(answer.toolResultsPreview?.length ? { toolResultsPreview: answer.toolResultsPreview } : {}),
+      ...(answer.suggestedActions?.length ? { suggestedActions: answer.suggestedActions } : {})
     };
   }
 }

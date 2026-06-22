@@ -459,6 +459,30 @@ export function RagManagementPage() {
                 <p className="muted">
                   {playgroundResult.answerPreview.mode} · kaynaklı {playgroundResult.answerPreview.grounded ? "evet" : "hayır"} · araçlar {joinList(playgroundResult.answerPreview.toolsUsed ?? [])}
                 </p>
+                {playgroundResult.answerPreview.intent ? (
+                  <p className="muted">Intent: {playgroundResult.answerPreview.intent}</p>
+                ) : null}
+                {playgroundResult.answerPreview.toolResultsPreview?.length ? (
+                  <div className="table-list">
+                    {playgroundResult.answerPreview.toolResultsPreview.map((item) => (
+                      <div className="table-list-row" key={`${item.tool}-${item.title}`}>
+                        <div>
+                          <strong>{item.title}</strong>
+                          <p className="muted">{item.tool} · {item.summary}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {playgroundResult.answerPreview.suggestedActions?.length ? (
+                  <ul>
+                    {playgroundResult.answerPreview.suggestedActions.map((action) => (
+                      <li key={`${action.type}-${action.label}`}>
+                        {action.label}{action.href ? ` · ${action.href}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {playgroundResult.answerPreview.sources.length > 0 ? (
                   <ul>
                     {playgroundResult.answerPreview.sources.map((source) => (

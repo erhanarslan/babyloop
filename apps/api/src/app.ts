@@ -40,11 +40,18 @@ import {
   MAX_LISTING_IMAGE_BYTES,
   MAX_LISTING_IMAGES
 } from "./services/image-safety.service.js";
+import { listingConditionValues } from "./schemas/listings.schemas.js";
 import {
+  getPublicListingImages,
   getPublicListingImagesByListingIds,
+  selectListingDetailRow,
   selectActiveListingRows
 } from "./services/listing-queries.service.js";
-import type { AssistantListingSearchResult } from "./services/assistant-tools.types.js";
+import type {
+  AssistantListingDetailSummary,
+  AssistantListingSearchResult,
+  AssistantSellerPublicSummary
+} from "./services/assistant-tools.types.js";
 import {
   createEmailDeliveryService,
   type EmailDeliveryService
@@ -74,8 +81,10 @@ import type {
 } from "@babyloop/ai-core";
 
 type AssistantListingSearchInput = {
+  categoryId?: string;
   query: string;
   city?: string;
+  condition?: string;
   limit?: number;
 };
 
@@ -257,6 +266,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerAssistantRoutes, {
       assistantProvider,
       listingSearch: (input: AssistantListingSearchInput) => searchPublicListingsForAssistant(app, input),
+      listingDetail: (input: { listingId: string }) => getPublicListingDetailForAssistant(app, input.listingId),
+      sellerPublicSummary: (input: { listingId?: string; profileId?: string }) => getPublicSellerSummaryForAssistant(app, input),
       ragMetricsService: ragServices?.metricsService ?? null,
       ragAssistantService: ragServices?.assistantService ?? null,
       ragUsageLimitService: ragServices?.usageLimitService ?? null,
@@ -336,8 +347,11 @@ async function searchPublicListingsForAssistant(
   app: FastifyInstance,
   input: AssistantListingSearchInput
 ): Promise<AssistantListingSearchResult[]> {
+  const condition = normalizeListingCondition(input.condition);
   const rows = await selectActiveListingRows(app, {
     q: input.query,
+    ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+    ...(condition ? { condition } : {}),
     limit: Math.min(Math.max(input.limit ?? 5, 1), 5),
     offset: 0,
     sort: "newest"
@@ -349,16 +363,84 @@ async function searchPublicListingsForAssistant(
     const price = row.priceAmount ? `${row.priceAmount} ${row.currency}` : undefined;
 
     return {
-      id: row.id,
+      listingId: row.id,
       title: row.title,
       href: `/listings/${row.id}`,
       ...(row.categoryName ? { category: row.categoryName } : {}),
       ...(row.condition ? { condition: row.condition } : {}),
       ...(row.sellerLocationCity ? { city: row.sellerLocationCity } : {}),
       ...(firstImage?.url ? { imageUrl: firstImage.url } : {}),
-      ...(price ? { price } : {})
+      ...(price ? { price } : {}),
+      ...(row.currency ? { currency: row.currency } : {}),
+      ...(row.status ? { status: row.status } : {})
     };
   });
+}
+
+async function getPublicListingDetailForAssistant(
+  app: FastifyInstance,
+  listingId: string
+): Promise<AssistantListingDetailSummary | null> {
+  const row = await selectListingDetailRow(app, listingId);
+
+  if (!row) {
+    return null;
+  }
+
+  const images = await getPublicListingImages(app, row.id);
+  const price = row.priceAmount ? `${row.priceAmount} ${row.currency}` : undefined;
+
+  return {
+    listingId: row.id,
+    title: row.title,
+    href: `/listings/${row.id}`,
+    imageCount: images.length,
+    ...(row.description ? { descriptionPreview: previewText(row.description, 240) } : {}),
+    ...(price ? { price } : {}),
+    ...(row.currency ? { currency: row.currency } : {}),
+    ...(row.categoryName ? { category: row.categoryName } : {}),
+    ...(row.condition ? { condition: row.condition } : {}),
+    ...(row.sellerLocationCity ? { city: row.sellerLocationCity } : {}),
+    ...(row.status ? { status: row.status } : {}),
+    safeSellerSummary: {
+      ...(row.sellerDisplayName ? { displayName: row.sellerDisplayName } : {}),
+      ...(row.sellerLocationCity ? { city: row.sellerLocationCity } : {})
+    }
+  };
+}
+
+async function getPublicSellerSummaryForAssistant(
+  app: FastifyInstance,
+  input: { listingId?: string; profileId?: string }
+): Promise<AssistantSellerPublicSummary | null> {
+  if (input.listingId) {
+    const row = await selectListingDetailRow(app, input.listingId);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      ...(row.sellerDisplayName ? { displayName: row.sellerDisplayName } : {}),
+      ...(row.sellerLocationCity ? { city: row.sellerLocationCity } : {}),
+      publicTrustHints: [
+        "BabyLoop mesajlaşmasını kullan.",
+        "Ödeme ve teslim detaylarını yazılı netleştir.",
+        "Kesin güvenlik veya güvenilirlik garantisi verilmez."
+      ]
+    };
+  }
+
+  return null;
+}
+
+function previewText(value: string, maxChars: number): string {
+  const normalized = value.replace(/\s+/gu, " ").trim();
+  return normalized.length <= maxChars ? normalized : `${normalized.slice(0, Math.max(maxChars - 1, 1)).trim()}…`;
+}
+
+function normalizeListingCondition(value: string | undefined): (typeof listingConditionValues)[number] | undefined {
+  return listingConditionValues.find((condition) => condition === value);
 }
 
 function assertAuthConfig(config: ApiRuntimeConfig): void {

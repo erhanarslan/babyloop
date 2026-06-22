@@ -15,6 +15,15 @@ describe("assistant intent router", () => {
     expect(routeAssistantIntent("İstanbul'da bebek arabası var mı?").intent).toBe("listing_search");
   });
 
+  it("routes tool-augmented marketplace intents", () => {
+    expect(routeAssistantIntent("Bu ilan iyi mi? ilan listing-12345678").intent).toBe("listing_detail");
+    expect(routeAssistantIntent("İkinci el oto koltuğu için satıcıya ne sorayım?").intent).toBe("buyer_questions");
+    expect(routeAssistantIntent("Bebek arabası ilan açıklaması yaz").intent).toBe("listing_help");
+    expect(routeAssistantIntent("Bu aramayı kaydetmek istiyorum").intent).toBe("saved_search_suggestion");
+    expect(routeAssistantIntent("Hangi kategoriye koymalıyım?").intent).toBe("category_lookup");
+    expect(routeAssistantIntent("Bu satıcı güvenilir mi?").intent).toBe("seller_summary");
+  });
+
   it("routes BabyLoop usage and child needs", () => {
     expect(routeAssistantIntent("Kayıtlı arama nasıl oluşturulur?").intent).toBe("babyloop_usage");
     expect(routeAssistantIntent("18 aylık çocuk için hangi ürünler iyi olur?").intent).toBe("child_needs");

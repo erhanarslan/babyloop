@@ -337,7 +337,30 @@ export const adminRagPlaygroundResponseSchema = z
         grounded: z.boolean(),
         sources: z.array(ragCitationSchema),
         intent: z.string().optional(),
-        toolsUsed: z.array(z.string()).optional()
+        toolsUsed: z.array(z.string()).optional(),
+        toolResultsPreview: z
+          .array(
+            z
+              .object({
+                tool: z.string(),
+                title: z.string(),
+                summary: z.string()
+              })
+              .strict()
+          )
+          .optional(),
+        suggestedActions: z
+          .array(
+            z
+              .object({
+                type: z.string(),
+                label: z.string(),
+                href: z.string().optional(),
+                payload: z.record(z.unknown()).optional()
+              })
+              .strict()
+          )
+          .optional()
       })
       .strict()
       .nullable()

@@ -34,6 +34,9 @@ const config: Extract<RagRuntimeConfig, { enabled: true }> = {
   minSourceCoverage: 1,
   noSourceMinScore: 0.68,
   playgroundEnabled: true,
+  assistantToolsEnabled: true,
+  assistantMaxToolCalls: 3,
+  assistantToolTimeoutMs: 1500,
   qdrantCollection: "babyloop_rag",
   qdrantUrl: "http://localhost:6333",
   qdrantVectorSize: 3072,
@@ -103,7 +106,23 @@ describe("rag playground service", () => {
             answer: "Bebek arabası alırken fren, tekerlek ve katlanma mekanizmasını kontrol et.",
             mode: "rag" as const,
             grounded: true,
-            sources: [createSearchResult().citation]
+            sources: [createSearchResult().citation],
+            intent: "listing_search" as const,
+            toolsUsed: ["listing_search", "rag_search"],
+            toolResultsPreview: [
+              {
+                tool: "listing_search",
+                title: "İlan arama",
+                summary: "1 public ilan sonucu"
+              }
+            ],
+            suggestedActions: [
+              {
+                type: "open_search" as const,
+                label: "Aramayı aç",
+                href: "/browse?q=bebek+arabası"
+              }
+            ]
           };
         }
       }
@@ -116,6 +135,8 @@ describe("rag playground service", () => {
     });
 
     expect(result.answerPreview?.grounded).toBe(true);
+    expect(result.answerPreview?.toolsUsed).toEqual(["listing_search", "rag_search"]);
+    expect(result.answerPreview?.suggestedActions?.[0]).toMatchObject({ type: "open_search" });
     expect(result.diagnostics.warnings).toContain("Cevap önizlemesi gerçek model çağrısı yapabilir ve kota kullanabilir.");
   });
 

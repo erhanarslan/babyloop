@@ -324,16 +324,59 @@ Eval runner iki mod destekler:
 
 Eval sonuçlarında mode mismatch, required source topic eksikleri, forbidden phrase, source yokluğu, düşük skor ve beklenmeyen hata issue olarak raporlanır.
 
-## Read-only tools
+## Tool-Augmented Assistant
 
-Assistant tool registry sadece read-only araçlar içerir:
+Assistant artık RAG cevap akışının yanında güvenli BabyLoop araçlarını da kullanabilir. Bu araçlar public-safe DTO döndürür, private seller/user verisi taşımaz ve kullanıcı adına write action çalıştırmaz.
+
+Aktif read-only araçlar:
 
 - `rag_search`: RAG search service çağırır.
-- `category_lookup`: BabyLoop odaklı kategori eşleştirme döndürür.
+- `category_lookup`: BabyLoop odaklı kategori/product eşleştirme döndürür.
 - `listing_search`: public active/reserved listing sorgusuna güvenli şekilde bağlanır ve yalnızca safe listing summary DTO döndürür.
+- `listing_detail`: public-safe ilan detay özeti döndürür.
+- `seller_public_summary`: ilan veya public profile üzerinden private veri içermeyen satıcı özeti döndürür.
 - `child_age_band_explain`: yaş bandını genel ürün ihtiyacı diliyle açıklar.
+- `buyer_question_templates`: alıcı için güvenli soru şablonları üretir.
+
+Aktif draft-only araçlar:
+
+- `listing_draft_helper`: ilan başlığı, açıklaması ve fotoğraf kontrol listesi taslağı üretir.
+- `saved_search_suggest_draft`: kayıtlı arama taslağı önerir.
+
+Draft-only araçlar gerçek kayıt oluşturmaz, ilan güncellemez ve kullanıcı adına aksiyon almaz. Response içinde `suggestedActions` sadece gözden geçirme/kopyalama/açma niyetini taşır.
+
+Intent router şu marketplace intentlerini ayırır: `listing_search`, `listing_detail`, `listing_help`, `buyer_questions`, `saved_search_suggestion`, `category_lookup`, `seller_summary`, `babyloop_usage`, `child_needs`, `rag_knowledge`. Boundary ve prompt injection kararları her zaman önce çalışır.
+
+Assistant response backward-compatible kalır. Yeni optional alanlar:
+
+- `intent`
+- `toolsUsed`
+- `toolResultsPreview`
+- `suggestedActions`
 
 Write action yoktur. Saved search oluşturma, favori ekleme, mesaj gönderme ve ilan güncelleme kullanıcı onayı/audit gerektirdiği için sonraki faza bırakılmıştır.
+
+### Tool orchestration
+
+`assistant-tool-orchestrator.service.ts` intent'e göre en fazla `ASSISTANT_MAX_TOOL_CALLS` kadar araç çağırır. Her tool için timeout `ASSISTANT_TOOL_TIMEOUT_MS` ile sınırlıdır. Tool hatası asistan cevabını düşürmez; kontrollü fallback üretilir.
+
+İlgili env:
+
+```env
+ASSISTANT_TOOLS_ENABLED=true
+ASSISTANT_MAX_TOOL_CALLS=3
+ASSISTANT_TOOL_TIMEOUT_MS=1500
+```
+
+Örnek akışlar:
+
+- “İstanbul’da bebek arabası var mı?” -> `listing_search` + `rag_search`
+- “İkinci el oto koltuğu için satıcıya ne sorayım?” -> `buyer_question_templates` + `rag_search`
+- “Bebek arabası ilan açıklaması yaz” -> `listing_draft_helper` + `rag_search`
+- “Bu aramayı kaydetmek istiyorum” -> `saved_search_suggest_draft`
+- “Hangi kategoriye koymalıyım?” -> `category_lookup`
+
+Backoffice RAG Playground answer mode varsa `intent`, `toolsUsed`, `toolResultsPreview` ve `suggestedActions` alanlarını gösterir. Public web bu alanları yok sayabilir; contract breaking change yoktur.
 
 ## Retrieval quality
 
@@ -429,6 +472,7 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 - Redis client küçük RESP wrapper’dır; managed Redis cluster/sentinel topolojileri bu fazda hedeflenmedi.
 - Live eval Gemini/Qdrant kotası kullanır ve varsayılan olarak kapalıdır.
 - Listing search tool sadece read-only public listing özetleri döndürür; write action yoktur.
+- Tool-augmented assistant sadece read-only veya draft-only araçları çalıştırır; gerçek write action confirmation mimarisi henüz yoktur.
 - Retrieval heuristic reranker değildir.
 - Hybrid-lite scoring gerçek sparse vector search değildir.
 - Admin playground answer mode gerçek model çağrısı yapabilir ve kota kullanabilir.
@@ -443,6 +487,7 @@ Asistan kaynak yoksa cevap uydurmaz. İkinci el ürünlerde kesin güvenlik gara
 - Proper reranker
 - Backoffice RAG Playground
 - Tool-Augmented Assistant
+- Child Profile Personalization
 - Eval/Red Team Reports
 - MCP server
 - Production Redis cache/rate limit

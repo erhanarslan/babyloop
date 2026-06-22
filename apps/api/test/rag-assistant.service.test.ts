@@ -62,6 +62,66 @@ describe("rag assistant service", () => {
     expect(answer.sources).toEqual([]);
   });
 
+  it("uses read-only listing tools for listing search intent", async () => {
+    const answerProvider = createAnswerProvider();
+    const answerSpy = vi.spyOn(answerProvider, "answerWithSources");
+    const searchService = {
+      search: vi.fn().mockResolvedValue([])
+    } as unknown as RagSearchService;
+    const listingSearch = vi.fn(async () => [
+      {
+        listingId: "listing-1",
+        title: "Temiz bebek arabası",
+        href: "/listings/listing-1",
+        city: "İstanbul"
+      }
+    ]);
+    const service = new RagAssistantService({
+      answerProvider,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage(
+      {
+        message: "İstanbul'da bebek arabası var mı?",
+        locale: "tr"
+      },
+      { listingSearch }
+    );
+
+    expect(answer.mode).toBe("no_sources");
+    expect(answer.toolsUsed).toContain("listing_search");
+    expect(answer.answer).toContain("Temiz bebek arabası");
+    expect(answer.suggestedActions?.map((action) => action.type)).toContain("open_listing");
+    expect(answerSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not call tools for boundary questions", async () => {
+    const searchService = {
+      search: vi.fn()
+    } as unknown as RagSearchService;
+    const listingSearch = vi.fn();
+    const service = new RagAssistantService({
+      answerProvider: createAnswerProvider(),
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage(
+      {
+        message: "çocuğuma hangi ilacı vereyim",
+        locale: "tr"
+      },
+      { listingSearch }
+    );
+
+    expect(answer.mode).toBe("boundary");
+    expect(listingSearch).not.toHaveBeenCalled();
+  });
+
   it("returns grounded answer and sources for safe sourced questions", async () => {
     const searchService = {
       search: vi.fn().mockResolvedValue([

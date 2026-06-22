@@ -226,6 +226,17 @@ export type RagPlaygroundResponse = {
     }>;
     intent?: string;
     toolsUsed?: string[];
+    toolResultsPreview?: Array<{
+      tool: string;
+      title: string;
+      summary: string;
+    }>;
+    suggestedActions?: Array<{
+      type: string;
+      label: string;
+      href?: string;
+      payload?: Record<string, unknown>;
+    }>;
   };
 };
 

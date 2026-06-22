@@ -79,6 +79,9 @@ export type RagRuntimeConfig =
       playgroundEnabled: boolean;
       evalHistoryMaxRuns: number;
       reindexActionEnabled: boolean;
+      assistantToolsEnabled: boolean;
+      assistantMaxToolCalls: number;
+      assistantToolTimeoutMs: number;
       redisEnabled: boolean;
       redisUrl: string;
       redisKeyPrefix: string;
@@ -365,6 +368,9 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     playgroundEnabled: readBoolean(env.RAG_PLAYGROUND_ENABLED, true),
     evalHistoryMaxRuns: readPositiveInteger(env.RAG_EVAL_HISTORY_MAX_RUNS, 20),
     reindexActionEnabled: readBoolean(env.RAG_REINDEX_ACTION_ENABLED, false),
+    assistantToolsEnabled: readBoolean(env.ASSISTANT_TOOLS_ENABLED, true),
+    assistantMaxToolCalls: readPositiveInteger(env.ASSISTANT_MAX_TOOL_CALLS, 3),
+    assistantToolTimeoutMs: readPositiveInteger(env.ASSISTANT_TOOL_TIMEOUT_MS, 1_500),
     redisEnabled: readBoolean(env.RAG_REDIS_ENABLED, false),
     redisUrl: env.RAG_REDIS_URL?.trim() || "redis://localhost:6379",
     redisKeyPrefix: env.RAG_REDIS_KEY_PREFIX?.trim() || "babyloop:rag",

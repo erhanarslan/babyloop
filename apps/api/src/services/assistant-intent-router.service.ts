@@ -3,7 +3,12 @@ export type AssistantIntent =
   | "prompt_injection"
   | "rag_knowledge"
   | "listing_search"
+  | "listing_detail"
   | "listing_help"
+  | "buyer_questions"
+  | "saved_search_suggestion"
+  | "category_lookup"
+  | "seller_summary"
   | "babyloop_usage"
   | "child_needs"
   | "unknown";
@@ -42,7 +47,17 @@ const LISTING_SEARCH_PATTERNS = [
   /\bankara(?:'da|da)?\b.*\b(bebek|oto|oyuncak|mama|park)/iu
 ];
 
-const LISTING_HELP_PATTERNS = [/ilan/iu, /a[cç][ıi]klama/iu, /foto/iu, /fiyat/iu, /satmak/iu];
+const LISTING_DETAIL_PATTERNS = [
+  /\bbu\s+ilan\b/iu,
+  /\bilan\s+detay/iu,
+  /\blisting[-_\s]?[a-z0-9]/iu,
+  /\bilan\s+id\b/iu
+];
+const BUYER_QUESTIONS_PATTERNS = [/sat[ıi]c[ıi]ya\s+ne\s+sor/iu, /hangi\s+sorular[ıi]\s+sor/iu, /ne\s+sormal[ıi]y[ıi]m/iu];
+const SAVED_SEARCH_PATTERNS = [/aramay[ıi]\s+kaydet/iu, /kaydetmek\s+istiyorum/iu, /takip\s+etmek\s+istiyorum/iu, /haber\s+ver/iu];
+const CATEGORY_LOOKUP_PATTERNS = [/hangi\s+kategori/iu, /kategoriye\s+koy/iu, /kategori\s+ne/iu];
+const SELLER_SUMMARY_PATTERNS = [/sat[ıi]c[ıi]\s+güvenilir/iu, /sat[ıi]c[ıi]\s+özet/iu, /bu\s+sat[ıi]c[ıi]/iu];
+const LISTING_HELP_PATTERNS = [/ilan\s+a[cç][ıi]klamas[ıi]/iu, /ilan.*yaz/iu, /foto/iu, /fiyat/iu, /satmak/iu, /ilan\s+haz[ıi]rla/iu];
 const BABYLOOP_USAGE_PATTERNS = [/babyloop/iu, /favori/iu, /kay[ıi]tl[ıi]\s+arama/iu, /mesajla[şs]ma/iu, /nas[ıi]l\s+kullan/iu];
 const CHILD_NEEDS_PATTERNS = [/\b\d{1,2}\s*(?:ayl[ıi]k|ya[şs])/iu, /ya[şs]\s+dönemi/iu, /çocu[ğg]um/iu];
 const RAG_KNOWLEDGE_PATTERNS = [/bebek arabas[ıi]/iu, /oto koltu/iu, /oyuncak/iu, /be[şs]ik/iu, /güvenli/iu, /kontrol/iu];
@@ -60,6 +75,26 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
 
   if (matchesAny(normalized, LISTING_SEARCH_PATTERNS)) {
     return { intent: "listing_search", confidence: "medium" };
+  }
+
+  if (matchesAny(normalized, LISTING_DETAIL_PATTERNS)) {
+    return { intent: "listing_detail", confidence: "medium" };
+  }
+
+  if (matchesAny(normalized, BUYER_QUESTIONS_PATTERNS)) {
+    return { intent: "buyer_questions", confidence: "high" };
+  }
+
+  if (matchesAny(normalized, SAVED_SEARCH_PATTERNS)) {
+    return { intent: "saved_search_suggestion", confidence: "high" };
+  }
+
+  if (matchesAny(normalized, CATEGORY_LOOKUP_PATTERNS)) {
+    return { intent: "category_lookup", confidence: "high" };
+  }
+
+  if (matchesAny(normalized, SELLER_SUMMARY_PATTERNS)) {
+    return { intent: "seller_summary", confidence: "medium" };
   }
 
   if (matchesAny(normalized, LISTING_HELP_PATTERNS)) {

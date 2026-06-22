@@ -302,6 +302,45 @@ Failed case yorumlama:
 - `low_score`: RAG skor eşiği düşük kaldı.
 - `live_eval_disabled`: live eval env flag kapalı.
 
+## Tool-Augmented Assistant debug
+
+Assistant answer mode artık bazı sorularda RAG yanında BabyLoop tool'larını kullanabilir. Backoffice Playground answer preview içinde şu alanlara bakılır:
+
+```env
+ASSISTANT_TOOLS_ENABLED=true
+ASSISTANT_MAX_TOOL_CALLS=3
+ASSISTANT_TOOL_TIMEOUT_MS=1500
+```
+
+- `intent`: router'ın seçtiği niyet.
+- `toolsUsed`: başarıyla çalışan araç adları.
+- `toolResultsPreview`: public-safe kısa tool sonucu.
+- `suggestedActions`: kullanıcı onayı gerektirmeyen açma/kopyalama/gözden geçirme önerileri.
+
+### listing_search sonuçsuzsa
+
+- Sorguda şehir veya ürün terimi çok dar olabilir.
+- İlgili kategori mapping eksik olabilir.
+- Public listing query sadece aktif/uygun ilanları döndürüyor olabilir.
+- Tool private seller verisi dönmediği için seller email/phone beklenmemelidir.
+
+Asistan sonuç bulamazsa arama sayfasına yönlendiren kısa cevap üretir; sahte ilan uydurmaz.
+
+### Tool failure nasıl yorumlanır?
+
+Tool hataları ana assistant response'u düşürmemelidir. Playground `toolsUsed` içinde beklenen araç yoksa:
+
+- ilgili service callback bağlı olmayabilir,
+- tool input schema validasyonu reddetmiş olabilir,
+- service geçici hata vermiş olabilir,
+- timeout `ASSISTANT_TOOL_TIMEOUT_MS` düşük kalmış olabilir.
+
+Uygulama client'a secret, raw vector, system prompt veya private seller/user verisi göstermez. Detaylı hata kullanıcı yerine server log/observability tarafında secretsız takip edilmelidir.
+
+### Draft-only araçlar
+
+`listing_draft_helper` ve `saved_search_suggest_draft` sadece taslak üretir. İlan oluşturmaz, kayıtlı arama kaydetmez, mesaj göndermez, favori eklemez. Gelecekte write action'lar için kullanıcı onayı ve audit trail gerekecektir.
+
 ## Reindex workflow
 
 Backoffice `Reindex workflow` bölümü read-only check ve güvenli full reindex hazırlığı sunar.

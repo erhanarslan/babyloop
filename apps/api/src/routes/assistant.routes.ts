@@ -16,7 +16,11 @@ import {
 import type { RagAssistantService } from "../services/rag-assistant.service.js";
 import type { RagCitation } from "../services/rag.types.js";
 import type { AssistantIntent } from "../services/assistant-intent-router.service.js";
-import type { AssistantListingSearchResult } from "../services/assistant-tools.types.js";
+import type {
+  AssistantListingDetailSummary,
+  AssistantListingSearchResult,
+  AssistantSellerPublicSummary
+} from "../services/assistant-tools.types.js";
 import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
 import type { RagMetricsService } from "../services/rag-metrics.service.js";
 
@@ -32,11 +36,30 @@ type AssistantMessageResponse = ApiResponse<{
   grounded?: boolean;
   intent?: AssistantIntent;
   toolsUsed?: string[];
+  toolResultsPreview?: Array<{
+    tool: string;
+    title: string;
+    summary: string;
+  }>;
+  suggestedActions?: Array<{
+    type: "open_listing" | "open_search" | "copy_questions" | "review_saved_search_draft" | "review_listing_draft";
+    label: string;
+    href?: string;
+    payload?: Record<string, unknown>;
+  }>;
 }>;
 
 type AssistantRouteOptions = {
   assistantProvider?: AssistantMessageProvider | null;
-  listingSearch?: (input: { query: string; city?: string; limit?: number }) => Promise<AssistantListingSearchResult[]>;
+  listingSearch?: (input: {
+    categoryId?: string;
+    city?: string;
+    condition?: string;
+    limit?: number;
+    query: string;
+  }) => Promise<AssistantListingSearchResult[]>;
+  listingDetail?: (input: { listingId: string }) => Promise<AssistantListingDetailSummary | null>;
+  sellerPublicSummary?: (input: { listingId?: string; profileId?: string }) => Promise<AssistantSellerPublicSummary | null>;
   ragMetricsService?: RagMetricsService | null;
   ragAssistantService?: RagAssistantService | null;
   ragUsageLimitService?: RagUsageLimitService | null;
@@ -84,14 +107,14 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
             });
           }
 
-          const answer = await ragAssistantService.answerMessage(parsedBody.data);
-          const listingAnswer = answer.intent === "listing_search" && options.listingSearch
-            ? await buildListingSearchAnswer(parsedBody.data.message, options.listingSearch)
-            : null;
+          const answer = await ragAssistantService.answerMessage(parsedBody.data, {
+            ...(options.listingSearch ? { listingSearch: options.listingSearch } : {}),
+            ...(options.listingDetail ? { listingDetail: options.listingDetail } : {}),
+            ...(options.sellerPublicSummary ? { sellerPublicSummary: options.sellerPublicSummary } : {})
+          });
 
           await options.ragMetricsService?.recordAnswer({
-            ...answer,
-            ...(listingAnswer ? { toolsUsed: listingAnswer.toolsUsed } : {})
+            ...answer
           });
           if (!answer.cacheHit) {
             await options.ragMetricsService?.recordCacheMiss();
@@ -100,14 +123,14 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
           return {
             ok: true,
             data: {
-              answer: listingAnswer?.answer ?? answer.answer,
+              answer: answer.answer,
               mode: answer.mode,
               grounded: answer.grounded,
               ...(answer.intent ? { intent: answer.intent } : {}),
               ...(answer.sources.length > 0 ? { sources: answer.sources } : {}),
-              ...((listingAnswer?.toolsUsed ?? answer.toolsUsed)?.length
-                ? { toolsUsed: listingAnswer?.toolsUsed ?? answer.toolsUsed }
-                : {})
+              ...(answer.toolsUsed?.length ? { toolsUsed: answer.toolsUsed } : {}),
+              ...(answer.toolResultsPreview?.length ? { toolResultsPreview: answer.toolResultsPreview } : {}),
+              ...(answer.suggestedActions?.length ? { suggestedActions: answer.suggestedActions } : {})
             }
           };
         } catch {
@@ -179,41 +202,6 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
       };
     }
   );
-}
-
-async function buildListingSearchAnswer(
-  query: string,
-  listingSearch: NonNullable<AssistantRouteOptions["listingSearch"]>
-): Promise<{ answer: string; toolsUsed: string[] }> {
-  const results = await listingSearch({
-    query,
-    limit: 5
-  });
-  const params = new URLSearchParams({ q: query.trim() });
-  const browseHref = `/browse?${params.toString()}`;
-
-  if (results.length === 0) {
-    return {
-      answer: `Bu sorguya uygun ilan bulamadım. Aramayı genişletmek için ${browseHref} sayfasını kullanabilirsin.`,
-      toolsUsed: ["listing_search"]
-    };
-  }
-
-  const lines = results.slice(0, 5).map((listing) => {
-    const details = [
-      listing.price,
-      listing.category,
-      listing.condition,
-      listing.city
-    ].filter(Boolean).join(" · ");
-
-    return `- ${listing.title}${details ? ` · ${details}` : ""} (${listing.href})`;
-  });
-
-  return {
-    answer: `Bulduğum bazı ilanlar:\n${lines.join("\n")}\n\nDaha fazla sonuç için ${browseHref} sayfasına bakabilirsin.`,
-    toolsUsed: ["listing_search"]
-  };
 }
 
 function sanitizeActions(actions: AssistantMessageOutput["actions"]): AssistantMessageOutput["actions"] {
