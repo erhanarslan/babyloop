@@ -2,6 +2,7 @@ import type {
   RagChunk,
   RagChunkMetadata,
   RagCollectionInfo,
+  RagIndexedDocumentSnapshot,
   RagSearchResult,
   RagVectorStore
 } from "./rag.types.js";
@@ -18,6 +19,10 @@ export type QdrantVectorStoreOptions = {
 
 type QdrantSearchPoint = {
   score?: unknown;
+  payload?: unknown;
+};
+
+type QdrantScrollPoint = {
   payload?: unknown;
 };
 
@@ -90,7 +95,22 @@ export class QdrantVectorStore implements RagVectorStore {
             vector: chunk.embedding,
             payload: {
               text: chunk.text,
-              ...chunk.metadata
+              documentId: chunk.metadata.documentId,
+              documentTitle: chunk.metadata.documentTitle ?? chunk.metadata.title,
+              title: chunk.metadata.title,
+              sourcePath: chunk.metadata.sourcePath,
+              section: chunk.metadata.section,
+              topic: chunk.metadata.topic,
+              safetyScope: chunk.metadata.safetyScope,
+              sourceReliability: chunk.metadata.sourceReliability,
+              version: chunk.metadata.version,
+              checksum: chunk.metadata.checksum,
+              checksumShort: chunk.metadata.checksumShort,
+              chunkId: chunk.metadata.chunkId ?? chunk.id,
+              chunkIndex: chunk.metadata.chunkIndex,
+              indexedAt: chunk.metadata.indexedAt,
+              contentLength: chunk.metadata.contentLength ?? chunk.text.length,
+              locale: chunk.metadata.locale
             }
           }))
         })
@@ -134,6 +154,17 @@ export class QdrantVectorStore implements RagVectorStore {
     const result = Array.isArray(payload.result) ? payload.result : [];
 
     return result.flatMap((point) => toSearchResult(point));
+  }
+
+  async getIndexedDocumentSnapshots(documentIds: string[]): Promise<Map<string, RagIndexedDocumentSnapshot>> {
+    const snapshots = new Map<string, RagIndexedDocumentSnapshot>();
+
+    for (const documentId of documentIds) {
+      const points = await this.scrollDocumentPoints(documentId);
+      snapshots.set(documentId, buildSnapshot(points));
+    }
+
+    return snapshots;
   }
 
   async getCollectionInfo(): Promise<RagCollectionInfo> {
@@ -185,6 +216,68 @@ export class QdrantVectorStore implements RagVectorStore {
       ...(init.body ? { body: init.body } : {})
     });
   }
+
+  private async scrollDocumentPoints(documentId: string): Promise<QdrantScrollPoint[]> {
+    const points: QdrantScrollPoint[] = [];
+    let offset: unknown = null;
+
+    do {
+      const response = await this.request(
+        `/collections/${encodeURIComponent(this.collectionName)}/points/scroll`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            limit: 256,
+            with_payload: true,
+            with_vector: false,
+            filter: {
+              must: [
+                {
+                  key: "documentId",
+                  match: {
+                    value: documentId
+                  }
+                }
+              ]
+            },
+            ...(offset ? { offset } : {})
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Qdrant document scroll failed with status ${response.status}.`);
+      }
+
+      const payload = await response.json() as { result?: unknown };
+      const result = typeof payload.result === "object" && payload.result !== null
+        ? payload.result as Record<string, unknown>
+        : {};
+      const batch = Array.isArray(result.points) ? result.points : [];
+      points.push(...batch.flatMap((point) => typeof point === "object" && point !== null ? [point as QdrantScrollPoint] : []));
+      offset = result.next_page_offset ?? null;
+    } while (offset);
+
+    return points;
+  }
+}
+
+function buildSnapshot(points: QdrantScrollPoint[]): RagIndexedDocumentSnapshot {
+  const payloads = points
+    .map((point) => point.payload)
+    .filter((payload): payload is Record<string, unknown> => typeof payload === "object" && payload !== null);
+  const checksums = uniqueStrings(payloads.map((payload) => payload.checksum));
+  const checksumShorts = uniqueStrings(payloads.map((payload) => payload.checksumShort));
+  const versions = uniqueStrings(payloads.map((payload) => payload.version));
+  const indexedAts = uniqueStrings(payloads.map((payload) => payload.indexedAt)).sort();
+
+  return {
+    chunkCount: points.length,
+    checksum: checksums.length === 1 ? checksums[0] ?? null : null,
+    checksumShort: checksumShorts.length === 1 ? checksumShorts[0] ?? null : null,
+    indexedAt: indexedAts.at(-1) ?? null,
+    version: versions.length === 1 ? versions[0] ?? null : null
+  };
 }
 
 function toSearchResult(point: unknown): RagSearchResult[] {
@@ -228,4 +321,8 @@ function numberOrZero(value: unknown): number {
 
 function numberOrDefault(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function uniqueStrings(values: unknown[]): string[] {
+  return [...new Set(values.filter((value): value is string => typeof value === "string" && value.trim().length > 0))];
 }

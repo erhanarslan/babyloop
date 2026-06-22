@@ -17,6 +17,7 @@ const config: RagRuntimeConfig = {
   embeddingModel: "gemini-embedding-001",
   embeddingProvider: "gemini",
   geminiApiKey: "test",
+  governanceTextPreviewChars: 280,
   hybridEnabled: true,
   hourlyGuestLimit: 10,
   hourlyUserLimit: 50,

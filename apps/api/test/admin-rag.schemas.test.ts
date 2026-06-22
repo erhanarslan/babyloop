@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   adminRagCacheStatsSchema,
+  adminRagDocumentChunkPreviewSchema,
   adminRagEvalRunBodySchema,
   adminRagHealthSchema,
   adminRagMetricsResponseSchema,
+  adminRagReindexCheckResponseSchema,
   adminRagSourceReliabilitySchema,
   adminRagUsageResponseSchema
 } from "../src/schemas/admin-rag.schemas.js";
@@ -12,6 +14,7 @@ describe("admin rag schemas", () => {
   it("accepts source reliability values", () => {
     expect(adminRagSourceReliabilitySchema.parse("internal-policy")).toBe("internal-policy");
     expect(adminRagSourceReliabilitySchema.parse("official-source-note")).toBe("official-source-note");
+    expect(adminRagSourceReliabilitySchema.parse("official-referenced")).toBe("official-referenced");
   });
 
   it("defaults eval run mode and limit safely", () => {
@@ -35,9 +38,15 @@ describe("admin rag schemas", () => {
       docs: {
         documentCount: 1,
         chunkCountEstimate: 2,
+        missingMetadataCount: 0,
+        staleDocumentCount: 1,
+        reindexRequiredCount: 1,
         topics: ["safe-shopping"],
         sourceReliabilityCounts: {
           internal: 1
+        },
+        indexingStatusCounts: {
+          stale: 1
         }
       },
       config: {
@@ -113,5 +122,35 @@ describe("admin rag schemas", () => {
         adminBypass: true
       }
     }).limits.adminBypass).toBe(true);
+
+    expect(adminRagDocumentChunkPreviewSchema.parse({
+      document: {
+        id: "safe-shopping-guide",
+        title: "Güvenli alışveriş rehberi",
+        sourcePath: "docs/rag/02-safe-shopping-guide.md",
+        topic: "safe-shopping",
+        sourceReliability: "internal",
+        version: "2026-06-18",
+        checksumShort: "abc123def456"
+      },
+      chunks: [
+        {
+          chunkId: "chunk-1",
+          chunkIndex: 0,
+          section: "Genel",
+          topic: "safe-shopping",
+          sourceReliability: "internal",
+          textPreview: "Kısa önizleme"
+        }
+      ]
+    }).chunks).toHaveLength(1);
+
+    expect(adminRagReindexCheckResponseSchema.parse({
+      totalDocuments: 20,
+      reindexRequired: 2,
+      stale: 1,
+      missing: 1,
+      unknown: 0
+    }).reindexRequired).toBe(2);
   });
 });

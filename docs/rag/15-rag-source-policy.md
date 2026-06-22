@@ -21,7 +21,7 @@ BabyLoop RAG kaynakları asistanın yalnızca güvenli alışveriş, ilan hazır
 
 ## Source reliability
 
-Her RAG dokümanı `sourceReliability` metadata alanı taşır. `internal-policy` sınır ve güvenlik politikasını, `internal` BabyLoop ürün bilgisini, `editorial` ise kaynaklı ama kesin garanti vermeyen kontrol listelerini temsil eder.
+Her RAG dokümanı `sourceReliability` metadata alanı taşır. `internal-policy` sınır ve güvenlik politikasını, `internal` BabyLoop ürün bilgisini, `editorial` kaynaklı ama kesin garanti vermeyen kontrol listelerini, `official-source-note` resmi kaynak kategorisi notlarını, `official-referenced` ise ileride doğrulanmış resmi kaynak referansı eklenmiş dokümanları temsil eder.
 
 ## Cevaplanacak konular
 

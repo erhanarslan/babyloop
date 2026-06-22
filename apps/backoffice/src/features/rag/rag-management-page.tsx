@@ -6,18 +6,22 @@ import { useEffect, useState } from "react";
 import {
   clearAdminRagCache,
   getAdminRagCacheStats,
+  getAdminRagDocumentChunks,
   getAdminRagHealth,
   getAdminRagMetrics,
+  getAdminRagReindexCheck,
   getAdminRagUsage,
   listAdminRagDocuments,
   listAdminRagEvalCases,
   runAdminRagEval,
   type RagCacheStats,
+  type RagDocumentChunks,
   type RagDocumentSummary,
   type RagEvalCase,
   type RagEvalRunSummary,
   type RagHealth,
   type RagMetrics,
+  type RagReindexCheck,
   type RagUsage,
 } from "./api";
 
@@ -26,6 +30,7 @@ type LoadState = {
   documents: RagDocumentSummary[];
   cache: RagCacheStats | null;
   cases: RagEvalCase[];
+  reindex: RagReindexCheck | null;
   metrics: RagMetrics | null;
   usage: RagUsage | null;
 };
@@ -36,11 +41,14 @@ export function RagManagementPage() {
     documents: [],
     cache: null,
     cases: [],
+    reindex: null,
     metrics: null,
     usage: null,
   });
+  const [chunkPreview, setChunkPreview] = useState<RagDocumentChunks | null>(null);
   const [evalSummary, setEvalSummary] = useState<RagEvalRunSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingChunkDocumentId, setLoadingChunkDocumentId] = useState<string | null>(null);
   const [isRunningEval, setIsRunningEval] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -51,13 +59,14 @@ export function RagManagementPage() {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const [healthResponse, documentsResponse, cacheResponse, casesResponse, metricsResponse, usageResponse] = await Promise.all([
+      const [healthResponse, documentsResponse, cacheResponse, casesResponse, metricsResponse, usageResponse, reindexResponse] = await Promise.all([
         getAdminRagHealth(),
         listAdminRagDocuments(),
         getAdminRagCacheStats(),
         listAdminRagEvalCases(),
         getAdminRagMetrics(),
         getAdminRagUsage(),
+        getAdminRagReindexCheck(),
       ]);
 
       if (!isActive) {
@@ -70,7 +79,8 @@ export function RagManagementPage() {
         getError(cacheResponse) ??
         getError(casesResponse) ??
         getError(metricsResponse) ??
-        getError(usageResponse);
+        getError(usageResponse) ??
+        getError(reindexResponse);
 
       if (error) {
         setErrorMessage(error);
@@ -81,6 +91,7 @@ export function RagManagementPage() {
         documents: documentsResponse.ok ? documentsResponse.data.documents : [],
         cache: cacheResponse.ok ? cacheResponse.data.cache : null,
         cases: casesResponse.ok ? casesResponse.data.cases : [],
+        reindex: reindexResponse.ok ? reindexResponse.data : null,
         metrics: metricsResponse.ok ? metricsResponse.data.metrics : null,
         usage: usageResponse.ok ? usageResponse.data.usage : null,
       });
@@ -123,6 +134,26 @@ export function RagManagementPage() {
     setErrorMessage(response.error.message);
   }
 
+  async function handlePreviewChunks(documentId: string) {
+    if (chunkPreview?.document.id === documentId) {
+      setChunkPreview(null);
+      return;
+    }
+
+    setLoadingChunkDocumentId(documentId);
+    setErrorMessage(null);
+
+    const response = await getAdminRagDocumentChunks(documentId);
+
+    if (response.ok) {
+      setChunkPreview(response.data);
+    } else {
+      setErrorMessage(response.error.message);
+    }
+
+    setLoadingChunkDocumentId(null);
+  }
+
   return (
     <section className="content-card">
       <div className="page-toolbar">
@@ -151,6 +182,9 @@ export function RagManagementPage() {
             <SummaryCard label="Vector size" value={state.health.qdrant.vectorSize} />
             <SummaryCard label="Doküman" value={state.health.docs.documentCount} />
             <SummaryCard label="Chunk" value={state.health.docs.chunkCountEstimate} />
+            <SummaryCard label="Metadata eksik" value={state.health.docs.missingMetadataCount} />
+            <SummaryCard label="Stale" value={state.health.docs.staleDocumentCount} />
+            <SummaryCard label="Reindex" value={state.health.docs.reindexRequiredCount} />
             <SummaryCard label="Cache" value={state.health.config.cacheEnabled ? "Açık" : "Kapalı"} />
             <SummaryCard label="Redis" value={state.health.redis.enabled ? state.health.redis.backendEffective : "Kapalı"} />
           </section>
@@ -214,6 +248,18 @@ export function RagManagementPage() {
                 <DetailRow label="Rate limited" value={metric(state.metrics, "rateLimitedRequests")} />
               </dl>
             </article>
+
+            <article className="module-card dashboard-module-card">
+              <h3>Doküman kalite</h3>
+              <dl className="compact-details">
+                <DetailRow label="Toplam" value={state.reindex?.totalDocuments ?? state.health.docs.documentCount} />
+                <DetailRow label="Reindex gerekli" value={state.reindex?.reindexRequired ?? state.health.docs.reindexRequiredCount} />
+                <DetailRow label="Stale" value={state.reindex?.stale ?? state.health.docs.staleDocumentCount} />
+                <DetailRow label="Missing" value={state.reindex?.missing ?? countStatus(state.health.docs.indexingStatusCounts, "missing")} />
+                <DetailRow label="Unknown" value={state.reindex?.unknown ?? countStatus(state.health.docs.indexingStatusCounts, "unknown")} />
+                <DetailRow label="Metadata eksik" value={state.health.docs.missingMetadataCount} />
+              </dl>
+            </article>
           </section>
         </>
       ) : null}
@@ -227,15 +273,45 @@ export function RagManagementPage() {
         </div>
         <div className="table-list">
           {state.documents.map((document) => (
-            <div className="table-list-row" key={document.id}>
+            <article className="table-list-row" key={document.id}>
               <div>
                 <strong>{document.title}</strong>
                 <p className="muted">{document.sourcePath}</p>
+                <p className="muted">
+                  {document.topic} · {document.sourceReliability} · v{document.version} · {document.chunkCountEstimate} chunk · checksum {document.checksumShort}
+                </p>
+                <p className={document.reindexRequired ? "danger" : "muted"}>
+                  {statusLabel(document.indexingStatus)} · {document.reindexRequired ? "reindex gerekli" : "index güncel"} · {document.hasRequiredMetadata ? "metadata tamam" : `metadata eksik: ${document.missingMetadataFields.join(", ")}`}
+                </p>
               </div>
-              <small className="muted">
-                {document.topic} · {document.sourceReliability} · v{document.version} · {document.chunkCountEstimate} chunk · {document.hasRequiredMetadata ? "metadata tamam" : "metadata eksik"}
-              </small>
-            </div>
+              <div className="toolbar-actions">
+                <small className="muted">{document.lastIndexedAt ? `Son index: ${document.lastIndexedAt}` : "Son index yok"}</small>
+                <button
+                  className="secondary-action"
+                  disabled={loadingChunkDocumentId === document.id}
+                  onClick={() => void handlePreviewChunks(document.id)}
+                  type="button"
+                >
+                  {chunkPreview?.document.id === document.id ? "Önizlemeyi kapat" : "Chunk önizle"}
+                </button>
+              </div>
+              {chunkPreview?.document.id === document.id ? (
+                <div className="state-panel">
+                  <strong>{chunkPreview.document.title} · chunk önizleme</strong>
+                  <div className="table-list">
+                    {chunkPreview.chunks.map((chunk) => (
+                      <div className="table-list-row" key={chunk.chunkId}>
+                        <div>
+                          <strong>#{chunk.chunkIndex} · {chunk.section}</strong>
+                          <p className="muted">{chunk.topic} · {chunk.sourceReliability}</p>
+                          <p>{chunk.textPreview}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </article>
           ))}
         </div>
       </section>
@@ -317,6 +393,21 @@ function DetailRow({ label, value }: { label: string; value: number | string }) 
 
 function metric(metrics: RagMetrics | null, key: string): number {
   return metrics?.counters[key] ?? 0;
+}
+
+function countStatus(counts: Record<string, number>, key: string): number {
+  return counts[key] ?? 0;
+}
+
+function statusLabel(status: RagDocumentSummary["indexingStatus"]): string {
+  const labels: Record<RagDocumentSummary["indexingStatus"], string> = {
+    indexed: "Index güncel",
+    stale: "Stale",
+    missing: "Eksik",
+    unknown: "Bilinmiyor"
+  };
+
+  return labels[status];
 }
 
 function getError<T>(response: ApiResponse<T>): string | null {

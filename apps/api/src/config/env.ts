@@ -75,6 +75,7 @@ export type RagRuntimeConfig =
       duplicatePenalty: number;
       noSourceMinScore: number;
       minSourceCoverage: number;
+      governanceTextPreviewChars: number;
       redisEnabled: boolean;
       redisUrl: string;
       redisKeyPrefix: string;
@@ -357,6 +358,7 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     duplicatePenalty: readNumberInRange(env.RAG_DUPLICATE_PENALTY, 0.05, 0, 1),
     noSourceMinScore: readNumberInRange(env.RAG_NO_SOURCE_MIN_SCORE, 0.68, 0, 1),
     minSourceCoverage: readPositiveInteger(env.RAG_MIN_SOURCE_COVERAGE, 1),
+    governanceTextPreviewChars: readPositiveInteger(env.RAG_GOVERNANCE_TEXT_PREVIEW_CHARS, 280),
     redisEnabled: readBoolean(env.RAG_REDIS_ENABLED, false),
     redisUrl: env.RAG_REDIS_URL?.trim() || "redis://localhost:6379",
     redisKeyPrefix: env.RAG_REDIS_KEY_PREFIX?.trim() || "babyloop:rag",

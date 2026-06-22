@@ -16,8 +16,12 @@ export type RagHealth = {
   docs: {
     documentCount: number;
     chunkCountEstimate: number;
+    missingMetadataCount: number;
+    staleDocumentCount: number;
+    reindexRequiredCount: number;
     topics: string[];
     sourceReliabilityCounts: Record<string, number>;
+    indexingStatusCounts: Record<string, number>;
   };
   config: {
     embeddingProvider: string;
@@ -52,8 +56,42 @@ export type RagDocumentSummary = {
   sourceReliability: string;
   version: string;
   sourcePath: string;
+  checksum: string;
+  checksumShort: string;
   chunkCountEstimate: number;
   hasRequiredMetadata: boolean;
+  missingMetadataFields: string[];
+  indexingStatus: "indexed" | "stale" | "missing" | "unknown";
+  reindexRequired: boolean;
+  lastIndexedAt: string | null;
+};
+
+export type RagDocumentChunks = {
+  document: {
+    id: string;
+    title: string;
+    sourcePath: string;
+    topic: string;
+    sourceReliability: string;
+    version: string;
+    checksumShort: string;
+  };
+  chunks: Array<{
+    chunkId: string;
+    chunkIndex: number;
+    section: string;
+    topic: string;
+    sourceReliability: string;
+    textPreview: string;
+  }>;
+};
+
+export type RagReindexCheck = {
+  totalDocuments: number;
+  reindexRequired: number;
+  stale: number;
+  missing: number;
+  unknown: number;
 };
 
 export type RagCacheStats = {
@@ -131,6 +169,14 @@ export function getAdminRagHealth(): Promise<ApiResponse<{ health: RagHealth }>>
 
 export function listAdminRagDocuments(): Promise<ApiResponse<{ documents: RagDocumentSummary[] }>> {
   return adminRequest("/api/v1/admin/rag/documents");
+}
+
+export function getAdminRagDocumentChunks(documentId: string): Promise<ApiResponse<RagDocumentChunks>> {
+  return adminRequest(`/api/v1/admin/rag/documents/${encodeURIComponent(documentId)}/chunks`);
+}
+
+export function getAdminRagReindexCheck(): Promise<ApiResponse<RagReindexCheck>> {
+  return adminRequest("/api/v1/admin/rag/reindex/check");
 }
 
 export function listAdminRagEvalCases(): Promise<ApiResponse<{ cases: RagEvalCase[] }>> {

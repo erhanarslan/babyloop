@@ -55,6 +55,46 @@ describe("admin rag routes", () => {
     });
     expect(documentsResponse.statusCode).toBe(200);
     expect(documentsResponse.json().data.documents.length).toBeGreaterThanOrEqual(20);
+    expect(documentsResponse.json().data.documents[0]).toMatchObject({
+      checksumShort: expect.any(String),
+      indexingStatus: expect.any(String),
+      reindexRequired: expect.any(Boolean),
+      missingMetadataFields: expect.any(Array)
+    });
+  });
+
+  it("returns document chunk previews and reindex summary for admin users", async () => {
+    const admin = await createUser(app, { email: uniqueAdminRagEmail(), role: "admin" });
+
+    const chunksResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/rag/documents/assistant-boundaries/chunks",
+      headers: authHeader(admin.accessToken)
+    });
+    const reindexResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/rag/reindex/check",
+      headers: authHeader(admin.accessToken)
+    });
+
+    expect(chunksResponse.statusCode).toBe(200);
+    expect(chunksResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        document: {
+          id: "assistant-boundaries"
+        }
+      }
+    });
+    expect(JSON.stringify(chunksResponse.json())).not.toContain("vector");
+    expect(reindexResponse.statusCode).toBe(200);
+    expect(reindexResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        totalDocuments: expect.any(Number),
+        reindexRequired: expect.any(Number)
+      }
+    });
   });
 
   it("runs mock eval and rejects live eval when disabled", async () => {

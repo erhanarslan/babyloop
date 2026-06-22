@@ -4,6 +4,7 @@ import { ragCitationSchema } from "./rag.schemas.js";
 export const adminRagSourceReliabilitySchema = z.enum([
   "internal-policy",
   "official-source-note",
+  "official-referenced",
   "internal",
   "editorial"
 ]);
@@ -32,8 +33,14 @@ export const adminRagDocumentSchema = z
     sourceReliability: z.string(),
     version: z.string(),
     sourcePath: z.string(),
+    checksum: z.string(),
+    checksumShort: z.string(),
     chunkCountEstimate: z.number(),
-    hasRequiredMetadata: z.boolean()
+    hasRequiredMetadata: z.boolean(),
+    missingMetadataFields: z.array(z.string()),
+    indexingStatus: z.enum(["indexed", "stale", "missing", "unknown"]),
+    reindexRequired: z.boolean(),
+    lastIndexedAt: z.string().nullable()
   })
   .strict();
 
@@ -47,8 +54,12 @@ export const adminRagHealthSchema = z
       .object({
         documentCount: z.number(),
         chunkCountEstimate: z.number(),
+        missingMetadataCount: z.number(),
+        staleDocumentCount: z.number(),
+        reindexRequiredCount: z.number(),
         topics: z.array(z.string()),
-        sourceReliabilityCounts: z.record(z.string(), z.number())
+        sourceReliabilityCounts: z.record(z.string(), z.number()),
+        indexingStatusCounts: z.record(z.string(), z.number())
       })
       .strict(),
     config: z
@@ -159,6 +170,44 @@ export const adminRagUsageResponseSchema = z
         adminBypass: z.boolean()
       })
       .strict()
+  })
+  .strict();
+
+export const adminRagDocumentChunkPreviewSchema = z
+  .object({
+    document: z
+      .object({
+        id: z.string(),
+        title: z.string(),
+        sourcePath: z.string(),
+        topic: z.string(),
+        sourceReliability: z.string(),
+        version: z.string(),
+        checksumShort: z.string()
+      })
+      .strict(),
+    chunks: z.array(
+      z
+        .object({
+          chunkId: z.string(),
+          chunkIndex: z.number(),
+          section: z.string(),
+          topic: z.string(),
+          sourceReliability: z.string(),
+          textPreview: z.string()
+        })
+        .strict()
+    )
+  })
+  .strict();
+
+export const adminRagReindexCheckResponseSchema = z
+  .object({
+    totalDocuments: z.number(),
+    reindexRequired: z.number(),
+    stale: z.number(),
+    missing: z.number(),
+    unknown: z.number()
   })
   .strict();
 

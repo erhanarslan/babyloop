@@ -6,13 +6,19 @@ import { requireBackofficePermission } from "../services/admin-context.service.j
 import { RagEvalRunner, type RagEvalRunSummary } from "../services/rag-eval-runner.service.js";
 import { ragEvalCases } from "../services/rag-eval-cases.js";
 import { RagOperationsService, type RagDocumentOperationSummary, type RagHealthSummary } from "../services/rag-operations.service.js";
+import type {
+  RagDocumentChunkPreviewResponse
+} from "../services/rag.types.js";
 import type { RagCacheStats } from "../services/rag-cache.service.js";
+import type { RagReindexCheckSummary } from "../services/rag-knowledge-governance.service.js";
 import type { RagMetricsSnapshot } from "../services/rag-metrics.service.js";
 import type { RagRuntimeServices } from "../services/rag-runtime.service.js";
 import type { RagUsageSummary } from "../services/rag-usage-limits.service.js";
 
 type AdminRagHealthResponse = ApiResponse<{ health: RagHealthSummary }>;
 type AdminRagDocumentsResponse = ApiResponse<{ documents: RagDocumentOperationSummary[] }>;
+type AdminRagDocumentChunksResponse = ApiResponse<RagDocumentChunkPreviewResponse>;
+type AdminRagReindexCheckResponse = ApiResponse<RagReindexCheckSummary>;
 type AdminRagEvalCasesResponse = ApiResponse<{ cases: typeof ragEvalCases }>;
 type AdminRagEvalRunResponse = ApiResponse<RagEvalRunSummary>;
 type AdminRagCacheStatsResponse = ApiResponse<{ cache: RagCacheStats }>;
@@ -76,6 +82,77 @@ export function registerAdminRagRoutes(app: FastifyInstance, options: AdminRagRo
         data: {
           documents: await operations.listDocuments()
         }
+      };
+    }
+  );
+
+  app.get<{ Params: { documentId: string }; Reply: AdminRagDocumentChunksResponse | ApiFailure }>(
+    "/admin/rag/documents/:documentId/chunks",
+    async (request, reply) => {
+      const admin = await requireBackofficePermission(app, request, reply, "ai_ops_view");
+
+      if (!admin) {
+        return reply;
+      }
+
+      if (!isSafeDocumentId(request.params.documentId)) {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "INVALID_RAG_DOCUMENT_ID",
+            message: "RAG doküman kimliği geçersiz."
+          }
+        });
+      }
+
+      const operations = new RagOperationsService({
+        cacheService: options.ragServices?.cacheService ?? null,
+        config: options.config,
+        metricsService: options.ragServices?.metricsService ?? null,
+        redisClient: options.ragServices?.redisClient ?? null,
+        usageLimitService: options.ragServices?.usageLimitService ?? null,
+        vectorStore: options.ragServices?.vectorStore ?? null
+      });
+      const chunks = await operations.getDocumentChunks(request.params.documentId);
+
+      if (!chunks) {
+        return reply.status(404).send({
+          ok: false,
+          error: {
+            code: "RAG_DOCUMENT_NOT_FOUND",
+            message: "RAG dokümanı bulunamadı."
+          }
+        });
+      }
+
+      return {
+        ok: true,
+        data: chunks
+      };
+    }
+  );
+
+  app.get<{ Reply: AdminRagReindexCheckResponse | ApiFailure }>(
+    "/admin/rag/reindex/check",
+    async (request, reply) => {
+      const admin = await requireBackofficePermission(app, request, reply, "ai_ops_view");
+
+      if (!admin) {
+        return reply;
+      }
+
+      const operations = new RagOperationsService({
+        cacheService: options.ragServices?.cacheService ?? null,
+        config: options.config,
+        metricsService: options.ragServices?.metricsService ?? null,
+        redisClient: options.ragServices?.redisClient ?? null,
+        usageLimitService: options.ragServices?.usageLimitService ?? null,
+        vectorStore: options.ragServices?.vectorStore ?? null
+      });
+
+      return {
+        ok: true,
+        data: await operations.getReindexCheck()
       };
     }
   );
@@ -216,6 +293,10 @@ export function registerAdminRagRoutes(app: FastifyInstance, options: AdminRagRo
       };
     }
   );
+}
+
+function isSafeDocumentId(value: string): boolean {
+  return /^[a-z0-9][a-z0-9_-]{1,120}$/iu.test(value);
 }
 
 function disabledCacheStats(): RagCacheStats {

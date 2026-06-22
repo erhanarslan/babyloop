@@ -1,12 +1,21 @@
 import type { AssistantIntent } from "./assistant-intent-router.service.js";
 
+export type RagSourceReliability =
+  | "internal-policy"
+  | "internal"
+  | "editorial"
+  | "official-source-note"
+  | "official-referenced";
+
+export type RagIndexingStatus = "indexed" | "stale" | "missing" | "unknown";
+
 export type RagDocumentMetadata = {
   id: string;
   title: string;
   locale: string;
   topic: string;
   safetyScope: string;
-  sourceReliability: string;
+  sourceReliability: RagSourceReliability | string;
   version: string;
   sourcePath: string;
 };
@@ -17,7 +26,13 @@ export type RagDocument = {
 };
 
 export type RagChunkMetadata = RagDocumentMetadata & {
+  checksum?: string;
+  checksumShort?: string;
+  chunkId?: string;
+  contentLength?: number;
   documentId: string;
+  documentTitle?: string;
+  indexedAt?: string;
   section: string;
   chunkIndex: number;
 };
@@ -26,6 +41,50 @@ export type RagChunk = {
   id: string;
   text: string;
   metadata: RagChunkMetadata;
+};
+
+export type RagDocumentGovernanceSummary = {
+  id: string;
+  title: string;
+  locale: string;
+  topic: string;
+  safetyScope: string;
+  sourceReliability: string;
+  version: string;
+  sourcePath: string;
+  checksum: string;
+  checksumShort: string;
+  chunkCountEstimate: number;
+  hasRequiredMetadata: boolean;
+  missingMetadataFields: string[];
+  indexingStatus: RagIndexingStatus;
+  reindexRequired: boolean;
+  lastIndexedAt: string | null;
+};
+
+export type RagChunkPreview = {
+  chunkId: string;
+  chunkIndex: number;
+  section: string;
+  topic: string;
+  sourceReliability: string;
+  textPreview: string;
+};
+
+export type RagDocumentChunkPreviewResponse = {
+  document: Pick<
+    RagDocumentGovernanceSummary,
+    "checksumShort" | "id" | "sourcePath" | "sourceReliability" | "title" | "topic" | "version"
+  >;
+  chunks: RagChunkPreview[];
+};
+
+export type RagIndexedDocumentSnapshot = {
+  chunkCount: number;
+  checksum: string | null;
+  checksumShort: string | null;
+  indexedAt: string | null;
+  version: string | null;
 };
 
 export type RagCitation = {

@@ -1,41 +1,25 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RagRuntimeConfig } from "../config/env.js";
-import { chunkRagDocument } from "./rag-chunking.service.js";
-import {
-  loadRagDocuments,
-  parseMarkdownWithFrontmatter
-} from "./rag-markdown-loader.service.js";
 import type { QdrantVectorStore } from "./rag-qdrant-vector-store.service.js";
 import type { RagCacheService } from "./rag-cache.service.js";
+import {
+  RagKnowledgeGovernanceService,
+  type RagKnowledgeGovernanceVectorStore,
+  type RagReindexCheckSummary
+} from "./rag-knowledge-governance.service.js";
 import type { RagMetricsService } from "./rag-metrics.service.js";
 import type { RagRedisClient, RagRedisStatus } from "./rag-redis.service.js";
 import type { RagUsageLimitService } from "./rag-usage-limits.service.js";
-import type { RagCollectionInfo } from "./rag.types.js";
-
-const REQUIRED_FRONTMATTER = [
-  "id",
-  "title",
-  "locale",
-  "topic",
-  "safetyScope",
-  "sourceReliability",
-  "version"
-] as const;
+import type {
+  RagCollectionInfo,
+  RagDocumentChunkPreviewResponse,
+  RagDocumentGovernanceSummary
+} from "./rag.types.js";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
-export type RagDocumentOperationSummary = {
-  id: string;
-  title: string;
-  topic: string;
-  sourceReliability: string;
-  version: string;
-  sourcePath: string;
-  chunkCountEstimate: number;
-  hasRequiredMetadata: boolean;
-};
+export type RagDocumentOperationSummary = RagDocumentGovernanceSummary;
 
 export type RagHealthSummary = {
   enabled: boolean;
@@ -45,8 +29,12 @@ export type RagHealthSummary = {
   docs: {
     documentCount: number;
     chunkCountEstimate: number;
+    missingMetadataCount: number;
+    staleDocumentCount: number;
+    reindexRequiredCount: number;
     topics: string[];
     sourceReliabilityCounts: Record<string, number>;
+    indexingStatusCounts: Record<string, number>;
   };
   config: {
     embeddingProvider: string;
@@ -77,7 +65,7 @@ export type RagOperationsServiceOptions = {
   metricsService?: Pick<RagMetricsService, "getBackendSummary"> | null;
   redisClient?: Pick<RagRedisClient, "status"> | null;
   usageLimitService?: Pick<RagUsageLimitService, "summary"> | null;
-  vectorStore?: Pick<QdrantVectorStore, "getCollectionInfo"> | null;
+  vectorStore?: Pick<QdrantVectorStore, "getCollectionInfo"> & Partial<RagKnowledgeGovernanceVectorStore> | null;
 };
 
 export class RagOperationsService {
@@ -87,7 +75,7 @@ export class RagOperationsService {
   private readonly metricsService: Pick<RagMetricsService, "getBackendSummary"> | null;
   private readonly redisClient: Pick<RagRedisClient, "status"> | null;
   private readonly usageLimitService: Pick<RagUsageLimitService, "summary"> | null;
-  private readonly vectorStore: Pick<QdrantVectorStore, "getCollectionInfo"> | null;
+  private readonly vectorStore: (Pick<QdrantVectorStore, "getCollectionInfo"> & Partial<RagKnowledgeGovernanceVectorStore>) | null;
 
   constructor(options: RagOperationsServiceOptions) {
     this.config = options.config;
@@ -123,14 +111,7 @@ export class RagOperationsService {
       backend: "disabled",
       backendEffective: "disabled"
     };
-    const qdrant = this.config.enabled && this.vectorStore
-      ? await this.vectorStore.getCollectionInfo()
-      : {
-        status: "unknown" as const,
-        pointsCount: 0,
-        vectorSize: this.config.enabled ? this.config.qdrantVectorSize : 0,
-        indexedVectorsCount: 0
-      };
+    const qdrant = await this.getCollectionInfoSafely();
 
     return {
       enabled: this.config.enabled,
@@ -140,8 +121,12 @@ export class RagOperationsService {
       docs: {
         documentCount: documents.length,
         chunkCountEstimate: documents.reduce((total, document) => total + document.chunkCountEstimate, 0),
+        missingMetadataCount: documents.filter((document) => !document.hasRequiredMetadata).length,
+        staleDocumentCount: documents.filter((document) => document.indexingStatus === "stale").length,
+        reindexRequiredCount: documents.filter((document) => document.reindexRequired).length,
         topics: [...new Set(documents.map((document) => document.topic))].sort((left, right) => left.localeCompare(right)),
-        sourceReliabilityCounts: countBy(documents.map((document) => document.sourceReliability))
+        sourceReliabilityCounts: countBy(documents.map((document) => document.sourceReliability)),
+        indexingStatusCounts: countBy(documents.map((document) => document.indexingStatus))
       },
       config: {
         embeddingProvider: this.config.enabled ? this.config.embeddingProvider : "unavailable",
@@ -177,42 +162,43 @@ export class RagOperationsService {
   }
 
   async listDocuments(): Promise<RagDocumentOperationSummary[]> {
-    const documents = await loadRagDocuments(this.docsRoot);
-    const metadataStatus = await readFrontmatterStatus(this.docsRoot);
-
-    return documents.map((document) => ({
-      id: document.metadata.id,
-      title: document.metadata.title,
-      topic: document.metadata.topic,
-      sourceReliability: document.metadata.sourceReliability,
-      version: document.metadata.version,
-      sourcePath: document.metadata.sourcePath,
-      chunkCountEstimate: chunkRagDocument(document).length,
-      hasRequiredMetadata: metadataStatus.get(document.metadata.sourcePath) ?? false
-    }));
+    return this.createGovernanceService().listDocuments();
   }
-}
 
-async function readFrontmatterStatus(docsRoot: string): Promise<Map<string, boolean>> {
-  const entries = await fs.readdir(docsRoot, { withFileTypes: true });
-  const status = new Map<string, boolean>();
+  async getDocumentChunks(documentId: string): Promise<RagDocumentChunkPreviewResponse | null> {
+    return this.createGovernanceService().getChunkPreview(documentId);
+  }
 
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) {
-      continue;
+  async getReindexCheck(): Promise<RagReindexCheckSummary> {
+    return this.createGovernanceService().getReindexCheck();
+  }
+
+  private createGovernanceService(): RagKnowledgeGovernanceService {
+    return new RagKnowledgeGovernanceService({
+      docsRoot: this.docsRoot,
+      textPreviewChars: this.config.enabled ? this.config.governanceTextPreviewChars : 280,
+      vectorStore: hasIndexSnapshotReader(this.vectorStore) ? this.vectorStore : null
+    });
+  }
+
+  private async getCollectionInfoSafely(): Promise<RagCollectionInfo> {
+    const fallback = {
+      status: "unknown" as const,
+      pointsCount: 0,
+      vectorSize: this.config.enabled ? this.config.qdrantVectorSize : 0,
+      indexedVectorsCount: 0
+    };
+
+    if (!this.config.enabled || !this.vectorStore) {
+      return fallback;
     }
 
-    const sourcePath = path.posix.join("docs/rag", entry.name);
-    const rawContent = await fs.readFile(path.join(docsRoot, entry.name), "utf8");
-    const parsed = parseMarkdownWithFrontmatter(rawContent);
-
-    status.set(
-      sourcePath,
-      REQUIRED_FRONTMATTER.every((field) => Boolean(parsed.frontmatter[field]))
-    );
+    try {
+      return await this.vectorStore.getCollectionInfo();
+    } catch {
+      return fallback;
+    }
   }
-
-  return status;
 }
 
 function countBy(values: string[]): Record<string, number> {
@@ -220,4 +206,10 @@ function countBy(values: string[]): Record<string, number> {
     counts[value] = (counts[value] ?? 0) + 1;
     return counts;
   }, {});
+}
+
+function hasIndexSnapshotReader(
+  value: (Pick<QdrantVectorStore, "getCollectionInfo"> & Partial<RagKnowledgeGovernanceVectorStore>) | null
+): value is Pick<QdrantVectorStore, "getCollectionInfo"> & RagKnowledgeGovernanceVectorStore {
+  return Boolean(value && typeof value.getIndexedDocumentSnapshots === "function");
 }

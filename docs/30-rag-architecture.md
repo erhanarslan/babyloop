@@ -73,6 +73,7 @@ RAG_SOURCE_RELIABILITY_BONUS=0.02
 RAG_DUPLICATE_PENALTY=0.05
 RAG_NO_SOURCE_MIN_SCORE=0.68
 RAG_MIN_SOURCE_COVERAGE=1
+RAG_GOVERNANCE_TEXT_PREVIEW_CHARS=280
 GEMINI_API_KEY=
 GEMINI_API_ENDPOINT=https://generativelanguage.googleapis.com
 ```
@@ -140,6 +141,8 @@ Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunu
 
 - `GET /api/v1/admin/rag/health`: RAG açık/kapalı durumu, Qdrant collection özeti, doküman sayıları ve güvenli config summary.
 - `GET /api/v1/admin/rag/documents`: `docs/rag` markdown dosyaları, topic, sourceReliability, version, chunk estimate ve metadata durumu.
+- `GET /api/v1/admin/rag/documents/:documentId/chunks`: doküman chunk önizlemeleri. Raw vector veya full embedding dönmez.
+- `GET /api/v1/admin/rag/reindex/check`: stale/missing/unknown ve reindex gerekli doküman sayıları.
 - `GET /api/v1/admin/rag/eval/cases`: eval case listesi.
 - `POST /api/v1/admin/rag/eval/run`: mock veya live eval çalıştırır.
 - `GET /api/v1/admin/rag/cache/stats`: cache backend/effective backend ve hit/miss istatistikleri.
@@ -148,6 +151,66 @@ Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunu
 - `GET /api/v1/admin/rag/usage`: aktif usage limit backend’i ve limitleri.
 
 Backoffice `/rag` ekranı bu endpointleri kullanarak durum, doküman, cache ve eval bilgilerini gösterir.
+
+## Knowledge governance
+
+Knowledge governance katmanı `docs/rag` markdown bilgi tabanının kalite ve index durumunu izler.
+
+Her dokümanda required frontmatter alanları:
+
+- `id`
+- `title`
+- `locale`
+- `topic`
+- `safetyScope`
+- `sourceReliability`
+- `version`
+
+Geçerli `sourceReliability` değerleri:
+
+- `internal-policy`
+- `internal`
+- `editorial`
+- `official-source-note`
+- `official-referenced`
+
+Governance summary şu alanları üretir:
+
+- `checksum`: dokümanın normalized metadata + content SHA-256 değeri.
+- `checksumShort`: checksum’ın kısa backoffice gösterimi.
+- `chunkCountEstimate`: mevcut deterministic splitter ile tahmini chunk sayısı.
+- `missingMetadataFields`: eksik veya geçersiz metadata alanları.
+- `indexingStatus`: `indexed`, `stale`, `missing`, `unknown`.
+- `reindexRequired`: index güncel değilse true.
+- `lastIndexedAt`: Qdrant payload’da görülen son index zamanı.
+
+`indexingStatus` kuralları:
+
+- `indexed`: Qdrant payload checksum, version ve chunk count mevcut dokümanla eşleşir ve `indexedAt` vardır.
+- `stale`: Qdrant’ta point vardır ama checksum/version/chunk count eksik veya farklıdır. Eski payload’larda checksum olmadığı için stale görünebilir.
+- `missing`: doküman için Qdrant point yoktur.
+- `unknown`: Qdrant erişilemez veya snapshot okunamaz.
+
+Ingestion sırasında Qdrant payload’a şu metadata eklenir:
+
+- `documentId`
+- `documentTitle`
+- `sourcePath`
+- `section`
+- `topic`
+- `safetyScope`
+- `sourceReliability`
+- `version`
+- `checksum`
+- `checksumShort`
+- `chunkId`
+- `chunkIndex`
+- `indexedAt`
+- `contentLength`
+
+Bu alanlar collection schema migration gerektirmez; Qdrant payload olarak taşınır. Eski payload’lar okunmaya devam eder ama governance panelinde stale/unknown görünebilir.
+
+Backoffice RAG paneli doküman kalitesi için checksum, indexingStatus, reindexRequired, missing metadata ve chunk preview gösterir. Chunk preview sadece kısa metin önizlemesi döndürür; raw vector, embedding veya secret içermez.
 
 ## Assistant entegrasyonu
 

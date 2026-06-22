@@ -171,6 +171,70 @@ Hybrid-lite mevcut dense Qdrant sonucunu alır ve lexical/topic/sourceReliabilit
 
 Gerçek sparse+dense search ise Qdrant collection’da sparse vector veya ayrı lexical index gerektirir. Bu daha güçlüdür ama migration ve ingestion payload değişikliği ister; sonraki faza bırakılmıştır.
 
+## Knowledge governance
+
+Backoffice `/rag` ekranındaki doküman tablosu metadata kalitesi ve index durumunu gösterir.
+
+### Required frontmatter
+
+Her `docs/rag/*.md` dosyasında şu alanlar olmalıdır:
+
+```yaml
+id: safe-shopping-guide
+title: Güvenli alışveriş rehberi
+locale: tr
+topic: safe-shopping
+safetyScope: marketplace-guidance
+sourceReliability: internal
+version: 2026-06-18
+```
+
+Geçerli `sourceReliability` değerleri:
+
+- `internal-policy`
+- `internal`
+- `editorial`
+- `official-source-note`
+- `official-referenced`
+
+Metadata eksikse backoffice satırında `metadata eksik` görünür. Eksik alan frontmatter’a eklenip doküman yeniden ingest edilmelidir.
+
+### Checksum ve indexedAt
+
+Ingestion sırasında doküman metadata + content üzerinden SHA-256 checksum hesaplanır ve Qdrant payload’a `checksum`, `checksumShort`, `indexedAt`, `version` ve `chunkCount` ile karşılaştırmaya yarayan metadata yazılır.
+
+Reingest:
+
+```bash
+set -a
+source .env.local
+set +a
+PATH=/Users/erhan-pc-mac/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH pnpm --filter @babyloop/api rag:ingest
+```
+
+Reingest sonrası aynı doküman için checksum ve indexedAt güncellenir.
+
+### indexingStatus yorumlama
+
+- `indexed`: Qdrant payload checksum/version/chunk count güncel.
+- `stale`: Qdrant point var ama checksum/version/chunk count güncel değil veya eski payload alanları eksik.
+- `missing`: doküman için Qdrant point yok.
+- `unknown`: Qdrant snapshot okunamadı. Qdrant kapalı olabilir veya bağlantı geçici olarak başarısızdır.
+
+Eski Qdrant payload’larında checksum ve indexedAt bulunmadığı için dokümanlar stale görünebilir. Çözüm: RAG ingestion komutunu yeniden çalıştır.
+
+### Chunk preview
+
+Backoffice doküman satırındaki `Chunk önizle` butonu kısa chunk önizlemelerini gösterir:
+
+- chunk index
+- section
+- topic
+- sourceReliability
+- kısa textPreview
+
+Raw vector, embedding, system prompt veya secret gösterilmez.
+
 ## Güvenlik notları
 
 - API key, raw prompt, system prompt ve embedding vector loglanmaz.

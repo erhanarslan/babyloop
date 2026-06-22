@@ -3,6 +3,7 @@ import path from "node:path";
 import { GeminiEmbeddingProvider } from "@babyloop/ai-core";
 import { readApiRuntimeConfig } from "../config/env.js";
 import { chunkRagDocument } from "../services/rag-chunking.service.js";
+import { checksumRagDocument } from "../services/rag-knowledge-governance.service.js";
 import { loadRagDocuments } from "../services/rag-markdown-loader.service.js";
 import { QdrantVectorStore } from "../services/rag-qdrant-vector-store.service.js";
 
@@ -16,7 +17,32 @@ async function main(): Promise<void> {
   const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
   const docsRoot = path.join(repoRoot, "docs", "rag");
   const documents = await loadRagDocuments(docsRoot);
-  const chunks = documents.flatMap((document) => chunkRagDocument(document));
+  const indexedAt = new Date().toISOString();
+  const checksumByDocumentId = new Map(documents.map((document) => {
+    const checksum = checksumRagDocument(document);
+    return [document.metadata.id, {
+      checksum,
+      checksumShort: checksum.slice(0, 12)
+    }];
+  }));
+  const chunks = documents.flatMap((document) => chunkRagDocument(document).map((chunk) => {
+    const checksum = checksumByDocumentId.get(document.metadata.id);
+
+    return {
+      ...chunk,
+      metadata: {
+        ...chunk.metadata,
+        documentTitle: document.metadata.title,
+        ...(checksum ? {
+          checksum: checksum.checksum,
+          checksumShort: checksum.checksumShort
+        } : {}),
+        chunkId: chunk.id,
+        indexedAt,
+        contentLength: chunk.text.length
+      }
+    };
+  }));
   const embeddingProvider = new GeminiEmbeddingProvider({
     apiKey: config.rag.geminiApiKey,
     model: config.rag.embeddingModel,
