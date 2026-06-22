@@ -1,3 +1,5 @@
+"use client";
+
 export type AssistantSuggestedAction = {
   type: string;
   label: string;
@@ -10,8 +12,6 @@ export type AssistantToolResultPreview = {
   title: string;
   summary: string;
 };
-
-"use client";
 
 import type { ApiResponse } from "@babyloop/shared";
 
