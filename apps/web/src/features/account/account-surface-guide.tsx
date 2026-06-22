@@ -91,8 +91,8 @@ const GUIDE_CONFIGS: Record<AccountSurfaceGuideKind, AccountSurfaceGuideConfig> 
     ],
     actions: [
       { href: "/conversations", label: "Messages" },
-      { href: "/favorites", label: "Favorites" },
-      { href: "/my-listings", label: "My listings" }
+      { href: "/notifications", label: "Notifications" },
+      { href: "/account/notification-preferences", label: "Preferences" }
     ]
   },
   seller_dashboard: {

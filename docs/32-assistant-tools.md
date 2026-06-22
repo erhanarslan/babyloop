@@ -145,3 +145,7 @@ Assistant tool orchestration sonucu dönen `suggestedActions`, public UI'da kıs
 ## Child recommendation UI handoff
 
 Çocuk profili önerileri public web'de iki şekilde görünür: assistant `review_child_recommendations` aksiyonları ve `/account/children` lifecycle öneri kartları. İki yüzey de no-write çalışır; notification gönderimi ve saved search oluşturma sonraki paketlerin kontrollü akışına bırakılmıştır.
+
+## Notification preference handoff
+
+Child recommendation ve saved search taslakları artık notification preferences yüzeyinde görünür hale gelir. Assistant ve child profile yüzeyleri kullanıcıyı bu tercihlere yönlendirebilir; hiçbir tool veya public UI kullanıcı onayı olmadan bildirim ya da kayıtlı arama oluşturmaz.

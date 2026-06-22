@@ -402,10 +402,15 @@ function PreferencesSection({ title }: { title: string }) {
         description="Bildirim ve ödeme ayarları hazır olduğunda buradan açılacak."
       />
       <div className="grid gap-3">
-        <DisabledToggleRow
-          description="Mesaj ve ilan hareketleri için bildirim ayarları."
-          label="Bildirim tercihleri"
-        />
+        <Link
+          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
+          href="/account/notification-preferences"
+        >
+          <span className="text-base font-black text-foreground">Bildirim tercihleri</span>
+          <span className="text-sm font-semibold leading-6 text-muted-foreground">
+            Çocuk profili, kayıtlı arama ve marketplace bildirimlerini yönet.
+          </span>
+        </Link>
         <DisabledPreferenceRow
           description="Ödeme araçları henüz BabyLoop içinde aktif değil."
           label="Ödeme araçları"

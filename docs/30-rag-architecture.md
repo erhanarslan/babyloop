@@ -504,3 +504,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Child lifecycle recommendations surface
 
 `/account/children` sayfası aktif çocuk profili için lifecycle recommendation endpoint'inden gelen kategori önerilerini gösterir. Bu yüzey yalnızca read-only öneri ve CTA üretir: kullanıcı ilan aramasına veya asistana yönlendirilir. Kayıtlı arama veya bildirim kullanıcı onayı olmadan oluşturulmaz.
+
+## Notification preferences surface
+
+`/account/notification-preferences` sayfası çocuk profili cadence değerlerini, lifecycle recommendation tabanlı bildirim taslaklarını ve kayıtlı arama bildirim durumlarını tek yerde gösterir. Bu yüzey no-write çalışır; gerçek email/push/n8n gönderimi sonraki delivery paketine bırakılmıştır.
