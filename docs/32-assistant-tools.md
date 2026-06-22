@@ -149,3 +149,7 @@ Assistant tool orchestration sonucu dönen `suggestedActions`, public UI'da kıs
 ## Notification preference handoff
 
 Child recommendation ve saved search taslakları artık notification preferences yüzeyinde görünür hale gelir. Assistant ve child profile yüzeyleri kullanıcıyı bu tercihlere yönlendirebilir; hiçbir tool veya public UI kullanıcı onayı olmadan bildirim ya da kayıtlı arama oluşturmaz.
+
+## Saved search notification handoff
+
+Assistant ve notification preference yüzeyleri kayıtlı arama bildirim taslaklarına yönlendirebilir. Kullanıcı `/account/saved-searches` üzerinden bildirim tercihini açıp kapatabilir. Bu tercih notification delivery altyapısı için input olarak kullanılacaktır; assistant tool'ları doğrudan bildirim göndermez.

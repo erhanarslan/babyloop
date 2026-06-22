@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createSavedSearchBodySchema,
-  savedSearchParamsSchema
+  savedSearchParamsSchema,
+  updateSavedSearchNotificationsBodySchema
 } from "../src/schemas/saved-searches.schemas.js";
 import { listingsQuerySchema } from "../src/schemas/listings.schemas.js";
 
@@ -26,6 +27,24 @@ describe("saved search schemas", () => {
       name: "Bad saved search",
       q: "stroller",
       userAgent: "Mozilla"
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+
+  it("accepts saved search notification toggle body", () => {
+    const result = updateSavedSearchNotificationsBodySchema.safeParse({
+      notificationsEnabled: true
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects unknown saved search notification toggle fields", () => {
+    const result = updateSavedSearchNotificationsBodySchema.safeParse({
+      notificationsEnabled: true,
+      deliveryProvider: "email"
     });
 
     expect(result.success).toBe(false);

@@ -40,5 +40,12 @@ export const createSavedSearchBodySchema = z
   })
   .strict();
 
+export const updateSavedSearchNotificationsBodySchema = z
+  .object({
+    notificationsEnabled: z.boolean()
+  })
+  .strict();
+
 export type CreateSavedSearchBody = z.infer<typeof createSavedSearchBodySchema>;
+export type UpdateSavedSearchNotificationsBody = z.infer<typeof updateSavedSearchNotificationsBodySchema>;
 export type SavedSearchParams = z.infer<typeof savedSearchParamsSchema>;

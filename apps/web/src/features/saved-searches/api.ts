@@ -73,3 +73,20 @@ export async function deleteSavedSearch(
 
   return response.json() as Promise<ApiResponse<{ deleted: true }>>;
 }
+
+
+export async function updateSavedSearchNotifications(
+  apiBaseUrl: string,
+  savedSearchId: string,
+  notificationsEnabled: boolean
+): Promise<ApiResponse<SavedSearchPayload>> {
+  const response = await authFetch(apiBaseUrl, `/api/v1/saved-searches/${savedSearchId}/notifications`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ notificationsEnabled })
+  });
+
+  return response.json() as Promise<ApiResponse<SavedSearchPayload>>;
+}

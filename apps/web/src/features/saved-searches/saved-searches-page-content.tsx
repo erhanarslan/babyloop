@@ -15,6 +15,7 @@ import { useProtectedRoute } from "../../lib/use-protected-route";
 import {
   deleteSavedSearch,
   fetchSavedSearches,
+  updateSavedSearchNotifications,
   type SavedSearch
 } from "./api";
 
@@ -64,6 +65,34 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
     () => sortSavedSearches(savedSearches.filter((savedSearch) => matchesFilter(savedSearch, activeFilter))),
     [activeFilter, savedSearches]
   );
+
+  async function handleToggleNotifications(savedSearch: SavedSearch) {
+    if (!(await requireAuth())) {
+      return;
+    }
+
+    setPendingSavedSearchId(savedSearch.id);
+    setErrorMessage(null);
+
+    const response = await updateSavedSearchNotifications(
+      apiBaseUrl,
+      savedSearch.id,
+      !savedSearch.notificationsEnabled
+    );
+
+    if (!response.ok) {
+      setErrorMessage(getApiErrorMessage(response.error as ApiError, dictionary));
+      setPendingSavedSearchId(null);
+      return;
+    }
+
+    setSavedSearches((currentSearches) =>
+      currentSearches.map((currentSearch) =>
+        currentSearch.id === savedSearch.id ? response.data.savedSearch : currentSearch
+      )
+    );
+    setPendingSavedSearchId(null);
+  }
 
   async function handleDelete(savedSearch: SavedSearch) {
     if (!(await requireAuth())) {
@@ -154,6 +183,7 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
                   key={savedSearch.id}
                   savedSearch={savedSearch}
                   onDelete={() => void handleDelete(savedSearch)}
+                  onToggleNotifications={() => void handleToggleNotifications(savedSearch)}
                 />
               ))}
             </div>
@@ -167,10 +197,12 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
 function SavedSearchCard({
   isPending,
   onDelete,
+  onToggleNotifications,
   savedSearch
 }: {
   isPending: boolean;
   onDelete: () => void;
+  onToggleNotifications: () => void;
   savedSearch: SavedSearch;
 }) {
   const href = buildSavedSearchHref(savedSearch);

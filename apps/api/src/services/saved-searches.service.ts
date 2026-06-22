@@ -1,7 +1,7 @@
 import { savedSearches } from "@babyloop/database/schema";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import type { CreateSavedSearchBody } from "../schemas/saved-searches.schemas.js";
+import type { CreateSavedSearchBody, UpdateSavedSearchNotificationsBody } from "../schemas/saved-searches.schemas.js";
 
 export type SavedSearchResponse = {
   id: string;
@@ -60,6 +60,25 @@ export async function createSavedSearch(
   }
 
   return mapSavedSearch(created);
+}
+
+
+export async function updateSavedSearchNotifications(
+  app: FastifyInstance,
+  profileId: string,
+  savedSearchId: string,
+  body: UpdateSavedSearchNotificationsBody
+): Promise<SavedSearchResponse | "not_found"> {
+  const [updated] = await app.db
+    .update(savedSearches)
+    .set({
+      notificationsEnabled: body.notificationsEnabled,
+      updatedAt: new Date()
+    })
+    .where(and(eq(savedSearches.id, savedSearchId), eq(savedSearches.profileId, profileId)))
+    .returning();
+
+  return updated ? mapSavedSearch(updated) : "not_found";
 }
 
 export async function deleteSavedSearch(

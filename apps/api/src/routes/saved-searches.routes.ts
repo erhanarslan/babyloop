@@ -2,13 +2,15 @@ import type { ApiFailure, ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import {
   createSavedSearchBodySchema,
-  savedSearchParamsSchema
+  savedSearchParamsSchema,
+  updateSavedSearchNotificationsBodySchema
 } from "../schemas/saved-searches.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   createSavedSearch,
   deleteSavedSearch,
   listSavedSearches,
+  updateSavedSearchNotifications,
   type SavedSearchResponse
 } from "../services/saved-searches.service.js";
 
@@ -69,6 +71,56 @@ export function registerSavedSearchRoutes(app: FastifyInstance): void {
       });
     }
   );
+
+
+  app.patch<{
+    Params: unknown;
+    Body: unknown;
+    Reply: SavedSearchResponseBody | ApiFailure;
+  }>("/saved-searches/:savedSearchId/notifications", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    const parsedParams = savedSearchParamsSchema.safeParse(request.params);
+    const parsedBody = updateSavedSearchNotificationsBodySchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_SAVED_SEARCH_REQUEST",
+          message: "Saved search notification request is invalid."
+        }
+      });
+    }
+
+    const result = await updateSavedSearchNotifications(
+      app,
+      currentUser.profile.id,
+      parsedParams.data.savedSearchId,
+      parsedBody.data
+    );
+
+    if (result === "not_found") {
+      return reply.status(404).send({
+        ok: false,
+        error: {
+          code: "SAVED_SEARCH_NOT_FOUND",
+          message: "Saved search was not found."
+        }
+      });
+    }
+
+    return {
+      ok: true,
+      data: {
+        savedSearch: result
+      }
+    };
+  });
 
   app.delete<{
     Params: unknown;

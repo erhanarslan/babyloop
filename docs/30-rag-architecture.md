@@ -508,3 +508,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Notification preferences surface
 
 `/account/notification-preferences` sayfası çocuk profili cadence değerlerini, lifecycle recommendation tabanlı bildirim taslaklarını ve kayıtlı arama bildirim durumlarını tek yerde gösterir. Bu yüzey no-write çalışır; gerçek email/push/n8n gönderimi sonraki delivery paketine bırakılmıştır.
+
+## Saved search notification toggle
+
+`PATCH /api/v1/saved-searches/:savedSearchId/notifications` endpoint'i kayıtlı arama bildirim tercihinin açılıp kapatılmasını sağlar. Bu endpoint yalnızca kullanıcının kendi kayıtlı aramasında `notificationsEnabled` alanını günceller; bildirim göndermez, delivery log oluşturmaz ve match hesaplaması yapmaz. Gerçek gönderim bir sonraki delivery paketinde ayrı kontrol edilecektir.
