@@ -157,3 +157,7 @@ Assistant ve notification preference yüzeyleri kayıtlı arama bildirim taslakl
 ## Notification delivery draft boundary
 
 Notification delivery draft yüzeyi assistant ve personalization akışlarından gelen önerileri kullanıcıya gösterir ancak gönderim yapmaz. Draft kartları yalnızca kullanıcıyı browse veya ilgili yönetim sayfasına yönlendirir. Gerçek delivery sağlayıcıları ayrı ops/delivery paketinde bağlanmalıdır.
+
+## Backoffice notification operations boundary
+
+Backoffice notification ops preview, assistant/personalization tarafında üretilen notification adaylarının operasyonel durumunu gösterir. Bu ekran gönderim aksiyonu içermez; gerçek delivery provider entegrasyonu için dedup, frequency limit, audit ve delivery log paketleri beklenir.

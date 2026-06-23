@@ -75,6 +75,7 @@ import {
 } from "./services/rag-runtime.service.js";
 import { RagEvalHistoryService } from "./services/rag-eval-history.service.js";
 import { getAssistantChildPersonalizationContext } from "./services/assistant-child-personalization.service.js";
+import { registerAdminNotificationRoutes } from "./routes/admin-notifications.routes.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -341,6 +342,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
+
+  registerAdminNotificationRoutes(app);
 
   return app;
 }

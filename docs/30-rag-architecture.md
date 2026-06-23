@@ -516,3 +516,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Notification delivery drafts
 
 `GET /api/v1/notifications/delivery-drafts` endpoint'i oturum açmış kullanıcı için çocuk lifecycle ve kayıtlı arama tabanlı no-write bildirim taslakları üretir. Endpoint email, push, n8n, queue veya delivery log çalıştırmaz. Bu endpoint sonraki gerçek delivery paketinde dedup/frequency/send-log süreçlerinin güvenli girdisi olacaktır.
+
+## Backoffice notification ops preview
+
+`GET /api/v1/admin/notifications/ops-preview` ve backoffice `/notifications` sayfası notification delivery adaylarının operasyonel görünürlüğünü sağlar. Bu görünüm yalnızca aggregate candidate count ve delivery policy gösterir; email, push, n8n, queue veya delivery log çalıştırmaz.
