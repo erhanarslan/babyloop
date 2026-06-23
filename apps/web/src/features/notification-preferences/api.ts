@@ -19,6 +19,13 @@ export type NotificationDeliveryDraft = {
     href: string;
   };
   reason: string;
+  policy: {
+    deliveryAllowed: false;
+    draftOnly: true;
+    dedupKey: string;
+    frequencyWindowHours: number;
+    blockedReasons: string[];
+  };
 };
 
 export type NotificationDeliveryDraftsPayload = {

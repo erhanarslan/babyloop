@@ -1,6 +1,7 @@
 import { childProfiles, savedSearches } from "@babyloop/database/schema";
 import { and, count, eq, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { getNotificationDeliveryPolicyPreview } from "./notification-delivery-policy.service.js";
 
 export type AdminNotificationOpsPreview = {
   summary: {
@@ -25,6 +26,7 @@ export type AdminNotificationOpsPreview = {
     note: string;
   }>;
   nextSteps: string[];
+  policyPreview: ReturnType<typeof getNotificationDeliveryPolicyPreview>;
   warning: string;
 };
 
@@ -92,6 +94,7 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
       "email provider sandbox integration",
       "n8n webhook idempotency token"
     ],
+    policyPreview: getNotificationDeliveryPolicyPreview(),
     warning:
       "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."
   };

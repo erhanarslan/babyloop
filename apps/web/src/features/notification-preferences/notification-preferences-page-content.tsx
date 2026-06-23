@@ -385,6 +385,9 @@ function DeliveryDraftCard({ draft }: { draft: NotificationDeliveryDraft }) {
         </div>
         <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">{draft.body}</p>
         <p className="mt-2 text-xs font-bold leading-5 text-muted-foreground">{draft.reason}</p>
+        <p className="mt-2 rounded-2xl border border-border bg-background/80 p-2 text-xs font-bold leading-5 text-muted-foreground">
+          Draft-only · dedup key hazır · frekans penceresi: {draft.policy.frequencyWindowHours} saat · gönderim kapalı
+        </p>
       </div>
       <Link
         className="w-fit rounded-full bg-foreground px-4 py-2 text-sm font-black text-background"

@@ -520,3 +520,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Backoffice notification ops preview
 
 `GET /api/v1/admin/notifications/ops-preview` ve backoffice `/notifications` sayfası notification delivery adaylarının operasyonel görünürlüğünü sağlar. Bu görünüm yalnızca aggregate candidate count ve delivery policy gösterir; email, push, n8n, queue veya delivery log çalıştırmaz.
+
+## Notification delivery policy foundation
+
+Notification delivery draft'ları artık dedup key ve frequency window metadata'sı taşır. `evaluateNotificationDeliveryPolicy` tüm adaylarda `deliveryAllowed=false` ve `draftOnly=true` döndürür. Gerçek delivery açılmadan önce delivery log, frequency limiter, idempotency key ve admin audit zorunludur.

@@ -4,6 +4,7 @@ import {
   listLifecycleRecommendations
 } from "./child-profiles.service.js";
 import { listSavedSearches } from "./saved-searches.service.js";
+import { evaluateNotificationDeliveryPolicy } from "./notification-delivery-policy.service.js";
 
 export type NotificationDeliveryDraftKind = "child_lifecycle" | "saved_search";
 
@@ -24,6 +25,13 @@ export type NotificationDeliveryDraft = {
     href: string;
   };
   reason: string;
+  policy: {
+    deliveryAllowed: false;
+    draftOnly: true;
+    dedupKey: string;
+    frequencyWindowHours: number;
+    blockedReasons: string[];
+  };
 };
 
 export type NotificationDeliveryDraftsResponse = {
@@ -73,7 +81,19 @@ export async function listNotificationDeliveryDrafts(
           sort: "newest"
         }).toString()}`
       },
-      reason: recommendation.whyNow
+      reason: recommendation.whyNow,
+      policy: toDraftPolicy(evaluateNotificationDeliveryPolicy({
+        profileId,
+        kind: "child_lifecycle",
+        sourceType: "child_profile",
+        sourceId: childProfile.id,
+        channel: "email_draft",
+        actionHref: `/browse?${new URLSearchParams({
+          categoryId: recommendation.categoryId,
+          sort: "newest"
+        }).toString()}`,
+        cadence: childProfile.notificationCadence
+      }))
     }));
   });
 
@@ -96,7 +116,15 @@ export async function listNotificationDeliveryDrafts(
         label: "Aramayı aç",
         href: buildSavedSearchHref(savedSearch)
       },
-      reason: "Kayıtlı arama bildirim tercihi açık olduğu için eşleşme kontrolüne adaydır."
+      reason: "Kayıtlı arama bildirim tercihi açık olduğu için eşleşme kontrolüne adaydır.",
+      policy: toDraftPolicy(evaluateNotificationDeliveryPolicy({
+        profileId,
+        kind: "saved_search",
+        sourceType: "saved_search",
+        sourceId: savedSearch.id,
+        channel: "in_app",
+        actionHref: buildSavedSearchHref(savedSearch)
+      }))
     }));
 
   const drafts = [...childDrafts, ...savedSearchDrafts];
@@ -154,4 +182,15 @@ function safeLabel(label: string): string {
   const normalized = label.replace(/\s+/gu, " ").trim();
 
   return normalized.length > 0 ? normalized.slice(0, 40) : "Çocuğum";
+}
+
+
+function toDraftPolicy(policy: ReturnType<typeof evaluateNotificationDeliveryPolicy>): NotificationDeliveryDraft["policy"] {
+  return {
+    deliveryAllowed: policy.deliveryAllowed,
+    draftOnly: policy.draftOnly,
+    dedupKey: policy.dedupKey,
+    frequencyWindowHours: policy.frequencyWindowHours,
+    blockedReasons: policy.blockedReasons
+  };
 }

@@ -25,6 +25,14 @@ type AdminNotificationOpsPreview = {
     note: string;
   }>;
   nextSteps: string[];
+  policyPreview: {
+    sendEnabled: false;
+    draftOnly: true;
+    defaultFrequencyWindowHours: number;
+    childLifecycleFrequencyWindowHours: number;
+    savedSearchFrequencyWindowHours: number;
+    requiredBeforeSend: string[];
+  };
   warning: string;
 };
 
@@ -150,6 +158,27 @@ export function NotificationOpsPage({ apiBaseUrl }: NotificationOpsPageProps) {
               <PolicyItem label="Dedup required" value={data.deliveryPolicy.dedupRequired ? "Gerekli" : "Kapalı"} />
               <PolicyItem label="Frequency limit" value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"} />
             </div>
+          </section>
+
+          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                Policy preview
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Dedup ve frekans politikası
+              </h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                Child lifecycle penceresi {data.policyPreview.childLifecycleFrequencyWindowHours} saat,
+                saved search penceresi {data.policyPreview.savedSearchFrequencyWindowHours} saat.
+                Gerçek gönderim için delivery log ve idempotency zorunlu.
+              </p>
+            </div>
+            <ul className="grid gap-2 text-sm font-semibold leading-6 text-slate-600 md:grid-cols-2">
+              {data.policyPreview.requiredBeforeSend.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
           </section>
 
           <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">

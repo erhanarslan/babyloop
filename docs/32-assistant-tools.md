@@ -161,3 +161,7 @@ Notification delivery draft yüzeyi assistant ve personalization akışlarından
 ## Backoffice notification operations boundary
 
 Backoffice notification ops preview, assistant/personalization tarafında üretilen notification adaylarının operasyonel durumunu gösterir. Bu ekran gönderim aksiyonu içermez; gerçek delivery provider entegrasyonu için dedup, frequency limit, audit ve delivery log paketleri beklenir.
+
+## Notification delivery policy boundary
+
+Assistant ve notification preference yüzeyleri notification draft gösterebilir; policy katmanı ise gönderimi bilinçli şekilde kapalı tutar. Dedup/frequency metadata yalnızca sonraki delivery provider entegrasyonu için hazırlıktır; tool veya UI seviyesinde email/push/n8n gönderimi yapılmaz.
