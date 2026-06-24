@@ -149,3 +149,7 @@ Backoffice marketplace review tools rely on the dedicated backoffice auth flow. 
 ## Image storage driver boundary
 
 Listing image review continues to operate on `listing_images.url`. Local image URLs keep using `/api/v1/uploads/listings/...`; S3/R2 image URLs are absolute public URLs. Admin review actions must not expose object storage credentials or raw image binary data.
+
+## Storage ops visibility
+
+Backoffice storage ops preview shows whether listing image storage is running in local or S3/R2-compatible mode. It is an operational preview only and must not be used to expose credentials or mutate stored images.

@@ -528,3 +528,7 @@ Notification delivery draft'ları artık dedup key ve frequency window metadata'
 ## Production image storage foundation
 
 Listing image upload now goes through an image storage abstraction. `IMAGE_STORAGE_DRIVER=local` keeps the existing `/api/v1/uploads/listings` local file route. `IMAGE_STORAGE_DRIVER=s3` stores listing images in an S3/R2-compatible bucket and returns the configured `IMAGE_STORAGE_PUBLIC_BASE_URL` URL. The storage ops endpoint only exposes safe driver/config status and never returns credentials.
+
+## Backoffice storage ops preview
+
+Backoffice `/storage` page reads `GET /api/v1/admin/storage/ops-preview` and displays safe image storage driver status. The page does not expose S3/R2 credentials, object keys beyond public URLs, or raw image binary data.
