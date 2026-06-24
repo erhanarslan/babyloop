@@ -145,3 +145,7 @@ Backoffice marketplace review tools rely on the dedicated backoffice auth flow. 
 - Confirm dashboard summary loads for admin and is forbidden for non-admin.
 - Confirm dashboard response contains aggregate counts only.
 - Confirm no seller email/phone, reporter identity, raw message body, tokens, or raw event metadata appears.
+
+## Image storage driver boundary
+
+Listing image review continues to operate on `listing_images.url`. Local image URLs keep using `/api/v1/uploads/listings/...`; S3/R2 image URLs are absolute public URLs. Admin review actions must not expose object storage credentials or raw image binary data.

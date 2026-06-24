@@ -16,6 +16,7 @@
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
     "@babyloop/ai-core": "workspace:*",
     "@babyloop/config": "workspace:*",
     "@babyloop/database": "workspace:*",

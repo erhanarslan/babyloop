@@ -36,7 +36,7 @@ import {
   deleteStoredListingImage,
   storeListingImage,
   type StoredListingImage
-} from "./local-image-storage.service.js";
+} from "./image-storage.service.js";
 import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
 
 export async function createListing(

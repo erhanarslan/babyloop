@@ -524,3 +524,7 @@ Public assistant UI artık assistant response içindeki `suggestedActions` alan�
 ## Notification delivery policy foundation
 
 Notification delivery draft'ları artık dedup key ve frequency window metadata'sı taşır. `evaluateNotificationDeliveryPolicy` tüm adaylarda `deliveryAllowed=false` ve `draftOnly=true` döndürür. Gerçek delivery açılmadan önce delivery log, frequency limiter, idempotency key ve admin audit zorunludur.
+
+## Production image storage foundation
+
+Listing image upload now goes through an image storage abstraction. `IMAGE_STORAGE_DRIVER=local` keeps the existing `/api/v1/uploads/listings` local file route. `IMAGE_STORAGE_DRIVER=s3` stores listing images in an S3/R2-compatible bucket and returns the configured `IMAGE_STORAGE_PUBLIC_BASE_URL` URL. The storage ops endpoint only exposes safe driver/config status and never returns credentials.
