@@ -77,6 +77,7 @@ import { RagEvalHistoryService } from "./services/rag-eval-history.service.js";
 import { getAssistantChildPersonalizationContext } from "./services/assistant-child-personalization.service.js";
 import { registerAdminNotificationRoutes } from "./routes/admin-notifications.routes.js";
 import { registerAdminStorageRoutes } from "./routes/admin-storage.routes.js";
+import { registerAdminEmailRoutes } from "./routes/admin-email.routes.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -346,6 +347,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
   registerAdminNotificationRoutes(app);
   registerAdminStorageRoutes(app);
+  registerAdminEmailRoutes(app);
 
   return app;
 }

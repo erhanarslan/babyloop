@@ -83,3 +83,7 @@ pnpm --filter @babyloop/backoffice typecheck
 - session/device management UI
 - granular backoffice RBAC
 - BFF route protection
+
+## Email ops secret boundary
+
+Backoffice email ops preview may show provider type and missing configuration keys, but must never expose SMTP passwords, Resend API keys, raw email tokens, reset tokens, verification tokens, or auth/session data.

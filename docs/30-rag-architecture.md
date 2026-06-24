@@ -532,3 +532,7 @@ Listing image upload now goes through an image storage abstraction. `IMAGE_STORA
 ## Backoffice storage ops preview
 
 Backoffice `/storage` page reads `GET /api/v1/admin/storage/ops-preview` and displays safe image storage driver status. The page does not expose S3/R2 credentials, object keys beyond public URLs, or raw image binary data.
+
+## Email provider foundation
+
+Email delivery now has a provider abstraction with `EMAIL_PROVIDER=mock|smtp|resend`. The foundation keeps `sendEnabled=false` and `sandboxOnly=true`; it validates configuration and exposes only safe ops metadata through `GET /api/v1/admin/email/ops-preview`. It does not send verification, reset, notification, or security emails yet.
