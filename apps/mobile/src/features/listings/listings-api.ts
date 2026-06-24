@@ -1,0 +1,195 @@
+import { apiGet, isRecord, resolveApiAssetUrl } from "../../api/client";
+
+export type MobileListingSummary = {
+  id: string;
+  title: string;
+  priceText: string;
+  locationText: string;
+  imageUrl: string | null;
+  conditionText: string | null;
+};
+
+export type MobileListingDetail = MobileListingSummary & {
+  description: string | null;
+  createdAt: string | null;
+};
+
+export async function fetchMobileListings(): Promise<MobileListingSummary[]> {
+  const result = await apiGet<unknown>("/api/v1/listings?limit=20&offset=0&sort=newest");
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  return extractListingArray(result.data).map(normalizeListingSummary);
+}
+
+export async function fetchMobileListingDetail(listingId: string): Promise<MobileListingDetail> {
+  const result = await apiGet<unknown>(`/api/v1/listings/${encodeURIComponent(listingId)}`);
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  return normalizeListingDetail(extractListingObject(result.data));
+}
+
+function extractListingArray(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  if (Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if (Array.isArray(payload.listings)) {
+    return payload.listings;
+  }
+
+  if (isRecord(payload.data)) {
+    return extractListingArray(payload.data);
+  }
+
+  return [];
+}
+
+function extractListingObject(payload: unknown): unknown {
+  if (isRecord(payload) && isRecord(payload.listing)) {
+    return payload.listing;
+  }
+
+  if (isRecord(payload) && isRecord(payload.data)) {
+    return extractListingObject(payload.data);
+  }
+
+  return payload;
+}
+
+function normalizeListingSummary(value: unknown): MobileListingSummary {
+  const record = isRecord(value) ? value : {};
+
+  const title = pickString(record, ["title", "name"]) ?? "İlan";
+  const id = pickString(record, ["id", "listingId"]) ?? title;
+  const priceText = formatPrice(record);
+  const locationText =
+    pickString(record, ["locationCity", "city", "sellerCity"]) ??
+    pickNestedString(record, ["location", "city"]) ??
+    "Konum belirtilmedi";
+
+  return {
+    id,
+    title,
+    priceText,
+    locationText,
+    imageUrl: resolveApiAssetUrl(extractImageUrl(record)),
+    conditionText: pickString(record, ["condition", "conditionLabel"]) ?? null
+  };
+}
+
+function normalizeListingDetail(value: unknown): MobileListingDetail {
+  const record = isRecord(value) ? value : {};
+  const summary = normalizeListingSummary(record);
+
+  return {
+    ...summary,
+    description: pickString(record, ["description", "body"]) ?? null,
+    createdAt: pickString(record, ["createdAt", "created_at"]) ?? null
+  };
+}
+
+function formatPrice(record: Record<string, unknown>): string {
+  const directPrice = pickString(record, ["price", "priceText", "formattedPrice"]);
+
+  if (directPrice) {
+    return directPrice;
+  }
+
+  const numericPrice = pickNumber(record, ["priceAmount", "priceValue", "amount"]);
+
+  if (typeof numericPrice === "number") {
+    return `${numericPrice.toLocaleString("tr-TR")} TL`;
+  }
+
+  const cents = pickNumber(record, ["priceCents", "priceInCents"]);
+
+  if (typeof cents === "number") {
+    return `${(cents / 100).toLocaleString("tr-TR")} TL`;
+  }
+
+  return "Fiyat belirtilmedi";
+}
+
+function extractImageUrl(record: Record<string, unknown>): string | null {
+  const direct = pickString(record, ["imageUrl", "coverImageUrl", "thumbnailUrl"]);
+
+  if (direct) {
+    return direct;
+  }
+
+  const images = record.images;
+
+  if (Array.isArray(images)) {
+    for (const image of images) {
+      if (typeof image === "string") {
+        return image;
+      }
+
+      if (isRecord(image)) {
+        const url = pickString(image, ["url", "imageUrl", "publicUrl"]);
+        if (url) {
+          return url;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function pickString(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function pickNestedString(record: Record<string, unknown>, path: [string, string]): string | null {
+  const parent = record[path[0]];
+
+  if (!isRecord(parent)) {
+    return null;
+  }
+
+  const value = parent[path[1]];
+
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function pickNumber(record: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}

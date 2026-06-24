@@ -4,14 +4,15 @@ Expo / React Native mobile app skeleton for BabyLoop.
 
 ## Current scope
 
-This package is intentionally minimal:
+This package now includes:
 
 - app shell
 - Expo Router stack
-- browse placeholder
-- listing detail placeholder
+- API base URL config
+- public listing browse fetch
+- public listing detail fetch
+- image URL resolver for API-hosted or absolute image URLs
 - login placeholder
 - account placeholder
-- API base URL config
 
-The first API-backed flow will be browse/detail. Auth token storage must not use plain AsyncStorage.
+Auth token storage must not use plain AsyncStorage.
