@@ -1,40 +1,73 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const tabColors = {
-  active: "#2563eb",
-  inactive: "#64748b",
-  border: "#e2e8f0",
+  active: "#d45d3f",
+  inactive: "#7b8794",
+  border: "#f1d8ca",
+  surface: "#ffffff",
+  shadow: "#d45d3f",
 } as const;
 
-function TabIcon({ label, color }: { label: string; color: string }) {
+type TabIconName = keyof typeof Ionicons.glyphMap;
+
+function TabIcon({
+  name,
+  color,
+  focused,
+}: {
+  name: TabIconName;
+  color: string;
+  focused: boolean;
+}) {
   return (
-    <Text
+    <Ionicons
+      name={name}
+      size={focused ? 24 : 22}
+      color={color}
       accessibilityElementsHidden
       importantForAccessibility="no"
-      style={{ color, fontSize: 18, fontWeight: "700" }}
-    >
-      {label}
-    </Text>
+    />
   );
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 10);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: tabColors.active,
         tabBarInactiveTintColor: tabColors.inactive,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          borderTopColor: tabColors.border,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
+          position: "absolute",
+          left: 14,
+          right: 14,
+          bottom: bottomInset,
+          height: 62,
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: tabColors.border,
+          borderRadius: 28,
+          backgroundColor: tabColors.surface,
+          paddingBottom: 7,
+          paddingTop: 7,
+          shadowColor: tabColors.shadow,
+          shadowOpacity: 0.14,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 10,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "700",
+          fontWeight: "800",
+        },
+        sceneStyle: {
+          paddingBottom: 84 + bottomInset,
         },
       }}
     >
@@ -42,35 +75,78 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Keşfet",
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="⌂" />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "home" : "home-outline"}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
           title: "Favoriler",
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="♡" />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "heart" : "heart-outline"}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="sell"
         options={{
           title: "İlan Ver",
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="+" />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "add-circle" : "add-circle-outline"}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="basket"
+        options={{
+          title: "Sepetim",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "basket" : "basket-outline"}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: "Mesajlar",
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="✉" />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: "Hesabım",
-          tabBarIcon: ({ color }) => <TabIcon color={color} label="☻" />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              color={color}
+              focused={focused}
+              name={focused ? "person-circle" : "person-circle-outline"}
+            />
+          ),
         }}
       />
     </Tabs>

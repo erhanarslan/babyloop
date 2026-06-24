@@ -1,21 +1,21 @@
 import { Text, View } from "react-native";
 
-import { Screen } from "../../src/ui/screen";
+import { Screen } from "./screen";
 
 const placeholderColors = {
-  text: "#0f172a",
-  muted: "#64748b",
+  text: "#2f2521",
+  muted: "#6d5d56",
 } as const;
 
-type PlaceholderScreenProps = {
+type MobilePlaceholderScreenProps = {
   title: string;
   description: string;
 };
 
-export default function PlaceholderScreen({
+export function MobilePlaceholderScreen({
   title,
   description,
-}: PlaceholderScreenProps) {
+}: MobilePlaceholderScreenProps) {
   return (
     <Screen title={title}>
       <View
@@ -28,7 +28,7 @@ export default function PlaceholderScreen({
           style={{
             color: placeholderColors.text,
             fontSize: 28,
-            fontWeight: "800",
+            fontWeight: "900",
           }}
         >
           {title}
