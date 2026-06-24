@@ -141,7 +141,7 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     authTokenTtlSeconds: readPositiveInteger(env.AUTH_TOKEN_TTL_SECONDS, 60 * 15),
     corsOrigins: readCorsOrigins(env.CORS_ORIGINS),
     emailDeliveryMode: readEmailDeliveryMode(env.EMAIL_DELIVERY_MODE),
-    host: env.HOST ?? "127.0.0.1",
+    host: env.API_HOST ?? env.HOST ?? "127.0.0.1",
     port: readPort(env.PORT),
     rag: readRagConfig(env),
     uploadRoot: readUploadRoot(env.UPLOAD_ROOT),

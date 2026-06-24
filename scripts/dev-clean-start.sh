@@ -31,6 +31,7 @@ export NODE_ENV="development"
 
 export PORT="$API_PORT"
 export API_PORT="$API_PORT"
+export API_HOST="${API_HOST:-0.0.0.0}"
 export WEB_PORT="$WEB_PORT"
 export BACKOFFICE_PORT="$BACKOFFICE_PORT"
 

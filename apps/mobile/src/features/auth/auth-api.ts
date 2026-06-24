@@ -79,45 +79,58 @@ export async function submitMobileAuthRequest(
   mode: MobileAuthMode,
   payload: MobileAuthRequest
 ): Promise<MobileApiResponse<MobileAuthPayload | MobileMfaChallenge>> {
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/${mode}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/${mode}`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
 
-  const body = await parseApiResponse<MobileAuthPayload | MobileMfaChallenge>(response);
+    const body = await parseApiResponse<MobileAuthPayload | MobileMfaChallenge>(response);
 
-  if (body.ok && "accessToken" in body.data) {
-    setMobileAuthToken(body.data.accessToken);
+    if (body.ok && "accessToken" in body.data) {
+      setMobileAuthToken(body.data.accessToken);
+    }
+
+    return body;
+  } catch {
+    return apiUnavailableResponse();
   }
-
-  return body;
 }
 
 export async function fetchMobileCurrentUser(): Promise<MobileApiResponse<MobileAuthMe>> {
-  const response = await mobileAuthFetch("/api/v1/auth/me");
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/me");
 
-  return parseApiResponse<MobileAuthMe>(response);
+    return parseApiResponse<MobileAuthMe>(response);
+  } catch {
+    return apiUnavailableResponse();
+  }
 }
 
 export async function refreshMobileSession(): Promise<MobileApiResponse<MobileAuthPayload>> {
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
-    method: "POST",
-    credentials: "include"
-  });
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
+      method: "POST",
+      credentials: "include"
+    });
 
-  const body = await parseApiResponse<MobileAuthPayload>(response);
+    const body = await parseApiResponse<MobileAuthPayload>(response);
 
-  if (body.ok) {
-    setMobileAuthToken(body.data.accessToken);
-  } else {
+    if (body.ok) {
+      setMobileAuthToken(body.data.accessToken);
+    } else {
+      clearMobileAuthToken();
+    }
+
+    return body;
+  } catch {
     clearMobileAuthToken();
+    return apiUnavailableResponse();
   }
-
-  return body;
 }
 
 export async function logoutMobileSession(): Promise<void> {
@@ -238,6 +251,16 @@ async function parseApiResponse<T>(response: Response): Promise<MobileApiRespons
     error: {
       code: "INVALID_API_RESPONSE",
       message: "BabyLoop API returned an invalid response."
+    }
+  };
+}
+
+function apiUnavailableResponse<T>(): MobileApiResponse<T> {
+  return {
+    ok: false,
+    error: {
+      code: "API_UNAVAILABLE",
+      message: "BabyLoop API bağlantısı kurulamadı. API çalışıyor mu ve mobil API base URL doğru mu kontrol et."
     }
   };
 }
