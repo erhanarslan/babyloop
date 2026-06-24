@@ -5,19 +5,23 @@ import { colors, radius, shadows } from "../../ui/theme";
 import { Paragraph, Screen } from "../../ui/screen";
 import { useAuthSession } from "./auth-session";
 
-export function LoginScreen() {
+export function RegisterScreen() {
   const router = useRouter();
   const authSession = useAuthSession();
-  const [email, setEmail] = useState("demo@babyloop.local");
+  const [displayName, setDisplayName] = useState("Demo Parent");
+  const [locationCity, setLocationCity] = useState("İstanbul");
+  const [email, setEmail] = useState(`demo-${Date.now()}@babyloop.local`);
   const [password, setPassword] = useState("Password123!");
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleLogin() {
+  async function handleRegister() {
     setSubmitting(true);
 
     try {
-      const ok = await authSession.login({
+      const ok = await authSession.register({
+        displayName: displayName.trim(),
         email: email.trim(),
+        locationCity: locationCity.trim(),
         password
       });
 
@@ -31,11 +35,27 @@ export function LoginScreen() {
 
   return (
     <Screen
-      eyebrow="Auth"
-      title="Hesabına giriş yap"
-      subtitle="Favoriler, mesajlar ve ilan yönetimi için BabyLoop hesabını kullan."
+      eyebrow="Yeni hesap"
+      title="BabyLoop hesabını oluştur"
+      subtitle="Mobil kayıt akışı public auth API ile çalışır ve profilini hesapla birlikte oluşturur."
     >
       <View style={styles.card}>
+        <TextInput
+          onChangeText={setDisplayName}
+          placeholder="Adın"
+          placeholderTextColor={colors.subtle}
+          style={styles.input}
+          value={displayName}
+        />
+
+        <TextInput
+          onChangeText={setLocationCity}
+          placeholder="Şehir"
+          placeholderTextColor={colors.subtle}
+          style={styles.input}
+          value={locationCity}
+        />
+
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
@@ -58,14 +78,14 @@ export function LoginScreen() {
 
         <Pressable
           disabled={submitting}
-          onPress={handleLogin}
+          onPress={handleRegister}
           style={({ pressed }) => [
             styles.primaryButton,
             pressed || submitting ? styles.pressed : null
           ]}
         >
           <Text style={styles.primaryButtonText}>
-            {submitting ? "Giriş yapılıyor..." : "Giriş yap"}
+            {submitting ? "Hesap oluşturuluyor..." : "Hesap oluştur"}
           </Text>
         </Pressable>
 
@@ -76,12 +96,12 @@ export function LoginScreen() {
         ) : null}
 
         <Paragraph>
-          İlk mobil auth paketi memory token + cookie contract ile çalışır. Native kalıcı oturum için SecureStore stratejisi ayrı pakette eklenecek.
+          Geliştirme ortamında email verification token response içinde dönebilir; gerçek gönderim ayrı email delivery paketinde açılacak.
         </Paragraph>
       </View>
 
-      <Link href="/register" style={styles.link}>
-        Hesap oluştur
+      <Link href="/login" style={styles.link}>
+        Zaten hesabım var
       </Link>
 
       <Link href="/" style={styles.linkSecondary}>

@@ -1,25 +1,19 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { AuthSessionProvider } from "../src/features/auth/auth-session";
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthSessionProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerStyle: {
-            backgroundColor: "#fffaf7"
-          },
-          headerTitleStyle: {
-            color: "#2f2521",
-            fontWeight: "800"
-          },
-          headerTintColor: "#d45d3f",
+          headerShown: false,
           contentStyle: {
-            backgroundColor: "#fffaf7"
+            backgroundColor: "#fff7f2"
           }
         }}
       />
-    </>
+    </AuthSessionProvider>
   );
 }
