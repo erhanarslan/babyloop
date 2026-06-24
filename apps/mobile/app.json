@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "BabyLoop",
+    "slug": "babyloop-mobile",
+    "scheme": "babyloop",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.babyloop.mobile"
+    },
+    "android": {
+      "package": "com.babyloop.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:4000"
+    }
+  }
+}
