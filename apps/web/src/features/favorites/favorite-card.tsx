@@ -31,7 +31,7 @@ export function FavoriteCard({
   const savedDate = `${formatDate(favorite.favoritedAt, locale)} tarihinde kaydedildi`;
   const isPublic = favorite.status === "active" || favorite.status === "reserved";
   const imageUrl = getSafeFavoriteImageUrl(
-    favorite.firstImage?.url ?? favorite.images[0]?.url ?? null,
+    favorite.firstImage?.url ?? favorite.images?.[0]?.url ?? null,
     apiBaseUrl
   );
 
@@ -100,7 +100,6 @@ export function FavoriteCard({
     </article>
   );
 }
-
 
 function getSafeFavoriteImageUrl(
   imageUrl: string | null | undefined,
