@@ -4,7 +4,7 @@ import {
   type EmailSendResult
 } from "./email-provider.service.js";
 
-export type EmailDeliveryMode = "noop";
+export type EmailDeliveryMode = "noop" | "provider";
 
 export type EmailDeliveryConfig = {
   emailFrom?: string;
@@ -43,15 +43,23 @@ export type EmailDeliveryService = {
 export function createEmailDeliveryService(config: EmailDeliveryConfig): EmailDeliveryService {
   const deliverDraft = config.sendDraft ?? sendEmailDraft;
 
+  async function deliver(draft: EmailDraft): Promise<void> {
+    if (config.mode === "noop") {
+      return;
+    }
+
+    await deliverDraft(draft);
+  }
+
   return {
     async sendEmailVerificationEmail(params) {
-      await deliverDraft(buildEmailVerificationDraft(params));
+      await deliver(buildEmailVerificationDraft(params));
     },
     async sendMfaOtpEmail(params) {
-      await deliverDraft(buildMfaOtpDraft(params));
+      await deliver(buildMfaOtpDraft(params));
     },
     async sendPasswordResetEmail(params) {
-      await deliverDraft(buildPasswordResetDraft(params));
+      await deliver(buildPasswordResetDraft(params));
     }
   };
 }

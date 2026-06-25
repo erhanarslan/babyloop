@@ -117,7 +117,7 @@ export type ApiRuntimeConfig = {
   authTokenTtlSeconds: number;
   corsOrigins: string[];
   databaseUrl?: string;
-  emailDeliveryMode: "noop";
+  emailDeliveryMode: "noop" | "provider";
   emailFrom?: string;
   googleOAuth?: GoogleOAuthConfig;
   host: string;
@@ -422,12 +422,18 @@ function readGeminiEndpoint(env: NodeJS.ProcessEnv): string | undefined {
   return endpoint || undefined;
 }
 
-function readEmailDeliveryMode(value: string | undefined): "noop" {
-  if (!value || value.trim().toLowerCase() === "noop") {
+function readEmailDeliveryMode(value: string | undefined): "noop" | "provider" {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized || normalized === "noop") {
     return "noop";
   }
 
-  throw new Error("EMAIL_DELIVERY_MODE must be noop until a real email provider is implemented.");
+  if (normalized === "provider") {
+    return "provider";
+  }
+
+  throw new Error("EMAIL_DELIVERY_MODE must be noop or provider.");
 }
 
 function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | undefined {

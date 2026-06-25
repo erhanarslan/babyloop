@@ -241,3 +241,16 @@ describe("auth runtime config", () => {
     expect(createAdminModerationAiSummaryProvider(config.aiModerationSummary).providerName).toBe("gemini-generate-content");
   });
 });
+
+describe("email delivery mode config", () => {
+  it("accepts noop and provider delivery modes", () => {
+    expect(readApiRuntimeConfig({ EMAIL_DELIVERY_MODE: "noop" }).emailDeliveryMode).toBe("noop");
+    expect(readApiRuntimeConfig({ EMAIL_DELIVERY_MODE: "provider" }).emailDeliveryMode).toBe("provider");
+  });
+
+  it("rejects unsupported email delivery modes", () => {
+    expect(() => readApiRuntimeConfig({ EMAIL_DELIVERY_MODE: "smtp" })).toThrow(
+      "EMAIL_DELIVERY_MODE must be noop or provider."
+    );
+  });
+});

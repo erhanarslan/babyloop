@@ -25,6 +25,24 @@ function createRecordingDraftSender() {
 }
 
 describe("email delivery service", () => {
+
+  it("does not call the provider while delivery mode is noop", async () => {
+    const service = createEmailDeliveryService({
+      mode: "noop",
+      webAppUrl: "https://babyloop.test",
+      sendDraft: async () => {
+        throw new Error("provider should not be called in noop mode");
+      }
+    });
+
+    await service.sendEmailVerificationEmail({
+      recipientEmail: "parent@example.test",
+      verificationUrl: "https://babyloop.test/auth/verify-email?token=secret-verification-token",
+      expiresInSeconds: 86400
+    });
+  });
+
+
   it("builds official verification and reset URLs", () => {
     expect(buildEmailVerificationUrl("https://babyloop.test/", "verify-token")).toBe(
       "https://babyloop.test/auth/verify-email?token=verify-token"
@@ -37,7 +55,7 @@ describe("email delivery service", () => {
   it("sends email verification as a provider draft", async () => {
     const recorder = createRecordingDraftSender();
     const service = createEmailDeliveryService({
-      mode: "noop",
+      mode: "provider",
       webAppUrl: "https://babyloop.test",
       sendDraft: recorder.sendDraft
     });
@@ -64,7 +82,7 @@ describe("email delivery service", () => {
   it("sends password reset as a provider draft", async () => {
     const recorder = createRecordingDraftSender();
     const service = createEmailDeliveryService({
-      mode: "noop",
+      mode: "provider",
       webAppUrl: "https://babyloop.test",
       sendDraft: recorder.sendDraft
     });
@@ -89,7 +107,7 @@ describe("email delivery service", () => {
   it("sends MFA OTP as a security alert draft without putting the code in the subject", async () => {
     const recorder = createRecordingDraftSender();
     const service = createEmailDeliveryService({
-      mode: "noop",
+      mode: "provider",
       webAppUrl: "https://babyloop.test",
       sendDraft: recorder.sendDraft
     });
