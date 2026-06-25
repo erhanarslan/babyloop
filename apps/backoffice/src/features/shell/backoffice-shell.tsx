@@ -83,6 +83,11 @@ const navigationItems: NavigationItem[] = [
     description: "Knowledge base ops",
     status: "active",
   },
+  {
+    label: "Email Ops",
+    href: "/email",
+    description: "Provider, SMTP, test send"
+  },
 ];
 
 export function BackofficeShell({ children }: BackofficeShellProps) {
