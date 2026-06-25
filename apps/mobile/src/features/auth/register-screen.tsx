@@ -37,7 +37,7 @@ export function RegisterScreen() {
     <Screen
       eyebrow="Yeni hesap"
       title="BabyLoop hesabını oluştur"
-      subtitle="Mobil kayıt akışı public auth API ile çalışır ve profilini hesapla birlikte oluşturur."
+      subtitle="Favoriler, mesajlar ve ilan yönetimi için sade bir hesap oluştur."
     >
       <View style={styles.card}>
         <TextInput
@@ -96,7 +96,7 @@ export function RegisterScreen() {
         ) : null}
 
         <Paragraph>
-          Geliştirme ortamında email verification token response içinde dönebilir; gerçek gönderim ayrı email delivery paketinde açılacak.
+          Hesabın favorilerini, mesajlarını ve ilanlarını tek yerde takip etmek için kullanılır.
         </Paragraph>
       </View>
 

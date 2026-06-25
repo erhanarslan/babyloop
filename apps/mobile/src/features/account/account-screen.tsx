@@ -1,8 +1,46 @@
 import { Link, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, shadows } from "../../ui/theme";
-import { Paragraph, Screen } from "../../ui/screen";
+import { Screen } from "../../ui/screen";
 import { useAuthSession } from "../auth/auth-session";
+
+const accountShortcuts = [
+  {
+    href: "/favorites",
+    title: "Favorilerim",
+    description: "Kaydettiğin ilanları tekrar aç."
+  },
+  {
+    href: "/messages",
+    title: "Mesajlarım",
+    description: "Alıcı ve satıcı konuşmalarını takip et."
+  },
+  {
+    href: "/sell",
+    title: "İlan Ver",
+    description: "Satmak istediğin ürünü hazırlamaya başla."
+  },
+  {
+    href: "/child-profile",
+    title: "Çocuğum",
+    description: "Temel çocuk bilgileri ve ihtiyaç fikirleri."
+  },
+  {
+    href: "/notification-preferences",
+    title: "Bildirim tercihlerim",
+    description: "Mesaj ve ilan hareketleri için tercihlerini düzenle."
+  },
+  {
+    href: "/security",
+    title: "Güvenlik",
+    description: "Şifre ve hesap güvenliği ayarları."
+  },
+  {
+    href: "/assistant",
+    title: "BabyLoop Asistan",
+    description: "Ürün seçimi ve güvenli alışveriş kontrol listeleri."
+  }
+] as const;
 
 export function AccountScreen() {
   const router = useRouter();
@@ -20,8 +58,8 @@ export function AccountScreen() {
       title={currentUser ? "Mobil hesabım" : "Hesap gerekli"}
       subtitle={
         currentUser
-          ? "Favoriler, mesajlar, ilanlar ve çocuk profili bu alanda toplanacak."
-          : "Favoriler, mesajlar ve ilan yönetimi için giriş yap."
+          ? "Favoriler, mesajlar, ilanlar ve aile ihtiyaçları burada."
+          : "Favoriler ve mesajlar için giriş yap."
       }
     >
       <View style={styles.profileCard}>
@@ -69,17 +107,17 @@ export function AccountScreen() {
           </Pressable>
 
           <View style={styles.menu}>
-            <MenuItem title="Favorilerim" description="Kaydettiğin ilanlar burada görünecek." />
-            <MenuItem title="Mesajlar" description="Satıcı ve alıcı konuşmaları mobilde açılacak." />
-            <MenuItem title="İlanlarım" description="Satıştaki ürünlerini yönet." />
-            <MenuItem title="Çocuğum" description="Yaşa göre öneriler ve bildirim tercihleri." />
+            {accountShortcuts.map((item) => (
+              <MenuItem
+                description={item.description}
+                href={item.href}
+                key={item.href}
+                title={item.title}
+              />
+            ))}
           </View>
         </>
       )}
-
-      <Paragraph>
-        Backoffice, admin veya hassas moderasyon verisi mobil public uygulamada gösterilmeyecek.
-      </Paragraph>
 
       <Link href="/" style={styles.link}>
         Keşfe dön
@@ -88,12 +126,14 @@ export function AccountScreen() {
   );
 }
 
-function MenuItem({ title, description }: { title: string; description: string }) {
+function MenuItem({ title, description, href }: { title: string; description: string; href: string }) {
   return (
-    <View style={styles.menuItem}>
-      <Text style={styles.menuTitle}>{title}</Text>
-      <Text style={styles.menuDescription}>{description}</Text>
-    </View>
+    <Link href={href} asChild>
+      <Pressable style={styles.menuItem}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        <Text style={styles.menuDescription}>{description}</Text>
+      </Pressable>
+    </Link>
   );
 }
 

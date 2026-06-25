@@ -76,7 +76,7 @@ export function LoginScreen() {
         ) : null}
 
         <Paragraph>
-          İlk mobil auth paketi memory token + cookie contract ile çalışır. Native kalıcı oturum için SecureStore stratejisi ayrı pakette eklenecek.
+          Oturum uygulama açıkken kullanılabilir. Uygulamayı kapatırsan yeniden giriş yapman gerekebilir.
         </Paragraph>
       </View>
 
