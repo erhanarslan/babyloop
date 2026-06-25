@@ -86,7 +86,8 @@ const navigationItems: NavigationItem[] = [
   {
     label: "Email Ops",
     href: "/email",
-    description: "Provider, SMTP, test send"
+    description: "Provider, SMTP, test send",
+    status: "active",
   },
 ];
 
