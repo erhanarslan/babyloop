@@ -34,7 +34,7 @@ function TabIcon({
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 0);
+  const bottomInset = insets.bottom;
   const tabBarHeight = 62;
 
   return (
