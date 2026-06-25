@@ -67,6 +67,15 @@ jobs:
       - name: API integration tests
         run: pnpm --filter @babyloop/api test
 
+      - name: Web unit tests
+        run: pnpm --filter @babyloop/web test
+
+      - name: Backoffice unit tests
+        run: pnpm --filter @babyloop/backoffice test
+
+      - name: Mobile unit tests
+        run: pnpm --filter @babyloop/mobile test
+
       - name: Build shared
         run: pnpm --filter @babyloop/shared build
 
