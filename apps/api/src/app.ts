@@ -345,9 +345,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerDatabaseUnavailableRoutes, { prefix: API_PREFIX });
   }
 
-  registerAdminNotificationRoutes(app);
-  registerAdminStorageRoutes(app);
-  registerAdminEmailRoutes(app);
+  app.register(registerAdminNotificationRoutes, { prefix: API_PREFIX });
+  app.register(registerAdminStorageRoutes, { prefix: API_PREFIX });
+  app.register(registerAdminEmailRoutes, { prefix: API_PREFIX });
 
   return app;
 }

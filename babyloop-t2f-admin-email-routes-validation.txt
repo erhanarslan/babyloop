@@ -1,0 +1,57 @@
+=== api typecheck ===
+
+> @babyloop/api@0.1.0 typecheck /Users/erhan-pc-mac/Desktop/babyloop/apps/api
+> pnpm build:deps && tsc -p tsconfig.json --noEmit
+
+
+> @babyloop/api@0.1.0 build:deps /Users/erhan-pc-mac/Desktop/babyloop/apps/api
+> pnpm --filter '@babyloop/api^...' build
+
+Scope: 4 of 9 workspace projects
+../../packages/ai-core build$ tsc -p tsconfig.json
+../../packages/config build$ tsc -p tsconfig.json
+../../packages/shared build$ tsc -p tsconfig.json
+../../packages/database build$ tsc -p tsconfig.json
+../../packages/config build: Done
+../../packages/shared build: Done
+../../packages/ai-core build: Done
+../../packages/database build: Done
+
+=== focused admin email route tests ===
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.6 [39m[90m/Users/erhan-pc-mac/Desktop/babyloop/apps/api[39m
+
+{"level":30,"time":1782411786334,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/register","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786488,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","res":{"statusCode":201},"responseTime":153.9181251525879,"msg":"request completed"}
+{"level":30,"time":1782411786489,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","req":{"method":"POST","url":"/api/v1/admin/email/test-send","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786495,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","res":{"statusCode":403},"responseTime":5.7326250076293945,"msg":"request completed"}
+{"level":30,"time":1782411786535,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/register","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786721,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","res":{"statusCode":201},"responseTime":185.81108283996582,"msg":"request completed"}
+{"level":30,"time":1782411786724,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","req":{"method":"POST","url":"/api/v1/admin/email/test-send","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786728,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","res":{"statusCode":400},"responseTime":3.2326669692993164,"msg":"request completed"}
+{"level":30,"time":1782411786744,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/register","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786819,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","res":{"statusCode":201},"responseTime":74.28554105758667,"msg":"request completed"}
+{"level":30,"time":1782411786820,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","req":{"method":"POST","url":"/api/v1/admin/email/test-send","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786821,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","res":{"statusCode":200},"responseTime":1.5662918090820312,"msg":"request completed"}
+{"level":30,"time":1782411786832,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/register","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786899,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-1","res":{"statusCode":201},"responseTime":66.59395837783813,"msg":"request completed"}
+{"level":30,"time":1782411786900,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","req":{"method":"GET","url":"/api/v1/admin/email/ops-preview","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
+{"level":30,"time":1782411786902,"pid":56153,"hostname":"erhan-pc-MacBook-Air.local","reqId":"req-2","res":{"statusCode":200},"responseTime":2.438833713531494,"msg":"request completed"}
+ [32m✓[39m test/admin-email.routes.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 672[2mms[22m[39m
+ [32m✓[39m test/auth-config.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m test/email-provider.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m test/admin-email.schemas.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m test/admin-email-ops.service.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m test/email-delivery.service.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m50 passed[39m[22m[90m (50)[39m
+[2m   Start at [22m 21:23:05
+[2m   Duration [22m 2.44s[2m (transform 520ms, setup 0ms, import 1.14s, tests 701ms, environment 0ms)[22m
+
+
+=== diff check ===
+
+=== status ===
+ M apps/api/src/app.ts
+?? babyloop-t2f-admin-email-routes-validation.txt
