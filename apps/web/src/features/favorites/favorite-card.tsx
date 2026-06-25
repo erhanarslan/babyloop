@@ -14,23 +14,42 @@ import {
 } from "../listings/listing-display";
 
 type FavoriteCardProps = {
+  apiBaseUrl: string;
   favorite: FavoriteListing;
   isPending: boolean;
   onRemove: () => void;
 };
 
-export function FavoriteCard({ favorite, isPending, onRemove }: FavoriteCardProps) {
+export function FavoriteCard({
+  apiBaseUrl,
+  favorite,
+  isPending,
+  onRemove
+}: FavoriteCardProps) {
   const { dictionary, locale } = useI18n();
   const categoryName = formatCategoryName(favorite.category, dictionary);
   const savedDate = `${formatDate(favorite.favoritedAt, locale)} tarihinde kaydedildi`;
   const isPublic = favorite.status === "active" || favorite.status === "reserved";
+  const imageUrl = getSafeFavoriteImageUrl(
+    favorite.firstImage?.url ?? favorite.images[0]?.url ?? null,
+    apiBaseUrl
+  );
 
   return (
     <article className="listing-card overflow-hidden">
-      <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
-        <div className="grid size-16 place-items-center rounded-full bg-background/80 text-2xl font-black text-primary shadow-sm">
-          {categoryName.slice(0, 1).toLocaleUpperCase("tr-TR")}
-        </div>
+      <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
+        {imageUrl ? (
+          <img
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            src={imageUrl}
+          />
+        ) : (
+          <div className="grid size-16 place-items-center rounded-full bg-background/80 text-2xl font-black text-primary shadow-sm">
+            {categoryName.slice(0, 1).toLocaleUpperCase("tr-TR")}
+          </div>
+        )}
       </div>
 
       <div className="listing-card-body gap-3">
@@ -80,4 +99,24 @@ export function FavoriteCard({ favorite, isPending, onRemove }: FavoriteCardProp
       </div>
     </article>
   );
+}
+
+
+function getSafeFavoriteImageUrl(
+  imageUrl: string | null | undefined,
+  apiBaseUrl: string
+): string | null {
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  if (imageUrl.startsWith("/")) {
+    return `${apiBaseUrl}${imageUrl}`;
+  }
+
+  return null;
 }

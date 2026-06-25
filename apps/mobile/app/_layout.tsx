@@ -1,10 +1,10 @@
-import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthSessionProvider } from "../src/features/auth/auth-session";
+import { hideAndroidNavigationBar } from "../src/lib/android-navigation-bar";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -12,9 +12,17 @@ export default function RootLayout() {
       return;
     }
 
-    void NavigationBar.setVisibilityAsync("hidden");
-    void NavigationBar.setButtonStyleAsync("dark").catch(() => undefined);
-    void NavigationBar.setBackgroundColorAsync("transparent").catch(() => undefined);
+    void hideAndroidNavigationBar();
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void hideAndroidNavigationBar();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   return (

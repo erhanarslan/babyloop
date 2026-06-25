@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { useEffect } from "react";
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  hideAndroidNavigationBar,
+  useAndroidNavigationBarVisibility
+} from "../../src/lib/android-navigation-bar";
 
 const tabColors = {
   active: "#d45d3f",
@@ -34,7 +40,30 @@ function TabIcon({
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomInset = insets.bottom;
+  const navigationVisibility = useAndroidNavigationBarVisibility();
+
+  useEffect(() => {
+    if (Platform.OS !== "android" || navigationVisibility !== "visible") {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void hideAndroidNavigationBar();
+    }, 1400);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [navigationVisibility]);
+
+  const isAndroidNavigationVisible =
+    Platform.OS === "android" && navigationVisibility === "visible";
+  const bottomInset =
+    Platform.OS === "android"
+      ? isAndroidNavigationVisible
+        ? insets.bottom
+        : 0
+      : insets.bottom;
   const tabBarHeight = 62;
 
   return (
@@ -148,6 +177,12 @@ export default function TabLayout() {
               name={focused ? "person-circle" : "person-circle-outline"}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="listing/[listingId]"
+        options={{
+          href: null
         }}
       />
     </Tabs>

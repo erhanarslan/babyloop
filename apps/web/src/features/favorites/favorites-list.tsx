@@ -202,6 +202,7 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {sortedFavorites.map((favorite) => (
             <FavoriteCard
+              apiBaseUrl={apiBaseUrl}
               favorite={favorite}
               isPending={pendingFavoriteId === favorite.id}
               key={favorite.id}

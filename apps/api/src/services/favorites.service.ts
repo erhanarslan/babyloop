@@ -1,13 +1,18 @@
 import {
   events,
   favorites,
+  listingImages,
   listings,
   productCategories
 } from "@babyloop/database/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { FavoriteBody } from "../schemas/favorites.schemas.js";
-import { buildPrice, type PriceResponse } from "./listing-response.mapper.js";
+import {
+  buildPrice,
+  type ListingImageResponse,
+  type PriceResponse
+} from "./listing-response.mapper.js";
 
 const FAVORITE_VISIBLE_LISTING_STATUSES = ["active", "reserved"] as const;
 
@@ -37,6 +42,8 @@ export type FavoriteListingResponse = {
     name: string;
     slug: string;
   };
+  firstImage: ListingImageResponse | null;
+  images: ListingImageResponse[];
   favoritedAt: string;
 };
 
@@ -180,20 +187,75 @@ export async function listFavoritesForProfile(
     )
     .orderBy(desc(favorites.createdAt));
 
-  return rows.map((row) => ({
-    id: row.listingId,
-    title: row.title,
-    price: buildPrice(row.priceAmount, row.currency),
-    status: row.status,
-    listingType: row.listingType,
-    condition: row.condition,
-    category: {
-      id: row.categoryId,
-      name: row.categoryName,
-      slug: row.categorySlug
-    },
-    favoritedAt: row.favoritedAt.toISOString()
-  }));
+  const imagesByListingId = await getFavoriteImagesByListingId(
+    app,
+    rows.map((row) => row.listingId)
+  );
+
+  return rows.map((row) => {
+    const images = imagesByListingId.get(row.listingId) ?? [];
+
+    return {
+      id: row.listingId,
+      title: row.title,
+      price: buildPrice(row.priceAmount, row.currency),
+      status: row.status,
+      listingType: row.listingType,
+      condition: row.condition,
+      category: {
+        id: row.categoryId,
+        name: row.categoryName,
+        slug: row.categorySlug
+      },
+      firstImage: images[0] ?? null,
+      images,
+      favoritedAt: row.favoritedAt.toISOString()
+    };
+  });
+}
+
+async function getFavoriteImagesByListingId(
+  app: FastifyInstance,
+  listingIds: string[]
+): Promise<Map<string, ListingImageResponse[]>> {
+  if (listingIds.length === 0) {
+    return new Map();
+  }
+
+  const imageRows = await app.db
+    .select({
+      id: listingImages.id,
+      listingId: listingImages.listingId,
+      url: listingImages.url,
+      sortOrder: listingImages.sortOrder
+    })
+    .from(listingImages)
+    .where(
+      and(
+        inArray(listingImages.listingId, listingIds),
+        eq(listingImages.reviewStatus, "approved")
+      )
+    )
+    .orderBy(asc(listingImages.listingId), asc(listingImages.sortOrder));
+
+  const imagesByListingId = new Map<string, ListingImageResponse[]>();
+
+  for (const image of imageRows) {
+    const images = imagesByListingId.get(image.listingId) ?? [];
+
+    if (images.length >= 5) {
+      continue;
+    }
+
+    images.push({
+      id: image.id,
+      url: image.url,
+      sortOrder: image.sortOrder
+    });
+    imagesByListingId.set(image.listingId, images);
+  }
+
+  return imagesByListingId;
 }
 
 async function findFavoriteableListing(app: FastifyInstance, listingId: string) {

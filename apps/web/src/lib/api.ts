@@ -48,7 +48,7 @@ export type ListingDetail = ListingSummary & {
   updatedAt: string;
 };
 
-export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "firstImage" | "images" | "createdAt"> & {
+export type FavoriteListing = Omit<ListingSummary, "favoriteCount" | "createdAt"> & {
   favoritedAt: string;
 };
 
