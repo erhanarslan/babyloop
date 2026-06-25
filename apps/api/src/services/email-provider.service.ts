@@ -1,3 +1,5 @@
+import * as nodemailer from "nodemailer";
+
 export type EmailProviderDriver = "mock" | "smtp" | "resend";
 
 export type EmailProviderConfig =
@@ -8,11 +10,13 @@ export type EmailProviderConfig =
     }
   | {
       driver: "smtp";
-      sendEnabled: false;
+      sendEnabled: boolean;
       from: string;
       host: string;
       port: number;
       secure: boolean;
+      username?: string;
+      password?: string;
       usernameConfigured: boolean;
       passwordConfigured: boolean;
     }
@@ -23,12 +27,14 @@ export type EmailProviderConfig =
       apiKeyConfigured: boolean;
     };
 
+export type SmtpEmailProviderConfig = Extract<EmailProviderConfig, { driver: "smtp" }>;
+
 export type EmailProviderPreview = {
   driver: EmailProviderDriver;
-  sendEnabled: false;
+  sendEnabled: boolean;
   fromConfigured: boolean;
   providerConfigured: boolean;
-  sandboxOnly: true;
+  sandboxOnly: boolean;
   missing: string[];
   warning: string;
 };
@@ -46,15 +52,40 @@ export type EmailDraft = {
   intent: EmailIntent;
 };
 
-export type EmailSendResult = {
-  sent: false;
-  provider: EmailProviderDriver;
-  sandboxOnly: true;
-  reason: "email_delivery_disabled";
+export type EmailSendResult =
+  | {
+      sent: false;
+      provider: EmailProviderDriver;
+      sandboxOnly: true;
+      reason: "email_delivery_disabled";
+    }
+  | {
+      sent: true;
+      provider: "smtp";
+      sandboxOnly: false;
+      messageId: string | null;
+    };
+
+type SmtpMailMessage = {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
 };
+
+type SmtpTransporter = {
+  sendMail(message: SmtpMailMessage): Promise<{ messageId?: string }>;
+};
+
+type SmtpTransportFactory = (config: SmtpEmailProviderConfig) => SmtpTransporter;
 
 export function getEmailProviderConfig(env: NodeJS.ProcessEnv = process.env): EmailProviderConfig {
   const driver = normalizeDriver(env.EMAIL_PROVIDER);
+  const sendEnabled = readSendEnabled(env.EMAIL_SEND_ENABLED);
+
+  if (sendEnabled && driver !== "smtp") {
+    throw new Error("EMAIL_SEND_ENABLED=true is currently supported only with EMAIL_PROVIDER=smtp.");
+  }
 
   if (driver === "mock") {
     return {
@@ -73,22 +104,36 @@ export function getEmailProviderConfig(env: NodeJS.ProcessEnv = process.env): Em
     };
   }
 
+  const username = optionalEnv(env, "SMTP_USER");
+  const password = optionalEnv(env, "SMTP_PASS");
+
+  if (sendEnabled && (!username || !password)) {
+    throw new Error("SMTP_USER and SMTP_PASS are required when EMAIL_SEND_ENABLED=true.");
+  }
+
   return {
     driver: "smtp",
-    sendEnabled: false,
+    sendEnabled,
     from: requireEnv(env, "EMAIL_FROM"),
     host: requireEnv(env, "SMTP_HOST"),
     port: parsePort(requireEnv(env, "SMTP_PORT")),
     secure: parseBoolean(env.SMTP_SECURE, true),
-    usernameConfigured: Boolean(optionalEnv(env, "SMTP_USER")),
-    passwordConfigured: Boolean(optionalEnv(env, "SMTP_PASS"))
+    ...(username ? { username } : {}),
+    ...(password ? { password } : {}),
+    usernameConfigured: Boolean(username),
+    passwordConfigured: Boolean(password)
   };
 }
 
 export function getEmailProviderPreview(env: NodeJS.ProcessEnv = process.env): EmailProviderPreview {
   const driver = normalizeDriver(env.EMAIL_PROVIDER);
+  const sendEnabled = readSendEnabled(env.EMAIL_SEND_ENABLED);
   const missing: string[] = [];
   const fromConfigured = Boolean(optionalEnv(env, "EMAIL_FROM"));
+
+  if (sendEnabled && driver !== "smtp") {
+    missing.push("EMAIL_PROVIDER=smtp");
+  }
 
   if (driver === "resend") {
     if (!fromConfigured) missing.push("EMAIL_FROM");
@@ -104,30 +149,74 @@ export function getEmailProviderPreview(env: NodeJS.ProcessEnv = process.env): E
 
   return {
     driver,
-    sendEnabled: false,
+    sendEnabled,
     fromConfigured,
     providerConfigured: missing.length === 0 && driver !== "mock",
-    sandboxOnly: true,
+    sandboxOnly: !sendEnabled,
     missing,
-    warning:
-      "Email provider foundation sandbox modundadır. Bu katman gerçek email göndermez; verification/reset/notification email gönderimi ayrı pakette enable edilir."
+    warning: sendEnabled
+      ? "Email gerçek gönderim modu aktiftir. Secret değerleri preview/log çıktılarında gösterilmez."
+      : "Email provider sandbox modundadır. EMAIL_SEND_ENABLED=true yapılmadıkça gerçek email gönderilmez."
   };
 }
 
 export async function sendEmailDraft(
   draft: EmailDraft,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  createTransport: SmtpTransportFactory = createSmtpTransport
 ): Promise<EmailSendResult> {
   const config = getEmailProviderConfig(env);
 
-  void draft;
+  if (config.driver !== "smtp" || !config.sendEnabled) {
+    void draft;
+
+    return {
+      sent: false,
+      provider: config.driver,
+      sandboxOnly: true,
+      reason: "email_delivery_disabled"
+    };
+  }
+
+  const transporter = createTransport(config);
+  const result = await transporter.sendMail({
+    from: config.from,
+    to: draft.to,
+    subject: draft.subject,
+    text: draft.text
+  });
 
   return {
-    sent: false,
-    provider: config.driver,
-    sandboxOnly: true,
-    reason: "email_delivery_disabled"
+    sent: true,
+    provider: "smtp",
+    sandboxOnly: false,
+    messageId: result.messageId ?? null
   };
+}
+
+function createSmtpTransport(config: SmtpEmailProviderConfig): SmtpTransporter {
+  const transportOptions: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth?: {
+      user: string;
+      pass: string;
+    };
+  } = {
+    host: config.host,
+    port: config.port,
+    secure: config.secure
+  };
+
+  if (config.username && config.password) {
+    transportOptions.auth = {
+      user: config.username,
+      pass: config.password
+    };
+  }
+
+  return nodemailer.createTransport(transportOptions);
 }
 
 function normalizeDriver(value: string | undefined): EmailProviderDriver {
@@ -175,5 +264,33 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
     return defaultValue;
   }
 
-  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+  const normalized = value.trim().toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error("Boolean env values must be true or false.");
+}
+
+function readSendEnabled(value: string | undefined): boolean {
+  if (value === undefined || value.trim().length === 0) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error("EMAIL_SEND_ENABLED must be true or false.");
 }

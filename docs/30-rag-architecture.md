@@ -535,4 +535,4 @@ Backoffice `/storage` page reads `GET /api/v1/admin/storage/ops-preview` and dis
 
 ## Email provider foundation
 
-Email delivery now has a provider abstraction with `EMAIL_PROVIDER=mock|smtp|resend`. The foundation keeps `sendEnabled=false` and `sandboxOnly=true`; it validates configuration and exposes only safe ops metadata through `GET /api/v1/admin/email/ops-preview`. It does not send verification, reset, notification, or security emails yet.
+Email delivery now has a provider abstraction with `EMAIL_PROVIDER=mock|smtp|resend`. Real SMTP sending is gated by `EMAIL_SEND_ENABLED=true`; when disabled, the provider remains sandbox-only. It validates configuration and exposes only safe ops metadata through `GET /api/v1/admin/email/ops-preview` without leaking secrets.

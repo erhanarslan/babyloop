@@ -61,7 +61,8 @@ Production must not rely on local container disk for user-uploaded listing image
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `EMAIL_PROVIDER=mock|smtp|resend` | Yes | Current foundation keeps sending disabled |
+| `EMAIL_PROVIDER=mock|smtp|resend` | Yes | Selects email provider |
+| `EMAIL_SEND_ENABLED=false` | Yes | Kill-switch; true enables real SMTP sending only |
 | `EMAIL_FROM` | Provider | Required for SMTP/Resend |
 | `RESEND_API_KEY` | Resend | Secret manager only |
 | `SMTP_HOST` | SMTP | SMTP host |

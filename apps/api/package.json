@@ -26,10 +26,12 @@
     "@fastify/rate-limit": "^10.3.0",
     "drizzle-orm": "^0.39.0",
     "fastify": "^5.0.0",
+    "nodemailer": "^9.0.1",
     "socket.io": "^4.8.3",
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
     "@vitest/coverage-v8": "4.1.6",
     "socket.io-client": "^4.8.3",
     "tsx": "^4.22.4",
