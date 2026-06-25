@@ -11,15 +11,19 @@ describe("mobile theme tokens", () => {
     expect(colors.background).toBe("#fff7f2");
     expect(colors.surface).toBe("#ffffff");
     expect(colors.primary).toBe("#d75f3f");
+    expect(colors.surfaceSoft).toBe("#fff1e8");
+    expect(colors.cream).toBe("#ffe5d6");
   });
 
   it("keeps radius tokens ordered from small to large", () => {
     expect(radius.sm).toBeLessThan(radius.md);
     expect(radius.md).toBeLessThan(radius.lg);
+    expect(radius.lg).toBeLessThan(radius.xl);
     expect(radius.xl).toBeGreaterThan(radius.md);
   });
 
   it("defines reusable card shadow primitives without becoming visually heavy", () => {
+    expect(shadows.card.shadowColor).toMatch(/^#[0-9a-f]{6}$/i);
     expect(shadows.card.elevation).toBeGreaterThan(0);
     expect(shadows.card.shadowOpacity).toBeGreaterThan(0);
     expect(shadows.card.shadowOpacity).toBeLessThan(0.2);
