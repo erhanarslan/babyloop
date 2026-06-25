@@ -115,7 +115,7 @@ function getSafeFavoriteImageUrl(
   }
 
   if (imageUrl.startsWith("/")) {
-    return `${apiBaseUrl}${imageUrl}`;
+    return `${apiBaseUrl.replace(/\/$/, "")}${imageUrl}`;
   }
 
   return null;
