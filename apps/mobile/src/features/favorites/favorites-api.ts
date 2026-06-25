@@ -1,5 +1,6 @@
 import { isRecord, resolveApiAssetUrl } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
+import { fetchMobileListingDetail } from "../listings/listings-api";
 
 export type MobileFavoriteListing = {
   id: string;
@@ -39,7 +40,9 @@ export async function fetchMobileFavorites(): Promise<MobileFavoriteListing[]> {
     throw new Error(body.error.message);
   }
 
-  return extractFavoriteArray(body.data).map(normalizeFavoriteListing);
+  const favorites = extractFavoriteArray(body.data).map(normalizeFavoriteListing);
+
+  return Promise.all(favorites.map(enrichFavoriteListing));
 }
 
 
@@ -150,6 +153,7 @@ function normalizeFavoriteListing(value: unknown): MobileFavoriteListing {
     locationText:
       pickString(listing, ["locationCity", "city", "sellerCity"]) ??
       pickNestedString(listing, ["location", "city"]) ??
+      pickNestedString(listing, ["seller", "locationCity"]) ??
       "Konum belirtilmedi",
     imageUrl: resolveApiAssetUrl(extractImageUrl(listing)),
     conditionText: pickString(listing, ["condition", "conditionLabel"]) ?? null,
@@ -157,7 +161,33 @@ function normalizeFavoriteListing(value: unknown): MobileFavoriteListing {
   };
 }
 
+async function enrichFavoriteListing(favorite: MobileFavoriteListing): Promise<MobileFavoriteListing> {
+  if (favorite.imageUrl && favorite.locationText !== "Konum belirtilmedi") {
+    return favorite;
+  }
+
+  try {
+    const detail = await fetchMobileListingDetail(favorite.id);
+
+    return {
+      ...favorite,
+      imageUrl: favorite.imageUrl ?? detail.imageUrl,
+      locationText: favorite.locationText === "Konum belirtilmedi" ? detail.locationText : favorite.locationText,
+      conditionText: favorite.conditionText ?? detail.conditionText,
+      priceText: favorite.priceText === "Fiyat belirtilmedi" ? detail.priceText : favorite.priceText
+    };
+  } catch {
+    return favorite;
+  }
+}
+
 function formatPrice(record: Record<string, unknown>): string {
+  const objectPrice = formatPriceObject(record.price);
+
+  if (objectPrice) {
+    return objectPrice;
+  }
+
   const directPrice = pickString(record, ["price", "priceText", "formattedPrice"]);
 
   if (directPrice) {
@@ -167,13 +197,13 @@ function formatPrice(record: Record<string, unknown>): string {
   const numericPrice = pickNumber(record, ["priceAmount", "priceValue", "amount"]);
 
   if (typeof numericPrice === "number") {
-    return `${numericPrice.toLocaleString("tr-TR")} TL`;
+    return formatMoney(numericPrice, pickString(record, ["currency"]) ?? "TRY");
   }
 
   const cents = pickNumber(record, ["priceCents", "priceInCents"]);
 
   if (typeof cents === "number") {
-    return `${(cents / 100).toLocaleString("tr-TR")} TL`;
+    return formatMoney(cents / 100, pickString(record, ["currency"]) ?? "TRY");
   }
 
   return "Fiyat belirtilmedi";
@@ -184,6 +214,16 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
 
   if (direct) {
     return direct;
+  }
+
+  const firstImage = record.firstImage;
+
+  if (isRecord(firstImage)) {
+    const url = pickString(firstImage, ["url", "imageUrl", "publicUrl"]);
+
+    if (url) {
+      return url;
+    }
   }
 
   const images = record.images;
@@ -205,6 +245,27 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
   }
 
   return null;
+}
+
+function formatPriceObject(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const amount = pickNumber(value, ["amount", "value", "priceAmount"]);
+  const currency = pickString(value, ["currency"]) ?? "TRY";
+
+  return typeof amount === "number" ? formatMoney(amount, currency) : null;
+}
+
+function formatMoney(amount: number, currency: string): string {
+  const hasDecimals = Math.round(amount * 100) % 100 !== 0;
+  const formatted = amount.toLocaleString("tr-TR", {
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+    minimumFractionDigits: hasDecimals ? 2 : 0
+  });
+
+  return `${formatted} ${currency === "TRY" ? "TL" : currency}`;
 }
 
 function pickString(record: Record<string, unknown>, keys: string[]): string | null {

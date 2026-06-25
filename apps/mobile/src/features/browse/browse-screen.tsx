@@ -75,7 +75,7 @@ export function BrowseScreen() {
 
       <View style={styles.list}>
         {listings.map((listing) => (
-          <Link key={listing.id} href={`/listing/${listing.id}`} asChild>
+          <Link key={listing.id} href={`/listing/${encodeURIComponent(listing.id)}`} asChild>
             <Pressable style={styles.card}>
               {listing.imageUrl ? (
                 <Image source={{ uri: listing.imageUrl }} style={styles.image} />

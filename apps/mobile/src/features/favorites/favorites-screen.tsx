@@ -91,7 +91,7 @@ export function FavoritesScreen() {
 
       <View style={styles.list}>
         {favorites.map((favorite) => (
-          <Link key={favorite.id} href={`/listing/${favorite.id}`} asChild>
+          <Link key={favorite.id} href={`/listing/${encodeURIComponent(favorite.id)}`} asChild>
             <Pressable style={styles.card}>
               {favorite.imageUrl ? (
                 <Image source={{ uri: favorite.imageUrl }} style={styles.image} />

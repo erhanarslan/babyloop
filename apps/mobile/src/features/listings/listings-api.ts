@@ -12,6 +12,7 @@ export type MobileListingSummary = {
 export type MobileListingDetail = MobileListingSummary & {
   description: string | null;
   createdAt: string | null;
+  sellerProfileId: string | null;
 };
 
 export async function fetchMobileListings(): Promise<MobileListingSummary[]> {
@@ -79,6 +80,7 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
   const locationText =
     pickString(record, ["locationCity", "city", "sellerCity"]) ??
     pickNestedString(record, ["location", "city"]) ??
+    pickNestedString(record, ["seller", "locationCity"]) ??
     "Konum belirtilmedi";
 
   return {
@@ -98,11 +100,18 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
   return {
     ...summary,
     description: pickString(record, ["description", "body"]) ?? null,
-    createdAt: pickString(record, ["createdAt", "created_at"]) ?? null
+    createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
+    sellerProfileId: pickNestedString(record, ["seller", "id"])
   };
 }
 
 function formatPrice(record: Record<string, unknown>): string {
+  const objectPrice = formatPriceObject(record.price);
+
+  if (objectPrice) {
+    return objectPrice;
+  }
+
   const directPrice = pickString(record, ["price", "priceText", "formattedPrice"]);
 
   if (directPrice) {
@@ -112,13 +121,13 @@ function formatPrice(record: Record<string, unknown>): string {
   const numericPrice = pickNumber(record, ["priceAmount", "priceValue", "amount"]);
 
   if (typeof numericPrice === "number") {
-    return `${numericPrice.toLocaleString("tr-TR")} TL`;
+    return formatMoney(numericPrice, pickString(record, ["currency"]) ?? "TRY");
   }
 
   const cents = pickNumber(record, ["priceCents", "priceInCents"]);
 
   if (typeof cents === "number") {
-    return `${(cents / 100).toLocaleString("tr-TR")} TL`;
+    return formatMoney(cents / 100, pickString(record, ["currency"]) ?? "TRY");
   }
 
   return "Fiyat belirtilmedi";
@@ -129,6 +138,16 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
 
   if (direct) {
     return direct;
+  }
+
+  const firstImage = record.firstImage;
+
+  if (isRecord(firstImage)) {
+    const url = pickString(firstImage, ["url", "imageUrl", "publicUrl"]);
+
+    if (url) {
+      return url;
+    }
   }
 
   const images = record.images;
@@ -149,6 +168,27 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
   }
 
   return null;
+}
+
+function formatPriceObject(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const amount = pickNumber(value, ["amount", "value", "priceAmount"]);
+  const currency = pickString(value, ["currency"]) ?? "TRY";
+
+  return typeof amount === "number" ? formatMoney(amount, currency) : null;
+}
+
+function formatMoney(amount: number, currency: string): string {
+  const hasDecimals = Math.round(amount * 100) % 100 !== 0;
+  const formatted = amount.toLocaleString("tr-TR", {
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+    minimumFractionDigits: hasDecimals ? 2 : 0
+  });
+
+  return `${formatted} ${currency === "TRY" ? "TL" : currency}`;
 }
 
 function pickString(record: Record<string, unknown>, keys: string[]): string | null {

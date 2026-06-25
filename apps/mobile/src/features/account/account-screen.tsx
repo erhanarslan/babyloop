@@ -64,16 +64,16 @@ export function AccountScreen() {
         </View>
       ) : (
         <>
+          <Pressable onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutButtonText}>Çıkış yap</Text>
+          </Pressable>
+
           <View style={styles.menu}>
             <MenuItem title="Favorilerim" description="Kaydettiğin ilanlar burada görünecek." />
             <MenuItem title="Mesajlar" description="Satıcı ve alıcı konuşmaları mobilde açılacak." />
             <MenuItem title="İlanlarım" description="Satıştaki ürünlerini yönet." />
             <MenuItem title="Çocuğum" description="Yaşa göre öneriler ve bildirim tercihleri." />
           </View>
-
-          <Pressable onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Çıkış yap</Text>
-          </Pressable>
         </>
       )}
 

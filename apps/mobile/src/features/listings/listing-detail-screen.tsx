@@ -19,6 +19,7 @@ export function ListingDetailScreen() {
   const params = useLocalSearchParams<{ listingId?: string }>();
   const router = useRouter();
   const authSession = useAuthSession();
+  const currentUser = authSession.currentUser;
   const listingId = typeof params.listingId === "string" ? params.listingId : "demo";
 
   const [listing, setListing] = useState<MobileListingDetail | null>(null);
@@ -27,6 +28,7 @@ export function ListingDetailScreen() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>("idle");
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const isOwnListing = Boolean(currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +69,13 @@ export function ListingDetailScreen() {
     async function loadFavoriteState() {
       setFavoriteError(null);
 
-      if (!authSession.currentUser) {
+      if (!currentUser || !listing) {
+        setIsFavorited(false);
+        setFavoriteStatus("idle");
+        return;
+      }
+
+      if (isOwnListing) {
         setIsFavorited(false);
         setFavoriteStatus("idle");
         return;
@@ -99,15 +107,15 @@ export function ListingDetailScreen() {
     return () => {
       active = false;
     };
-  }, [authSession.currentUser, listingId]);
+  }, [currentUser, isOwnListing, listing, listingId]);
 
   async function handleFavoritePress() {
-    if (!authSession.currentUser) {
+    if (!currentUser) {
       router.push("/login");
       return;
     }
 
-    if (!listing || favoriteStatus === "pending") {
+    if (!listing || isOwnListing || favoriteStatus === "pending") {
       return;
     }
 
@@ -119,11 +127,8 @@ export function ListingDetailScreen() {
 
       setIsFavorited(nextFavorited);
     } catch (favoriteActionError) {
-      setFavoriteError(
-        favoriteActionError instanceof Error
-          ? favoriteActionError.message
-          : "Favori işlemi tamamlanamadı."
-      );
+      const message = favoriteActionError instanceof Error ? favoriteActionError.message : "";
+      setFavoriteError(message.includes("own listing") ? "Bu ilan sana ait." : "Favori işlemi tamamlanamadı.");
     } finally {
       setFavoriteStatus("idle");
     }
@@ -157,30 +162,34 @@ export function ListingDetailScreen() {
             <Text style={styles.condition}>{listing.conditionText}</Text>
           ) : null}
 
-          <Pressable
-            disabled={favoriteStatus === "pending"}
-            onPress={handleFavoritePress}
-            style={[
-              styles.favoriteButton,
-              isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
-              favoriteStatus === "pending" ? styles.favoriteButtonDisabled : null
-            ]}
-          >
-            <Text
+          {isOwnListing ? (
+            <View style={styles.ownerNotice}>
+              <Text style={styles.ownerNoticeText}>Bu ilan sana ait.</Text>
+            </View>
+          ) : (
+            <Pressable
+              disabled={favoriteStatus === "pending"}
+              onPress={handleFavoritePress}
               style={[
-                styles.favoriteButtonText,
-                isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
+                styles.favoriteButton,
+                isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
+                favoriteStatus === "pending" ? styles.favoriteButtonDisabled : null
               ]}
             >
-              {favoriteStatus === "pending"
-                ? "Kaydediliyor..."
-                : isFavorited
-                  ? "Favoriden çıkar"
-                  : authSession.currentUser
-                    ? "Favoriye ekle"
-                    : "Favoriye eklemek için giriş yap"}
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.favoriteButtonText,
+                  isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
+                ]}
+              >
+                {favoriteStatus === "pending"
+                  ? "Kaydediliyor..."
+                  : isFavorited
+                    ? "Favoriden çıkar"
+                    : "Favoriye ekle"}
+              </Text>
+            </Pressable>
+          )}
 
           {favoriteStatus === "checking" ? (
             <Text style={styles.favoriteHint}>Favori durumu kontrol ediliyor...</Text>
@@ -277,6 +286,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18
+  },
+  ownerNotice: {
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#f1d8ca",
+    borderRadius: 999,
+    backgroundColor: "#fff1e8",
+    paddingVertical: 13
+  },
+  ownerNoticeText: {
+    color: "#8a5f4c",
+    fontSize: 15,
+    fontWeight: "900"
   },
   stateCard: {
     borderWidth: 1,

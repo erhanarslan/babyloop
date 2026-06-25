@@ -46,19 +46,31 @@ export async function apiGet<T>(path: string): Promise<ApiClientResult<T>> {
 }
 
 export function resolveApiAssetUrl(url: string | null | undefined): string | null {
-  if (!url) {
+  const rawUrl = typeof url === "string" ? url.trim() : "";
+
+  if (!rawUrl) {
     return null;
   }
 
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
+  const apiBaseUrl = getApiBaseUrl();
 
-  if (url.startsWith("/api/")) {
-    return `${getApiBaseUrl()}${url}`;
-  }
+  try {
+    const parsedUrl = new URL(rawUrl, `${apiBaseUrl}/`);
 
-  return url;
+    if (isLocalDevelopmentHost(parsedUrl.hostname)) {
+      const apiUrl = new URL(apiBaseUrl);
+      parsedUrl.hostname = apiUrl.hostname;
+      parsedUrl.protocol = apiUrl.protocol;
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isLocalDevelopmentHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
 }
 
 function unwrapApiData<T>(payload: unknown): T {
