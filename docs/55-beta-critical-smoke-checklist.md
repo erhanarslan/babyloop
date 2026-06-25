@@ -123,7 +123,7 @@ This is not a full regression suite. It is the minimum smoke path to catch broke
 
 - Admin email ops preview loads.
 - Provider config preview does not expose SMTP password or Resend API key.
-- Foundation mode keeps `sendEnabled=false`.
+- Default/sandbox mode keeps `sendEnabled=false`; real SMTP sending is allowed only when `EMAIL_DELIVERY_MODE=provider`, `EMAIL_PROVIDER=smtp`, and `EMAIL_SEND_ENABLED=true`.
 - Verification/reset flows do not try to send real email unless explicitly enabled in a later release.
 
 ## 13. Observability and logs
