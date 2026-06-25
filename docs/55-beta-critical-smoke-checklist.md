@@ -122,6 +122,7 @@ This is not a full regression suite. It is the minimum smoke path to catch broke
 ## 12. Email provider
 
 - Admin email ops preview loads.
+- Admin email test-send returns sandbox result unless SMTP send kill-switch is explicitly enabled.
 - Provider config preview does not expose SMTP password or Resend API key.
 - Default/sandbox mode keeps `sendEnabled=false`; real SMTP sending is allowed only when `EMAIL_DELIVERY_MODE=provider`, `EMAIL_PROVIDER=smtp`, and `EMAIL_SEND_ENABLED=true`.
 - Verification/reset flows do not try to send real email unless explicitly enabled in a later release.
