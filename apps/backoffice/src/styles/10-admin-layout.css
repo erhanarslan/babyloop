@@ -1,0 +1,257 @@
+.backoffice-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  gap: 2rem;
+  border-right: 1px solid rgba(23, 23, 35, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(109, 40, 217, 0.16), transparent 18rem),
+    #ffffff;
+  padding: 1.5rem;
+}
+
+.brand-block {
+  border-bottom: 1px solid rgba(23, 23, 35, 0.08);
+  padding-bottom: 1.5rem;
+}
+
+.brand-eyebrow,
+.topbar-eyebrow,
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: #6d28d9;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.brand-block h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sidebar-link {
+  display: grid;
+  gap: 0.2rem;
+  border-radius: 16px;
+  padding: 0.85rem 0.9rem;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar-link:hover {
+  background: rgba(109, 40, 217, 0.08);
+  transform: translateX(2px);
+}
+
+.sidebar-link-disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.sidebar-link-disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
+.sidebar-link span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.sidebar-link em {
+  border: 1px solid rgba(107, 114, 128, 0.22);
+  border-radius: 999px;
+  padding: 0.08rem 0.38rem;
+  color: #6b7280;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sidebar-link small {
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.backoffice-main-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.backoffice-topbar {
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(23, 23, 35, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+  padding: 1rem 2rem;
+  backdrop-filter: blur(16px);
+}
+
+.backoffice-topbar strong {
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.topbar-status {
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.08);
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.55rem 0.85rem;
+}
+
+.backoffice-content {
+  width: min(100%, 1180px);
+  padding: 2rem;
+}
+
+.page-heading {
+  max-width: 780px;
+}
+
+.page-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.page-heading p {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.info-grid,
+.module-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.info-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.module-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.info-card,
+.module-card {
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 60px rgba(23, 23, 35, 0.06);
+}
+
+.info-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+}
+
+.info-card span {
+  color: #6b7280;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.info-card strong {
+  color: #111827;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.module-card {
+  display: flex;
+  min-height: 160px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.module-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.15rem;
+}
+
+.module-card p {
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.module-card span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(109, 40, 217, 0.08);
+  color: #5b21b6;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.5rem 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .backoffice-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .backoffice-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .backoffice-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .info-grid,
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.auth-state-card,
+.login-card {
+  width: min(100%, 680px);
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 18px 60px rgba(23, 23, 35, 0.06);
+  padding: 2rem;
+}

@@ -1,0 +1,33 @@
+@media (max-width: 1024px) {
+  .site-header-inner {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .desktop-nav,
+  .header-tools,
+  .header-auth {
+    display: none;
+  }
+
+  .mobile-menu-trigger {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header-inner {
+    grid-template-columns: auto auto;
+  }
+
+  .header-search {
+    display: none;
+  }
+
+  .brand small {
+    display: none;
+  }
+}
+
+.recently-viewed-panel {
+    @apply mt-6;
+  }

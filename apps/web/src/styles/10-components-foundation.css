@@ -1,0 +1,313 @@
+@media (max-width: 780px) {
+  .site-header-inner {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .header-search,
+  .desktop-nav,
+  .header-auth {
+    display: none;
+  }
+}
+
+.site-header-inner {
+    @apply relative grid-cols-[auto_minmax(220px,1fr)_auto_auto_auto_auto];
+  }
+
+  .brand-cluster {
+    @apply min-w-fit;
+  }
+
+  .header-search {
+    @apply relative max-w-md gap-3 text-left transition-colors hover:border-primary/30 hover:bg-card;
+  }
+
+  .header-search span {
+    @apply rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-secondary-foreground;
+  }
+
+  .header-search strong {
+    @apply truncate text-sm font-medium text-muted-foreground;
+  }
+
+  .header-search input {
+    @apply min-w-0 flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground;
+  }
+
+  .header-search button {
+    @apply rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .search-results-panel {
+    @apply absolute left-0 right-0 top-[calc(100%+0.75rem)] z-50 grid gap-1 rounded-2xl border border-border bg-card p-2 shadow-card;
+  }
+
+  .search-results-panel p {
+    @apply px-3 py-3 text-sm text-muted-foreground;
+  }
+
+  .search-results-panel a {
+    @apply grid gap-1 rounded-xl px-3 py-3 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .search-results-panel a strong {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .search-results-panel a span {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .desktop-nav {
+    @apply gap-1;
+  }
+
+  .desktop-nav > a {
+    @apply rounded-full px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .header-tools {
+    @apply hidden items-center gap-2 lg:flex;
+  }
+
+  .language-switcher {
+    @apply inline-flex rounded-full border border-border bg-card p-1 shadow-sm;
+  }
+
+  .language-switcher button {
+    @apply rounded-full px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .language-switcher button[aria-pressed="true"] {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .theme-toggle {
+    @apply inline-flex min-h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-xs font-bold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .auth-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .ghost-auth-link,
+  .solid-auth-link {
+    @apply inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .ghost-auth-link {
+    @apply text-muted-foreground hover:bg-muted hover:text-foreground;
+  }
+
+  .solid-auth-link {
+    @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary/90;
+  }
+
+  .mobile-menu-trigger {
+    @apply hidden min-h-10 items-center gap-1 rounded-full border border-border bg-card px-4 text-sm font-semibold shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .mobile-menu-trigger[aria-expanded="true"] span {
+    @apply rotate-180;
+  }
+
+  .mobile-nav-panel {
+    @apply pointer-events-none absolute left-4 right-4 top-[72px] z-50 translate-y-1 rounded-2xl border border-border bg-card p-3 opacity-0 shadow-soft transition-all duration-150 lg:hidden;
+  }
+
+  .mobile-nav-panel-open {
+    @apply pointer-events-auto translate-y-0 opacity-100;
+  }
+
+  .mobile-nav-panel nav {
+    @apply grid gap-1;
+  }
+
+  .mobile-nav-panel a,
+  .mobile-nav-panel button {
+    @apply rounded-xl px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground;
+  }
+
+  .mobile-nav-panel p {
+    @apply px-3 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .mobile-preferences {
+    @apply flex flex-wrap items-center gap-2 px-3 py-2;
+  }
+
+  .mobile-user-label {
+    @apply rounded-xl bg-muted px-3 py-2 text-sm font-semibold text-foreground;
+  }
+
+  .site-footer {
+    @apply mt-16 border-t border-border bg-card/70 px-5 py-10 sm:px-8 lg:px-10;
+  }
+
+  .site-footer-inner {
+    @apply mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.2fr_1fr];
+  }
+
+  .footer-brand {
+    @apply grid max-w-xl gap-4;
+  }
+
+  .footer-brand p {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .footer-links {
+    @apply grid gap-6 sm:grid-cols-3;
+  }
+
+  .footer-links nav {
+    @apply grid content-start gap-2;
+  }
+
+  .footer-links h2 {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .footer-links a {
+    @apply text-sm text-muted-foreground transition-colors hover:text-primary;
+  }
+
+  .home-hero {
+    @apply mx-auto grid min-h-[78vh] max-w-7xl items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-20;
+  }
+
+  .home-hero-copy {
+    @apply max-w-3xl;
+  }
+
+  .home-hero h1 {
+    @apply text-5xl font-semibold tracking-tight text-foreground sm:text-6xl lg:text-7xl;
+  }
+
+  .home-hero-copy > p:not(.eyebrow) {
+    @apply mt-6 max-w-2xl text-lg leading-8 text-muted-foreground;
+  }
+
+  .hero-preview-card {
+    @apply grid gap-4 rounded-[1.5rem] border border-border bg-card/90 p-5 shadow-soft backdrop-blur;
+  }
+
+  .preview-card-header,
+  .preview-metrics {
+    @apply flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/60 p-4;
+  }
+
+  .preview-card-header span,
+  .preview-metrics span {
+    @apply text-xs font-bold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .preview-card-header strong,
+  .preview-metrics strong {
+    @apply text-right text-sm font-semibold text-foreground;
+  }
+
+  .preview-listing {
+    @apply grid gap-4 rounded-2xl bg-gradient-to-br from-baby-peach via-card to-baby-blue p-5 sm:grid-cols-[120px_1fr];
+  }
+
+  .preview-image {
+    @apply min-h-32 rounded-2xl bg-card/70 shadow-inner;
+  }
+
+  .preview-listing h2 {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  .preview-listing p {
+    @apply mt-3 text-sm leading-6 text-muted-foreground;
+  }
+
+  .home-section {
+    @apply mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 lg:px-10;
+  }
+
+  .home-section-tint {
+    @apply my-6 rounded-[2rem] border border-border bg-card/65 shadow-sm;
+  }
+
+  .home-section-heading {
+    @apply grid max-w-3xl gap-4;
+  }
+
+  .home-section-heading h2,
+  .home-final-cta h2 {
+    @apply text-3xl font-semibold tracking-tight text-foreground sm:text-4xl;
+  }
+
+  .home-section-heading p:not(.eyebrow) {
+    @apply text-base leading-7 text-muted-foreground;
+  }
+
+  .home-card-grid {
+    @apply grid gap-4 md:grid-cols-3;
+  }
+
+  .home-feature-card {
+    @apply grid min-h-52 content-start gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition-transform duration-150 hover:-translate-y-1 hover:shadow-soft;
+  }
+
+  .home-feature-card h3 {
+    @apply text-xl font-semibold text-foreground;
+  }
+
+  .home-feature-card p {
+    @apply text-sm leading-7 text-muted-foreground;
+  }
+
+  .safety-section {
+    @apply lg:grid-cols-[0.9fr_1.1fr] lg:items-start;
+  }
+
+  .safety-card-list {
+    @apply grid gap-3;
+  }
+
+  .safety-card {
+    @apply grid grid-cols-[auto_1fr] gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm;
+  }
+
+  .safety-card span {
+    @apply grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary;
+  }
+
+  .safety-card p {
+    @apply text-sm leading-7 text-muted-foreground;
+  }
+
+  .home-final-cta {
+    @apply mx-auto mb-10 grid max-w-7xl gap-5 rounded-[2rem] border border-border bg-gradient-to-br from-baby-sage via-card to-baby-lavender px-6 py-8 shadow-soft sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10;
+  }
+
+  .home-final-cta p:not(.eyebrow) {
+    @apply mt-3 max-w-2xl text-sm leading-6 text-muted-foreground;
+  }
+
+  .hero-actions-compact {
+    @apply mt-0;
+  }
+
+  .auth-hero {
+    @apply mx-auto grid w-full max-w-2xl gap-4 px-5 pb-6 pt-14 text-center sm:px-8 lg:px-10;
+  }
+
+  .auth-hero h1 {
+    @apply text-4xl font-semibold tracking-tight text-foreground sm:text-5xl;
+  }
+
+  .auth-hero p:not(.eyebrow) {
+    @apply mx-auto max-w-xl text-base leading-7 text-muted-foreground;
+  }
+
+  .auth-panel {
+    @apply rounded-3xl p-6 shadow-card sm:p-8;
+  }
+
+  .google-icon {
+    @apply mr-2 h-5 w-5;
+  }

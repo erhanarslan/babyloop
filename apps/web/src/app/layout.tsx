@@ -9,6 +9,13 @@ import {
 } from "../lib/seo";
 import { Providers } from "./providers";
 import "./globals.css";
+import "../styles/00-base.css";
+import "../styles/10-components-foundation.css";
+import "../styles/20-components-marketplace.css";
+import "../styles/30-pages-discovery.css";
+import "../styles/40-pages-auth-account.css";
+import "../styles/50-components-public.css";
+import "../styles/60-pages-home-polish.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
