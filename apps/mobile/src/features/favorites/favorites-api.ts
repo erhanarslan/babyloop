@@ -42,6 +42,34 @@ export async function fetchMobileFavorites(): Promise<MobileFavoriteListing[]> {
   return extractFavoriteArray(body.data).map(normalizeFavoriteListing);
 }
 
+
+export async function saveMobileFavorite(
+  listingId: string,
+  isFavorited: boolean
+): Promise<boolean> {
+  const response = await mobileAuthFetch("/api/v1/favorites", {
+    method: isFavorited ? "DELETE" : "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      listingId
+    })
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("Favoriye eklemek için giriş yap.");
+  }
+
+  const body = await parseApiResponse<unknown>(response);
+
+  if (!body.ok) {
+    throw new Error(body.error.message);
+  }
+
+  return !isFavorited;
+}
+
 async function parseApiResponse<T>(response: Response): Promise<MobileApiResponse<T>> {
   const payload: unknown = await response.json().catch(() => null);
 

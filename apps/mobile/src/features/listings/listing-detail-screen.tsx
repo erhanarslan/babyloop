@@ -1,19 +1,32 @@
-import { Link, useLocalSearchParams } from "expo-router";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+
+import { useAuthSession } from "../auth/auth-session";
+import {
+  fetchMobileFavorites,
+  saveMobileFavorite
+} from "../favorites/favorites-api";
 import {
   fetchMobileListingDetail,
   type MobileListingDetail
 } from "./listings-api";
 import { Paragraph, Screen } from "../../ui/screen";
 
+type FavoriteStatus = "idle" | "checking" | "pending";
+
 export function ListingDetailScreen() {
   const params = useLocalSearchParams<{ listingId?: string }>();
+  const router = useRouter();
+  const authSession = useAuthSession();
   const listingId = typeof params.listingId === "string" ? params.listingId : "demo";
 
   const [listing, setListing] = useState<MobileListingDetail | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>("idle");
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +61,74 @@ export function ListingDetailScreen() {
     };
   }, [listingId]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadFavoriteState() {
+      setFavoriteError(null);
+
+      if (!authSession.currentUser) {
+        setIsFavorited(false);
+        setFavoriteStatus("idle");
+        return;
+      }
+
+      try {
+        setFavoriteStatus("checking");
+
+        const favorites = await fetchMobileFavorites();
+
+        if (!active) {
+          return;
+        }
+
+        setIsFavorited(favorites.some((favorite) => favorite.id === listingId));
+        setFavoriteStatus("idle");
+      } catch {
+        if (!active) {
+          return;
+        }
+
+        setIsFavorited(false);
+        setFavoriteStatus("idle");
+      }
+    }
+
+    void loadFavoriteState();
+
+    return () => {
+      active = false;
+    };
+  }, [authSession.currentUser, listingId]);
+
+  async function handleFavoritePress() {
+    if (!authSession.currentUser) {
+      router.push("/login");
+      return;
+    }
+
+    if (!listing || favoriteStatus === "pending") {
+      return;
+    }
+
+    try {
+      setFavoriteStatus("pending");
+      setFavoriteError(null);
+
+      const nextFavorited = await saveMobileFavorite(listing.id, isFavorited);
+
+      setIsFavorited(nextFavorited);
+    } catch (favoriteActionError) {
+      setFavoriteError(
+        favoriteActionError instanceof Error
+          ? favoriteActionError.message
+          : "Favori işlemi tamamlanamadı."
+      );
+    } finally {
+      setFavoriteStatus("idle");
+    }
+  }
+
   return (
     <Screen eyebrow="İlan detayı" title={listing?.title ?? "İlan detayı"}>
       {status === "loading" ? <Paragraph>İlan detayı yükleniyor...</Paragraph> : null}
@@ -74,6 +155,39 @@ export function ListingDetailScreen() {
 
           {listing.conditionText ? (
             <Text style={styles.condition}>{listing.conditionText}</Text>
+          ) : null}
+
+          <Pressable
+            disabled={favoriteStatus === "pending"}
+            onPress={handleFavoritePress}
+            style={[
+              styles.favoriteButton,
+              isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
+              favoriteStatus === "pending" ? styles.favoriteButtonDisabled : null
+            ]}
+          >
+            <Text
+              style={[
+                styles.favoriteButtonText,
+                isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
+              ]}
+            >
+              {favoriteStatus === "pending"
+                ? "Kaydediliyor..."
+                : isFavorited
+                  ? "Favoriden çıkar"
+                  : authSession.currentUser
+                    ? "Favoriye ekle"
+                    : "Favoriye eklemek için giriş yap"}
+            </Text>
+          </Pressable>
+
+          {favoriteStatus === "checking" ? (
+            <Text style={styles.favoriteHint}>Favori durumu kontrol ediliyor...</Text>
+          ) : null}
+
+          {favoriteError ? (
+            <Text style={styles.favoriteError}>{favoriteError}</Text>
           ) : null}
 
           <Paragraph>
@@ -126,6 +240,43 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     paddingHorizontal: 10,
     paddingVertical: 5
+  },
+  favoriteButton: {
+    alignItems: "center",
+    borderRadius: 999,
+    paddingVertical: 14
+  },
+  favoriteButtonPrimary: {
+    backgroundColor: "#d45d3f"
+  },
+  favoriteButtonSecondary: {
+    borderWidth: 1,
+    borderColor: "#f1d8ca",
+    backgroundColor: "#fff1e8"
+  },
+  favoriteButtonDisabled: {
+    opacity: 0.65
+  },
+  favoriteButtonText: {
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  favoriteButtonTextPrimary: {
+    color: "#ffffff"
+  },
+  favoriteButtonTextSecondary: {
+    color: "#8a5f4c"
+  },
+  favoriteHint: {
+    color: "#8a5f4c",
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  favoriteError: {
+    color: "#b42318",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18
   },
   stateCard: {
     borderWidth: 1,
