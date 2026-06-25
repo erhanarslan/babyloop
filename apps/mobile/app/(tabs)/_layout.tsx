@@ -34,7 +34,8 @@ function TabIcon({
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 10);
+  const bottomInset = Math.max(insets.bottom, 0);
+  const tabBarHeight = 62;
 
   return (
     <Tabs
@@ -48,7 +49,7 @@ export default function TabLayout() {
           left: 14,
           right: 14,
           bottom: bottomInset,
-          height: 62,
+          height: tabBarHeight,
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: tabColors.border,
@@ -67,7 +68,7 @@ export default function TabLayout() {
           fontWeight: "800",
         },
         sceneStyle: {
-          paddingBottom: 84 + bottomInset,
+          backgroundColor: "#fff7f2",
         },
       }}
     >

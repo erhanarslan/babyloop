@@ -12,8 +12,19 @@ type ScreenProps = {
 
 export function Screen({ title, eyebrow, subtitle, children }: ScreenProps) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+      <View pointerEvents="none" style={styles.backgroundPattern}>
+        <View style={[styles.patternBlob, styles.patternBlobPrimary]} />
+        <View style={[styles.patternBlob, styles.patternBlobPeach]} />
+        <View style={[styles.patternRing, styles.patternRingTop]} />
+        <View style={[styles.patternRing, styles.patternRingBottom]} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
           <Text style={styles.title}>{title}</Text>
@@ -58,9 +69,54 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background
   },
+  backgroundPattern: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden"
+  },
+  patternBlob: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.18
+  },
+  patternBlobPrimary: {
+    top: -90,
+    right: -70,
+    width: 210,
+    height: 210,
+    backgroundColor: colors.peach
+  },
+  patternBlobPeach: {
+    bottom: 130,
+    left: -95,
+    width: 190,
+    height: 190,
+    backgroundColor: colors.cream
+  },
+  patternRing: {
+    position: "absolute",
+    borderWidth: 18,
+    borderColor: colors.surfaceSoft,
+    borderRadius: 999,
+    opacity: 0.55
+  },
+  patternRingTop: {
+    top: 120,
+    left: -42,
+    width: 118,
+    height: 118
+  },
+  patternRingBottom: {
+    right: -46,
+    bottom: 250,
+    width: 132,
+    height: 132
+  },
+  scroll: {
+    flex: 1
+  },
   content: {
     padding: 20,
-    paddingBottom: 36,
+    paddingBottom: 112,
     gap: 18
   },
   header: {

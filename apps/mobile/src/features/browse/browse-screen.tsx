@@ -6,29 +6,7 @@ import {
   type MobileListingSummary
 } from "../listings/listings-api";
 import { Paragraph, Screen } from "../../ui/screen";
-
-const quickActions = [
-  {
-    href: "/sell",
-    title: "İlan ver",
-    description: "Kullanmadığın ürünü hazırlamaya başla."
-  },
-  {
-    href: "/favorites",
-    title: "Favoriler",
-    description: "Kaydettiğin ilanlara hızlıca dön."
-  },
-  {
-    href: "/messages",
-    title: "Mesajlar",
-    description: "Alıcı ve satıcı konuşmalarını takip et."
-  },
-  {
-    href: "/assistant",
-    title: "BabyLoop Asistan",
-    description: "Ürün seçimi ve güvenli alışveriş kontrol listeleri."
-  }
-] as const;
+import { DiscoverHeroBanner } from "./discover-hero-banner";
 
 export function BrowseScreen() {
   const [listings, setListings] = useState<MobileListingSummary[]>([]);
@@ -78,15 +56,10 @@ export function BrowseScreen() {
         Ürünleri gör, favorilerine ekle veya satıcıyla güvenli mesajlaşmaya hazırlan.
       </Paragraph>
 
-      <View style={styles.quickGrid}>
-        {quickActions.map((action) => (
-          <Link href={action.href} key={action.title} asChild>
-            <Pressable style={styles.quickCard}>
-              <Text style={styles.quickTitle}>{action.title}</Text>
-              <Text style={styles.quickDescription}>{action.description}</Text>
-            </Pressable>
-          </Link>
-        ))}
+      <DiscoverHeroBanner />
+
+      <View style={styles.sectionHeading}>
+        <Text style={styles.sectionTitle}>Son eklenenler</Text>
       </View>
 
       {status === "loading" ? <Paragraph>İlanlar yükleniyor...</Paragraph> : null}
@@ -129,44 +102,18 @@ export function BrowseScreen() {
           </Link>
         ))}
       </View>
-
-      <Link href="/login" style={styles.link}>
-        Giriş ekranı
-      </Link>
-
-      <Link href="/account" style={styles.link}>
-        Hesabım
-      </Link>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  quickGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
+  sectionHeading: {
+    marginTop: 2
   },
-  quickCard: {
-    flexGrow: 1,
-    flexBasis: "47%",
-    borderWidth: 1,
-    borderColor: "#f1d8ca",
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    minHeight: 104,
-    padding: 14,
-    gap: 6
-  },
-  quickTitle: {
+  sectionTitle: {
     color: "#2f2521",
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "900"
-  },
-  quickDescription: {
-    color: "#6d5d56",
-    fontSize: 13,
-    lineHeight: 18
   },
   list: {
     gap: 12
@@ -240,11 +187,5 @@ const styles = StyleSheet.create({
     color: "#6d5d56",
     fontSize: 14,
     lineHeight: 20
-  },
-  link: {
-    color: "#d45d3f",
-    fontSize: 16,
-    fontWeight: "800",
-    paddingVertical: 6
   }
 });
