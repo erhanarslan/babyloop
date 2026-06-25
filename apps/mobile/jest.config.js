@@ -4,5 +4,6 @@ module.exports = {
   testEnvironment: "node",
   testMatch: ["<rootDir>/src/**/*.test.ts"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"]
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  watchman: false
 };
