@@ -30,8 +30,8 @@ export function ListingImageReviewPanel({
         <p className="eyebrow">Images</p>
         <h3>Image review</h3>
         <p>
-          Approve or reject individual listing images. Rejected images stay
-          visible to admins but are hidden from public listing responses.
+          Approve or reject individual listing images. Images marked needs review
+          stay visible to admins but are hidden from public listing responses until approved.
         </p>
       </div>
 
@@ -63,7 +63,17 @@ function ImageReviewCard({
   onReviewed: (listing: AdminListingDetail) => void;
 }) {
   const supportedActions = useMemo<AdminListingImageAction[]>(
-    () => (image.reviewStatus === "rejected" ? ["approve"] : ["reject"]),
+    () => {
+      if (image.reviewStatus === "approved") {
+        return ["reject"];
+      }
+
+      if (image.reviewStatus === "rejected") {
+        return ["approve"];
+      }
+
+      return ["approve", "reject"];
+    },
     [image.reviewStatus],
   );
   const [action, setAction] = useState<AdminListingImageAction>(
@@ -138,6 +148,22 @@ function ImageReviewCard({
           <dt>Reviewer</dt>
           <dd>{image.reviewedByProfileId ?? "Not set"}</dd>
         </div>
+        <div>
+          <dt>AI decision</dt>
+          <dd>{image.authenticity.decision ?? "Not checked"}</dd>
+        </div>
+        <div>
+          <dt>AI confidence</dt>
+          <dd>{image.authenticity.confidence === null ? "Not set" : image.authenticity.confidence.toFixed(2)}</dd>
+        </div>
+        <div>
+          <dt>AI provider</dt>
+          <dd>{image.authenticity.providerName ?? "Not set"}</dd>
+        </div>
+        <div className="full-field">
+          <dt>AI reasons</dt>
+          <dd>{image.authenticity.reasons.length > 0 ? image.authenticity.reasons.join(" / ") : "No AI reason recorded."}</dd>
+        </div>
         <div className="full-field">
           <dt>Image ID</dt>
           <dd>{image.id}</dd>
@@ -199,8 +225,12 @@ function getReviewActionLabel(action: AdminListingImageAction): string {
 
 function getReviewStatusLabel(status: AdminListingImage["reviewStatus"]): string {
   switch (status) {
+    case "pending":
+      return "Pending";
     case "approved":
       return "Approved";
+    case "needs_review":
+      return "Needs review";
     case "rejected":
       return "Rejected";
   }

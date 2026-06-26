@@ -40,7 +40,9 @@ export const listingConditionEnum = pgEnum("listing_condition", [
 ]);
 
 export const listingImageReviewStatusEnum = pgEnum("listing_image_review_status", [
+  "pending",
   "approved",
+  "needs_review",
   "rejected"
 ]);
 
@@ -388,11 +390,21 @@ export const listingImages = pgTable(
     reviewedByProfileId: uuid("reviewed_by_profile_id").references(() => profiles.id, {
       onDelete: "set null"
     }),
+    authenticityProvider: varchar("authenticity_provider", { length: 120 }),
+    authenticityModel: varchar("authenticity_model", { length: 160 }),
+    authenticityPromptVersion: varchar("authenticity_prompt_version", { length: 160 }),
+    authenticityDecision: varchar("authenticity_decision", { length: 40 }),
+    authenticityConfidence: numeric("authenticity_confidence", { precision: 5, scale: 4 }),
+    authenticityReasons: jsonb("authenticity_reasons").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    authenticityFlags: jsonb("authenticity_flags").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    authenticityCheckedAt: timestamp("authenticity_checked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
     index("listing_images_listing_id_idx").on(table.listingId),
-    index("listing_images_review_status_idx").on(table.reviewStatus)
+    index("listing_images_review_status_idx").on(table.reviewStatus),
+    index("listing_images_authenticity_decision_idx").on(table.authenticityDecision),
+    index("listing_images_authenticity_checked_at_idx").on(table.authenticityCheckedAt)
   ]
 );
 

@@ -33,7 +33,9 @@ export type CreateListingPayload = {
 };
 
 export type ListingImagePayload = {
-  image: ListingSummary["firstImage"];
+  image: ListingSummary["firstImage"] & {
+    reviewStatus?: "pending" | "approved" | "needs_review" | "rejected";
+  };
 };
 
 export type MyListingsPayload = {

@@ -139,6 +139,16 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       });
     }
 
+    if (result.status === "image_urls_not_allowed") {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "LISTING_IMAGE_UPLOAD_REQUIRED",
+          message: "Listing images must be uploaded through the image upload endpoint."
+        }
+      });
+    }
+
     if (result.status !== "created") {
       return reply.status(500).send({
         ok: false,
@@ -547,6 +557,7 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       const result = await addListingImage(app, currentUser, {
         image: imageSafety.image,
         listingId: parsedParams.data.id,
+        originalFilename: multipartFile.filename,
         uploadRoot: options.uploadRoot
       });
 
@@ -564,6 +575,26 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
           error: {
             code: "TOO_MANY_IMAGES",
             message: "Listing already has the maximum number of images."
+          }
+        });
+      }
+
+      if (result.status === "authenticity_rejected") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "IMAGE_AUTHENTICITY_REJECTED",
+            message: result.reason
+          }
+        });
+      }
+
+      if (result.status === "authenticity_unavailable") {
+        return reply.status(503).send({
+          ok: false,
+          error: {
+            code: "IMAGE_AUTHENTICITY_UNAVAILABLE",
+            message: result.reason
           }
         });
       }

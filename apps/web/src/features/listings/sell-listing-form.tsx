@@ -261,7 +261,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           <div className="image-upload-header">
             <div>
               <h2>Görseller</h2>
-              <p>En fazla 5 görsel ekleyebilirsin.</p>
+              <p>En fazla 5 görsel ekleyebilirsin. Yalnızca ilandaki gerçek ürüne ait kendi çektiğin fotoğraflar kabul edilir.</p>
             </div>
             <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} görsel</Badge>
           </div>
@@ -279,8 +279,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
           {selectedImages.length === 0 ? (
             <div className={styles.imageEmpty}>
-              <strong>Ürünü net gösteren fotoğraflar ekle.</strong>
-              <span>Ön, yan, kullanım izi ve varsa aksesuarları göstermek ailelerin kararını kolaylaştırır.</span>
+              <strong>Ürünü net gösteren gerçek fotoğraflar ekle.</strong>
+              <span>AI görseli, katalog/stock fotoğraf, render, çizim, ekran görüntüsü veya farklı ürüne ait fotoğraf kabul edilmez.</span>
             </div>
           ) : (
             <ul className={styles.previewGrid}>

@@ -14,7 +14,12 @@ import type {
   AdminListingActionValue,
   AdminListingStatusValue
 } from "../schemas/admin-listings.schemas.js";
-import { buildPrice, type CategoryBasicResponse, type PriceResponse } from "./listing-response.mapper.js";
+import {
+  buildPrice,
+  type CategoryBasicResponse,
+  type ListingImageReviewStatus,
+  type PriceResponse
+} from "./listing-response.mapper.js";
 
 export type AdminListingSort =
   | "newest"
@@ -33,9 +38,19 @@ export type AdminListingImageReview = {
   id: string;
   url: string;
   sortOrder: number;
-  reviewStatus: "approved" | "rejected";
+  reviewStatus: ListingImageReviewStatus;
   reviewedAt: string | null;
   reviewedByProfileId: string | null;
+  authenticity: {
+    decision: "allow" | "needs_review" | "reject" | null;
+    confidence: number | null;
+    providerName: string | null;
+    modelName: string | null;
+    promptVersion: string | null;
+    reasons: string[];
+    flags: Record<string, unknown>;
+    checkedAt: string | null;
+  };
   createdAt: string;
 };
 
@@ -481,6 +496,14 @@ async function loadPrimaryImages(
       reviewStatus: listingImages.reviewStatus,
       reviewedAt: listingImages.reviewedAt,
       reviewedByProfileId: listingImages.reviewedByProfileId,
+      authenticityProvider: listingImages.authenticityProvider,
+      authenticityModel: listingImages.authenticityModel,
+      authenticityPromptVersion: listingImages.authenticityPromptVersion,
+      authenticityDecision: listingImages.authenticityDecision,
+      authenticityConfidence: listingImages.authenticityConfidence,
+      authenticityReasons: listingImages.authenticityReasons,
+      authenticityFlags: listingImages.authenticityFlags,
+      authenticityCheckedAt: listingImages.authenticityCheckedAt,
       createdAt: listingImages.createdAt
     })
     .from(listingImages)
@@ -532,6 +555,14 @@ async function loadAdminListingImages(
       reviewStatus: listingImages.reviewStatus,
       reviewedAt: listingImages.reviewedAt,
       reviewedByProfileId: listingImages.reviewedByProfileId,
+      authenticityProvider: listingImages.authenticityProvider,
+      authenticityModel: listingImages.authenticityModel,
+      authenticityPromptVersion: listingImages.authenticityPromptVersion,
+      authenticityDecision: listingImages.authenticityDecision,
+      authenticityConfidence: listingImages.authenticityConfidence,
+      authenticityReasons: listingImages.authenticityReasons,
+      authenticityFlags: listingImages.authenticityFlags,
+      authenticityCheckedAt: listingImages.authenticityCheckedAt,
       createdAt: listingImages.createdAt
     })
     .from(listingImages)
@@ -674,9 +705,17 @@ function mapImage(row: {
   id: string;
   url: string;
   sortOrder: number;
-  reviewStatus: "approved" | "rejected";
+  reviewStatus: ListingImageReviewStatus;
   reviewedAt: Date | null;
   reviewedByProfileId: string | null;
+  authenticityProvider: string | null;
+  authenticityModel: string | null;
+  authenticityPromptVersion: string | null;
+  authenticityDecision: string | null;
+  authenticityConfidence: string | null;
+  authenticityReasons: string[];
+  authenticityFlags: Record<string, unknown>;
+  authenticityCheckedAt: Date | null;
   createdAt: Date;
 }): AdminListingImageReview {
   return {
@@ -686,8 +725,26 @@ function mapImage(row: {
     reviewStatus: row.reviewStatus,
     reviewedAt: row.reviewedAt?.toISOString() ?? null,
     reviewedByProfileId: row.reviewedByProfileId,
+    authenticity: {
+      decision: normalizeAuthenticityDecision(row.authenticityDecision),
+      confidence: row.authenticityConfidence === null ? null : Number(row.authenticityConfidence),
+      providerName: row.authenticityProvider,
+      modelName: row.authenticityModel,
+      promptVersion: row.authenticityPromptVersion,
+      reasons: Array.isArray(row.authenticityReasons) ? row.authenticityReasons : [],
+      flags: row.authenticityFlags && typeof row.authenticityFlags === "object" ? row.authenticityFlags : {},
+      checkedAt: row.authenticityCheckedAt?.toISOString() ?? null
+    },
     createdAt: row.createdAt.toISOString()
   };
+}
+
+function normalizeAuthenticityDecision(value: string | null): "allow" | "needs_review" | "reject" | null {
+  if (value === "allow" || value === "needs_review" || value === "reject") {
+    return value;
+  }
+
+  return null;
 }
 
 function getAdminListingOrderBy(sort: AdminListingSort | undefined) {
@@ -735,7 +792,7 @@ function isValidAdminListingTransition(
 
 function getNextReviewStatusForAction(
   action: AdminListingImageActionValue
-): "approved" | "rejected" | null {
+): ListingImageReviewStatus | null {
   switch (action) {
     case "approve":
       return "approved";
@@ -745,14 +802,14 @@ function getNextReviewStatusForAction(
 }
 
 function isValidImageReviewTransition(
-  currentReviewStatus: "approved" | "rejected",
+  currentReviewStatus: ListingImageReviewStatus,
   action: AdminListingImageActionValue
 ): boolean {
   switch (action) {
     case "approve":
-      return currentReviewStatus === "rejected";
+      return currentReviewStatus !== "approved";
     case "reject":
-      return currentReviewStatus === "approved";
+      return currentReviewStatus !== "rejected";
   }
 }
 
@@ -762,6 +819,8 @@ function sanitizeListingAuditMetadata(
   const allowedKeys = [
     "action",
     "enforcementAction",
+    "authenticityDecision",
+    "authenticityProvider",
     "imageId",
     "listingId",
     "moderationActionId",

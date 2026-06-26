@@ -38,6 +38,7 @@ import {
   type StoredListingImage
 } from "./image-storage.service.js";
 import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
+import { analyzeListingImageAuthenticity } from "./listing-image-authenticity.service.js";
 
 export async function createListing(
   app: FastifyInstance,
@@ -45,8 +46,12 @@ export async function createListing(
   body: CreateListingBody
 ): Promise<
   | { status: "created"; listing: ListingSummaryResponse }
-  | { status: "invalid_category" | "profile_not_allowed" }
+  | { status: "image_urls_not_allowed" | "invalid_category" | "profile_not_allowed" }
 > {
+  if (body.imageUrls.length > 0) {
+    return { status: "image_urls_not_allowed" };
+  }
+
   const safetyStatus = await getProfileSafetyStatus(app, currentUser.profile.id);
 
   if (!safetyStatus || !canCreateListing(safetyStatus)) {
@@ -352,10 +357,16 @@ export async function addListingImage(
   input: {
     image: SafeImage;
     listingId: string;
+    originalFilename: string;
     uploadRoot: string;
   }
 ): Promise<
   | { status: "created"; image: ListingImageResponse }
+  | {
+      status: "authenticity_rejected";
+      reason: string;
+    }
+  | { status: "authenticity_unavailable"; reason: string }
   | { status: "not_found" | "forbidden" | "too_many_images" | "storage_failed" }
 > {
   const listing = await selectListingOwnerRow(app, input.listingId);
@@ -374,6 +385,32 @@ export async function addListingImage(
     return { status: "too_many_images" };
   }
 
+  const authenticity = await analyzeListingImageAuthenticity(app, {
+    categoryName: listing.categoryName,
+    description: listing.description,
+    image: input.image,
+    listingId: input.listingId,
+    originalFilename: input.originalFilename,
+    title: listing.title
+  });
+
+  if (authenticity.status === "unavailable") {
+    return {
+      status: "authenticity_unavailable",
+      reason: authenticity.reason
+    };
+  }
+
+  if (authenticity.decision === "reject") {
+    return {
+      status: "authenticity_rejected",
+      reason: authenticity.reasons[0] ?? "Listing image authenticity check rejected the image."
+    };
+  }
+
+  const reviewStatus = authenticity.decision === "needs_review" ? "needs_review" : "approved";
+  const authenticityCheckedAt = new Date();
+
   let storedImage: StoredListingImage | null = null;
 
   try {
@@ -388,12 +425,22 @@ export async function addListingImage(
       .values({
         listingId: input.listingId,
         url: storedImage.url,
-        sortOrder: currentImageCount
+        sortOrder: currentImageCount,
+        reviewStatus,
+        authenticityProvider: authenticity.providerName,
+        authenticityModel: authenticity.modelName,
+        authenticityPromptVersion: authenticity.promptVersion,
+        authenticityDecision: authenticity.decision,
+        authenticityConfidence: authenticity.confidence.toFixed(4),
+        authenticityReasons: authenticity.reasons,
+        authenticityFlags: authenticity.flags,
+        authenticityCheckedAt
       })
       .returning({
         id: listingImages.id,
         url: listingImages.url,
-        sortOrder: listingImages.sortOrder
+        sortOrder: listingImages.sortOrder,
+        reviewStatus: listingImages.reviewStatus
       });
 
     if (!createdImage) {

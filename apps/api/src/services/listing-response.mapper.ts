@@ -4,10 +4,25 @@ export type CategoryBasicResponse = {
   slug: string;
 };
 
+export type ListingImageReviewStatus = "pending" | "approved" | "needs_review" | "rejected";
+
+export type ListingImageAuthenticityMetadata = {
+  decision: "allow" | "needs_review" | "reject";
+  confidence: number;
+  providerName: string;
+  modelName: string | null;
+  promptVersion: string;
+  reasons: string[];
+  flags: Record<string, unknown>;
+  checkedAt: string;
+};
+
 export type ListingImageResponse = {
   id: string;
   url: string;
   sortOrder: number;
+  reviewStatus?: ListingImageReviewStatus;
+  authenticity?: ListingImageAuthenticityMetadata | null;
 };
 
 export type PriceResponse = {

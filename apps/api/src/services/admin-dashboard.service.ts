@@ -212,7 +212,7 @@ async function countListingsByStatus(
 
 async function countImagesByReviewStatus(
   app: FastifyInstance
-): Promise<Record<"approved" | "rejected", number>> {
+): Promise<Record<"pending" | "approved" | "needs_review" | "rejected", number>> {
   const rows = await app.db
     .select({
       reviewStatus: listingImages.reviewStatus,
@@ -220,7 +220,7 @@ async function countImagesByReviewStatus(
     })
     .from(listingImages)
     .groupBy(listingImages.reviewStatus);
-  const counts: Record<"approved" | "rejected", number> = {
+  const counts: Record<"pending" | "approved" | "needs_review" | "rejected", number> = {
     approved: 0,
     rejected: 0
   };

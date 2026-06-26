@@ -160,9 +160,15 @@ export async function selectListingOwnerRow(app: FastifyInstance, id: string) {
     .select({
       id: listings.id,
       sellerProfileId: listings.sellerProfileId,
-      status: listings.status
+      status: listings.status,
+      title: listings.title,
+      description: listings.description,
+      categoryId: productCategories.id,
+      categoryName: productCategories.name,
+      categorySlug: productCategories.slug
     })
     .from(listings)
+    .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
     .where(eq(listings.id, id))
     .limit(1);
 
@@ -264,7 +270,8 @@ export async function getOwnerListingImages(
     .select({
       id: listingImages.id,
       url: listingImages.url,
-      sortOrder: listingImages.sortOrder
+      sortOrder: listingImages.sortOrder,
+      reviewStatus: listingImages.reviewStatus
     })
     .from(listingImages)
     .where(eq(listingImages.listingId, listingId))

@@ -18,14 +18,25 @@ export type AdminListingSort =
 
 export type AdminListingAction = "archive" | "restore";
 export type AdminListingImageAction = "approve" | "reject";
+export type AdminListingImageReviewStatus = "pending" | "approved" | "needs_review" | "rejected";
 
 export type AdminListingImage = {
   id: string;
   url: string;
   sortOrder: number;
-  reviewStatus: "approved" | "rejected";
+  reviewStatus: AdminListingImageReviewStatus;
   reviewedAt: string | null;
   reviewedByProfileId: string | null;
+  authenticity: {
+    decision: "allow" | "needs_review" | "reject" | null;
+    confidence: number | null;
+    providerName: string | null;
+    modelName: string | null;
+    promptVersion: string | null;
+    reasons: string[];
+    flags: Record<string, unknown>;
+    checkedAt: string | null;
+  };
   createdAt: string;
 };
 
