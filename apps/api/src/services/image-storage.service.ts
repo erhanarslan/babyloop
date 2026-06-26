@@ -148,6 +148,8 @@ export async function deleteStoredListingImage(input: {
     Bucket: config.bucket,
     Key: objectKey
   }));
+
+  deleteImageProxyCacheEntry(buildImageProxyCacheKey(config.bucket, objectKey));
 }
 
 export async function resolveStoredListingImage(input: {
@@ -182,6 +184,16 @@ export async function resolveStoredListingImage(input: {
     return null;
   }
 
+  const cacheKey = buildImageProxyCacheKey(config.bucket, objectKey);
+  const cached = getImageProxyCacheEntry(cacheKey, input.env);
+
+  if (cached) {
+    return {
+      contentType: cached.contentType,
+      stream: Readable.from(cached.buffer)
+    };
+  }
+
   try {
     const response = await createS3Client(config).send(new GetObjectCommand({
       Bucket: config.bucket,
@@ -192,9 +204,16 @@ export async function resolveStoredListingImage(input: {
       return null;
     }
 
+    const buffer = await streamToBuffer(response.Body);
+
+    setImageProxyCacheEntry(cacheKey, {
+      buffer,
+      contentType
+    }, input.env);
+
     return {
       contentType,
-      stream: response.Body
+      stream: Readable.from(buffer)
     };
   } catch (error) {
     if (isS3NotFoundError(error)) {
@@ -278,6 +297,140 @@ function isUuidLike(value: string): boolean {
   return /^[a-f0-9-]{36}$/iu.test(value);
 }
 
+
+type ImageProxyCacheEntry = {
+  buffer: Buffer;
+  contentType: SafeImage["contentType"];
+  lastAccessedAt: number;
+  sizeBytes: number;
+};
+
+const DEFAULT_IMAGE_PROXY_MEMORY_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const DEFAULT_IMAGE_PROXY_MEMORY_CACHE_MAX_ITEM_BYTES = 2 * 1024 * 1024;
+
+const imageProxyMemoryCache = new Map<string, ImageProxyCacheEntry>();
+let imageProxyMemoryCacheBytes = 0;
+
+function buildImageProxyCacheKey(bucket: string, objectKey: string): string {
+  return `${bucket}:${objectKey}`;
+}
+
+function getImageProxyCacheEntry(
+  cacheKey: string,
+  env: NodeJS.ProcessEnv | undefined
+): ImageProxyCacheEntry | null {
+  if (!isImageProxyMemoryCacheEnabled(env)) {
+    return null;
+  }
+
+  const entry = imageProxyMemoryCache.get(cacheKey);
+
+  if (!entry) {
+    return null;
+  }
+
+  entry.lastAccessedAt = Date.now();
+  return entry;
+}
+
+function setImageProxyCacheEntry(
+  cacheKey: string,
+  input: {
+    buffer: Buffer;
+    contentType: SafeImage["contentType"];
+  },
+  env: NodeJS.ProcessEnv | undefined
+): void {
+  if (!isImageProxyMemoryCacheEnabled(env)) {
+    return;
+  }
+
+  const maxItemBytes = readPositiveEnvInteger(
+    env?.IMAGE_PROXY_MEMORY_CACHE_MAX_ITEM_BYTES,
+    DEFAULT_IMAGE_PROXY_MEMORY_CACHE_MAX_ITEM_BYTES
+  );
+
+  if (input.buffer.length > maxItemBytes) {
+    return;
+  }
+
+  deleteImageProxyCacheEntry(cacheKey);
+
+  const entry: ImageProxyCacheEntry = {
+    buffer: input.buffer,
+    contentType: input.contentType,
+    lastAccessedAt: Date.now(),
+    sizeBytes: input.buffer.length
+  };
+
+  imageProxyMemoryCache.set(cacheKey, entry);
+  imageProxyMemoryCacheBytes += entry.sizeBytes;
+
+  pruneImageProxyMemoryCache(env);
+}
+
+function deleteImageProxyCacheEntry(cacheKey: string): void {
+  const existing = imageProxyMemoryCache.get(cacheKey);
+
+  if (!existing) {
+    return;
+  }
+
+  imageProxyMemoryCache.delete(cacheKey);
+  imageProxyMemoryCacheBytes = Math.max(0, imageProxyMemoryCacheBytes - existing.sizeBytes);
+}
+
+function pruneImageProxyMemoryCache(env: NodeJS.ProcessEnv | undefined): void {
+  const maxBytes = readPositiveEnvInteger(
+    env?.IMAGE_PROXY_MEMORY_CACHE_MAX_BYTES,
+    DEFAULT_IMAGE_PROXY_MEMORY_CACHE_MAX_BYTES
+  );
+
+  if (imageProxyMemoryCacheBytes <= maxBytes) {
+    return;
+  }
+
+  const entries = [...imageProxyMemoryCache.entries()].sort(
+    (left, right) => left[1].lastAccessedAt - right[1].lastAccessedAt
+  );
+
+  for (const [cacheKey] of entries) {
+    deleteImageProxyCacheEntry(cacheKey);
+
+    if (imageProxyMemoryCacheBytes <= maxBytes) {
+      return;
+    }
+  }
+}
+
+function isImageProxyMemoryCacheEnabled(env: NodeJS.ProcessEnv | undefined): boolean {
+  return env?.IMAGE_PROXY_MEMORY_CACHE_ENABLED !== "false";
+}
+
+function readPositiveEnvInteger(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+}
+
 function isS3NotFoundError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
@@ -305,13 +458,42 @@ function fromLocalStoredImage(stored: LocalStoredListingImage): StoredListingIma
 }
 
 function resolveS3ObjectKeyFromPublicUrl(publicBaseUrl: string, url: string): string | null {
-  if (!url.startsWith(`${publicBaseUrl}/`)) {
+  const normalizedBaseUrl = publicBaseUrl.replace(/\/$/, "");
+  const normalizedUrl = url.trim();
+
+  if (!normalizedBaseUrl || !normalizedUrl) {
     return null;
   }
 
-  const key = url.slice(publicBaseUrl.length + 1);
+  if (normalizedBaseUrl.startsWith("/")) {
+    const prefix = `${normalizedBaseUrl}/`;
 
-  return key.length > 0 && !key.includes("..") ? key : null;
+    if (!normalizedUrl.startsWith(prefix)) {
+      return null;
+    }
+
+    return normalizedUrl.slice(prefix.length);
+  }
+
+  try {
+    const parsedPublicBaseUrl = new URL(normalizedBaseUrl);
+    const parsedUrl = new URL(normalizedUrl);
+
+    if (parsedPublicBaseUrl.origin !== parsedUrl.origin) {
+      return null;
+    }
+
+    const basePath = parsedPublicBaseUrl.pathname.replace(/\/$/, "");
+    const imagePath = parsedUrl.pathname;
+
+    if (!imagePath.startsWith(`${basePath}/`)) {
+      return null;
+    }
+
+    return imagePath.slice(basePath.length + 1);
+  } catch {
+    return null;
+  }
 }
 
 function normalizeDriver(value: string | undefined): ImageStorageDriver {
