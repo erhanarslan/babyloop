@@ -221,7 +221,9 @@ async function countImagesByReviewStatus(
     .from(listingImages)
     .groupBy(listingImages.reviewStatus);
   const counts: Record<"pending" | "approved" | "needs_review" | "rejected", number> = {
+    pending: 0,
     approved: 0,
+    needs_review: 0,
     rejected: 0
   };
 

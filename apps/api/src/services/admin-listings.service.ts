@@ -320,6 +320,14 @@ export async function applyAdminListingImageAction(
         reviewStatus: listingImages.reviewStatus,
         reviewedAt: listingImages.reviewedAt,
         reviewedByProfileId: listingImages.reviewedByProfileId,
+        authenticityProvider: listingImages.authenticityProvider,
+        authenticityModel: listingImages.authenticityModel,
+        authenticityPromptVersion: listingImages.authenticityPromptVersion,
+        authenticityDecision: listingImages.authenticityDecision,
+        authenticityConfidence: listingImages.authenticityConfidence,
+        authenticityReasons: listingImages.authenticityReasons,
+        authenticityFlags: listingImages.authenticityFlags,
+        authenticityCheckedAt: listingImages.authenticityCheckedAt,
         createdAt: listingImages.createdAt
       });
 
