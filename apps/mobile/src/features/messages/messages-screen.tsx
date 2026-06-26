@@ -105,7 +105,8 @@ export function MessagesScreen() {
 
 function ConversationCard({ conversation }: { conversation: MobileConversationSummary }) {
   return (
-    <View style={styles.conversationCard}>
+    <Link href={`/conversation/${encodeURIComponent(conversation.id)}`} asChild>
+      <Pressable style={styles.conversationCard}>
       <View style={styles.conversationHeader}>
         <View style={styles.conversationTitleBlock}>
           <Text numberOfLines={1} style={styles.conversationTitle}>
@@ -130,7 +131,8 @@ function ConversationCard({ conversation }: { conversation: MobileConversationSu
       {conversation.updatedAt ? (
         <Text style={styles.metaText}>{formatDate(conversation.updatedAt)}</Text>
       ) : null}
-    </View>
+    </Pressable>
+    </Link>
   );
 }
 

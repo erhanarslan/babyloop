@@ -10,6 +10,21 @@ export type MobileConversationSummary = {
   updatedAt: string | null;
 };
 
+
+export type MobileConversationDetail = MobileConversationSummary & {
+  listingId: string | null;
+  listingTitle: string | null;
+  otherProfileDisplayName: string | null;
+};
+
+export type MobileConversationMessage = {
+  id: string;
+  body: string;
+  createdAt: string | null;
+  senderProfileId: string | null;
+  senderDisplayName: string | null;
+};
+
 type ApiConversationList = {
   conversations?: unknown;
   items?: unknown;
@@ -34,6 +49,185 @@ export async function fetchMobileConversations(): Promise<MobileConversationSumm
         : [];
 
   return rawConversations.map(normalizeConversation).filter(isConversationSummary);
+}
+
+
+export async function fetchMobileConversationDetail(
+  conversationId: string
+): Promise<MobileConversationDetail> {
+  const response = await mobileAuthFetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`);
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = extractApiError(payload);
+    throw new Error(message ?? "Konuşma detayı yüklenemedi.");
+  }
+
+  return normalizeConversationDetail(extractConversationObject(unwrapApiData(payload)));
+}
+
+export async function fetchMobileConversationMessages(
+  conversationId: string
+): Promise<MobileConversationMessage[]> {
+  const response = await mobileAuthFetch(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = extractApiError(payload);
+    throw new Error(message ?? "Mesajlar yüklenemedi.");
+  }
+
+  const data = unwrapApiData<unknown>(payload);
+  const rawMessages = extractMessageArray(data);
+
+  return rawMessages.map(normalizeMessage).filter(isConversationMessage);
+}
+
+export async function sendMobileConversationMessage(
+  conversationId: string,
+  body: string
+): Promise<MobileConversationMessage> {
+  const response = await mobileAuthFetch(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        body
+      })
+    }
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = extractApiError(payload);
+    throw new Error(message ?? "Mesaj gönderilemedi.");
+  }
+
+  return normalizeMessage(extractMessageObject(unwrapApiData(payload))) ?? {
+    id: `local-${Date.now()}`,
+    body,
+    createdAt: new Date().toISOString(),
+    senderProfileId: null,
+    senderDisplayName: null
+  };
+}
+
+
+function extractConversationObject(payload: unknown): unknown {
+  if (isRecord(payload) && isRecord(payload.conversation)) {
+    return payload.conversation;
+  }
+
+  if (isRecord(payload) && isRecord(payload.data)) {
+    return extractConversationObject(payload.data);
+  }
+
+  return payload;
+}
+
+function extractMessageArray(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  if (Array.isArray(payload.messages)) {
+    return payload.messages;
+  }
+
+  if (Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if (isRecord(payload.data)) {
+    return extractMessageArray(payload.data);
+  }
+
+  return [];
+}
+
+function extractMessageObject(payload: unknown): unknown {
+  if (isRecord(payload) && isRecord(payload.message)) {
+    return payload.message;
+  }
+
+  if (isRecord(payload) && isRecord(payload.data)) {
+    return extractMessageObject(payload.data);
+  }
+
+  return payload;
+}
+
+function normalizeConversationDetail(value: unknown): MobileConversationDetail {
+  const record = isRecord(value) ? value : {};
+  const summary = normalizeConversation(record) ?? {
+    id: pickString(record, ["id", "conversationId"]) ?? "conversation",
+    title: "Konuşma",
+    subtitle: "BabyLoop mesajlaşma",
+    latestMessageText: "Henüz mesaj yok.",
+    unreadCount: 0,
+    updatedAt: getStringDate(record.updatedAt) ?? getStringDate(record.createdAt)
+  };
+
+  const contextListing = isRecord(record.contextListing) ? record.contextListing : null;
+  const listing = isRecord(record.listing) ? record.listing : contextListing;
+  const otherProfile = isRecord(record.otherProfile) ? record.otherProfile : null;
+
+  return {
+    ...summary,
+    listingId: pickString(record, ["listingId"]) ?? pickString(listing ?? {}, ["id", "listingId"]),
+    listingTitle: pickString(listing ?? {}, ["title", "name"]),
+    otherProfileDisplayName: pickString(otherProfile ?? {}, ["displayName", "name"])
+  };
+}
+
+function normalizeMessage(value: unknown): MobileConversationMessage | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = pickString(value, ["id", "messageId"]);
+  const body = pickString(value, ["body", "text", "content", "message"]);
+  const senderProfile = isRecord(value.senderProfile) ? value.senderProfile : null;
+  const sender = isRecord(value.sender) ? value.sender : senderProfile;
+
+  if (!id || !body) {
+    return null;
+  }
+
+  return {
+    id,
+    body,
+    createdAt: getStringDate(value.createdAt) ?? getStringDate(value.created_at),
+    senderProfileId:
+      pickString(value, ["senderProfileId", "profileId", "senderId"]) ??
+      pickString(sender ?? {}, ["id", "profileId"]),
+    senderDisplayName: pickString(sender ?? {}, ["displayName", "name"])
+  };
+}
+
+function pickString(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function isConversationMessage(value: MobileConversationMessage | null): value is MobileConversationMessage {
+  return value !== null;
 }
 
 function normalizeConversation(value: unknown): MobileConversationSummary | null {
