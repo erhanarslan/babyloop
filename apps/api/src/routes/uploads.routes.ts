@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { listingUploadParamsSchema } from "../schemas/listings.schemas.js";
-import { resolveStoredListingImage } from "../services/local-image-storage.service.js";
+import { resolveStoredListingImage } from "../services/image-storage.service.js";
 
 type UploadRouteOptions = {
   uploadRoot: string;

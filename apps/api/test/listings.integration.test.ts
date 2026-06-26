@@ -13,7 +13,7 @@ import {
   users
 } from "@babyloop/database/schema";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   REALTIME_EVENTS,
   realtimeConversationRoom,
@@ -51,6 +51,28 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await app.close();
   await rm(uploadRoot, { force: true, recursive: true });
+});
+
+const originalImageStorageDriverForListingsTests = process.env.IMAGE_STORAGE_DRIVER;
+const originalImageOptimizationEnabledForListingsTests = process.env.IMAGE_OPTIMIZATION_ENABLED;
+
+beforeAll(() => {
+  process.env.IMAGE_STORAGE_DRIVER = "local";
+  process.env.IMAGE_OPTIMIZATION_ENABLED = "false";
+});
+
+afterAll(() => {
+  if (originalImageStorageDriverForListingsTests === undefined) {
+    delete process.env.IMAGE_STORAGE_DRIVER;
+  } else {
+    process.env.IMAGE_STORAGE_DRIVER = originalImageStorageDriverForListingsTests;
+  }
+
+  if (originalImageOptimizationEnabledForListingsTests === undefined) {
+    delete process.env.IMAGE_OPTIMIZATION_ENABLED;
+  } else {
+    process.env.IMAGE_OPTIMIZATION_ENABLED = originalImageOptimizationEnabledForListingsTests;
+  }
 });
 
 describe("listings API", () => {

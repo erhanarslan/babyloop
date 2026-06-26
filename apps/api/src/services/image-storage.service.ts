@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { optimizeListingImage } from "./image-optimization.service.js";
 import type { SafeImage } from "./image-safety.service.js";
 import {
   deleteStoredListingImage as deleteLocalStoredListingImage,
+  resolveStoredListingImage as resolveLocalStoredListingImage,
   storeListingImage as storeLocalListingImage,
   type StoredListingImage as LocalStoredListingImage
 } from "./local-image-storage.service.js";
@@ -54,7 +57,7 @@ export function getImageStorageConfig(env: NodeJS.ProcessEnv = process.env): Ima
   const secretAccessKey = requireEnv(env, "S3_SECRET_ACCESS_KEY");
   const endpoint = optionalEnv(env, "S3_ENDPOINT");
 
-  assertHttpUrl(publicBaseUrl, "IMAGE_STORAGE_PUBLIC_BASE_URL");
+  assertPublicBaseUrl(publicBaseUrl, "IMAGE_STORAGE_PUBLIC_BASE_URL");
 
   return {
     accessKeyId,
@@ -101,10 +104,11 @@ export async function storeListingImage(input: {
   uploadRoot: string;
 }): Promise<StoredListingImage> {
   const config = getImageStorageConfig(input.env);
+  const image = await optimizeListingImage(input.image, input.env);
 
   if (config.driver === "local") {
     const stored = await storeLocalListingImage({
-      image: input.image,
+      image,
       listingId: input.listingId,
       uploadRoot: input.uploadRoot
     });
@@ -114,7 +118,7 @@ export async function storeListingImage(input: {
 
   return storeS3ListingImage({
     config,
-    image: input.image,
+    image,
     listingId: input.listingId
   });
 }
@@ -145,6 +149,62 @@ export async function deleteStoredListingImage(input: {
     Key: objectKey
   }));
 }
+
+export async function resolveStoredListingImage(input: {
+  env?: NodeJS.ProcessEnv;
+  filename: string;
+  listingId: string;
+  uploadRoot: string;
+}): Promise<{ contentType: SafeImage["contentType"]; stream: Readable } | null> {
+  const config = getImageStorageConfig(input.env);
+
+  if (config.driver === "local") {
+    const localImage = await resolveLocalStoredListingImage({
+      filename: input.filename,
+      listingId: input.listingId,
+      uploadRoot: input.uploadRoot
+    });
+
+    if (!localImage) {
+      return null;
+    }
+
+    return {
+      contentType: localImage.contentType,
+      stream: localImage.stream
+    };
+  }
+
+  const objectKey = buildListingObjectKeyFromFilename(input.listingId, input.filename);
+  const contentType = getContentTypeFromFilename(input.filename);
+
+  if (!objectKey || !contentType) {
+    return null;
+  }
+
+  try {
+    const response = await createS3Client(config).send(new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey
+    }));
+
+    if (!response.Body || !(response.Body instanceof Readable)) {
+      return null;
+    }
+
+    return {
+      contentType,
+      stream: response.Body
+    };
+  } catch (error) {
+    if (isS3NotFoundError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 
 async function storeS3ListingImage(input: {
   config: S3ImageStorageConfig;
@@ -183,6 +243,58 @@ function createS3Client(config: S3ImageStorageConfig): S3Client {
 function buildListingObjectKey(listingId: string, extension: SafeImage["extension"]): string {
   return `listings/${listingId}/${randomUUID()}.${extension}`;
 }
+
+function buildListingObjectKeyFromFilename(listingId: string, filename: string): string | null {
+  if (!isUuidLike(listingId) || !isSafeListingImageFilename(filename)) {
+    return null;
+  }
+
+  return `listings/${listingId}/${filename}`;
+}
+
+function getContentTypeFromFilename(filename: string): SafeImage["contentType"] | null {
+  const extension = filename.split(".").pop()?.toLowerCase();
+
+  if (extension === "jpg" || extension === "jpeg") {
+    return "image/jpeg";
+  }
+
+  if (extension === "png") {
+    return "image/png";
+  }
+
+  if (extension === "webp") {
+    return "image/webp";
+  }
+
+  return null;
+}
+
+function isSafeListingImageFilename(filename: string): boolean {
+  return /^[a-f0-9-]+\.(jpg|png|webp)$/iu.test(filename);
+}
+
+function isUuidLike(value: string): boolean {
+  return /^[a-f0-9-]{36}$/iu.test(value);
+}
+
+function isS3NotFoundError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const maybeError = error as {
+    $metadata?: { httpStatusCode?: number };
+    name?: string;
+  };
+
+  return (
+    maybeError.$metadata?.httpStatusCode === 404 ||
+    maybeError.name === "NoSuchKey" ||
+    maybeError.name === "NotFound"
+  );
+}
+
 
 function fromLocalStoredImage(stored: LocalStoredListingImage): StoredListingImage {
   return {
@@ -240,7 +352,11 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
-function assertHttpUrl(value: string, envKey: string): void {
+function assertPublicBaseUrl(value: string, envKey: string): void {
+  if (value.startsWith("/api/v1/uploads")) {
+    return;
+  }
+
   try {
     const parsed = new URL(value);
 
@@ -248,6 +364,6 @@ function assertHttpUrl(value: string, envKey: string): void {
       throw new Error("invalid protocol");
     }
   } catch {
-    throw new Error(`${envKey} must be a valid http(s) URL.`);
+    throw new Error(`${envKey} must be a valid http(s) URL or /api/v1/uploads path.`);
   }
 }
