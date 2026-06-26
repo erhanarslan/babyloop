@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import {
   Badge,
@@ -182,18 +182,21 @@ export function ListingDetailContent({
 
         {canShowBuyerActions ? (
           <>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3">
               <MessageSellerButton
                 apiBaseUrl={apiBaseUrl}
                 categoryId={listing.category.id}
                 listingId={listing.id}
                 sellerProfileId={listing.seller.id}
               />
-              <FavoriteButton
-                apiBaseUrl={apiBaseUrl}
-                initiallyFavorited={false}
-                listingId={listing.id}
-              />
+
+              <div className="max-w-sm">
+                <FavoriteButton
+                  apiBaseUrl={apiBaseUrl}
+                  initiallyFavorited={false}
+                  listingId={listing.id}
+                />
+              </div>
             </div>
 
             <SellerCard listing={listing} />
@@ -245,45 +248,129 @@ function ListingDetailGallery({
   apiBaseUrl: string;
   listing: ListingDetailPayload["listing"];
 }) {
-  const primaryImage = listing.images[0] ?? null;
-  const primaryImageUrl = getSafeImageUrl(primaryImage?.url ?? null, apiBaseUrl);
+  const galleryImages = listing.images;
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [listing.id, galleryImages.length]);
+
+  const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0] ?? null;
+  const selectedImageUrl = getSafeImageUrl(selectedImage?.url ?? null, apiBaseUrl);
+  const hasMultipleImages = galleryImages.length > 1;
+
+  function showPreviousImage() {
+    if (!hasMultipleImages) {
+      return;
+    }
+
+    setSelectedImageIndex((currentIndex) => (
+      currentIndex - 1 + galleryImages.length
+    ) % galleryImages.length);
+  }
+
+  function showNextImage() {
+    if (!hasMultipleImages) {
+      return;
+    }
+
+    setSelectedImageIndex((currentIndex) => (currentIndex + 1) % galleryImages.length);
+  }
+
+  function handleGalleryKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!hasMultipleImages) {
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      showPreviousImage();
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      showNextImage();
+    }
+  }
 
   return (
-    <div className="grid gap-3">
-      <div className="grid aspect-[4/3] max-h-[560px] min-h-[260px] place-items-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-muted/30">
-        {primaryImageUrl ? (
+    <div
+      className="grid gap-3"
+      onKeyDown={handleGalleryKeyDown}
+      tabIndex={hasMultipleImages ? 0 : undefined}
+    >
+      <div className="relative grid aspect-[4/3] max-h-[560px] min-h-[260px] place-items-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-muted/30">
+        {selectedImageUrl ? (
           <img
             alt={`Ürün görseli: ${listing.title}`}
-            className="h-full w-full object-contain"
+            className="block h-full max-h-[560px] w-full object-contain"
+            decoding="async"
             loading="eager"
-            src={primaryImageUrl}
+            src={selectedImageUrl}
           />
         ) : (
           <span className="text-sm font-black text-muted-foreground">Ürün görseli yok</span>
         )}
+
+        {hasMultipleImages ? (
+          <>
+            <button
+              type="button"
+              className="absolute left-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-border/80 bg-background/90 text-2xl font-black text-foreground shadow-sm backdrop-blur transition hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Önceki görsel"
+              onClick={showPreviousImage}
+            >
+              ‹
+            </button>
+
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-border/80 bg-background/90 text-2xl font-black text-foreground shadow-sm backdrop-blur transition hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Sonraki görsel"
+              onClick={showNextImage}
+            >
+              ›
+            </button>
+
+            <span className="absolute bottom-3 right-3 rounded-full bg-background/90 px-3 py-1 text-xs font-black text-foreground shadow-sm backdrop-blur">
+              {selectedImageIndex + 1} / {galleryImages.length}
+            </span>
+          </>
+        ) : null}
       </div>
 
-      {listing.images.length > 1 ? (
+      {galleryImages.length > 1 ? (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-          {listing.images.slice(0, 5).map((image, index) => {
+          {galleryImages.map((image, index) => {
             const imageUrl = getSafeImageUrl(image.url, apiBaseUrl);
+            const isSelected = index === selectedImageIndex;
 
             return (
-              <div
-                className="grid aspect-square place-items-center overflow-hidden rounded-2xl border border-border/70 bg-muted/30"
+              <button
+                type="button"
+                className={`grid aspect-square place-items-center overflow-hidden rounded-2xl border bg-muted/30 transition focus:outline-none focus:ring-2 focus:ring-primary ${
+                  isSelected
+                    ? "border-primary ring-2 ring-primary/25"
+                    : "border-border/70 hover:border-primary/60"
+                }`}
                 key={image.id}
+                aria-label={`${listing.title} görseli ${index + 1}`}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedImageIndex(index)}
               >
                 {imageUrl ? (
                   <img
-                    alt={`${listing.title} görseli ${index + 1}`}
-                    className="h-full w-full object-cover"
+                    alt=""
+                    className="block h-full w-full object-cover"
+                    decoding="async"
                     loading="lazy"
                     src={imageUrl}
                   />
                 ) : (
                   <span className="text-xs font-bold text-muted-foreground">Görsel yok</span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

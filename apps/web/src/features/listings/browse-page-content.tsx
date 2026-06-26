@@ -16,7 +16,7 @@ import type {
 } from "../../lib/api";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { ListingImageFrame } from "./listing-image-frame";
+import { ListingHoverImageFrame } from "./listing-hover-image-frame";
 import { DiscoveryAnalyticsTracker } from "../../features/product-events/discovery-analytics-tracker";
 import { recordProductEvent } from "../../features/product-events/api";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
@@ -622,12 +622,12 @@ function ListingCard({
 
   return (
     <article className={`listing-card ${styles.listingCard}`}>
-      <ListingImageFrame
+      <ListingHoverImageFrame
         alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
         apiBaseUrl={apiBaseUrl}
         className="listing-card-image"
         fallbackLabel={dictionary.listings.noProductImage}
-        url={listing.firstImage?.url ?? null}
+        images={listing.images?.length ? listing.images : listing.firstImage ? [listing.firstImage] : []}
       />
       <div className="listing-card-body">
         <div>

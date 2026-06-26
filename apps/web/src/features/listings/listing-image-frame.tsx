@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type ListingImageFrameProps = {
   alt: string;
@@ -20,6 +20,10 @@ export function ListingImageFrame({
   const [hasError, setHasError] = useState(false);
   const safeUrl = getSafeImageUrl(url, apiBaseUrl);
 
+  useEffect(() => {
+    setHasError(false);
+  }, [safeUrl]);
+
   if (!safeUrl || hasError) {
     return (
       <div className={`listing-image-fallback ${className}`.trim()} aria-label={fallbackLabel}>
@@ -34,6 +38,7 @@ export function ListingImageFrame({
         src={safeUrl}
         alt={alt}
         loading="lazy"
+        decoding="async"
         onError={() => setHasError(true)}
       />
     </div>
