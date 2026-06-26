@@ -77,7 +77,8 @@ const savedSearchSuggestDraftInputSchema = z
     query: z.string().trim().min(1).max(120),
     city: z.string().trim().min(1).max(80).optional(),
     ageSignal: z.string().trim().min(1).max(40).optional(),
-    productTerms: z.array(z.string().trim().min(1).max(80)).max(5).optional()
+    productTerms: z.array(z.string().trim().min(1).max(80)).max(5).optional(),
+    season: z.string().trim().min(1).max(40).optional()
   })
   .strict();
 
@@ -448,7 +449,8 @@ function createSavedSearchSuggestDraftTool(): AssistantToolDefinition<
         query: input.query,
         ...(input.city ? { city: input.city } : {}),
         ...(input.ageSignal ? { ageSignal: input.ageSignal } : {}),
-        ...(input.productTerms?.length ? { productTerms: input.productTerms } : {})
+        ...(input.productTerms?.length ? { productTerms: input.productTerms } : {}),
+        ...(input.season ? { season: input.season } : {})
       });
       const terms = uniqueTerms([
         ...(input.productTerms?.length ? input.productTerms : [input.query]),

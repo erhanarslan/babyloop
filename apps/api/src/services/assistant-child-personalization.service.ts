@@ -93,7 +93,7 @@ export function buildChildNeedDraft(input: {
   const context = input.context ?? null;
   const activeChild = context?.activeChild ?? null;
   const normalizedAgeBand = normalizeAgeBand(input.ageBand) ?? activeChild?.ageBand ?? deriveAgeBandFromSignal(input.ageSignal);
-  const season = normalizeSeason(input.season) ?? context?.season ?? getSeason();
+  const season = normalizeSeason(input.season) ?? detectSeasonFromText(input.query) ?? context?.season ?? getSeason();
   const seasonLabel = formatSeasonLabel(season);
   const ageBandLabel = normalizedAgeBand ? formatAgeBandLabel(normalizedAgeBand) : null;
   const childLabel = activeChild?.label ?? "Çocuğum";
@@ -194,7 +194,7 @@ function productTermsForAgeBand(ageBand: ChildAgeBand | null | undefined): strin
     case "infant_3_6":
       return ["bebek arabası", "oyun halısı", "çıngırak"];
     case "infant_6_12":
-      return ["oyuncak", "mama sandalyesi", "bebek güvenlik ürünü"];
+      return ["mama sandalyesi", "emekleme minderi", "bebek güvenlik ürünü", "duyusal oyuncak"];
     case "toddler_12_24":
       return ["aktivite oyuncağı", "montessori oyuncak", "çocuk kıyafet"];
     case "preschool_24_36":
@@ -209,13 +209,13 @@ function productTermsForAgeBand(ageBand: ChildAgeBand | null | undefined): strin
 function productTermsForSeason(season: AssistantChildPersonalizationContext["season"]): string[] {
   switch (season) {
     case "winter":
-      return ["kışlık mont", "uyku tulumu", "kalın kıyafet"];
+      return ["puset ayak tulumu", "bebek arabası yağmurluğu", "kışlık mont", "uyku tulumu", "kalın kıyafet", "bot"];
     case "summer":
-      return ["ince kıyafet", "gölgelikli bebek arabası", "suluk"];
+      return ["ince kıyafet", "gölgelikli bebek arabası", "suluk", "dışarı çantası", "seyahat yatağı"];
     case "spring":
-      return ["mevsimlik kıyafet", "yağmurluk", "dışarı oyuncağı"];
+      return ["mevsimlik kıyafet", "yağmurluk", "dışarı oyuncağı", "bebek arabası yağmurluğu"];
     case "autumn":
-      return ["mevsimlik mont", "bot", "okul öncesi kitap"];
+      return ["mevsimlik mont", "bot", "yağmurluk", "okul öncesi kitap"];
   }
 }
 
@@ -244,12 +244,34 @@ function formatSeasonLabel(season: AssistantChildPersonalizationContext["season"
 }
 
 function normalizeSeason(value: string | undefined): AssistantChildPersonalizationContext["season"] | null {
+  return detectSeasonFromText(value);
+}
+
+function detectSeasonFromText(value: string | undefined): AssistantChildPersonalizationContext["season"] | null {
   if (!value) return null;
-  const normalized = value.trim().toLocaleLowerCase("tr");
-  if (["winter", "kış", "kis"].includes(normalized)) return "winter";
-  if (["spring", "ilkbahar"].includes(normalized)) return "spring";
-  if (["summer", "yaz"].includes(normalized)) return "summer";
-  if (["autumn", "fall", "sonbahar"].includes(normalized)) return "autumn";
+
+  const normalized = value
+    .trim()
+    .toLocaleLowerCase("tr")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "");
+
+  if (/\b(winter|kis|kisa|kisin|kislik)\b|k[ıi]s|soguk|kar|kalin|puset\s+ayak|ayak\s+tulumu|bot/u.test(normalized)) {
+    return "winter";
+  }
+
+  if (/\b(summer|yaz|yaza|yazin|yazlik)\b|sicak|gunes|golgelik|ince\s+kiyafet|suluk/u.test(normalized)) {
+    return "summer";
+  }
+
+  if (/\b(spring|ilkbahar)\b|bahar|mevsimlik|yagmur|yagmurluk/u.test(normalized)) {
+    return "spring";
+  }
+
+  if (/\b(autumn|fall|sonbahar|guz)\b/u.test(normalized)) {
+    return "autumn";
+  }
+
   return null;
 }
 

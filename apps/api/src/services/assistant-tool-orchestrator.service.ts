@@ -95,7 +95,7 @@ export class AssistantToolOrchestrator {
       ];
     }
 
-    if (intent === "child_needs") {
+    if (intent === "child_needs" && !isInformationalChildKnowledgeQuestion(message)) {
       return [
         {
           tool: "child_needs_recommendations",
@@ -234,7 +234,7 @@ export class AssistantToolOrchestrator {
       };
     }
 
-    if (intent === "child_needs") {
+    if (intent === "child_needs" && !isInformationalChildKnowledgeQuestion(message)) {
       const childDraft = dataFor<{
         hasChildContext: boolean;
         childLabel: string;
@@ -387,6 +387,46 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
       clearTimeout(timeout);
     }
   }
+}
+
+
+function isInformationalChildKnowledgeQuestion(message: string): boolean {
+  const normalized = message.replace(/\s+/gu, " ").trim().toLocaleLowerCase("tr");
+
+  if (!normalized) {
+    return false;
+  }
+
+  const hasDentalInformationSignal = [
+    /di[şs](?:i|leri|ler)?\b/iu,
+    /s[üu]t\s+di[şs]/iu,
+    /kal[ıi]c[ıi]\s+di[şs]/iu,
+    /az[ıi]\s+di[şs]/iu,
+    /kesici/iu,
+    /k[öo]pek\s+di[şs]/iu,
+    /di[şs]\s+(?:ne zaman|takvimi|s[üu]rer|[çc][ıi]kar|d[üu][şs]er)/iu,
+    /hangi\s+di[şs]/iu
+  ].some((pattern) => pattern.test(normalized));
+
+  if (!hasDentalInformationSignal) {
+    return false;
+  }
+
+  const hasMarketplaceActionSignal = [
+    /ikinci\s+el/iu,
+    /ilan/iu,
+    /arama/iu,
+    /takip/iu,
+    /kaydet/iu,
+    /sat[ıi]n/iu,
+    /almal[ıi]y[ıi]m/iu,
+    /bakmal[ıi]y[ıi]m/iu,
+    /ne\s+laz[ıi]m/iu,
+    /hangi\s+(?:ür[üu]n|oyuncak|k[ıi]yafet|eşya)/iu,
+    /di[şs]\s+ka[şs][ıi]y[ıi]c[ıi]/iu
+  ].some((pattern) => pattern.test(normalized));
+
+  return !hasMarketplaceActionSignal;
 }
 
 function dataFor<T>(results: ToolExecutionResult[], tool: AssistantToolName): T | null {

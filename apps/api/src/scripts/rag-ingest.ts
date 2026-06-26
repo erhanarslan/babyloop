@@ -7,6 +7,9 @@ import { checksumRagDocument } from "../services/rag-knowledge-governance.servic
 import { loadRagDocuments } from "../services/rag-markdown-loader.service.js";
 import { QdrantVectorStore } from "../services/rag-qdrant-vector-store.service.js";
 
+const DEFAULT_EMBED_DELAY_MS = 1_500;
+const DEFAULT_MAX_EMBED_RETRIES = 5;
+
 async function main(): Promise<void> {
   const config = readApiRuntimeConfig();
 
@@ -60,16 +63,24 @@ async function main(): Promise<void> {
   const embeddedChunks = [];
   const errors: string[] = [];
 
+  const embedDelayMs = readNonNegativeIntegerFromEnv("RAG_INGEST_EMBED_DELAY_MS", DEFAULT_EMBED_DELAY_MS);
+  const maxEmbedRetries = readPositiveIntegerFromEnv("RAG_INGEST_MAX_RETRIES", DEFAULT_MAX_EMBED_RETRIES);
+
   for (const chunk of chunks) {
     try {
-      const embedding = await embeddingProvider.embedText({
-        text: chunk.text
+      const embedding = await embedTextWithRetry(embeddingProvider, chunk.text, {
+        delayMs: embedDelayMs,
+        maxRetries: maxEmbedRetries
       });
 
       embeddedChunks.push({
         ...chunk,
         embedding: embedding.embedding
       });
+
+      if (embedDelayMs > 0) {
+        await sleep(embedDelayMs);
+      }
     } catch (error) {
       errors.push(`${chunk.metadata.sourcePath}#${chunk.metadata.chunkIndex}: ${safeErrorMessage(error)}`);
     }
@@ -90,6 +101,75 @@ async function main(): Promise<void> {
       2
     )
   );
+}
+
+type GeminiEmbeddingResult = Awaited<ReturnType<GeminiEmbeddingProvider["embedText"]>>;
+
+async function embedTextWithRetry(
+  embeddingProvider: GeminiEmbeddingProvider,
+  text: string,
+  options: {
+    delayMs: number;
+    maxRetries: number;
+  }
+): Promise<GeminiEmbeddingResult> {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= options.maxRetries; attempt += 1) {
+    try {
+      return await embeddingProvider.embedText({ text });
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableEmbeddingError(error) || attempt === options.maxRetries) {
+        throw error;
+      }
+
+      const backoffMs = options.delayMs * attempt;
+
+      if (backoffMs > 0) {
+        await sleep(backoffMs);
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Gemini embedding request failed.");
+}
+
+function isRetryableEmbeddingError(error: unknown): boolean {
+  return /status\s+(?:408|429|5\d\d)\b/u.test(safeErrorMessage(error));
+}
+
+function readNonNegativeIntegerFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function readPositiveIntegerFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function safeErrorMessage(error: unknown): string {
