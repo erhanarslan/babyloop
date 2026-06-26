@@ -112,6 +112,18 @@ describe("rag retrieval quality service", () => {
 
     expect(shouldFallbackNoSource(results, analysis, baseConfig)).toBe(true);
   });
+
+  it("scores official-referenced everyday care sources", () => {
+    const analysis = buildRetrievalQuery("Ateşi var ne yapayım?");
+    const officialSource = createResult({
+      score: 0.7,
+      sourceReliability: "official-referenced",
+      topic: "fever-care"
+    });
+
+    expect(scoreSourceReliability(analysis, officialSource)).toBeGreaterThan(0.9);
+  });
+
 });
 
 function createResult(input: Partial<{

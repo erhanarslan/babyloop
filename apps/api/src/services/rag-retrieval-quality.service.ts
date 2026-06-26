@@ -74,6 +74,18 @@ export function scoreSourceReliability(queryAnalysis: RagQueryAnalysis, result: 
     return hints.has("recall-safety") || hints.has("second-hand-risk") || topic.includes("safety") ? 1 : 0.45;
   }
 
+  if (reliability === "official-referenced") {
+    return scoreTopicMatch(queryAnalysis, result) > 0 ||
+      topic.includes("pregnancy") ||
+      topic.includes("care") ||
+      topic.includes("dental") ||
+      topic.includes("fever") ||
+      topic.includes("diarrhea") ||
+      topic.includes("vomiting")
+      ? 1
+      : 0.65;
+  }
+
   if (reliability === "internal") {
     return hints.has("marketplace-usage") || hints.has("messaging-privacy") || hints.has("dispute-reporting") ? 0.9 : 0.55;
   }

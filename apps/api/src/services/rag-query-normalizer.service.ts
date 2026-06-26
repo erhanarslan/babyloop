@@ -85,6 +85,13 @@ const TOPIC_HINT_PATTERNS: Array<{ topic: string; patterns: RegExp[] }> = [
   { topic: "messaging-privacy", patterns: [/mesaj/iu, /gizlilik/iu, /telefon/iu, /e-?posta/iu] },
   { topic: "dispute-reporting", patterns: [/yanl[ıi][şs]\s+ürün/iu, /sorun/iu, /bildir/iu, /anla[şs]mazl[ıi]k/iu] },
   { topic: "seasonal-needs", patterns: [/k[ıi][şs]/iu, /yaz/iu, /mevsim/iu, /so[ğg]uk/iu, /s[ıi]cak/iu] },
+  { topic: "preconception-pregnancy", patterns: [/[çc]ocuk\s+sahibi/iu, /bebek\s+sahibi/iu, /gebe\s+kal/iu, /hamile\s+kal/iu, /folik\s+asit/iu, /hamilelik/iu, /gebelik/iu, /[şs]ans[ıi]m[ıi]\s+nas[ıi]l\s+art[ıi]r/iu] },
+  { topic: "pregnancy-preparation", patterns: [/trimester/iu, /do[ğg]um\s+[çc]antas[ıi]/iu, /yenido[ğg]an\s+haz[ıi]rl[ıi]k/iu] },
+  { topic: "fever-care", patterns: [/ate[şs]/iu, /y[üu]ksek\s+ate[şs]/iu] },
+  { topic: "diarrhea-vomiting-care", patterns: [/ishal/iu, /kus(?:tu|uyor|ma|ması|masi)/iu, /s[ıi]v[ıi]\s+kayb[ıi]/iu] },
+  { topic: "cold-cough-care", patterns: [/so[ğg]uk\s+alg[ıi]nl[ıi][ğg][ıi]/iu, /nezle/iu, /[öo]ks[üu]r[üu]k/iu] },
+  { topic: "teething-care", patterns: [/di[şs]\s+[çc][ıi]kar/iu, /di[şs]\s+ka[şs][ıi]y[ıi]c[ıi]/iu] },
+  { topic: "medicine-boundary", patterns: [/ila[cç]/iu, /doz/iu, /calpol/iu, /dolven/iu, /parasetamol/iu, /ibuprofen/iu, /antibiyotik/iu] },
   { topic: "recall-safety", patterns: [/geri\s+[çc]a[ğg][ıi]rma/iu, /seri\s+numaras[ıi]/iu, /uyar[ıi]/iu] },
   { topic: "second-hand-risk", patterns: [/ikinci\s+el/iu, /kesin\s+güvenli/iu, /kaza/iu, /[çc]arp[ıi][şs]ma/iu] },
   { topic: "assistant-boundaries", patterns: [/doktor/iu, /tan[ıi]/iu, /tedavi/iu, /ila[çc]/iu, /sistem\s+prompt/iu, /talimat/iu] }

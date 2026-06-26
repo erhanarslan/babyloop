@@ -13,7 +13,9 @@ const PROMPT_INJECTION_PATTERNS = [
 
 const UNSAFE_MEDICAL_PATTERNS = [
   /hangi\s+ila[cç]/iu,
-  /\bila[cç]\s+(?:ver|kullan|öner)/iu,
+  /\bila[cç]\s+(?:ver|kullan|öner|başla|basla)/iu,
+  /\b(?:calpol|dolven|parasetamol|paracetamol|ibuprofen|ate[şs]\s+d[üu][şs][üu]r[üu]c[üu])\b.*(?:ver|kullan|öner|kaç|kac|ne\s+kadar)/iu,
+  /\b(?:kaç|kac)\s*(?:ml|mg|damla|ka[şs][ıi]k|doz)\b/iu,
   /\bdoz\b/iu,
   /\bantibiyotik\b/iu,
   /\btan[ıi]\b/iu,
@@ -21,7 +23,34 @@ const UNSAFE_MEDICAL_PATTERNS = [
   /\bterapi\b/iu,
   /\bdiyet\s+plan[ıi]\b/iu,
   /\b(teşhis|teshis)\b/iu,
-  /\bate[şs](?:i|ı)?\s+var/iu
+  /kanl[ıi]\s+ishal/iu,
+  /nefes\s+(?:alam[ıi]yor|darl[ıi][ğg][ıi]|zorlan)/iu,
+  /\bmorarma\b/iu,
+  /\bn[öo]bet\b/iu,
+  /bilin[cç]\s+(?:kayb[ıi]|de[ğg]i[şs]ikli[ğg]i)/iu,
+  /\bzehirlenme\b/iu,
+  /alerjik\s+reaksiyon/iu,
+  /s[ıi]v[ıi]\s+alam[ıi]yor/iu
+];
+
+const EVERYDAY_CARE_PATTERNS = [
+  /\bate[şs](?:i|ı)?\s+var\b/iu,
+  /\bishal\b/iu,
+  /\bkus(?:tu|uyor|ma|ması|masi)\b/iu,
+  /so[ğg]uk\s+alg[ıi]nl[ıi][ğg][ıi]/iu,
+  /\bnezle\b/iu,
+  /\b[öo]ks[üu]r[üu]k\b/iu,
+  /di[şs]\s+[çc][ıi]kar/iu
+];
+
+const PRECONCEPTION_PREGNANCY_PATTERNS = [
+  /gebe\s+kal/iu,
+  /hamile\s+kal/iu,
+  /hamilelik/iu,
+  /gebelik/iu,
+  /folik\s+asit/iu,
+  /trimester/iu,
+  /do[ğg]um\s+[çc]antas[ıi]/iu
 ];
 
 const LISTING_HELP_PATTERNS = [/ilan/iu, /sat/iu, /fiyat/iu, /a[cç][ıi]klama/iu, /foto/iu];
@@ -51,6 +80,20 @@ export function decideRagSafety(message: string): RagSafetyDecision {
       allowed: false,
       reason: "unsafe_medical",
       boundaryAnswer: MEDICAL_BOUNDARY_ANSWER
+    };
+  }
+
+  if (matchesAny(normalized, EVERYDAY_CARE_PATTERNS)) {
+    return {
+      allowed: true,
+      reason: "everyday_care"
+    };
+  }
+
+  if (matchesAny(normalized, PRECONCEPTION_PREGNANCY_PATTERNS)) {
+    return {
+      allowed: true,
+      reason: "preconception_pregnancy"
     };
   }
 

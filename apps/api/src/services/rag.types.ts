@@ -129,6 +129,8 @@ export type RagSafetyDecision = {
     | "parent_product_guide"
     | "listing_help"
     | "babyloop_usage"
+    | "everyday_care"
+    | "preconception_pregnancy"
     | "unsafe_medical"
     | "prompt_injection"
     | "unknown";

@@ -38,4 +38,12 @@ describe("rag query normalizer", () => {
     expect(tokenizeRetrievalQuery("Bebek arabası için ne lazım?")).toEqual(expect.arrayContaining(["bebek", "arabası"]));
     expect(tokenizeRetrievalQuery("Bebek arabası için ne lazım?")).not.toContain("için");
   });
+
+  it("extracts everyday care and pregnancy topic hints", () => {
+    expect(extractIntentTopicHints("Çocuğum ishal oldu ne yapayım?")).toContain("diarrhea-vomiting-care");
+    expect(extractIntentTopicHints("Ateşi var ne yapayım?")).toContain("fever-care");
+    expect(extractIntentTopicHints("Çocuk sahibi olmak istiyorum şansımı nasıl artırırım?")).toContain("preconception-pregnancy");
+    expect(buildRetrievalQuery("Hamilelikte doğum çantası ne zaman hazırlanır?").topicHints).toEqual(expect.arrayContaining(["pregnancy-preparation"]));
+  });
+
 });

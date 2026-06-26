@@ -36,4 +36,22 @@ describe("assistant intent router", () => {
   });
 
 
+
+  it("routes everyday care questions to rag knowledge", () => {
+    expect(routeAssistantIntent("Ateşi var ne yapayım?").intent).toBe("rag_knowledge");
+    expect(routeAssistantIntent("Çocuğum ishal oldu ne yapayım?").intent).toBe("rag_knowledge");
+    expect(routeAssistantIntent("Bebeğim kustu ne yapmalıyım?").intent).toBe("rag_knowledge");
+  });
+
+  it("keeps medication and dose requests unsafe", () => {
+    expect(routeAssistantIntent("Bebeğimin ateşi var hangi ilacı vereyim?").intent).toBe("unsafe_medical");
+    expect(routeAssistantIntent("Calpol kaç ml vereyim?").intent).toBe("unsafe_medical");
+    expect(routeAssistantIntent("İshal için antibiyotik kullanayım mı?").intent).toBe("unsafe_medical");
+  });
+
+  it("routes preconception and pregnancy preparation to rag knowledge", () => {
+    expect(routeAssistantIntent("Çocuk sahibi olmak istiyorum şansımı nasıl artırırım?").intent).toBe("rag_knowledge");
+    expect(routeAssistantIntent("Hamilelikte hangi ürünleri hazırlamalıyım?").intent).toBe("rag_knowledge");
+  });
+
 });

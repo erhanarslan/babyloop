@@ -30,13 +30,42 @@ const PROMPT_INJECTION_PATTERNS = [
 
 const UNSAFE_MEDICAL_PATTERNS = [
   /hangi\s+ila[cç]/iu,
-  /\bila[cç]\s+(?:ver|kullan|öner)/iu,
+  /\bila[cç]\s+(?:ver|kullan|öner|başla|basla)/iu,
+  /\b(?:calpol|dolven|parasetamol|paracetamol|ibuprofen|ate[şs]\s+d[üu][şs][üu]r[üu]c[üu])\b.*(?:ver|kullan|öner|kaç|kac|ne\s+kadar)/iu,
+  /\b(?:kaç|kac)\s*(?:ml|mg|damla|ka[şs][ıi]k|doz)\b/iu,
   /\bdoz\b/iu,
+  /\bantibiyotik\b/iu,
   /\btan[ıi]\b/iu,
   /\btedavi\b/iu,
   /\bterapi\b/iu,
   /\bdiyet\s+plan[ıi]\b/iu,
-  /\bate[şs]/iu
+  /kanl[ıi]\s+ishal/iu,
+  /nefes\s+(?:alam[ıi]yor|darl[ıi][ğg][ıi]|zorlan)/iu,
+  /\bmorarma\b/iu,
+  /\bn[öo]bet\b/iu
+];
+
+const EVERYDAY_CARE_PATTERNS = [
+  /\bate[şs](?:i|ı)?\s+var\b/iu,
+  /\bishal\b/iu,
+  /\bkus(?:tu|uyor|ma|ması|masi)\b/iu,
+  /so[ğg]uk\s+alg[ıi]nl[ıi][ğg][ıi]/iu,
+  /\bnezle\b/iu,
+  /\b[öo]ks[üu]r[üu]k\b/iu,
+  /di[şs]\s+[çc][ıi]kar/iu
+];
+
+const PRECONCEPTION_PREGNANCY_PATTERNS = [
+  /[çc]ocuk\s+sahibi/iu,
+  /bebek\s+sahibi/iu,
+  /gebe\s+kal/iu,
+  /hamile\s+kal/iu,
+  /hamilelik/iu,
+  /gebelik/iu,
+  /folik\s+asit/iu,
+  /trimester/iu,
+  /do[ğg]um\s+[çc]antas[ıi]/iu,
+  /[şs]ans[ıi]m[ıi]\s+nas[ıi]l\s+art[ıi]r/iu
 ];
 
 const LISTING_SEARCH_PATTERNS = [
@@ -60,7 +89,24 @@ const SELLER_SUMMARY_PATTERNS = [/sat[ıi]c[ıi]\s+güvenilir/iu, /sat[ıi]c[ıi
 const LISTING_HELP_PATTERNS = [/ilan\s+a[cç][ıi]klamas[ıi]/iu, /ilan.*yaz/iu, /foto/iu, /fiyat/iu, /satmak/iu, /ilan\s+haz[ıi]rla/iu];
 const BABYLOOP_USAGE_PATTERNS = [/babyloop/iu, /favori/iu, /kay[ıi]tl[ıi]\s+arama/iu, /mesajla[şs]ma/iu, /nas[ıi]l\s+kullan/iu];
 const CHILD_NEEDS_PATTERNS = [/\b\d{1,2}\s*(?:ayl[ıi]k|ya[şs])/iu, /ya[şs]\s+dönemi/iu, /çocu[ğg]um/iu];
-const RAG_KNOWLEDGE_PATTERNS = [/bebek arabas[ıi]/iu, /oto koltu/iu, /oyuncak/iu, /be[şs]ik/iu, /güvenli/iu, /kontrol/iu];
+const RAG_KNOWLEDGE_PATTERNS = [
+  /bebek arabas[ıi]/iu,
+  /oto koltu/iu,
+  /oyuncak/iu,
+  /be[şs]ik/iu,
+  /güvenli/iu,
+  /kontrol/iu,
+  /ate[şs]/iu,
+  /ishal/iu,
+  /kus(?:tu|uyor|ma)/iu,
+  /gebe\s+kal/iu,
+  /hamilelik/iu,
+  /gebelik/iu,
+  /[çc]ocuk\s+sahibi/iu,
+  /bebek\s+sahibi/iu,
+  /[şs]ans[ıi]m[ıi]\s+nas[ıi]l\s+art[ıi]r/iu,
+  /di[şs]\s+[çc][ıi]kar/iu
+];
 
 export function routeAssistantIntent(message: string): AssistantIntentDecision {
   const normalized = message.trim().toLocaleLowerCase("tr");
@@ -71,6 +117,10 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
 
   if (matchesAny(normalized, UNSAFE_MEDICAL_PATTERNS)) {
     return { intent: "unsafe_medical", confidence: "high" };
+  }
+
+  if (matchesAny(normalized, EVERYDAY_CARE_PATTERNS) || matchesAny(normalized, PRECONCEPTION_PREGNANCY_PATTERNS)) {
+    return { intent: "rag_knowledge", confidence: "high" };
   }
 
   if (matchesAny(normalized, LISTING_SEARCH_PATTERNS)) {

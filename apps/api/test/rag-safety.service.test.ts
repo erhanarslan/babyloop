@@ -31,10 +31,29 @@ describe("rag safety", () => {
     expect(decision.reason).toBe("prompt_injection");
   });
 
-  it("blocks health symptom requests that need professional guidance", () => {
+  it("allows everyday fever support questions without medication requests", () => {
     const decision = decideRagSafety("ateşi var ne yapayım");
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("everyday_care");
+  });
+
+  it("blocks fever medication requests", () => {
+    const decision = decideRagSafety("bebeğimin ateşi var hangi ilacı vereyim");
 
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("unsafe_medical");
+  });
+
+  it("allows everyday diarrhea support questions", () => {
+    const decision = decideRagSafety("çocuğum ishal oldu ne yapayım");
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("everyday_care");
+  });
+
+  it("blocks antibiotic and dose requests", () => {
+    expect(decideRagSafety("Calpol kaç ml vereyim").reason).toBe("unsafe_medical");
+    expect(decideRagSafety("ishal için antibiyotik kullanayım mı").reason).toBe("unsafe_medical");
   });
 });
