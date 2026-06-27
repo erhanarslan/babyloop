@@ -114,8 +114,10 @@ export function ListingAdminList() {
     setAppliedFilters(defaultFilters);
   }
 
-  const loadedNeedsReviewCount = listings.filter(isListingAwaitingImageReview).length;
   const isImageReviewQueueActive = appliedFilters.imageReviewStatus === "needs_review";
+  const loadedNeedsReviewCount = isImageReviewQueueActive
+    ? listings.length
+    : listings.filter(isListingAwaitingImageReview).length;
 
   return (
     <section className="content-card">
@@ -361,7 +363,9 @@ export function ListingAdminList() {
               </div>
 
               <Link className="secondary-action" href={`/listings/${listing.id}`}>
-                {isListingAwaitingImageReview(listing) ? "Review images" : "Open listing"}
+                {isImageReviewQueueActive || isListingAwaitingImageReview(listing)
+                    ? "Review images"
+                    : "Open listing"}
               </Link>
             </article>
           ))}
