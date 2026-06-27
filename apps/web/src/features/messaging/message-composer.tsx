@@ -27,7 +27,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       return;
     }
 
-    if (!moderateMessageBody(trimmedBody).allowed) {
+    if (hasUnsafeComposerPattern(trimmedBody) || !moderateMessageBody(trimmedBody).allowed) {
       setErrorMessage("Bu mesaj güvenli görünmüyor. Lütfen özel bilgi veya kod benzeri içerik olmadan tekrar yaz.");
       return;
     }
@@ -94,6 +94,10 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
   );
 }
 
+function hasUnsafeComposerPattern(value: string): boolean {
+  return /[<>]/.test(value) || /script/i.test(value);
+}
+
 function buildComposerGuidance(value: string): { tone: "info" | "warning"; message: string } | null {
   const normalized = value.trim();
 
@@ -101,7 +105,7 @@ function buildComposerGuidance(value: string): { tone: "info" | "warning"; messa
     return null;
   }
 
-  if (/[<>]/.test(normalized) || /script/i.test(normalized)) {
+  if (hasUnsafeComposerPattern(normalized)) {
     return {
       tone: "warning",
       message: "Kod benzeri metni çıkarıp ürüne odaklı kısa bir mesaj yaz."

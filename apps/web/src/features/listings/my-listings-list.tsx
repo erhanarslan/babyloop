@@ -383,6 +383,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   ? "border-primary/40 bg-background text-primary shadow-sm"
                   : "border-transparent text-foreground hover:bg-background/75"
               ].join(" ")}
+              data-status-filter={status}
               key={status}
               type="button"
               onClick={() => {
@@ -442,7 +443,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
           return (
             <article
+              aria-label={`İlan: ${listing.title}`}
               className="listing-card relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[0.22rem] before:bg-gradient-to-r before:from-sky-500/85 before:to-emerald-500/80 before:content-['']"
+              data-listing-id={listing.id}
+              data-listing-status={listing.status}
               key={listing.id}
             >
               <ListingImageFrame
@@ -465,7 +469,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                     </p>
                   </div>
                   <Badge tone={getListingStatusTone(listing.status)}>
-                    {formatListingStatus(listing.status, dictionary)}
+                    <span data-listing-status-label={listing.status}>
+                      {formatListingStatus(listing.status, dictionary)}
+                    </span>
                   </Badge>
                 </div>
 

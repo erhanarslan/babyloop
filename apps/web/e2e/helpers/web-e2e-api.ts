@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page, type Route } from "@playwright/test";
 
 export type ApiResponse<TData> =
   | {
@@ -37,10 +37,27 @@ export type CategoryPayload = {
   }>;
 };
 
+export type ListingLifecycleStatus = "active" | "reserved" | "sold" | "archived";
+
 export type ListingPayload = {
   listing: {
     id: string;
     title: string;
+    status?: ListingLifecycleStatus | string;
+  };
+};
+
+export type MyListingsPayload = {
+  listings: Array<{
+    id: string;
+    title: string;
+    status: ListingLifecycleStatus | string;
+  }>;
+};
+
+export type ConversationPayload = {
+  conversation: {
+    id: string;
   };
 };
 
@@ -126,23 +143,7 @@ export async function createVerifiedUser(
     expect(verificationBody.ok).toBe(true);
   }
 
-  const loginResponse = await api.post("/api/v1/auth/login", {
-    data: {
-      email: input.email,
-      password: input.password,
-    },
-  });
-
-  expect(loginResponse.ok(), await safeResponseText(loginResponse)).toBe(true);
-
-  const loginBody = (await loginResponse.json()) as ApiResponse<AuthPayload>;
-  expect(loginBody.ok).toBe(true);
-
-  if (!loginBody.ok) {
-    throw new Error("Login failed after registration.");
-  }
-
-  return loginBody.data;
+  return registerBody.data;
 }
 
 export async function createListing(
@@ -181,6 +182,142 @@ export async function createListing(
   }
 
   return body.data.listing;
+}
+
+export async function updateListingStatus(
+  api: APIRequestContext,
+  input: {
+    accessToken: string;
+    listingId: string;
+    status: ListingLifecycleStatus;
+  },
+): Promise<ListingPayload["listing"]> {
+  const csrfToken = await fetchPublicCsrfToken(api);
+
+  const response = await api.patch(`/api/v1/listings/${input.listingId}/status`, {
+    headers: {
+      ...authHeader(input.accessToken),
+      "x-babyloop-csrf-token": csrfToken,
+    },
+    data: {
+      status: input.status,
+    },
+  });
+
+  expect(response.ok(), await safeResponseText(response)).toBe(true);
+
+  const body = (await response.json()) as ApiResponse<ListingPayload>;
+  expect(body.ok).toBe(true);
+
+  if (!body.ok) {
+    throw new Error("Listing status update failed.");
+  }
+
+  expect(body.data.listing.status).toBe(input.status);
+
+  return body.data.listing;
+}
+
+export async function expectMyListingStatus(
+  api: APIRequestContext,
+  input: {
+    accessToken: string;
+    listingId: string;
+    status: ListingLifecycleStatus;
+  },
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const response = await api.get("/api/v1/me/listings", {
+          headers: authHeader(input.accessToken),
+        });
+
+        if (!response.ok()) {
+          throw new Error(await safeResponseText(response));
+        }
+
+        const body = (await response.json()) as ApiResponse<MyListingsPayload>;
+
+        if (!body.ok) {
+          throw new Error(JSON.stringify(body));
+        }
+
+        return body.data.listings.find((listing) => listing.id === input.listingId)?.status ?? null;
+      },
+      {
+        intervals: [250, 500, 1000],
+        timeout: 10_000,
+      },
+    )
+    .toBe(input.status);
+}
+
+export async function createConversation(
+  api: APIRequestContext,
+  input: {
+    accessToken: string;
+    listingId: string;
+  },
+): Promise<ConversationPayload["conversation"]> {
+  const csrfToken = await fetchPublicCsrfToken(api);
+
+  const response = await api.post("/api/v1/conversations", {
+    headers: {
+      ...authHeader(input.accessToken),
+      "x-babyloop-csrf-token": csrfToken,
+    },
+    data: {
+      listingId: input.listingId,
+    },
+  });
+
+  expect(response.ok(), await safeResponseText(response)).toBe(true);
+
+  const body = (await response.json()) as ApiResponse<ConversationPayload>;
+  expect(body.ok).toBe(true);
+
+  if (!body.ok) {
+    throw new Error("Conversation setup failed.");
+  }
+
+  return body.data.conversation;
+}
+
+export async function installAuthRefreshRoute(page: Page, auth: AuthPayload): Promise<void> {
+  await page.route("**/api/v1/auth/refresh", async (route) => {
+    const method = route.request().method().toUpperCase();
+
+    if (method === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: getCorsHeaders(route),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: getCorsHeaders(route),
+      body: JSON.stringify({
+        ok: true,
+        data: auth,
+      } satisfies ApiResponse<AuthPayload>),
+    });
+  });
+}
+
+function getCorsHeaders(route: Route): Record<string, string> {
+  const origin = route.request().headers()["origin"] ?? "http://localhost:3000";
+
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-credentials": "true",
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "authorization,content-type,x-babyloop-csrf-token",
+    vary: "Origin",
+  };
 }
 
 export async function loginWithUi(

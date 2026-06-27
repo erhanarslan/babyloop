@@ -8,7 +8,7 @@ import {
   createVerifiedUser,
   expectFavoriteState,
   fetchFirstCategoryId,
-  loginWithUi,
+  installAuthRefreshRoute,
 } from "./helpers/web-e2e-api";
 
 test.describe("favorites flow", () => {
@@ -67,12 +67,9 @@ test.describe("favorites flow", () => {
         title: listingTitle,
       });
 
-      await loginWithUi(page, {
-        email: buyerEmail,
-        password: E2E_PASSWORD,
-      });
+      await installAuthRefreshRoute(page, buyer);
 
-      await page.goto(`/listings/${listing.id}`);
+      await page.goto(`/listings/${listing.id}`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: listingTitle })).toBeVisible({
         timeout: 15_000,
       });

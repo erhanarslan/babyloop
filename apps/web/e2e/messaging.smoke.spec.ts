@@ -7,7 +7,7 @@ import {
   createListing,
   createVerifiedUser,
   fetchFirstCategoryId,
-  loginWithUi,
+  installAuthRefreshRoute,
 } from "./helpers/web-e2e-api";
 
 test.describe("messaging flow", () => {
@@ -55,7 +55,7 @@ test.describe("messaging flow", () => {
 
       const buyerEmail = `web-e2e-msg-buyer-${unique}@babyloop.test`;
 
-      await createVerifiedUser(buyerApi, {
+      const buyer = await createVerifiedUser(buyerApi, {
         displayName: "Web E2E Message Buyer",
         email: buyerEmail,
         locationCity: "İstanbul",
@@ -68,12 +68,9 @@ test.describe("messaging flow", () => {
         title: listingTitle,
       });
 
-      await loginWithUi(page, {
-        email: buyerEmail,
-        password: E2E_PASSWORD,
-      });
+      await installAuthRefreshRoute(page, buyer);
 
-      await page.goto(`/listings/${listing.id}`);
+      await page.goto(`/listings/${listing.id}`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: listingTitle })).toBeVisible({
         timeout: 15_000,
       });
