@@ -88,8 +88,8 @@ describe("listing image authenticity integration", () => {
   });
 
   it("stores needs_review authenticity metadata, hides the image publicly, and exposes it to admin review", async () => {
-    configureOpenAiAuthenticityProvider();
-    mockOpenAiAuthenticityDecision("needs_review", 0.73);
+    configureGeminiAuthenticityProvider();
+    mockGeminiAuthenticityDecision("needs_review", 0.73);
 
     const { currentUser } = await seedSeller("auth-needs-review");
     const category = await seedCategory("auth-needs-review");
@@ -126,7 +126,7 @@ describe("listing image authenticity integration", () => {
 
     expect(storedImage).toMatchObject({
       authenticityDecision: "needs_review",
-      authenticityProvider: "openai-listing-image-authenticity",
+      authenticityProvider: "gemini-listing-image-authenticity",
       reviewStatus: "needs_review"
     });
     expect(Number(storedImage?.authenticityConfidence)).toBeCloseTo(0.73);
@@ -141,14 +141,14 @@ describe("listing image authenticity integration", () => {
       reviewStatus: "needs_review",
       authenticity: expect.objectContaining({
         decision: "needs_review",
-        providerName: "openai-listing-image-authenticity"
+        providerName: "gemini-listing-image-authenticity"
       })
     });
   });
 
   it("rejects provider-rejected images before storage and database insert", async () => {
-    configureOpenAiAuthenticityProvider();
-    mockOpenAiAuthenticityDecision("reject", 0.92);
+    configureGeminiAuthenticityProvider();
+    mockGeminiAuthenticityDecision("reject", 0.92);
 
     const { currentUser } = await seedSeller("auth-reject");
     const category = await seedCategory("auth-reject");
@@ -178,7 +178,7 @@ describe("listing image authenticity integration", () => {
   });
 
   it("fails closed when the authenticity provider is unavailable and does not insert images", async () => {
-    configureOpenAiAuthenticityProvider();
+    configureGeminiAuthenticityProvider();
 
     vi.stubGlobal(
       "fetch",
@@ -308,14 +308,14 @@ function buildCreateListingBody(categoryId: string) {
   };
 }
 
-function configureOpenAiAuthenticityProvider(): void {
+function configureGeminiAuthenticityProvider(): void {
   process.env.NODE_ENV = "test";
-  process.env.LISTING_IMAGE_AUTHENTICITY_PROVIDER = "openai";
-  process.env.LISTING_IMAGE_AUTHENTICITY_MODEL = "gpt-4o-mini";
-  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.LISTING_IMAGE_AUTHENTICITY_PROVIDER = "gemini";
+  process.env.GEMINI_LISTING_IMAGE_AUTHENTICITY_MODEL = "gemini-test-model";
+  process.env.GEMINI_API_KEY = "test-gemini-key";
 }
 
-function mockOpenAiAuthenticityDecision(
+function mockGeminiAuthenticityDecision(
   decision: "allow" | "needs_review" | "reject",
   confidence: number
 ): void {
@@ -324,30 +324,34 @@ function mockOpenAiAuthenticityDecision(
     vi.fn(async () =>
       new Response(
         JSON.stringify({
-          choices: [
+          candidates: [
             {
-              message: {
-                content: JSON.stringify({
-                  decision,
-                  confidence,
-                  isGeneratedOrIllustration: decision === "reject",
-                  isRealProductPhoto: decision !== "reject",
-                  isRelevantToListing: decision !== "reject",
-                  isStockOrCatalogLike: decision === "needs_review",
-                  detectedObjects: ["stroller"],
-                  categoryHints: ["baby gear"],
-                  safetyFlags: {
-                    containsChildFace: false,
-                    containsLogoOrScreenshot: false,
-                    containsMedicalProductClaim: false,
-                    containsSensitiveChildContent: false
-                  },
-                  reasons: [
-                    decision === "reject"
-                      ? "Image appears generated or unrelated to the physical listing."
-                      : "Image requires marketplace authenticity review."
-                  ]
-                })
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      decision,
+                      confidence,
+                      isGeneratedOrIllustration: decision === "reject",
+                      isRealProductPhoto: decision !== "reject",
+                      isRelevantToListing: decision !== "reject",
+                      isStockOrCatalogLike: decision === "needs_review",
+                      detectedObjects: ["stroller"],
+                      categoryHints: ["baby gear"],
+                      safetyFlags: {
+                        containsChildFace: false,
+                        containsLogoOrScreenshot: false,
+                        containsMedicalProductClaim: false,
+                        containsSensitiveChildContent: false
+                      },
+                      reasons: [
+                        decision === "reject"
+                          ? "Image appears generated or unrelated to the physical listing."
+                          : "Image requires marketplace authenticity review."
+                      ]
+                    })
+                  }
+                ]
               }
             }
           ]

@@ -253,4 +253,81 @@ describe("email delivery mode config", () => {
       "EMAIL_DELIVERY_MODE must be noop or provider."
     );
   });
+
+  it("keeps listing image authenticity unavailable by default", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test"
+    });
+
+    expect(config.listingImageAuthenticity).toEqual({
+      provider: "unavailable",
+      timeoutMs: 8_000
+    });
+  });
+
+  it("accepts Gemini listing image authenticity configuration", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+      GEMINI_API_ENDPOINT: "https://gemini.example.test",
+      GEMINI_API_KEY: "gemini-test-key",
+      GEMINI_LISTING_IMAGE_AUTHENTICITY_MODEL: "gemini-image-test-model",
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: "gemini",
+      LISTING_IMAGE_AUTHENTICITY_TIMEOUT_MS: "2500"
+    });
+
+    expect(config.listingImageAuthenticity).toEqual({
+      provider: "gemini",
+      apiKey: "gemini-test-key",
+      model: "gemini-image-test-model",
+      endpoint: "https://gemini.example.test",
+      timeoutMs: 2_500
+    });
+  });
+
+  it("accepts Google API key alias for Gemini listing image authenticity", () => {
+    const config = readApiRuntimeConfig({
+      AUTH_SECRET: validSecret,
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+      GOOGLE_API_KEY: "google-test-key",
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: "gemini"
+    });
+
+    expect(config.listingImageAuthenticity).toEqual({
+      provider: "gemini",
+      apiKey: "google-test-key",
+      model: "gemini-2.5-flash",
+      timeoutMs: 8_000
+    });
+  });
+
+  it("validates production listing image authenticity configuration", () => {
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        LISTING_IMAGE_AUTHENTICITY_PROVIDER: "mock",
+        NODE_ENV: "production"
+      })
+    ).toThrow("LISTING_IMAGE_AUTHENTICITY_PROVIDER=mock cannot be used in production");
+
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        LISTING_IMAGE_AUTHENTICITY_PROVIDER: "gemini",
+        NODE_ENV: "production"
+      })
+    ).toThrow("GEMINI_API_KEY or GOOGLE_API_KEY is required when LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini");
+
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        LISTING_IMAGE_AUTHENTICITY_PROVIDER: "unavailable",
+        NODE_ENV: "production"
+      })
+    ).toThrow("LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini is required in production");
+  });
 });

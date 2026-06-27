@@ -30,8 +30,11 @@ type AnalyzeListingImageAuthenticityInput = {
   title: string;
 };
 
-const PROMPT_VERSION = "listing_image_authenticity.openai.v1";
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const PROMPT_VERSION = "listing_image_authenticity.gemini.v1";
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com";
+const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
+const DEFAULT_OPENAI_TIMEOUT_MS = 8_000;
 
 export async function analyzeListingImageAuthenticity(
   app: FastifyInstance,
@@ -77,34 +80,36 @@ export async function analyzeListingImageAuthenticity(
     };
   }
 
-  if (provider !== "openai") {
+  if (provider !== "gemini") {
     return {
       status: "unavailable",
       providerName: provider || "unconfigured-listing-image-authenticity",
-      reason: "LISTING_IMAGE_AUTHENTICITY_PROVIDER must be set to openai for real upload enforcement."
+      reason: "LISTING_IMAGE_AUTHENTICITY_PROVIDER must be set to gemini for real upload enforcement."
     };
   }
 
-  return analyzeWithOpenAi(app, input);
+  return analyzeWithGemini(app, input);
 }
 
-async function analyzeWithOpenAi(
+async function analyzeWithGemini(
   app: FastifyInstance,
   input: AnalyzeListingImageAuthenticityInput
 ): Promise<ListingImageAuthenticityResult> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const modelName = process.env.LISTING_IMAGE_AUTHENTICITY_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
-  const endpoint = process.env.OPENAI_API_BASE_URL?.trim() || "https://api.openai.com";
+  const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+  const modelName =
+    process.env.GEMINI_LISTING_IMAGE_AUTHENTICITY_MODEL?.trim()
+    || process.env.LISTING_IMAGE_AUTHENTICITY_MODEL?.trim()
+    || DEFAULT_GEMINI_MODEL;
+  const endpoint = process.env.GEMINI_API_ENDPOINT?.trim() || DEFAULT_GEMINI_ENDPOINT;
+  const timeoutMs = readGeminiTimeoutMs(process.env.LISTING_IMAGE_AUTHENTICITY_TIMEOUT_MS);
 
   if (!apiKey) {
     return {
       status: "unavailable",
-      providerName: "openai-listing-image-authenticity",
-      reason: "OPENAI_API_KEY is required for listing image authenticity checks."
+      providerName: "gemini-listing-image-authenticity",
+      reason: "GEMINI_API_KEY or GOOGLE_API_KEY is required for listing image authenticity checks."
     };
   }
-
-  const dataUrl = `data:${input.image.contentType};base64,${input.image.buffer.toString("base64")}`;
 
   const prompt = [
     "You are a marketplace trust and safety image reviewer for BabyLoop, a baby and child product marketplace.",
@@ -142,85 +147,118 @@ async function analyzeWithOpenAi(
     "}"
   ].join("\n");
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(`${endpoint.replace(/\/+$/u, "")}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: modelName,
-        temperature: 0,
-        response_format: {
-          type: "json_object"
+    const response = await fetch(
+      `${endpoint.replace(/\/+$/u, "")}/v1beta/models/${encodeURIComponent(modelName)}:generateContent`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
         },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: prompt
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: dataUrl
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: prompt
+                },
+                {
+                  inlineData: {
+                    mimeType: input.image.contentType,
+                    data: input.image.buffer.toString("base64")
+                  }
                 }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0
+          },
+          systemInstruction: {
+            parts: [
+              {
+                text: "Return JSON only. Do not include markdown fences or explanatory prose."
               }
             ]
           }
-        ]
-      })
-    });
+        })
+      }
+    );
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       app.log.warn({
-        statusCode: response.status,
-        responsePreview: text.slice(0, 240)
-      }, "OpenAI listing image authenticity request failed.");
+        responsePreview: text.slice(0, 240),
+        statusCode: response.status
+      }, "Gemini listing image authenticity request failed.");
 
       return {
         status: "unavailable",
-        providerName: "openai-listing-image-authenticity",
-        reason: "OpenAI listing image authenticity request failed."
+        providerName: "gemini-listing-image-authenticity",
+        reason: "Gemini listing image authenticity request failed."
       };
     }
 
     const body = await response.json() as {
-      choices?: Array<{
-        message?: {
-          content?: string;
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text?: string;
+          }>;
         };
       }>;
     };
 
-    const content = body.choices?.[0]?.message?.content;
+    const content = body.candidates?.[0]?.content?.parts
+      ?.map((part) => typeof part.text === "string" ? part.text : "")
+      .join("")
+      .trim();
 
     if (!content) {
       return {
         status: "unavailable",
-        providerName: "openai-listing-image-authenticity",
-        reason: "OpenAI listing image authenticity response was empty."
+        providerName: "gemini-listing-image-authenticity",
+        reason: "Gemini listing image authenticity response was empty."
       };
     }
 
-    return normalizeProviderOutput(content, modelName);
+    return normalizeProviderOutput(content, modelName, "gemini-listing-image-authenticity");
   } catch (error) {
-    app.log.warn(error, "OpenAI listing image authenticity provider failed.");
+    if (isAbortError(error)) {
+      app.log.warn({ timeoutMs }, "Gemini listing image authenticity request timed out.");
+
+      return {
+        status: "unavailable",
+        providerName: "gemini-listing-image-authenticity",
+        reason: "Gemini listing image authenticity request timed out."
+      };
+    }
+
+    app.log.warn(error, "Gemini listing image authenticity provider failed.");
 
     return {
       status: "unavailable",
-      providerName: "openai-listing-image-authenticity",
-      reason: "OpenAI listing image authenticity provider failed."
+      providerName: "gemini-listing-image-authenticity",
+      reason: "Gemini listing image authenticity provider failed."
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-function normalizeProviderOutput(content: string, modelName: string): ListingImageAuthenticityResult {
-  const parsed = JSON.parse(content) as {
+function normalizeProviderOutput(
+  content: string,
+  modelName: string,
+  providerName: string
+): ListingImageAuthenticityResult {
+  const parsed = JSON.parse(stripJsonFence(content)) as {
     decision?: unknown;
     confidence?: unknown;
     reasons?: unknown;
@@ -241,7 +279,7 @@ function normalizeProviderOutput(content: string, modelName: string): ListingIma
     status: "completed",
     decision,
     confidence,
-    providerName: "openai-listing-image-authenticity",
+    providerName,
     modelName,
     promptVersion: PROMPT_VERSION,
     reasons: reasons.length > 0 ? reasons : ["Provider returned no detailed reason."],
@@ -290,4 +328,44 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>;
+}
+
+function readOpenAiTimeoutMs(value: string | undefined): number {
+  if (!value) {
+    return DEFAULT_OPENAI_TIMEOUT_MS;
+  }
+
+  const timeoutMs = Number(value);
+
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+    return DEFAULT_OPENAI_TIMEOUT_MS;
+  }
+
+  return Math.min(timeoutMs, 30_000);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function readGeminiTimeoutMs(value: string | undefined): number {
+  if (!value) {
+    return DEFAULT_GEMINI_TIMEOUT_MS;
+  }
+
+  const timeoutMs = Number(value);
+
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+    return DEFAULT_GEMINI_TIMEOUT_MS;
+  }
+
+  return Math.min(timeoutMs, 30_000);
+}
+
+function stripJsonFence(content: string): string {
+  return content
+    .trim()
+    .replace(/^```(?:json)?\s*/u, "")
+    .replace(/\s*```$/u, "")
+    .trim();
 }

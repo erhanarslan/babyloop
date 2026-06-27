@@ -49,6 +49,17 @@ export type AssistantRuntimeConfig =
       endpoint?: string;
     };
 
+export type ListingImageAuthenticityRuntimeConfig =
+  | { provider: "unavailable"; timeoutMs: number }
+  | { provider: "mock"; timeoutMs: number }
+  | {
+      provider: "gemini";
+      apiKey: string;
+      model: string;
+      endpoint?: string;
+      timeoutMs: number;
+    };
+
 export type RagRuntimeConfig =
   | { enabled: false }
   | {
@@ -110,6 +121,7 @@ export type ApiRuntimeConfig = {
   aiListingDraft: AiListingDraftRuntimeConfig;
   aiModerationSummary: AiModerationSummaryRuntimeConfig;
   assistant: AssistantRuntimeConfig;
+  listingImageAuthenticity: ListingImageAuthenticityRuntimeConfig;
   allowAuthUnavailable: boolean;
   authRateLimitMax: number;
   authRateLimitWindowSeconds: number;
@@ -135,6 +147,7 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
     aiListingDraft: readAiListingDraftConfig(env),
     aiModerationSummary: readAiModerationSummaryConfig(env),
     assistant: readAssistantConfig(env),
+    listingImageAuthenticity: readListingImageAuthenticityConfig(env),
     allowAuthUnavailable,
     authRateLimitMax: readPositiveInteger(env.AUTH_RATE_LIMIT_MAX, 10),
     authRateLimitWindowSeconds: readPositiveInteger(env.AUTH_RATE_LIMIT_WINDOW_SECONDS, 60),
@@ -314,6 +327,51 @@ function readAiModerationSummaryConfig(env: NodeJS.ProcessEnv): AiModerationSumm
     apiKey,
     model,
     ...(endpoint ? { endpoint } : {})
+  };
+}
+
+function readListingImageAuthenticityConfig(env: NodeJS.ProcessEnv): ListingImageAuthenticityRuntimeConfig {
+  const provider = (env.LISTING_IMAGE_AUTHENTICITY_PROVIDER ?? "unavailable").trim().toLowerCase();
+  const timeoutMs = readPositiveInteger(env.LISTING_IMAGE_AUTHENTICITY_TIMEOUT_MS, 8_000);
+
+  if (!provider || provider === "unavailable" || provider === "off" || provider === "none") {
+    if (env.NODE_ENV === "production") {
+      throw new Error("LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini is required in production.");
+    }
+
+    return { provider: "unavailable", timeoutMs };
+  }
+
+  if (provider === "mock") {
+    if (env.NODE_ENV === "production") {
+      throw new Error("LISTING_IMAGE_AUTHENTICITY_PROVIDER=mock cannot be used in production.");
+    }
+
+    return { provider: "mock", timeoutMs };
+  }
+
+  if (provider !== "gemini") {
+    throw new Error("LISTING_IMAGE_AUTHENTICITY_PROVIDER must be unavailable, mock, or gemini.");
+  }
+
+  const apiKey = env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is required when LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini.");
+  }
+
+  const endpoint = env.GEMINI_API_ENDPOINT?.trim();
+  const model =
+    env.GEMINI_LISTING_IMAGE_AUTHENTICITY_MODEL?.trim()
+    || env.LISTING_IMAGE_AUTHENTICITY_MODEL?.trim()
+    || "gemini-2.5-flash";
+
+  return {
+    provider: "gemini",
+    apiKey,
+    model,
+    ...(endpoint ? { endpoint } : {}),
+    timeoutMs
   };
 }
 
