@@ -55,6 +55,10 @@ describe("health API", () => {
     });
 
     expect(response.statusCode).toBe(200);
+
+    const responseTimeHeader = response.headers["x-response-time-ms"];
+    expect(responseTimeHeader).toBeDefined();
+    expect(Number(responseTimeHeader)).toBeGreaterThanOrEqual(0);
     expect(response.json()).toEqual({
       ok: true,
       service: "babyloop-api"

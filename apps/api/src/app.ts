@@ -2,7 +2,7 @@ import { API_PREFIX } from "@babyloop/config";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
 import { registerAuthPlugin } from "./plugins/auth.plugin.js";
 import {
@@ -133,6 +133,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     logger: true
   });
 
+  const requestTimingStarts = new WeakMap<FastifyRequest, bigint>();
+
   app.register(cors, {
     credentials: true,
     origin: config.corsOrigins,
@@ -162,12 +164,40 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     }
   });
 
-  app.addHook("onRequest", async (_request, reply) => {
+  app.addHook("onRequest", async (request, reply) => {
+    requestTimingStarts.set(request, process.hrtime.bigint());
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("X-Frame-Options", "DENY");
     reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
     reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+  });
+
+  app.addHook("onSend", async (request, reply, payload) => {
+    reply.header("x-response-time-ms", formatDurationMs(getRequestDurationMs(requestTimingStarts, request)));
+
+    return payload;
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    const route = getSafeRequestRoute(request);
+    const durationMs = parseDurationMs(formatDurationMs(getRequestDurationMs(requestTimingStarts, request)));
+    const logPayload = {
+      event: "api_request_completed",
+      method: request.method,
+      route,
+      statusCode: reply.statusCode,
+      durationMs
+    };
+
+    requestTimingStarts.delete(request);
+
+    if (isLowNoiseRoute(route)) {
+      request.log.debug(logPayload, "API request completed.");
+      return;
+    }
+
+    request.log.info(logPayload, "API request completed.");
   });
 
   app.addHook("preHandler", async (request, reply) => {
@@ -514,6 +544,47 @@ function getStatusCode(error: unknown): number {
   }
 
   return 500;
+}
+
+function getRequestDurationMs(
+  requestTimingStarts: WeakMap<FastifyRequest, bigint>,
+  request: FastifyRequest
+): number {
+  const startedAt = requestTimingStarts.get(request);
+
+  if (!startedAt) {
+    return 0;
+  }
+
+  return Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+}
+
+function formatDurationMs(durationMs: number): string {
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    return "0.00";
+  }
+
+  return durationMs.toFixed(2);
+}
+
+function parseDurationMs(value: string): number {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function getSafeRequestRoute(request: FastifyRequest): string {
+  const routePattern = request.routeOptions.url;
+
+  if (routePattern) {
+    return routePattern;
+  }
+
+  return request.url.split("?")[0] || "/";
+}
+
+function isLowNoiseRoute(route: string): boolean {
+  return route === "/health";
 }
 
 function isDatabaseConnectionError(error: unknown): boolean {
