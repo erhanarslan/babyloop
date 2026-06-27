@@ -3,6 +3,10 @@ import type { ApiResponse } from "@babyloop/shared";
 import { getApiBaseUrl } from "../../lib/api";
 import { authFetch } from "../../lib/auth-client";
 
+export type AdminAiOpsFeature =
+  | "moderation_summary"
+  | "listing_image_authenticity";
+
 export type AdminAiOpsStatus =
   | "success"
   | "error"
@@ -50,7 +54,7 @@ export type AdminAiOpsSummary = {
 };
 
 export type AdminAiOpsRunsParams = {
-  feature?: string;
+  feature?: AdminAiOpsFeature;
   providerName?: string;
   status?: AdminAiOpsStatus;
   q?: string;
