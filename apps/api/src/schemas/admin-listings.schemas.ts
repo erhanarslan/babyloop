@@ -8,12 +8,20 @@ export const adminListingStatusValues = [
   "archived"
 ] as const;
 
+export const adminListingImageReviewStatusValues = [
+  "pending",
+  "approved",
+  "needs_review",
+  "rejected"
+] as const;
+
 export const adminListingParamsSchema = z.object({
   listingId: z.string().uuid()
 });
 
 export const adminListingsQuerySchema = z.object({
   status: z.enum(adminListingStatusValues).optional(),
+  imageReviewStatus: z.enum(adminListingImageReviewStatusValues).optional(),
   q: z.string().trim().min(1).max(120).optional(),
   categoryId: z.string().uuid().optional(),
   sort: z
@@ -43,4 +51,5 @@ export type AdminListingImageActionValue = AdminListingImageActionBody["action"]
 export type AdminListingImageParams = z.infer<typeof adminListingImageParamsSchema>;
 export type AdminListingParams = z.infer<typeof adminListingParamsSchema>;
 export type AdminListingStatusValue = (typeof adminListingStatusValues)[number];
+export type AdminListingImageReviewStatusValue = (typeof adminListingImageReviewStatusValues)[number];
 export type AdminListingsQuery = z.infer<typeof adminListingsQuerySchema>;

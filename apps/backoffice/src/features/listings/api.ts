@@ -109,6 +109,7 @@ export type AdminListingDetail = AdminListingSummary & {
 
 export type ListAdminListingsParams = {
   status?: AdminListingStatus;
+  imageReviewStatus?: AdminListingImageReviewStatus;
   q?: string;
   categoryId?: string;
   sort?: AdminListingSort;
@@ -159,6 +160,9 @@ export async function listAdminListings(
 
   if (params?.status) {
     searchParams.set("status", params.status);
+  }
+  if (params?.imageReviewStatus) {
+    searchParams.set("imageReviewStatus", params.imageReviewStatus);
   }
   if (params?.q) {
     searchParams.set("q", params.q);

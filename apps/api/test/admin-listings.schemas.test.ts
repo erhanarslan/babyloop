@@ -11,6 +11,7 @@ describe("admin listings schemas", () => {
   it("accepts safe listing list filters", () => {
     const parsed = adminListingsQuerySchema.safeParse({
       status: "archived",
+      imageReviewStatus: "needs_review",
       q: "stroller",
       categoryId: "30000000-0000-4000-8000-000000000001",
       sort: "updated_desc",
@@ -26,6 +27,8 @@ describe("admin listings schemas", () => {
 
   it("rejects invalid listing list filters", () => {
     expect(adminListingsQuerySchema.safeParse({ status: "under_review" }).success)
+      .toBe(false);
+    expect(adminListingsQuerySchema.safeParse({ imageReviewStatus: "unknown" }).success)
       .toBe(false);
     expect(adminListingsQuerySchema.safeParse({ sort: "seller_email" }).success)
       .toBe(false);

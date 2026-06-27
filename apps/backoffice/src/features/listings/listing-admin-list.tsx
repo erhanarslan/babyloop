@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
+  type AdminListingImageReviewStatus,
   type AdminListingSort,
   type AdminListingStatus,
   type AdminListingSummary,
@@ -12,9 +13,11 @@ import {
 } from "./api";
 
 type StatusFilter = AdminListingStatus | "all";
+type ImageReviewStatusFilter = AdminListingImageReviewStatus | "all";
 
 type FilterState = {
   status: StatusFilter;
+  imageReviewStatus: ImageReviewStatusFilter;
   q: string;
   sort: AdminListingSort;
   limit: number;
@@ -28,6 +31,13 @@ const statusFilters: StatusFilter[] = [
   "sold",
   "archived",
 ];
+const imageReviewStatusFilters: ImageReviewStatusFilter[] = [
+  "all",
+  "needs_review",
+  "pending",
+  "approved",
+  "rejected",
+];
 const sortOptions: AdminListingSort[] = [
   "newest",
   "oldest",
@@ -38,6 +48,7 @@ const limitOptions = [25, 50, 100];
 
 const defaultFilters: FilterState = {
   status: "all",
+  imageReviewStatus: "all",
   q: "",
   sort: "newest",
   limit: 50,
@@ -61,6 +72,9 @@ export function ListingAdminList() {
         ...(appliedFilters.status === "all"
           ? {}
           : { status: appliedFilters.status }),
+        ...(appliedFilters.imageReviewStatus === "all"
+          ? {}
+          : { imageReviewStatus: appliedFilters.imageReviewStatus }),
         ...(appliedFilters.q.trim() ? { q: appliedFilters.q.trim() } : {}),
         sort: appliedFilters.sort,
         limit: appliedFilters.limit,
@@ -135,6 +149,25 @@ export function ListingAdminList() {
               {statusFilters.map((status) => (
                 <option key={status} value={status}>
                   {getStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Image review</span>
+            <select
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  imageReviewStatus: event.target.value as ImageReviewStatusFilter,
+                }))
+              }
+              value={draftFilters.imageReviewStatus}
+            >
+              {imageReviewStatusFilters.map((status) => (
+                <option key={status} value={status}>
+                  {getImageReviewStatusLabel(status)}
                 </option>
               ))}
             </select>
@@ -266,6 +299,14 @@ export function ListingAdminList() {
                       <dd>{listing.imageCount}</dd>
                     </div>
                     <div>
+                      <dt>Primary image</dt>
+                      <dd>
+                        {listing.primaryImage
+                          ? getImageReviewStatusLabel(listing.primaryImage.reviewStatus)
+                          : "No image"}
+                      </dd>
+                    </div>
+                    <div>
                       <dt>Open cases</dt>
                       <dd>{listing.moderation.openRelatedCaseCount}</dd>
                     </div>
@@ -306,6 +347,21 @@ function getStatusLabel(status: StatusFilter): string {
       return "Sold";
     case "archived":
       return "Archived";
+  }
+}
+
+function getImageReviewStatusLabel(status: ImageReviewStatusFilter): string {
+  switch (status) {
+    case "all":
+      return "All";
+    case "pending":
+      return "Pending";
+    case "approved":
+      return "Approved";
+    case "needs_review":
+      return "Needs review";
+    case "rejected":
+      return "Rejected";
   }
 }
 

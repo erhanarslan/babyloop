@@ -12,6 +12,7 @@ import type { FastifyInstance } from "fastify";
 import type {
   AdminListingImageActionValue,
   AdminListingActionValue,
+  AdminListingImageReviewStatusValue,
   AdminListingStatusValue
 } from "../schemas/admin-listings.schemas.js";
 import {
@@ -136,6 +137,7 @@ export async function listAdminListings(
   app: FastifyInstance,
   filters: {
     status?: AdminListingStatusValue;
+    imageReviewStatus?: AdminListingImageReviewStatusValue;
     q?: string;
     categoryId?: string;
     sort?: AdminListingSort;
@@ -393,6 +395,7 @@ async function selectAdminListingRows(
   app: FastifyInstance,
   filters: {
     status?: AdminListingStatusValue;
+    imageReviewStatus?: AdminListingImageReviewStatusValue;
     q?: string;
     categoryId?: string;
     sort?: AdminListingSort;
@@ -403,6 +406,15 @@ async function selectAdminListingRows(
   const searchPattern = `%${normalizedQuery}%`;
   const whereConditions = [
     filters.status ? eq(listings.status, filters.status) : undefined,
+    filters.imageReviewStatus
+      ? inArray(
+          listings.id,
+          app.db
+            .select({ listingId: listingImages.listingId })
+            .from(listingImages)
+            .where(eq(listingImages.reviewStatus, filters.imageReviewStatus))
+        )
+      : undefined,
     filters.categoryId ? eq(listings.categoryId, filters.categoryId) : undefined,
     normalizedQuery
       ? or(

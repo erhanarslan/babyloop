@@ -62,6 +62,9 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
         data: {
           listings: await listAdminListings(app, {
             ...(parsedQuery.data.status ? { status: parsedQuery.data.status } : {}),
+            ...(parsedQuery.data.imageReviewStatus
+              ? { imageReviewStatus: parsedQuery.data.imageReviewStatus }
+              : {}),
             ...(parsedQuery.data.q ? { q: parsedQuery.data.q } : {}),
             ...(parsedQuery.data.categoryId
               ? { categoryId: parsedQuery.data.categoryId }

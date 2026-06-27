@@ -1165,6 +1165,63 @@ describe("listings API", () => {
     expect(response.body).not.toContain("conversationParticipants");
   });
 
+  it("allows admins to filter listings by image review status", async () => {
+    const admin = await createUser(app, {
+      role: "admin",
+      email: "admin-listing-image-review-filter@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "private-seller-image-review-filter@babyloop.test",
+      displayName: "Image Review Seller"
+    });
+
+    const needsReviewListing = await createListing(app, seller.accessToken, {
+      title: "Needs review image listing"
+    });
+    const approvedListing = await createListing(app, seller.accessToken, {
+      title: "Approved image listing"
+    });
+
+    await app.db.insert(listingImages).values([
+      {
+        listingId: needsReviewListing.id,
+        reviewStatus: "needs_review",
+        sortOrder: 0,
+        url: "https://cdn.example.test/admin-needs-review.png"
+      },
+      {
+        listingId: approvedListing.id,
+        reviewStatus: "approved",
+        sortOrder: 0,
+        url: "https://cdn.example.test/admin-approved.png"
+      }
+    ]);
+
+    const response = await app.inject({
+      headers: authHeader(admin.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/listings?imageReviewStatus=needs_review&limit=20"
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json<{
+      ok: true;
+      data: {
+        listings: Array<{ id: string; seller: Record<string, unknown> }>;
+      };
+    }>();
+
+    expect(body.ok).toBe(true);
+
+    const listingIds = body.data.listings.map((listing) => listing.id);
+
+    expect(listingIds).toContain(needsReviewListing.id);
+    expect(listingIds).not.toContain(approvedListing.id);
+    expect(response.body).not.toContain(seller.user.email);
+    expect(response.body).not.toContain("private-seller-image-review-filter@babyloop.test");
+  });
+
   it("allows admins to review listing detail with images and related case summaries", async () => {
     const admin = await createUser(app, {
       role: "admin",
