@@ -322,6 +322,9 @@ export function ListingAdminList() {
                       {getStatusLabel(listing.status)}
                     </span>
                     <span className="muted">{listing.category.name}</span>
+                    {isImageReviewQueueActive || isListingAwaitingImageReview(listing) ? (
+                      <span className="status-badge needs_review">Needs review image</span>
+                    ) : null}
                   </div>
 
                   <h3>{listing.title}</h3>
