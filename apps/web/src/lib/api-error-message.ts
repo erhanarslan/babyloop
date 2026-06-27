@@ -45,11 +45,11 @@ export function getApiErrorMessage(
   }
 
   if (error.code === "IMAGE_AUTHENTICITY_REJECTED") {
-    return "Bu görsel gerçek ürün fotoğrafı gibi doğrulanamadı. Lütfen ürünü kendin çektiğin net bir fotoğrafla tekrar yükle.";
+    return dictionary.listings.imageAuthenticityRejected;
   }
 
   if (error.code === "IMAGE_AUTHENTICITY_UNAVAILABLE") {
-    return "Görsel güvenlik kontrolü şu anda tamamlanamadı. Biraz sonra tekrar dene.";
+    return dictionary.listings.imageAuthenticityUnavailable;
   }
 
   if (error.code === "PROFILE_BLOCKED") {
