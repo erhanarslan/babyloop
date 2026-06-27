@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { type KeyboardEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Badge,
-  EmptyState,
-  PageContainer,
-  PageHeading
-} from "../../components/ui";
+import { Alert, Badge, EmptyState, PageContainer, PageHeading } from "../../components/ui";
 import { FavoriteButton } from "../../features/favorites/favorite-button";
 import { MessageSellerButton } from "../../features/messaging/message-seller-button";
 import { fetchCurrentUser } from "../../features/auth/api";
@@ -106,6 +101,10 @@ export function ListingDetailContent({
       {!isOwner && currentUser.status !== "checking" ? <RecentlyViewedTracker listing={listing} /> : null}
 
       <section className="min-w-0" aria-label={dictionary.listings.imageGalleryAriaLabel}>
+        <ImageReviewNotice
+          title={dictionary.listings.imageNeedsReviewTitle}
+          message={dictionary.listings.imageNeedsReviewBody}
+        />
         <ListingDetailGallery
           apiBaseUrl={apiBaseUrl}
           listing={listing}
@@ -444,4 +443,24 @@ function getSafeImageUrl(url: string | null, apiBaseUrl: string | undefined): st
   } catch {
     return null;
   }
+}
+
+function ImageReviewNotice({
+  title,
+  message
+}: {
+  title: string;
+  message: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(new URLSearchParams(window.location.search).get("imageReview") === "needs_review");
+  }, []);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  return <Alert title={title} message={message} />;
 }

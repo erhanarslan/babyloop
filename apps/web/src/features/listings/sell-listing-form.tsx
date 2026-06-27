@@ -120,17 +120,24 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         return;
       }
 
+      let hasNeedsReviewImage = false;
+
       for (const selectedImage of selectedImages) {
         const uploadBody = await uploadListingImageRequest(apiBaseUrl, body.data.listing.id, selectedImage.file);
 
         if (!uploadBody.ok) {
-          setErrorMessage(getApiErrorMessage(uploadBody.error, dictionary, "Görsel yüklenemedi."));
+          const message = getApiErrorMessage(uploadBody.error, dictionary, dictionary.listings.imageUploadFailed);
+          setErrorMessage(`${selectedImage.file.name}: ${message}`);
           return;
+        }
+
+        if (uploadBody.data.image.reviewStatus === "needs_review") {
+          hasNeedsReviewImage = true;
         }
       }
 
       clearSelectedImages();
-      router.push(`/listings/${body.data.listing.id}`);
+      router.push(`/listings/${body.data.listing.id}${hasNeedsReviewImage ? "?imageReview=needs_review" : ""}`);
       router.refresh();
     } catch {
       setErrorMessage("İlan şu an oluşturulamadı. Biraz sonra tekrar dene.");

@@ -182,6 +182,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         return;
       }
 
+      if (body.data.image.reviewStatus === "needs_review") {
+        setActionMessage(dictionary.listings.imageNeedsReviewBody);
+      }
+
       await refreshListings();
     } catch {
       setActionMessage(dictionary.common.apiUnavailable);
