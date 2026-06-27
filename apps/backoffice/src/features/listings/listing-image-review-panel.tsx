@@ -24,6 +24,13 @@ export function ListingImageReviewPanel({
   listingId,
   onReviewed,
 }: ListingImageReviewPanelProps) {
+  const sortedImages = [...images].sort(
+    (left, right) =>
+      getImageReviewPriority(left.reviewStatus) - getImageReviewPriority(right.reviewStatus) ||
+      left.sortOrder - right.sortOrder,
+  );
+  const needsReviewCount = images.filter((image) => image.reviewStatus === "needs_review").length;
+
   return (
     <section className="form-card">
       <div>
@@ -35,11 +42,18 @@ export function ListingImageReviewPanel({
         </p>
       </div>
 
+      {needsReviewCount > 0 ? (
+        <div className="state-panel">
+          <strong>{needsReviewCount} images awaiting review in this listing</strong>
+          <p>Review queue images are hidden publicly until approved.</p>
+        </div>
+      ) : null}
+
       {images.length === 0 ? (
         <div className="state-panel">This listing has no uploaded images.</div>
       ) : (
         <div className="image-review-grid">
-          {images.map((image) => (
+          {sortedImages.map((image) => (
             <ImageReviewCard
               image={image}
               key={image.id}
@@ -129,6 +143,12 @@ function ImageReviewCard({
         <span className={`status-badge ${image.reviewStatus}`}>
           {getReviewStatusLabel(image.reviewStatus)}
         </span>
+        {image.reviewStatus === "needs_review" ? (
+          <div className="state-panel">
+            <strong>Hidden publicly until approved</strong>
+            <p>This image is visible to admins only while it is awaiting review.</p>
+          </div>
+        ) : null}
       </div>
 
       <dl className="compact-details">
@@ -160,9 +180,25 @@ function ImageReviewCard({
           <dt>AI provider</dt>
           <dd>{image.authenticity.providerName ?? "Not set"}</dd>
         </div>
+        <div>
+          <dt>AI model</dt>
+          <dd>{image.authenticity.modelName ?? "Not set"}</dd>
+        </div>
+        <div>
+          <dt>Prompt version</dt>
+          <dd>{image.authenticity.promptVersion ?? "Not set"}</dd>
+        </div>
+        <div>
+          <dt>AI checked</dt>
+          <dd>{image.authenticity.checkedAt ? formatDateTime(image.authenticity.checkedAt) : "Not checked"}</dd>
+        </div>
         <div className="full-field">
           <dt>AI reasons</dt>
           <dd>{image.authenticity.reasons.length > 0 ? image.authenticity.reasons.join(" / ") : "No AI reason recorded."}</dd>
+        </div>
+        <div className="full-field">
+          <dt>AI flags</dt>
+          <dd>{formatAuthenticityFlags(image.authenticity.flags)}</dd>
         </div>
         <div className="full-field">
           <dt>Image ID</dt>
@@ -249,4 +285,27 @@ function getApiErrorMessage(
   }
 
   return response.error?.message ?? fallback;
+}
+
+function getImageReviewPriority(status: AdminListingImage["reviewStatus"]): number {
+  switch (status) {
+    case "needs_review":
+      return 0;
+    case "pending":
+      return 1;
+    case "rejected":
+      return 2;
+    case "approved":
+      return 3;
+  }
+}
+
+function formatAuthenticityFlags(flags: Record<string, unknown>): string {
+  const entries = Object.entries(flags);
+
+  if (entries.length === 0) {
+    return "No AI flags recorded.";
+  }
+
+  return JSON.stringify(flags);
 }

@@ -114,6 +114,9 @@ export function ListingAdminList() {
     setAppliedFilters(defaultFilters);
   }
 
+  const loadedNeedsReviewCount = listings.filter(isListingAwaitingImageReview).length;
+  const isImageReviewQueueActive = appliedFilters.imageReviewStatus === "needs_review";
+
   return (
     <section className="content-card">
       <div className="page-toolbar">
@@ -122,8 +125,45 @@ export function ListingAdminList() {
           <h2>Listings</h2>
           <p>
             Review marketplace listings with privacy-safe seller summaries,
-            image counts, and related moderation case signals.
+            image review state, AI authenticity signals, and related moderation case signals.
           </p>
+        </div>
+      </div>
+
+      <div className="state-panel">
+        <strong>{isImageReviewQueueActive ? "Image review queue active" : "Image review queue"}</strong>
+        <p>
+          Needs review images are hidden from public listing responses until an admin approves them.
+          Loaded results awaiting image review: {loadedNeedsReviewCount}.
+        </p>
+        <div className="form-button-row">
+          <button
+            className="secondary-action"
+            disabled={isLoading}
+            onClick={() => {
+              const nextFilters: FilterState = {
+                ...draftFilters,
+                imageReviewStatus: "needs_review",
+                sort: "newest",
+              };
+              setDraftFilters(nextFilters);
+              setAppliedFilters({
+                ...nextFilters,
+                q: nextFilters.q.trim(),
+              });
+            }}
+            type="button"
+          >
+            Show review queue
+          </button>
+          <button
+            className="secondary-action"
+            disabled={isLoading || !isImageReviewQueueActive}
+            onClick={resetFilters}
+            type="button"
+          >
+            Clear queue filter
+          </button>
         </div>
       </div>
 
@@ -301,9 +341,7 @@ export function ListingAdminList() {
                     <div>
                       <dt>Primary image</dt>
                       <dd>
-                        {listing.primaryImage
-                          ? getImageReviewStatusLabel(listing.primaryImage.reviewStatus)
-                          : "No image"}
+                        {formatPrimaryImageReview(listing)}
                       </dd>
                     </div>
                     <div>
@@ -323,7 +361,7 @@ export function ListingAdminList() {
               </div>
 
               <Link className="secondary-action" href={`/listings/${listing.id}`}>
-                Open listing
+                {isListingAwaitingImageReview(listing) ? "Review images" : "Open listing"}
               </Link>
             </article>
           ))}
@@ -397,4 +435,19 @@ function getApiErrorMessage(
   }
 
   return response.error?.message ?? fallback;
+}
+
+function isListingAwaitingImageReview(listing: AdminListingSummary): boolean {
+  return listing.primaryImage?.reviewStatus === "needs_review";
+}
+
+function formatPrimaryImageReview(listing: AdminListingSummary): string {
+  if (!listing.primaryImage) {
+    return "No image";
+  }
+
+  const reviewStatus = getImageReviewStatusLabel(listing.primaryImage.reviewStatus);
+  const aiDecision = listing.primaryImage.authenticity.decision;
+
+  return aiDecision ? `${reviewStatus} · AI ${aiDecision}` : reviewStatus;
 }

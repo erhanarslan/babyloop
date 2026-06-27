@@ -73,12 +73,24 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
     );
   }
 
+  const needsReviewImages = listing.images.filter((image) => image.reviewStatus === "needs_review");
+
   return (
     <div className="detail-layout">
       <section className="content-card">
         <Link className="secondary-action" href="/listings">
           Back to listings
         </Link>
+
+        {needsReviewImages.length > 0 ? (
+          <div className="state-panel">
+            <strong>Images awaiting review</strong>
+            <p>
+              {needsReviewImages.length} image{needsReviewImages.length === 1 ? "" : "s"} are hidden
+              from public listing responses until approved.
+            </p>
+          </div>
+        ) : null}
 
         <div className="page-toolbar">
           <div>
@@ -124,6 +136,10 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
           <div>
             <dt>Updated</dt>
             <dd>{formatDateTime(listing.updatedAt)}</dd>
+          </div>
+          <div>
+            <dt>Images awaiting review</dt>
+            <dd>{needsReviewImages.length}</dd>
           </div>
         </dl>
 
