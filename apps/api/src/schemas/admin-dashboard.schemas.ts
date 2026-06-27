@@ -17,6 +17,7 @@ export const adminDashboardSummaryResponseSchema = z.object({
   images: z.object({
     totalListingImages: nonNegativeIntegerSchema,
     approvedListingImages: nonNegativeIntegerSchema,
+    needsReviewListingImages: nonNegativeIntegerSchema,
     rejectedListingImages: nonNegativeIntegerSchema,
     imagesReviewedLast7Days: nonNegativeIntegerSchema
   }).strict(),

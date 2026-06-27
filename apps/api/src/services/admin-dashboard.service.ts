@@ -141,6 +141,7 @@ export async function getAdminDashboardSummary(
     images: {
       totalListingImages: sumCounts(imageReviewCounts),
       approvedListingImages: imageReviewCounts.approved ?? 0,
+      needsReviewListingImages: imageReviewCounts.needs_review ?? 0,
       rejectedListingImages: imageReviewCounts.rejected ?? 0,
       imagesReviewedLast7Days
     },

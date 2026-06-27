@@ -16,7 +16,8 @@ function createDashboardSummaryPayload() {
     },
     images: {
       totalListingImages: 12,
-      approvedListingImages: 10,
+      approvedListingImages: 9,
+      needsReviewListingImages: 1,
       rejectedListingImages: 2,
       imagesReviewedLast7Days: 4
     },

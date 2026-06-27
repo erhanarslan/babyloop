@@ -18,6 +18,7 @@ export type AdminDashboardSummary = {
   images: {
     totalListingImages: number;
     approvedListingImages: number;
+    needsReviewListingImages: number;
     rejectedListingImages: number;
     imagesReviewedLast7Days: number;
   };

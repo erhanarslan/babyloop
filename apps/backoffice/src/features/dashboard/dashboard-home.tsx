@@ -76,7 +76,7 @@ export function DashboardHome() {
             <SummaryCard label="Profiles to review" value={summary.profiles.profilesNeedingReview} />
             <SummaryCard label="Open message cases" value={summary.conversations.openMessageCases} />
             <SummaryCard label="AI failures 7d" value={summary.ai.moderationSummaryFailuresLast7Days} />
-            <SummaryCard label="Rejected images" value={summary.images.rejectedListingImages} />
+            <SummaryCard label="Images to review" value={summary.images.needsReviewListingImages} />
             <SummaryCard label="Audit events 7d" value={summary.actions.auditEventsLast7Days} />
           </section>
 
@@ -135,10 +135,11 @@ export function DashboardHome() {
             <DashboardModule
               href="/listings"
               title="Image review"
-              description="Track approved/rejected listing images and recent review action volume."
+              description="Track approved, pending-review, and rejected listing images plus recent review action volume."
               stats={[
                 ["Total images", summary.images.totalListingImages],
                 ["Approved", summary.images.approvedListingImages],
+                ["Needs review", summary.images.needsReviewListingImages],
                 ["Rejected", summary.images.rejectedListingImages],
                 ["Reviewed 7d", summary.images.imagesReviewedLast7Days],
                 ["Image actions 7d", summary.actions.imageReviewActionsLast7Days],

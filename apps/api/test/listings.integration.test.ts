@@ -1635,8 +1635,15 @@ describe("listings API", () => {
     const seller = await createUser(app, {
       email: "private-seller-dashboard@babyloop.test"
     });
-    await createListing(app, seller.accessToken, {
+    const dashboardListing = await createListing(app, seller.accessToken, {
       title: "Dashboard aggregate listing"
+    });
+
+    await app.db.insert(listingImages).values({
+      listingId: dashboardListing.id,
+      reviewStatus: "needs_review",
+      sortOrder: 0,
+      url: "https://cdn.example.test/dashboard-needs-review.png"
     });
 
     const nonAdminResponse = await app.inject({
@@ -1662,6 +1669,7 @@ describe("listings API", () => {
           }),
           images: expect.objectContaining({
             totalListingImages: expect.any(Number),
+            needsReviewListingImages: expect.any(Number),
             rejectedListingImages: expect.any(Number)
           }),
           moderation: expect.objectContaining({
