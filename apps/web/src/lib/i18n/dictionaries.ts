@@ -460,10 +460,6 @@ export const dictionaries = {
       priceAmount: "Price amount",
       currency: "Currency",
       condition: "Condition",
-      imageUrls: "Image URLs",
-      imageUrlsPlaceholder: "https://example.com/stroller-front.jpg",
-      imageUrlsHelp:
-        "Optional: add http/https image links. File upload is preferred.",
       images: "Images",
       uploadImage: "Upload image",
       imageLimitHelp: "You can upload up to 5 images.",
@@ -1199,10 +1195,6 @@ export const dictionaries = {
       priceAmount: "Fiyat tutarı",
       currency: "Para birimi",
       condition: "Durum",
-      imageUrls: "Görsel URL'leri",
-      imageUrlsPlaceholder: "https://example.com/bebek-arabasi-on.jpg",
-      imageUrlsHelp:
-        "İsteğe bağlı: http/https görsel bağlantıları ekle. Dosya yükleme tercih edilir.",
       images: "Görseller",
       uploadImage: "Görsel yükle",
       imageLimitHelp: "En fazla 5 görsel yükleyebilirsin.",

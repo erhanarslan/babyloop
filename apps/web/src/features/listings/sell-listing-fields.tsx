@@ -5,7 +5,6 @@ import type { Category } from "../../lib/api";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { formatCategoryName, formatListingCondition, formatListingType } from "./listing-display";
 import { conditions, listingTypes } from "./listing-form-options";
-import styles from "./sell-listing-form.module.css";
 
 type SellListingFieldsProps = {
   categories: Category[];
@@ -90,19 +89,6 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
         placeholder="Örn. İstanbul"
       />
 
-      <details className={`form-field-wide ${styles.urlImageDetails}`}>
-        <summary>URL ile görsel ekle</summary>
-        <Textarea
-          label="Görsel URL'leri"
-          name="imageUrls"
-          rows={3}
-          placeholder="Her satıra bir görsel URL'si ekle"
-          wide
-        />
-        <p className="muted">
-          Ana akışta görsel dosyası yüklemeni öneriyoruz. URL alanı yalnızca mevcut bağlantıların varsa kullanılmalı.
-        </p>
-      </details>
     </div>
   );
 }

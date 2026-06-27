@@ -44,6 +44,14 @@ export function getApiErrorMessage(
     return dictionary.listings.tooManyImages;
   }
 
+  if (error.code === "IMAGE_AUTHENTICITY_REJECTED") {
+    return "Bu görsel gerçek ürün fotoğrafı gibi doğrulanamadı. Lütfen ürünü kendin çektiğin net bir fotoğrafla tekrar yükle.";
+  }
+
+  if (error.code === "IMAGE_AUTHENTICITY_UNAVAILABLE") {
+    return "Görsel güvenlik kontrolü şu anda tamamlanamadı. Biraz sonra tekrar dene.";
+  }
+
   if (error.code === "PROFILE_BLOCKED") {
     return dictionary.safety.cannotMessageUser;
   }

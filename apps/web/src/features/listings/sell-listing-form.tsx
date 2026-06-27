@@ -108,7 +108,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     setIsSubmitting(true);
 
     try {
-      if ((payload.imageUrls?.length ?? 0) + selectedImages.length > MAX_IMAGE_COUNT) {
+      if (selectedImages.length > MAX_IMAGE_COUNT) {
         setErrorMessage("En fazla 5 görsel ekleyebilirsin.");
         return;
       }
@@ -462,11 +462,6 @@ function buildCreateListingPayload(formData: FormData): CreateListingRequest | n
   const currency = getString(formData, "currency").toUpperCase() || "TRY";
   const listingType = getString(formData, "listingType") as ListingType;
   const condition = getString(formData, "condition") as ListingCondition;
-  const imageUrls = getString(formData, "imageUrls")
-    .split("\n")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
   if (!categoryId || !title || !listingType || !condition) {
     return null;
   }
@@ -478,8 +473,7 @@ function buildCreateListingPayload(formData: FormData): CreateListingRequest | n
     listingType,
     condition,
     ...(description ? { description } : {}),
-    ...(priceAmount ? { priceAmount } : {}),
-    ...(imageUrls.length > 0 ? { imageUrls } : {})
+    ...(priceAmount ? { priceAmount } : {})
   };
 }
 

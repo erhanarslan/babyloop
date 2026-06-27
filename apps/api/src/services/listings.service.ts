@@ -48,7 +48,7 @@ export async function createListing(
   | { status: "created"; listing: ListingSummaryResponse }
   | { status: "image_urls_not_allowed" | "invalid_category" | "profile_not_allowed" }
 > {
-  if (body.imageUrls.length > 0) {
+  if ("imageUrls" in body) {
     return { status: "image_urls_not_allowed" };
   }
 
@@ -93,23 +93,6 @@ export async function createListing(
       throw new Error("Listing insert failed.");
     }
 
-    const imageValues = body.imageUrls.map((url, index) => ({
-      listingId: createdListing.id,
-      url,
-      sortOrder: index
-    }));
-
-    const createdImages = imageValues.length > 0
-      ? await tx
-        .insert(listingImages)
-        .values(imageValues)
-        .returning({
-          id: listingImages.id,
-          url: listingImages.url,
-          sortOrder: listingImages.sortOrder
-        })
-      : [];
-
     await tx.insert(events).values({
       actorProfileId: currentUser.profile.id,
       eventType: "listing_created",
@@ -119,12 +102,12 @@ export async function createListing(
         source: "api_manual",
         categoryId: body.categoryId,
         listingType: body.listingType,
-        hasImages: body.imageUrls.length > 0
+        hasImages: false
       }
     });
 
     return {
-      images: createdImages,
+      images: [],
       listing: createdListing
     };
   });
@@ -200,7 +183,7 @@ export async function updateListing(
     return { status: "forbidden" };
   }
 
-  if (body.imageUrls !== undefined) {
+  if ("imageUrls" in body) {
     return { status: "image_urls_not_allowed" };
   }
 

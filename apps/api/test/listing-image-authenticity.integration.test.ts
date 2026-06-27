@@ -52,7 +52,7 @@ describe("listing image authenticity integration", () => {
     const result = await createListing(app, currentUser, {
       ...buildCreateListingBody(category.id),
       imageUrls: ["https://cdn.example.test/bypass.png"]
-    });
+    } as Parameters<typeof createListing>[2] & { imageUrls: string[] });
 
     expect(result.status).toBe("image_urls_not_allowed");
 
@@ -75,7 +75,7 @@ describe("listing image authenticity integration", () => {
 
     const result = await updateListing(app, currentUser, created.listing.id, {
       imageUrls: ["https://cdn.example.test/update-bypass.png"]
-    });
+    } as Parameters<typeof updateListing>[3] & { imageUrls: string[] });
 
     expect(result.status).toBe("image_urls_not_allowed");
 
@@ -302,7 +302,6 @@ function buildCreateListingBody(categoryId: string) {
     condition: "good" as const,
     currency: "TRY",
     description: "Az kullanılmış gerçek ürün fotoğrafı ile ilan.",
-    imageUrls: [],
     listingType: "sale" as const,
     priceAmount: "1250.00",
     title: "AI authenticity test ürünü"

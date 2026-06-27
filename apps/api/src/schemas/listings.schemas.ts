@@ -91,8 +91,7 @@ export const createListingBodySchema = z
       .optional()
       .default("TRY"),
     listingType: z.enum(["sale", "swap", "donation"]),
-    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]),
-    imageUrls: z.array(imageUrlSchema()).max(5).optional().default([])
+    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"])
   })
   .strict();
 
@@ -112,8 +111,7 @@ export const updateListingBodySchema = z
       .refine((value) => CURRENCY_PATTERN.test(value), "Currency must be a 3-letter code.")
       .optional(),
     listingType: z.enum(["sale", "swap", "donation"]).optional(),
-    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]).optional(),
-    imageUrls: z.array(imageUrlSchema()).max(5).optional()
+    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]).optional()
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -193,18 +191,3 @@ function optionalPlainTextField(
     });
 }
 
-function imageUrlSchema() {
-  return z
-    .string()
-    .trim()
-    .url()
-    .max(1000)
-    .refine((value) => {
-      try {
-        const parsedUrl = new URL(value);
-        return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-      } catch {
-        return false;
-      }
-    }, "Image URL must use http or https.");
-}

@@ -13,7 +13,6 @@ export type CreateListingRequest = {
   currency?: string;
   listingType: ListingType;
   condition: ListingCondition;
-  imageUrls?: string[];
 };
 
 export type ListingLifecycleStatus = "active" | "reserved" | "sold" | "archived";
@@ -25,7 +24,6 @@ export type UpdateListingRequest = Partial<{
   currency: string;
   listingType: ListingType;
   condition: ListingCondition;
-  imageUrls: string[];
 }>;
 
 export type CreateListingPayload = {

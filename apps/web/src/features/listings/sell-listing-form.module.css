@@ -60,22 +60,6 @@
   color: var(--color-text-muted);
 }
 
-.urlImageDetails {
-  border: 1px dashed rgba(107, 86, 73, 0.22);
-  border-radius: 18px;
-  padding: 0.85rem;
-}
-
-.urlImageDetails summary {
-  cursor: pointer;
-  color: var(--color-text-strong);
-  font-weight: 750;
-}
-
-.urlImageDetails[open] summary {
-  margin-bottom: 0.8rem;
-}
-
 .fileUploadLabel {
   justify-content: center;
   min-height: 54px;
@@ -188,8 +172,7 @@
 
 :global(.dark) .imagePanel,
 :global(.dark) .aiPanel,
-:global(.dark) .suggestionReview,
-:global(.dark) .urlImageDetails {
+:global(.dark) .suggestionReview {
   border-color: rgba(255, 250, 244, 0.12);
   background: rgba(255, 250, 244, 0.06);
 }
