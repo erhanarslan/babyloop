@@ -15,7 +15,6 @@ import type { FastifyInstance } from "fastify";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestApp } from "./helpers/app.js";
-import { resetTestDatabase } from "./helpers/db.js";
 import type { CurrentUser } from "../src/plugins/auth.plugin.js";
 import {
   addListingImage,
@@ -32,10 +31,6 @@ let app: FastifyInstance;
 let uploadRoot: string;
 
 beforeEach(async () => {
-  await resetTestDatabase();
-  process.env.IMAGE_STORAGE_DRIVER = "local";
-  process.env.IMAGE_OPTIMIZATION_ENABLED = "false";
-
   uploadRoot = await mkdtemp(path.join(os.tmpdir(), "babyloop-authenticity-"));
   app = await createTestApp({ uploadRoot });
 });

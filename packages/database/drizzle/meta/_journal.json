@@ -124,13 +124,6 @@
     {
       "idx": 17,
       "version": "7",
-      "when": 1782518000000,
-      "tag": "0017_child_profile_privacy_light_details",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
       "when": 1782518367644,
       "tag": "0018_listing_image_ai_authenticity",
       "breakpoints": true
