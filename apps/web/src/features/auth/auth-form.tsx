@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Button } from "../../components/ui";
 import { setAuthToken } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -26,9 +26,14 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const [devEmailVerificationToken, setDevEmailVerificationToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const isRegister = mode === "register";
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,7 +79,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   }
 
   return (
-    <form className="listing-form auth-form-polished" onSubmit={handleSubmit}>
+    <form className="listing-form auth-form-polished" method="post" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
         <p className="eyebrow">{isRegister ? "Create protected access" : "Protected sign in"}</p>
         <h2>{isRegister ? "Create your BabyLoop account" : "Continue to your BabyLoop workspace"}</h2>
@@ -158,7 +163,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <p className="form-note">
           {isRegister ? dictionary.auth.registerNote : dictionary.auth.loginNote}
         </p>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={!isHydrated || isSubmitting}>
           {isSubmitting
             ? dictionary.auth.submitting
             : isRegister
