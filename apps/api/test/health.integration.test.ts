@@ -59,9 +59,46 @@ describe("health API", () => {
     const responseTimeHeader = response.headers["x-response-time-ms"];
     expect(responseTimeHeader).toBeDefined();
     expect(Number(responseTimeHeader)).toBeGreaterThanOrEqual(0);
-    expect(response.json()).toEqual({
+    const body = response.json();
+    expect(body).toMatchObject({
       ok: true,
-      service: "babyloop-api"
+      service: "babyloop-api",
+      dependencies: {
+        auth: {
+          configured: true
+        },
+        database: {
+          configured: true
+        },
+        email: {
+          mode: expect.any(String)
+        },
+        rag: {
+          enabled: expect.any(Boolean)
+        },
+        storage: {
+          configured: expect.any(Boolean),
+          driver: expect.any(String),
+          localFallback: expect.any(Boolean)
+        }
+      }
     });
+    expect(body.version).toEqual(expect.any(String));
+    expect(body.environment).toEqual(expect.any(String));
+    expect(body.timestamp).toEqual(expect.any(String));
+    expect(Number.isNaN(Date.parse(body.timestamp))).toBe(false);
+    expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(["memory", "redis", null]).toContain(body.dependencies.rag.cacheBackend);
+    expect(["memory", "redis", null]).toContain(body.dependencies.rag.metricsBackend);
+    expect(["memory", "redis", null]).toContain(body.dependencies.rag.usageLimitsBackend);
+
+    const serializedBody = JSON.stringify(body);
+    expect(serializedBody).not.toContain("postgres://");
+    expect(serializedBody).not.toContain("postgresql://");
+    expect(serializedBody).not.toContain("AUTH_SECRET");
+    expect(serializedBody).not.toContain("SECRET_ACCESS_KEY");
+    expect(serializedBody).not.toContain("ACCESS_KEY_ID");
+    expect(serializedBody).not.toContain("refreshToken");
+    expect(serializedBody).not.toContain("accessToken");
   });
 });

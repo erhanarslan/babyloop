@@ -103,6 +103,7 @@ type CreateAppOptions = {
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
+  const startedAt = new Date();
   const config = options.config ?? readApiRuntimeConfig();
 
   assertAuthConfig(config);
@@ -258,7 +259,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     });
   });
 
-  registerHealthRoutes(app);
+  registerHealthRoutes(app, {
+    config,
+    startedAt
+  });
 
   if (config.databaseUrl) {
     registerDatabasePlugin(app, {
