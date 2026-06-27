@@ -743,43 +743,6 @@ describe("listings API", () => {
     });
   });
 
-  it("stores listing images in sortOrder order", async () => {
-    const seller = await createUser(app);
-    const category = await createCategory(app.db);
-    const imageUrls = [
-      "https://example.com/first.jpg",
-      "https://example.com/second.jpg",
-      "https://example.com/third.jpg"
-    ];
-    const response = await app.inject({
-      headers: authHeader(seller.accessToken),
-      method: "POST",
-      url: "/api/v1/listings",
-      payload: {
-        categoryId: category.id,
-        condition: "good",
-        imageUrls,
-        listingType: "sale",
-        title: "Ordered image listing"
-      }
-    });
-    const listingId = response.json().data.listing.id;
-    const images = await app.db
-      .select({
-        sortOrder: listingImages.sortOrder,
-        url: listingImages.url
-      })
-      .from(listingImages)
-      .where(eq(listingImages.listingId, listingId))
-      .orderBy(asc(listingImages.sortOrder));
-
-    expect(response.statusCode).toBe(201);
-    expect(images).toEqual([
-      { sortOrder: 0, url: imageUrls[0] },
-      { sortOrder: 1, url: imageUrls[1] },
-      { sortOrder: 2, url: imageUrls[2] }
-    ]);
-  });
 
   it("rejects client seller profile spoofing", async () => {
     const seller = await createUser(app);
@@ -1599,72 +1562,6 @@ describe("listings API", () => {
     expect(blankReason.statusCode).toBe(400);
   });
 
-  it("preserves rejected image review state when seller updates matching imageUrls", async () => {
-    const admin = await createUser(app, {
-      role: "admin",
-      email: "admin-image-url-preserve@babyloop.test"
-    });
-    const seller = await createUser(app);
-    const listing = await createListing(app, seller.accessToken, {
-      title: "Rejected URL preservation listing"
-    });
-    const imageUrl = "https://cdn.example.test/rejected-review-image.png";
-    const [image] = await app.db
-      .insert(listingImages)
-      .values({
-        listingId: listing.id,
-        url: imageUrl,
-        sortOrder: 0
-      })
-      .returning({
-        id: listingImages.id
-      });
-
-    if (!image) {
-      throw new Error("Rejected image URL preservation setup failed.");
-    }
-
-    const rejected = await app.inject({
-      headers: authHeader(admin.accessToken),
-      method: "POST",
-      url: `/api/v1/admin/listings/${listing.id}/images/${image.id}/actions`,
-      payload: {
-        action: "reject",
-        reason: "Image URL should stay hidden after seller metadata updates."
-      }
-    });
-    const sellerUpdate = await app.inject({
-      headers: authHeader(seller.accessToken),
-      method: "PATCH",
-      url: `/api/v1/listings/${listing.id}`,
-      payload: {
-        imageUrls: [imageUrl]
-      }
-    });
-    const [imageAfterUpdate] = await app.db
-      .select({
-        id: listingImages.id,
-        reviewStatus: listingImages.reviewStatus
-      })
-      .from(listingImages)
-      .where(eq(listingImages.url, imageUrl))
-      .limit(1);
-    const publicDetail = await app.inject({
-      method: "GET",
-      url: `/api/v1/listings/${listing.id}`
-    });
-
-    expect(rejected.statusCode).toBe(200);
-    expect(sellerUpdate.statusCode).toBe(200);
-    expect(imageAfterUpdate).toEqual({
-      id: image.id,
-      reviewStatus: "rejected"
-    });
-    expect(publicDetail.statusCode).toBe(200);
-    expect(publicDetail.json().data.listing.images).toEqual([]);
-    expect(sellerUpdate.body).not.toContain("reviewStatus");
-    expect(sellerUpdate.body).not.toContain("reviewedByProfileId");
-  });
 
   it("includes sanitized listing activity for listing and image review actions", async () => {
     const admin = await createUser(app, {

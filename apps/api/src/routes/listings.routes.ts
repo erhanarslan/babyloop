@@ -392,6 +392,16 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         });
       }
 
+      if (result.status === "image_urls_not_allowed") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "LISTING_IMAGE_UPDATE_UPLOAD_REQUIRED",
+            message: "Listing images must be uploaded, deleted, or reordered through the dedicated image endpoints."
+          }
+        });
+      }
+
       if (result.status !== "updated") {
         return reply.status(500).send({
           ok: false,
