@@ -3,7 +3,7 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -188,7 +188,7 @@ export async function updateListing(
   body: UpdateListingBody
 ): Promise<
   | { status: "updated"; listing: ListingSummaryResponse }
-  | { status: "not_found" | "forbidden" | "invalid_category" }
+  | { status: "image_urls_not_allowed" | "not_found" | "forbidden" | "invalid_category" }
 > {
   const listing = await selectListingOwnerRow(app, listingId);
 
@@ -198,6 +198,10 @@ export async function updateListing(
 
   if (listing.sellerProfileId !== currentUser.profile.id) {
     return { status: "forbidden" };
+  }
+
+  if (body.imageUrls !== undefined) {
+    return { status: "image_urls_not_allowed" };
   }
 
   if (body.categoryId) {
@@ -224,65 +228,6 @@ export async function updateListing(
         updatedAt: now
       })
       .where(eq(listings.id, listingId));
-
-    if (body.imageUrls !== undefined) {
-      const existingImages = await tx
-        .select({
-          id: listingImages.id,
-          url: listingImages.url
-        })
-        .from(listingImages)
-        .where(eq(listingImages.listingId, listingId))
-        .orderBy(asc(listingImages.sortOrder), asc(listingImages.createdAt));
-      const existingByUrl = new Map<string, Array<{ id: string; url: string }>>();
-
-      for (const image of existingImages) {
-        const matchingImages = existingByUrl.get(image.url) ?? [];
-        matchingImages.push(image);
-        existingByUrl.set(image.url, matchingImages);
-      }
-
-      const retainedImageIds = new Set<string>();
-
-      for (const [index, url] of body.imageUrls.entries()) {
-        const [matchedImage] = existingByUrl.get(url) ?? [];
-
-        if (matchedImage) {
-          retainedImageIds.add(matchedImage.id);
-          existingByUrl.set(url, (existingByUrl.get(url) ?? []).slice(1));
-          await tx
-            .update(listingImages)
-            .set({ sortOrder: index })
-            .where(eq(listingImages.id, matchedImage.id));
-          continue;
-        }
-
-        const [createdImage] = await tx
-          .insert(listingImages)
-          .values({
-            listingId,
-            url,
-            sortOrder: index
-          })
-          .returning({
-            id: listingImages.id
-          });
-
-        if (!createdImage) {
-          throw new Error("Listing image insert failed.");
-        }
-
-        retainedImageIds.add(createdImage.id);
-      }
-
-      const imageIdsToDelete = existingImages
-        .map((image) => image.id)
-        .filter((imageId) => !retainedImageIds.has(imageId));
-
-      if (imageIdsToDelete.length > 0) {
-        await tx.delete(listingImages).where(inArray(listingImages.id, imageIdsToDelete));
-      }
-    }
 
     await tx.insert(events).values({
       actorProfileId: currentUser.profile.id,
