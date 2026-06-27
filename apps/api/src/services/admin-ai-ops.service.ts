@@ -117,7 +117,8 @@ export async function listAdminAiOpsRuns(
         ilike(aiModelRuns.providerName, pattern),
         sql`${aiModelRuns.modelName} ilike ${pattern}`,
         ilike(aiModelRuns.promptVersion, pattern),
-        sql`${aiModelRuns.input}->>'caseId' ilike ${pattern}`
+        sql`${aiModelRuns.input}->>'caseId' ilike ${pattern}`,
+        sql`${aiModelRuns.input}->>'listingId' ilike ${pattern}`
       )!
     );
   }

@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
 import {
+  type AdminAiOpsFeature,
   type AdminAiOpsRunSummary,
   type AdminAiOpsRunsParams,
   type AdminAiOpsStatus,
@@ -15,6 +16,7 @@ import {
 } from "./api";
 
 type AiOpsFilters = {
+  feature: AdminAiOpsFeature;
   q: string;
   status: "all" | AdminAiOpsStatus;
   sort: "newest" | "oldest";
@@ -22,11 +24,17 @@ type AiOpsFilters = {
 };
 
 const defaultFilters: AiOpsFilters = {
+  feature: "moderation_summary",
   q: "",
   status: "all",
   sort: "newest",
   limit: 50,
 };
+
+const featureOptions: AdminAiOpsFeature[] = [
+  "moderation_summary",
+  "listing_image_authenticity",
+];
 
 const statusOptions: Array<"all" | AdminAiOpsStatus> = [
   "all",
@@ -55,7 +63,7 @@ export function AiOpsDashboard() {
       setErrorMessage(null);
 
       const runFilters: AdminAiOpsRunsParams = {
-        feature: "moderation_summary",
+        feature: appliedFilters.feature,
         limit: appliedFilters.limit,
         sort: appliedFilters.sort,
         ...(appliedFilters.q.trim() ? { q: appliedFilters.q.trim() } : {}),
@@ -117,10 +125,10 @@ export function AiOpsDashboard() {
       <div className="page-toolbar">
         <div>
           <p className="eyebrow">AI Operations</p>
-          <h2>AI moderation health</h2>
+          <h2>AI operations health</h2>
           <p>
-            Monitor provider/model usage, failures, and recent AI moderation summary runs without
-            exposing raw prompts, raw outputs, message bodies, reporter identity, email, or phone data.
+            Monitor provider/model usage, failures, and recent safe AI runs without
+            exposing raw prompts, raw outputs, image payloads, message bodies, reporter identity, email, or phone data.
           </p>
         </div>
         <Link className="secondary-action" href="/moderation">
@@ -193,13 +201,32 @@ export function AiOpsDashboard() {
 
       <form className="filter-panel" onSubmit={handleSubmit}>
         <div className="filter-grid">
+            <label className="form-field">
+              <span>Feature</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    feature: event.target.value as AdminAiOpsFeature,
+                  }))
+                }
+                value={draftFilters.feature}
+              >
+                {featureOptions.map((feature) => (
+                  <option key={feature} value={feature}>
+                    {formatFeature(feature)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
           <label className="form-field">
             <span>Search</span>
             <input
               onChange={(event) =>
                 setDraftFilters((current) => ({ ...current, q: event.target.value }))
               }
-              placeholder="Run id, case id, provider, model, or prompt version"
+              placeholder="Run id, case id, listing id, provider, model, or prompt version"
               type="search"
               value={draftFilters.q}
             />
@@ -335,4 +362,13 @@ function formatScore(value: number | null): string {
 
 function formatStatus(status: string): string {
   return status.replaceAll("_", " ");
+}
+
+function formatFeature(feature: AdminAiOpsFeature): string {
+  switch (feature) {
+    case "moderation_summary":
+      return "Moderation summary";
+    case "listing_image_authenticity":
+      return "Listing image authenticity";
+  }
 }
