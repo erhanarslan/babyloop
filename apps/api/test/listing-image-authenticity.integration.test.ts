@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
+  aiModelRuns,
   listingImages,
   listings,
   productCategories,
@@ -107,6 +108,43 @@ describe("listing image authenticity integration", () => {
     });
 
     expect(upload.status).toBe("created");
+
+    const [authenticityRun] = await app.db
+      .select({
+        confidenceScore: aiModelRuns.confidenceScore,
+        errorMessage: aiModelRuns.errorMessage,
+        feature: aiModelRuns.feature,
+        input: aiModelRuns.input,
+        modelName: aiModelRuns.modelName,
+        output: aiModelRuns.output,
+        promptVersion: aiModelRuns.promptVersion,
+        providerName: aiModelRuns.providerName,
+        status: aiModelRuns.status
+      })
+      .from(aiModelRuns);
+
+    expect(authenticityRun).toMatchObject({
+      errorMessage: null,
+      feature: "listing_image_authenticity",
+      modelName: "gemini-test-model",
+      promptVersion: "listing_image_authenticity.gemini.v1",
+      providerName: "gemini-listing-image-authenticity",
+      status: "success"
+    });
+    expect(Number(authenticityRun?.confidenceScore)).toBeCloseTo(0.73, 2);
+    expect(authenticityRun?.input).toMatchObject({
+      contentType: "image/png",
+      originalFilename: "needs-review.png"
+    });
+    expect(authenticityRun?.output).toMatchObject({
+      decision: "needs_review",
+      reasonCount: 1
+    });
+
+    const serializedAuditInput = JSON.stringify(authenticityRun?.input ?? {});
+    expect(serializedAuditInput).not.toContain("base64");
+    expect(serializedAuditInput).not.toContain("Audit stroller");
+    expect(serializedAuditInput).not.toContain("description");
 
     if (upload.status !== "created") {
       throw new Error(`Upload failed with status ${upload.status}`);

@@ -34,7 +34,6 @@ const PROMPT_VERSION = "listing_image_authenticity.gemini.v1";
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com";
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
-const DEFAULT_OPENAI_TIMEOUT_MS = 8_000;
 
 export async function analyzeListingImageAuthenticity(
   app: FastifyInstance,
@@ -332,13 +331,13 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
 
 function readOpenAiTimeoutMs(value: string | undefined): number {
   if (!value) {
-    return DEFAULT_OPENAI_TIMEOUT_MS;
+    return DEFAULT_GEMINI_TIMEOUT_MS;
   }
 
   const timeoutMs = Number(value);
 
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
-    return DEFAULT_OPENAI_TIMEOUT_MS;
+    return DEFAULT_GEMINI_TIMEOUT_MS;
   }
 
   return Math.min(timeoutMs, 30_000);

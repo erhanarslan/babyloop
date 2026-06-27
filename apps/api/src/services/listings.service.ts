@@ -39,6 +39,7 @@ import {
 } from "./image-storage.service.js";
 import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
 import { analyzeListingImageAuthenticity } from "./listing-image-authenticity.service.js";
+import { recordListingImageAuthenticityRun } from "./listing-image-authenticity-run-audit.service.js";
 
 export async function createListing(
   app: FastifyInstance,
@@ -320,6 +321,14 @@ export async function addListingImage(
     listingId: input.listingId,
     originalFilename: input.originalFilename,
     title: listing.title
+  });
+
+  await recordListingImageAuthenticityRun(app, {
+    categoryName: listing.categoryName,
+    image: input.image,
+    listingId: input.listingId,
+    originalFilename: input.originalFilename,
+    result: authenticity
   });
 
   if (authenticity.status === "unavailable") {
