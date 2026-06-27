@@ -103,10 +103,13 @@ function ImageReviewCard({
   useEffect(() => {
     setAction(supportedActions[0] ?? "reject");
     setReason("");
-    setSuccessMessage(null);
     setErrorMessage(null);
     setIsSubmitting(false);
   }, [image.id, image.reviewStatus, listingId, supportedActions]);
+
+  useEffect(() => {
+    setSuccessMessage(null);
+  }, [image.id, listingId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,10 +140,17 @@ function ImageReviewCard({
   }
 
   return (
-    <article className="image-review-card">
+    <article
+      className="image-review-card"
+      data-admin-image-id={image.id}
+      data-admin-image-review-status={image.reviewStatus}
+    >
       <img alt="" src={image.url} />
       <div className="case-card-header">
-        <span className={`status-badge ${image.reviewStatus}`}>
+        <span
+          className={`status-badge ${image.reviewStatus}`}
+          data-admin-image-review-status-label={image.reviewStatus}
+        >
           {getReviewStatusLabel(image.reviewStatus)}
         </span>
         {image.reviewStatus === "needs_review" ? (
@@ -206,10 +216,15 @@ function ImageReviewCard({
         </div>
       </dl>
 
-      <form className="sensitive-access-form" onSubmit={handleSubmit}>
+      <form
+        className="sensitive-access-form"
+        data-admin-image-review-form={image.id}
+        onSubmit={handleSubmit}
+      >
         <label className="form-field">
           <span>Review action</span>
           <select
+            data-admin-image-review-action={image.id}
             onChange={(event) =>
               setAction(event.target.value as AdminListingImageAction)
             }
@@ -226,6 +241,7 @@ function ImageReviewCard({
         <label className="form-field">
           <span>Review reason</span>
           <textarea
+            data-admin-image-review-reason={image.id}
             minLength={MIN_REASON_LENGTH}
             onChange={(event) => setReason(event.target.value)}
             placeholder="Explain why this image review action is needed."
@@ -242,7 +258,12 @@ function ImageReviewCard({
 
         {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
-        <button className="primary-action" disabled={!canSubmit} type="submit">
+        <button
+          className="primary-action"
+          data-admin-image-review-submit={image.id}
+          disabled={!canSubmit}
+          type="submit"
+        >
           {isSubmitting ? "Applying..." : "Apply image review"}
         </button>
       </form>

@@ -302,7 +302,13 @@ export function ListingAdminList() {
       {!isLoading && !errorMessage && listings.length > 0 ? (
         <div className="case-list">
           {listings.map((listing) => (
-            <article className="case-card listing-admin-card" key={listing.id}>
+            <article
+              className="case-card listing-admin-card"
+              data-admin-listing-id={listing.id}
+              data-admin-listing-status={listing.status}
+              data-admin-primary-image-review-status={listing.primaryImage?.reviewStatus ?? "none"}
+              key={listing.id}
+            >
               <div className="listing-admin-card-body">
                 {listing.primaryImage ? (
                   <img

@@ -83,7 +83,10 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
         </Link>
 
         {needsReviewImages.length > 0 ? (
-          <div className="state-panel">
+          <div
+            className="state-panel"
+            data-admin-images-awaiting-review-panel={listing.id}
+          >
             <strong>Images awaiting review</strong>
             <p>
               {needsReviewImages.length} image{needsReviewImages.length === 1 ? "" : "s"} are hidden
