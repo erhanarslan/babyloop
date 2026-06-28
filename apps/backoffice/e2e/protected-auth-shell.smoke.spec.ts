@@ -46,6 +46,10 @@ const protectedRoutes: ProtectedRoute[] = [
     heading: "Profiles",
   },
   {
+    path: "/audit",
+    heading: "Audit events",
+  },
+  {
     path: "/ai-ops",
     heading: "AI operations health",
   },
@@ -292,6 +296,27 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
         ok: true,
         data: {
           profiles: [],
+        },
+      });
+      return;
+    }
+
+    await fulfillUnhandled(route);
+  });
+
+  await page.route("**/admin/audit/events**", async (route) => {
+    if (await fulfillOptions(route)) {
+      return;
+    }
+
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (request.method() === "GET" && pathEndsWith(url, "/admin/audit/events")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          events: [],
         },
       });
       return;
