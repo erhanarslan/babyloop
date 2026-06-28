@@ -112,7 +112,6 @@ export async function authFetch(
   const refreshed = await refreshSession(apiBaseUrl);
 
   if (!refreshed) {
-    dispatchAuthChanged();
     return firstResponse;
   }
 
