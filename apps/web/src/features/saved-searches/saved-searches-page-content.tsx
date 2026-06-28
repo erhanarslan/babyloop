@@ -240,6 +240,13 @@ function SavedSearchCard({
         <Link className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-black text-primary-foreground" href={href}>
           Aramayı aç
         </Link>
+        <Button type="button" variant="secondary" disabled={isPending} onClick={onToggleNotifications}>
+          {isPending
+            ? "Güncelleniyor..."
+            : savedSearch.notificationsEnabled
+              ? "Bildirimleri kapat"
+              : "Bildirimleri aç"}
+        </Button>
         <Button type="button" variant="secondary" disabled={isPending} onClick={onDelete}>
           {isPending ? "Siliniyor..." : "Sil"}
         </Button>
