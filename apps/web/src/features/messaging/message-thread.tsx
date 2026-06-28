@@ -9,6 +9,7 @@ import { getRealtimeSocket } from "../../lib/realtime-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
 import { dispatchNotificationUnreadCountUpdated } from "../notifications/unread-count-events";
+import { dispatchConversationReadStateUpdated } from "./conversation-read-events";
 import { fetchBlockedProfiles, reportProfile } from "../safety/api";
 import { BlockProfileAction } from "../safety/block-profile-action";
 import { ReportAction } from "../safety/report-action";
@@ -161,6 +162,11 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
       setHasNewMessages(false);
       markedReadKeyRef.current = `${conversationId}:read`;
       dispatchNotificationUnreadCountUpdated(body.data.unreadNotificationCount);
+      dispatchConversationReadStateUpdated({
+        conversation: body.data.conversation,
+        unreadConversationCount: body.data.unreadConversationCount,
+        unreadNotificationCount: body.data.unreadNotificationCount,
+      });
     } catch {
       // Realtime read feedback is best-effort; the next refetch will reconcile state.
     }

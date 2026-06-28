@@ -9,6 +9,10 @@ import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
 import { fetchConversations, type ConversationSummary } from "./api";
 import { ConversationCard } from "./conversation-card";
+import {
+  CONVERSATION_READ_STATE_UPDATED_EVENT,
+  type ConversationReadStateUpdatedDetail,
+} from "./conversation-read-events";
 
 type ConversationListProps = {
   apiBaseUrl: string;
@@ -95,6 +99,44 @@ export function ConversationList({
   useEffect(() => {
     void loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    function handleConversationReadStateUpdated(event: Event) {
+      const { conversation } = (event as CustomEvent<ConversationReadStateUpdatedDetail>).detail;
+
+      setConversations((currentConversations) =>
+        sortConversations(
+          currentConversations.map((currentConversation) =>
+            currentConversation.id === conversation.id ? conversation : currentConversation,
+          ),
+        ),
+      );
+
+      setUnreadConversationIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+
+        if (conversation.unreadCount > 0) {
+          nextIds.add(conversation.id);
+        } else {
+          nextIds.delete(conversation.id);
+        }
+
+        return nextIds;
+      });
+    }
+
+    window.addEventListener(
+      CONVERSATION_READ_STATE_UPDATED_EVENT,
+      handleConversationReadStateUpdated,
+    );
+
+    return () => {
+      window.removeEventListener(
+        CONVERSATION_READ_STATE_UPDATED_EVENT,
+        handleConversationReadStateUpdated,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (isCheckingAuth || isLoading || message || !currentProfileId) {
