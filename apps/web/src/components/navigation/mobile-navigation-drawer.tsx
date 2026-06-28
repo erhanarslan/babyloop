@@ -72,14 +72,14 @@ export function MobileNavigationDrawer({
       ) : null}
 
       <aside
-        aria-label="BabyLoop mobile navigation"
+        aria-label={dictionary.mobileNavigation.drawerLabel}
         className={isOpen ? "mobile-market-drawer open" : "mobile-market-drawer"}
         id="mobile-market-navigation"
       >
         <div className="mobile-market-drawer-header">
-          <Link className="mobile-market-brand-logo" href="/" aria-label="BabyLoop home" onClick={onClose}>
+          <Link className="mobile-market-brand-logo" href="/" aria-label={dictionary.mobileNavigation.brandHomeLabel} onClick={onClose}>
             <img src="/brand/home/babyloop-logo-compact-transparent.png" alt="" aria-hidden="true" />
-            <span className="sr-only">BabyLoop</span>
+            <span className="sr-only">{dictionary.common.babyloop}</span>
           </Link>
           <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
             ×
@@ -112,9 +112,9 @@ export function MobileNavigationDrawer({
           onNavigate={onClose}
         />
 
-        <nav className="mobile-market-quick-links" aria-label="Mobile marketplace links">
+        <nav className="mobile-market-quick-links" aria-label={dictionary.mobileNavigation.quickLinksLabel}>
           <Link
-            authTitle="İlan oluşturmak için giriş yap"
+            authTitle={dictionary.mobileNavigation.sellAuthTitle}
             href="/sell"
             onClick={onClose}
           >

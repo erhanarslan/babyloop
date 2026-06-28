@@ -1,0 +1,1121 @@
+===== GIT STATUS =====
+?? babyloop-web-i18n-pack-2-inspect.txt
+
+===== DICTIONARY RELEVANT SEARCH =====
+9:    common: {
+37:    publicShell: {
+226:    nav: {
+435:    authPageShell: {
+515:    accountProfile: {
+1014:    common: {
+1042:    publicShell: {
+1231:    nav: {
+1440:    authPageShell: {
+1520:    accountProfile: {
+
+===== AUTH SURFACE GUIDE =====
+     1	"use client";
+     2	
+     3	import Link from "next/link";
+     4	import { Badge, Card, PageContainer } from "../../components/ui";
+     5	
+     6	type AuthSurfaceKind =
+     7	  | "login"
+     8	  | "register"
+     9	  | "forgot_password"
+    10	  | "reset_password"
+    11	  | "verify"
+    12	  | "change_password";
+    13	
+    14	type AuthSurfaceGuideProps = {
+    15	  kind: AuthSurfaceKind;
+    16	};
+    17	
+    18	type AuthSurfaceConfig = {
+    19	  eyebrow: string;
+    20	  title: string;
+    21	  description: string;
+    22	  badge: string;
+    23	  steps: string[];
+    24	  actions: Array<{
+    25	    href: string;
+    26	    label: string;
+    27	  }>;
+    28	};
+    29	
+    30	const AUTH_SURFACE_CONFIGS: Record<AuthSurfaceKind, AuthSurfaceConfig> = {
+    31	  login: {
+    32	    eyebrow: "Secure access",
+    33	    title: "Continue with your protected BabyLoop account",
+    34	    description:
+    35	      "Use your account to manage listings, messages, favorites, saved searches, child age-band needs, and assistant guidance.",
+    36	    badge: "Cookie session",
+    37	    steps: [
+    38	      "Access is handled with cookie-backed sessions rather than persistent browser storage.",
+    39	      "After signing in, use the menu to reach marketplace and account tools.",
+    40	      "Keep sensitive contact details out of public listing text, messages, and assistant prompts."
+    41	    ],
+    42	    actions: [
+    43	      { href: "/browse", label: "Browse" },
+    44	      { href: "/assistant", label: "Ask Assistant" },
+    45	      { href: "/register", label: "Create account" }
+    46	    ]
+    47	  },
+    48	  register: {
+    49	    eyebrow: "Create account",
+    50	    title: "Start with privacy-conscious marketplace tools",
+    51	    description:
+    52	      "Create an account to sell items, message safely, save filters, and get age-band based marketplace suggestions.",
+    53	    badge: "Privacy-first",
+    54	    steps: [
+    55	      "BabyLoop avoids exact child birth dates for lifecycle suggestions.",
+    56	      "Seller and buyer surfaces are separated to reduce unnecessary identity exposure.",
+    57	      "Use clear profile and listing information without adding private contact details."
+    58	    ],
+    59	    actions: [
+    60	      { href: "/browse", label: "Explore first" },
+    61	      { href: "/guides", label: "Read guides" },
+    62	      { href: "/login", label: "I have an account" }
+    63	    ]
+    64	  },
+    65	  forgot_password: {
+    66	    eyebrow: "Account recovery",
+    67	    title: "Recover access safely",
+    68	    description:
+    69	      "Use the recovery flow when you cannot access your account. After recovery, review account settings and avoid shared-device sessions.",
+    70	    badge: "Recovery",
+    71	    steps: [
+    72	      "Use the official BabyLoop recovery page only.",
+    73	      "After changing credentials, sign out on shared devices.",
+    74	      "Never share recovery links or codes with another person."
+    75	    ],
+    76	    actions: [
+    77	      { href: "/login", label: "Back to login" },
+    78	      { href: "/guides", label: "Parent guides" }
+    79	    ]
+    80	  },
+    81	  reset_password: {
+    82	    eyebrow: "Set new password",
+    83	    title: "Choose a stronger password before continuing",
+    84	    description:
+    85	      "After reset, BabyLoop continues using protected session handling and account-level safety checks.",
+    86	    badge: "Password",
+    87	    steps: [
+    88	      "Use a unique password that is not reused elsewhere.",
+    89	      "Avoid storing credentials in screenshots, notes, or messages.",
+    90	      "Return to marketplace tools after confirming the reset."
+    91	    ],
+    92	    actions: [
+    93	      { href: "/login", label: "Sign in" },
+    94	      { href: "/browse", label: "Browse" }
+    95	    ]
+    96	  },
+    97	  verify: {
+    98	    eyebrow: "Verification",
+    99	    title: "Finish account verification",
+   100	    description:
+   101	      "Verification keeps account actions clearer and helps protect marketplace interactions.",
+   102	    badge: "Verify",
+   103	    steps: [
+   104	      "Complete verification before relying on account-only features.",
+   105	      "Use messages for item questions and handover expectations.",
+   106	      "Report suspicious or misleading marketplace behavior."
+   107	    ],
+   108	    actions: [
+   109	      { href: "/login", label: "Login" },
+   110	      { href: "/guides", label: "Guides" }
+   111	    ]
+   112	  },
+   113	  change_password: {
+   114	    eyebrow: "Account security",
+   115	    title: "Update your password deliberately",
+   116	    description:
+   117	      "Use this page when you want to rotate credentials or secure your account after using a shared device.",
+   118	    badge: "Security",
+   119	    steps: [
+   120	      "Use a unique password and keep it separate from marketplace messages.",
+   121	      "After changing it, confirm that login and logout still behave correctly.",
+   122	      "Review messages and listings if you suspect account misuse."
+   123	    ],
+   124	    actions: [
+   125	      { href: "/account/seller", label: "Seller dashboard" },
+   126	      { href: "/my-listings", label: "My listings" },
+   127	      { href: "/notifications", label: "Notifications" }
+   128	    ]
+   129	  }
+   130	};
+   131	
+   132	export function AuthSurfaceGuide({ kind }: AuthSurfaceGuideProps) {
+   133	  const config = AUTH_SURFACE_CONFIGS[kind];
+   134	
+   135	  return (
+   136	    <PageContainer className="pt-0" ariaLabel={`${config.title} guidance`}>
+   137	      <Card as="section" className="mb-5 grid gap-4">
+   138	        <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
+   139	          <div>
+   140	            <p className="eyebrow">{config.eyebrow}</p>
+   141	            <h2 className="mb-1">{config.title}</h2>
+   142	            <p className="form-note">{config.description}</p>
+   143	          </div>
+   144	          <Badge>{config.badge}</Badge>
+   145	        </div>
+   146	
+   147	        <ul className="question-list m-0 border-t border-border py-0 pl-5 pt-4">
+   148	          {config.steps.map((step) => (
+   149	            <li key={step}>{step}</li>
+   150	          ))}
+   151	        </ul>
+   152	
+   153	        <div className="home-personalization-actions max-[700px]:flex-col max-[700px]:items-stretch [&_a]:max-[700px]:w-full [&_a]:max-[700px]:justify-center">
+   154	          {config.actions.map((action) => (
+   155	            <Link href={action.href} key={`${action.href}-${action.label}`}>
+   156	              {action.label}
+   157	            </Link>
+   158	          ))}
+   159	        </div>
+   160	      </Card>
+   161	    </PageContainer>
+   162	  );
+   163	}
+
+===== ACCOUNT SURFACE GUIDE =====
+     1	"use client";
+     2	
+     3	import Link from "next/link";
+     4	import { Badge, Card } from "../../components/ui";
+     5	
+     6	type AccountSurfaceGuideKind =
+     7	  | "my_listings"
+     8	  | "favorites"
+     9	  | "saved_searches"
+    10	  | "notifications"
+    11	  | "seller_dashboard";
+    12	
+    13	type AccountSurfaceGuideProps = {
+    14	  kind: AccountSurfaceGuideKind;
+    15	};
+    16	
+    17	type AccountSurfaceGuideConfig = {
+    18	  eyebrow: string;
+    19	  title: string;
+    20	  description: string;
+    21	  badge: string;
+    22	  steps: string[];
+    23	  actions: Array<{
+    24	    href: string;
+    25	    label: string;
+    26	  }>;
+    27	};
+    28	
+    29	const GUIDE_CONFIGS: Record<AccountSurfaceGuideKind, AccountSurfaceGuideConfig> = {
+    30	  my_listings: {
+    31	    eyebrow: "Listing management",
+    32	    title: "Keep every listing clear and actionable",
+    33	    description:
+    34	      "Review status, update condition, open the public page, and use seller insights before deciding whether to reserve, mark sold, or refresh a listing.",
+    35	    badge: "Seller workflow",
+    36	    steps: [
+    37	      "Check title, photos, condition, price, and included accessories.",
+    38	      "Use archive, restore, reserved, and sold actions intentionally.",
+    39	      "Open the public listing after major edits to verify the buyer view."
+    40	    ],
+    41	    actions: [
+    42	      { href: "/sell", label: "Create listing" },
+    43	      { href: "/account/seller", label: "Seller dashboard" },
+    44	      { href: "/guides", label: "Parent guides" }
+    45	    ]
+    46	  },
+    47	  favorites: {
+    48	    eyebrow: "Favorites",
+    49	    title: "Turn saved items into better decisions",
+    50	    description:
+    51	      "Favorites are a shortlist. Compare condition, photos, seller answers, and related guide topics before messaging.",
+    52	    badge: "Buyer workflow",
+    53	    steps: [
+    54	      "Revisit favorites that match current age-band or seasonal needs.",
+    55	      "Remove sold or irrelevant listings to keep the list useful.",
+    56	      "Use listing detail questions before committing to a handover."
+    57	    ],
+    58	    actions: [
+    59	      { href: "/browse", label: "Browse more" },
+    60	      { href: "/guides", label: "Buying guides" },
+    61	      { href: "/assistant", label: "Ask Assistant" }
+    62	    ]
+    63	  },
+    64	  saved_searches: {
+    65	    eyebrow: "Saved searches",
+    66	    title: "Reuse filters for recurring needs",
+    67	    description:
+    68	      "Saved searches help parents track size, season, price, and category needs without starting from scratch each time.",
+    69	    badge: "Retention",
+    70	    steps: [
+    71	      "Create one saved search per need, not one huge generic search.",
+    72	      "Use price and image filters when the item requires closer review.",
+    73	      "Notification delivery is intentionally separate and can be added later."
+    74	    ],
+    75	    actions: [
+    76	      { href: "/browse", label: "Create from browse" },
+    77	      { href: "/account/children", label: "Age-band needs" },
+    78	      { href: "/assistant", label: "Ask Assistant" }
+    79	    ]
+    80	  },
+    81	  notifications: {
+    82	    eyebrow: "Notifications",
+    83	    title: "Review marketplace updates from one place",
+    84	    description:
+    85	      "Use notifications to catch messages, listing interactions, and account updates without exposing buyer identities unnecessarily.",
+    86	    badge: "Inbox",
+    87	    steps: [
+    88	      "Open unread items first and clear the queue after review.",
+    89	      "Use conversation safety guidance for message-related notifications.",
+    90	      "Favorite and listing activity stays privacy-safe by default."
+    91	    ],
+    92	    actions: [
+    93	      { href: "/conversations", label: "Messages" },
+    94	      { href: "/notifications", label: "Notifications" },
+    95	      { href: "/account/notification-preferences", label: "Preferences" }
+    96	    ]
+    97	  },
+    98	  seller_dashboard: {
+    99	    eyebrow: "Seller dashboard",
+   100	    title: "Use aggregate insight without exposing buyers",
+   101	    description:
+   102	      "Seller dashboard shows performance signals only. Buyer identity, private contact details, and message text should not be exposed here.",
+   103	    badge: "Privacy-safe",
+   104	    steps: [
+   105	      "Watch favorites, views, listing clicks, and contact intents together.",
+   106	      "Improve listings with weak photos, unclear condition, or low contact intent.",
+   107	      "Use AI draft and price guidance as a starting point, not an autopublish flow."
+   108	    ],
+   109	    actions: [
+   110	      { href: "/sell", label: "Create listing" },
+   111	      { href: "/my-listings", label: "Manage listings" },
+   112	      { href: "/assistant", label: "Ask Assistant" }
+   113	    ]
+   114	  }
+   115	};
+   116	
+   117	export function AccountSurfaceGuide({ kind }: AccountSurfaceGuideProps) {
+   118	  const config = GUIDE_CONFIGS[kind];
+   119	
+   120	  return (
+   121	    <Card as="section" className="grid gap-4">
+   122	      <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
+   123	        <div>
+   124	          <p className="eyebrow">{config.eyebrow}</p>
+   125	          <h2 className="mb-1">{config.title}</h2>
+   126	          <p className="form-note">{config.description}</p>
+   127	        </div>
+   128	        <Badge>{config.badge}</Badge>
+   129	      </div>
+   130	
+   131	      <div className="grid gap-4 border-t border-border pt-4">
+   132	        <ul className="question-list m-0 pl-5">
+   133	          {config.steps.map((step) => (
+   134	            <li key={step}>{step}</li>
+   135	          ))}
+   136	        </ul>
+   137	
+   138	        <div className="home-personalization-actions max-[700px]:flex-col max-[700px]:items-stretch [&_a]:max-[700px]:w-full [&_a]:max-[700px]:justify-center">
+   139	          {config.actions.map((action) => (
+   140	            <Link href={action.href} key={`${action.href}-${action.label}`}>
+   141	              {action.label}
+   142	            </Link>
+   143	          ))}
+   144	        </div>
+   145	      </div>
+   146	    </Card>
+   147	  );
+   148	}
+
+===== MOBILE NAVIGATION DRAWER =====
+     1	"use client";
+     2	
+     3	import { ProtectedActionLink as Link } from "../../features/auth/protected-action-link";
+     4	import { useEffect, useState } from "react";
+     5	import type { AuthMe } from "../../lib/auth-client";
+     6	import type { Dictionary, Locale } from "../../lib/i18n/dictionaries";
+     7	import {
+     8	  accountLinks,
+     9	  babyCategoryGroups
+    10	} from "./public-navigation-model";
+    11	import { SearchOverlay } from "./search-overlay";
+    12	
+    13	type MobileNavigationDrawerProps = {
+    14	  apiBaseUrl: string;
+    15	  currentAuth: AuthMe | null;
+    16	  dictionary: Dictionary;
+    17	  isOpen: boolean;
+    18	  locale: Locale;
+    19	  onClose: () => void;
+    20	  onLogin: () => void;
+    21	  onLogout: () => void;
+    22	  selectedCity: string;
+    23	  setLocale: (locale: Locale) => void;
+    24	  theme: string;
+    25	  toggleTheme: () => void;
+    26	};
+    27	
+    28	export function MobileNavigationDrawer({
+    29	  apiBaseUrl,
+    30	  currentAuth,
+    31	  dictionary,
+    32	  isOpen,
+    33	  locale,
+    34	  onClose,
+    35	  onLogin,
+    36	  onLogout,
+    37	  selectedCity,
+    38	  setLocale,
+    39	  theme,
+    40	  toggleTheme
+    41	}: MobileNavigationDrawerProps) {
+    42	  const [openCategoryId, setOpenCategoryId] = useState<string>(babyCategoryGroups[0]?.id ?? "travel");
+    43	
+    44	  useEffect(() => {
+    45	    document.documentElement.classList.toggle("mobile-market-nav-open", isOpen);
+    46	
+    47	    function handleEscape(event: KeyboardEvent) {
+    48	      if (event.key === "Escape") {
+    49	        onClose();
+    50	      }
+    51	    }
+    52	
+    53	    if (isOpen) {
+    54	      document.addEventListener("keydown", handleEscape);
+    55	    }
+    56	
+    57	    return () => {
+    58	      document.documentElement.classList.remove("mobile-market-nav-open");
+    59	      document.removeEventListener("keydown", handleEscape);
+    60	    };
+    61	  }, [isOpen, onClose]);
+    62	
+    63	  return (
+    64	    <>
+    65	      {isOpen ? (
+    66	        <button
+    67	          aria-label={dictionary.publicShell.header.close}
+    68	          className="mobile-market-drawer-backdrop"
+    69	          type="button"
+    70	          onClick={onClose}
+    71	        />
+    72	      ) : null}
+    73	
+    74	      <aside
+    75	        aria-label="BabyLoop mobile navigation"
+    76	        className={isOpen ? "mobile-market-drawer open" : "mobile-market-drawer"}
+    77	        id="mobile-market-navigation"
+    78	      >
+    79	        <div className="mobile-market-drawer-header">
+    80	          <Link className="mobile-market-brand-logo" href="/" aria-label="BabyLoop home" onClick={onClose}>
+    81	            <img src="/brand/home/babyloop-logo-compact-transparent.png" alt="" aria-hidden="true" />
+    82	            <span className="sr-only">BabyLoop</span>
+    83	          </Link>
+    84	          <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
+    85	            ×
+    86	          </button>
+    87	        </div>
+    88	
+    89	        <section className="mobile-market-account">
+    90	          {currentAuth ? (
+    91	            <>
+    92	              <strong>{currentAuth.profile.displayName}</strong>
+    93	              <span>{dictionary.publicPages.account.hubBody}</span>
+    94	              <Link href="/account/profile" onClick={onClose}>
+    95	                {dictionary.publicShell.accountMenu.profile}
+    96	              </Link>
+    97	            </>
+    98	          ) : (
+    99	            <>
+   100	              <strong>{dictionary.common.login}</strong>
+   101	              <span>{dictionary.publicShell.header.loginUnlocks}</span>
+   102	              <button type="button" onClick={onLogin}>{dictionary.common.login}</button>
+   103	            </>
+   104	          )}
+   105	        </section>
+   106	
+   107	        <SearchOverlay
+   108	        apiBaseUrl={apiBaseUrl}
+   109	          dictionary={dictionary}
+   110	          isAuthenticated={Boolean(currentAuth)}
+   111	          selectedCity={selectedCity}
+   112	          onNavigate={onClose}
+   113	        />
+   114	
+   115	        <nav className="mobile-market-quick-links" aria-label="Mobile marketplace links">
+   116	          <Link
+   117	            authTitle="İlan oluşturmak için giriş yap"
+   118	            href="/sell"
+   119	            onClick={onClose}
+   120	          >
+   121	            {dictionary.publicShell.header.sell}
+   122	          </Link>
+   123	          <Link href="/browse" onClick={onClose}>{dictionary.common.browseMarketplace}</Link>
+   124	          <Link href="/conversations" onClick={onClose}>{dictionary.publicShell.header.messages}</Link>
+   125	          <Link href="/notifications" onClick={onClose}>{dictionary.publicShell.header.notifications}</Link>
+   126	          <Link href="/account/saved-searches" onClick={onClose}>{dictionary.publicShell.header.savedSearches}</Link>
+   127	          <Link href="/account/children" onClick={onClose}>{dictionary.publicShell.accountMenu.childProfiles}</Link>
+   128	          <Link href="/assistant" onClick={onClose}>{dictionary.publicShell.header.assistant}</Link>
+   129	        </nav>
+   130	
+   131	        <section className="mobile-market-section">
+   132	          <h2>{dictionary.publicShell.header.allCategories}</h2>
+   133	          <div className="mobile-market-accordion">
+   134	            {babyCategoryGroups.map((group) => {
+   135	              const isCategoryOpen = openCategoryId === group.id;
+   136	
+   137	              return (
+   138	                <div className="mobile-market-category" key={group.id}>
+   139	                  <button
+   140	                    aria-expanded={isCategoryOpen}
+   141	                    type="button"
+   142	                    onClick={() => setOpenCategoryId(isCategoryOpen ? "" : group.id)}
+   143	                  >
+   144	                    <span aria-hidden="true">{group.icon}</span>
+   145	                    {dictionary.publicShell.categoryGroups[group.id]}
+   146	                  </button>
+   147	                  {isCategoryOpen ? (
+   148	                    <div>
+   149	                      {group.links.map((item) => (
+   150	                        <Link href={item.href} key={item.href} onClick={onClose}>
+   151	                          {item.label}
+   152	                        </Link>
+   153	                      ))}
+   154	                    </div>
+   155	                  ) : null}
+   156	                </div>
+   157	              );
+   158	            })}
+   159	          </div>
+   160	        </section>
+   161	
+   162	        {currentAuth ? (
+   163	          <section className="mobile-market-section">
+   164	            <h2>{dictionary.nav.account}</h2>
+   165	            <nav className="mobile-market-account-links" aria-label={dictionary.nav.account}>
+   166	              {accountLinks.map((item) => (
+   167	                <Link href={item.href} key={item.href} onClick={onClose}>
+   168	                  {dictionary.publicShell.accountMenu[item.label as keyof Dictionary["publicShell"]["accountMenu"]]}
+   169	                </Link>
+   170	              ))}
+   171	              <button type="button" onClick={onLogout}>
+   172	                {dictionary.publicShell.accountMenu.logout}
+   173	              </button>
+   174	            </nav>
+   175	          </section>
+   176	        ) : null}
+   177	
+   178	        <section className="mobile-market-section">
+   179	          <h2>{dictionary.common.theme}</h2>
+   180	          <div className="mobile-market-preferences">
+   181	            <button
+   182	              aria-pressed={locale === "tr"}
+   183	              type="button"
+   184	              onClick={() => setLocale(locale === "tr" ? "en" : "tr")}
+   185	            >
+   186	              {locale === "tr" ? "TR" : "EN"}
+   187	            </button>
+   188	            <button type="button" onClick={toggleTheme}>
+   189	              {theme === "dark" ? dictionary.common.light : dictionary.common.dark}
+   190	            </button>
+   191	          </div>
+   192	        </section>
+   193	      </aside>
+   194	    </>
+   195	  );
+   196	}
+
+===== PUBLIC NAVIGATION MODEL =====
+     1	import type { Dictionary } from "../../lib/i18n/dictionaries";
+     2	
+     3	export type NavigationLink = {
+     4	  description?: string;
+     5	  href: string;
+     6	  label: string;
+     7	};
+     8	
+     9	export type CategoryGroup = {
+    10	  icon: string;
+    11	  id: keyof Dictionary["publicShell"]["categoryGroups"];
+    12	  links: NavigationLink[];
+    13	  query: string;
+    14	};
+    15	
+    16	export type LocationOption = {
+    17	  label: string;
+    18	  value: string;
+    19	};
+    20	
+    21	export const locationOptions: LocationOption[] = [
+    22	  { label: "Tüm Türkiye", value: "turkiye" },
+    23	  { label: "İstanbul", value: "istanbul" },
+    24	  { label: "Ankara", value: "ankara" },
+    25	  { label: "İzmir", value: "izmir" },
+    26	  { label: "Bursa", value: "bursa" },
+    27	  { label: "Antalya", value: "antalya" },
+    28	  { label: "Konya", value: "konya" },
+    29	  { label: "Kocaeli", value: "kocaeli" },
+    30	  { label: "Sakarya", value: "sakarya" },
+    31	  { label: "Eskişehir", value: "eskisehir" },
+    32	  { label: "Adana", value: "adana" }
+    33	];
+    34	
+    35	export const popularSearches = [
+    36	  "Bebek arabası",
+    37	  "Oto koltuğu",
+    38	  "Mama sandalyesi",
+    39	  "Park yatak",
+    40	  "Montessori oyuncak",
+    41	  "2 yaş mont",
+    42	  "Ücretsiz bebek kıyafeti"
+    43	] as const;
+    44	
+    45	export const babyCategoryGroups: CategoryGroup[] = [
+    46	  {
+    47	    icon: "↗",
+    48	    id: "travel",
+    49	    query: "bebek arabası",
+    50	    links: [
+    51	      { href: "/browse?q=bebek%20arabası", label: "Bebek arabası" },
+    52	      { href: "/browse?q=puset", label: "Puset" },
+    53	      { href: "/browse?q=portbebe", label: "Portbebe" },
+    54	      { href: "/browse?q=kanguru", label: "Kanguru" },
+    55	      { href: "/browse?q=seyahat%20sistemi", label: "Seyahat sistemi" }
+    56	    ]
+    57	  },
+    58	  {
+    59	    icon: "✓",
+    60	    id: "safety",
+    61	    query: "oto koltuğu",
+    62	    links: [
+    63	      { href: "/categories/car-seats", label: "Oto koltuğu" },
+    64	      { href: "/browse?q=ana%20kucağı", label: "Ana kucağı" },
+    65	      { href: "/browse?q=güvenlik%20kapısı", label: "Güvenlik kapısı" },
+    66	      { href: "/browse?q=bebek%20telsizi", label: "Bebek telsizi" }
+    67	    ]
+    68	  },
+    69	  {
+    70	    icon: "☾",
+    71	    id: "sleep",
+    72	    query: "park yatak",
+    73	    links: [
+    74	      { href: "/browse?q=beşik", label: "Beşik" },
+    75	      { href: "/browse?q=park%20yatak", label: "Park yatak" },
+    76	      { href: "/browse?q=uyku%20tulumu", label: "Uyku tulumu" },
+    77	      { href: "/browse?q=bebek%20odası", label: "Bebek odası" }
+    78	    ]
+    79	  },
+    80	  {
+    81	    icon: "◐",
+    82	    id: "feeding",
+    83	    query: "mama sandalyesi",
+    84	    links: [
+    85	      { href: "/browse?q=mama%20sandalyesi", label: "Mama sandalyesi" },
+    86	      { href: "/browse?q=biberon", label: "Biberon" },
+    87	      { href: "/browse?q=sterilizatör", label: "Sterilizatör" },
+    88	      { href: "/browse?q=süt%20pompası", label: "Süt pompası" }
+    89	    ]
+    90	  },
+    91	  {
+    92	    icon: "◇",
+    93	    id: "clothing",
+    94	    query: "bebek giyim",
+    95	    links: [
+    96	      { href: "/browse?q=0-3%20ay", label: "0-3 ay" },
+    97	      { href: "/browse?q=1%20yaş%20kıyafet", label: "1 yaş" },
+    98	      { href: "/browse?q=2%20yaş%20mont", label: "2 yaş mont" },
+    99	      { href: "/browse?q=bebek%20ayakkabı", label: "Ayakkabı" }
+   100	    ]
+   101	  },
+   102	  {
+   103	    icon: "✦",
+   104	    id: "play",
+   105	    query: "montessori oyuncak",
+   106	    links: [
+   107	      { href: "/categories/montessori-toys", label: "Montessori oyuncak" },
+   108	      { href: "/browse?q=eğitici%20oyuncak", label: "Eğitici oyuncak" },
+   109	      { href: "/browse?q=çocuk%20kitabı", label: "Kitap" },
+   110	      { href: "/browse?q=puzzle", label: "Puzzle" }
+   111	    ]
+   112	  },
+   113	  {
+   114	    icon: "＋",
+   115	    id: "care",
+   116	    query: "bebek küveti",
+   117	    links: [
+   118	      { href: "/browse?q=bebek%20küveti", label: "Bebek küveti" },
+   119	      { href: "/browse?q=bez%20değiştirme", label: "Bez değiştirme" },
+   120	      { href: "/browse?q=bakım%20çantası", label: "Bakım çantası" }
+   121	    ]
+   122	  },
+   123	  {
+   124	    icon: "♡",
+   125	    id: "parent",
+   126	    query: "emzirme",
+   127	    links: [
+   128	      { href: "/browse?q=hamile%20giyim", label: "Hamile giyim" },
+   129	      { href: "/browse?q=emzirme", label: "Emzirme ürünleri" },
+   130	      { href: "/guides", label: "Ebeveyn rehberleri" }
+   131	    ]
+   132	  },
+   133	  {
+   134	    icon: "7",
+   135	    id: "kids",
+   136	    query: "3 yaş oyuncak",
+   137	    links: [
+   138	      { href: "/browse?q=3%20yaş%20oyuncak", label: "3-7 yaş oyuncak" },
+   139	      { href: "/browse?q=çocuk%20bisikleti", label: "Bisiklet" },
+   140	      { href: "/browse?q=scooter", label: "Scooter" },
+   141	      { href: "/browse?q=okul%20öncesi", label: "Okul öncesi" }
+   142	    ]
+   143	  },
+   144	  {
+   145	    icon: "∞",
+   146	    id: "reuse",
+   147	    query: "ücretsiz bebek kıyafeti",
+   148	    links: [
+   149	      { href: "/browse?q=ücretsiz%20bebek%20kıyafeti", label: "Ücretsiz bebek kıyafeti" },
+   150	      { href: "/browse?q=bağış", label: "Bağış" },
+   151	      { href: "/browse?q=takas", label: "Takas" }
+   152	    ]
+   153	  }
+   154	];
+   155	
+   156	export const quickCategoryLinks: NavigationLink[] = [
+   157	  { href: "/guides", label: "Ebeveyn rehberi" },
+   158	  { href: "/account/children", label: "Çocuğum" },
+   159	  { href: "/assistant", label: "Asistan" },
+   160	  { href: "/guides?topic=parent-reviews", label: "Ebeveyn yorumları" }
+   161	];
+   162	
+   163	export const accountLinks: NavigationLink[] = [
+   164	  { href: "/account/profile", label: "profile" },
+   165	  { href: "/my-listings", label: "myListings" },
+   166	  { href: "/account/seller", label: "sellerDashboard" },
+   167	  { href: "/conversations", label: "messages" },
+   168	  { href: "/notifications", label: "notifications" },
+   169	  { href: "/account/saved-searches", label: "savedSearches" },
+   170	  { href: "/account/children", label: "childProfiles" },
+   171	  { href: "/favorites", label: "favorites" },
+   172	  { href: "/account/password", label: "security" }
+   173	];
+   174	
+   175	export function getLocationLabel(value: string): string {
+   176	  return locationOptions.find((option) => option.value === value)?.label ?? "İstanbul";
+   177	}
+
+===== SITE FOOTER IF EXISTS =====
+     1	"use client";
+     2	
+     3	import { ProtectedActionLink } from "../features/auth/protected-action-link";
+     4	import { useI18n } from "../lib/i18n/i18n-provider";
+     5	
+     6	export function SiteFooter() {
+     7	  const { dictionary } = useI18n();
+     8	
+     9	  const footerGroups = [
+    10	    {
+    11	      links: [
+    12	        { href: "/browse", label: dictionary.footer.browse },
+    13	        { href: "/sell", label: dictionary.footer.sell },
+    14	        { href: "/favorites", label: dictionary.footer.favorites },
+    15	        { href: "/conversations", label: dictionary.footer.messages }
+    16	      ],
+    17	      title: dictionary.footer.marketplace
+    18	    },
+    19	    {
+    20	      links: [
+    21	        { href: "/login", label: dictionary.footer.login },
+    22	        { href: "/register", label: dictionary.footer.register },
+    23	        { href: "/auth/verify-email/request", label: dictionary.footer.verifyEmail },
+    24	        { href: "/forgot-password", label: dictionary.footer.resetPassword }
+    25	      ],
+    26	      title: dictionary.footer.account
+    27	    },
+    28	    {
+    29	      links: [
+    30	        { href: "/#safety", label: dictionary.home.safetyEyebrow },
+    31	        { href: "/browse", label: dictionary.common.browseMarketplace }
+    32	      ],
+    33	      title: dictionary.footer.support
+    34	    }
+    35	  ];
+    36	
+    37	  return (
+    38	    <footer className="site-footer">
+    39	      <div className="site-footer-inner">
+    40	        <div className="footer-brand">
+    41	          <ProtectedActionLink className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
+    42	            <img src="/brand/home/babyloop-logo-full-transparent.png" alt="" aria-hidden="true" />
+    43	            <span className="sr-only">
+    44	              {dictionary.common.babyloop}
+    45	              {dictionary.nav.tagline}
+    46	            </span>
+    47	          </ProtectedActionLink>
+    48	        </div>
+    49	
+    50	        <div className="footer-links">
+    51	          {footerGroups.map((group) => (
+    52	            <nav key={group.title} aria-label={group.title}>
+    53	              <h2>{group.title}</h2>
+    54	              {group.links.map((link) => (
+    55	                <ProtectedActionLink key={link.href} href={link.href}>
+    56	                  {link.label}
+    57	                </ProtectedActionLink>
+    58	              ))}
+    59	            </nav>
+    60	          ))}
+    61	        </div>
+    62	      </div>
+    63	    </footer>
+    64	  );
+    65	}
+
+===== HARD-CODED STRING SCAN TARGET FILES =====
+apps/web/src/features/account/account-surface-guide.tsx:1:"use client";
+apps/web/src/features/account/account-surface-guide.tsx:3:import Link from "next/link";
+apps/web/src/features/account/account-surface-guide.tsx:4:import { Badge, Card } from "../../components/ui";
+apps/web/src/features/account/account-surface-guide.tsx:7:  | "my_listings"
+apps/web/src/features/account/account-surface-guide.tsx:8:  | "favorites"
+apps/web/src/features/account/account-surface-guide.tsx:9:  | "saved_searches"
+apps/web/src/features/account/account-surface-guide.tsx:10:  | "notifications"
+apps/web/src/features/account/account-surface-guide.tsx:11:  | "seller_dashboard";
+apps/web/src/features/account/account-surface-guide.tsx:31:    eyebrow: "Listing management",
+apps/web/src/features/account/account-surface-guide.tsx:32:    title: "Keep every listing clear and actionable",
+apps/web/src/features/account/account-surface-guide.tsx:34:      "Review status, update condition, open the public page, and use seller insights before deciding whether to reserve, mark sold, or refresh a listing.",
+apps/web/src/features/account/account-surface-guide.tsx:35:    badge: "Seller workflow",
+apps/web/src/features/account/account-surface-guide.tsx:37:      "Check title, photos, condition, price, and included accessories.",
+apps/web/src/features/account/account-surface-guide.tsx:38:      "Use archive, restore, reserved, and sold actions intentionally.",
+apps/web/src/features/account/account-surface-guide.tsx:39:      "Open the public listing after major edits to verify the buyer view."
+apps/web/src/features/account/account-surface-guide.tsx:42:      { href: "/sell", label: "Create listing" },
+apps/web/src/features/account/account-surface-guide.tsx:43:      { href: "/account/seller", label: "Seller dashboard" },
+apps/web/src/features/account/account-surface-guide.tsx:44:      { href: "/guides", label: "Parent guides" }
+apps/web/src/features/account/account-surface-guide.tsx:48:    eyebrow: "Favorites",
+apps/web/src/features/account/account-surface-guide.tsx:49:    title: "Turn saved items into better decisions",
+apps/web/src/features/account/account-surface-guide.tsx:51:      "Favorites are a shortlist. Compare condition, photos, seller answers, and related guide topics before messaging.",
+apps/web/src/features/account/account-surface-guide.tsx:52:    badge: "Buyer workflow",
+apps/web/src/features/account/account-surface-guide.tsx:54:      "Revisit favorites that match current age-band or seasonal needs.",
+apps/web/src/features/account/account-surface-guide.tsx:55:      "Remove sold or irrelevant listings to keep the list useful.",
+apps/web/src/features/account/account-surface-guide.tsx:56:      "Use listing detail questions before committing to a handover."
+apps/web/src/features/account/account-surface-guide.tsx:59:      { href: "/browse", label: "Browse more" },
+apps/web/src/features/account/account-surface-guide.tsx:60:      { href: "/guides", label: "Buying guides" },
+apps/web/src/features/account/account-surface-guide.tsx:61:      { href: "/assistant", label: "Ask Assistant" }
+apps/web/src/features/account/account-surface-guide.tsx:65:    eyebrow: "Saved searches",
+apps/web/src/features/account/account-surface-guide.tsx:66:    title: "Reuse filters for recurring needs",
+apps/web/src/features/account/account-surface-guide.tsx:68:      "Saved searches help parents track size, season, price, and category needs without starting from scratch each time.",
+apps/web/src/features/account/account-surface-guide.tsx:69:    badge: "Retention",
+apps/web/src/features/account/account-surface-guide.tsx:71:      "Create one saved search per need, not one huge generic search.",
+apps/web/src/features/account/account-surface-guide.tsx:72:      "Use price and image filters when the item requires closer review.",
+apps/web/src/features/account/account-surface-guide.tsx:73:      "Notification delivery is intentionally separate and can be added later."
+apps/web/src/features/account/account-surface-guide.tsx:76:      { href: "/browse", label: "Create from browse" },
+apps/web/src/features/account/account-surface-guide.tsx:77:      { href: "/account/children", label: "Age-band needs" },
+apps/web/src/features/account/account-surface-guide.tsx:78:      { href: "/assistant", label: "Ask Assistant" }
+apps/web/src/features/account/account-surface-guide.tsx:82:    eyebrow: "Notifications",
+apps/web/src/features/account/account-surface-guide.tsx:83:    title: "Review marketplace updates from one place",
+apps/web/src/features/account/account-surface-guide.tsx:85:      "Use notifications to catch messages, listing interactions, and account updates without exposing buyer identities unnecessarily.",
+apps/web/src/features/account/account-surface-guide.tsx:86:    badge: "Inbox",
+apps/web/src/features/account/account-surface-guide.tsx:88:      "Open unread items first and clear the queue after review.",
+apps/web/src/features/account/account-surface-guide.tsx:89:      "Use conversation safety guidance for message-related notifications.",
+apps/web/src/features/account/account-surface-guide.tsx:90:      "Favorite and listing activity stays privacy-safe by default."
+apps/web/src/features/account/account-surface-guide.tsx:93:      { href: "/conversations", label: "Messages" },
+apps/web/src/features/account/account-surface-guide.tsx:94:      { href: "/notifications", label: "Notifications" },
+apps/web/src/features/account/account-surface-guide.tsx:95:      { href: "/account/notification-preferences", label: "Preferences" }
+apps/web/src/features/account/account-surface-guide.tsx:99:    eyebrow: "Seller dashboard",
+apps/web/src/features/account/account-surface-guide.tsx:100:    title: "Use aggregate insight without exposing buyers",
+apps/web/src/features/account/account-surface-guide.tsx:102:      "Seller dashboard shows performance signals only. Buyer identity, private contact details, and message text should not be exposed here.",
+apps/web/src/features/account/account-surface-guide.tsx:103:    badge: "Privacy-safe",
+apps/web/src/features/account/account-surface-guide.tsx:105:      "Watch favorites, views, listing clicks, and contact intents together.",
+apps/web/src/features/account/account-surface-guide.tsx:106:      "Improve listings with weak photos, unclear condition, or low contact intent.",
+apps/web/src/features/account/account-surface-guide.tsx:107:      "Use AI draft and price guidance as a starting point, not an autopublish flow."
+apps/web/src/features/account/account-surface-guide.tsx:110:      { href: "/sell", label: "Create listing" },
+apps/web/src/features/account/account-surface-guide.tsx:111:      { href: "/my-listings", label: "Manage listings" },
+apps/web/src/features/account/account-surface-guide.tsx:112:      { href: "/assistant", label: "Ask Assistant" }
+apps/web/src/features/account/account-surface-guide.tsx:121:    <Card as="section" className="grid gap-4">
+apps/web/src/features/account/account-surface-guide.tsx:122:      <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
+apps/web/src/features/account/account-surface-guide.tsx:124:          <p className="eyebrow">{config.eyebrow}</p>
+apps/web/src/features/account/account-surface-guide.tsx:125:          <h2 className="mb-1">{config.title}</h2>
+apps/web/src/features/account/account-surface-guide.tsx:126:          <p className="form-note">{config.description}</p>
+apps/web/src/features/account/account-surface-guide.tsx:131:      <div className="grid gap-4 border-t border-border pt-4">
+apps/web/src/features/account/account-surface-guide.tsx:132:        <ul className="question-list m-0 pl-5">
+apps/web/src/features/account/account-surface-guide.tsx:138:        <div className="home-personalization-actions max-[700px]:flex-col max-[700px]:items-stretch [&_a]:max-[700px]:w-full [&_a]:max-[700px]:justify-center">
+apps/web/src/features/account/account-surface-guide.tsx:140:            <Link href={action.href} key={`${action.href}-${action.label}`}>
+apps/web/src/components/navigation/public-navigation-model.ts:1:import type { Dictionary } from "../../lib/i18n/dictionaries";
+apps/web/src/components/navigation/public-navigation-model.ts:11:  id: keyof Dictionary["publicShell"]["categoryGroups"];
+apps/web/src/components/navigation/public-navigation-model.ts:22:  { label: "Tüm Türkiye", value: "turkiye" },
+apps/web/src/components/navigation/public-navigation-model.ts:23:  { label: "İstanbul", value: "istanbul" },
+apps/web/src/components/navigation/public-navigation-model.ts:24:  { label: "Ankara", value: "ankara" },
+apps/web/src/components/navigation/public-navigation-model.ts:25:  { label: "İzmir", value: "izmir" },
+apps/web/src/components/navigation/public-navigation-model.ts:26:  { label: "Bursa", value: "bursa" },
+apps/web/src/components/navigation/public-navigation-model.ts:27:  { label: "Antalya", value: "antalya" },
+apps/web/src/components/navigation/public-navigation-model.ts:28:  { label: "Konya", value: "konya" },
+apps/web/src/components/navigation/public-navigation-model.ts:29:  { label: "Kocaeli", value: "kocaeli" },
+apps/web/src/components/navigation/public-navigation-model.ts:30:  { label: "Sakarya", value: "sakarya" },
+apps/web/src/components/navigation/public-navigation-model.ts:31:  { label: "Eskişehir", value: "eskisehir" },
+apps/web/src/components/navigation/public-navigation-model.ts:32:  { label: "Adana", value: "adana" }
+apps/web/src/components/navigation/public-navigation-model.ts:36:  "Bebek arabası",
+apps/web/src/components/navigation/public-navigation-model.ts:37:  "Oto koltuğu",
+apps/web/src/components/navigation/public-navigation-model.ts:38:  "Mama sandalyesi",
+apps/web/src/components/navigation/public-navigation-model.ts:39:  "Park yatak",
+apps/web/src/components/navigation/public-navigation-model.ts:40:  "Montessori oyuncak",
+apps/web/src/components/navigation/public-navigation-model.ts:41:  "2 yaş mont",
+apps/web/src/components/navigation/public-navigation-model.ts:42:  "Ücretsiz bebek kıyafeti"
+apps/web/src/components/navigation/public-navigation-model.ts:48:    id: "travel",
+apps/web/src/components/navigation/public-navigation-model.ts:49:    query: "bebek arabası",
+apps/web/src/components/navigation/public-navigation-model.ts:51:      { href: "/browse?q=bebek%20arabası", label: "Bebek arabası" },
+apps/web/src/components/navigation/public-navigation-model.ts:52:      { href: "/browse?q=puset", label: "Puset" },
+apps/web/src/components/navigation/public-navigation-model.ts:53:      { href: "/browse?q=portbebe", label: "Portbebe" },
+apps/web/src/components/navigation/public-navigation-model.ts:54:      { href: "/browse?q=kanguru", label: "Kanguru" },
+apps/web/src/components/navigation/public-navigation-model.ts:55:      { href: "/browse?q=seyahat%20sistemi", label: "Seyahat sistemi" }
+apps/web/src/components/navigation/public-navigation-model.ts:60:    id: "safety",
+apps/web/src/components/navigation/public-navigation-model.ts:61:    query: "oto koltuğu",
+apps/web/src/components/navigation/public-navigation-model.ts:63:      { href: "/categories/car-seats", label: "Oto koltuğu" },
+apps/web/src/components/navigation/public-navigation-model.ts:64:      { href: "/browse?q=ana%20kucağı", label: "Ana kucağı" },
+apps/web/src/components/navigation/public-navigation-model.ts:65:      { href: "/browse?q=güvenlik%20kapısı", label: "Güvenlik kapısı" },
+apps/web/src/components/navigation/public-navigation-model.ts:66:      { href: "/browse?q=bebek%20telsizi", label: "Bebek telsizi" }
+apps/web/src/components/navigation/public-navigation-model.ts:71:    id: "sleep",
+apps/web/src/components/navigation/public-navigation-model.ts:72:    query: "park yatak",
+apps/web/src/components/navigation/public-navigation-model.ts:74:      { href: "/browse?q=beşik", label: "Beşik" },
+apps/web/src/components/navigation/public-navigation-model.ts:75:      { href: "/browse?q=park%20yatak", label: "Park yatak" },
+apps/web/src/components/navigation/public-navigation-model.ts:76:      { href: "/browse?q=uyku%20tulumu", label: "Uyku tulumu" },
+apps/web/src/components/navigation/public-navigation-model.ts:77:      { href: "/browse?q=bebek%20odası", label: "Bebek odası" }
+apps/web/src/components/navigation/public-navigation-model.ts:82:    id: "feeding",
+apps/web/src/components/navigation/public-navigation-model.ts:83:    query: "mama sandalyesi",
+apps/web/src/components/navigation/public-navigation-model.ts:85:      { href: "/browse?q=mama%20sandalyesi", label: "Mama sandalyesi" },
+apps/web/src/components/navigation/public-navigation-model.ts:86:      { href: "/browse?q=biberon", label: "Biberon" },
+apps/web/src/components/navigation/public-navigation-model.ts:87:      { href: "/browse?q=sterilizatör", label: "Sterilizatör" },
+apps/web/src/components/navigation/public-navigation-model.ts:88:      { href: "/browse?q=süt%20pompası", label: "Süt pompası" }
+apps/web/src/components/navigation/public-navigation-model.ts:93:    id: "clothing",
+apps/web/src/components/navigation/public-navigation-model.ts:94:    query: "bebek giyim",
+apps/web/src/components/navigation/public-navigation-model.ts:96:      { href: "/browse?q=0-3%20ay", label: "0-3 ay" },
+apps/web/src/components/navigation/public-navigation-model.ts:97:      { href: "/browse?q=1%20yaş%20kıyafet", label: "1 yaş" },
+apps/web/src/components/navigation/public-navigation-model.ts:98:      { href: "/browse?q=2%20yaş%20mont", label: "2 yaş mont" },
+apps/web/src/components/navigation/public-navigation-model.ts:99:      { href: "/browse?q=bebek%20ayakkabı", label: "Ayakkabı" }
+apps/web/src/components/navigation/public-navigation-model.ts:104:    id: "play",
+apps/web/src/components/navigation/public-navigation-model.ts:105:    query: "montessori oyuncak",
+apps/web/src/components/navigation/public-navigation-model.ts:107:      { href: "/categories/montessori-toys", label: "Montessori oyuncak" },
+apps/web/src/components/navigation/public-navigation-model.ts:108:      { href: "/browse?q=eğitici%20oyuncak", label: "Eğitici oyuncak" },
+apps/web/src/components/navigation/public-navigation-model.ts:109:      { href: "/browse?q=çocuk%20kitabı", label: "Kitap" },
+apps/web/src/components/navigation/public-navigation-model.ts:110:      { href: "/browse?q=puzzle", label: "Puzzle" }
+apps/web/src/components/navigation/public-navigation-model.ts:115:    id: "care",
+apps/web/src/components/navigation/public-navigation-model.ts:116:    query: "bebek küveti",
+apps/web/src/components/navigation/public-navigation-model.ts:118:      { href: "/browse?q=bebek%20küveti", label: "Bebek küveti" },
+apps/web/src/components/navigation/public-navigation-model.ts:119:      { href: "/browse?q=bez%20değiştirme", label: "Bez değiştirme" },
+apps/web/src/components/navigation/public-navigation-model.ts:120:      { href: "/browse?q=bakım%20çantası", label: "Bakım çantası" }
+apps/web/src/components/navigation/public-navigation-model.ts:125:    id: "parent",
+apps/web/src/components/navigation/public-navigation-model.ts:126:    query: "emzirme",
+apps/web/src/components/navigation/public-navigation-model.ts:128:      { href: "/browse?q=hamile%20giyim", label: "Hamile giyim" },
+apps/web/src/components/navigation/public-navigation-model.ts:129:      { href: "/browse?q=emzirme", label: "Emzirme ürünleri" },
+apps/web/src/components/navigation/public-navigation-model.ts:130:      { href: "/guides", label: "Ebeveyn rehberleri" }
+apps/web/src/components/navigation/public-navigation-model.ts:135:    id: "kids",
+apps/web/src/components/navigation/public-navigation-model.ts:136:    query: "3 yaş oyuncak",
+apps/web/src/components/navigation/public-navigation-model.ts:138:      { href: "/browse?q=3%20yaş%20oyuncak", label: "3-7 yaş oyuncak" },
+apps/web/src/components/navigation/public-navigation-model.ts:139:      { href: "/browse?q=çocuk%20bisikleti", label: "Bisiklet" },
+apps/web/src/components/navigation/public-navigation-model.ts:140:      { href: "/browse?q=scooter", label: "Scooter" },
+apps/web/src/components/navigation/public-navigation-model.ts:141:      { href: "/browse?q=okul%20öncesi", label: "Okul öncesi" }
+apps/web/src/components/navigation/public-navigation-model.ts:146:    id: "reuse",
+apps/web/src/components/navigation/public-navigation-model.ts:147:    query: "ücretsiz bebek kıyafeti",
+apps/web/src/components/navigation/public-navigation-model.ts:149:      { href: "/browse?q=ücretsiz%20bebek%20kıyafeti", label: "Ücretsiz bebek kıyafeti" },
+apps/web/src/components/navigation/public-navigation-model.ts:150:      { href: "/browse?q=bağış", label: "Bağış" },
+apps/web/src/components/navigation/public-navigation-model.ts:151:      { href: "/browse?q=takas", label: "Takas" }
+apps/web/src/components/navigation/public-navigation-model.ts:157:  { href: "/guides", label: "Ebeveyn rehberi" },
+apps/web/src/components/navigation/public-navigation-model.ts:158:  { href: "/account/children", label: "Çocuğum" },
+apps/web/src/components/navigation/public-navigation-model.ts:159:  { href: "/assistant", label: "Asistan" },
+apps/web/src/components/navigation/public-navigation-model.ts:160:  { href: "/guides?topic=parent-reviews", label: "Ebeveyn yorumları" }
+apps/web/src/components/navigation/public-navigation-model.ts:164:  { href: "/account/profile", label: "profile" },
+apps/web/src/components/navigation/public-navigation-model.ts:165:  { href: "/my-listings", label: "myListings" },
+apps/web/src/components/navigation/public-navigation-model.ts:166:  { href: "/account/seller", label: "sellerDashboard" },
+apps/web/src/components/navigation/public-navigation-model.ts:167:  { href: "/conversations", label: "messages" },
+apps/web/src/components/navigation/public-navigation-model.ts:168:  { href: "/notifications", label: "notifications" },
+apps/web/src/components/navigation/public-navigation-model.ts:169:  { href: "/account/saved-searches", label: "savedSearches" },
+apps/web/src/components/navigation/public-navigation-model.ts:170:  { href: "/account/children", label: "childProfiles" },
+apps/web/src/components/navigation/public-navigation-model.ts:171:  { href: "/favorites", label: "favorites" },
+apps/web/src/components/navigation/public-navigation-model.ts:172:  { href: "/account/password", label: "security" }
+apps/web/src/components/navigation/public-navigation-model.ts:176:  return locationOptions.find((option) => option.value === value)?.label ?? "İstanbul";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:1:"use client";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:3:import { ProtectedActionLink as Link } from "../../features/auth/protected-action-link";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:4:import { useEffect, useState } from "react";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:5:import type { AuthMe } from "../../lib/auth-client";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:6:import type { Dictionary, Locale } from "../../lib/i18n/dictionaries";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:10:} from "./public-navigation-model";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:11:import { SearchOverlay } from "./search-overlay";
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:42:  const [openCategoryId, setOpenCategoryId] = useState<string>(babyCategoryGroups[0]?.id ?? "travel");
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:45:    document.documentElement.classList.toggle("mobile-market-nav-open", isOpen);
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:48:      if (event.key === "Escape") {
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:54:      document.addEventListener("keydown", handleEscape);
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:58:      document.documentElement.classList.remove("mobile-market-nav-open");
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:59:      document.removeEventListener("keydown", handleEscape);
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:68:          className="mobile-market-drawer-backdrop"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:69:          type="button"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:75:        aria-label="BabyLoop mobile navigation"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:76:        className={isOpen ? "mobile-market-drawer open" : "mobile-market-drawer"}
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:77:        id="mobile-market-navigation"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:79:        <div className="mobile-market-drawer-header">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:80:          <Link className="mobile-market-brand-logo" href="/" aria-label="BabyLoop home" onClick={onClose}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:81:            <img src="/brand/home/babyloop-logo-compact-transparent.png" alt="" aria-hidden="true" />
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:82:            <span className="sr-only">BabyLoop</span>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:84:          <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:89:        <section className="mobile-market-account">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:94:              <Link href="/account/profile" onClick={onClose}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:102:              <button type="button" onClick={onLogin}>{dictionary.common.login}</button>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:115:        <nav className="mobile-market-quick-links" aria-label="Mobile marketplace links">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:117:            authTitle="İlan oluşturmak için giriş yap"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:118:            href="/sell"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:123:          <Link href="/browse" onClick={onClose}>{dictionary.common.browseMarketplace}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:124:          <Link href="/conversations" onClick={onClose}>{dictionary.publicShell.header.messages}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:125:          <Link href="/notifications" onClick={onClose}>{dictionary.publicShell.header.notifications}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:126:          <Link href="/account/saved-searches" onClick={onClose}>{dictionary.publicShell.header.savedSearches}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:127:          <Link href="/account/children" onClick={onClose}>{dictionary.publicShell.accountMenu.childProfiles}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:128:          <Link href="/assistant" onClick={onClose}>{dictionary.publicShell.header.assistant}</Link>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:131:        <section className="mobile-market-section">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:133:          <div className="mobile-market-accordion">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:138:                <div className="mobile-market-category" key={group.id}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:141:                    type="button"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:144:                    <span aria-hidden="true">{group.icon}</span>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:163:          <section className="mobile-market-section">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:165:            <nav className="mobile-market-account-links" aria-label={dictionary.nav.account}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:168:                  {dictionary.publicShell.accountMenu[item.label as keyof Dictionary["publicShell"]["accountMenu"]]}
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:171:              <button type="button" onClick={onLogout}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:178:        <section className="mobile-market-section">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:180:          <div className="mobile-market-preferences">
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:182:              aria-pressed={locale === "tr"}
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:183:              type="button"
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:184:              onClick={() => setLocale(locale === "tr" ? "en" : "tr")}
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:186:              {locale === "tr" ? "TR" : "EN"}
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:188:            <button type="button" onClick={toggleTheme}>
+apps/web/src/components/navigation/mobile-navigation-drawer.tsx:189:              {theme === "dark" ? dictionary.common.light : dictionary.common.dark}
+apps/web/src/components/site-footer.tsx:1:"use client";
+apps/web/src/components/site-footer.tsx:3:import { ProtectedActionLink } from "../features/auth/protected-action-link";
+apps/web/src/components/site-footer.tsx:4:import { useI18n } from "../lib/i18n/i18n-provider";
+apps/web/src/components/site-footer.tsx:12:        { href: "/browse", label: dictionary.footer.browse },
+apps/web/src/components/site-footer.tsx:13:        { href: "/sell", label: dictionary.footer.sell },
+apps/web/src/components/site-footer.tsx:14:        { href: "/favorites", label: dictionary.footer.favorites },
+apps/web/src/components/site-footer.tsx:15:        { href: "/conversations", label: dictionary.footer.messages }
+apps/web/src/components/site-footer.tsx:21:        { href: "/login", label: dictionary.footer.login },
+apps/web/src/components/site-footer.tsx:22:        { href: "/register", label: dictionary.footer.register },
+apps/web/src/components/site-footer.tsx:23:        { href: "/auth/verify-email/request", label: dictionary.footer.verifyEmail },
+apps/web/src/components/site-footer.tsx:24:        { href: "/forgot-password", label: dictionary.footer.resetPassword }
+apps/web/src/components/site-footer.tsx:30:        { href: "/#safety", label: dictionary.home.safetyEyebrow },
+apps/web/src/components/site-footer.tsx:31:        { href: "/browse", label: dictionary.common.browseMarketplace }
+apps/web/src/components/site-footer.tsx:38:    <footer className="site-footer">
+apps/web/src/components/site-footer.tsx:39:      <div className="site-footer-inner">
+apps/web/src/components/site-footer.tsx:40:        <div className="footer-brand">
+apps/web/src/components/site-footer.tsx:41:          <ProtectedActionLink className="brand footer-brand-logo footer-brand-logo-full" href="/" aria-label="BabyLoop home">
+apps/web/src/components/site-footer.tsx:42:            <img src="/brand/home/babyloop-logo-full-transparent.png" alt="" aria-hidden="true" />
+apps/web/src/components/site-footer.tsx:43:            <span className="sr-only">
+apps/web/src/components/site-footer.tsx:50:        <div className="footer-links">
+apps/web/src/features/auth/auth-surface-guide.tsx:1:"use client";
+apps/web/src/features/auth/auth-surface-guide.tsx:3:import Link from "next/link";
+apps/web/src/features/auth/auth-surface-guide.tsx:4:import { Badge, Card, PageContainer } from "../../components/ui";
+apps/web/src/features/auth/auth-surface-guide.tsx:7:  | "login"
+apps/web/src/features/auth/auth-surface-guide.tsx:8:  | "register"
+apps/web/src/features/auth/auth-surface-guide.tsx:9:  | "forgot_password"
+apps/web/src/features/auth/auth-surface-guide.tsx:10:  | "reset_password"
+apps/web/src/features/auth/auth-surface-guide.tsx:11:  | "verify"
+apps/web/src/features/auth/auth-surface-guide.tsx:12:  | "change_password";
+apps/web/src/features/auth/auth-surface-guide.tsx:32:    eyebrow: "Secure access",
+apps/web/src/features/auth/auth-surface-guide.tsx:33:    title: "Continue with your protected BabyLoop account",
+apps/web/src/features/auth/auth-surface-guide.tsx:35:      "Use your account to manage listings, messages, favorites, saved searches, child age-band needs, and assistant guidance.",
+apps/web/src/features/auth/auth-surface-guide.tsx:36:    badge: "Cookie session",
+apps/web/src/features/auth/auth-surface-guide.tsx:38:      "Access is handled with cookie-backed sessions rather than persistent browser storage.",
+apps/web/src/features/auth/auth-surface-guide.tsx:39:      "After signing in, use the menu to reach marketplace and account tools.",
+apps/web/src/features/auth/auth-surface-guide.tsx:40:      "Keep sensitive contact details out of public listing text, messages, and assistant prompts."
+apps/web/src/features/auth/auth-surface-guide.tsx:43:      { href: "/browse", label: "Browse" },
+apps/web/src/features/auth/auth-surface-guide.tsx:44:      { href: "/assistant", label: "Ask Assistant" },
+apps/web/src/features/auth/auth-surface-guide.tsx:45:      { href: "/register", label: "Create account" }
+apps/web/src/features/auth/auth-surface-guide.tsx:49:    eyebrow: "Create account",
+apps/web/src/features/auth/auth-surface-guide.tsx:50:    title: "Start with privacy-conscious marketplace tools",
+apps/web/src/features/auth/auth-surface-guide.tsx:52:      "Create an account to sell items, message safely, save filters, and get age-band based marketplace suggestions.",
+apps/web/src/features/auth/auth-surface-guide.tsx:53:    badge: "Privacy-first",
+apps/web/src/features/auth/auth-surface-guide.tsx:55:      "BabyLoop avoids exact child birth dates for lifecycle suggestions.",
+apps/web/src/features/auth/auth-surface-guide.tsx:56:      "Seller and buyer surfaces are separated to reduce unnecessary identity exposure.",
+apps/web/src/features/auth/auth-surface-guide.tsx:57:      "Use clear profile and listing information without adding private contact details."
+apps/web/src/features/auth/auth-surface-guide.tsx:60:      { href: "/browse", label: "Explore first" },
+apps/web/src/features/auth/auth-surface-guide.tsx:61:      { href: "/guides", label: "Read guides" },
+apps/web/src/features/auth/auth-surface-guide.tsx:62:      { href: "/login", label: "I have an account" }
+apps/web/src/features/auth/auth-surface-guide.tsx:66:    eyebrow: "Account recovery",
+apps/web/src/features/auth/auth-surface-guide.tsx:67:    title: "Recover access safely",
+apps/web/src/features/auth/auth-surface-guide.tsx:69:      "Use the recovery flow when you cannot access your account. After recovery, review account settings and avoid shared-device sessions.",
+apps/web/src/features/auth/auth-surface-guide.tsx:70:    badge: "Recovery",
+apps/web/src/features/auth/auth-surface-guide.tsx:72:      "Use the official BabyLoop recovery page only.",
+apps/web/src/features/auth/auth-surface-guide.tsx:73:      "After changing credentials, sign out on shared devices.",
+apps/web/src/features/auth/auth-surface-guide.tsx:74:      "Never share recovery links or codes with another person."
+apps/web/src/features/auth/auth-surface-guide.tsx:77:      { href: "/login", label: "Back to login" },
+apps/web/src/features/auth/auth-surface-guide.tsx:78:      { href: "/guides", label: "Parent guides" }
+apps/web/src/features/auth/auth-surface-guide.tsx:82:    eyebrow: "Set new password",
+apps/web/src/features/auth/auth-surface-guide.tsx:83:    title: "Choose a stronger password before continuing",
+apps/web/src/features/auth/auth-surface-guide.tsx:85:      "After reset, BabyLoop continues using protected session handling and account-level safety checks.",
+apps/web/src/features/auth/auth-surface-guide.tsx:86:    badge: "Password",
+apps/web/src/features/auth/auth-surface-guide.tsx:88:      "Use a unique password that is not reused elsewhere.",
+apps/web/src/features/auth/auth-surface-guide.tsx:89:      "Avoid storing credentials in screenshots, notes, or messages.",
+apps/web/src/features/auth/auth-surface-guide.tsx:90:      "Return to marketplace tools after confirming the reset."
+apps/web/src/features/auth/auth-surface-guide.tsx:93:      { href: "/login", label: "Sign in" },
+apps/web/src/features/auth/auth-surface-guide.tsx:94:      { href: "/browse", label: "Browse" }
+apps/web/src/features/auth/auth-surface-guide.tsx:98:    eyebrow: "Verification",
+apps/web/src/features/auth/auth-surface-guide.tsx:99:    title: "Finish account verification",
+apps/web/src/features/auth/auth-surface-guide.tsx:101:      "Verification keeps account actions clearer and helps protect marketplace interactions.",
+apps/web/src/features/auth/auth-surface-guide.tsx:102:    badge: "Verify",
+apps/web/src/features/auth/auth-surface-guide.tsx:104:      "Complete verification before relying on account-only features.",
+apps/web/src/features/auth/auth-surface-guide.tsx:105:      "Use messages for item questions and handover expectations.",
+apps/web/src/features/auth/auth-surface-guide.tsx:106:      "Report suspicious or misleading marketplace behavior."
+apps/web/src/features/auth/auth-surface-guide.tsx:109:      { href: "/login", label: "Login" },
+apps/web/src/features/auth/auth-surface-guide.tsx:110:      { href: "/guides", label: "Guides" }
+apps/web/src/features/auth/auth-surface-guide.tsx:114:    eyebrow: "Account security",
+apps/web/src/features/auth/auth-surface-guide.tsx:115:    title: "Update your password deliberately",
+apps/web/src/features/auth/auth-surface-guide.tsx:117:      "Use this page when you want to rotate credentials or secure your account after using a shared device.",
+apps/web/src/features/auth/auth-surface-guide.tsx:118:    badge: "Security",
+apps/web/src/features/auth/auth-surface-guide.tsx:120:      "Use a unique password and keep it separate from marketplace messages.",
+apps/web/src/features/auth/auth-surface-guide.tsx:121:      "After changing it, confirm that login and logout still behave correctly.",
+apps/web/src/features/auth/auth-surface-guide.tsx:122:      "Review messages and listings if you suspect account misuse."
+apps/web/src/features/auth/auth-surface-guide.tsx:125:      { href: "/account/seller", label: "Seller dashboard" },
+apps/web/src/features/auth/auth-surface-guide.tsx:126:      { href: "/my-listings", label: "My listings" },
+apps/web/src/features/auth/auth-surface-guide.tsx:127:      { href: "/notifications", label: "Notifications" }
+apps/web/src/features/auth/auth-surface-guide.tsx:136:    <PageContainer className="pt-0" ariaLabel={`${config.title} guidance`}>
+apps/web/src/features/auth/auth-surface-guide.tsx:137:      <Card as="section" className="mb-5 grid gap-4">
+apps/web/src/features/auth/auth-surface-guide.tsx:138:        <div className="flex items-start justify-between gap-4 max-[700px]:flex-col max-[700px]:items-stretch">
+apps/web/src/features/auth/auth-surface-guide.tsx:140:            <p className="eyebrow">{config.eyebrow}</p>
+apps/web/src/features/auth/auth-surface-guide.tsx:141:            <h2 className="mb-1">{config.title}</h2>
+apps/web/src/features/auth/auth-surface-guide.tsx:142:            <p className="form-note">{config.description}</p>
+apps/web/src/features/auth/auth-surface-guide.tsx:147:        <ul className="question-list m-0 border-t border-border py-0 pl-5 pt-4">
+apps/web/src/features/auth/auth-surface-guide.tsx:153:        <div className="home-personalization-actions max-[700px]:flex-col max-[700px]:items-stretch [&_a]:max-[700px]:w-full [&_a]:max-[700px]:justify-center">
+apps/web/src/features/auth/auth-surface-guide.tsx:155:            <Link href={action.href} key={`${action.href}-${action.label}`}>
+
+===== CURRENT TEST FILES AROUND NAV/I18N =====
+apps/web/src/components/navigation/mobile-navigation-drawer.test.tsx
+
+===== PACKAGE TEST SCRIPTS =====
+{
+  "name": "@babyloop/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:deps": "pnpm --filter '@babyloop/web^...' build",
+    "dev": "pnpm build:deps && next dev --port 3000",
+    "build": "pnpm build:deps && next build",
+    "start": "next start --port 3000",
+    "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
+  },
+  "dependencies": {
+    "@babyloop/shared": "workspace:*",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^27.2.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "vitest": "^4.1.6"
+  }
+}

@@ -432,6 +432,206 @@ export const dictionaries = {
       expiredVerificationTitle: "Expired or invalid link",
       expiredVerificationBody: "Request a fresh verification link from BabyLoop instead of reusing old forwarded links."
     },
+    authSurfaceGuide: {
+      login: {
+        ariaLabel: "Login guidance",
+        eyebrow: "Secure access",
+        title: "Continue with your protected BabyLoop account",
+        description:
+          "Use your account to manage listings, messages, favorites, saved searches, child age-band needs, and assistant guidance.",
+        badge: "Cookie session",
+        steps: [
+          "Access is handled with cookie-backed sessions rather than persistent browser storage.",
+          "After signing in, use the menu to reach marketplace and account tools.",
+          "Keep sensitive contact details out of public listing text, messages, and assistant prompts."
+        ],
+        actions: [
+          { href: "/browse", label: "Browse" },
+          { href: "/assistant", label: "Ask Assistant" },
+          { href: "/register", label: "Create account" }
+        ]
+      },
+      register: {
+        ariaLabel: "Registration guidance",
+        eyebrow: "Create account",
+        title: "Start with privacy-conscious marketplace tools",
+        description:
+          "Create an account to sell items, message safely, save filters, and get age-band based marketplace suggestions.",
+        badge: "Privacy-first",
+        steps: [
+          "BabyLoop avoids exact child birth dates for lifecycle suggestions.",
+          "Seller and buyer surfaces are separated to reduce unnecessary identity exposure.",
+          "Use clear profile and listing information without adding private contact details."
+        ],
+        actions: [
+          { href: "/browse", label: "Explore first" },
+          { href: "/guides", label: "Read guides" },
+          { href: "/login", label: "I have an account" }
+        ]
+      },
+      forgot_password: {
+        ariaLabel: "Account recovery guidance",
+        eyebrow: "Account recovery",
+        title: "Recover access safely",
+        description:
+          "Use the recovery flow when you cannot access your account. After recovery, review account settings and avoid shared-device sessions.",
+        badge: "Recovery",
+        steps: [
+          "Use the official BabyLoop recovery page only.",
+          "After changing credentials, sign out on shared devices.",
+          "Never share recovery links or codes with another person."
+        ],
+        actions: [
+          { href: "/login", label: "Back to login" },
+          { href: "/guides", label: "Parent guides" }
+        ]
+      },
+      reset_password: {
+        ariaLabel: "Password reset guidance",
+        eyebrow: "Set new password",
+        title: "Choose a stronger password before continuing",
+        description:
+          "After reset, BabyLoop continues using protected session handling and account-level safety checks.",
+        badge: "Password",
+        steps: [
+          "Use a unique password that is not reused elsewhere.",
+          "Avoid storing credentials in screenshots, notes, or messages.",
+          "Return to marketplace tools after confirming the reset."
+        ],
+        actions: [
+          { href: "/login", label: "Sign in" },
+          { href: "/browse", label: "Browse" }
+        ]
+      },
+      verify: {
+        ariaLabel: "Verification guidance",
+        eyebrow: "Verification",
+        title: "Finish account verification",
+        description:
+          "Verification keeps account actions clearer and helps protect marketplace interactions.",
+        badge: "Verify",
+        steps: [
+          "Complete verification before relying on account-only features.",
+          "Use messages for item questions and handover expectations.",
+          "Report suspicious or misleading marketplace behavior."
+        ],
+        actions: [
+          { href: "/login", label: "Login" },
+          { href: "/guides", label: "Guides" }
+        ]
+      },
+      change_password: {
+        ariaLabel: "Password change guidance",
+        eyebrow: "Account security",
+        title: "Update your password deliberately",
+        description:
+          "Use this page when you want to rotate credentials or secure your account after using a shared device.",
+        badge: "Security",
+        steps: [
+          "Use a unique password and keep it separate from marketplace messages.",
+          "After changing it, confirm that login and logout still behave correctly.",
+          "Review messages and listings if you suspect account misuse."
+        ],
+        actions: [
+          { href: "/account/seller", label: "Seller dashboard" },
+          { href: "/my-listings", label: "My listings" },
+          { href: "/notifications", label: "Notifications" }
+        ]
+      }
+    },
+    accountSurfaceGuide: {
+      my_listings: {
+        eyebrow: "Listing management",
+        title: "Keep every listing clear and actionable",
+        description:
+          "Review status, update condition, open the public page, and use seller insights before deciding whether to reserve, mark sold, or refresh a listing.",
+        badge: "Seller workflow",
+        steps: [
+          "Check title, photos, condition, price, and included accessories.",
+          "Use archive, restore, reserved, and sold actions intentionally.",
+          "Open the public listing after major edits to verify the buyer view."
+        ],
+        actions: [
+          { href: "/sell", label: "Create listing" },
+          { href: "/account/seller", label: "Seller dashboard" },
+          { href: "/guides", label: "Parent guides" }
+        ]
+      },
+      favorites: {
+        eyebrow: "Favorites",
+        title: "Turn saved items into better decisions",
+        description:
+          "Favorites are a shortlist. Compare condition, photos, seller answers, and related guide topics before messaging.",
+        badge: "Buyer workflow",
+        steps: [
+          "Revisit favorites that match current age-band or seasonal needs.",
+          "Remove sold or irrelevant listings to keep the list useful.",
+          "Use listing detail questions before committing to a handover."
+        ],
+        actions: [
+          { href: "/browse", label: "Browse more" },
+          { href: "/guides", label: "Buying guides" },
+          { href: "/assistant", label: "Ask Assistant" }
+        ]
+      },
+      saved_searches: {
+        eyebrow: "Saved searches",
+        title: "Reuse filters for recurring needs",
+        description:
+          "Saved searches help parents track size, season, price, and category needs without starting from scratch each time.",
+        badge: "Retention",
+        steps: [
+          "Create one saved search per need, not one huge generic search.",
+          "Use price and image filters when the item requires closer review.",
+          "Notification delivery is intentionally separate and can be added later."
+        ],
+        actions: [
+          { href: "/browse", label: "Create from browse" },
+          { href: "/account/children", label: "Age-band needs" },
+          { href: "/assistant", label: "Ask Assistant" }
+        ]
+      },
+      notifications: {
+        eyebrow: "Notifications",
+        title: "Review marketplace updates from one place",
+        description:
+          "Use notifications to catch messages, listing interactions, and account updates without exposing buyer identities unnecessarily.",
+        badge: "Inbox",
+        steps: [
+          "Open unread items first and clear the queue after review.",
+          "Use conversation safety guidance for message-related notifications.",
+          "Favorite and listing activity stays privacy-safe by default."
+        ],
+        actions: [
+          { href: "/conversations", label: "Messages" },
+          { href: "/notifications", label: "Notifications" },
+          { href: "/account/notification-preferences", label: "Preferences" }
+        ]
+      },
+      seller_dashboard: {
+        eyebrow: "Seller dashboard",
+        title: "Use aggregate insight without exposing buyers",
+        description:
+          "Seller dashboard shows performance signals only. Buyer identity, private contact details, and message text should not be exposed here.",
+        badge: "Privacy-safe",
+        steps: [
+          "Watch favorites, views, listing clicks, and contact intents together.",
+          "Improve listings with weak photos, unclear condition, or low contact intent.",
+          "Use AI draft and price guidance as a starting point, not an autopublish flow."
+        ],
+        actions: [
+          { href: "/sell", label: "Create listing" },
+          { href: "/my-listings", label: "Manage listings" },
+          { href: "/assistant", label: "Ask Assistant" }
+        ]
+      }
+    },
+    mobileNavigation: {
+      drawerLabel: "BabyLoop mobile navigation",
+      brandHomeLabel: "BabyLoop home",
+      quickLinksLabel: "Mobile marketplace links",
+      sellAuthTitle: "Sign in to create a listing"
+    },
     authPageShell: {
       assuranceLabel: "Authentication safety summary",
       assuranceTitle: "Designed for safer marketplace access",
@@ -1436,6 +1636,206 @@ export const dictionaries = {
       verifiedBody: "Giriş sayfasına dönüp özel BabyLoop hesap özelliklerini kullanmaya devam edebilirsin.",
       expiredVerificationTitle: "Süresi dolmuş veya geçersiz bağlantı",
       expiredVerificationBody: "Eski ya da iletilmiş bağlantıları tekrar kullanmak yerine BabyLoop'tan yeni doğrulama bağlantısı iste."
+    },
+    authSurfaceGuide: {
+      login: {
+        ariaLabel: "Giriş rehberi",
+        eyebrow: "Güvenli erişim",
+        title: "Korunan BabyLoop hesabınla devam et",
+        description:
+          "İlanlarını, mesajlarını, favorilerini, kayıtlı aramalarını, çocuk yaş bandı ihtiyaçlarını ve asistan rehberliğini hesabınla yönet.",
+        badge: "Cookie oturumu",
+        steps: [
+          "Erişim, kalıcı tarayıcı depolaması yerine cookie destekli oturumlarla yönetilir.",
+          "Giriş yaptıktan sonra pazar ve hesap araçlarına menüden ulaşabilirsin.",
+          "Özel iletişim bilgilerini ilan metinlerinde, mesajlarda ve asistan sorularında paylaşma."
+        ],
+        actions: [
+          { href: "/browse", label: "Keşfet" },
+          { href: "/assistant", label: "Asistana sor" },
+          { href: "/register", label: "Hesap oluştur" }
+        ]
+      },
+      register: {
+        ariaLabel: "Hesap oluşturma rehberi",
+        eyebrow: "Hesap oluştur",
+        title: "Gizlilik odaklı pazar araçlarıyla başla",
+        description:
+          "Ürün satmak, güvenli mesajlaşmak, filtre kaydetmek ve yaş bandına göre pazar önerileri almak için hesap oluştur.",
+        badge: "Gizlilik öncelikli",
+        steps: [
+          "BabyLoop yaşam döngüsü önerileri için çocuğun tam doğum tarihini istemez.",
+          "Satıcı ve alıcı yüzeyleri gereksiz kimlik görünürlüğünü azaltacak şekilde ayrılır.",
+          "Profil ve ilan bilgilerini net tut, özel iletişim bilgisi ekleme."
+        ],
+        actions: [
+          { href: "/browse", label: "Önce keşfet" },
+          { href: "/guides", label: "Rehberleri oku" },
+          { href: "/login", label: "Hesabım var" }
+        ]
+      },
+      forgot_password: {
+        ariaLabel: "Hesap kurtarma rehberi",
+        eyebrow: "Hesap kurtarma",
+        title: "Erişimini güvenli şekilde kurtar",
+        description:
+          "Hesabına erişemediğinde kurtarma akışını kullan. Sonrasında hesap ayarlarını gözden geçir ve ortak cihaz oturumlarından kaçın.",
+        badge: "Kurtarma",
+        steps: [
+          "Yalnızca resmi BabyLoop kurtarma sayfasını kullan.",
+          "Kimlik bilgilerini değiştirdikten sonra ortak cihazlarda çıkış yap.",
+          "Kurtarma bağlantılarını veya kodlarını başka biriyle paylaşma."
+        ],
+        actions: [
+          { href: "/login", label: "Girişe dön" },
+          { href: "/guides", label: "Ebeveyn rehberleri" }
+        ]
+      },
+      reset_password: {
+        ariaLabel: "Şifre sıfırlama rehberi",
+        eyebrow: "Yeni şifre belirle",
+        title: "Devam etmeden önce daha güçlü bir şifre seç",
+        description:
+          "Sıfırlama sonrasında BabyLoop korumalı oturum yönetimini ve hesap düzeyi güvenlik kontrollerini kullanmaya devam eder.",
+        badge: "Şifre",
+        steps: [
+          "Başka yerde kullanmadığın benzersiz bir şifre seç.",
+          "Kimlik bilgilerini ekran görüntülerinde, notlarda veya mesajlarda saklama.",
+          "Sıfırlamayı onayladıktan sonra pazar araçlarına dönebilirsin."
+        ],
+        actions: [
+          { href: "/login", label: "Giriş yap" },
+          { href: "/browse", label: "Keşfet" }
+        ]
+      },
+      verify: {
+        ariaLabel: "Doğrulama rehberi",
+        eyebrow: "Doğrulama",
+        title: "Hesap doğrulamasını tamamla",
+        description:
+          "Doğrulama, hesap işlemlerini daha anlaşılır tutar ve pazar etkileşimlerini korumaya yardımcı olur.",
+        badge: "Doğrula",
+        steps: [
+          "Hesaba özel özelliklere güvenmeden önce doğrulamayı tamamla.",
+          "Ürün soruları ve teslim beklentileri için mesajları kullan.",
+          "Şüpheli veya yanıltıcı pazar davranışlarını bildir."
+        ],
+        actions: [
+          { href: "/login", label: "Giriş yap" },
+          { href: "/guides", label: "Rehberler" }
+        ]
+      },
+      change_password: {
+        ariaLabel: "Şifre değiştirme rehberi",
+        eyebrow: "Hesap güvenliği",
+        title: "Şifreni bilinçli şekilde güncelle",
+        description:
+          "Kimlik bilgilerini yenilemek veya ortak cihaz kullandıktan sonra hesabını güvene almak istediğinde bu sayfayı kullan.",
+        badge: "Güvenlik",
+        steps: [
+          "Benzersiz bir şifre kullan ve pazar mesajlarından ayrı tut.",
+          "Şifreyi değiştirdikten sonra giriş ve çıkış akışlarının doğru çalıştığını kontrol et.",
+          "Hesap kötüye kullanımından şüpheleniyorsan mesajlarını ve ilanlarını gözden geçir."
+        ],
+        actions: [
+          { href: "/account/seller", label: "Satıcı paneli" },
+          { href: "/my-listings", label: "İlanlarım" },
+          { href: "/notifications", label: "Bildirimler" }
+        ]
+      }
+    },
+    accountSurfaceGuide: {
+      my_listings: {
+        eyebrow: "İlan yönetimi",
+        title: "Her ilanı net ve aksiyon alınabilir tut",
+        description:
+          "Durumu gözden geçir, kondisyonu güncelle, herkese açık sayfayı aç ve rezerve etme, satıldı işaretleme veya yenileme kararından önce satıcı içgörülerini kullan.",
+        badge: "Satıcı akışı",
+        steps: [
+          "Başlık, fotoğraf, kondisyon, fiyat ve dahil aksesuarları kontrol et.",
+          "Arşivle, geri al, rezerve et ve satıldı aksiyonlarını bilinçli kullan.",
+          "Büyük düzenlemelerden sonra alıcı görünümünü doğrulamak için herkese açık ilanı aç."
+        ],
+        actions: [
+          { href: "/sell", label: "İlan oluştur" },
+          { href: "/account/seller", label: "Satıcı paneli" },
+          { href: "/guides", label: "Ebeveyn rehberleri" }
+        ]
+      },
+      favorites: {
+        eyebrow: "Favoriler",
+        title: "Kaydettiğin ürünleri daha iyi kararlara dönüştür",
+        description:
+          "Favoriler kısa listedir. Mesaj atmadan önce kondisyonu, fotoğrafları, satıcı cevaplarını ve ilgili rehber konularını karşılaştır.",
+        badge: "Alıcı akışı",
+        steps: [
+          "Mevcut yaş bandı veya sezon ihtiyacına uyan favorileri tekrar kontrol et.",
+          "Satılmış veya artık ilgisiz ilanları listeden çıkar.",
+          "Teslimata karar vermeden önce ilan detayında sorularını netleştir."
+        ],
+        actions: [
+          { href: "/browse", label: "Daha fazla keşfet" },
+          { href: "/guides", label: "Alış rehberleri" },
+          { href: "/assistant", label: "Asistana sor" }
+        ]
+      },
+      saved_searches: {
+        eyebrow: "Kayıtlı aramalar",
+        title: "Tekrarlayan ihtiyaçlar için filtreleri yeniden kullan",
+        description:
+          "Kayıtlı aramalar; beden, sezon, fiyat ve kategori ihtiyaçlarını her seferinde baştan kurmadan takip etmeye yardımcı olur.",
+        badge: "Takip",
+        steps: [
+          "Tek büyük genel arama yerine her ihtiyaç için ayrı kayıtlı arama oluştur.",
+          "Yakından incelenmesi gereken ürünlerde fiyat ve görsel filtrelerini kullan.",
+          "Bildirim gönderimi bilerek ayrı tutulur ve daha sonra eklenebilir."
+        ],
+        actions: [
+          { href: "/browse", label: "Keşiften oluştur" },
+          { href: "/account/children", label: "Yaş bandı ihtiyaçları" },
+          { href: "/assistant", label: "Asistana sor" }
+        ]
+      },
+      notifications: {
+        eyebrow: "Bildirimler",
+        title: "Pazar güncellemelerini tek yerden incele",
+        description:
+          "Mesajları, ilan etkileşimlerini ve hesap güncellemelerini alıcı kimliklerini gereksiz görünür kılmadan takip etmek için bildirimleri kullan.",
+        badge: "Gelen kutusu",
+        steps: [
+          "Önce okunmamış öğeleri aç ve inceledikten sonra kuyruğu temizle.",
+          "Mesajla ilgili bildirimlerde konuşma güvenliği rehberliğini kullan.",
+          "Favori ve ilan aktiviteleri varsayılan olarak gizlilik güvenli kalır."
+        ],
+        actions: [
+          { href: "/conversations", label: "Mesajlar" },
+          { href: "/notifications", label: "Bildirimler" },
+          { href: "/account/notification-preferences", label: "Tercihler" }
+        ]
+      },
+      seller_dashboard: {
+        eyebrow: "Satıcı paneli",
+        title: "Alıcıları göstermeden toplam içgörüyü kullan",
+        description:
+          "Satıcı paneli yalnızca performans sinyallerini gösterir. Alıcı kimliği, özel iletişim bilgileri ve mesaj metni burada görünmemelidir.",
+        badge: "Gizlilik güvenli",
+        steps: [
+          "Favorileri, görüntülenmeleri, ilan tıklamalarını ve iletişim niyetlerini birlikte izle.",
+          "Fotoğrafı zayıf, kondisyonu belirsiz veya iletişim niyeti düşük ilanları iyileştir.",
+          "AI taslak ve fiyat rehberliğini otomatik yayın akışı değil, başlangıç noktası olarak kullan."
+        ],
+        actions: [
+          { href: "/sell", label: "İlan oluştur" },
+          { href: "/my-listings", label: "İlanları yönet" },
+          { href: "/assistant", label: "Asistana sor" }
+        ]
+      }
+    },
+    mobileNavigation: {
+      drawerLabel: "BabyLoop mobil navigasyon",
+      brandHomeLabel: "BabyLoop ana sayfa",
+      quickLinksLabel: "Mobil pazar bağlantıları",
+      sellAuthTitle: "İlan oluşturmak için giriş yap"
     },
     authPageShell: {
       assuranceLabel: "Kimlik doğrulama güvenlik özeti",
