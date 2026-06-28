@@ -148,7 +148,7 @@ export function MobileNavigationDrawer({
                     <div>
                       {group.links.map((item) => (
                         <Link href={item.href} key={item.href} onClick={onClose}>
-                          {item.label}
+                          {dictionary.publicShell.categoryLinks[item.labelKey]}
                         </Link>
                       ))}
                     </div>
@@ -165,7 +165,7 @@ export function MobileNavigationDrawer({
             <nav className="mobile-market-account-links" aria-label={dictionary.nav.account}>
               {accountLinks.map((item) => (
                 <Link href={item.href} key={item.href} onClick={onClose}>
-                  {dictionary.publicShell.accountMenu[item.label as keyof Dictionary["publicShell"]["accountMenu"]]}
+                  {dictionary.publicShell.accountMenu[item.labelKey]}
                 </Link>
               ))}
               <button type="button" onClick={onLogout}>

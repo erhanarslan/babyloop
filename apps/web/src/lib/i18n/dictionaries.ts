@@ -81,7 +81,12 @@ export const dictionaries = {
         allTurkey: "All Turkey",
         current: "Current location",
         helper: "City filtering is carried in the browse URL while backend matching is expanded.",
-        selectCity: "Select city"
+        selectCity: "Select city",
+        selected: "{city} selected.",
+        unsupported: "Your browser does not support location sharing.",
+        locating: "Getting your location.",
+        locatingButton: "Getting location...",
+        useCurrent: "Use my location"
       },
       categoryGroups: {
         travel: "Strollers & travel",
@@ -94,7 +99,76 @@ export const dictionaries = {
         parent: "Parent products",
         kids: "3-7 years",
         reuse: "Donation / swap / free"
-      }
+      },
+      locationOptions: {
+        turkiye: "All Turkey",
+        istanbul: "Istanbul",
+        ankara: "Ankara",
+        izmir: "Izmir",
+        bursa: "Bursa",
+        antalya: "Antalya",
+        konya: "Konya",
+        kocaeli: "Kocaeli",
+        sakarya: "Sakarya",
+        eskisehir: "Eskisehir",
+        adana: "Adana"
+      },
+      categoryLinks: {
+        stroller: "Stroller",
+        pushchair: "Pushchair",
+        carrycot: "Carrycot",
+        babyCarrier: "Baby carrier",
+        travelSystem: "Travel system",
+        carSeat: "Car seat",
+        infantSeat: "Infant seat",
+        safetyGate: "Safety gate",
+        babyMonitor: "Baby monitor",
+        crib: "Crib",
+        playpen: "Playpen",
+        sleepSack: "Sleep sack",
+        nursery: "Nursery",
+        highChair: "High chair",
+        bottle: "Bottle",
+        sterilizer: "Sterilizer",
+        breastPump: "Breast pump",
+        zeroToThreeMonths: "0-3 months",
+        oneYearClothes: "1 year",
+        twoYearCoat: "2 year coat",
+        babyShoes: "Shoes",
+        montessoriToy: "Montessori toy",
+        educationalToy: "Educational toy",
+        childrenBook: "Book",
+        puzzle: "Puzzle",
+        babyBath: "Baby bath",
+        diaperChanging: "Diaper changing",
+        careBag: "Care bag",
+        maternityWear: "Maternity wear",
+        nursingProducts: "Nursing products",
+        parentGuides: "Parent guides",
+        threeToSevenToy: "3-7 years toy",
+        bike: "Bike",
+        scooter: "Scooter",
+        preschool: "Preschool",
+        freeBabyClothes: "Free baby clothes",
+        donation: "Donation",
+        swap: "Swap"
+      },
+      quickCategoryLinks: {
+        parentGuide: "Parent guide",
+        childNeeds: "My child",
+        assistant: "Assistant",
+        parentReviews: "Parent reviews"
+      },
+      popularSearchTerms: [
+        "Stroller",
+        "Car seat",
+        "High chair",
+        "Playpen",
+        "Montessori toy",
+        "2 year coat",
+        "Free baby clothes"
+      ]
+
     },
     publicPages: {
       home: {
@@ -1286,7 +1360,12 @@ export const dictionaries = {
         allTurkey: "Tüm Türkiye",
         current: "Seçili konum",
         helper: "Şehir seçimi şimdilik browse URL'sine eklenir; backend eşleşmesi genişletilecek.",
-        selectCity: "Şehir seç"
+        selectCity: "Şehir seç",
+        selected: "{city} seçildi.",
+        unsupported: "Tarayıcın konum paylaşımını desteklemiyor.",
+        locating: "Konumun alınıyor.",
+        locatingButton: "Konum alınıyor...",
+        useCurrent: "Konumumu kullan"
       },
       categoryGroups: {
         travel: "Bebek Arabası & Seyahat",
@@ -1299,7 +1378,76 @@ export const dictionaries = {
         parent: "Anne Ürünleri",
         kids: "3-7 Yaş Çocuk",
         reuse: "Bağış / Takas / Ücretsiz"
-      }
+      },
+      locationOptions: {
+        turkiye: "Tüm Türkiye",
+        istanbul: "İstanbul",
+        ankara: "Ankara",
+        izmir: "İzmir",
+        bursa: "Bursa",
+        antalya: "Antalya",
+        konya: "Konya",
+        kocaeli: "Kocaeli",
+        sakarya: "Sakarya",
+        eskisehir: "Eskişehir",
+        adana: "Adana"
+      },
+      categoryLinks: {
+        stroller: "Bebek arabası",
+        pushchair: "Puset",
+        carrycot: "Portbebe",
+        babyCarrier: "Kanguru",
+        travelSystem: "Seyahat sistemi",
+        carSeat: "Oto koltuğu",
+        infantSeat: "Ana kucağı",
+        safetyGate: "Güvenlik kapısı",
+        babyMonitor: "Bebek telsizi",
+        crib: "Beşik",
+        playpen: "Park yatak",
+        sleepSack: "Uyku tulumu",
+        nursery: "Bebek odası",
+        highChair: "Mama sandalyesi",
+        bottle: "Biberon",
+        sterilizer: "Sterilizatör",
+        breastPump: "Süt pompası",
+        zeroToThreeMonths: "0-3 ay",
+        oneYearClothes: "1 yaş",
+        twoYearCoat: "2 yaş mont",
+        babyShoes: "Ayakkabı",
+        montessoriToy: "Montessori oyuncak",
+        educationalToy: "Eğitici oyuncak",
+        childrenBook: "Kitap",
+        puzzle: "Puzzle",
+        babyBath: "Bebek küveti",
+        diaperChanging: "Bez değiştirme",
+        careBag: "Bakım çantası",
+        maternityWear: "Hamile giyim",
+        nursingProducts: "Emzirme ürünleri",
+        parentGuides: "Ebeveyn rehberleri",
+        threeToSevenToy: "3-7 yaş oyuncak",
+        bike: "Bisiklet",
+        scooter: "Scooter",
+        preschool: "Okul öncesi",
+        freeBabyClothes: "Ücretsiz bebek kıyafeti",
+        donation: "Bağış",
+        swap: "Takas"
+      },
+      quickCategoryLinks: {
+        parentGuide: "Ebeveyn rehberi",
+        childNeeds: "Çocuğum",
+        assistant: "Asistan",
+        parentReviews: "Ebeveyn yorumları"
+      },
+      popularSearchTerms: [
+        "Bebek arabası",
+        "Oto koltuğu",
+        "Mama sandalyesi",
+        "Park yatak",
+        "Montessori oyuncak",
+        "2 yaş mont",
+        "Ücretsiz bebek kıyafeti"
+      ]
+
     },
     publicPages: {
       home: {

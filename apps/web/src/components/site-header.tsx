@@ -430,7 +430,7 @@ export function SiteHeader() {
         <nav className="market-quick-categories" aria-label={dictionary.publicShell.header.allCategories}>
           {quickCategoryLinks.map((item) => (
             <Link href={item.href} key={item.href} onClick={closeMenus}>
-              {item.label}
+              {dictionary.publicShell.quickCategoryLinks[item.labelKey]}
             </Link>
           ))}
         </nav>
@@ -534,7 +534,7 @@ function HeaderAccount({
         <div className="market-account-menu">
           {accountLinks.map((item) => (
             <Link href={item.href} key={item.href}>
-              {dictionary.publicShell.accountMenu[item.label as keyof typeof dictionary.publicShell.accountMenu]}
+              {dictionary.publicShell.accountMenu[item.labelKey]}
             </Link>
           ))}
           <button type="button" onClick={onLogout}>

@@ -198,7 +198,7 @@ export function CategoryMegaMenu({
           <div className="category-mega-links">
             {activeGroup.links.map((item) => (
               <Link href={item.href} key={item.href} onClick={onNavigate}>
-                {item.label}
+                {dictionary.publicShell.categoryLinks[item.labelKey]}
               </Link>
             ))}
           </div>

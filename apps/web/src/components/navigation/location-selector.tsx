@@ -63,7 +63,7 @@ export function LocationSelector({
   function useCurrentLocation() {
     if (!navigator.geolocation) {
       setLocationStatus("error");
-      setLocationMessage("Tarayıcın konum paylaşımını desteklemiyor.");
+      setLocationMessage(dictionary.publicShell.location.unsupported);
       return;
     }
 
@@ -79,7 +79,7 @@ export function LocationSelector({
 
         setSelectedCity(nearestCity);
         setLocationStatus("success");
-        setLocationMessage(`${getLocationLabel(nearestCity)} seçildi.`);
+        setLocationMessage(dictionary.publicShell.location.selected.replace("{city}", getLocationLabel(nearestCity, dictionary)));
 
         window.setTimeout(() => {
           setIsOpen(false);
@@ -115,7 +115,7 @@ export function LocationSelector({
         onClick={() => setIsOpen((current) => !current)}
       >
         <span aria-hidden="true">⌖</span>
-        {getLocationLabel(selectedCity)}
+        {getLocationLabel(selectedCity, dictionary)}
       </button>
 
       {isOpen ? (
@@ -132,7 +132,7 @@ export function LocationSelector({
 
           <div className="market-location-current">
             <span>Seçili konum</span>
-            <strong>{getLocationLabel(selectedCity)}</strong>
+            <strong>{getLocationLabel(selectedCity, dictionary)}</strong>
           </div>
 
           <button
@@ -143,7 +143,7 @@ export function LocationSelector({
           >
             <span aria-hidden="true">📍</span>
             <strong>
-              {locationStatus === "loading" ? "Konum alınıyor..." : "Konumumu kullan"}
+              {locationStatus === "loading" ? dictionary.publicShell.location.locatingButton : dictionary.publicShell.location.useCurrent}
             </strong>
           </button>
 
