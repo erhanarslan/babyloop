@@ -361,7 +361,7 @@ async function loginSellerInBrowser(
   expect(loginBody.ok).toBe(true);
 
   if (!loginBody.ok) {
-    return;
+    return [];
   }
 
   const listingRequests: unknown[] = [];

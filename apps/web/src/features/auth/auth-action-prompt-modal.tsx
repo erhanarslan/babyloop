@@ -127,7 +127,7 @@ export function AuthActionPromptModal({
       >
         <div className="market-modal-heading">
           <div>
-            <p className="eyebrow">BABYLOOP</p>
+            <p className="eyebrow">{dictionary.auth.authModalEyebrow}</p>
             <h2 id="auth-action-prompt-title">{title}</h2>
           </div>
 
@@ -136,7 +136,7 @@ export function AuthActionPromptModal({
           </button>
         </div>
 
-        <div className="market-auth-tabs" role="tablist" aria-label="Giriş seçimi">
+        <div className="market-auth-tabs" role="tablist" aria-label={dictionary.auth.authModalTabsLabel}>
           <button
             type="button"
             aria-selected={mode === "login"}
@@ -146,7 +146,7 @@ export function AuthActionPromptModal({
               setErrorMessage(null);
             }}
           >
-            Giriş yap
+            {dictionary.common.login}
           </button>
           <button
             type="button"
@@ -157,7 +157,7 @@ export function AuthActionPromptModal({
               setErrorMessage(null);
             }}
           >
-            Hesap oluştur
+            {dictionary.common.register}
           </button>
         </div>
 
@@ -168,18 +168,18 @@ export function AuthActionPromptModal({
           onClick={openGoogleLogin}
         >
           <span aria-hidden="true">G</span>
-          {isGoogleRedirecting ? "Google açılıyor..." : "Google ile devam et"}
+          {isGoogleRedirecting ? dictionary.auth.openingGoogle : dictionary.auth.continueGoogle}
         </button>
 
         <div className="auth-divider" aria-hidden="true">
-          <span>veya</span>
+          <span>{dictionary.auth.divider}</span>
         </div>
 
         <form className="market-auth-modal-form" onSubmit={handleSubmit}>
           {isRegister ? (
             <>
               <label>
-                <span>Ad soyad</span>
+                <span>{dictionary.auth.fullName}</span>
                 <input
                   name="displayName"
                   value={displayName}
@@ -189,12 +189,12 @@ export function AuthActionPromptModal({
               </label>
 
               <label>
-                <span>Şehir</span>
+                <span>{dictionary.common.city}</span>
                 <input
                   name="locationCity"
                   value={locationCity}
                   autoComplete="address-level2"
-                  placeholder="İstanbul"
+                  placeholder={dictionary.auth.locationPlaceholder}
                   onChange={(event) => setLocationCity(event.target.value)}
                 />
               </label>
@@ -202,7 +202,7 @@ export function AuthActionPromptModal({
           ) : null}
 
           <label>
-            <span>E-posta</span>
+            <span>{dictionary.common.email}</span>
             <input
               name="email"
               type="email"
@@ -213,7 +213,7 @@ export function AuthActionPromptModal({
           </label>
 
           <label>
-            <span>Şifre</span>
+            <span>{dictionary.common.password}</span>
             <input
               name="password"
               type="password"
@@ -230,7 +230,7 @@ export function AuthActionPromptModal({
           ) : null}
 
           <button className="market-sell-cta market-auth-submit-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? dictionary.auth.submitting : isRegister ? "Hesap oluştur" : "Giriş yap"}
+            {isSubmitting ? dictionary.auth.submitting : isRegister ? dictionary.common.register : dictionary.common.login}
           </button>
         </form>
       </section>

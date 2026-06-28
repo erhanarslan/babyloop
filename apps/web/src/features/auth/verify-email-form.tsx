@@ -59,8 +59,8 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
         />
         <div className="auth-security-summary">
           <div>
-            <strong>Verification in progress</strong>
-            <span>BabyLoop is validating the token before enabling account-only confidence signals.</span>
+            <strong>{dictionary.auth.verificationInProgressTitle}</strong>
+            <span>{dictionary.auth.verificationInProgressBody}</span>
           </div>
         </div>
       </div>
@@ -77,8 +77,8 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
         />
         <div className="auth-security-summary">
           <div>
-            <strong>Verified</strong>
-            <span>You can now return to login and continue using private BabyLoop account features.</span>
+            <strong>{dictionary.auth.verifiedTitle}</strong>
+            <span>{dictionary.auth.verifiedBody}</span>
           </div>
         </div>
         <Link className="primary-link" href="/login">
@@ -96,8 +96,8 @@ export function VerifyEmailForm({ apiBaseUrl }: VerifyEmailFormProps) {
       />
       <div className="auth-security-summary">
         <div>
-          <strong>Expired or invalid link</strong>
-          <span>Request a fresh verification link from BabyLoop instead of reusing old forwarded links.</span>
+          <strong>{dictionary.auth.expiredVerificationTitle}</strong>
+          <span>{dictionary.auth.expiredVerificationBody}</span>
         </div>
       </div>
       <Link className="primary-link" href="/auth/verify-email/request">

@@ -7,6 +7,7 @@ import {
   buildCanonicalUrl,
   getSiteUrl
 } from "../lib/seo";
+import { defaultLocale } from "../lib/i18n/dictionaries";
 import { Providers } from "./providers";
 import "./globals.css";
 import "../styles/00-base.css";
@@ -62,7 +63,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={defaultLocale} suppressHydrationWarning>
       <body>
         <div className="babyloop-global-pattern" aria-hidden="true" />
         <div className="babyloop-app-content">

@@ -52,24 +52,21 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
   return (
     <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
-        <p className="eyebrow">Account recovery</p>
-        <h2>Request a password reset safely</h2>
-        <p>
-          Enter your account email. BabyLoop gives the same neutral response pattern so this page does not
-          reveal whether an account exists.
-        </p>
+        <p className="eyebrow">{dictionary.auth.forgotFormEyebrow}</p>
+        <h2>{dictionary.auth.forgotFormTitle}</h2>
+        <p>{dictionary.auth.forgotFormDescription}</p>
       </div>
 
       <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
 
-      <div className="auth-security-summary" aria-label="Recovery safety summary">
+      <div className="auth-security-summary" aria-label={dictionary.auth.forgotFormEyebrow}>
         <div>
-          <strong>Do not share links</strong>
-          <span>Recovery links and local development tokens should only be used by the account owner.</span>
+          <strong>{dictionary.auth.recoveryLinksTitle}</strong>
+          <span>{dictionary.auth.recoveryLinksBody}</span>
         </div>
         <div>
-          <strong>After reset</strong>
-          <span>Sign in again and avoid using shared devices for marketplace messages or seller tools.</span>
+          <strong>{dictionary.auth.afterResetTitle}</strong>
+          <span>{dictionary.auth.afterResetBody}</span>
         </div>
       </div>
 

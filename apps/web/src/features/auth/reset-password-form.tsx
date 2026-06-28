@@ -78,8 +78,8 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
         />
         <div className="auth-security-summary">
           <div>
-            <strong>Next step</strong>
-            <span>Sign in with the new password and avoid reusing the old credential elsewhere.</span>
+            <strong>{dictionary.auth.resetNextStepTitle}</strong>
+            <span>{dictionary.auth.resetNextStepBody}</span>
           </div>
         </div>
         <Link className="primary-link" href="/login">
@@ -92,12 +92,9 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
   return (
     <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
-        <p className="eyebrow">Set new password</p>
-        <h2>Choose a unique password</h2>
-        <p>
-          Use a password you do not use on other sites. Do not paste recovery tokens or credentials into
-          BabyLoop messages, listings, or assistant prompts.
-        </p>
+        <p className="eyebrow">{dictionary.auth.resetFormEyebrow}</p>
+        <h2>{dictionary.auth.resetFormTitle}</h2>
+        <p>{dictionary.auth.resetFormDescription}</p>
       </div>
 
       <div className="form-grid">
@@ -123,12 +120,12 @@ export function ResetPasswordForm({ apiBaseUrl }: ResetPasswordFormProps) {
 
       <div className="auth-security-summary">
         <div>
-          <strong>Single-use token</strong>
+          <strong>{dictionary.auth.singleUseTokenTitle}</strong>
           <span>{dictionary.auth.resetSecurityNote}</span>
         </div>
         <div>
-          <strong>After reset</strong>
-          <span>Return to login and confirm that private account pages open correctly.</span>
+          <strong>{dictionary.auth.afterResetTitle}</strong>
+          <span>{dictionary.auth.resetAfterSubmitBody}</span>
         </div>
       </div>
 

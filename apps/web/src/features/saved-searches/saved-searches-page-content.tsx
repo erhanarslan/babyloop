@@ -10,6 +10,7 @@ import {
   PageContainer
 } from "../../components/ui";
 import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
+import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import {
@@ -117,10 +118,10 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
   }
 
   return (
-    <PageContainer className="pb-12 pt-5" ariaLabel="Kayıtlı aramalar">
+    <PageContainer className="pb-12 pt-5" ariaLabel={dictionary.savedSearches.ariaLabel}>
       <section className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="self-start rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
-          <nav aria-label="Kayıtlı arama filtreleri" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
+          <nav aria-label={dictionary.savedSearches.filtersLabel} className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
             {FILTERS.map((filter) => (
               <button
                 aria-pressed={activeFilter === filter}
@@ -134,7 +135,7 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
                 type="button"
                 onClick={() => setActiveFilter(filter)}
               >
-                <span>{getFilterLabel(filter)}</span>
+                <span>{getFilterLabel(dictionary, filter)}</span>
                 <small className="mt-1 block text-xs font-bold text-muted-foreground">
                   {getFilterCount(metrics, filter)}
                 </small>
@@ -145,33 +146,33 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
 
         <div className="grid min-w-0 gap-4">
           <div className="rounded-[1.25rem] border border-border/70 bg-background p-4">
-            <h1 className="text-2xl font-black tracking-tight text-foreground">Kayıtlı aramalar</h1>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">{dictionary.savedSearches.title}</h1>
             <p className="mt-1 text-sm font-semibold text-muted-foreground">
-              Kaydettiğin aramaları buradan yönet.
+              {dictionary.savedSearches.description}
             </p>
           </div>
 
-          {errorMessage ? <Alert title="İşlem tamamlanamadı" message={errorMessage} /> : null}
+          {errorMessage ? <Alert title={dictionary.savedSearches.actionFailedTitle} message={errorMessage} /> : null}
 
           {isLoading || isCheckingAuth ? (
-            <LoadingBlock title="Kayıtlı aramalar yükleniyor" message="Kaydettiğin filtreler hazırlanıyor." />
+            <LoadingBlock title={dictionary.savedSearches.loadingTitle} message={dictionary.savedSearches.loadingMessage} />
           ) : null}
 
           {!isLoading && savedSearches.length === 0 ? (
             <EmptyState
-              title="Henüz kayıtlı arama yok"
-              message="Browse sayfasından bir aramayı kaydedip burada tekrar açabilirsin."
+              title={dictionary.savedSearches.emptyTitle}
+              message={dictionary.savedSearches.emptyMessage}
               actionHref="/browse"
-              actionLabel="İlanları keşfet"
+              actionLabel={dictionary.savedSearches.browseAction}
             />
           ) : null}
 
           {!isLoading && savedSearches.length > 0 && sortedSavedSearches.length === 0 ? (
             <EmptyState
-              title="Bu filtrede arama yok"
-              message="Başka bir filtre seçebilir veya ilanları keşfedebilirsin."
+              title={dictionary.savedSearches.emptyFilterTitle}
+              message={dictionary.savedSearches.emptyFilterMessage}
               actionHref="/browse"
-              actionLabel="İlanları keşfet"
+              actionLabel={dictionary.savedSearches.browseAction}
             />
           ) : null}
 
@@ -179,6 +180,7 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
             <div className="grid gap-3">
               {sortedSavedSearches.map((savedSearch) => (
                 <SavedSearchCard
+                  dictionary={dictionary}
                   isPending={pendingSavedSearchId === savedSearch.id}
                   key={savedSearch.id}
                   savedSearch={savedSearch}
@@ -195,18 +197,20 @@ export function SavedSearchesPageContent({ apiBaseUrl }: SavedSearchesPageConten
 }
 
 function SavedSearchCard({
+  dictionary,
   isPending,
   onDelete,
   onToggleNotifications,
   savedSearch
 }: {
+  dictionary: Dictionary;
   isPending: boolean;
   onDelete: () => void;
   onToggleNotifications: () => void;
   savedSearch: SavedSearch;
 }) {
   const href = buildSavedSearchHref(savedSearch);
-  const filters = buildSavedSearchChips(savedSearch);
+  const filters = buildSavedSearchChips(dictionary, savedSearch);
 
   return (
     <article className="grid gap-3 rounded-[1.25rem] border border-border/70 bg-background p-4">
@@ -214,11 +218,11 @@ function SavedSearchCard({
         <div>
           <h2 className="text-lg font-black text-foreground">{savedSearch.name}</h2>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">
-            {filters.length > 0 ? filters.join(" · ") : "Filtre yok"}
+            {filters.length > 0 ? filters.join(" · ") : dictionary.savedSearches.noFilters}
           </p>
         </div>
         <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">
-          {savedSearch.notificationsEnabled ? "Bildirim açık" : "Bildirim kapalı"}
+          {savedSearch.notificationsEnabled ? dictionary.savedSearches.notificationsOn : dictionary.savedSearches.notificationsOff}
         </span>
       </div>
 
@@ -231,24 +235,24 @@ function SavedSearchCard({
           ))
         ) : (
           <span className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-bold text-foreground">
-            Tüm ilanlar
+            {dictionary.savedSearches.allListings}
           </span>
         )}
       </div>
 
       <div className="flex flex-wrap gap-2">
         <Link className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-black text-primary-foreground" href={href}>
-          Aramayı aç
+          {dictionary.savedSearches.openSearch}
         </Link>
         <Button type="button" variant="secondary" disabled={isPending} onClick={onToggleNotifications}>
           {isPending
-            ? "Güncelleniyor..."
+            ? dictionary.savedSearches.updating
             : savedSearch.notificationsEnabled
-              ? "Bildirimleri kapat"
-              : "Bildirimleri aç"}
+              ? dictionary.savedSearches.turnNotificationsOff
+              : dictionary.savedSearches.turnNotificationsOn}
         </Button>
         <Button type="button" variant="secondary" disabled={isPending} onClick={onDelete}>
-          {isPending ? "Siliniyor..." : "Sil"}
+          {isPending ? dictionary.savedSearches.deleting : dictionary.savedSearches.delete}
         </Button>
       </div>
     </article>
@@ -272,16 +276,16 @@ function buildSavedSearchHref(savedSearch: SavedSearch): string {
   return query ? `/browse?${query}` : "/browse";
 }
 
-function buildSavedSearchChips(savedSearch: SavedSearch): string[] {
+function buildSavedSearchChips(dictionary: Dictionary, savedSearch: SavedSearch): string[] {
   return [
-    savedSearch.q ? `Arama: ${savedSearch.q}` : "",
-    savedSearch.categoryId ? "Kategori seçili" : "",
-    savedSearch.listingType ? `Tip: ${humanizeLabel(savedSearch.listingType)}` : "",
-    savedSearch.condition ? `Durum: ${humanizeLabel(savedSearch.condition)}` : "",
-    savedSearch.priceMin ? `En az: ${savedSearch.priceMin}` : "",
-    savedSearch.priceMax ? `En çok: ${savedSearch.priceMax}` : "",
-    savedSearch.hasImages ? "Sadece görselli" : "",
-    savedSearch.sort && savedSearch.sort !== "newest" ? `Sıralama: ${humanizeLabel(savedSearch.sort)}` : ""
+    savedSearch.q ? formatTemplate(dictionary.savedSearches.chips.query, savedSearch.q) : "",
+    savedSearch.categoryId ? dictionary.savedSearches.selectedCategory : "",
+    savedSearch.listingType ? formatTemplate(dictionary.savedSearches.chips.type, humanizeLabel(savedSearch.listingType)) : "",
+    savedSearch.condition ? formatTemplate(dictionary.savedSearches.chips.condition, humanizeLabel(savedSearch.condition)) : "",
+    savedSearch.priceMin ? formatTemplate(dictionary.savedSearches.chips.minPrice, savedSearch.priceMin) : "",
+    savedSearch.priceMax ? formatTemplate(dictionary.savedSearches.chips.maxPrice, savedSearch.priceMax) : "",
+    savedSearch.hasImages ? dictionary.savedSearches.imageOnly : "",
+    savedSearch.sort && savedSearch.sort !== "newest" ? formatTemplate(dictionary.savedSearches.chips.sort, humanizeLabel(savedSearch.sort)) : ""
   ].filter(Boolean);
 }
 
@@ -325,14 +329,8 @@ function sortSavedSearches(savedSearches: SavedSearch[]): SavedSearch[] {
   );
 }
 
-function getFilterLabel(filter: SavedSearchFilter): string {
-  const labels = {
-    all: "Tüm kayıtlı aramalar",
-    notifications_on: "Bildirim açık",
-    notifications_off: "Bildirim kapalı"
-  };
-
-  return labels[filter];
+function getFilterLabel(dictionary: Dictionary, filter: SavedSearchFilter): string {
+  return dictionary.savedSearches.filters[filter];
 }
 
 function getFilterCount(
@@ -358,4 +356,8 @@ function appendParam(params: URLSearchParams, key: string, value: string): void 
 
 function humanizeLabel(value: string): string {
   return value.replaceAll("_", " ");
+}
+
+function formatTemplate(template: string, value: string): string {
+  return template.replace("{value}", value);
 }

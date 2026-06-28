@@ -249,11 +249,6 @@ export const dictionaries = {
       myListingsDescription: "Review your marketplace activity",
       verifyEmail: "Verify email",
       changePassword: "Change password",
-      currentPassword: "Current password",
-      passwordChangeFailed: "Password change failed",
-      passwordChangeNote: "Changing your password ends active refresh sessions.",
-      loginBeforePasswordChange: "Please login before changing your password.",
-      currentPasswordRequired: "Please enter your current password.",
       mobileMenu: "Menu"
     },
     home: {
@@ -402,7 +397,273 @@ export const dictionaries = {
       emailVerifiedBody: "Email verified successfully.",
       verificationFailed: "Verification failed",
       verificationFailedBody: "Verification link is invalid or expired.",
-      requestNewVerification: "Request a new verification link"
+      requestNewVerification: "Request a new verification link",
+      authModalTabsLabel: "Sign-in choice",
+      authModalEyebrow: "BABYLOOP",
+      fullName: "Full name",
+      locationPlaceholder: "Istanbul",
+      changePasswordEyebrow: "Password",
+      changePasswordFormTitle: "Update your password",
+      changePasswordFormDescription: "After changing your password, you need to sign in again.",
+      passwordSessionRenewedTitle: "Session is refreshed",
+      passwordSafeUseTitle: "Safe usage",
+      passwordSafeUseBody: "Do not share your password in messages, listings, or assistant prompts.",
+      forgotFormEyebrow: "Account recovery",
+      forgotFormTitle: "Request a password reset safely",
+      forgotFormDescription: "Enter your account email. BabyLoop uses a neutral response pattern so this page does not reveal whether an account exists.",
+      recoveryLinksTitle: "Do not share links",
+      recoveryLinksBody: "Recovery links and local development tokens should only be used by the account owner.",
+      afterResetTitle: "After reset",
+      afterResetBody: "Sign in again and avoid using shared devices for marketplace messages or seller tools.",
+      resetFormEyebrow: "Set new password",
+      resetFormTitle: "Choose a unique password",
+      resetFormDescription: "Use a password you do not use on other sites. Do not paste recovery tokens or credentials into BabyLoop messages, listings, or assistant prompts.",
+      resetNextStepTitle: "Next step",
+      resetNextStepBody: "Sign in with the new password and avoid reusing the old credential elsewhere.",
+      singleUseTokenTitle: "Single-use token",
+      resetAfterSubmitBody: "Return to login and confirm that private account pages open correctly.",
+      requestVerificationEyebrow: "Email verification",
+      requestVerificationTitle: "Request a fresh verification link",
+      requestVerificationDescription: "Verification helps keep account-only actions clearer. Use only official BabyLoop verification links and never forward verification tokens to another person.",
+      verificationInProgressTitle: "Verification in progress",
+      verificationInProgressBody: "BabyLoop is validating the token before enabling account-only confidence signals.",
+      verifiedTitle: "Verified",
+      verifiedBody: "You can now return to login and continue using private BabyLoop account features.",
+      expiredVerificationTitle: "Expired or invalid link",
+      expiredVerificationBody: "Request a fresh verification link from BabyLoop instead of reusing old forwarded links."
+    },
+    authPageShell: {
+      assuranceLabel: "Authentication safety summary",
+      assuranceTitle: "Designed for safer marketplace access",
+      assuranceBody: "BabyLoop keeps account actions separated from public browsing and avoids exposing private recovery state.",
+      checklistLabel: "Account safety checklist",
+      checklistEyebrow: "Safety checklist",
+      checklistTitle: "Before continuing",
+      callback: {
+        badge: "Session",
+        eyebrow: "Authentication",
+        checks: [
+          "Finalizes the provider callback",
+          "Refreshes the protected session",
+          "Redirects only after session validation"
+        ]
+      },
+      forgot: {
+        badge: "Recovery",
+        eyebrow: "Account recovery",
+        checks: [
+          "Does not reveal whether an account exists",
+          "Uses official BabyLoop recovery flow",
+          "Recovery links and tokens must stay private"
+        ]
+      },
+      login: {
+        badge: "Secure access",
+        eyebrow: "Account sign in",
+        checks: [
+          "Cookie-backed session handling",
+          "Access token is kept in memory",
+          "Protected actions use authenticated requests"
+        ]
+      },
+      password: {
+        badge: "Security",
+        eyebrow: "Account security",
+        checks: [
+          "Requires the current password",
+          "Ends active refresh sessions after change",
+          "Keeps credentials out of messages and listings"
+        ]
+      },
+      register: {
+        badge: "Private profile",
+        eyebrow: "Account creation",
+        checks: [
+          "Creates a marketplace profile",
+          "Email verification can be completed separately",
+          "Child planning uses age bands, not exact birth dates"
+        ]
+      },
+      requestVerify: {
+        badge: "Verification",
+        eyebrow: "Email verification",
+        checks: [
+          "Uses an official verification request",
+          "Does not expose account existence unnecessarily",
+          "Verification links should not be shared"
+        ]
+      },
+      reset: {
+        badge: "New password",
+        eyebrow: "Password reset",
+        checks: [
+          "Reset token is single-use",
+          "New password should be unique",
+          "Return to login after completion"
+        ]
+      },
+      verify: {
+        badge: "Verify",
+        eyebrow: "Email verification",
+        checks: [
+          "Checks the verification token",
+          "Finishes account confirmation",
+          "Requests a new link when expired"
+        ]
+      }
+    },
+    accountProfile: {
+      ariaLabel: "My account",
+      pageTitle: "My account",
+      pageDescription: "Manage marketplace shortcuts, seller tools, and security settings from one place.",
+      sectionsLabel: "Account sections",
+      loadingTitle: "Loading account details",
+      loadFailedTitle: "Account details could not be loaded",
+      sectionFastAccessDescription: "Open the areas you use often.",
+      comingSoon: "Coming soon",
+      comingSoonAria: "{label} coming soon",
+      profileSummaryDescription: "Review the basic information shown on your account.",
+      name: "Full name",
+      city: "City",
+      securityAndPassword: "Security and password",
+      securityDescription: "Password is ready; additional security options will be managed here when they are available.",
+      securityPasswordDescription: "Update your password and keep your account safe.",
+      otpDescription: "Second verification step for sign-ins.",
+      mobileApprovalDescription: "Confirm new sign-ins with mobile approval.",
+      trustedDevicesDescription: "Trusted devices will appear here later.",
+      preferencesDescription: "Notification and payment settings will open here when ready.",
+      notificationPreferencesDescription: "Manage child profile, saved search, and marketplace notifications.",
+      paymentTools: "Payment tools",
+      paymentToolsDescription: "Payment tools are not active inside BabyLoop yet.",
+      menuItems: {
+        profile: {
+          label: "Profile summary",
+          description: "Name, city, and account security"
+        },
+        marketplace: {
+          label: "Marketplace shortcuts",
+          description: "Favorites, messages, and notifications"
+        },
+        seller: {
+          label: "Seller tools",
+          description: "Create listings and manage seller space"
+        },
+        family: {
+          label: "Family needs",
+          description: "Child profiles, guides, and assistant"
+        },
+        security: {
+          label: "Security",
+          description: "Password and upcoming protections"
+        },
+        preferences: {
+          label: "Preferences",
+          description: "Notification and payment settings"
+        }
+      },
+      links: {
+        favorites: {
+          label: "Favorites",
+          description: "Return to listings you saved."
+        },
+        savedSearches: {
+          label: "Saved searches",
+          description: "Manage searches and filters you follow."
+        },
+        messages: {
+          label: "Messages",
+          description: "Open buyer and seller conversations."
+        },
+        notifications: {
+          label: "Notifications",
+          description: "Review message and listing activity."
+        },
+        sell: {
+          label: "Create listing",
+          description: "List a new baby or child item."
+        },
+        myListings: {
+          label: "My listings",
+          description: "Manage active and archived listings."
+        },
+        sellerDashboard: {
+          label: "Seller dashboard",
+          description: "Track seller flow and listing status."
+        },
+        children: {
+          label: "Child profiles / needs",
+          description: "Keep child needs in a simple profile."
+        },
+        guides: {
+          label: "Parent guides",
+          description: "Read short and calm parent guidance."
+        },
+        assistant: {
+          label: "Assistant",
+          description: "Ask BabyLoop Assistant a short question."
+        }
+      }
+    },
+    notificationsArchive: {
+      pageTitle: "Notifications",
+      pageDescription: "Review message and listing activity here.",
+      loadingTitle: "Loading notifications",
+      loadingMessage: "Preparing message and listing activity.",
+      unavailableTitle: "Notifications could not be loaded",
+      actionFailedTitle: "Action could not be completed",
+      unreadMessage: "Unread messages",
+      goToMessages: "Go to messages",
+      favoriteActivity: "Favorite activity",
+      favoriteSummary: "{count} users added your products to favorites",
+      favoriteMovementsLabel: "Favorite activity",
+      favoritesTitle: "Favorites",
+      favoriteStat: "{total} favorites · Today +{today}",
+      noFavoriteActivity: "No favorite activity yet.",
+      recentLabel: "Recent notifications",
+      recentTitle: "Recent activity",
+      noNotificationsTitle: "No notifications yet",
+      noNotificationsBody: "Messages or listing activity will appear here.",
+      unread: "Unread",
+      open: "Open"
+    },
+    savedSearches: {
+      ariaLabel: "Saved searches",
+      filtersLabel: "Saved search filters",
+      title: "Saved searches",
+      description: "Manage the searches you saved.",
+      actionFailedTitle: "Action could not be completed",
+      loadingTitle: "Loading saved searches",
+      loadingMessage: "Preparing your saved filters.",
+      emptyTitle: "No saved searches yet",
+      emptyMessage: "Save a search from Browse and reopen it here later.",
+      emptyFilterTitle: "No searches in this filter",
+      emptyFilterMessage: "Choose another filter or browse listings.",
+      browseAction: "Browse listings",
+      noFilters: "No filters",
+      allListings: "All listings",
+      notificationsOn: "Notifications on",
+      notificationsOff: "Notifications off",
+      openSearch: "Open search",
+      updating: "Updating...",
+      deleting: "Deleting...",
+      delete: "Delete",
+      turnNotificationsOn: "Turn notifications on",
+      turnNotificationsOff: "Turn notifications off",
+      selectedCategory: "Category selected",
+      imageOnly: "With images only",
+      filters: {
+        all: "All saved searches",
+        notifications_on: "Notifications on",
+        notifications_off: "Notifications off"
+      },
+      chips: {
+        query: "Search: {value}",
+        type: "Type: {value}",
+        condition: "Condition: {value}",
+        minPrice: "Min: {value}",
+        maxPrice: "Max: {value}",
+        sort: "Sort: {value}"
+      }
     },
     footer: {
       description: "A parent-friendly marketplace for giving baby and child essentials another useful loop.",
@@ -1141,7 +1402,273 @@ export const dictionaries = {
       emailVerifiedBody: "E-posta başarıyla doğrulandı.",
       verificationFailed: "Doğrulama başarısız",
       verificationFailedBody: "Doğrulama bağlantısı geçersiz ya da süresi dolmuş.",
-      requestNewVerification: "Yeni doğrulama bağlantısı iste"
+      requestNewVerification: "Yeni doğrulama bağlantısı iste",
+      authModalTabsLabel: "Giriş seçimi",
+      authModalEyebrow: "BABYLOOP",
+      fullName: "Ad soyad",
+      locationPlaceholder: "İstanbul",
+      changePasswordEyebrow: "Şifre",
+      changePasswordFormTitle: "Şifreni güncelle",
+      changePasswordFormDescription: "Şifre değişince tekrar giriş yapman gerekir.",
+      passwordSessionRenewedTitle: "Oturum yenilenir",
+      passwordSafeUseTitle: "Güvenli kullanım",
+      passwordSafeUseBody: "Şifreni mesajlarda, ilanlarda veya asistan sorularında paylaşma.",
+      forgotFormEyebrow: "Hesap kurtarma",
+      forgotFormTitle: "Şifre sıfırlamayı güvenle iste",
+      forgotFormDescription: "Hesap e-postanı gir. BabyLoop hesabın var olup olmadığını açığa çıkarmamak için tarafsız yanıt verir.",
+      recoveryLinksTitle: "Bağlantıları paylaşma",
+      recoveryLinksBody: "Kurtarma bağlantıları ve yerel geliştirme kodları yalnızca hesap sahibi tarafından kullanılmalı.",
+      afterResetTitle: "Sıfırlamadan sonra",
+      afterResetBody: "Tekrar giriş yap ve ortak cihazlarda pazar mesajları veya satıcı araçlarını kullanmaktan kaçın.",
+      resetFormEyebrow: "Yeni şifre",
+      resetFormTitle: "Benzersiz bir şifre seç",
+      resetFormDescription: "Başka sitelerde kullanmadığın bir şifre seç. Kurtarma kodlarını veya kimlik bilgilerini BabyLoop mesajlarına, ilanlarına ya da asistan sorularına yapıştırma.",
+      resetNextStepTitle: "Sonraki adım",
+      resetNextStepBody: "Yeni şifrenle giriş yap ve eski şifreyi başka yerde tekrar kullanmadığından emin ol.",
+      singleUseTokenTitle: "Tek kullanımlık kod",
+      resetAfterSubmitBody: "Giriş sayfasına dön ve özel hesap sayfalarının doğru açıldığını kontrol et.",
+      requestVerificationEyebrow: "E-posta doğrulama",
+      requestVerificationTitle: "Yeni doğrulama bağlantısı iste",
+      requestVerificationDescription: "Doğrulama, hesaba özel işlemleri daha net tutar. Yalnızca resmi BabyLoop doğrulama bağlantılarını kullan ve doğrulama kodlarını başka kişilere iletme.",
+      verificationInProgressTitle: "Doğrulama sürüyor",
+      verificationInProgressBody: "BabyLoop hesaba özel güven sinyallerini açmadan önce doğrulama kodunu kontrol ediyor.",
+      verifiedTitle: "Doğrulandı",
+      verifiedBody: "Giriş sayfasına dönüp özel BabyLoop hesap özelliklerini kullanmaya devam edebilirsin.",
+      expiredVerificationTitle: "Süresi dolmuş veya geçersiz bağlantı",
+      expiredVerificationBody: "Eski ya da iletilmiş bağlantıları tekrar kullanmak yerine BabyLoop'tan yeni doğrulama bağlantısı iste."
+    },
+    authPageShell: {
+      assuranceLabel: "Kimlik doğrulama güvenlik özeti",
+      assuranceTitle: "Daha güvenli pazar erişimi için tasarlandı",
+      assuranceBody: "BabyLoop hesap işlemlerini herkese açık keşiften ayırır ve özel kurtarma durumunu gereksiz yere açığa çıkarmaz.",
+      checklistLabel: "Hesap güvenliği kontrol listesi",
+      checklistEyebrow: "Güvenlik kontrolü",
+      checklistTitle: "Devam etmeden önce",
+      callback: {
+        badge: "Oturum",
+        eyebrow: "Kimlik doğrulama",
+        checks: [
+          "Sağlayıcı dönüşünü tamamlar",
+          "Korumalı oturumu yeniler",
+          "Yalnızca oturum doğrulandıktan sonra yönlendirir"
+        ]
+      },
+      forgot: {
+        badge: "Kurtarma",
+        eyebrow: "Hesap kurtarma",
+        checks: [
+          "Hesabın var olup olmadığını göstermez",
+          "Resmi BabyLoop kurtarma akışını kullanır",
+          "Kurtarma bağlantıları ve kodları gizli kalmalı"
+        ]
+      },
+      login: {
+        badge: "Güvenli erişim",
+        eyebrow: "Hesaba giriş",
+        checks: [
+          "Cookie tabanlı oturum yönetimi kullanılır",
+          "Access token kalıcı tarayıcı depolamasında tutulmaz",
+          "Korumalı işlemler kimlik doğrulamalı istek kullanır"
+        ]
+      },
+      password: {
+        badge: "Güvenlik",
+        eyebrow: "Hesap güvenliği",
+        checks: [
+          "Mevcut şifre gerekir",
+          "Değişiklikten sonra aktif refresh oturumları kapanır",
+          "Kimlik bilgileri mesaj ve ilanlardan uzak tutulur"
+        ]
+      },
+      register: {
+        badge: "Gizlilik odaklı profil",
+        eyebrow: "Hesap oluşturma",
+        checks: [
+          "Pazar profili oluşturur",
+          "E-posta doğrulaması ayrı tamamlanabilir",
+          "Çocuk planlaması tam doğum tarihi yerine yaş bandı kullanır"
+        ]
+      },
+      requestVerify: {
+        badge: "Doğrulama",
+        eyebrow: "E-posta doğrulama",
+        checks: [
+          "Resmi doğrulama isteği kullanılır",
+          "Hesap varlığını gereksiz yere açığa çıkarmaz",
+          "Doğrulama bağlantıları paylaşılmamalı"
+        ]
+      },
+      reset: {
+        badge: "Yeni şifre",
+        eyebrow: "Şifre sıfırlama",
+        checks: [
+          "Sıfırlama kodu tek kullanımlıktır",
+          "Yeni şifre benzersiz olmalı",
+          "Tamamlandıktan sonra giriş sayfasına dönülür"
+        ]
+      },
+      verify: {
+        badge: "Doğrula",
+        eyebrow: "E-posta doğrulama",
+        checks: [
+          "Doğrulama kodunu kontrol eder",
+          "Hesap onayını tamamlar",
+          "Süresi dolduysa yeni bağlantı ister"
+        ]
+      }
+    },
+    accountProfile: {
+      ariaLabel: "Hesabım",
+      pageTitle: "Hesabım",
+      pageDescription: "Pazar kısayollarını, satıcı araçlarını ve güvenlik ayarlarını tek yerden yönet.",
+      sectionsLabel: "Hesap bölümleri",
+      loadingTitle: "Hesap bilgileri yükleniyor",
+      loadFailedTitle: "Hesap bilgileri alınamadı",
+      sectionFastAccessDescription: "Sık kullandığın alanlara hızlıca geç.",
+      comingSoon: "Yakında",
+      comingSoonAria: "{label} yakında",
+      profileSummaryDescription: "Hesabında görünen temel bilgileri burada görebilirsin.",
+      name: "Ad soyad",
+      city: "Şehir",
+      securityAndPassword: "Güvenlik ve şifre",
+      securityDescription: "Şifre alanı hazır; ek güvenlik seçenekleri geldiğinde buradan yönetilecek.",
+      securityPasswordDescription: "Şifreni güncelle ve hesabını güvende tut.",
+      otpDescription: "Girişlerde ikinci doğrulama adımı.",
+      mobileApprovalDescription: "Yeni girişleri mobil onayla doğrulama.",
+      trustedDevicesDescription: "Güvendiğin cihazları daha sonra burada görebileceksin.",
+      preferencesDescription: "Bildirim ve ödeme ayarları hazır olduğunda buradan açılacak.",
+      notificationPreferencesDescription: "Çocuk profili, kayıtlı arama ve pazar bildirimlerini yönet.",
+      paymentTools: "Ödeme araçları",
+      paymentToolsDescription: "Ödeme araçları henüz BabyLoop içinde aktif değil.",
+      menuItems: {
+        profile: {
+          label: "Profil özeti",
+          description: "Ad, şehir ve hesap güvenliği"
+        },
+        marketplace: {
+          label: "Pazar kısayolları",
+          description: "Favoriler, mesajlar ve bildirimler"
+        },
+        seller: {
+          label: "Satıcı araçları",
+          description: "İlan verme ve satış alanı"
+        },
+        family: {
+          label: "Aile ihtiyaçları",
+          description: "Çocuğum, rehberler ve asistan"
+        },
+        security: {
+          label: "Güvenlik",
+          description: "Şifre ve yakında gelecek korumalar"
+        },
+        preferences: {
+          label: "Tercihler",
+          description: "Bildirim ve ödeme ayarları"
+        }
+      },
+      links: {
+        favorites: {
+          label: "Favoriler",
+          description: "Kaydettiğin ilanlara hızlıca dön."
+        },
+        savedSearches: {
+          label: "Kayıtlı aramalar",
+          description: "Takip ettiğin arama ve filtreleri yönet."
+        },
+        messages: {
+          label: "Mesajlar",
+          description: "Alıcı ve satıcı konuşmalarını aç."
+        },
+        notifications: {
+          label: "Bildirimler",
+          description: "Mesaj ve ilan hareketlerini gör."
+        },
+        sell: {
+          label: "İlan ver",
+          description: "Yeni bir bebek veya çocuk ürünü listele."
+        },
+        myListings: {
+          label: "İlanlarım",
+          description: "Yayındaki ve arşivdeki ilanlarını yönet."
+        },
+        sellerDashboard: {
+          label: "Satıcı paneli",
+          description: "Satıcı akışını ve ilan durumlarını takip et."
+        },
+        children: {
+          label: "Çocuğum / ihtiyaçlar",
+          description: "Çocuğuna ait temel bilgileri sade şekilde tut."
+        },
+        guides: {
+          label: "Ebeveyn rehberleri",
+          description: "Kısa ve sakin ebeveyn yanıtlarını keşfet."
+        },
+        assistant: {
+          label: "Asistan",
+          description: "BabyLoop Asistan’a kısa bir soru sor."
+        }
+      }
+    },
+    notificationsArchive: {
+      pageTitle: "Bildirimler",
+      pageDescription: "Mesaj ve ilan hareketlerini burada görebilirsin.",
+      loadingTitle: "Bildirimler yükleniyor",
+      loadingMessage: "Mesaj ve ilan hareketleri hazırlanıyor.",
+      unavailableTitle: "Bildirimler yüklenemedi",
+      actionFailedTitle: "İşlem tamamlanamadı",
+      unreadMessage: "Okunmamış mesaj",
+      goToMessages: "Mesajlara git",
+      favoriteActivity: "Favori hareketi",
+      favoriteSummary: "{count} kullanıcı ürünlerini favori ürünlere ekledi",
+      favoriteMovementsLabel: "Favori hareketleri",
+      favoritesTitle: "Favoriler",
+      favoriteStat: "{total} favori · Bugün +{today}",
+      noFavoriteActivity: "Henüz favori hareketi yok.",
+      recentLabel: "Son bildirimler",
+      recentTitle: "Son hareketler",
+      noNotificationsTitle: "Henüz bildirim yok",
+      noNotificationsBody: "Mesaj veya ilan hareketi olduğunda burada görünür.",
+      unread: "Okunmadı",
+      open: "Aç"
+    },
+    savedSearches: {
+      ariaLabel: "Kayıtlı aramalar",
+      filtersLabel: "Kayıtlı arama filtreleri",
+      title: "Kayıtlı aramalar",
+      description: "Kaydettiğin aramaları buradan yönet.",
+      actionFailedTitle: "İşlem tamamlanamadı",
+      loadingTitle: "Kayıtlı aramalar yükleniyor",
+      loadingMessage: "Kaydettiğin filtreler hazırlanıyor.",
+      emptyTitle: "Henüz kayıtlı arama yok",
+      emptyMessage: "Browse sayfasından bir aramayı kaydedip burada tekrar açabilirsin.",
+      emptyFilterTitle: "Bu filtrede arama yok",
+      emptyFilterMessage: "Başka bir filtre seçebilir veya ilanları keşfedebilirsin.",
+      browseAction: "İlanları keşfet",
+      noFilters: "Filtre yok",
+      allListings: "Tüm ilanlar",
+      notificationsOn: "Bildirim açık",
+      notificationsOff: "Bildirim kapalı",
+      openSearch: "Aramayı aç",
+      updating: "Güncelleniyor...",
+      deleting: "Siliniyor...",
+      delete: "Sil",
+      turnNotificationsOn: "Bildirimleri aç",
+      turnNotificationsOff: "Bildirimleri kapat",
+      selectedCategory: "Kategori seçili",
+      imageOnly: "Sadece görselli",
+      filters: {
+        all: "Tüm kayıtlı aramalar",
+        notifications_on: "Bildirim açık",
+        notifications_off: "Bildirim kapalı"
+      },
+      chips: {
+        query: "Arama: {value}",
+        type: "Tip: {value}",
+        condition: "Durum: {value}",
+        minPrice: "En az: {value}",
+        maxPrice: "En çok: {value}",
+        sort: "Sıralama: {value}"
+      }
     },
     footer: {
       description: "Bebek ve çocuk ihtiyaçlarına aileler arasında yeni bir kullanım döngüsü veren ebeveyn dostu pazar.",

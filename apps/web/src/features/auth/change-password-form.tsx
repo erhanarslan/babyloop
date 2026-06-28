@@ -23,7 +23,7 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
     setErrorMessage(null);
     setIsSubmitting(false);
   }, []);
-  const { isCheckingAuth, requireAuth } = useProtectedRoute({
+  const { isCheckingAuth } = useProtectedRoute({
     apiBaseUrl,
     onUnauthenticated: clearProtectedState
   });
@@ -31,10 +31,6 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
-
-    if (!(await requireAuth())) {
-      return;
-    }
 
     const formData = new FormData(event.currentTarget);
     const currentPassword = getString(formData, "currentPassword");
@@ -68,8 +64,7 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
 
       clearAuthToken({ broadcast: true });
       router.replace("/login?passwordChanged=1");
-      router.refresh();
-    } catch {
+} catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);
@@ -83,11 +78,9 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
   return (
     <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
-        <p className="eyebrow">Şifre</p>
-        <h2>Şifreni güncelle</h2>
-        <p>
-          Şifre değişince tekrar giriş yapman gerekir.
-        </p>
+        <p className="eyebrow">{dictionary.auth.changePasswordEyebrow}</p>
+        <h2>{dictionary.auth.changePasswordFormTitle}</h2>
+        <p>{dictionary.auth.changePasswordFormDescription}</p>
       </div>
 
       <div className="form-grid">
@@ -121,12 +114,12 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
 
       <div className="auth-security-summary">
         <div>
-          <strong>Oturum yenilenir</strong>
+          <strong>{dictionary.auth.passwordSessionRenewedTitle}</strong>
           <span>{dictionary.auth.passwordChangeNote}</span>
         </div>
         <div>
-          <strong>Güvenli kullanım</strong>
-          <span>Şifreni mesajlarda, ilanlarda veya asistan sorularında paylaşma.</span>
+          <strong>{dictionary.auth.passwordSafeUseTitle}</strong>
+          <span>{dictionary.auth.passwordSafeUseBody}</span>
         </div>
       </div>
 

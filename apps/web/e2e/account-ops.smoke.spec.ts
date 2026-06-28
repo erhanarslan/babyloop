@@ -303,13 +303,19 @@ test.describe("public account operations", () => {
     await page.locator('input[name="newPassword"]').fill("NewPassword123!");
     await page.locator('input[name="confirmPassword"]').fill("DifferentPassword123!");
 
-    await page.getByRole("button", { name: "Şifreyi değiştir", exact: true }).click();
+    await page.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
 
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/\/account\/password$/);
     expect(state.passwordChangeRequests).toEqual([]);
 
-    await page.locator('input[name="confirmPassword"]').fill("NewPassword123!");
+    const passwordForm = page.locator("form.auth-recovery-form");
+
+    await passwordForm.locator('input[name="confirmPassword"]').fill("NewPassword123!");
+
+    await expect(passwordForm.locator('input[name="currentPassword"]')).toHaveValue("CurrentPassword123!");
+    await expect(passwordForm.locator('input[name="newPassword"]')).toHaveValue("NewPassword123!");
+    await expect(passwordForm.locator('input[name="confirmPassword"]')).toHaveValue("NewPassword123!");
 
     const passwordResponsePromise = page.waitForResponse((response) => {
       return (
@@ -318,7 +324,7 @@ test.describe("public account operations", () => {
       );
     });
 
-    await page.getByRole("button", { name: "Şifreyi değiştir", exact: true }).click();
+    await passwordForm.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
 
     const passwordResponse = await passwordResponsePromise;
     expect(passwordResponse.ok(), await passwordResponse.text()).toBe(true);
@@ -358,6 +364,17 @@ async function installAccountOpsMocks(page: Page, state: MockState): Promise<voi
     }
 
     if (method === "POST" && pathEndsWith(url, "/api/v1/auth/refresh")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          ...createCurrentUserPayload(),
+          accessToken: "mock-public-account-ops-token",
+        },
+      });
+      return;
+    }
+
+    if (method === "POST" && pathEndsWith(url, "/api/v1/auth/login")) {
       await fulfillJson(route, {
         ok: true,
         data: {

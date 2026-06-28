@@ -198,23 +198,23 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
     <PageContainer className={styles.archive ?? ""}>
       <section className={styles.archiveHeader}>
         <div>
-          <h1>Bildirimler</h1>
-          <p>Mesaj ve ilan hareketlerini burada görebilirsin.</p>
+          <h1>{dictionary.notificationsArchive.pageTitle}</h1>
+          <p>{dictionary.notificationsArchive.pageDescription}</p>
         </div>
         <Button
           disabled={isMarkingAll || unreadCount === 0}
           onClick={() => void handleMarkAllRead()}
           variant="secondary"
         >
-          {isMarkingAll ? "İşaretleniyor..." : "Tümünü okundu işaretle"}
+          {isMarkingAll ? dictionary.notifications.markingAllRead : dictionary.notifications.markAllRead}
         </Button>
       </section>
 
       {isCheckingAuth || isLoading ? (
-        <LoadingBlock title="Bildirimler yükleniyor" message="Mesaj ve ilan hareketleri hazırlanıyor." />
+        <LoadingBlock title={dictionary.notificationsArchive.loadingTitle} message={dictionary.notificationsArchive.loadingMessage} />
       ) : message ? (
         <EmptyState
-          title="Bildirimler yüklenemedi"
+          title={dictionary.notificationsArchive.unavailableTitle}
           message={message}
           actionHref="/login"
           actionLabel={dictionary.common.login}
@@ -222,24 +222,24 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
       ) : (
         <section className={styles.archiveCard} aria-label="Bildirim özeti">
           {actionMessage ? (
-            <Alert title="İşlem tamamlanamadı" message={actionMessage} />
+            <Alert title={dictionary.notificationsArchive.actionFailedTitle} message={actionMessage} />
           ) : null}
 
           <div className={styles.summaryGrid}>
             <div>
-              <span>Okunmamış mesaj</span>
+              <span>{dictionary.notificationsArchive.unreadMessage}</span>
               <strong>{summary.unreadMessageCount}</strong>
-              <Link href="/conversations">Mesajlara git</Link>
+              <Link href="/conversations">{dictionary.notificationsArchive.goToMessages}</Link>
             </div>
             <div>
-              <span>Favori hareketi</span>
+              <span>{dictionary.notificationsArchive.favoriteActivity}</span>
               <strong>{favoriteTotal}</strong>
-              <p>{favoriteTotal} kullanıcı ürünlerini favori ürünlere ekledi</p>
+              <p>{dictionary.notificationsArchive.favoriteSummary.replace("{count}", String(favoriteTotal))}</p>
             </div>
           </div>
 
-          <section className={styles.favoriteGroup} aria-label="Favori hareketleri">
-            <h2>Favoriler</h2>
+          <section className={styles.favoriteGroup} aria-label={dictionary.notificationsArchive.favoriteMovementsLabel}>
+            <h2>{dictionary.notificationsArchive.favoritesTitle}</h2>
             {summary.favoriteAggregates.length > 0 ? (
               <ol>
                 {summary.favoriteAggregates.map((item) => (
@@ -247,19 +247,21 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
                     <div>
                       {item.href ? <Link href={item.href}>{item.title}</Link> : <span>{item.title}</span>}
                       <small>
-                        {item.totalCount} favori · Bugün +{item.todayCount}
+                        {dictionary.notificationsArchive.favoriteStat
+                          .replace("{total}", String(item.totalCount))
+                          .replace("{today}", String(item.todayCount))}
                       </small>
                     </div>
                   </li>
                 ))}
               </ol>
             ) : (
-              <p>Henüz favori hareketi yok.</p>
+              <p>{dictionary.notificationsArchive.noFavoriteActivity}</p>
             )}
           </section>
 
-          <section className={styles.recentList} aria-label="Son bildirimler">
-            <h2>Son hareketler</h2>
+          <section className={styles.recentList} aria-label={dictionary.notificationsArchive.recentLabel}>
+            <h2>{dictionary.notificationsArchive.recentTitle}</h2>
             {recentNotifications.length > 0 ? (
               <ol>
                 {recentNotifications.map((notification) => (
@@ -267,13 +269,16 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
                     key={notification.id}
                     locale={locale}
                     notification={notification}
+                    readLabel={dictionary.notifications.read}
+                    unreadLabel={dictionary.notificationsArchive.unread}
+                    openLabel={dictionary.notificationsArchive.open}
                   />
                 ))}
               </ol>
             ) : (
               <EmptyState
-                title="Henüz bildirim yok"
-                message="Mesaj veya ilan hareketi olduğunda burada görünür."
+                title={dictionary.notificationsArchive.noNotificationsTitle}
+                message={dictionary.notificationsArchive.noNotificationsBody}
               />
             )}
           </section>
@@ -285,10 +290,16 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
 
 function NotificationArchiveItem({
   locale,
-  notification
+  notification,
+  openLabel,
+  readLabel,
+  unreadLabel
 }: {
   locale: "en" | "tr";
   notification: Notification;
+  openLabel: string;
+  readLabel: string;
+  unreadLabel: string;
 }) {
   const destination = getNotificationDestination(notification);
   const isUnread = !notification.readAt;
@@ -301,8 +312,8 @@ function NotificationArchiveItem({
         <time>{formatDateTime(notification.createdAt, locale)}</time>
       </div>
       <div className={styles.archiveItemActions}>
-        <span>{isUnread ? "Okunmadı" : "Okundu"}</span>
-        {destination ? <Link href={destination}>Aç</Link> : null}
+        <span>{isUnread ? unreadLabel : readLabel}</span>
+        {destination ? <Link href={destination}>{openLabel}</Link> : null}
       </div>
     </li>
   );

@@ -53,12 +53,9 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
   return (
     <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
-        <p className="eyebrow">Email verification</p>
-        <h2>Request a fresh verification link</h2>
-        <p>
-          Verification helps keep account-only actions clearer. Use only official BabyLoop verification links
-          and never forward verification tokens to another person.
-        </p>
+        <p className="eyebrow">{dictionary.auth.requestVerificationEyebrow}</p>
+        <h2>{dictionary.auth.requestVerificationTitle}</h2>
+        <p>{dictionary.auth.requestVerificationDescription}</p>
       </div>
 
       <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />

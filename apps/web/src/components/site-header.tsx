@@ -285,7 +285,7 @@ export function SiteHeader() {
       const body = await fetchNotifications(apiBaseUrl);
 
       if (!body.ok) {
-        setNotificationMessage("Bildirimler şu an yüklenemedi.");
+        setNotificationMessage(dictionary.notifications.unavailable);
         return;
       }
 
@@ -293,7 +293,7 @@ export function SiteHeader() {
       setHeaderNotifications(nextNotifications);
       setUnreadNotificationCount(nextNotifications.filter((notification) => !notification.readAt).length);
     } catch {
-      setNotificationMessage("Bildirimler şu an yüklenemedi.");
+      setNotificationMessage(dictionary.notifications.unavailable);
     } finally {
       setIsNotificationsLoading(false);
     }
@@ -317,7 +317,7 @@ export function SiteHeader() {
       const body = await markAllNotificationsRead(apiBaseUrl);
 
       if (!body.ok) {
-        setNotificationMessage("Bildirimler okundu işaretlenemedi.");
+        setNotificationMessage(dictionary.notifications.actionFailed);
         return;
       }
 
@@ -335,14 +335,14 @@ export function SiteHeader() {
         })
       );
     } catch {
-      setNotificationMessage("Bildirimler okundu işaretlenemedi.");
+      setNotificationMessage(dictionary.notifications.actionFailed);
     } finally {
       setIsMarkingNotificationsRead(false);
     }
   }
 
   return (
-    <header ref={headerRef} className="market-header" aria-label="Main navigation">
+    <header ref={headerRef} className="market-header" aria-label={dictionary.nav.mobileMenu}>
       <div className="market-header-top">
         <button
           aria-controls="mobile-market-navigation"
@@ -380,7 +380,7 @@ export function SiteHeader() {
             {theme === "dark" ? "☀" : "◐"}
           </button>
           <Link
-            authTitle="İlan oluşturmak için giriş yap"
+            authTitle={dictionary.listings.loginBeforeCreate}
             className="market-sell-cta"
             href="/sell"
             onClick={closeMenus}
@@ -395,7 +395,7 @@ export function SiteHeader() {
             isNotificationsLoading={isNotificationsLoading}
             notificationMessage={notificationMessage}
             onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
-            onLogin={() => openAuthPrompt({ title: "BabyLoop’a giriş yap" })}
+            onLogin={() => openAuthPrompt({ title: dictionary.auth.loginTitle })}
             onLogout={handleLogout}
             onOpenAccount={() => setOpenMenu(openMenu === "account" ? null : "account")}
             onOpenNotifications={() => void handleOpenNotifications()}
@@ -451,7 +451,7 @@ export function SiteHeader() {
         onClose={() => setIsDrawerOpen(false)}
         onLogin={() => {
           setIsDrawerOpen(false);
-          openAuthPrompt({ title: "BabyLoop’a giriş yap" });
+          openAuthPrompt({ title: dictionary.auth.loginTitle });
         }}
         onLogout={handleLogout}
         selectedCity={selectedCity}
@@ -550,6 +550,7 @@ function HeaderAccount({
           isMarkingAllRead={isMarkingNotificationsRead}
           message={notificationMessage}
           notifications={headerNotifications}
+          dictionary={dictionary}
           onMarkAllRead={onMarkAllNotificationsRead}
         />
       ) : null}
@@ -558,6 +559,7 @@ function HeaderAccount({
 }
 
 function HeaderNotificationsPopover({
+  dictionary,
   id,
   isLoading,
   isMarkingAllRead,
@@ -565,6 +567,7 @@ function HeaderNotificationsPopover({
   notifications,
   onMarkAllRead
 }: {
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
   id: string;
   isLoading: boolean;
   isMarkingAllRead: boolean;
@@ -580,26 +583,26 @@ function HeaderNotificationsPopover({
 
   return (
     <div
-      aria-label="Bildirimler"
+      aria-label={dictionary.publicShell.header.notifications}
       className="market-notifications-popover"
       id={id}
       role="dialog"
     >
       <div className="market-notifications-popover-header">
-        <strong>Bildirimler</strong>
-        <Link href="/notifications">Arşiv</Link>
+        <strong>{dictionary.publicShell.header.notifications}</strong>
+        <Link href="/notifications">{dictionary.notificationsArchive.recentTitle}</Link>
       </div>
 
-      {isLoading ? <p className="market-notifications-muted">Bildirimler yükleniyor...</p> : null}
+      {isLoading ? <p className="market-notifications-muted">{dictionary.notifications.loading}</p> : null}
       {message ? <p className="market-notifications-error">{message}</p> : null}
 
       <div className="market-notifications-summary-row">
-        <span>Okunmamış mesaj: {summary.unreadMessageCount}</span>
-        <Link href="/conversations">Mesajlara git</Link>
+        <span>{dictionary.notificationsArchive.unreadMessage}: {summary.unreadMessageCount}</span>
+        <Link href="/conversations">{dictionary.notificationsArchive.goToMessages}</Link>
       </div>
 
       <div className="market-notifications-favorites">
-        <p>{favoriteTotal} kullanıcı ürünlerini favori ürünlere ekledi</p>
+        <p>{dictionary.notificationsArchive.favoriteSummary.replace("{count}", String(favoriteTotal))}</p>
         {summary.favoriteAggregates.length > 0 ? (
           <ol>
             {summary.favoriteAggregates.slice(0, 4).map((item) => (
@@ -607,14 +610,16 @@ function HeaderNotificationsPopover({
                 <div>
                   {item.href ? <Link href={item.href}>{item.title}</Link> : <span>{item.title}</span>}
                   <small>
-                    {item.totalCount} favori · Bugün +{item.todayCount}
+                    {dictionary.notificationsArchive.favoriteStat
+                      .replace("{total}", String(item.totalCount))
+                      .replace("{today}", String(item.todayCount))}
                   </small>
                 </div>
               </li>
             ))}
           </ol>
         ) : (
-          <span className="market-notifications-muted">Henüz favori hareketi yok.</span>
+          <span className="market-notifications-muted">{dictionary.notificationsArchive.noFavoriteActivity}</span>
         )}
       </div>
 
@@ -624,7 +629,7 @@ function HeaderNotificationsPopover({
         type="button"
         onClick={onMarkAllRead}
       >
-        {isMarkingAllRead ? "İşaretleniyor..." : "Tümünü okundu işaretle"}
+        {isMarkingAllRead ? dictionary.notifications.markingAllRead : dictionary.notifications.markAllRead}
       </button>
     </div>
   );
