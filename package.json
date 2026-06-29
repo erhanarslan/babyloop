@@ -26,7 +26,16 @@
     "typecheck": "turbo typecheck",
     "validate": "pnpm preflight && pnpm typecheck && pnpm build && pnpm test",
     "e2e:web:full-flow:guarded": "mkdir -p .e2e-results && WEB_E2E_FULL_FLOW=1 WEB_E2E_BASE_URL=http://localhost:3000 WEB_E2E_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web exec playwright test --reporter=json --workers=1 > .e2e-results/web-full-flow.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/web-full-flow.json",
-    "e2e:backoffice:guarded": "mkdir -p .e2e-results && BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test --reporter=json --workers=1 > .e2e-results/backoffice.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/backoffice.json"
+    "e2e:backoffice:guarded": "mkdir -p .e2e-results && BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test --reporter=json --workers=1 > .e2e-results/backoffice.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/backoffice.json",
+    "test:api:security": "node scripts/run-api-test-bundle.mjs security",
+    "test:api:trust": "node scripts/run-api-test-bundle.mjs trust",
+    "test:api:backoffice": "node scripts/run-api-test-bundle.mjs backoffice",
+    "test:api:marketplace": "node scripts/run-api-test-bundle.mjs marketplace",
+    "test:e2e:web:auth": "node scripts/run-e2e-test-bundle.mjs web auth",
+    "test:e2e:web:marketplace": "node scripts/run-e2e-test-bundle.mjs web marketplace",
+    "test:e2e:web:messaging": "node scripts/run-e2e-test-bundle.mjs web messaging",
+    "test:e2e:backoffice:trust": "node scripts/run-e2e-test-bundle.mjs backoffice trust",
+    "test:e2e:backoffice:ops": "node scripts/run-e2e-test-bundle.mjs backoffice ops"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
