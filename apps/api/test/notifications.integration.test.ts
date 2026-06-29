@@ -35,6 +35,25 @@ describe("notifications API", () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it("requires auth for notification read-state mutations and unread count", async () => {
+    const unreadCount = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications/unread-count"
+    });
+    const readOne = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/notifications/99999999-9999-4999-8999-999999999999/read"
+    });
+    const readAll = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/notifications/read-all"
+    });
+
+    expect(unreadCount.statusCode).toBe(401);
+    expect(readOne.statusCode).toBe(401);
+    expect(readAll.statusCode).toBe(401);
+  });
+
   it("creates a recipient notification when a message is sent", async () => {
     const seller = await createUser(app, { displayName: "Seller" });
     const buyer = await createUser(app, { displayName: "Buyer" });

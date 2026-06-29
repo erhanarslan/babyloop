@@ -241,6 +241,41 @@ describe("trust and safety API", () => {
     expect(response.json().error.code).toBe("CANNOT_BLOCK_SELF");
   });
 
+  it("validates block auth, unblock auth, block list auth, and missing target handling", async () => {
+    const blocker = await createUser(app);
+    const blocked = await createUser(app);
+    const missingProfileId = "99999999-9999-4999-8999-999999999999";
+
+    const unauthenticatedList = await app.inject({
+      method: "GET",
+      url: "/api/v1/profiles/blocked"
+    });
+    const unauthenticatedBlock = await app.inject({
+      method: "POST",
+      url: `/api/v1/profiles/${blocked.profile.id}/block`
+    });
+    const unauthenticatedUnblock = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/profiles/${blocked.profile.id}/block`
+    });
+    const missingTargetBlock = await app.inject({
+      headers: authHeader(blocker.accessToken),
+      method: "POST",
+      url: `/api/v1/profiles/${missingProfileId}/block`
+    });
+    const missingTargetUnblock = await app.inject({
+      headers: authHeader(blocker.accessToken),
+      method: "DELETE",
+      url: `/api/v1/profiles/${missingProfileId}/block`
+    });
+
+    expect(unauthenticatedList.statusCode).toBe(401);
+    expect(unauthenticatedBlock.statusCode).toBe(401);
+    expect(unauthenticatedUnblock.statusCode).toBe(401);
+    expect(missingTargetBlock.statusCode).toBe(404);
+    expect(missingTargetUnblock.statusCode).toBe(404);
+  });
+
   it("blocks new conversation starts and message sends in either direction", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);

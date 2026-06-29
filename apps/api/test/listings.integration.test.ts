@@ -913,6 +913,39 @@ describe("listings API", () => {
     expect(nonOwner.statusCode).toBe(403);
   });
 
+  it("blocks non-owner and logged-out listing status updates", async () => {
+    const seller = await createUser(app);
+    const otherUser = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    const unauthenticated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "sold"
+      }
+    });
+    const nonOwner = await app.inject({
+      headers: authHeader(otherUser.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "archived"
+      }
+    });
+    const [row] = await app.db
+      .select({
+        status: listings.status
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(nonOwner.statusCode).toBe(403);
+    expect(row?.status).toBe("active");
+  });
+
   it("allows the owner to mark a listing as sold and hides it from public listings", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);

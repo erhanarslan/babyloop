@@ -334,6 +334,46 @@ describe("messaging API", () => {
     expect(participantRead.json().data.messages).toHaveLength(1);
   });
 
+  it("requires auth and participant access to mark a conversation read", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const outsider = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const conversation = (await createConversation(app, buyer.accessToken, listing.id)).json().data.conversation;
+
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: `/api/v1/conversations/${conversation.id}/messages`,
+      payload: {
+        body: "Participant read authorization setup."
+      }
+    });
+
+    const unauthenticated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/conversations/${conversation.id}/read`
+    });
+    const outsiderRead = await app.inject({
+      headers: authHeader(outsider.accessToken),
+      method: "PATCH",
+      url: `/api/v1/conversations/${conversation.id}/read`
+    });
+    const participantRead = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/conversations/${conversation.id}/read`
+    });
+
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(outsiderRead.statusCode).toBe(403);
+    expect(participantRead.statusCode).toBe(200);
+    expect(participantRead.json().data).toMatchObject({
+      unreadConversationCount: 0,
+      unreadNotificationCount: 0
+    });
+  });
+
   it("rejects blank messages and updates lastMessageAt on send", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
