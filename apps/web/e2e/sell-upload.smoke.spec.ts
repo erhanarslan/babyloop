@@ -167,20 +167,7 @@ test.describe("sell listing upload flow", () => {
       await assertApiIsAvailable(api);
       await assertCategoriesExist(api);
 
-      const email = `web-e2e-seller-review-${Date.now()}@babyloop.test`;
-      const password = "Password12345!";
-
-      await createVerifiedSeller(api, {
-        displayName: "Web E2E Review Seller",
-        email,
-        locationCity: "İstanbul",
-        password,
-      });
-
-      const listingRequests = await loginSellerInBrowser(page, api, {
-        email,
-        password,
-      }, {
+      const listingRequests = await installMockSellerInBrowser(page, {
         imageUploadStatus: "needs_review",
       });
 
