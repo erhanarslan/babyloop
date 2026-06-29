@@ -24,7 +24,9 @@
     "test:e2e:mobile": "pnpm --filter @babyloop/mobile test:e2e",
     "test:ui": "pnpm --filter @babyloop/web test && pnpm --filter @babyloop/backoffice test && pnpm --filter @babyloop/mobile test",
     "typecheck": "turbo typecheck",
-    "validate": "pnpm preflight && pnpm typecheck && pnpm build && pnpm test"
+    "validate": "pnpm preflight && pnpm typecheck && pnpm build && pnpm test",
+    "e2e:web:full-flow:guarded": "mkdir -p .e2e-results && WEB_E2E_FULL_FLOW=1 WEB_E2E_BASE_URL=http://localhost:3000 WEB_E2E_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web exec playwright test --reporter=json --workers=1 > .e2e-results/web-full-flow.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/web-full-flow.json",
+    "e2e:backoffice:guarded": "mkdir -p .e2e-results && BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test --reporter=json --workers=1 > .e2e-results/backoffice.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/backoffice.json"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
