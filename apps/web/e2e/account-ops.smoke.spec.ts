@@ -60,7 +60,6 @@ type MockState = {
 
 const PROFILE_ID = "profile-account-ops-e2e-current";
 const LISTING_ID = "listing-account-ops-e2e-1";
-const ACCOUNT_OPS_FIXED_NOW = new Date("2026-06-28T12:00:00.000Z");
 const CONVERSATION_ID = "conversation-account-ops-e2e-1";
 const SAVED_SEARCH_ID = "saved-search-account-ops-e2e-1";
 const SAVED_SEARCH_DELETE_ID = "saved-search-account-ops-e2e-delete";
@@ -74,11 +73,6 @@ const RAW_VERIFICATION_TOKEN = "RAW_VERIFICATION_TOKEN_ACCOUNT_OPS_E2E_SHOULD_NO
 const RAW_MESSAGE_BODY = "RAW_MESSAGE_BODY_ACCOUNT_OPS_E2E_SHOULD_NOT_RENDER";
 
 test.describe("public account operations", () => {
-
-  test.beforeEach(async ({ page }) => {
-    await page.clock.setFixedTime(ACCOUNT_OPS_FIXED_NOW);
-  });
-
   test("notifications stay privacy-safe and mark-all-read updates page and badge state", async ({ page }) => {
     test.setTimeout(60_000);
 
@@ -526,6 +520,8 @@ async function installAccountOpsMocks(page: Page, state: MockState): Promise<voi
 }
 
 function createAccountOpsState(): MockState {
+  const todayIso = new Date().toISOString();
+
   return {
     notifications: [
       {
@@ -541,7 +537,7 @@ function createAccountOpsState(): MockState {
           rawBody: RAW_MESSAGE_BODY,
         },
         readAt: null,
-        createdAt: "2026-06-28T12:40:00.000Z",
+        createdAt: todayIso,
       },
       {
         id: "notification-favorite-account-ops-e2e-1",
@@ -556,7 +552,7 @@ function createAccountOpsState(): MockState {
           favoriterProfileId: RAW_FAVORITER_PROFILE_ID,
         },
         readAt: null,
-        createdAt: "2026-06-28T12:39:00.000Z",
+        createdAt: todayIso,
       },
       {
         id: "notification-favorite-account-ops-e2e-2",
@@ -571,7 +567,7 @@ function createAccountOpsState(): MockState {
           favoriterProfileId: RAW_FAVORITER_PROFILE_ID,
         },
         readAt: null,
-        createdAt: "2026-06-28T12:38:00.000Z",
+        createdAt: todayIso,
       },
     ],
     savedSearches: [

@@ -1,4 +1,4 @@
-import { expect, request, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, request, test, type APIRequestContext, type Page, type Route } from "@playwright/test";
 import {
   API_BASE_URL,
   E2E_PASSWORD,
@@ -8,8 +8,31 @@ import {
   createVerifiedUser,
   safeResponseText,
   type ApiResponse,
+  type AuthPayload,
   type CategoryPayload,
 } from "./helpers/web-e2e-api";
+
+type BrowseSavedSearchCreateRequest = {
+  authorization: string | null;
+  categoryId: string | null;
+  condition: string | null;
+  csrfToken: string | null;
+  hasImages: boolean;
+  listingType: string | null;
+  name: string;
+  notificationsEnabled: boolean;
+  priceMax: string | null;
+  priceMin: string | null;
+  q: string | null;
+  sort: string;
+};
+
+type BrowseSavedSearchMockState = {
+  createRequests: BrowseSavedSearchCreateRequest[];
+};
+
+const BROWSE_SAVED_SEARCH_CSRF_TOKEN = "browse-saved-search-e2e-csrf";
+const BROWSE_SAVED_SEARCH_ID = "browse-saved-search-e2e-created";
 
 test.describe("browse page", () => {
   test("browse page opens", async ({ page }) => {
@@ -48,6 +71,7 @@ test.describe("browse page", () => {
       const unique = Date.now();
       const filterQuery = `browsefiltre${unique}`;
       const sortQuery = `browsesort${unique}`;
+      const saveQuery = `browsesave${unique}`;
       const sellerEmail = `web-e2e-browse-seller-${unique}@babyloop.test`;
 
       const seller = await createVerifiedUser(sellerApi, {
@@ -112,6 +136,14 @@ test.describe("browse page", () => {
 
       await assertNoResultsReset(page, {
         categoryId: category.id,
+      });
+
+      await assertBrowseSaveSearchCreatesSafePayload(page, {
+        auth: seller,
+        categoryId: category.id,
+        query: saveQuery,
+        sellerAccessToken: seller.accessToken,
+        sellerEmail,
       });
     } finally {
       await setupApi.dispose();
@@ -312,6 +344,78 @@ async function assertNoResultsReset(
   await expect(page.locator("article.listing-card")).toHaveCount(0);
 }
 
+async function assertBrowseSaveSearchCreatesSafePayload(
+  page: Page,
+  input: {
+    auth: AuthPayload;
+    categoryId: string;
+    query: string;
+    sellerAccessToken: string;
+    sellerEmail: string;
+  },
+): Promise<void> {
+  const state = await installBrowseSavedSearchMocks(page, input.auth);
+
+  await page.goto(
+    `/browse?q=${encodeURIComponent(input.query)}&categoryId=${encodeURIComponent(input.categoryId)}&listingType=sale&condition=good&priceMin=1000&priceMax=5000&hasImages=true&sort=price_asc&limit=20`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  const saveSearchPanel = page.locator(".save-search-panel");
+
+  await expect(saveSearchPanel).toBeVisible({ timeout: 15_000 });
+  await expect(saveSearchPanel.getByText("Aramayı kaydet", { exact: true })).toBeVisible();
+  await expect(saveSearchPanel.getByText(`Arama: ${input.query}`, { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("Tip: sale", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("Durum: good", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("En az: 1000", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("En çok: 5000", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("Sadece görselli", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel.getByText("Sıralama: price_asc", { exact: false })).toBeVisible();
+
+  await expectNoBrowseSensitiveLeak(page, {
+    sellerAccessToken: input.sellerAccessToken,
+    sellerEmail: input.sellerEmail,
+  });
+
+  const saveResponsePromise = page.waitForResponse((response) => {
+    return response.url().includes("/api/v1/saved-searches") && response.request().method() === "POST";
+  });
+
+  await saveSearchPanel.getByRole("button", { name: "Bu aramayı kaydet", exact: true }).click();
+
+  const saveResponse = await saveResponsePromise;
+
+  expect(saveResponse.ok(), await saveResponse.text()).toBe(true);
+  expect(state.createRequests).toEqual([
+    {
+      authorization: `Bearer ${input.auth.accessToken}`,
+      categoryId: input.categoryId,
+      condition: "good",
+      csrfToken: BROWSE_SAVED_SEARCH_CSRF_TOKEN,
+      hasImages: true,
+      listingType: "sale",
+      name: `Arama: ${input.query}`,
+      notificationsEnabled: false,
+      priceMax: "5000",
+      priceMin: "1000",
+      q: input.query,
+      sort: "price_asc",
+    },
+  ]);
+
+  await expect(
+    saveSearchPanel.getByText("Arama kaydedildi. Hesabından tekrar açabilirsin.", { exact: true }),
+  ).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await expectNoBrowseSensitiveLeak(page, {
+    sellerAccessToken: input.sellerAccessToken,
+    sellerEmail: input.sellerEmail,
+  });
+}
+
 async function fetchFirstCategory(
   api: APIRequestContext,
 ): Promise<CategoryPayload["categories"][number]> {
@@ -342,4 +446,153 @@ async function expectNoBrowseSensitiveLeak(
   await expect(body).not.toContainText(E2E_PASSWORD);
   await expect(body).not.toContainText("accessToken");
   await expect(body).not.toContainText("refreshToken");
+}
+
+async function installBrowseSavedSearchMocks(
+  page: Page,
+  auth: AuthPayload,
+): Promise<BrowseSavedSearchMockState> {
+  const state: BrowseSavedSearchMockState = {
+    createRequests: [],
+  };
+
+  await page.route("**/api/v1/auth/refresh", async (route) => {
+    if (await fulfillOptions(route)) {
+      return;
+    }
+
+    await fulfillJson(route, {
+      ok: true,
+      data: auth,
+    });
+  });
+
+  await page.route("**/api/v1/auth/csrf", async (route) => {
+    if (await fulfillOptions(route)) {
+      return;
+    }
+
+    await fulfillJson(route, {
+      ok: true,
+      data: {
+        csrfToken: BROWSE_SAVED_SEARCH_CSRF_TOKEN,
+      },
+    });
+  });
+
+  await page.route("**/api/v1/saved-searches", async (route) => {
+    if (await fulfillOptions(route)) {
+      return;
+    }
+
+    const request = route.request();
+    const method = request.method().toUpperCase();
+
+    if (method !== "POST") {
+      await fulfillJson(
+        route,
+        {
+          ok: false,
+          error: {
+            code: "WEB_E2E_UNHANDLED_BROWSE_SAVED_SEARCH_ROUTE",
+            message: `Unhandled browse saved search E2E route: ${method}`,
+          },
+        },
+        500,
+      );
+      return;
+    }
+
+    const body = (await request.postDataJSON()) as {
+      categoryId?: string;
+      condition?: string;
+      hasImages?: boolean;
+      listingType?: string;
+      name?: string;
+      notificationsEnabled?: boolean;
+      priceMax?: string;
+      priceMin?: string;
+      q?: string;
+      sort?: string;
+    };
+    const headers = request.headers();
+
+    state.createRequests.push({
+      authorization: headers.authorization ?? null,
+      categoryId: body.categoryId ?? null,
+      condition: body.condition ?? null,
+      csrfToken: headers["x-babyloop-csrf-token"] ?? null,
+      hasImages: Boolean(body.hasImages),
+      listingType: body.listingType ?? null,
+      name: body.name ?? "",
+      notificationsEnabled: Boolean(body.notificationsEnabled),
+      priceMax: body.priceMax ?? null,
+      priceMin: body.priceMin ?? null,
+      q: body.q ?? null,
+      sort: body.sort ?? "newest",
+    });
+
+    await fulfillJson(route, {
+      ok: true,
+      data: {
+        savedSearch: {
+          id: BROWSE_SAVED_SEARCH_ID,
+          name: body.name ?? "BabyLoop araması",
+          q: body.q ?? "",
+          categoryId: body.categoryId ?? null,
+          listingType: body.listingType ?? null,
+          condition: body.condition ?? null,
+          priceMin: body.priceMin ?? null,
+          priceMax: body.priceMax ?? null,
+          hasImages: Boolean(body.hasImages),
+          sort: body.sort ?? "newest",
+          notificationsEnabled: Boolean(body.notificationsEnabled),
+          createdAt: "2026-06-29T12:00:00.000Z",
+          updatedAt: "2026-06-29T12:00:00.000Z",
+        },
+      },
+    });
+  });
+
+  return state;
+}
+
+async function fulfillOptions(route: Route): Promise<boolean> {
+  if (route.request().method().toUpperCase() !== "OPTIONS") {
+    return false;
+  }
+
+  await route.fulfill({
+    status: 204,
+    headers: getCorsHeaders(route),
+  });
+
+  return true;
+}
+
+async function fulfillJson(
+  route: Route,
+  body: ApiResponse<unknown>,
+  status = body.ok ? 200 : 400,
+): Promise<void> {
+  await route.fulfill({
+    status,
+    headers: {
+      ...getCorsHeaders(route),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function getCorsHeaders(route: Route): Record<string, string> {
+  const origin = route.request().headers().origin ?? "http://localhost:3000";
+
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-credentials": "true",
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "authorization,content-type,x-babyloop-csrf-token",
+    vary: "Origin",
+  };
 }
