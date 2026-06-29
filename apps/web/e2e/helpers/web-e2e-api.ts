@@ -151,6 +151,11 @@ export async function createListing(
   input: {
     accessToken: string;
     categoryId: string;
+    condition?: "new" | "like_new" | "good" | "fair" | "needs_repair";
+    currency?: string;
+    description?: string;
+    listingType?: "sale" | "swap" | "donation";
+    priceAmount?: string;
     title: string;
   },
 ): Promise<ListingPayload["listing"]> {
@@ -163,12 +168,12 @@ export async function createListing(
     },
     data: {
       categoryId: input.categoryId,
-      listingType: "sale",
+      listingType: input.listingType ?? "sale",
       title: input.title,
-      description: "Web E2E testi için oluşturulan güvenli marketplace ilanı.",
-      priceAmount: "6500",
-      currency: "TRY",
-      condition: "good",
+      description: input.description ?? "Web E2E testi için oluşturulan güvenli marketplace ilanı.",
+      priceAmount: input.priceAmount ?? "6500",
+      currency: input.currency ?? "TRY",
+      condition: input.condition ?? "good",
     },
   });
 
