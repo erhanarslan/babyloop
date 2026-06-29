@@ -1,14 +1,20 @@
 import { BackofficeAuthShell } from "../../../features/auth/backoffice-auth-shell";
 import { ProfileAdminDetail } from "../../../features/profiles/profile-admin-detail";
 
-export default function BackofficeProfileDetailPage({
+type BackofficeProfileDetailPageProps = {
+  params: Promise<{
+    profileId: string;
+  }>;
+};
+
+export default async function BackofficeProfileDetailPage({
   params,
-}: {
-  params: { profileId: string };
-}) {
+}: BackofficeProfileDetailPageProps) {
+  const { profileId } = await params;
+
   return (
     <BackofficeAuthShell>
-      <ProfileAdminDetail profileId={params.profileId} />
+      <ProfileAdminDetail profileId={profileId} />
     </BackofficeAuthShell>
   );
 }

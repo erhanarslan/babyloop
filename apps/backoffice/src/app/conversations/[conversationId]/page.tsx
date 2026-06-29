@@ -2,17 +2,19 @@ import { BackofficeAuthShell } from "../../../features/auth/backoffice-auth-shel
 import { ConversationAdminDetail } from "../../../features/conversations/conversation-admin-detail";
 
 type BackofficeConversationDetailPageProps = {
-  params: {
+  params: Promise<{
     conversationId: string;
-  };
+  }>;
 };
 
-export default function BackofficeConversationDetailPage({
+export default async function BackofficeConversationDetailPage({
   params,
 }: BackofficeConversationDetailPageProps) {
+  const { conversationId } = await params;
+
   return (
     <BackofficeAuthShell>
-      <ConversationAdminDetail conversationId={params.conversationId} />
+      <ConversationAdminDetail conversationId={conversationId} />
     </BackofficeAuthShell>
   );
 }
