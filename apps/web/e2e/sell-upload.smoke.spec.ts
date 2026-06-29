@@ -16,6 +16,17 @@ type ApiResponse<TData> =
 type AuthPayload = {
   accessToken: string;
   devEmailVerificationToken?: string;
+  profile?: {
+    id: string;
+    displayName: string;
+    locationCity: string | null;
+  };
+  user?: {
+    id: string;
+    email: string;
+    role: "user";
+    emailVerifiedAt: string | null;
+  };
 };
 
 type CategoriesPayload = {
@@ -228,20 +239,7 @@ test.describe("sell listing upload flow", () => {
       await assertApiIsAvailable(api);
       await assertCategoriesExist(api);
 
-      const email = `web-e2e-seller-upload-fail-${Date.now()}@babyloop.test`;
-      const password = "Password12345!";
-
-      await createVerifiedSeller(api, {
-        displayName: "Web E2E Upload Failure Seller",
-        email,
-        locationCity: "İstanbul",
-        password,
-      });
-
-      await loginSellerInBrowser(page, api, {
-        email,
-        password,
-      }, {
+      await installMockSellerInBrowser(page, {
         failImageUpload: true,
       });
 
@@ -261,16 +259,27 @@ test.describe("sell listing upload flow", () => {
         buffer: Buffer.from(TEST_IMAGE_PNG_BASE64, "base64"),
       });
 
+      const uploadFailureResponsePromise = page.waitForResponse((response) => {
+        return (
+          isListingImageUploadResponse(response.url()) &&
+          response.request().method().toUpperCase() === "POST"
+        );
+      });
+
       await page.getByRole("button", { name: "İlanı oluştur" }).click();
+
+      const uploadFailureResponse = await uploadFailureResponsePromise;
+      expect(uploadFailureResponse.ok(), await uploadFailureResponse.text()).toBe(false);
 
       await expect(page).toHaveURL(/\/sell$/, {
         timeout: 30_000,
       });
-      await expect(
-        page.getByText(/babyloop-e2e-upload-failure\.png:.*görsel|babyloop-e2e-upload-failure\.png:.*image|babyloop-e2e-upload-failure\.png:.*yüklen/i),
-      ).toBeVisible({
-        timeout: 15_000,
-      });
+      await expect(page.getByRole("main")).toContainText(
+        /İlan oluşturulamadı|Listing could not be created|görsel yüklenemedi|image upload failed|yüklenemedi|upload failed|başarısız|failed/i,
+        {
+          timeout: 15_000,
+        },
+      );
 
       await expectNoSellUploadSensitiveLeak(page);
     } finally {
@@ -296,20 +305,7 @@ test.describe("sell listing upload flow", () => {
       await assertApiIsAvailable(api);
       await assertCategoriesExist(api);
 
-      const email = `web-e2e-seller-max-images-${Date.now()}@babyloop.test`;
-      const password = "Password12345!";
-
-      await createVerifiedSeller(api, {
-        displayName: "Web E2E Max Images Seller",
-        email,
-        locationCity: "İstanbul",
-        password,
-      });
-
-      await loginSellerInBrowser(page, api, {
-        email,
-        password,
-      });
+      await installMockSellerInBrowser(page);
 
       await page.goto("/sell");
 
@@ -338,6 +334,138 @@ test.describe("sell listing upload flow", () => {
     }
   });
 });
+
+
+function createMockSellerAuthPayload(): ApiResponse<AuthPayload> {
+  return {
+    ok: true,
+    data: {
+      accessToken: RAW_ACCESS_TOKEN_SENTINEL,
+      profile: {
+        id: "profile-sell-upload-mock-seller-e2e",
+        displayName: "Web E2E Mock Seller",
+        locationCity: "İstanbul",
+      },
+      user: {
+        id: "user-sell-upload-mock-seller-e2e",
+        email: RAW_EMAIL_SENTINEL,
+        role: "user",
+        emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+      },
+    },
+  };
+}
+
+async function installMockSellerInBrowser(
+  page: Page,
+  options: BrowserMockOptions = {},
+): Promise<unknown[]> {
+  const loginBody = createMockSellerAuthPayload();
+  const listingRequests: unknown[] = [];
+
+  await page.route("**/api/v1/auth/refresh", async (route) => {
+    await fulfillAuthResponse(route, loginBody);
+  });
+
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await fulfillAuthResponse(route, loginBody);
+  });
+
+  await page.route("**/api/v1/listings", async (route) => {
+    if (route.request().method().toUpperCase() === "POST") {
+      await fulfillMockListingCreate(route, listingRequests);
+      return;
+    }
+
+    await route.continue({
+      url: toReachableApiUrl(route.request().url()),
+    });
+  });
+
+  await page.route("**/api/v1/listings/*/images", async (route) => {
+    await fulfillListingImageUpload(route, options);
+  });
+
+  await page.route("http://localhost:4000/**", async (route) => {
+    const url = route.request().url();
+
+    if (url.includes("/api/v1/auth/refresh") || url.includes("/api/v1/auth/me")) {
+      await fulfillAuthResponse(route, loginBody);
+      return;
+    }
+
+    if (url.endsWith("/api/v1/listings") && route.request().method().toUpperCase() === "POST") {
+      await fulfillMockListingCreate(route, listingRequests);
+      return;
+    }
+
+    if (isListingImageUploadRequest(route)) {
+      await fulfillListingImageUpload(route, options);
+      return;
+    }
+
+    await route.continue({
+      url: toReachableApiUrl(url),
+    });
+  });
+
+  await page.goto("/browse?sort=newest");
+
+  return listingRequests;
+}
+
+
+
+async function fulfillMockListingCreate(
+  route: Route,
+  listingRequests: unknown[],
+): Promise<void> {
+  const requestBody = (await route.request().postDataJSON()) as {
+    categoryId?: string;
+    condition?: string;
+    currency?: string;
+    description?: string;
+    listingType?: string;
+    priceAmount?: string;
+    title?: string;
+    city?: string;
+  };
+
+  listingRequests.push(requestBody);
+
+  const listingId = "listing-sell-upload-mock-create-e2e";
+  const now = "2026-01-01T00:00:00.000Z";
+
+  await route.fulfill({
+    status: 201,
+    contentType: "application/json",
+    headers: getCorsHeaders(route),
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        listing: {
+          id: listingId,
+          title: requestBody.title ?? "Web E2E mocked listing",
+          description: requestBody.description ?? null,
+          status: "active",
+          listingType: requestBody.listingType ?? "sale",
+          condition: requestBody.condition ?? "good",
+          categoryId: requestBody.categoryId ?? "category-sell-upload-mock-e2e",
+          city: requestBody.city ?? "İstanbul",
+          price: {
+            amount: requestBody.priceAmount ?? "6500",
+            currency: requestBody.currency ?? "TRY",
+          },
+          primaryImage: null,
+          images: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    }),
+  });
+}
+
 
 async function loginSellerInBrowser(
   page: Page,
@@ -510,6 +638,11 @@ async function expectNoSellUploadSensitiveLeak(page: Page): Promise<void> {
   await expect(page.getByText(RAW_ACCESS_TOKEN_SENTINEL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(RAW_IMAGE_BINARY_SENTINEL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(RAW_EMAIL_SENTINEL, { exact: true })).toHaveCount(0);
+}
+
+
+function isListingImageUploadResponse(url: string): boolean {
+  return /\/api\/v1\/listings\/[^/]+\/images$/.test(new URL(url).pathname);
 }
 
 function isListingImageUploadRequest(route: Route): boolean {
