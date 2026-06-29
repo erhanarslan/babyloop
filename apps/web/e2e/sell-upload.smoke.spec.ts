@@ -15,7 +15,6 @@ type ApiResponse<TData> =
 
 type AuthPayload = {
   accessToken: string;
-  devEmailVerificationToken?: string;
   profile?: {
     id: string;
     displayName: string;
@@ -391,7 +390,6 @@ async function installMockSellerInBrowser(
 }
 
 
-
 async function fulfillMockListingCreate(
   route: Route,
   listingRequests: unknown[],
@@ -442,83 +440,6 @@ async function fulfillMockListingCreate(
   });
 }
 
-
-async function loginSellerInBrowser(
-  page: Page,
-  api: APIRequestContext,
-  input: {
-    email: string;
-    password: string;
-  },
-  options: BrowserMockOptions = {},
-): Promise<unknown[]> {
-  const loginResponse = await api.post("/api/v1/auth/login", {
-    data: {
-      email: input.email,
-      password: input.password,
-    },
-  });
-
-  expect(loginResponse.ok(), await safeResponseText(loginResponse)).toBe(true);
-
-  const loginBody = (await loginResponse.json()) as ApiResponse<AuthPayload>;
-  expect(loginBody.ok).toBe(true);
-
-  if (!loginBody.ok) {
-    return [];
-  }
-
-  const listingRequests: unknown[] = [];
-
-  await page.route("**/api/v1/auth/refresh", async (route) => {
-    await fulfillAuthResponse(route, loginBody);
-  });
-
-  await page.route("**/api/v1/listings", async (route) => {
-    if (route.request().method().toUpperCase() === "POST") {
-      listingRequests.push(await route.request().postDataJSON());
-    }
-
-    await route.continue({
-      url: toReachableApiUrl(route.request().url()),
-    });
-  });
-
-  await page.route("**/api/v1/listings/*/images", async (route) => {
-    await fulfillListingImageUpload(route, options);
-  });
-
-  await page.route("http://localhost:4000/**", async (route) => {
-    const url = route.request().url();
-
-    if (url.includes("/api/v1/auth/refresh")) {
-      await fulfillAuthResponse(route, loginBody);
-      return;
-    }
-
-    if (url.endsWith("/api/v1/listings") && route.request().method().toUpperCase() === "POST") {
-      listingRequests.push(await route.request().postDataJSON());
-
-      await route.continue({
-        url: toReachableApiUrl(url),
-      });
-      return;
-    }
-
-    if (isListingImageUploadRequest(route)) {
-      await fulfillListingImageUpload(route, options);
-      return;
-    }
-
-    await route.continue({
-      url: toReachableApiUrl(url),
-    });
-  });
-
-  await page.goto("/browse?sort=newest");
-
-  return listingRequests;
-}
 
 async function fulfillAuthResponse(
   route: Route,
@@ -664,45 +585,6 @@ async function assertCategoriesExist(api: APIRequestContext): Promise<void> {
   }
 }
 
-async function createVerifiedSeller(
-  api: APIRequestContext,
-  input: {
-    displayName: string;
-    email: string;
-    locationCity: string;
-    password: string;
-  },
-): Promise<void> {
-  const registerResponse = await api.post("/api/v1/auth/register", {
-    data: input,
-  });
-
-  expect(registerResponse.ok(), await safeResponseText(registerResponse)).toBe(true);
-
-  const registerBody = (await registerResponse.json()) as ApiResponse<AuthPayload>;
-  expect(registerBody.ok).toBe(true);
-
-  if (!registerBody.ok) {
-    return;
-  }
-
-  if (!registerBody.data.devEmailVerificationToken) {
-    return;
-  }
-
-  const verificationResponse = await api.post("/api/v1/auth/email-verification/confirm", {
-    data: {
-      token: registerBody.data.devEmailVerificationToken,
-    },
-  });
-
-  expect(verificationResponse.ok(), await safeResponseText(verificationResponse)).toBe(true);
-
-  const verificationBody = (await verificationResponse.json()) as ApiResponse<{
-    emailVerified: true;
-  }>;
-  expect(verificationBody.ok).toBe(true);
-}
 
 async function safeResponseText(response: { text: () => Promise<string> }): Promise<string> {
   const text = await response.text();
