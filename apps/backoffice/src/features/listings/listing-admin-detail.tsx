@@ -218,7 +218,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
                 </dl>
 
                 <div className="metadata-chip-row">
-                  {Object.entries(event.metadata).map(([key, value]) => (
+                  {Object.entries(sanitizeAdminListingAuditMetadata(event.metadata)).map(([key, value]) => (
                     <span className="metadata-chip" key={`${event.id}:${key}`}>
                       <strong>{formatMetadataKey(key)}</strong>
                       {formatMetadataValue(value)}
@@ -291,6 +291,47 @@ function getAuditEventLabel(event: AdminListingAuditEvent): string {
   }
 
   return "Listing audit event";
+}
+
+const SAFE_ADMIN_LISTING_AUDIT_METADATA_KEYS = [
+  "action",
+  "enforcementAction",
+  "authenticityDecision",
+  "authenticityProvider",
+  "imageId",
+  "listingId",
+  "moderationActionId",
+  "nextStatus",
+  "nextReviewStatus",
+  "previousStatus",
+  "previousReviewStatus",
+  "reasonLength",
+  "result",
+  "resultingStatus",
+  "targetId",
+  "targetType"
+];
+
+function sanitizeAdminListingAuditMetadata(
+  metadata: Record<string, string | number | boolean | string[] | null>,
+): Record<string, string | number | boolean | string[] | null> {
+  const safeMetadata: Record<string, string | number | boolean | string[] | null> = {};
+
+  for (const key of SAFE_ADMIN_LISTING_AUDIT_METADATA_KEYS) {
+    const value = metadata[key];
+
+    if (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      (Array.isArray(value) && value.every((item) => typeof item === "string"))
+    ) {
+      safeMetadata[key] = value;
+    }
+  }
+
+  return safeMetadata;
 }
 
 function formatMetadataKey(key: string): string {

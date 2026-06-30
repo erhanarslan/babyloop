@@ -752,11 +752,91 @@ function mapImage(row: {
       modelName: row.authenticityModel,
       promptVersion: row.authenticityPromptVersion,
       reasons: Array.isArray(row.authenticityReasons) ? row.authenticityReasons : [],
-      flags: row.authenticityFlags && typeof row.authenticityFlags === "object" ? row.authenticityFlags : {},
+      flags: sanitizeImageAuthenticityFlags(row.authenticityFlags),
       checkedAt: row.authenticityCheckedAt?.toISOString() ?? null
     },
     createdAt: row.createdAt.toISOString()
   };
+}
+
+const SENSITIVE_IMAGE_AUTHENTICITY_FLAG_KEY_PARTS = [
+  "authorization",
+  "cookie",
+  "credential",
+  "email",
+  "message",
+  "password",
+  "phone",
+  "prompt",
+  "raw",
+  "refresh",
+  "secret",
+  "session",
+  "token"
+];
+
+function sanitizeImageAuthenticityFlags(flags: unknown): Record<string, unknown> {
+  if (!flags || typeof flags !== "object" || Array.isArray(flags)) {
+    return {};
+  }
+
+  const safeFlags: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(flags)) {
+    if (isSensitiveImageAuthenticityFlagKey(key)) {
+      continue;
+    }
+
+    const safeValue = sanitizeImageAuthenticityFlagValue(value);
+
+    if (safeValue !== undefined) {
+      safeFlags[key] = safeValue;
+    }
+  }
+
+  return safeFlags;
+}
+
+function sanitizeImageAuthenticityFlagValue(value: unknown): unknown {
+  if (value === null || typeof value === "boolean" || typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return isSensitiveImageAuthenticityFlagString(value) ? "[redacted]" : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map(sanitizeImageAuthenticityFlagValue)
+      .filter((item): item is Exclude<unknown, undefined> => item !== undefined);
+  }
+
+  if (typeof value === "object") {
+    return sanitizeImageAuthenticityFlags(value);
+  }
+
+  return undefined;
+}
+
+function isSensitiveImageAuthenticityFlagKey(key: string): boolean {
+  const normalizedKey = key.toLowerCase();
+
+  return SENSITIVE_IMAGE_AUTHENTICITY_FLAG_KEY_PARTS.some((part) =>
+    normalizedKey.includes(part)
+  );
+}
+
+function isSensitiveImageAuthenticityFlagString(value: string): boolean {
+  const normalizedValue = value.toLowerCase();
+
+  return (
+    normalizedValue.includes("sk-") ||
+    normalizedValue.includes("bearer ") ||
+    normalizedValue.includes("authorization:") ||
+    normalizedValue.includes("access_token") ||
+    normalizedValue.includes("refresh_token")
+  );
 }
 
 function normalizeAuthenticityDecision(value: string | null): "allow" | "needs_review" | "reject" | null {

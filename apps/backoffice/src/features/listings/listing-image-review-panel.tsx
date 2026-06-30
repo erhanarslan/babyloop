@@ -321,12 +321,91 @@ function getImageReviewPriority(status: AdminListingImage["reviewStatus"]): numb
   }
 }
 
-function formatAuthenticityFlags(flags: Record<string, unknown>): string {
-  const entries = Object.entries(flags);
 
-  if (entries.length === 0) {
-    return "No AI flags recorded.";
+const SENSITIVE_IMAGE_REVIEW_METADATA_KEY_PARTS = [
+  "authorization",
+  "cookie",
+  "credential",
+  "email",
+  "message",
+  "password",
+  "phone",
+  "prompt",
+  "raw",
+  "refresh",
+  "secret",
+  "session",
+  "token"
+];
+
+function formatAuthenticityFlags(flags: Record<string, unknown>): string {
+  const safeFlags = sanitizeImageReviewMetadata(flags);
+
+  return Object.keys(safeFlags).length > 0
+    ? JSON.stringify(safeFlags)
+    : "No safe AI flags recorded.";
+}
+
+function sanitizeImageReviewMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
   }
 
-  return JSON.stringify(flags);
+  const safeMetadata: Record<string, unknown> = {};
+
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (isSensitiveImageReviewMetadataKey(key)) {
+      continue;
+    }
+
+    const safeValue = sanitizeImageReviewMetadataValue(entryValue);
+
+    if (safeValue !== undefined) {
+      safeMetadata[key] = safeValue;
+    }
+  }
+
+  return safeMetadata;
+}
+
+function sanitizeImageReviewMetadataValue(value: unknown): unknown {
+  if (value === null || typeof value === "boolean" || typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return isSensitiveImageReviewMetadataString(value) ? "[redacted]" : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map(sanitizeImageReviewMetadataValue)
+      .filter((item): item is Exclude<unknown, undefined> => item !== undefined);
+  }
+
+  if (typeof value === "object") {
+    return sanitizeImageReviewMetadata(value);
+  }
+
+  return undefined;
+}
+
+function isSensitiveImageReviewMetadataKey(key: string): boolean {
+  const normalizedKey = key.toLowerCase();
+
+  return SENSITIVE_IMAGE_REVIEW_METADATA_KEY_PARTS.some((part) =>
+    normalizedKey.includes(part)
+  );
+}
+
+function isSensitiveImageReviewMetadataString(value: string): boolean {
+  const normalizedValue = value.toLowerCase();
+
+  return (
+    normalizedValue.includes("sk-") ||
+    normalizedValue.includes("bearer ") ||
+    normalizedValue.includes("authorization:") ||
+    normalizedValue.includes("access_token") ||
+    normalizedValue.includes("refresh_token")
+  );
 }
