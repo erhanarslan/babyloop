@@ -3,6 +3,9 @@ appId: com.babyloop.mobile
 - launchApp
 - assertVisible: "Keşfet"
 - assertVisible: "Ne arıyorsun?"
+- tapOn: "İlan Ver"
+- assertVisible:
+    text: "Ürününü satmaya başla|İlanını oluştur"
 - tapOn: "Favoriler"
 - assertVisible: "Favoriler"
 - tapOn: "Mesajlar"
