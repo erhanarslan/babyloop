@@ -562,6 +562,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   )}
 
                   <MyListingActionsMenu
+                    listingId={listing.id}
                     actions={getStatusActions(listing.status).map((status) => ({
                       status,
                       label: getStatusActionLabel(status, dictionary)
@@ -599,6 +600,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
 function MyListingActionsMenu({
   actions,
+  listingId,
   hasImage,
   isOpen,
   isPending,
@@ -608,6 +610,7 @@ function MyListingActionsMenu({
   onStatusChange
 }: {
   actions: ListingActionMenuItem[];
+  listingId: string;
   hasImage: boolean;
   isOpen: boolean;
   isPending: boolean;
@@ -660,31 +663,39 @@ function MyListingActionsMenu({
       onOpenChange(false);
     }
 
+    function repositionForScroll() {
+      updatePosition();
+    }
+
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     window.addEventListener("resize", closeForViewportChange);
-    window.addEventListener("scroll", closeForViewportChange, true);
+    window.addEventListener("scroll", repositionForScroll, true);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", closeForViewportChange);
-      window.removeEventListener("scroll", closeForViewportChange, true);
+      window.removeEventListener("scroll", repositionForScroll, true);
     };
   }, [isOpen, onOpenChange, updatePosition]);
 
+  const resolvedPosition =
+    position ?? (isOpen && triggerRef.current ? calculateActionMenuPosition(triggerRef.current) : null);
+
   const menu =
-    isOpen && position
+    isOpen && resolvedPosition
       ? createPortal(
           <div
             className="fixed z-[80] max-h-[min(70vh,420px)] overflow-y-auto rounded-2xl border border-border bg-background p-2 shadow-xl"
+            data-listing-status-menu={listingId}
             id={menuId}
             ref={menuRef}
             role="menu"
             style={{
-              left: position.left,
-              top: position.top,
-              width: position.width
+              left: resolvedPosition.left,
+              top: resolvedPosition.top,
+              width: resolvedPosition.width
             }}
           >
             <label
@@ -737,6 +748,7 @@ function MyListingActionsMenu({
                 className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-55"
                 disabled={isPending}
                 key={action.status}
+                data-listing-status-action={action.status}
                 role="menuitem"
                 type="button"
                 onClick={() => {
@@ -758,11 +770,32 @@ function MyListingActionsMenu({
         aria-controls={isOpen ? menuId : undefined}
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        data-listing-status-menu-trigger={listingId}
         className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-black text-foreground transition hover:bg-muted disabled:opacity-55 sm:w-auto"
         disabled={isPending}
         ref={triggerRef}
         type="button"
-        onClick={() => {
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (!isOpen) {
+            updatePosition();
+          }
+
+          onOpenChange(!isOpen);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+
+          event.preventDefault();
+
+          if (!isOpen) {
+            updatePosition();
+          }
+
           onOpenChange(!isOpen);
         }}
       >
@@ -777,22 +810,41 @@ function calculateActionMenuPosition(trigger: HTMLButtonElement): MenuPosition {
   const rect = trigger.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const width = Math.min(ACTION_MENU_WIDTH, viewportWidth - ACTION_MENU_MARGIN * 2);
-  const left = Math.min(
-    Math.max(ACTION_MENU_MARGIN, rect.right - width),
-    viewportWidth - width - ACTION_MENU_MARGIN
+  const width = Math.min(
+    ACTION_MENU_WIDTH,
+    Math.max(160, viewportWidth - ACTION_MENU_MARGIN * 2)
   );
-  const preferredTop = rect.bottom + 8;
-  const top =
-    preferredTop > viewportHeight - 96
-      ? Math.max(ACTION_MENU_MARGIN, rect.top - 8)
-      : preferredTop;
+  const maxLeft = Math.max(ACTION_MENU_MARGIN, viewportWidth - width - ACTION_MENU_MARGIN);
+  const left = clamp(rect.right - width, ACTION_MENU_MARGIN, maxLeft);
+
+  const estimatedMenuHeight = Math.min(
+    420,
+    Math.max(220, viewportHeight * 0.7)
+  );
+  const preferredBelowTop = rect.bottom + ACTION_MENU_MARGIN / 2;
+  const preferredAboveTop = rect.top - estimatedMenuHeight - ACTION_MENU_MARGIN / 2;
+  const hasRoomBelow = preferredBelowTop + estimatedMenuHeight <= viewportHeight - ACTION_MENU_MARGIN;
+  const hasRoomAbove = preferredAboveTop >= ACTION_MENU_MARGIN;
+
+  const top = hasRoomBelow
+    ? preferredBelowTop
+    : hasRoomAbove
+      ? preferredAboveTop
+      : clamp(
+          preferredBelowTop,
+          ACTION_MENU_MARGIN,
+          Math.max(ACTION_MENU_MARGIN, viewportHeight - estimatedMenuHeight - ACTION_MENU_MARGIN)
+        );
 
   return {
     left,
     top,
     width
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function buildListingMetrics(listings: ListingSummary[]): Record<ListingLifecycleStatus, number> & { total: number } {

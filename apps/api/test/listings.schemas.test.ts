@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   createListingBodySchema,
   listingsQuerySchema,
-  updateListingBodySchema
+  updateListingBodySchema,
+  updateListingStatusBodySchema
 } from "../src/schemas/listings.schemas.js";
 
 describe("listings schemas", () => {
@@ -77,6 +78,24 @@ describe("listings schemas", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+
+  it("accepts only supported listing lifecycle statuses", () => {
+    for (const status of ["active", "reserved", "sold", "archived"]) {
+      expect(updateListingStatusBodySchema.safeParse({ status }).success).toBe(true);
+    }
+
+    for (const status of ["draft", "deleted", "hidden", "needs_review", "", null]) {
+      expect(updateListingStatusBodySchema.safeParse({ status }).success).toBe(false);
+    }
+
+    expect(
+      updateListingStatusBodySchema.safeParse({
+        status: "sold",
+        sellerProfileId: "00000000-0000-4000-8000-000000000001"
+      }).success
+    ).toBe(false);
   });
 
   it("rejects client-provided imageUrls in create/update listing contracts", () => {

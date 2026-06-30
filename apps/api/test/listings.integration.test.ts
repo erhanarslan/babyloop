@@ -4,6 +4,7 @@ import {
   conversations,
   emailVerificationTokens,
   favorites,
+  events,
   listingImages,
   listings,
   mfaOtpChallenges,
@@ -1087,6 +1088,125 @@ describe("listings API", () => {
     });
   });
 
+
+  it("enforces the full seller status lifecycle matrix and writes safe status events", async () => {
+    type ListingLifecycleStatus = "active" | "reserved" | "sold" | "archived";
+
+    const seller = await createUser(app, {
+      email: "listing-status-matrix-seller@babyloop.test"
+    });
+    const otherUser = await createUser(app, {
+      email: "listing-status-matrix-other@babyloop.test"
+    });
+
+    const allowedTransitions: Array<{
+      from: ListingLifecycleStatus;
+      to: ListingLifecycleStatus;
+    }> = [
+      { from: "active", to: "reserved" },
+      { from: "active", to: "sold" },
+      { from: "active", to: "archived" },
+      { from: "reserved", to: "active" },
+      { from: "reserved", to: "sold" },
+      { from: "reserved", to: "archived" },
+      { from: "sold", to: "archived" },
+      { from: "archived", to: "active" }
+    ];
+
+    for (const transition of allowedTransitions) {
+      const listing = await createListing(app, seller.accessToken, {
+        title: `Allowed status transition ${transition.from} to ${transition.to}`
+      });
+
+      await setListingStatusDirect(listing.id, transition.from);
+
+      const beforeCount = await countListingStatusChangeEvents(listing.id);
+      const response = await app.inject({
+        headers: authHeader(seller.accessToken),
+        method: "PATCH",
+        url: `/api/v1/listings/${listing.id}/status`,
+        payload: {
+          status: transition.to
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        ok: true,
+        data: {
+          listing: {
+            id: listing.id,
+            status: transition.to
+          }
+        }
+      });
+      expect(await readListingStatus(listing.id)).toBe(transition.to);
+      expect(await countListingStatusChangeEvents(listing.id)).toBe(beforeCount + 1);
+
+      const event = await latestListingStatusChangeEvent(listing.id);
+      expect(event).toMatchObject({
+        actorProfileId: seller.profile.id,
+        entityId: listing.id,
+        entityType: "listing",
+        eventType: "listing_status_changed"
+      });
+      expect(event?.metadata).toMatchObject({
+        previousStatus: transition.from,
+        nextStatus: transition.to
+      });
+
+      const serialized = JSON.stringify(event);
+      expect(serialized).not.toContain(seller.user.email);
+      expect(serialized).not.toContain(otherUser.user.email);
+      expect(serialized).not.toContain(seller.accessToken);
+      expect(serialized).not.toContain(otherUser.accessToken);
+      expect(serialized).not.toContain("accessToken");
+      expect(serialized).not.toContain("refreshToken");
+      expect(serialized).not.toContain("passwordHash");
+      expect(serialized).not.toContain("buyerEmail");
+      expect(serialized).not.toContain("phone");
+      expect(serialized).not.toContain("messageBody");
+    }
+
+    const invalidTransitions: Array<{
+      from: ListingLifecycleStatus;
+      to: ListingLifecycleStatus;
+    }> = [
+      { from: "sold", to: "active" },
+      { from: "sold", to: "reserved" },
+      { from: "archived", to: "reserved" },
+      { from: "archived", to: "sold" }
+    ];
+
+    for (const transition of invalidTransitions) {
+      const listing = await createListing(app, seller.accessToken, {
+        title: `Invalid status transition ${transition.from} to ${transition.to}`
+      });
+
+      await setListingStatusDirect(listing.id, transition.from);
+
+      const beforeCount = await countListingStatusChangeEvents(listing.id);
+      const response = await app.inject({
+        headers: authHeader(seller.accessToken),
+        method: "PATCH",
+        url: `/api/v1/listings/${listing.id}/status`,
+        payload: {
+          status: transition.to
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        ok: false,
+        error: {
+          code: "INVALID_STATUS_TRANSITION"
+        }
+      });
+      expect(await readListingStatus(listing.id)).toBe(transition.from);
+      expect(await countListingStatusChangeEvents(listing.id)).toBe(beforeCount);
+    }
+  });
+
   it("does not expose internal seller user id in public listing list", async () => {
     const seller = await createUser(app);
     await createListing(app, seller.accessToken);
@@ -1822,4 +1942,55 @@ function multipartRequest(input: {
     },
     payload: Buffer.concat([head, input.buffer, tail])
   };
+}
+
+
+async function setListingStatusDirect(listingId: string, status: "active" | "reserved" | "sold" | "archived"): Promise<void> {
+  await app.db
+    .update(listings)
+    .set({
+      status,
+      updatedAt: new Date()
+    })
+    .where(eq(listings.id, listingId));
+}
+
+async function readListingStatus(listingId: string): Promise<string | null> {
+  const [row] = await app.db
+    .select({
+      status: listings.status
+    })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+
+  return row?.status ?? null;
+}
+
+async function countListingStatusChangeEvents(listingId: string): Promise<number> {
+  const rows = await app.db
+    .select({
+      id: events.id
+    })
+    .from(events)
+    .where(and(eq(events.entityId, listingId), eq(events.eventType, "listing_status_changed")));
+
+  return rows.length;
+}
+
+async function latestListingStatusChangeEvent(listingId: string) {
+  const rows = await app.db
+    .select({
+      actorProfileId: events.actorProfileId,
+      entityId: events.entityId,
+      entityType: events.entityType,
+      eventType: events.eventType,
+      metadata: events.metadata,
+      createdAt: events.createdAt
+    })
+    .from(events)
+    .where(and(eq(events.entityId, listingId), eq(events.eventType, "listing_status_changed")))
+    .orderBy(asc(events.createdAt));
+
+  return rows.at(-1) ?? null;
 }

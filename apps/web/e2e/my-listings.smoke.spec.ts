@@ -1,198 +1,306 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, request, test, type Locator, type Page } from "@playwright/test";
 import {
+  API_BASE_URL,
+  E2E_PASSWORD,
   FULL_FLOW_ENABLED,
+  assertApiIsAvailable,
+  createListing,
+  createVerifiedUser,
+  expectMyListingStatus,
+  fetchFirstCategoryId,
   installAuthRefreshRoute,
-  type ApiResponse,
-  type AuthPayload,
+  updateListingStatus,
 } from "./helpers/web-e2e-api";
 
-type MockMyListingsPayload = {
-  listings: MockListingSummary[];
-};
-
-type MockListingSummary = {
-  id: string;
-  title: string;
-  description: string;
-  status: "active" | "reserved" | "sold" | "archived";
-  category: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  price: {
-    amount: string;
-    currency: string;
-  };
-  condition: "new" | "like_new" | "good" | "fair" | "needs_repair";
-  listingType: "sale" | "swap" | "donation";
-  favoriteCount: number;
-  firstImage: null;
-  images: [];
-  createdAt: string;
-  updatedAt: string;
-};
-
-const MOCK_ACCESS_TOKEN = "mock-my-listings-access-token";
-const MOCK_EMAIL = "web-e2e-my-listings-seller@babyloop.test";
-const MOCK_LISTING_ID = "web-e2e-my-listings-reserved-1";
-const MOCK_LISTING_TITLE = "Web E2E ilan yönetimi rezerve ürünü";
+const RAW_INTERNAL_TOKEN_SENTINEL = "accessToken";
+const RAW_REFRESH_TOKEN_SENTINEL = "refreshToken";
+const RAW_PHONE_SENTINEL = "+905551112233";
+const RAW_BUYER_EMAIL_SENTINEL = "buyer-private-my-listings@babyloop.test";
 
 test.describe("my listings flow", () => {
-  test("seller can see own reserved listing in listing management", async ({ page }) => {
+  test("seller can manage listing status lifecycle from listing management", async ({ page }) => {
+    test.skip(
+      !FULL_FLOW_ENABLED,
+      "Set WEB_E2E_FULL_FLOW=1 and run the API + web app before this full-flow E2E.",
+    );
+    test.setTimeout(90_000);
+
+    const setupApi = await request.newContext({
+      baseURL: API_BASE_URL,
+      extraHTTPHeaders: {
+        "content-type": "application/json",
+      },
+    });
+    const sellerApi = await request.newContext({
+      baseURL: API_BASE_URL,
+      extraHTTPHeaders: {
+        "content-type": "application/json",
+      },
+    });
+
+    try {
+      await assertApiIsAvailable(setupApi);
+
+      const categoryId = await fetchFirstCategoryId(setupApi);
+      const unique = Date.now();
+      const sellerEmail = `web-e2e-my-listings-seller-${unique}@babyloop.test`;
+      const listingTitle = `Web E2E ilan yönetimi ürünü ${unique}`;
+
+      const seller = await createVerifiedUser(sellerApi, {
+        displayName: "Web E2E Listing Owner",
+        email: sellerEmail,
+        locationCity: "İstanbul",
+        password: E2E_PASSWORD,
+      });
+
+      const listing = await createListing(sellerApi, {
+        accessToken: seller.accessToken,
+        categoryId,
+        title: listingTitle,
+      });
+
+      await installAuthRefreshRoute(page, seller);
+
+      await page.goto("/my-listings", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/my-listings/, { timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "İlanlarım", exact: true })).toBeVisible({
+        timeout: 15_000,
+      });
+
+      const listingCard = page.locator(`article[data-listing-id="${listing.id}"]`);
+
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+      await expect(listingCard).toHaveAttribute("data-listing-status", "active");
+      await expect(listingCard.locator('[data-listing-status-label="active"]')).toBeVisible();
+      await expect(listingCard).toContainText(listingTitle);
+      await expect(listingCard).toContainText("Favori: 0");
+      await expect(listingCard.getByRole("link", { name: /Detay|View details/i })).toHaveAttribute(
+        "href",
+        `/listings/${listing.id}`,
+      );
+
+      await changeListingStatusFromUi(page, listingCard, 0);
+      await expectMyListingStatus(sellerApi, {
+        accessToken: seller.accessToken,
+        listingId: listing.id,
+        status: "reserved",
+      });
+      await expect(listingCard).toHaveAttribute("data-listing-status", "reserved", {
+        timeout: 15_000,
+      });
+      await expect(listingCard.locator('[data-listing-status-label="reserved"]')).toBeVisible();
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="reserved"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
+      await expect(listingCard).toHaveCount(0);
+      await expect(page.getByText("Bu durumda ilan yok", { exact: true })).toBeVisible();
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="reserved"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+
+      await changeListingStatusFromUi(page, listingCard, 0);
+      await expectMyListingStatus(sellerApi, {
+        accessToken: seller.accessToken,
+        listingId: listing.id,
+        status: "active",
+      });
+
+      // We are still on the reserved filter, so an active listing should leave this filtered view.
+      await expect(listingCard).toHaveCount(0);
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+      await expect(listingCard).toHaveAttribute("data-listing-status", "active", {
+        timeout: 15_000,
+      });
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="all"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+
+      // Active actions are ordered as reserved, sold, archived. Choosing index 1 marks it sold.
+      await changeListingStatusFromUi(page, listingCard, 1);
+      await expectMyListingStatus(sellerApi, {
+        accessToken: seller.accessToken,
+        listingId: listing.id,
+        status: "sold",
+      });
+      await expect(listingCard).toHaveAttribute("data-listing-status", "sold", {
+        timeout: 15_000,
+      });
+      await expect(listingCard.locator('[data-listing-status-label="sold"]')).toBeVisible();
+      await expect(listingCard.getByText("Yayında değil", { exact: true })).toBeVisible();
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="sold"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
+      await expect(listingCard).toHaveCount(0);
+
+      await expectNoMyListingsSensitiveLeak(page, {
+        sellerAccessToken: seller.accessToken,
+        sellerEmail,
+      });
+    } finally {
+      await setupApi.dispose();
+      await sellerApi.dispose();
+    }
+  });
+
+  test("seller can see externally reserved listing in listing management", async ({ page }) => {
     test.skip(
       !FULL_FLOW_ENABLED,
       "Set WEB_E2E_FULL_FLOW=1 and run the API + web app before this full-flow E2E.",
     );
     test.setTimeout(60_000);
 
-    const auth = buildMockAuth();
-    const listing = buildMockReservedListing();
-
-    await installAuthRefreshRoute(page, auth);
-    await installAuthMeRoute(page, auth);
-    await installMyListingsRoute(page, listing);
-
-    await page.goto("/my-listings", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/my-listings/, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "İlanlarım", exact: true })).toBeVisible({
-      timeout: 15_000,
+    const setupApi = await request.newContext({
+      baseURL: API_BASE_URL,
+      extraHTTPHeaders: {
+        "content-type": "application/json",
+      },
+    });
+    const sellerApi = await request.newContext({
+      baseURL: API_BASE_URL,
+      extraHTTPHeaders: {
+        "content-type": "application/json",
+      },
     });
 
-    const listingCard = page.locator(`article[data-listing-id="${MOCK_LISTING_ID}"]`);
+    try {
+      await assertApiIsAvailable(setupApi);
 
-    await expect(listingCard).toBeVisible({ timeout: 15_000 });
-    await expect(listingCard).toHaveAttribute("data-listing-status", "reserved");
-    await expect(listingCard.locator('[data-listing-status-label="reserved"]')).toBeVisible();
-    await expect(listingCard).toContainText(MOCK_LISTING_TITLE);
-    await expect(listingCard).toContainText(/6500(?:\.00)? TRY/);
-    await expect(listingCard).toContainText("Favori: 3");
+      const categoryId = await fetchFirstCategoryId(setupApi);
+      const unique = Date.now();
+      const sellerEmail = `web-e2e-my-listings-reserved-seller-${unique}@babyloop.test`;
+      const listingTitle = `Web E2E ilan yönetimi rezerve ürünü ${unique}`;
 
-    await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="reserved"]').click();
-    await expect(listingCard).toBeVisible({ timeout: 15_000 });
+      const seller = await createVerifiedUser(sellerApi, {
+        displayName: "Web E2E Listing Owner",
+        email: sellerEmail,
+        locationCity: "İstanbul",
+        password: E2E_PASSWORD,
+      });
 
-    await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
-    await expect(listingCard).toHaveCount(0);
-    await expect(page.getByText("Bu durumda ilan yok", { exact: true })).toBeVisible();
+      const listing = await createListing(sellerApi, {
+        accessToken: seller.accessToken,
+        categoryId,
+        title: listingTitle,
+      });
 
-    await expectNoMyListingsSensitiveLeak(page);
+      await updateListingStatus(sellerApi, {
+        accessToken: seller.accessToken,
+        listingId: listing.id,
+        status: "reserved",
+      });
+
+      await expectMyListingStatus(sellerApi, {
+        accessToken: seller.accessToken,
+        listingId: listing.id,
+        status: "reserved",
+      });
+
+      await installAuthRefreshRoute(page, seller);
+
+      await page.goto("/my-listings", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/my-listings/, { timeout: 15_000 });
+
+      const listingCard = page.locator(`article[data-listing-id="${listing.id}"]`);
+
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+      await expect(listingCard).toHaveAttribute("data-listing-status", "reserved");
+      await expect(listingCard.locator('[data-listing-status-label="reserved"]')).toBeVisible();
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="reserved"]').click();
+      await expect(listingCard).toBeVisible({ timeout: 15_000 });
+
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
+      await expect(listingCard).toHaveCount(0);
+
+      await expectNoMyListingsSensitiveLeak(page, {
+        sellerAccessToken: seller.accessToken,
+        sellerEmail,
+      });
+    } finally {
+      await setupApi.dispose();
+      await sellerApi.dispose();
+    }
   });
 });
 
-function buildMockAuth(): AuthPayload {
-  return {
-    accessToken: MOCK_ACCESS_TOKEN,
-    user: {
-      id: "web-e2e-my-listings-user-1",
-      email: MOCK_EMAIL,
-      role: "user",
-      emailVerifiedAt: new Date().toISOString(),
-    },
-    profile: {
-      id: "web-e2e-my-listings-profile-1",
-      displayName: "Web E2E Listing Owner",
-      locationCity: "İstanbul",
-    },
-  };
-}
+async function changeListingStatusFromUi(page: Page, listingCard: Locator, statusActionIndex: number): Promise<void> {
+  const listingId = await listingCard.getAttribute("data-listing-id");
 
-function buildMockReservedListing(): MockListingSummary {
-  return {
-    id: MOCK_LISTING_ID,
-    title: MOCK_LISTING_TITLE,
-    description: "Web E2E ilan yönetimi testi için mock reserved listing.",
-    status: "reserved",
-    category: {
-      id: "web-e2e-category-strollers",
-      name: "Bebek Arabası & Seyahat",
-      slug: "bebek-arabasi-seyahat",
-    },
-    price: {
-      amount: "6500.00",
-      currency: "TRY",
-    },
-    condition: "good",
-    listingType: "sale",
-    favoriteCount: 3,
-    firstImage: null,
-    images: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
+  if (!listingId) {
+    throw new Error("Listing card is missing data-listing-id.");
+  }
 
-async function installAuthMeRoute(page: Page, auth: AuthPayload): Promise<void> {
-  await page.route("**/api/v1/auth/me", async (route) => {
-    const method = route.request().method().toUpperCase();
+  const trigger = listingCard.locator(`[data-listing-status-menu-trigger="${listingId}"]`);
 
-    if (method === "OPTIONS") {
-      await route.fulfill({
-        status: 204,
-        headers: getCorsHeaders(route),
-      });
-      return;
-    }
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: getCorsHeaders(route),
-      body: JSON.stringify({
-        ok: true,
-        data: {
-          user: auth.user,
-          profile: auth.profile,
-        },
-      }),
-    });
+  await expect(trigger).toBeVisible({ timeout: 15_000 });
+  await trigger.dispatchEvent("pointerdown", {
+    bubbles: true,
+    cancelable: true,
+    pointerType: "mouse"
   });
-}
+  await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 15_000 });
 
-async function installMyListingsRoute(page: Page, listing: MockListingSummary): Promise<void> {
-  await page.route("**/api/v1/me/listings", async (route) => {
-    const method = route.request().method().toUpperCase();
+  const menu = page.locator(`[data-listing-status-menu="${listingId}"]`);
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  await expect(menu).toHaveAttribute("role", "menu");
 
-    if (method === "OPTIONS") {
-      await route.fulfill({
-        status: 204,
-        headers: getCorsHeaders(route),
-      });
-      return;
-    }
+  const statusAction = menu.locator('button[role="menuitem"][data-listing-status-action]').nth(statusActionIndex);
+  await expect(statusAction).toBeVisible({ timeout: 15_000 });
+  await expectStatusActionInViewport(page, statusAction);
 
-    expect(method).toBe("GET");
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: getCorsHeaders(route),
-      body: JSON.stringify({
-        ok: true,
-        data: {
-          listings: [listing],
-        },
-      } satisfies ApiResponse<MockMyListingsPayload>),
-    });
+  const statusResponsePromise = page.waitForResponse((response) => {
+    return response.url().includes(`/api/v1/listings/${listingId}/status`) &&
+      response.request().method() === "PATCH";
   });
+
+  await statusAction.click();
+
+  const statusResponse = await statusResponsePromise;
+  expect(statusResponse.ok(), await statusResponse.text()).toBe(true);
 }
 
-function getCorsHeaders(route: Route): Record<string, string> {
-  const origin = route.request().headers()["origin"] ?? "http://localhost:3000";
+async function expectStatusActionInViewport(page: Page, statusAction: Locator): Promise<void> {
+  const box = await statusAction.boundingBox();
 
-  return {
-    "access-control-allow-origin": origin,
-    "access-control-allow-credentials": "true",
-    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers": "authorization,content-type,x-babyloop-csrf-token",
-    vary: "Origin",
-  };
+  if (!box) {
+    throw new Error("Status action has no bounding box.");
+  }
+
+  const viewport = page.viewportSize();
+
+  if (!viewport) {
+    return;
+  }
+
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
 }
 
-async function expectNoMyListingsSensitiveLeak(page: Page): Promise<void> {
+async function expectNoMyListingsSensitiveLeak(
+  page: Page,
+  input: {
+    sellerAccessToken: string;
+    sellerEmail: string;
+  },
+): Promise<void> {
   const body = page.locator("body");
 
-  await expect(body).not.toContainText(MOCK_EMAIL);
-  await expect(body).not.toContainText(MOCK_ACCESS_TOKEN);
-  await expect(body).not.toContainText("accessToken");
-  await expect(body).not.toContainText("refreshToken");
+  await expect(body).not.toContainText(input.sellerEmail);
+  await expect(body).not.toContainText(input.sellerAccessToken);
+  await expect(body).not.toContainText(E2E_PASSWORD);
+  await expect(body).not.toContainText(RAW_INTERNAL_TOKEN_SENTINEL);
+  await expect(body).not.toContainText(RAW_REFRESH_TOKEN_SENTINEL);
+  await expect(body).not.toContainText(RAW_PHONE_SENTINEL);
+  await expect(body).not.toContainText(RAW_BUYER_EMAIL_SENTINEL);
+  await expect(body).not.toContainText("passwordHash");
+  await expect(body).not.toContainText("buyerEmail");
+  await expect(body).not.toContainText("messageBody");
 }
