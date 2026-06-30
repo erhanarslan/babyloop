@@ -1,9 +1,18 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-
-import { Paragraph, Screen } from "../../ui/screen";
 import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
@@ -14,62 +23,102 @@ import {
   type MobileConversationMessage
 } from "./messages-api";
 
-type DetailStatus = "idle" | "loading" | "ready" | "empty" | "error";
+const CONVERSATION_POLL_INTERVAL_MS = 2500;
 
 export function ConversationDetailScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const authSession = useAuthSession();
   const currentProfileId = authSession.currentUser?.profile.id ?? null;
   const conversationId = typeof params.conversationId === "string" ? params.conversationId : "";
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [conversation, setConversation] = useState<MobileConversationDetail | null>(null);
   const [messages, setMessages] = useState<MobileConversationMessage[]>([]);
-  const [status, setStatus] = useState<DetailStatus>("idle");
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
 
   const canSend = useMemo(() => draft.trim().length > 0 && !sending, [draft, sending]);
 
-  const loadConversation = useCallback(async () => {
-    if (!authSession.currentUser) {
-      setStatus("empty");
-      return;
-    }
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
 
-    if (!conversationId) {
-      setStatus("error");
-      setError("Konuşma bilgisi eksik.");
-      return;
-    }
+  const loadConversation = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!authSession.currentUser || !conversationId) {
+        setConversation(null);
+        setMessages([]);
+        setStatus("ready");
+        return;
+      }
 
-    try {
-      setStatus("loading");
-      setError(null);
+      try {
+        if (!options.silent) {
+          setStatus("loading");
+        }
 
-      const [nextConversation, nextMessages] = await Promise.all([
-        fetchMobileConversationDetail(conversationId),
-        fetchMobileConversationMessages(conversationId)
-      ]);
+        const [nextConversation, nextMessages] = await Promise.all([
+          fetchMobileConversationDetail(conversationId),
+          fetchMobileConversationMessages(conversationId)
+        ]);
 
-      setConversation(nextConversation);
-      setMessages(nextMessages);
-      setStatus(nextMessages.length > 0 ? "ready" : "empty");
-    } catch (nextError) {
-      setStatus("error");
-      setError(nextError instanceof Error ? nextError.message : "Konuşma yüklenemedi.");
-    }
-  }, [authSession.currentUser, conversationId]);
+        setConversation(nextConversation);
+        setMessages(nextMessages);
+        setStatus("ready");
+        setError(null);
+      } catch (loadError) {
+        if (!options.silent) {
+          setStatus("error");
+          setError(loadError instanceof Error ? loadError.message : "Konuşma yüklenemedi.");
+        }
+      }
+    },
+    [authSession.currentUser, conversationId]
+  );
 
   useEffect(() => {
     void loadConversation();
   }, [loadConversation]);
 
+  useEffect(() => {
+    if (!authSession.currentUser || !conversationId) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void loadConversation({ silent: true });
+    }, CONVERSATION_POLL_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [authSession.currentUser, conversationId, loadConversation]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages.length, scrollToBottom]);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setTimeout(scrollToBottom, 80);
+      setTimeout(scrollToBottom, 220);
+    });
+
+    return () => {
+      showSubscription.remove();
+    };
+  }, [scrollToBottom]);
+
   async function handleSend() {
     const body = draft.trim();
 
-    if (!body || !conversationId || sending) {
+    if (!body || sending || !conversationId) {
       return;
     }
 
@@ -78,9 +127,18 @@ export function ConversationDetailScreen() {
       setError(null);
 
       const sentMessage = await sendMobileConversationMessage(conversationId, body);
-      setMessages((currentMessages) => [...currentMessages, sentMessage]);
+
       setDraft("");
-      setStatus("ready");
+      setMessages((currentMessages) => {
+        if (currentMessages.some((message) => message.id === sentMessage.id)) {
+          return currentMessages;
+        }
+
+        return [...currentMessages, sentMessage];
+      });
+
+      await loadConversation({ silent: true });
+      scrollToBottom();
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "Mesaj gönderilemedi.");
     } finally {
@@ -88,184 +146,223 @@ export function ConversationDetailScreen() {
     }
   }
 
+  function handleBackToMessages() {
+    router.replace("/messages");
+  }
+
+  function handleOpenListing() {
+    if (!conversation?.listingId) {
+      return;
+    }
+
+    router.push(`/listing/${encodeURIComponent(conversation.listingId)}`);
+  }
+
   if (!authSession.currentUser) {
     return (
-      <Screen
-        eyebrow="Mesajlar"
-        title="Giriş gerekli"
-        subtitle="Konuşma detayını görmek için hesabına giriş yap."
-      >
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Mesajlar hesabına bağlıdır.</Text>
-          <Text style={styles.stateText}>Satıcı ve alıcı konuşmaları yalnızca giriş yaptıktan sonra açılır.</Text>
-          <Link href="/login" asChild>
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Giriş yap</Text>
-            </Pressable>
-          </Link>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+        <View style={styles.centerState}>
+          <Text style={styles.stateTitle}>Mesajları görmek için giriş yap</Text>
+          <Text style={styles.stateText}>Konuşmalar hesabına bağlıdır.</Text>
+          <Pressable onPress={() => router.push("/login")} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Giriş yap</Text>
+          </Pressable>
         </View>
-      </Screen>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Screen
-      eyebrow="Konuşma"
-      title={conversation?.title ?? "Mesajlaşma"}
-      subtitle={conversation?.subtitle ?? "Satıcı ve alıcı mesajlarını güvenli şekilde takip et."}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      style={styles.keyboardRoot}
     >
-      <Pressable onPress={() => router.back()} style={styles.backButton}>
-        <Text style={styles.backButtonText}>← Mesajlara dön</Text>
-      </Pressable>
-
-      {conversation?.listingTitle ? (
-        <View style={styles.contextCard}>
-          <Text style={styles.contextLabel}>İlan</Text>
-          <Text style={styles.contextTitle}>{conversation.listingTitle}</Text>
-          {conversation.otherProfileDisplayName ? (
-            <Text style={styles.contextMeta}>{conversation.otherProfileDisplayName}</Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      {status === "loading" ? <Paragraph>Konuşma yükleniyor...</Paragraph> : null}
-
-      {status === "error" ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Konuşma yüklenemedi</Text>
-          <Text style={styles.stateText}>{error}</Text>
-          <Pressable onPress={() => void loadConversation()} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Tekrar dene</Text>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+        <View style={styles.header}>
+          <Pressable onPress={handleBackToMessages} style={styles.backButton}>
+            <Text style={styles.backButtonText}>Mesajlara dön</Text>
           </Pressable>
+
+          <View style={styles.headerTextBlock}>
+            <Text numberOfLines={1} style={styles.title}>
+              {conversation?.otherProfileDisplayName ?? conversation?.title ?? "Konuşma"}
+            </Text>
+            {conversation?.listingTitle ? (
+              <Pressable onPress={handleOpenListing}>
+                <Text numberOfLines={1} style={styles.listingLink}>
+                  {conversation.listingTitle}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.subtitle}>BabyLoop mesajlaşma</Text>
+            )}
+          </View>
         </View>
-      ) : null}
 
-      {status === "empty" && messages.length === 0 ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Henüz mesaj yok</Text>
-          <Text style={styles.stateText}>İlk mesajı yazarken telefon, e-posta veya açık adres paylaşma.</Text>
-        </View>
-      ) : null}
+        {status === "loading" ? (
+          <View style={styles.inlineState}>
+            <Text style={styles.stateText}>Konuşma yükleniyor...</Text>
+          </View>
+        ) : null}
 
-      <View style={styles.messageList}>
-        {messages.map((message) => (
-          <MessageBubble
-            isOwn={Boolean(currentProfileId && message.senderProfileId === currentProfileId)}
-            key={message.id}
-            message={message}
-          />
-        ))}
-      </View>
+        {status === "error" ? (
+          <View style={styles.inlineState}>
+            <Text style={styles.stateTitle}>Konuşma yüklenemedi</Text>
+            <Text style={styles.stateText}>{error}</Text>
+            <Pressable onPress={() => void loadConversation()} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Tekrar dene</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
-      <View style={styles.composerCard}>
-        <TextInput
-          multiline
-          onChangeText={setDraft}
-          placeholder="Mesajını yaz..."
-          placeholderTextColor={colors.subtle}
-          style={styles.input}
-          value={draft}
-        />
-
-        <Pressable
-          disabled={!canSend}
-          onPress={handleSend}
-          style={[styles.primaryButton, !canSend ? styles.disabledButton : null]}
+        <ScrollView
+          contentContainerStyle={styles.messageList}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={scrollToBottom}
+          onScrollBeginDrag={Keyboard.dismiss}
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          style={styles.messagesScroll}
         >
-          <Text style={styles.primaryButtonText}>{sending ? "Gönderiliyor..." : "Gönder"}</Text>
-        </Pressable>
+          {messages.length === 0 && status === "ready" ? (
+            <View style={styles.emptyMessages}>
+              <Text style={styles.stateTitle}>Henüz mesaj yok</Text>
+              <Text style={styles.stateText}>İlanla ilgili ilk sorunu buradan yazabilirsin.</Text>
+            </View>
+          ) : null}
 
-        <Text style={styles.safetyNote}>
-          Telefon, e-posta, açık adres veya ödeme bilgisi paylaşmadan BabyLoop içinde kal.
-        </Text>
+          {messages.map((message) => {
+            const own = message.senderProfileId === currentProfileId;
 
-        {error && status !== "error" ? <Text style={styles.inlineError}>{error}</Text> : null}
-      </View>
-    </Screen>
-  );
-}
+            return (
+              <View
+                key={message.id}
+                style={[
+                  styles.messageBubble,
+                  own ? styles.messageBubbleOwn : styles.messageBubbleOther
+                ]}
+              >
+                {!own && message.senderDisplayName ? (
+                  <Text style={styles.senderName}>{message.senderDisplayName}</Text>
+                ) : null}
+                <Text style={[styles.messageText, own ? styles.messageTextOwn : styles.messageTextOther]}>
+                  {message.body}
+                </Text>
+                {message.createdAt ? (
+                  <Text style={styles.messageMeta}>{formatDate(message.createdAt)}</Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </ScrollView>
 
-function MessageBubble({
-  message,
-  isOwn
-}: {
-  message: MobileConversationMessage;
-  isOwn: boolean;
-}) {
-  return (
-    <View style={[styles.messageBubble, isOwn ? styles.messageBubbleOwn : styles.messageBubbleOther]}>
-      {!isOwn && message.senderDisplayName ? (
-        <Text style={styles.senderLabel}>{message.senderDisplayName}</Text>
-      ) : null}
-      <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
-        {message.body}
-      </Text>
-      {message.createdAt ? <Text style={styles.messageMeta}>{formatDate(message.createdAt)}</Text> : null}
-    </View>
+        <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {error && status !== "error" ? <Text style={styles.errorText}>{error}</Text> : null}
+          <View style={styles.composerRow}>
+            <TextInput
+              multiline
+              onChangeText={setDraft}
+              onFocus={scrollToBottom}
+              placeholder="Mesaj yaz..."
+              placeholderTextColor={colors.subtle}
+              style={styles.input}
+              textAlignVertical="top"
+              value={draft}
+            />
+            <Pressable
+              disabled={!canSend}
+              onPress={handleSend}
+              style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
+            >
+              <Text style={styles.sendButtonText}>{sending ? "..." : "Gönder"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 function formatDate(value: string): string {
-  const parsedDate = new Date(value);
+  const date = new Date(value);
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
+  if (Number.isNaN(date.getTime())) {
+    return "";
   }
 
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
+  return date.toLocaleTimeString("tr-TR", {
     hour: "2-digit",
     minute: "2-digit"
-  }).format(parsedDate);
+  });
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: {
+    flex: 1,
+    backgroundColor: colors.background
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12
+  },
   backButton: {
-    alignSelf: "flex-start",
     borderRadius: 999,
     backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 9
+    paddingHorizontal: 12,
+    paddingVertical: 8
   },
   backButtonText: {
     color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  contextCard: {
-    ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 14,
-    gap: 4
-  },
-  contextLabel: {
-    color: colors.subtle,
     fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase"
-  },
-  contextTitle: {
-    color: colors.text,
-    fontSize: 17,
     fontWeight: "900"
   },
-  contextMeta: {
+  headerTextBlock: {
+    flex: 1,
+    gap: 2
+  },
+  title: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  listingLink: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  subtitle: {
     color: colors.muted,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700"
   },
+  messagesScroll: {
+    flex: 1
+  },
   messageList: {
-    gap: 10
+    flexGrow: 1,
+    gap: 10,
+    justifyContent: "flex-end",
+    padding: 14,
+    paddingBottom: 24
   },
   messageBubble: {
     maxWidth: "86%",
-    borderRadius: radius.lg,
-    padding: 13,
-    gap: 5
+    borderRadius: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    gap: 4
   },
   messageBubbleOwn: {
     alignSelf: "flex-end",
@@ -277,14 +374,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface
   },
-  senderLabel: {
-    color: colors.subtle,
-    fontSize: 12,
+  senderName: {
+    color: colors.primaryDark,
+    fontSize: 11,
     fontWeight: "900"
   },
   messageText: {
     fontSize: 15,
-    lineHeight: 21
+    lineHeight: 20
   },
   messageTextOwn: {
     color: "#ffffff"
@@ -293,30 +390,92 @@ const styles = StyleSheet.create({
     color: colors.text
   },
   messageMeta: {
+    alignSelf: "flex-end",
     color: colors.subtle,
-    fontSize: 11,
-    fontWeight: "800"
+    fontSize: 10,
+    fontWeight: "700"
   },
-  composerCard: {
+  composer: {
     ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     backgroundColor: colors.surface,
-    padding: 14,
-    gap: 10
+    paddingHorizontal: 12,
+    paddingTop: 10
+  },
+  composerRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8
   },
   input: {
-    minHeight: 92,
+    flex: 1,
+    maxHeight: 118,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: 20,
     backgroundColor: colors.background,
     color: colors.text,
     fontSize: 15,
-    lineHeight: 21,
-    padding: 13,
-    textAlignVertical: "top"
+    paddingHorizontal: 13,
+    paddingVertical: 10
+  },
+  sendButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 15
+  },
+  sendButtonDisabled: {
+    opacity: 0.45
+  },
+  sendButtonText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  centerState: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+    gap: 12
+  },
+  inlineState: {
+    margin: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 8
+  },
+  emptyMessages: {
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: 18,
+    gap: 6
+  },
+  stateTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  stateText: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20
+  },
+  errorText: {
+    color: "#b42318",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 8
   },
   primaryButton: {
     alignItems: "center",
@@ -331,46 +490,15 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: "center",
+    alignSelf: "flex-start",
     borderRadius: 999,
     backgroundColor: colors.surfaceSoft,
-    paddingVertical: 13
+    paddingHorizontal: 14,
+    paddingVertical: 10
   },
   secondaryButtonText: {
     color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  disabledButton: {
-    opacity: 0.55
-  },
-  safetyNote: {
-    color: colors.subtle,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17
-  },
-  inlineError: {
-    color: colors.primaryDark,
     fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 18
-  },
-  stateCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 10
-  },
-  stateTitle: {
-    color: colors.text,
-    fontSize: 17,
     fontWeight: "900"
-  },
-  stateText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
   }
 });

@@ -189,9 +189,12 @@ export function ListingDetailScreen() {
           <Text style={styles.price}>{listing.priceText}</Text>
           <Text style={styles.meta}>{listing.locationText}</Text>
 
-          {listing.conditionText ? (
-            <Text style={styles.condition}>{listing.conditionText}</Text>
-          ) : null}
+          <View style={styles.metaChips}>
+            <Text style={styles.listingType}>{listing.listingTypeText}</Text>
+            {listing.conditionText ? (
+              <Text style={styles.condition}>{listing.conditionText}</Text>
+            ) : null}
+          </View>
 
           {isOwnListing ? (
             <View style={styles.ownerNotice}>
@@ -288,6 +291,21 @@ const styles = StyleSheet.create({
   meta: {
     color: colors.muted,
     fontSize: 15
+  },
+  metaChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  listingType: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+    paddingHorizontal: 10,
+    paddingVertical: 5
   },
   condition: {
     alignSelf: "flex-start",

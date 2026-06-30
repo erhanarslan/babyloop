@@ -1,4 +1,8 @@
 import { apiGet, isRecord, resolveApiAssetUrl } from "../../api/client";
+import {
+  formatMobileListingCondition,
+  formatMobileListingType
+} from "./listing-labels";
 
 export type MobileListingSummary = {
   id: string;
@@ -7,6 +11,8 @@ export type MobileListingSummary = {
   locationText: string;
   imageUrl: string | null;
   conditionText: string | null;
+  listingType: string | null;
+  listingTypeText: string;
 };
 
 export type MobileListingDetail = MobileListingSummary & {
@@ -92,6 +98,7 @@ function extractListingObject(payload: unknown): unknown {
 
 function normalizeListingSummary(value: unknown): MobileListingSummary {
   const record = isRecord(value) ? value : {};
+  const listingType = pickString(record, ["listingType", "type"]);
 
   const title = pickString(record, ["title", "name"]) ?? "İlan";
   const id = pickString(record, ["id", "listingId"]) ?? title;
@@ -108,7 +115,9 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
     priceText,
     locationText,
     imageUrl: resolveApiAssetUrl(extractImageUrl(record)),
-    conditionText: pickString(record, ["condition", "conditionLabel"]) ?? null
+    conditionText: formatMobileListingCondition(pickString(record, ["condition", "conditionLabel"])),
+    listingType,
+    listingTypeText: formatMobileListingType(listingType)
   };
 }
 

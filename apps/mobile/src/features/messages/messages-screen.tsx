@@ -2,56 +2,79 @@ import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Screen, SectionHeader } from "../../ui/screen";
+import { Paragraph, Screen } from "../../ui/screen";
 import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
-import { fetchMobileConversations, type MobileConversationSummary } from "./messages-api";
+import {
+  fetchMobileConversations,
+  type MobileConversationSummary
+} from "./messages-api";
 
-type MessagesStatus = "idle" | "loading" | "ready" | "empty" | "error";
+const CONVERSATION_LIST_POLL_INTERVAL_MS = 4000;
 
 export function MessagesScreen() {
   const authSession = useAuthSession();
-  const [status, setStatus] = useState<MessagesStatus>("idle");
   const [conversations, setConversations] = useState<MobileConversationSummary[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
 
-  const loadConversations = useCallback(async () => {
-    if (!authSession.currentUser) {
-      setConversations([]);
-      setStatus("idle");
-      return;
-    }
+  const loadConversations = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!authSession.currentUser) {
+        setConversations([]);
+        setStatus("ready");
+        setError(null);
+        return;
+      }
 
-    setStatus((current) => (current === "ready" ? current : "loading"));
-    setError(null);
+      try {
+        if (!options.silent) {
+          setStatus("loading");
+        }
 
-    try {
-      const nextConversations = await fetchMobileConversations();
-      setConversations(nextConversations);
-      setStatus(nextConversations.length > 0 ? "ready" : "empty");
-    } catch (nextError) {
-      setConversations([]);
-      setStatus("error");
-      setError(nextError instanceof Error ? nextError.message : "Mesajlar şu an yüklenemedi.");
-    }
-  }, [authSession.currentUser]);
+        const nextConversations = await fetchMobileConversations();
+
+        setConversations(nextConversations);
+        setStatus("ready");
+        setError(null);
+      } catch (nextError) {
+        if (!options.silent) {
+          setStatus("error");
+          setError(nextError instanceof Error ? nextError.message : "Mesajlar şu an yüklenemedi.");
+        }
+      }
+    },
+    [authSession.currentUser]
+  );
 
   useEffect(() => {
     void loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    if (!authSession.currentUser) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void loadConversations({ silent: true });
+    }, CONVERSATION_LIST_POLL_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [authSession.currentUser, loadConversations]);
 
   if (!authSession.currentUser) {
     return (
       <Screen
         eyebrow="Mesajlar"
         title="Konuşmalar"
-        subtitle="Satıcı ve alıcı mesajlarını görmek için giriş yap."
+        subtitle="Satıcılarla güvenli mesajlaşmak için giriş yap."
       >
         <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Mesajlar hesabına bağlıdır.</Text>
-          <Text style={styles.stateText}>
-            İlan detayından satıcıya yazdığında konuşmaların burada görünür.
-          </Text>
+          <Text style={styles.stateTitle}>Hesap gerekli</Text>
+          <Text style={styles.stateText}>Favoriler ve mesajlar hesabına bağlı tutulur.</Text>
           <Link href="/login" asChild>
             <Pressable style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>Giriş yap</Text>
@@ -66,39 +89,32 @@ export function MessagesScreen() {
     <Screen
       eyebrow="Mesajlar"
       title="Konuşmalar"
-      subtitle="İlanlarla ilgili alıcı ve satıcı mesajlarını takip et."
+      subtitle="İlanlarla ilgili soruları ve yanıtları burada takip et."
     >
-      <SectionHeader
-        title="Gelen kutusu"
-        description="Satıcı bilgileri ve özel iletişim alanları burada gösterilmez."
-      />
+      {status === "loading" ? <Paragraph>Konuşmalar yükleniyor...</Paragraph> : null}
+
+      {status === "error" ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>Mesajlar yüklenemedi</Text>
+          <Text style={styles.stateText}>{error}</Text>
+          <Pressable onPress={() => void loadConversations()} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Tekrar dene</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {status === "ready" && conversations.length === 0 ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>Henüz konuşma yok</Text>
+          <Text style={styles.stateText}>Bir ilandan “Satıcıya yaz” dediğinde konuşma burada görünür.</Text>
+        </View>
+      ) : null}
 
       <View style={styles.list}>
-        {status === "loading" ? (
-          <StateCard title="Mesajlar yükleniyor" text="Konuşmaların getiriliyor." />
-        ) : null}
-
-        {status === "error" ? (
-          <StateCard
-            actionLabel="Tekrar dene"
-            onAction={loadConversations}
-            title="Mesajlar yüklenemedi"
-            text={error ?? "Kısa süre sonra tekrar deneyebilirsin."}
-          />
-        ) : null}
-
-        {status === "empty" ? (
-          <StateCard
-            title="Mesajların burada görünecek."
-            text="Bir ilan detayından satıcıya mesaj gönderdiğinde konuşma burada başlar."
-          />
-        ) : null}
-
         {conversations.map((conversation) => (
           <ConversationCard conversation={conversation} key={conversation.id} />
         ))}
       </View>
-
     </Screen>
   );
 }
@@ -107,71 +123,46 @@ function ConversationCard({ conversation }: { conversation: MobileConversationSu
   return (
     <Link href={`/conversation/${encodeURIComponent(conversation.id)}`} asChild>
       <Pressable style={styles.conversationCard}>
-      <View style={styles.conversationHeader}>
-        <View style={styles.conversationTitleBlock}>
-          <Text numberOfLines={1} style={styles.conversationTitle}>
-            {conversation.title}
-          </Text>
-          <Text numberOfLines={1} style={styles.conversationSubtitle}>
-            {conversation.subtitle}
-          </Text>
+        <View style={styles.conversationHeader}>
+          <View style={styles.conversationTitleBlock}>
+            <Text numberOfLines={1} style={styles.conversationTitle}>
+              {conversation.title}
+            </Text>
+            <Text numberOfLines={1} style={styles.conversationSubtitle}>
+              {conversation.subtitle}
+            </Text>
+          </View>
+
+          {conversation.unreadCount > 0 ? (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{conversation.unreadCount}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {conversation.unreadCount > 0 ? (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadBadgeText}>{conversation.unreadCount}</Text>
-          </View>
+        <Text numberOfLines={2} style={styles.latestMessage}>
+          {conversation.latestMessageText}
+        </Text>
+
+        {conversation.updatedAt ? (
+          <Text style={styles.updatedAt}>{formatDate(conversation.updatedAt)}</Text>
         ) : null}
-      </View>
-
-      <Text numberOfLines={2} style={styles.latestMessage}>
-        {conversation.latestMessageText}
-      </Text>
-
-      {conversation.updatedAt ? (
-        <Text style={styles.metaText}>{formatDate(conversation.updatedAt)}</Text>
-      ) : null}
-    </Pressable>
+      </Pressable>
     </Link>
   );
 }
 
-function StateCard({
-  title,
-  text,
-  actionLabel,
-  onAction
-}: {
-  title: string;
-  text: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View style={styles.stateCard}>
-      <Text style={styles.stateTitle}>{title}</Text>
-      <Text style={styles.stateText}>{text}</Text>
-      {actionLabel && onAction ? (
-        <Pressable onPress={onAction} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>{actionLabel}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
 function formatDate(value: string): string {
-  const parsedDate = new Date(value);
+  const date = new Date(value);
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
+  if (Number.isNaN(date.getTime())) {
+    return "";
   }
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return date.toLocaleDateString("tr-TR", {
     day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  }).format(parsedDate);
+    month: "short"
+  });
 }
 
 const styles = StyleSheet.create({
@@ -184,12 +175,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    padding: 15,
+    padding: 14,
     gap: 10
   },
   conversationHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
     gap: 10
   },
   conversationTitleBlock: {
@@ -198,11 +188,11 @@ const styles = StyleSheet.create({
   },
   conversationTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "900"
   },
   conversationSubtitle: {
-    color: colors.subtle,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "700"
   },
@@ -211,18 +201,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
-  metaText: {
+  updatedAt: {
     color: colors.subtle,
     fontSize: 12,
-    fontWeight: "800"
+    fontWeight: "700"
   },
   unreadBadge: {
-    minWidth: 26,
-    height: 26,
     alignItems: "center",
     justifyContent: "center",
+    minWidth: 24,
+    height: 24,
     borderRadius: 999,
-    backgroundColor: colors.primary
+    backgroundColor: colors.primary,
+    paddingHorizontal: 7
   },
   unreadBadgeText: {
     color: "#ffffff",
@@ -263,12 +254,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderRadius: 999,
     backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10
   },
   secondaryButtonText: {
     color: colors.primaryDark,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900"
   }
 });

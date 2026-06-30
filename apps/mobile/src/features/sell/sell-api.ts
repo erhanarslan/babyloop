@@ -91,7 +91,9 @@ export async function createMobileListing(
     priceText,
     locationText: "Konum belirtilmedi",
     imageUrl: null,
-    conditionText: payload.condition
+    conditionText: payload.condition,
+    listingType: payload.listingType,
+    listingTypeText: formatListingType(payload.listingType)
   };
 }
 
@@ -186,4 +188,18 @@ function pickString(record: Record<string, unknown>, keys: string[]): string | n
   }
 
   return null;
+}
+
+
+function formatListingType(value: string): string {
+  switch (value) {
+    case "sale":
+      return "Satılık";
+    case "donation":
+      return "Bağış";
+    case "swap":
+      return "Takas";
+    default:
+      return "İlan tipi belirtilmedi";
+  }
 }
