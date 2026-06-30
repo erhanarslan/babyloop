@@ -32,7 +32,15 @@ type ProtectedRoute = {
   heading: string;
 };
 
+type FailureRoute = ProtectedRoute & {
+  failingPathname: string;
+};
+
 const protectedRoutes: ProtectedRoute[] = [
+  {
+    path: "/",
+    heading: "Trust & Safety monitoring dashboard",
+  },
   {
     path: "/listings",
     heading: "Listings",
@@ -52,6 +60,48 @@ const protectedRoutes: ProtectedRoute[] = [
   {
     path: "/ai-ops",
     heading: "AI operations health",
+  },
+  {
+    path: "/conversations",
+    heading: "Messages",
+  },
+];
+
+const failureRoutes: FailureRoute[] = [
+  {
+    path: "/",
+    heading: "Trust & Safety monitoring dashboard",
+    failingPathname: "/admin/dashboard/summary",
+  },
+  {
+    path: "/listings",
+    heading: "Listings",
+    failingPathname: "/admin/listings",
+  },
+  {
+    path: "/moderation",
+    heading: "Moderation cases",
+    failingPathname: "/admin/moderation/cases",
+  },
+  {
+    path: "/profiles",
+    heading: "Profiles",
+    failingPathname: "/admin/profiles",
+  },
+  {
+    path: "/audit",
+    heading: "Audit events",
+    failingPathname: "/admin/audit/events",
+  },
+  {
+    path: "/ai-ops",
+    heading: "AI operations health",
+    failingPathname: "/admin/ai-ops/summary",
+  },
+  {
+    path: "/conversations",
+    heading: "Messages",
+    failingPathname: "/admin/conversations",
   },
 ];
 
@@ -78,6 +128,12 @@ const NON_ADMIN_AUTH: BackofficeAuth = {
     locationCity: "İstanbul",
   },
 };
+
+const NEGATIVE_UI_ERROR_MESSAGE = "Backoffice negative UI failure.";
+const RAW_EMAIL_SENTINEL = "raw-backoffice-negative-ui-parent@example.test";
+const RAW_PHONE_SENTINEL = "+905551112233";
+const RAW_TOKEN_SENTINEL = "sk-backoffice-negative-ui-secret-token";
+const RAW_MESSAGE_SENTINEL = "RAW_BACKOFFICE_NEGATIVE_UI_MESSAGE_BODY";
 
 test.describe("backoffice protected auth shell", () => {
   test("guest sees sign-in required state on protected backoffice routes", async ({ page }) => {
@@ -122,6 +178,27 @@ test.describe("backoffice protected auth shell", () => {
     }
   });
 
+  test("auth check failure shows retry state and recovers to authorized shell", async ({ page }) => {
+    await installBackofficeAuthRetryMocks(page);
+    await installProtectedRouteDataMocks(page);
+
+    await page.goto("/listings", { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByRole("heading", { name: "Access check failed", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText("Could not verify your backoffice session. Try again.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Listings", exact: true })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+
+    await expectBackofficeShell(page);
+    await expect(page.getByRole("heading", { name: "Listings", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("heading", { name: "Access check failed", exact: true })).toHaveCount(0);
+  });
+
   test("admin can open protected backoffice route shells", async ({ page }) => {
     await installBackofficeAuthMocks(page, ADMIN_AUTH);
     await installProtectedRouteDataMocks(page);
@@ -140,6 +217,36 @@ test.describe("backoffice protected auth shell", () => {
           exact: true,
         }),
       ).toHaveCount(0);
+    }
+  });
+
+  test("admin sees safe route-level API failure states without raw private data", async ({ page }) => {
+    const mockState = {
+      failingPathname: null as string | null,
+    };
+
+    await installBackofficeAuthMocks(page, ADMIN_AUTH);
+    await installProtectedRouteDataMocks(page, {
+      getFailingPathname: () => mockState.failingPathname,
+    });
+
+    for (const route of failureRoutes) {
+      mockState.failingPathname = route.failingPathname;
+
+      await page.goto(route.path, { waitUntil: "domcontentloaded" });
+
+      await expectBackofficeShell(page);
+      await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({
+        timeout: 15_000,
+      });
+
+      const alert = page.getByRole("alert").filter({
+        hasText: NEGATIVE_UI_ERROR_MESSAGE,
+      });
+      await expect(alert).toBeVisible({ timeout: 15_000 });
+      await expect(alert).toContainText(NEGATIVE_UI_ERROR_MESSAGE);
+
+      await expectNoNegativeUiPrivateLeak(page);
     }
   });
 });
@@ -216,6 +323,37 @@ async function installBackofficeAuthMocks(page: Page, auth: BackofficeAuth | nul
     });
   });
 
+  await installBackofficeCsrfMock(page);
+}
+
+async function installBackofficeAuthRetryMocks(page: Page): Promise<void> {
+  let meRequestCount = 0;
+
+  await page.route("**/auth/backoffice/me**", async (route) => {
+    meRequestCount += 1;
+
+    if (meRequestCount === 1) {
+      await route.abort("failed");
+      return;
+    }
+
+    await fulfillJson(route, {
+      ok: true,
+      data: ADMIN_AUTH,
+    });
+  });
+
+  await page.route("**/auth/backoffice/refresh**", async (route) => {
+    await fulfillJson(route, {
+      ok: true,
+      data: ADMIN_AUTH,
+    });
+  });
+
+  await installBackofficeCsrfMock(page);
+}
+
+async function installBackofficeCsrfMock(page: Page): Promise<void> {
   await page.route("**/auth/backoffice/csrf**", async (route) => {
     await fulfillJson(route, {
       ok: true,
@@ -226,16 +364,38 @@ async function installBackofficeAuthMocks(page: Page, auth: BackofficeAuth | nul
   });
 }
 
-async function installProtectedRouteDataMocks(page: Page): Promise<void> {
-  await page.route("**/admin/listings**", async (route) => {
+async function installProtectedRouteDataMocks(
+  page: Page,
+  options?: {
+    getFailingPathname?: () => string | null;
+  },
+): Promise<void> {
+  await page.route("**/admin/**", async (route) => {
     if (await fulfillOptions(route)) {
       return;
     }
 
     const request = route.request();
     const url = new URL(request.url());
+    const method = request.method().toUpperCase();
+    const failingPathname = options?.getFailingPathname?.() ?? null;
 
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/listings")) {
+    if (failingPathname && method === "GET" && pathEndsWith(url, failingPathname)) {
+      await fulfillNegativeUiFailure(route);
+      return;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/admin/dashboard/summary")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          summary: createDashboardSummary(),
+        },
+      });
+      return;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/admin/listings")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -245,18 +405,7 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillUnhandled(route);
-  });
-
-  await page.route("**/admin/moderation/cases**", async (route) => {
-    if (await fulfillOptions(route)) {
-      return;
-    }
-
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/moderation/cases")) {
+    if (method === "GET" && pathEndsWith(url, "/admin/moderation/cases")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -280,18 +429,7 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillUnhandled(route);
-  });
-
-  await page.route("**/admin/profiles**", async (route) => {
-    if (await fulfillOptions(route)) {
-      return;
-    }
-
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/profiles")) {
+    if (method === "GET" && pathEndsWith(url, "/admin/profiles")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -301,18 +439,7 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillUnhandled(route);
-  });
-
-  await page.route("**/admin/audit/events**", async (route) => {
-    if (await fulfillOptions(route)) {
-      return;
-    }
-
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/audit/events")) {
+    if (method === "GET" && pathEndsWith(url, "/admin/audit/events")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -322,18 +449,7 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillUnhandled(route);
-  });
-
-  await page.route("**/admin/ai-ops/summary**", async (route) => {
-    if (await fulfillOptions(route)) {
-      return;
-    }
-
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/ai-ops/summary")) {
+    if (method === "GET" && pathEndsWith(url, "/admin/ai-ops/summary")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -357,18 +473,7 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillUnhandled(route);
-  });
-
-  await page.route("**/admin/ai-ops/runs**", async (route) => {
-    if (await fulfillOptions(route)) {
-      return;
-    }
-
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() === "GET" && pathEndsWith(url, "/admin/ai-ops/runs")) {
+    if (method === "GET" && pathEndsWith(url, "/admin/ai-ops/runs")) {
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -378,8 +483,114 @@ async function installProtectedRouteDataMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (method === "GET" && pathEndsWith(url, "/admin/conversations")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          conversations: [],
+        },
+      });
+      return;
+    }
+
     await fulfillUnhandled(route);
   });
+}
+
+function createDashboardSummary() {
+  return {
+    listings: {
+      totalListings: 0,
+      activeListings: 0,
+      archivedListings: 0,
+      soldListings: 0,
+      reservedListings: 0,
+      draftListings: 0,
+      listingsCreatedLast7Days: 0,
+      listingsUpdatedLast7Days: 0,
+      listingsWithRejectedImages: 0,
+    },
+    images: {
+      totalListingImages: 0,
+      approvedListingImages: 0,
+      needsReviewListingImages: 0,
+      rejectedListingImages: 0,
+      imagesReviewedLast7Days: 0,
+    },
+    moderation: {
+      totalModerationCases: 0,
+      openModerationCases: 0,
+      closedModerationCases: 0,
+      casesCreatedLast7Days: 0,
+      openHighPriorityCases: 0,
+      openNormalPriorityCases: 0,
+      openLowPriorityCases: 0,
+      pendingReports: 0,
+      reportsCreatedLast7Days: 0,
+      sensitiveAccessGrantedLast7Days: 0,
+      sensitiveAccessDeniedLast7Days: 0,
+    },
+    actions: {
+      auditEventsLast7Days: 0,
+      profileEnforcementActionsLast7Days: 0,
+      listingActionsLast7Days: 0,
+      imageReviewActionsLast7Days: 0,
+      messageEnforcementActionsLast7Days: 0,
+    },
+    profiles: {
+      restrictedProfiles: 0,
+      suspendedProfiles: 0,
+      highRiskProfiles: 0,
+      criticalRiskProfiles: 0,
+      profilesNeedingReview: 0,
+    },
+    conversations: {
+      totalConversations: 0,
+      conversationsCreatedLast7Days: 0,
+      messagesCreatedLast7Days: 0,
+      reportedMessageCount: 0,
+      openMessageCases: 0,
+    },
+    ai: {
+      moderationSummaryRunsLast7Days: 0,
+      moderationSummaryFailuresLast7Days: 0,
+      providerFailuresLast7Days: 0,
+      validationFailuresLast7Days: 0,
+    },
+  };
+}
+
+async function fulfillNegativeUiFailure(route: Route): Promise<void> {
+  await fulfillJson(
+    route,
+    {
+      ok: false,
+      error: {
+        code: "BACKOFFICE_NEGATIVE_UI_FAILURE",
+        message: NEGATIVE_UI_ERROR_MESSAGE,
+        rawEmail: RAW_EMAIL_SENTINEL,
+        rawPhone: RAW_PHONE_SENTINEL,
+        accessToken: RAW_TOKEN_SENTINEL,
+        refreshToken: RAW_TOKEN_SENTINEL,
+        rawMessageBody: RAW_MESSAGE_SENTINEL,
+      },
+    } as ApiResponse<never>,
+    503,
+  );
+}
+
+async function expectNoNegativeUiPrivateLeak(page: Page): Promise<void> {
+  const body = page.locator("body");
+
+  await expect(body).not.toContainText(RAW_EMAIL_SENTINEL);
+  await expect(body).not.toContainText(RAW_PHONE_SENTINEL);
+  await expect(body).not.toContainText(RAW_TOKEN_SENTINEL);
+  await expect(body).not.toContainText(RAW_MESSAGE_SENTINEL);
+  await expect(body).not.toContainText("accessToken");
+  await expect(body).not.toContainText("refreshToken");
+  await expect(body).not.toContainText("passwordHash");
+  await expect(body).not.toContainText("rawMessageBody");
+  await expect(body).not.toContainText("BACKOFFICE_E2E_UNHANDLED_ROUTE");
 }
 
 function pathEndsWith(url: URL, suffix: string): boolean {
