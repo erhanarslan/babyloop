@@ -52,6 +52,29 @@ export async function fetchMobileConversations(): Promise<MobileConversationSumm
 }
 
 
+export async function startMobileConversationForListing(
+  listingId: string
+): Promise<MobileConversationDetail> {
+  const response = await mobileAuthFetch("/api/v1/conversations", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      listingId
+    })
+  });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = extractApiError(payload);
+    throw new Error(message ?? "Konuşma başlatılamadı.");
+  }
+
+  return normalizeConversationDetail(extractConversationObject(unwrapApiData(payload)));
+}
+
+
 export async function fetchMobileConversationDetail(
   conversationId: string
 ): Promise<MobileConversationDetail> {

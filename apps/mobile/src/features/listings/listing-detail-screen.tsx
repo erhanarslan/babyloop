@@ -2,18 +2,21 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Paragraph, Screen } from "../../ui/screen";
+import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
   fetchMobileFavorites,
   saveMobileFavorite
 } from "../favorites/favorites-api";
+import { startMobileConversationForListing } from "../messages/messages-api";
 import {
   fetchMobileListingDetail,
   type MobileListingDetail
 } from "./listings-api";
-import { Paragraph, Screen } from "../../ui/screen";
 
 type FavoriteStatus = "idle" | "checking" | "pending";
+type ConversationStatus = "idle" | "pending";
 
 export function ListingDetailScreen() {
   const params = useLocalSearchParams<{ listingId?: string }>();
@@ -28,7 +31,11 @@ export function ListingDetailScreen() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>("idle");
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const isOwnListing = Boolean(currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId);
+  const [conversationStatus, setConversationStatus] = useState<ConversationStatus>("idle");
+  const [conversationError, setConversationError] = useState<string | null>(null);
+  const isOwnListing = Boolean(
+    currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId
+  );
 
   useEffect(() => {
     let active = true;
@@ -134,6 +141,30 @@ export function ListingDetailScreen() {
     }
   }
 
+  async function handleContactSellerPress() {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+
+    if (!listing || isOwnListing || conversationStatus === "pending") {
+      return;
+    }
+
+    try {
+      setConversationStatus("pending");
+      setConversationError(null);
+
+      const conversation = await startMobileConversationForListing(listing.id);
+
+      router.push(`/conversation/${encodeURIComponent(conversation.id)}`);
+    } catch (startError) {
+      setConversationError(startError instanceof Error ? startError.message : "Konuşma başlatılamadı.");
+    } finally {
+      setConversationStatus("idle");
+    }
+  }
+
   return (
     <Screen eyebrow="İlan detayı" title={listing?.title ?? "İlan detayı"}>
       {status === "loading" ? <Paragraph>İlan detayı yükleniyor...</Paragraph> : null}
@@ -167,37 +198,55 @@ export function ListingDetailScreen() {
               <Text style={styles.ownerNoticeText}>Bu ilan sana ait.</Text>
             </View>
           ) : (
-            <Pressable
-              disabled={favoriteStatus === "pending"}
-              onPress={handleFavoritePress}
-              style={[
-                styles.favoriteButton,
-                isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
-                favoriteStatus === "pending" ? styles.favoriteButtonDisabled : null
-              ]}
-            >
-              <Text
+            <View style={styles.actionStack}>
+              <Pressable
+                disabled={conversationStatus === "pending"}
+                onPress={handleContactSellerPress}
+                style={[styles.contactButton, conversationStatus === "pending" ? styles.actionDisabled : null]}
+              >
+                <Text style={styles.contactButtonText}>
+                  {conversationStatus === "pending" ? "Konuşma açılıyor..." : "Satıcıya yaz"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                disabled={favoriteStatus === "pending"}
+                onPress={handleFavoritePress}
                 style={[
-                  styles.favoriteButtonText,
-                  isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
+                  styles.favoriteButton,
+                  isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
+                  favoriteStatus === "pending" ? styles.actionDisabled : null
                 ]}
               >
-                {favoriteStatus === "pending"
-                  ? "Kaydediliyor..."
-                  : isFavorited
-                    ? "Favoriden çıkar"
-                    : "Favoriye ekle"}
-              </Text>
-            </Pressable>
+                <Text
+                  style={[
+                    styles.favoriteButtonText,
+                    isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
+                  ]}
+                >
+                  {favoriteStatus === "pending"
+                    ? "Kaydediliyor..."
+                    : isFavorited
+                      ? "Favoriden çıkar"
+                      : "Favoriye ekle"}
+                </Text>
+              </Pressable>
+            </View>
           )}
 
           {favoriteStatus === "checking" ? (
             <Text style={styles.favoriteHint}>Favori durumu kontrol ediliyor...</Text>
           ) : null}
 
-          {favoriteError ? (
-            <Text style={styles.favoriteError}>{favoriteError}</Text>
-          ) : null}
+          {conversationError ? <Text style={styles.actionError}>{conversationError}</Text> : null}
+          {favoriteError ? <Text style={styles.actionError}>{favoriteError}</Text> : null}
+
+          <View style={styles.safetyCard}>
+            <Text style={styles.safetyTitle}>Güvenli mesajlaşma</Text>
+            <Text style={styles.safetyText}>
+              Telefon, e-posta, açık adres veya ödeme bilgisini mesajlarda paylaşmadan BabyLoop içinde kal.
+            </Text>
+          </View>
 
           <Paragraph>
             {listing.description ?? "Bu ilan için açıklama girilmemiş."}
@@ -216,39 +265,53 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: 260,
-    borderRadius: 22,
-    backgroundColor: "#f7dfd2"
+    borderRadius: radius.lg,
+    backgroundColor: colors.cream
   },
   imagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 260,
-    borderRadius: 22,
-    backgroundColor: "#f7dfd2"
+    borderRadius: radius.lg,
+    backgroundColor: colors.cream
   },
   imageText: {
-    color: "#8a5f4c",
+    color: colors.primaryDark,
     fontSize: 16,
     fontWeight: "800"
   },
   price: {
-    color: "#d45d3f",
+    color: colors.primary,
     fontSize: 24,
     fontWeight: "900"
   },
   meta: {
-    color: "#6d5d56",
+    color: colors.muted,
     fontSize: 15
   },
   condition: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    backgroundColor: "#fff1e8",
-    color: "#8a5f4c",
+    backgroundColor: colors.surfaceSoft,
+    color: colors.primaryDark,
     fontSize: 12,
     fontWeight: "800",
     paddingHorizontal: 10,
     paddingVertical: 5
+  },
+  actionStack: {
+    gap: 10
+  },
+  contactButton: {
+    alignItems: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingVertical: 14
+  },
+  contactButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "900"
   },
   favoriteButton: {
     alignItems: "center",
@@ -256,14 +319,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14
   },
   favoriteButtonPrimary: {
-    backgroundColor: "#d45d3f"
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface
   },
   favoriteButtonSecondary: {
     borderWidth: 1,
-    borderColor: "#f1d8ca",
-    backgroundColor: "#fff1e8"
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft
   },
-  favoriteButtonDisabled: {
+  actionDisabled: {
     opacity: 0.65
   },
   favoriteButtonText: {
@@ -271,17 +336,17 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   favoriteButtonTextPrimary: {
-    color: "#ffffff"
+    color: colors.primaryDark
   },
   favoriteButtonTextSecondary: {
-    color: "#8a5f4c"
+    color: colors.primaryDark
   },
   favoriteHint: {
-    color: "#8a5f4c",
+    color: colors.primaryDark,
     fontSize: 13,
     fontWeight: "700"
   },
-  favoriteError: {
+  actionError: {
     color: "#b42318",
     fontSize: 13,
     fontWeight: "800",
@@ -290,36 +355,55 @@ const styles = StyleSheet.create({
   ownerNotice: {
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#f1d8ca",
+    borderColor: colors.border,
     borderRadius: 999,
-    backgroundColor: "#fff1e8",
+    backgroundColor: colors.surfaceSoft,
     paddingVertical: 13
   },
   ownerNoticeText: {
-    color: "#8a5f4c",
+    color: colors.primaryDark,
     fontSize: 15,
     fontWeight: "900"
   },
+  safetyCard: {
+    ...shadows.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 5
+  },
+  safetyTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  safetyText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18
+  },
   stateCard: {
     borderWidth: 1,
-    borderColor: "#f1d8ca",
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     padding: 16,
     gap: 6
   },
   stateTitle: {
-    color: "#2f2521",
+    color: colors.text,
     fontSize: 16,
     fontWeight: "800"
   },
   stateText: {
-    color: "#6d5d56",
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 20
   },
   link: {
-    color: "#d45d3f",
+    color: colors.primary,
     fontSize: 16,
     fontWeight: "800",
     paddingVertical: 6

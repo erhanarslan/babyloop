@@ -12,24 +12,30 @@ export type ApiClientResult<T> =
     };
 
 export async function apiGet<T>(path: string): Promise<ApiClientResult<T>> {
+  return apiRequest<T>(path, {
+    method: "GET",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<ApiClientResult<T>> {
   const apiBaseUrl = getApiBaseUrl();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   try {
-    const response = await fetch(`${apiBaseUrl}${normalizedPath}`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json"
-      }
-    });
-
+    const response = await fetch(`${apiBaseUrl}${normalizedPath}`, init);
     const payload: unknown = await response.json().catch(() => null);
 
     if (!response.ok) {
       return {
         ok: false,
         status: response.status,
-        error: extractApiError(payload) ?? `Request failed with status ${response.status}.`
+        error: safeApiErrorMessage(payload, `Request failed with status ${response.status}.`)
       };
     }
 
@@ -37,10 +43,10 @@ export async function apiGet<T>(path: string): Promise<ApiClientResult<T>> {
       ok: true,
       data: unwrapApiData<T>(payload)
     };
-  } catch (error) {
+  } catch {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Network request failed."
+      error: "Network request failed."
     };
   }
 }
@@ -67,6 +73,21 @@ export function resolveApiAssetUrl(url: string | null | undefined): string | nul
   } catch {
     return null;
   }
+}
+
+export function safeApiErrorMessage(payload: unknown, fallback: string): string {
+  const message = extractApiError(payload) ?? fallback;
+
+  return redactSensitiveText(message);
+}
+
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/giu, "Bearer [redacted]")
+    .replace(/sk-[A-Za-z0-9._-]+/gu, "[redacted-token]")
+    .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken=[redacted]")
+    .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken=[redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "[redacted-email]");
 }
 
 function isLocalDevelopmentHost(hostname: string): boolean {

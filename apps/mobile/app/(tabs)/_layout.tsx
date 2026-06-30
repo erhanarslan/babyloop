@@ -3,17 +3,24 @@ import { Tabs } from "expo-router";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   hideAndroidNavigationBar,
   useAndroidNavigationBarVisibility
 } from "../../src/lib/android-navigation-bar";
+import {
+  getMobileTabBarBottomOffset,
+  MOBILE_TAB_BAR_HEIGHT,
+  MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
+  MOBILE_TAB_BAR_RADIUS
+} from "../../src/ui/mobile-layout";
 
 const tabColors = {
   active: "#d45d3f",
   inactive: "#7b8794",
   border: "#f1d8ca",
   surface: "#ffffff",
-  shadow: "#d45d3f",
+  shadow: "#d45d3f"
 } as const;
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
@@ -21,7 +28,7 @@ type TabIconName = keyof typeof Ionicons.glyphMap;
 function TabIcon({
   name,
   color,
-  focused,
+  focused
 }: {
   name: TabIconName;
   color: string;
@@ -29,18 +36,18 @@ function TabIcon({
 }) {
   return (
     <Ionicons
+      accessibilityElementsHidden
+      color={color}
+      importantForAccessibility="no"
       name={name}
       size={focused ? 24 : 22}
-      color={color}
-      accessibilityElementsHidden
-      importantForAccessibility="no"
     />
   );
 }
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const navigationVisibility = useAndroidNavigationBarVisibility();
+  const navigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
 
   useEffect(() => {
     if (Platform.OS !== "android" || navigationVisibility !== "visible") {
@@ -56,15 +63,11 @@ export default function TabLayout() {
     };
   }, [navigationVisibility]);
 
-  const isAndroidNavigationVisible =
-    Platform.OS === "android" && navigationVisibility === "visible";
-  const bottomInset =
-    Platform.OS === "android"
-      ? isAndroidNavigationVisible
-        ? insets.bottom
-        : 0
-      : insets.bottom;
-  const tabBarHeight = 62;
+  const bottomInset = getMobileTabBarBottomOffset({
+    androidNavigationVisibility: navigationVisibility,
+    platformOS: Platform.OS,
+    safeAreaBottom: insets.bottom
+  });
 
   return (
     <Tabs
@@ -75,14 +78,14 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
           position: "absolute",
-          left: 14,
-          right: 14,
+          left: MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
+          right: MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
           bottom: bottomInset,
-          height: tabBarHeight,
+          height: MOBILE_TAB_BAR_HEIGHT,
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: tabColors.border,
-          borderRadius: 28,
+          borderRadius: MOBILE_TAB_BAR_RADIUS,
           backgroundColor: tabColors.surface,
           paddingBottom: 7,
           paddingTop: 7,
@@ -90,15 +93,15 @@ export default function TabLayout() {
           shadowOpacity: 0.14,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 6 },
-          elevation: 10,
+          elevation: 10
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "800",
+          fontWeight: "800"
         },
         sceneStyle: {
-          backgroundColor: "#fff7f2",
-        },
+          backgroundColor: "#fff7f2"
+        }
       }}
     >
       <Tabs.Screen
@@ -106,12 +109,8 @@ export default function TabLayout() {
         options={{
           title: "Keşfet",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "home" : "home-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "home" : "home-outline"} />
+          )
         }}
       />
       <Tabs.Screen
@@ -119,12 +118,8 @@ export default function TabLayout() {
         options={{
           title: "Favoriler",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "heart" : "heart-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "heart" : "heart-outline"} />
+          )
         }}
       />
       <Tabs.Screen
@@ -132,12 +127,8 @@ export default function TabLayout() {
         options={{
           title: "İlan Ver",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "add-circle" : "add-circle-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "add-circle" : "add-circle-outline"} />
+          )
         }}
       />
       <Tabs.Screen
@@ -145,12 +136,8 @@ export default function TabLayout() {
         options={{
           title: "Sepetim",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "basket" : "basket-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "basket" : "basket-outline"} />
+          )
         }}
       />
       <Tabs.Screen
@@ -158,12 +145,8 @@ export default function TabLayout() {
         options={{
           title: "Mesajlar",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"} />
+          )
         }}
       />
       <Tabs.Screen
@@ -171,12 +154,8 @@ export default function TabLayout() {
         options={{
           title: "Hesabım",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              color={color}
-              focused={focused}
-              name={focused ? "person-circle" : "person-circle-outline"}
-            />
-          ),
+            <TabIcon color={color} focused={focused} name={focused ? "person-circle" : "person-circle-outline"} />
+          )
         }}
       />
       <Tabs.Screen

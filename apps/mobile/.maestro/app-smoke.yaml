@@ -1,6 +1,14 @@
-# Set APP_ID to the native application id before running locally.
-# Example: APP_ID=com.babyloop.mobile maestro test apps/mobile/.maestro
-appId: ${APP_ID}
+appId: com.babyloop.mobile
 ---
 - launchApp
 - assertVisible: "Keşfet"
+- assertVisible: "Ne arıyorsun?"
+- tapOn: "Favoriler"
+- assertVisible: "Favoriler"
+- tapOn: "Mesajlar"
+- assertVisible: "Konuşmalar"
+- tapOn: "Hesabım"
+- assertVisible:
+    text: "Hesap gerekli|Mobil hesabım"
+- tapOn: "Keşfet"
+- assertVisible: "Son eklenenler"

@@ -15,8 +15,27 @@ export type MobileListingDetail = MobileListingSummary & {
   sellerProfileId: string | null;
 };
 
-export async function fetchMobileListings(): Promise<MobileListingSummary[]> {
-  const result = await apiGet<unknown>("/api/v1/listings?limit=20&offset=0&sort=newest");
+export type FetchMobileListingsParams = {
+  q?: string;
+  limit?: number;
+};
+
+export async function fetchMobileListings(
+  params: FetchMobileListingsParams = {}
+): Promise<MobileListingSummary[]> {
+  const query = new URLSearchParams({
+    limit: String(params.limit ?? 20),
+    offset: "0",
+    sort: "newest"
+  });
+
+  const searchQuery = params.q?.trim();
+
+  if (searchQuery) {
+    query.set("q", searchQuery);
+  }
+
+  const result = await apiGet<unknown>(`/api/v1/listings?${query.toString()}`);
 
   if (!result.ok) {
     throw new Error(result.error);
@@ -101,7 +120,10 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
     ...summary,
     description: pickString(record, ["description", "body"]) ?? null,
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
-    sellerProfileId: pickNestedString(record, ["seller", "id"])
+    sellerProfileId:
+      pickString(record, ["sellerProfileId", "profileId"]) ??
+      pickNestedString(record, ["seller", "profileId"]) ??
+      pickNestedString(record, ["seller", "id"])
   };
 }
 
@@ -160,6 +182,7 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
 
       if (isRecord(image)) {
         const url = pickString(image, ["url", "imageUrl", "publicUrl"]);
+
         if (url) {
           return url;
         }
@@ -225,6 +248,7 @@ function pickNumber(record: Record<string, unknown>, keys: string[]): number | n
 
     if (typeof value === "string" && value.trim().length > 0) {
       const parsed = Number(value);
+
       if (Number.isFinite(parsed)) {
         return parsed;
       }

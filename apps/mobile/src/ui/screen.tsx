@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useAndroidNavigationBarVisibility } from "../lib/android-navigation-bar";
+import { getMobileScreenContentBottomPadding } from "./mobile-layout";
 import { colors } from "./theme";
 
 type ScreenProps = {
@@ -8,9 +11,25 @@ type ScreenProps = {
   eyebrow?: string;
   subtitle?: string;
   children: ReactNode;
+  hasTabBar?: boolean;
 };
 
-export function Screen({ title, eyebrow, subtitle, children }: ScreenProps) {
+export function Screen({
+  title,
+  eyebrow,
+  subtitle,
+  children,
+  hasTabBar = true
+}: ScreenProps) {
+  const insets = useSafeAreaInsets();
+  const androidNavigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
+  const bottomPadding = getMobileScreenContentBottomPadding({
+    androidNavigationVisibility,
+    hasTabBar,
+    platformOS: Platform.OS,
+    safeAreaBottom: insets.bottom
+  });
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       <View pointerEvents="none" style={styles.backgroundPattern}>
@@ -21,9 +40,10 @@ export function Screen({ title, eyebrow, subtitle, children }: ScreenProps) {
       </View>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        style={styles.scroll}
       >
         <View style={styles.header}>
           {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
@@ -116,7 +136,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 112,
     gap: 18
   },
   header: {
