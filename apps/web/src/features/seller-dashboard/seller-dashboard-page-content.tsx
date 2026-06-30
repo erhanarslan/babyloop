@@ -32,14 +32,20 @@ const sellerSections: Array<{ id: SellerSection; label: string }> = [
 
 export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageContentProps) {
   const { dictionary } = useI18n();
-  const { isCheckingAuth } = useProtectedRoute({ apiBaseUrl });
+  const { isCheckingAuth, isAuthenticated } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: () => {
+      setSummary(null);
+      setIsLoading(false);
+    }
+  });
   const [activeSection, setActiveSection] = useState<SellerSection>("summary");
   const [summary, setSummary] = useState<SellerDashboardSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isCheckingAuth) {
+    if (isCheckingAuth || !isAuthenticated) {
       return;
     }
 
@@ -71,7 +77,7 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl, dictionary, isCheckingAuth]);
+  }, [apiBaseUrl, dictionary, isAuthenticated, isCheckingAuth]);
 
   const sortedListings = useMemo(
     () => (summary ? sortSellerListings(summary.listings) : []),
@@ -117,7 +123,7 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
 
           {errorMessage ? <Alert title="Satıcı paneli yüklenemedi" message={errorMessage} /> : null}
 
-          {isCheckingAuth || isLoading ? (
+          {isCheckingAuth || (isAuthenticated && isLoading) ? (
             <LoadingBlock title="Satıcı paneli yükleniyor" message="İlan özetleri hazırlanıyor." />
           ) : null}
 

@@ -7,6 +7,7 @@ const PROTECTED_PUBLIC_PATHS = [
   "/account/profile",
   "/account/password",
   "/account/saved-searches",
+  "/account/seller",
   "/conversations",
 ] as const;
 

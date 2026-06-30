@@ -15,6 +15,7 @@ const bundles = {
       "e2e/listing-detail.smoke.spec.ts",
       "e2e/favorites.smoke.spec.ts",
       "e2e/my-listings.smoke.spec.ts",
+      "e2e/seller-dashboard.smoke.spec.ts",
       "e2e/sell-upload.smoke.spec.ts",
     ],
     messaging: [
