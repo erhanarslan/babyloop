@@ -4,15 +4,14 @@ import {
   productEventTypeSchema
 } from "../src/schemas/product-events.schemas.js";
 
-const LISTING_ID = "00000000-0000-0000-0000-000000000001";
-const CATEGORY_ID = "00000000-0000-0000-0000-000000000002";
+const LISTING_ID = "00000000-0000-4000-8000-000000000001";
+const CATEGORY_ID = "00000000-0000-4000-8000-000000000002";
 
 describe("product event schemas", () => {
   it("accepts a privacy-safe listing detail view event", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "listing_detail_viewed",
       listingId: LISTING_ID,
-      categoryId: CATEGORY_ID,
       source: "listing_detail"
     });
 
@@ -21,9 +20,9 @@ describe("product event schemas", () => {
 
   it("accepts a category view event without listing id", () => {
     const result = productEventBodySchema.safeParse({
-      eventType: "category_viewed",
       categoryId: CATEGORY_ID,
-      source: "category_landing"
+      eventType: "category_viewed",
+      source: "category_grid"
     });
 
     expect(result.success).toBe(true);
@@ -32,10 +31,9 @@ describe("product event schemas", () => {
   it("accepts a search event with only aggregate query metadata", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "search_performed",
-      queryLength: 12,
-      resultCount: 8,
-      categoryId: CATEGORY_ID,
-      source: "browse"
+      queryLength: 14,
+      resultCount: 12,
+      source: "search_results"
     });
 
     expect(result.success).toBe(true);
@@ -45,7 +43,6 @@ describe("product event schemas", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "recently_viewed_listing_clicked",
       listingId: LISTING_ID,
-      categoryId: CATEGORY_ID,
       source: "recently_viewed"
     });
 
@@ -56,57 +53,123 @@ describe("product event schemas", () => {
     const result = productEventBodySchema.safeParse({
       eventType: "listing_recommendation_impression",
       listingId: LISTING_ID,
-      categoryId: CATEGORY_ID,
-      source: "recommendation"
+      source: "listing_recommendations"
     });
 
     expect(result.success).toBe(true);
   });
 
   it("keeps exported product event type schema aligned with recommendation impressions", () => {
-    const result = productEventTypeSchema.safeParse("listing_recommendation_impression");
-
-    expect(result.success).toBe(true);
+    expect(productEventTypeSchema.safeParse("listing_recommendation_impression").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("recently_viewed_listing_clicked").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("category_viewed").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("search_performed").success).toBe(true);
   });
 
   it("rejects raw search query and unknown metadata fields", () => {
-    const result = productEventBodySchema.safeParse({
-      eventType: "search_performed",
-      queryLength: 12,
-      rawQuery: "bebek arabası",
-      userAgent: "Mozilla",
-      referrer: "https://example.com/private"
-    });
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        query: "bebek arabası",
+        queryLength: 14,
+        resultCount: 2,
+        source: "search_results"
+      }).success
+    ).toBe(false);
 
-    expect(result.success).toBe(false);
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "listing_detail_viewed",
+        listingId: LISTING_ID,
+        metadata: {
+          email: "buyer@example.test",
+          phone: "+905551112233"
+        },
+        source: "listing_detail"
+      }).success
+    ).toBe(false);
   });
 
   it("requires a valid listing id for listing events", () => {
-    const result = productEventBodySchema.safeParse({
-      eventType: "listing_detail_viewed",
-      listingId: "not-a-uuid",
-      source: "listing_detail"
-    });
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "listing_detail_viewed",
+        listingId: "not-a-uuid",
+        source: "listing_detail"
+      }).success
+    ).toBe(false);
 
-    expect(result.success).toBe(false);
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "listing_card_clicked",
+        source: "listing_card"
+      }).success
+    ).toBe(false);
   });
 
   it("requires a valid category id for category events", () => {
-    const result = productEventBodySchema.safeParse({
-      eventType: "category_viewed",
-      categoryId: "not-a-uuid",
-      source: "category_landing"
-    });
+    expect(
+      productEventBodySchema.safeParse({
+        categoryId: "not-a-uuid",
+        eventType: "category_viewed",
+        source: "category_grid"
+      }).success
+    ).toBe(false);
 
-    expect(result.success).toBe(false);
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "category_viewed",
+        source: "category_grid"
+      }).success
+    ).toBe(false);
   });
 
-  it("rejects unsupported product event types", () => {
-    const result = productEventBodySchema.safeParse({
-      eventType: "raw_message_viewed",
-      listingId: LISTING_ID
-    });
+  it("requires aggregate-only valid search metadata for search events", () => {
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        queryLength: 0,
+        resultCount: 2,
+        source: "search_results"
+      }).success
+    ).toBe(false);
 
-    expect(result.success).toBe(false);
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        queryLength: 14,
+        resultCount: -1,
+        source: "search_results"
+      }).success
+    ).toBe(false);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        queryLength: 201,
+        resultCount: 2,
+        source: "search_results"
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects unsupported product event types and unsafe source values", () => {
+    expect(productEventTypeSchema.safeParse("raw_message_viewed").success).toBe(false);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "raw_message_viewed",
+        listingId: LISTING_ID,
+        source: "listing_detail"
+      }).success
+    ).toBe(false);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "listing_detail_viewed",
+        listingId: LISTING_ID,
+        source: "raw_private_source"
+      }).success
+    ).toBe(false);
   });
 });

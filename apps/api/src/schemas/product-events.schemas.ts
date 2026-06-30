@@ -18,21 +18,20 @@ export const productEventTypeSchema = z.enum([
   "search_performed"
 ]);
 
-export const productEventSourceSchema = z.enum([
-  "home",
-  "browse",
-  "category_landing",
+const productEventSourceSchema = z.enum([
   "listing_detail",
+  "listing_card",
+  "listing_recommendations",
+  "recently_viewed",
   "favorites",
-  "recommendation",
-  "recently_viewed"
+  "category_grid",
+  "search_results"
 ]);
 
 const listingProductEventBodySchema = z
   .object({
     eventType: listingProductEventTypeSchema,
     listingId: z.string().uuid(),
-    categoryId: z.string().uuid().optional(),
     source: productEventSourceSchema.optional()
   })
   .strict();
@@ -48,9 +47,8 @@ const categoryProductEventBodySchema = z
 const searchProductEventBodySchema = z
   .object({
     eventType: z.literal("search_performed"),
-    queryLength: z.number().int().min(2).max(80),
-    resultCount: z.number().int().min(0).max(10000).optional(),
-    categoryId: z.string().uuid().optional(),
+    queryLength: z.number().int().min(1).max(200),
+    resultCount: z.number().int().min(0).max(10_000).optional(),
     source: productEventSourceSchema.optional()
   })
   .strict();
@@ -62,5 +60,3 @@ export const productEventBodySchema = z.discriminatedUnion("eventType", [
 ]);
 
 export type ProductEventBody = z.infer<typeof productEventBodySchema>;
-export type ProductEventType = z.infer<typeof productEventTypeSchema>;
-export type ProductEventSource = z.infer<typeof productEventSourceSchema>;

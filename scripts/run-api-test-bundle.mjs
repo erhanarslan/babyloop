@@ -9,6 +9,7 @@ const bundles = {
     "test/messaging.integration.test.ts",
     "test/notifications.integration.test.ts",
     "test/safety.integration.test.ts",
+    "test/product-events.routes.test.ts",
   ],
   trust: [
     "test/messaging.integration.test.ts",
@@ -31,6 +32,7 @@ const bundles = {
     "test/favorites.integration.test.ts",
     "test/saved-searches.routes.test.ts",
     "test/seller-dashboard.routes.test.ts",
+    "test/product-events.routes.test.ts",
     "test/search-suggestions.routes.test.ts",
   ],
 };
