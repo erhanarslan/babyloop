@@ -2,6 +2,7 @@ import { apiGet, isRecord, safeApiErrorMessage } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
 import type { MobileListingSummary } from "../listings/listings-api";
 import type { MobileCreateListingPayload } from "./sell-form-model";
+import type { MobileListingImageUploadFile } from "./image-upload-model";
 
 export type MobileCategory = {
   id: string;
@@ -18,6 +19,35 @@ export async function fetchMobileCategories(): Promise<MobileCategory[]> {
   }
 
   return extractCategoryArray(result.data).map(normalizeCategory).filter(isMobileCategory);
+}
+
+
+export async function uploadMobileListingImage(
+  listingId: string,
+  image: MobileListingImageUploadFile
+): Promise<void> {
+  const formData = new FormData();
+
+  formData.append("image", {
+    uri: image.uri,
+    name: image.name,
+    type: image.type
+  } as unknown as Blob);
+
+  const response = await mobileAuthFetch(
+    `/api/v1/listings/${encodeURIComponent(listingId)}/images`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+  const responsePayload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      safeApiErrorMessage(responsePayload, "Görsel şu an yüklenemedi. Biraz sonra tekrar dene.")
+    );
+  }
 }
 
 export async function createMobileListing(

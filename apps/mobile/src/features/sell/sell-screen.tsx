@@ -1,11 +1,21 @@
+import * as ImagePicker from "expo-image-picker";
 import { Link, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Paragraph, Screen, SectionHeader } from "../../ui/screen";
 import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
-import { createMobileListing, fetchMobileCategories, type MobileCategory } from "./sell-api";
+import {
+  createMobileListing,
+  fetchMobileCategories,
+  uploadMobileListingImage,
+  type MobileCategory
+} from "./sell-api";
+import {
+  buildMobileListingImageUploadFile,
+  type MobilePickedImageInput
+} from "./image-upload-model";
 import {
   buildMobileCreateListingPayload,
   createDefaultMobileSellFormState,
@@ -28,8 +38,10 @@ export function SellScreen() {
   const [categories, setCategories] = useState<MobileCategory[]>([]);
   const [categoryStatus, setCategoryStatus] = useState<CategoryStatus>("loading");
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
+  const [selectedImage, setSelectedImage] = useState<MobilePickedImageInput | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [createdListingTitle, setCreatedListingTitle] = useState<string | null>(null);
+  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -98,10 +110,57 @@ export function SellScreen() {
   ) {
     setMessage(null);
     setCreatedListingTitle(null);
+    setCreatedListingId(null);
     setFormState((currentState) => ({
       ...currentState,
       [key]: value
     }));
+  }
+
+  async function handlePickImage() {
+    setMessage(null);
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      setMessage("Fotoğraf seçmek için galeri izni vermelisin.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      allowsMultipleSelection: false,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.86
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    const imageFile = buildMobileListingImageUploadFile({
+      uri: asset.uri,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType
+    });
+
+    if (!imageFile.ok) {
+      setMessage(imageFile.message);
+      return;
+    }
+
+    setSelectedImage({
+      uri: asset.uri,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType
+    });
+  }
+
+  function handleRemoveImage() {
+    setSelectedImage(null);
+    setMessage(null);
   }
 
   async function handleSubmit() {
@@ -116,16 +175,40 @@ export function SellScreen() {
       return;
     }
 
+    const imageUploadFile = selectedImage
+      ? buildMobileListingImageUploadFile(selectedImage)
+      : null;
+
+    if (imageUploadFile && !imageUploadFile.ok) {
+      setMessage(imageUploadFile.message);
+      return;
+    }
+
     try {
       setSubmitStatus("submitting");
       setMessage(null);
       setCreatedListingTitle(null);
+      setCreatedListingId(null);
 
       const listing = await createMobileListing(validation.payload);
 
-      setCreatedListingTitle(listing.title);
-      setFormState(createDefaultMobileSellFormState());
+      if (imageUploadFile?.ok) {
+        try {
+          await uploadMobileListingImage(listing.id, imageUploadFile.file);
+        } catch (imageUploadError) {
+          setCreatedListingTitle(listing.title);
+          setCreatedListingId(listing.id);
+          setMessage(
+            imageUploadError instanceof Error
+              ? `İlan oluşturuldu fakat görsel yüklenemedi: ${imageUploadError.message}`
+              : "İlan oluşturuldu fakat görsel yüklenemedi."
+          );
+          return;
+        }
+      }
 
+      setSelectedImage(null);
+      setFormState(createDefaultMobileSellFormState());
       router.push(`/listing/${encodeURIComponent(listing.id)}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "İlan şu an oluşturulamadı.");
@@ -141,12 +224,12 @@ export function SellScreen() {
     <Screen
       eyebrow="İlan Ver"
       title="İlanını oluştur"
-      subtitle="Fotoğraf yükleme sonraki pakette; bu akış şimdilik aktif ilanı güvenli şekilde oluşturur."
+      subtitle="Ürünü fotoğrafla birlikte ekle; BabyLoop güvenli ilan kurallarına göre yayınla."
     >
       <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Release minimum ilan formu</Text>
+        <Text style={styles.heroTitle}>Mobil ilan formu</Text>
         <Text style={styles.heroText}>
-          Başlık, kategori, durum, fiyat ve açıklamayı gir; ilan aktif olarak oluşturulup detay ekranına yönlenir.
+          Başlık, kategori, ürün durumu, fiyat, açıklama ve fotoğraf ekleyerek ilanını oluştur.
         </Text>
       </View>
 
@@ -194,6 +277,34 @@ export function SellScreen() {
           })}
         </View>
       ) : null}
+
+      <SectionHeader title="Fotoğraf" description="İlk sürümde tek görsel yüklüyoruz; galeri çoklu yükleme sonraki pakete kalabilir." />
+
+      <View style={styles.imageCard}>
+        {selectedImage?.uri ? (
+          <>
+            <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} />
+            <View style={styles.imageActions}>
+              <Pressable onPress={handlePickImage} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Değiştir</Text>
+              </Pressable>
+              <Pressable onPress={handleRemoveImage} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Kaldır</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderTitle}>Fotoğraf seçilmedi</Text>
+              <Text style={styles.imagePlaceholderText}>JPG, PNG veya WEBP görsel seç.</Text>
+            </View>
+            <Pressable onPress={handlePickImage} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Fotoğraf seç</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
 
       <SectionHeader title="İlan bilgileri" description="Kısa, net ve doğrulanabilir bilgi gir." />
 
@@ -281,6 +392,14 @@ export function SellScreen() {
       {message ? (
         <View style={styles.alertCard}>
           <Text style={styles.alertText}>{message}</Text>
+          {createdListingId ? (
+            <Pressable
+              onPress={() => router.push(`/listing/${encodeURIComponent(createdListingId)}`)}
+              style={styles.alertAction}
+            >
+              <Text style={styles.alertActionText}>Oluşturulan ilana git</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -343,6 +462,44 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20
+  },
+  imageCard: {
+    ...shadows.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 12
+  },
+  previewImage: {
+    width: "100%",
+    height: 230,
+    borderRadius: radius.lg,
+    backgroundColor: colors.cream
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 170,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background,
+    gap: 5
+  },
+  imagePlaceholderTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  imagePlaceholderText: {
+    color: colors.muted,
+    fontSize: 13
+  },
+  imageActions: {
+    flexDirection: "row",
+    gap: 10
   },
   formCard: {
     ...shadows.card,
@@ -424,13 +581,25 @@ const styles = StyleSheet.create({
     borderColor: "#fecaca",
     borderRadius: radius.lg,
     backgroundColor: "#fff1f2",
-    padding: 14
+    padding: 14,
+    gap: 10
   },
   alertText: {
     color: "#b42318",
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18
+  },
+  alertAction: {
+    alignItems: "center",
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    paddingVertical: 11
+  },
+  alertActionText: {
+    color: "#b42318",
+    fontSize: 13,
+    fontWeight: "900"
   },
   successCard: {
     borderWidth: 1,
@@ -450,6 +619,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.primary,
     paddingVertical: 14
+  },
+  secondaryButton: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceSoft,
+    paddingVertical: 12
+  },
+  secondaryButtonText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: "900"
   },
   disabledButton: {
     opacity: 0.55
