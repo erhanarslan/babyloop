@@ -33,8 +33,9 @@ export function Screen({
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       <View pointerEvents="none" style={styles.backgroundPattern}>
-        <View style={[styles.patternBlob, styles.patternBlobPrimary]} />
-        <View style={[styles.patternBlob, styles.patternBlobPeach]} />
+        <View style={[styles.patternDot, styles.patternDotPrimary]} />
+        <View style={[styles.patternDot, styles.patternDotPeach]} />
+        <View style={[styles.patternDot, styles.patternDotMint]} />
         <View style={[styles.patternRing, styles.patternRingTop]} />
         <View style={[styles.patternRing, styles.patternRingBottom]} />
       </View>
@@ -93,43 +94,50 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden"
   },
-  patternBlob: {
+  patternDot: {
     position: "absolute",
     borderRadius: 999,
-    opacity: 0.18
+    opacity: 0.14
   },
-  patternBlobPrimary: {
-    top: -90,
-    right: -70,
-    width: 210,
-    height: 210,
+  patternDotPrimary: {
+    top: 92,
+    right: 24,
+    width: 48,
+    height: 48,
     backgroundColor: colors.peach
   },
-  patternBlobPeach: {
-    bottom: 130,
-    left: -95,
-    width: 190,
-    height: 190,
+  patternDotPeach: {
+    top: 212,
+    left: 18,
+    width: 34,
+    height: 34,
     backgroundColor: colors.cream
+  },
+  patternDotMint: {
+    right: 42,
+    bottom: 178,
+    width: 28,
+    height: 28,
+    backgroundColor: colors.surfaceSoft
   },
   patternRing: {
     position: "absolute",
-    borderWidth: 18,
+    borderWidth: 8,
     borderColor: colors.surfaceSoft,
     borderRadius: 999,
-    opacity: 0.55
+    opacity: 0.42
   },
   patternRingTop: {
-    top: 120,
-    left: -42,
-    width: 118,
-    height: 118
+    top: 138,
+    left: -18,
+    width: 58,
+    height: 58
   },
   patternRingBottom: {
-    right: -46,
-    bottom: 250,
-    width: 132,
-    height: 132
+    right: -20,
+    bottom: 298,
+    width: 66,
+    height: 66
   },
   scroll: {
     flex: 1

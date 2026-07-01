@@ -426,6 +426,74 @@ export const favorites = pgTable(
   ]
 );
 
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    buyerProfileId: uuid("buyer_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("cart_items_buyer_listing_unique").on(table.buyerProfileId, table.listingId),
+    index("cart_items_buyer_profile_id_idx").on(table.buyerProfileId),
+    index("cart_items_listing_id_idx").on(table.listingId)
+  ]
+);
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    buyerProfileId: uuid("buyer_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    status: varchar("status", { length: 40 }).notNull().default("pending"),
+    currency: varchar("currency", { length: 3 }).notNull().default("TRY"),
+    totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+    paymentProvider: varchar("payment_provider", { length: 80 }).notNull().default("mock_iyzico"),
+    providerPaymentId: varchar("provider_payment_id", { length: 120 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("orders_buyer_profile_id_idx").on(table.buyerProfileId),
+    index("orders_status_idx").on(table.status),
+    index("orders_provider_payment_id_idx").on(table.providerPaymentId)
+  ]
+);
+
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "restrict" }),
+    sellerProfileId: uuid("seller_profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    titleSnapshot: varchar("title_snapshot", { length: 160 }).notNull(),
+    priceAmountSnapshot: numeric("price_amount_snapshot", { precision: 12, scale: 2 }).notNull().default("0.00"),
+    currencySnapshot: varchar("currency_snapshot", { length: 3 }).notNull().default("TRY"),
+    listingTypeSnapshot: varchar("listing_type_snapshot", { length: 40 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("order_items_order_id_idx").on(table.orderId),
+    index("order_items_listing_id_idx").on(table.listingId),
+    index("order_items_seller_profile_id_idx").on(table.sellerProfileId)
+  ]
+);
+
 export const savedSearches = pgTable(
   "saved_searches",
   {
@@ -757,6 +825,7 @@ export const schema = {
   aiModelRuns,
   authAccounts,
   blockedProfiles,
+  cartItems,
   conversationListingContexts,
   conversationParticipants,
   conversations,
@@ -770,6 +839,8 @@ export const schema = {
   moderationActions,
   moderationCases,
   notifications,
+  orderItems,
+  orders,
   passwordResetTokens,
   productCategories,
   profiles,

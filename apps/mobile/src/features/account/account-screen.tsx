@@ -1,47 +1,57 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, shadows } from "../../ui/theme";
+import { MobileButton, MobileCard } from "../../ui/mobile-primitives";
+import { colors, radius, spacing } from "../../ui/theme";
 import { Screen } from "../../ui/screen";
 import { useAuthSession } from "../auth/auth-session";
 
 const accountShortcuts = [
   {
     href: "/favorites",
+    icon: "heart-outline",
     title: "Favorilerim",
     description: "Kaydettiğin ilanları tekrar aç."
   },
   {
     href: "/messages",
+    icon: "chatbubble-ellipses-outline",
     title: "Mesajlarım",
     description: "Alıcı ve satıcı konuşmalarını takip et."
   },
   {
     href: "/my-listings",
+    icon: "albums-outline",
     title: "İlanlarım",
     description: "Yayındaki, satılan ve arşivlenen ilanlarını yönet."
   },
   {
     href: "/sell",
+    icon: "add-circle-outline",
     title: "İlan Ver",
     description: "Satmak istediğin ürünü hazırlamaya başla."
   },
   {
     href: "/child-profile",
+    icon: "happy-outline",
     title: "Çocuğum",
     description: "Temel çocuk bilgileri ve ihtiyaç fikirleri."
   },
   {
     href: "/notification-preferences",
+    icon: "notifications-outline",
     title: "Bildirim tercihlerim",
     description: "Mesaj ve ilan hareketleri için tercihlerini düzenle."
   },
   {
     href: "/security",
+    icon: "shield-checkmark-outline",
     title: "Güvenlik",
     description: "Şifre ve hesap güvenliği ayarları."
   },
   {
     href: "/assistant",
+    icon: "sparkles-outline",
     title: "BabyLoop Asistan",
     description: "Ürün seçimi ve güvenli alışveriş kontrol listeleri."
   }
@@ -67,7 +77,7 @@ export function AccountScreen() {
           : "Favoriler ve mesajlar için giriş yap."
       }
     >
-      <View style={styles.profileCard}>
+      <MobileCard style={styles.profileCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {currentUser?.profile.displayName.slice(0, 1).toUpperCase() ?? "B"}
@@ -85,7 +95,7 @@ export function AccountScreen() {
             <Text style={styles.profileMeta}>{currentUser.profile.locationCity}</Text>
           ) : null}
         </View>
-      </View>
+      </MobileCard>
 
       {authSession.status === "checking" ? (
         <StateCard title="Oturum kontrol ediliyor" text="Mevcut auth cookie/token bilgisi kontrol ediliyor." />
@@ -94,28 +104,25 @@ export function AccountScreen() {
       {!currentUser ? (
         <View style={styles.authActions}>
           <Link href="/login" asChild>
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Giriş yap</Text>
-            </Pressable>
+            <MobileButton>Giriş yap</MobileButton>
           </Link>
 
           <Link href="/register" asChild>
-            <Pressable style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Hesap oluştur</Text>
-            </Pressable>
+            <MobileButton variant="secondary">Hesap oluştur</MobileButton>
           </Link>
         </View>
       ) : (
         <>
-          <Pressable onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Çıkış yap</Text>
-          </Pressable>
+          <MobileButton iconName="log-out-outline" onPress={handleLogout} variant="danger">
+            Çıkış yap
+          </MobileButton>
 
           <View style={styles.menu}>
             {accountShortcuts.map((item) => (
               <MenuItem
                 description={item.description}
                 href={item.href}
+                icon={item.icon}
                 key={item.href}
                 title={item.title}
               />
@@ -131,12 +138,33 @@ export function AccountScreen() {
   );
 }
 
-function MenuItem({ title, description, href }: { title: string; description: string; href: string }) {
+function MenuItem({
+  title,
+  description,
+  href,
+  icon
+}: {
+  title: string;
+  description: string;
+  href: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}) {
   return (
     <Link href={href} asChild>
       <Pressable style={styles.menuItem}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        <Text style={styles.menuDescription}>{description}</Text>
+        <View style={styles.menuIcon}>
+          <Ionicons
+            accessibilityElementsHidden
+            color={colors.primaryDark}
+            importantForAccessibility="no"
+            name={icon}
+            size={18}
+          />
+        </View>
+        <View style={styles.menuText}>
+          <Text style={styles.menuTitle}>{title}</Text>
+          <Text style={styles.menuDescription}>{description}</Text>
+        </View>
       </Pressable>
     </Link>
   );
@@ -144,24 +172,18 @@ function MenuItem({ title, description, href }: { title: string; description: st
 
 function StateCard({ title, text }: { title: string; text: string }) {
   return (
-    <View style={styles.stateCard}>
+    <MobileCard style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
       <Text style={styles.stateText}>{text}</Text>
-    </View>
+    </MobileCard>
   );
 }
 
 const styles = StyleSheet.create({
   profileCard: {
-    ...shadows.card,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 13
+    gap: spacing.md
   },
   avatar: {
     alignItems: "center",
@@ -195,40 +217,32 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   authActions: {
-    gap: 10
-  },
-  primaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingVertical: 14
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  secondaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingVertical: 14
-  },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
+    gap: spacing.sm
   },
   menu: {
-    gap: 10
+    gap: spacing.sm
   },
   menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     padding: 15,
-    gap: 4
+    gap: spacing.md
+  },
+  menuIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft
+  },
+  menuText: {
+    flex: 1,
+    gap: spacing.xs
   },
   menuTitle: {
     color: colors.text,
@@ -240,24 +254,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
-  logoutButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: "#fff0ed",
-    paddingVertical: 14
-  },
-  logoutButtonText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
-  },
   stateCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 6
+    gap: spacing.xs
   },
   stateTitle: {
     color: colors.text,

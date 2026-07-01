@@ -580,12 +580,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#fecaca",
     borderRadius: radius.lg,
-    backgroundColor: "#fff1f2",
+    backgroundColor: colors.dangerSoft,
     padding: 14,
     gap: 10
   },
   alertText: {
-    color: "#b42318",
+    color: colors.danger,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18
@@ -593,11 +593,11 @@ const styles = StyleSheet.create({
   alertAction: {
     alignItems: "center",
     borderRadius: 999,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     paddingVertical: 11
   },
   alertActionText: {
-    color: "#b42318",
+    color: colors.danger,
     fontSize: 13,
     fontWeight: "900"
   },
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#bbf7d0",
     borderRadius: radius.lg,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: colors.successSoft,
     padding: 14
   },
   successText: {
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     opacity: 0.55
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 15,
     fontWeight: "900"
   }

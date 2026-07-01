@@ -4,6 +4,7 @@ import { type KeyboardEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert, Badge, EmptyState, PageContainer, PageHeading } from "../../components/ui";
 import { FavoriteButton } from "../../features/favorites/favorite-button";
+import { AddToCartButton } from "../../features/cart/add-to-cart-button";
 import { MessageSellerButton } from "../../features/messaging/message-seller-button";
 import { fetchCurrentUser } from "../../features/auth/api";
 import { reportListing } from "../../features/safety/api";
@@ -196,6 +197,16 @@ export function ListingDetailContent({
                   listingId={listing.id}
                 />
               </div>
+
+              {listing.status === "active" ? (
+                <div className="max-w-sm">
+                  <AddToCartButton
+                    apiBaseUrl={apiBaseUrl}
+                    isAuthenticated={currentUser.status === "known"}
+                    listingId={listing.id}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <SellerCard listing={listing} />

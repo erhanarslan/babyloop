@@ -1,11 +1,8 @@
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 
 import { Screen } from "./screen";
-
-const placeholderColors = {
-  text: "#2f2521",
-  muted: "#6d5d56",
-} as const;
+import { MobileCard } from "./mobile-primitives";
+import { colors, spacing } from "./theme";
 
 type MobilePlaceholderScreenProps = {
   title: string;
@@ -18,16 +15,15 @@ export function MobilePlaceholderScreen({
 }: MobilePlaceholderScreenProps) {
   return (
     <Screen title={title}>
-      <View
+      <MobileCard
         style={{
-          gap: 12,
-          paddingVertical: 24,
+          gap: spacing.sm
         }}
       >
         <Text
           style={{
-            color: placeholderColors.text,
-            fontSize: 28,
+            color: colors.text,
+            fontSize: 22,
             fontWeight: "900",
           }}
         >
@@ -35,14 +31,14 @@ export function MobilePlaceholderScreen({
         </Text>
         <Text
           style={{
-            color: placeholderColors.muted,
+            color: colors.muted,
             fontSize: 16,
             lineHeight: 24,
           }}
         >
           {description}
         </Text>
-      </View>
+      </MobileCard>
     </Screen>
   );
 }

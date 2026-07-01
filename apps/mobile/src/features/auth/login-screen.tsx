@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 15,
     fontWeight: "900"
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   errorBox: {
     borderRadius: radius.md,
-    backgroundColor: "#fff0ed",
+    backgroundColor: colors.dangerSoft,
     padding: 12
   },
   errorText: {

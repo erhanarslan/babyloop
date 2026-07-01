@@ -2,8 +2,15 @@ import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Paragraph, Screen } from "../../ui/screen";
-import { colors, radius, shadows } from "../../ui/theme";
+import { Screen } from "../../ui/screen";
+import {
+  MobileButton,
+  MobileCard,
+  MobileEmptyState,
+  MobileErrorState,
+  MobileSkeleton
+} from "../../ui/mobile-primitives";
+import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
   fetchMobileConversations,
@@ -72,15 +79,13 @@ export function MessagesScreen() {
         title="Konuşmalar"
         subtitle="Satıcılarla güvenli mesajlaşmak için giriş yap."
       >
-        <View style={styles.stateCard}>
+        <MobileCard style={styles.stateStack}>
           <Text style={styles.stateTitle}>Hesap gerekli</Text>
           <Text style={styles.stateText}>Favoriler ve mesajlar hesabına bağlı tutulur.</Text>
           <Link href="/login" asChild>
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Giriş yap</Text>
-            </Pressable>
+            <MobileButton>Giriş yap</MobileButton>
           </Link>
-        </View>
+        </MobileCard>
       </Screen>
     );
   }
@@ -91,23 +96,22 @@ export function MessagesScreen() {
       title="Konuşmalar"
       subtitle="İlanlarla ilgili soruları ve yanıtları burada takip et."
     >
-      {status === "loading" ? <Paragraph>Konuşmalar yükleniyor...</Paragraph> : null}
+      {status === "loading" ? <MobileSkeleton label="Konuşmalar yükleniyor..." /> : null}
 
       {status === "error" ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Mesajlar yüklenemedi</Text>
-          <Text style={styles.stateText}>{error}</Text>
-          <Pressable onPress={() => void loadConversations()} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Tekrar dene</Text>
-          </Pressable>
-        </View>
+        <MobileErrorState
+          actionLabel="Tekrar dene"
+          message={error}
+          onAction={() => void loadConversations()}
+          title="Mesajlar yüklenemedi"
+        />
       ) : null}
 
       {status === "ready" && conversations.length === 0 ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Henüz konuşma yok</Text>
-          <Text style={styles.stateText}>Bir ilandan “Satıcıya yaz” dediğinde konuşma burada görünür.</Text>
-        </View>
+        <MobileEmptyState
+          message="Bir ilandan “Satıcıya yaz” dediğinde konuşma burada görünür."
+          title="Henüz konuşma yok"
+        />
       ) : null}
 
       <View style={styles.list}>
@@ -124,6 +128,9 @@ function ConversationCard({ conversation }: { conversation: MobileConversationSu
     <Link href={`/conversation/${encodeURIComponent(conversation.id)}`} asChild>
       <Pressable style={styles.conversationCard}>
         <View style={styles.conversationHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{conversation.title.slice(0, 1).toLocaleUpperCase("tr-TR")}</Text>
+          </View>
           <View style={styles.conversationTitleBlock}>
             <Text numberOfLines={1} style={styles.conversationTitle}>
               {conversation.title}
@@ -167,20 +174,33 @@ function formatDate(value: string): string {
 
 const styles = StyleSheet.create({
   list: {
-    gap: 12
+    gap: spacing.md
   },
   conversationCard: {
-    ...shadows.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    padding: 14,
-    gap: 10
+    padding: spacing.lg,
+    gap: spacing.sm
   },
   conversationHeader: {
     flexDirection: "row",
-    gap: 10
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  avatar: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 42,
+    height: 42,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft
+  },
+  avatarText: {
+    color: colors.primaryDark,
+    fontSize: 17,
+    fontWeight: "900"
   },
   conversationTitleBlock: {
     flex: 1,
@@ -216,17 +236,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7
   },
   unreadBadgeText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 12,
     fontWeight: "900"
   },
-  stateCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 10
+  stateStack: {
+    gap: spacing.sm
   },
   stateTitle: {
     color: colors.text,
@@ -238,28 +253,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
-  primaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingVertical: 13
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  secondaryButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 10
-  },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontSize: 13,
-    fontWeight: "900"
-  }
 });

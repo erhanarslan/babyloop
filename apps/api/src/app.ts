@@ -20,6 +20,7 @@ import { registerAssistantRoutes } from "./routes/assistant.routes.js";
 import { registerAuthRoutes } from "./routes/auth.routes.js";
 import { registerAuthUnavailableRoutes } from "./routes/auth-unavailable.routes.js";
 import { registerCategoryRoutes } from "./routes/categories.routes.js";
+import { registerCartRoutes } from "./routes/cart.routes.js";
 import { registerChildProfileRoutes } from "./routes/child-profiles.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
@@ -313,6 +314,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       prefix: API_PREFIX
     });
     app.register(registerCategoryRoutes, { prefix: API_PREFIX });
+    app.register(registerCartRoutes, { prefix: API_PREFIX });
     app.register(registerChildProfileRoutes, { prefix: API_PREFIX });
     app.register(registerFavoriteRoutes, { prefix: API_PREFIX });
     app.register(registerListingRoutes, {

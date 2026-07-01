@@ -1,10 +1,18 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Paragraph, Screen } from "../../ui/screen";
-import { colors, radius, shadows, spacing } from "../../ui/theme";
+import {
+  MobileButton,
+  MobileEmptyState,
+  MobileErrorState
+} from "../../ui/mobile-primitives";
+import {
+  buildMobileListingChips,
+  MobileListingCard
+} from "../../ui/mobile-listing-card";
+import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
   fetchMobileMyListings,
@@ -15,7 +23,6 @@ import {
 import { getMobileListingStatusActions } from "./my-listings-model";
 
 type LoadStatus = "loading" | "ready" | "error";
-type MyListingActionIconName = "archive-outline" | "cart-outline" | "refresh-outline";
 
 export function MyListingsScreen() {
   const router = useRouter();
@@ -113,22 +120,21 @@ export function MyListingsScreen() {
       {status === "loading" ? <Paragraph>İlanların yükleniyor...</Paragraph> : null}
 
       {error ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => void loadListings()} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Tekrar dene</Text>
-          </Pressable>
-        </View>
+        <MobileErrorState
+          actionLabel="Tekrar dene"
+          message={error}
+          onAction={() => void loadListings()}
+          title="İlanlar yüklenemedi"
+        />
       ) : null}
 
       {status === "ready" && listings.length === 0 ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Henüz ilan yok</Text>
-          <Text style={styles.stateText}>İlk ilanını oluşturduğunda burada yönetebilirsin.</Text>
-          <Pressable onPress={() => router.push("/sell")} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>İlan ver</Text>
-          </Pressable>
-        </View>
+        <MobileEmptyState
+          actionLabel="İlan ver"
+          message="İlk ilanını oluşturduğunda burada yönetebilirsin."
+          onAction={() => router.push("/sell")}
+          title="Henüz ilan yok"
+        />
       ) : null}
 
       <View style={styles.list}>
@@ -158,118 +164,43 @@ function MyListingCard({
   pending: boolean;
 }) {
   const actions = getMobileListingStatusActions(listing.status);
-  const chips = [listing.statusText, listing.listingTypeText, listing.conditionText].filter(
-    isNonEmptyLabel
-  );
 
   return (
-    <View style={styles.card}>
-      <Pressable onPress={onOpen} style={styles.cardBody}>
-        {listing.imageUrl ? (
-          <Image source={{ uri: listing.imageUrl }} style={styles.image} />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>Görsel yok</Text>
-          </View>
-        )}
-
-        <View style={styles.cardContent}>
-          <View style={styles.cardMain}>
-            <Text numberOfLines={2} style={styles.title}>
-              {listing.title}
-            </Text>
-            <Text numberOfLines={1} style={styles.price}>
-              {listing.priceText}
-            </Text>
-            <View style={styles.iconTextRow}>
-              <Ionicons
-                accessibilityElementsHidden
-                color={colors.subtle}
-                importantForAccessibility="no"
-                name="location-outline"
-                size={14}
-              />
-              <Text numberOfLines={1} style={styles.location}>
-                {listing.locationText}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.chipRow}>
-            {chips.map((chip) => (
-              <ListingChip key={`${listing.id}-${chip}`} label={chip} />
-            ))}
-          </View>
-
-          <View style={styles.favoriteRow}>
-            <Ionicons
-              accessibilityElementsHidden
-              color={colors.subtle}
-              importantForAccessibility="no"
-              name="heart-outline"
-              size={14}
-            />
-            <Text style={styles.meta}>{listing.favoriteCount ?? 0} favori</Text>
-          </View>
-        </View>
-      </Pressable>
-
-      {actions.length > 0 ? (
+    <MobileListingCard
+      actions={
+        actions.length > 0 ? (
         <View style={styles.actionRow}>
           {actions.map((action) => (
-            <Pressable
+            <MobileButton
               disabled={pending}
               key={`${listing.id}-${action.status}`}
               onPress={() => onStatusAction(action.status)}
-              style={[
-                styles.actionButton,
-                action.tone === "primary" ? styles.actionButtonPrimary : null,
-                action.tone === "danger" ? styles.actionButtonDanger : null,
-                action.tone === "secondary" ? styles.actionButtonSecondary : null,
-                pending ? styles.actionButtonDisabled : null
-              ]}
+              iconName={getActionIconName(action.label)}
+              style={styles.actionButton}
+              variant={action.tone}
             >
-              <Ionicons
-                accessibilityElementsHidden
-                color={getActionIconColor(action.tone)}
-                importantForAccessibility="no"
-                name={getActionIconName(action.label)}
-                size={15}
-                style={styles.actionButtonIcon}
-              />
-              <Text
-                style={[
-                  styles.actionButtonText,
-                  action.tone === "primary" ? styles.actionButtonTextPrimary : null,
-                  action.tone === "danger" ? styles.actionButtonTextDanger : null,
-                  action.tone === "secondary" ? styles.actionButtonTextSecondary : null
-                ]}
-              >
-                {pending ? "Güncelleniyor..." : action.label}
-              </Text>
-            </Pressable>
+              {pending ? "Güncelleniyor..." : action.label}
+            </MobileButton>
           ))}
         </View>
-      ) : null}
-    </View>
+        ) : null
+      }
+      chips={buildMobileListingChips({
+        conditionText: listing.conditionText,
+        listingTypeText: listing.listingTypeText,
+        statusText: listing.statusText
+      })}
+      favoriteText={`${listing.favoriteCount ?? 0} favori`}
+      imageUrl={listing.imageUrl}
+      locationText={listing.locationText}
+      onPress={onOpen}
+      priceText={listing.priceText}
+      title={listing.title}
+    />
   );
 }
 
-function ListingChip({ label }: { label: string }) {
-  return (
-    <View style={styles.chip}>
-      <Text numberOfLines={1} style={styles.chipText}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function isNonEmptyLabel(value: string | null | undefined): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function getActionIconName(label: string): MyListingActionIconName {
+function getActionIconName(label: string): "archive-outline" | "cart-outline" | "refresh-outline" {
   if (label === "Satıldı yap") {
     return "cart-outline";
   }
@@ -279,18 +210,6 @@ function getActionIconName(label: string): MyListingActionIconName {
   }
 
   return "refresh-outline";
-}
-
-function getActionIconColor(tone: "primary" | "secondary" | "danger"): string {
-  if (tone === "primary") {
-    return colors.primaryForeground;
-  }
-
-  if (tone === "danger") {
-    return colors.danger;
-  }
-
-  return colors.primaryDark;
 }
 
 const styles = StyleSheet.create({
@@ -329,150 +248,12 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.md
   },
-  card: {
-    ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    gap: spacing.md
-  },
-  cardBody: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: spacing.md,
-    minHeight: 128
-  },
-  image: {
-    width: 106,
-    height: 128,
-    borderRadius: radius.md,
-    backgroundColor: colors.cream
-  },
-  imagePlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 106,
-    height: 128,
-    borderRadius: radius.md,
-    backgroundColor: colors.cream,
-    padding: spacing.sm
-  },
-  imagePlaceholderText: {
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "center"
-  },
-  cardContent: {
-    flex: 1,
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    minWidth: 0
-  },
-  cardMain: {
-    gap: spacing.xs
-  },
-  title: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "900",
-    lineHeight: 19
-  },
-  price: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "900"
-  },
-  iconTextRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4
-  },
-  location: {
-    color: colors.muted,
-    flex: 1,
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6
-  },
-  chip: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3
-  },
-  chipText: {
-    color: colors.primaryDark,
-    fontSize: 11,
-    fontWeight: "900",
-    lineHeight: 14,
-    textAlign: "center"
-  },
-  favoriteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4
-  },
-  meta: {
-    color: colors.subtle,
-    fontSize: 12,
-    fontWeight: "800"
-  },
   actionRow: {
     flexDirection: "row",
     gap: spacing.sm
   },
   actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 42,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
-  },
-  actionButtonPrimary: {
-    backgroundColor: colors.primary
-  },
-  actionButtonSecondary: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft
-  },
-  actionButtonDanger: {
-    backgroundColor: colors.dangerSoft
-  },
-  actionButtonDisabled: {
-    opacity: 0.55
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: "900",
-    lineHeight: 16
-  },
-  actionButtonIcon: {
-    marginRight: 5
-  },
-  actionButtonTextPrimary: {
-    color: colors.primaryForeground
-  },
-  actionButtonTextSecondary: {
-    color: colors.primaryDark
-  },
-  actionButtonTextDanger: {
-    color: colors.danger
+    flex: 1
   },
   stateCard: {
     borderWidth: 1,
@@ -492,20 +273,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
-  errorCard: {
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    borderRadius: radius.lg,
-    backgroundColor: "#fff1f2",
-    padding: 14,
-    gap: 10
-  },
-  errorText: {
-    color: "#b42318",
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 18
-  },
   primaryButton: {
     alignItems: "center",
     borderRadius: 999,
@@ -513,7 +280,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 15,
     fontWeight: "900"
   },
@@ -528,17 +295,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900"
   },
-  retryButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 14,
-    paddingVertical: 10
-  },
-  retryButtonText: {
-    color: "#b42318",
-    fontSize: 13,
-    fontWeight: "900"
-  }
 });

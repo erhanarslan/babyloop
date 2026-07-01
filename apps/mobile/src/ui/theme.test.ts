@@ -14,6 +14,8 @@ describe("mobile theme tokens", () => {
     expect(colors.primaryForeground).toBe("#ffffff");
     expect(colors.surfaceSoft).toBe("#fff1e8");
     expect(colors.cream).toBe("#ffe5d6");
+    expect(colors.successSoft).toBe("#f0fdf4");
+    expect(colors.warningSoft).toBe("#fff7e8");
     expect(colors.danger).toBe("#b42318");
   });
 

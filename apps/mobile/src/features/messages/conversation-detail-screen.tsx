@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   messageTextOwn: {
-    color: "#ffffff"
+    color: colors.primaryForeground
   },
   messageTextOther: {
     color: colors.text
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     opacity: 0.45
   },
   sendButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 13,
     fontWeight: "900"
   },
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   errorText: {
-    color: "#b42318",
+    color: colors.danger,
     fontSize: 12,
     fontWeight: "800",
     marginBottom: 8
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 15,
     fontWeight: "900"
   },

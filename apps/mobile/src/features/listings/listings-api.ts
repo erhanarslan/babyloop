@@ -17,6 +17,8 @@ export type MobileListingSummary = {
   conditionText: string | null;
   listingType: string | null;
   listingTypeText: string;
+  status: string | null;
+  statusText: string;
 };
 
 export type MobileListingDetail = MobileListingSummary & {
@@ -28,8 +30,6 @@ export type MobileListingDetail = MobileListingSummary & {
 export type MobileMyListingSummary = MobileListingSummary & {
   createdAt: string | null;
   favoriteCount: number | null;
-  status: string | null;
-  statusText: string;
 };
 
 export type FetchMobileListingsParams = {
@@ -145,6 +145,7 @@ function extractListingObject(payload: unknown): unknown {
 function normalizeListingSummary(value: unknown): MobileListingSummary {
   const record = isRecord(value) ? value : {};
   const listingType = pickString(record, ["listingType", "type"]);
+  const status = pickString(record, ["status"]);
 
   const title = pickString(record, ["title", "name"]) ?? "İlan";
   const id = pickString(record, ["id", "listingId"]) ?? title;
@@ -163,7 +164,9 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
     imageUrl: resolveApiAssetUrl(extractImageUrl(record)),
     conditionText: formatMobileListingCondition(pickString(record, ["condition", "conditionLabel"])),
     listingType,
-    listingTypeText: formatMobileListingType(listingType)
+    listingTypeText: formatMobileListingType(listingType),
+    status,
+    statusText: formatMobileListingStatus(status)
   };
 }
 
@@ -185,14 +188,11 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
 function normalizeMyListingSummary(value: unknown): MobileMyListingSummary {
   const record = isRecord(value) ? value : {};
   const summary = normalizeListingSummary(record);
-  const status = pickString(record, ["status"]);
 
   return {
     ...summary,
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
-    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"]),
-    status,
-    statusText: formatMobileListingStatus(status)
+    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"])
   };
 }
 

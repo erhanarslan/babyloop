@@ -93,7 +93,9 @@ export async function createMobileListing(
     imageUrl: null,
     conditionText: payload.condition,
     listingType: payload.listingType,
-    listingTypeText: formatListingType(payload.listingType)
+    listingTypeText: formatListingType(payload.listingType),
+    status: "active",
+    statusText: "Aktif"
   };
 }
 

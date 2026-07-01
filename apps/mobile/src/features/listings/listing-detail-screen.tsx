@@ -1,10 +1,18 @@
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { Paragraph, Screen } from "../../ui/screen";
-import { colors, radius, shadows } from "../../ui/theme";
+import {
+  MobileButton,
+  MobileCard,
+  MobileChip,
+  MobileErrorState,
+  MobileSkeleton
+} from "../../ui/mobile-primitives";
+import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
+import { addMobileCartItem } from "../basket/basket-api";
 import {
   fetchMobileFavorites,
   saveMobileFavorite
@@ -17,6 +25,7 @@ import {
 
 type FavoriteStatus = "idle" | "checking" | "pending";
 type ConversationStatus = "idle" | "pending";
+type CartStatus = "idle" | "pending" | "added";
 
 export function ListingDetailScreen() {
   const params = useLocalSearchParams<{ listingId?: string }>();
@@ -33,6 +42,8 @@ export function ListingDetailScreen() {
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus>("idle");
   const [conversationError, setConversationError] = useState<string | null>(null);
+  const [cartStatus, setCartStatus] = useState<CartStatus>("idle");
+  const [cartError, setCartError] = useState<string | null>(null);
   const isOwnListing = Boolean(
     currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId
   );
@@ -165,15 +176,38 @@ export function ListingDetailScreen() {
     }
   }
 
+  async function handleAddToCartPress() {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+
+    if (!listing || isOwnListing || listing.status !== "active" || cartStatus === "pending") {
+      return;
+    }
+
+    try {
+      setCartStatus("pending");
+      setCartError(null);
+      await addMobileCartItem(listing.id);
+      setCartStatus("added");
+    } catch (addError) {
+      setCartStatus("idle");
+      setCartError(addError instanceof Error ? addError.message : "İlan sepete eklenemedi.");
+    }
+  }
+
   return (
     <Screen eyebrow="İlan detayı" title={listing?.title ?? "İlan detayı"}>
-      {status === "loading" ? <Paragraph>İlan detayı yükleniyor...</Paragraph> : null}
+      {status === "loading" ? <MobileSkeleton label="İlan detayı yükleniyor..." /> : null}
 
       {status === "error" ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>İlan detayı yüklenemedi</Text>
-          <Text style={styles.stateText}>{error}</Text>
-        </View>
+        <MobileErrorState
+          actionLabel="Keşfe dön"
+          message={error}
+          onAction={() => router.push("/")}
+          title="İlan detayı yüklenemedi"
+        />
       ) : null}
 
       {listing ? (
@@ -190,50 +224,57 @@ export function ListingDetailScreen() {
           <Text style={styles.meta}>{listing.locationText}</Text>
 
           <View style={styles.metaChips}>
-            <Text style={styles.listingType}>{listing.listingTypeText}</Text>
+            <MobileChip tone={listing.status === "active" ? "success" : "neutral"}>
+              {listing.statusText}
+            </MobileChip>
+            <MobileChip tone="primary">{listing.listingTypeText}</MobileChip>
             {listing.conditionText ? (
-              <Text style={styles.condition}>{listing.conditionText}</Text>
+              <MobileChip>{listing.conditionText}</MobileChip>
             ) : null}
           </View>
 
           {isOwnListing ? (
-            <View style={styles.ownerNotice}>
+            <MobileCard style={styles.ownerNotice}>
               <Text style={styles.ownerNoticeText}>Bu ilan sana ait.</Text>
-            </View>
+            </MobileCard>
           ) : (
             <View style={styles.actionStack}>
-              <Pressable
+              <MobileButton
                 disabled={conversationStatus === "pending"}
+                iconName="chatbubble-ellipses-outline"
                 onPress={handleContactSellerPress}
-                style={[styles.contactButton, conversationStatus === "pending" ? styles.actionDisabled : null]}
+                variant="primary"
               >
-                <Text style={styles.contactButtonText}>
-                  {conversationStatus === "pending" ? "Konuşma açılıyor..." : "Satıcıya yaz"}
-                </Text>
-              </Pressable>
+                {conversationStatus === "pending" ? "Konuşma açılıyor..." : "Satıcıya yaz"}
+              </MobileButton>
 
-              <Pressable
+              <MobileButton
                 disabled={favoriteStatus === "pending"}
+                iconName={isFavorited ? "heart" : "heart-outline"}
                 onPress={handleFavoritePress}
-                style={[
-                  styles.favoriteButton,
-                  isFavorited ? styles.favoriteButtonSecondary : styles.favoriteButtonPrimary,
-                  favoriteStatus === "pending" ? styles.actionDisabled : null
-                ]}
+                variant="secondary"
               >
-                <Text
-                  style={[
-                    styles.favoriteButtonText,
-                    isFavorited ? styles.favoriteButtonTextSecondary : styles.favoriteButtonTextPrimary
-                  ]}
+                {favoriteStatus === "pending"
+                  ? "Kaydediliyor..."
+                  : isFavorited
+                    ? "Favoriden çıkar"
+                  : "Favoriye ekle"}
+              </MobileButton>
+
+              {listing.status === "active" ? (
+                <MobileButton
+                  disabled={cartStatus === "pending"}
+                  iconName="basket-outline"
+                  onPress={handleAddToCartPress}
+                  variant="secondary"
                 >
-                  {favoriteStatus === "pending"
-                    ? "Kaydediliyor..."
-                    : isFavorited
-                      ? "Favoriden çıkar"
-                      : "Favoriye ekle"}
-                </Text>
-              </Pressable>
+                  {cartStatus === "pending"
+                    ? "Sepete ekleniyor..."
+                    : cartStatus === "added"
+                      ? "Sepete eklendi"
+                      : "Sepete ekle"}
+                </MobileButton>
+              ) : null}
             </View>
           )}
 
@@ -243,13 +284,14 @@ export function ListingDetailScreen() {
 
           {conversationError ? <Text style={styles.actionError}>{conversationError}</Text> : null}
           {favoriteError ? <Text style={styles.actionError}>{favoriteError}</Text> : null}
+          {cartError ? <Text style={styles.actionError}>{cartError}</Text> : null}
 
-          <View style={styles.safetyCard}>
+          <MobileCard style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>Güvenli mesajlaşma</Text>
             <Text style={styles.safetyText}>
               Telefon, e-posta, açık adres veya ödeme bilgisini mesajlarda paylaşmadan BabyLoop içinde kal.
             </Text>
-          </View>
+          </MobileCard>
 
           <Paragraph>
             {listing.description ?? "Bu ilan için açıklama girilmemiş."}
@@ -257,9 +299,9 @@ export function ListingDetailScreen() {
         </>
       ) : null}
 
-      <Link href="/" style={styles.link}>
+      <MobileButton onPress={() => router.push("/")} variant="ghost">
         Keşfe dön
-      </Link>
+      </MobileButton>
     </Screen>
   );
 }
@@ -295,69 +337,10 @@ const styles = StyleSheet.create({
   metaChips: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
-  },
-  listingType: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "900",
-    paddingHorizontal: 10,
-    paddingVertical: 5
-  },
-  condition: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "800",
-    paddingHorizontal: 10,
-    paddingVertical: 5
+    gap: spacing.sm
   },
   actionStack: {
-    gap: 10
-  },
-  contactButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingVertical: 14
-  },
-  contactButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  favoriteButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    paddingVertical: 14
-  },
-  favoriteButtonPrimary: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface
-  },
-  favoriteButtonSecondary: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft
-  },
-  actionDisabled: {
-    opacity: 0.65
-  },
-  favoriteButtonText: {
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  favoriteButtonTextPrimary: {
-    color: colors.primaryDark
-  },
-  favoriteButtonTextSecondary: {
-    color: colors.primaryDark
+    gap: spacing.sm
   },
   favoriteHint: {
     color: colors.primaryDark,
@@ -365,18 +348,14 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   actionError: {
-    color: "#b42318",
+    color: colors.danger,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18
   },
   ownerNotice: {
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingVertical: 13
+    backgroundColor: colors.surfaceSoft
   },
   ownerNoticeText: {
     color: colors.primaryDark,
@@ -384,13 +363,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   safetyCard: {
-    ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 14,
-    gap: 5
+    gap: spacing.xs
   },
   safetyTitle: {
     color: colors.text,
@@ -402,28 +375,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18
   },
-  stateCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 6
-  },
-  stateTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  stateText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
-  },
-  link: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: "800",
-    paddingVertical: 6
-  }
 });

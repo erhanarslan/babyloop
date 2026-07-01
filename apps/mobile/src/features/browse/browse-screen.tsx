@@ -1,9 +1,21 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Paragraph, Screen } from "../../ui/screen";
-import { colors, radius, shadows } from "../../ui/theme";
+import {
+  MobileButton,
+  MobileCard,
+  MobileEmptyState,
+  MobileErrorState,
+  MobileSectionHeader,
+  MobileSkeleton
+} from "../../ui/mobile-primitives";
+import {
+  buildMobileListingChips,
+  MobileListingCard
+} from "../../ui/mobile-listing-card";
+import { colors, radius, spacing } from "../../ui/theme";
 import {
   fetchMobileListings,
   type MobileListingSummary
@@ -11,6 +23,7 @@ import {
 import { DiscoverHeroBanner } from "./discover-hero-banner";
 
 export function BrowseScreen() {
+  const router = useRouter();
   const [listings, setListings] = useState<MobileListingSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +74,7 @@ export function BrowseScreen() {
 
       <DiscoverHeroBanner />
 
-      <View style={styles.searchCard}>
+      <MobileCard style={styles.searchCard}>
         <Text style={styles.searchTitle}>Ne arıyorsun?</Text>
         <TextInput
           autoCapitalize="none"
@@ -76,69 +89,58 @@ export function BrowseScreen() {
         />
 
         <View style={styles.searchActions}>
-          <Pressable onPress={handleSearch} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Ara</Text>
-          </Pressable>
+          <MobileButton onPress={handleSearch} style={styles.searchButton}>
+            Ara
+          </MobileButton>
 
-          <Pressable
+          <MobileButton
             disabled={!draftQuery && !appliedQuery}
             onPress={handleClearSearch}
-            style={[styles.secondaryButton, !draftQuery && !appliedQuery ? styles.disabledButton : null]}
+            style={styles.searchButton}
+            variant="secondary"
           >
-            <Text style={styles.secondaryButtonText}>Temizle</Text>
-          </Pressable>
+            Temizle
+          </MobileButton>
         </View>
-      </View>
+      </MobileCard>
 
-      <View style={styles.sectionHeading}>
-        <Text style={styles.sectionTitle}>
-          {appliedQuery ? `"${appliedQuery}" için sonuçlar` : "Son eklenenler"}
-        </Text>
-      </View>
+      <MobileSectionHeader title={appliedQuery ? `"${appliedQuery}" için sonuçlar` : "Son eklenenler"} />
 
-      {status === "loading" ? <Paragraph>İlanlar yükleniyor...</Paragraph> : null}
+      {status === "loading" ? <MobileSkeleton label="İlanlar yükleniyor..." /> : null}
 
       {status === "error" ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>İlanlar yüklenemedi</Text>
-          <Text style={styles.stateText}>{error}</Text>
-          <Pressable onPress={() => void loadListings(appliedQuery)} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Tekrar dene</Text>
-          </Pressable>
-        </View>
+        <MobileErrorState
+          actionLabel="Tekrar dene"
+          message={error}
+          onAction={() => void loadListings(appliedQuery)}
+          title="İlanlar yüklenemedi"
+        />
       ) : null}
 
       {status === "empty" ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Eşleşen ilan yok</Text>
-          <Text style={styles.stateText}>
-            Farklı bir arama dene ya da daha sonra tekrar bak.
-          </Text>
-        </View>
+        <MobileEmptyState
+          message="Farklı bir arama dene ya da daha sonra tekrar bak."
+          title="Eşleşen ilan yok"
+        />
       ) : null}
 
       <View style={styles.list}>
         {listings.map((listing) => (
-          <Link key={listing.id} href={`/listing/${encodeURIComponent(listing.id)}`} asChild>
-            <Pressable style={styles.card}>
-              {listing.imageUrl ? (
-                <Image source={{ uri: listing.imageUrl }} style={styles.image} />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.imagePlaceholderText}>Görsel yok</Text>
-                </View>
-              )}
-
-              <View style={styles.cardBody}>
-                <Text numberOfLines={2} style={styles.cardTitle}>{listing.title}</Text>
-                <Text style={styles.price}>{listing.priceText}</Text>
-                <Text style={styles.meta}>{listing.locationText}</Text>
-                {listing.conditionText ? (
-                  <Text style={styles.condition}>{listing.conditionText}</Text>
-                ) : null}
-              </View>
-            </Pressable>
-          </Link>
+          <MobileListingCard
+            accessibilityLabel={`İlanı aç: ${listing.title}`}
+            chips={buildMobileListingChips({
+              conditionText: listing.conditionText,
+              listingTypeText: listing.listingTypeText,
+              statusText: listing.statusText
+            })}
+            imageUrl={listing.imageUrl}
+            key={listing.id}
+            locationText={listing.locationText}
+            onPress={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
+            priceText={listing.priceText}
+            title={listing.title}
+            variant="vertical"
+          />
         ))}
       </View>
     </Screen>
@@ -147,13 +149,7 @@ export function BrowseScreen() {
 
 const styles = StyleSheet.create({
   searchCard: {
-    ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 10
+    gap: spacing.sm
   },
   searchTitle: {
     color: colors.text,
@@ -172,115 +168,12 @@ const styles = StyleSheet.create({
   },
   searchActions: {
     flexDirection: "row",
-    gap: 10
+    gap: spacing.sm
   },
-  primaryButton: {
-    flex: 1,
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingVertical: 13
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  secondaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingVertical: 13
-  },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  disabledButton: {
-    opacity: 0.5
-  },
-  sectionHeading: {
-    marginTop: 2
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "900"
+  searchButton: {
+    flex: 1
   },
   list: {
-    gap: 12
-  },
-  card: {
-    ...shadows.card,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface
-  },
-  image: {
-    width: "100%",
-    height: 210,
-    backgroundColor: colors.cream
-  },
-  imagePlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: 210,
-    backgroundColor: colors.cream
-  },
-  imagePlaceholderText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "800"
-  },
-  cardBody: {
-    gap: 5,
-    padding: 14
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800"
-  },
-  price: {
-    color: colors.primary,
-    fontSize: 17,
-    fontWeight: "900"
-  },
-  meta: {
-    color: colors.muted,
-    fontSize: 14
-  },
-  condition: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5
-  },
-  stateCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    padding: 16,
-    gap: 10
-  },
-  stateTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  stateText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
+    gap: spacing.md
   }
 });
