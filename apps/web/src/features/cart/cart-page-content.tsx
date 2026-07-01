@@ -194,11 +194,13 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
       ) : null}
 
       {checkoutStatus === "success" && checkoutResult ? (
-        <Alert
-          tone="info"
-          title="Mock ödeme başarılı"
-          message={`Order ID: ${checkoutResult.orderId} · Payment ID: ${checkoutResult.mockIyzicoPaymentId} · Ödenen tutar: ${checkoutResult.paidAmount} ${checkoutResult.currency}`}
-        />
+        <div data-testid="cart-success-card">
+          <Alert
+            tone="info"
+            title="Mock ödeme başarılı"
+            message={`Order ID: ${checkoutResult.orderId} · Payment ID: ${checkoutResult.mockIyzicoPaymentId} · Ödenen tutar: ${checkoutResult.paidAmount} ${checkoutResult.currency}`}
+          />
+        </div>
       ) : null}
     </PageContainer>
   );
@@ -217,7 +219,7 @@ function CartItemCard({
   const imageUrl = getSafeCartImageUrl(item.listing.firstImage?.url ?? item.listing.images[0]?.url ?? null, apiBaseUrl);
 
   return (
-    <article className="listing-card grid gap-4 overflow-hidden p-3 sm:grid-cols-[156px_minmax(0,1fr)]">
+    <article data-cart-listing-id={item.listing.id} className="listing-card grid gap-4 overflow-hidden p-3 sm:grid-cols-[156px_minmax(0,1fr)]">
       <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
         {imageUrl ? <img alt="" className="h-full w-full object-cover" src={imageUrl} /> : (
           <span className="text-sm font-black text-primary">Görsel yok</span>

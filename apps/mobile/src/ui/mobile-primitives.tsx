@@ -7,12 +7,27 @@ import { colors, radius, shadows, spacing } from "./theme";
 type IconName = keyof typeof Ionicons.glyphMap;
 
 type MobileCardProps = {
+  accessibilityLabel?: string;
+  accessible?: boolean;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 
-export function MobileCard({ children, style }: MobileCardProps) {
-  return <View style={[styles.card, style]}>{children}</View>;
+export function MobileCard({
+  accessibilityLabel,
+  accessible,
+  children,
+  style
+}: MobileCardProps) {
+  return (
+    <View
+      accessibilityLabel={accessibilityLabel}
+      accessible={accessible}
+      style={[styles.card, style]}
+    >
+      {children}
+    </View>
+  );
 }
 
 type MobileButtonProps = {

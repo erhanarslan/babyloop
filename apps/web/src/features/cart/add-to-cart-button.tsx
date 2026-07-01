@@ -50,7 +50,7 @@ export function AddToCartButton({
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2" data-testid="listing-add-to-cart-action">
       <Button disabled={status === "pending"} type="button" onClick={() => void handleAddToCart()}>
         {status === "pending" ? "Sepete ekleniyor..." : status === "added" ? "Sepete eklendi" : "Sepete ekle"}
       </Button>

@@ -147,6 +147,7 @@ export function BasketScreen() {
             </View>
             <Text style={styles.summaryHint}>Bağış/takas ilanları sepetlenebilir ama mock ödeme sadece satılık ilanlar içindir.</Text>
             <MobileButton
+              accessibilityLabel="Mock iyzico ile öde"
               disabled={actionStatus === "pending"}
               iconName="card-outline"
               onPress={() => void handleCheckout()}
@@ -154,6 +155,7 @@ export function BasketScreen() {
               {actionStatus === "pending" ? "İşleniyor..." : "Mock iyzico ile öde"}
             </MobileButton>
             <MobileButton
+              accessibilityLabel="Sepeti temizle"
               disabled={actionStatus === "pending"}
               iconName="trash-outline"
               onPress={() => void handleClear()}
@@ -166,7 +168,7 @@ export function BasketScreen() {
       ) : null}
 
       {checkout ? (
-        <MobileCard style={styles.successCard}>
+        <MobileCard accessible accessibilityLabel="Mock ödeme başarılı" style={styles.successCard}>
           <Text style={styles.successTitle}>Mock ödeme başarılı</Text>
           <Text style={styles.successText}>Order ID: {checkout.orderId}</Text>
           <Text style={styles.successText}>Payment ID: {checkout.paymentId}</Text>
@@ -196,6 +198,7 @@ function CartItemCard({
       actions={
         <>
           <MobileButton
+            accessibilityLabel={`Sepet ilan detayı: ${item.title}`}
             disabled={disabled}
             iconName="open-outline"
             onPress={onOpen}
@@ -204,6 +207,7 @@ function CartItemCard({
             Detay
           </MobileButton>
           <MobileButton
+            accessibilityLabel={`Sepetten kaldır: ${item.title}`}
             disabled={disabled}
             iconName="trash-outline"
             onPress={onRemove}

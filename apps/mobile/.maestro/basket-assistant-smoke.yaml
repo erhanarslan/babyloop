@@ -1,0 +1,18 @@
+appId: com.babyloop.mobile
+---
+- launchApp
+- assertVisible: "Keşfet"
+
+- tapOn: "Sepetim"
+- assertVisible:
+    text: "Mock iyzico checkout|Sepet için giriş yap|Sepetin boş|Sepetteki ilanlar"
+
+- tapOn: "Hesabım"
+- assertVisible:
+    text: "Hesap gerekli|Mobil hesabım"
+
+- tapOn:
+    text: "BabyLoop Asistan"
+- assertVisible: "BabyLoop Asistan"
+- assertVisible:
+    text: "Ürün seçimi|İkinci el alışveriş güvenliği|Asistana soru yaz|Oto koltuğu ikinci el alınır mı"

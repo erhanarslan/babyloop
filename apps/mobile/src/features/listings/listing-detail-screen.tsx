@@ -263,6 +263,7 @@ export function ListingDetailScreen() {
 
               {listing.status === "active" ? (
                 <MobileButton
+                  accessibilityLabel="Sepete ekle"
                   disabled={cartStatus === "pending"}
                   iconName="basket-outline"
                   onPress={handleAddToCartPress}

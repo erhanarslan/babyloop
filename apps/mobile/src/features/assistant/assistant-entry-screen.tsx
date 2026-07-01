@@ -80,6 +80,7 @@ export function AssistantEntryScreen() {
         <View style={styles.composerFooter}>
           <Text style={styles.counter}>{inputValue.length}/1000</Text>
           <MobileButton
+            accessibilityLabel="Asistana gönder"
             disabled={status === "pending" || inputValue.trim().length === 0}
             iconName="sparkles-outline"
             onPress={() => void handleAsk()}
@@ -115,7 +116,7 @@ export function AssistantEntryScreen() {
       ) : null}
 
       {answer ? (
-        <MobileCard style={styles.answerCard}>
+        <MobileCard accessible accessibilityLabel="Asistan cevabı" style={styles.answerCard}>
           <Text style={styles.answerTitle}>Yanıt</Text>
           <Text style={styles.answerText}>{answer.answer}</Text>
           <Text style={styles.answerMode}>
