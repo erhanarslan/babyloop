@@ -14,13 +14,14 @@ import {
   MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
   MOBILE_TAB_BAR_RADIUS
 } from "../../src/ui/mobile-layout";
+import { colors } from "../../src/ui/theme";
 
 const tabColors = {
-  active: "#d45d3f",
+  active: colors.primary,
   inactive: "#7b8794",
-  border: "#f1d8ca",
-  surface: "#ffffff",
-  shadow: "#d45d3f"
+  border: colors.border,
+  surface: colors.surface,
+  shadow: colors.primary
 } as const;
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
@@ -100,7 +101,7 @@ export default function TabLayout() {
           fontWeight: "800"
         },
         sceneStyle: {
-          backgroundColor: "#fff7f2"
+          backgroundColor: colors.background
         }
       }}
     >

@@ -2,9 +2,17 @@ import { getMobileListingStatusActions } from "./my-listings-model";
 
 describe("mobile my listings model", () => {
   it("returns release-critical seller actions by listing status", () => {
-    expect(getMobileListingStatusActions("active").map((action) => action.label)).toEqual([
-      "Satıldı yap",
-      "Arşivle"
+    expect(getMobileListingStatusActions("active")).toEqual([
+      {
+        label: "Satıldı yap",
+        status: "sold",
+        tone: "primary"
+      },
+      {
+        label: "Arşivle",
+        status: "archived",
+        tone: "secondary"
+      }
     ]);
 
     expect(getMobileListingStatusActions("reserved").map((action) => action.label)).toEqual([

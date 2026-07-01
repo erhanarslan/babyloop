@@ -1,4 +1,4 @@
-import { colors, radius, shadows } from "./theme";
+import { colors, radius, shadows, spacing } from "./theme";
 
 describe("mobile theme tokens", () => {
   it("exposes BabyLoop brand colors", () => {
@@ -11,8 +11,10 @@ describe("mobile theme tokens", () => {
     expect(colors.background).toBe("#fff7f2");
     expect(colors.surface).toBe("#ffffff");
     expect(colors.primary).toBe("#d75f3f");
+    expect(colors.primaryForeground).toBe("#ffffff");
     expect(colors.surfaceSoft).toBe("#fff1e8");
     expect(colors.cream).toBe("#ffe5d6");
+    expect(colors.danger).toBe("#b42318");
   });
 
   it("keeps radius tokens ordered from small to large", () => {
@@ -27,5 +29,12 @@ describe("mobile theme tokens", () => {
     expect(shadows.card.elevation).toBeGreaterThan(0);
     expect(shadows.card.shadowOpacity).toBeGreaterThan(0);
     expect(shadows.card.shadowOpacity).toBeLessThan(0.2);
+  });
+
+  it("keeps spacing tokens on a predictable compact scale", () => {
+    expect(spacing.xs).toBeLessThan(spacing.sm);
+    expect(spacing.sm).toBeLessThan(spacing.md);
+    expect(spacing.md).toBeLessThan(spacing.lg);
+    expect(spacing["2xl"]).toBeGreaterThan(spacing.xl);
   });
 });

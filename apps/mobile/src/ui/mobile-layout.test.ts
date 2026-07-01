@@ -2,6 +2,7 @@ import {
   getAndroidAwareBottomOffset,
   getMobileScreenContentBottomPadding,
   getMobileTabBarBottomOffset,
+  MOBILE_TAB_BAR_CONTENT_GAP,
   MOBILE_TAB_BAR_HEIGHT
 } from "./mobile-layout";
 
@@ -43,6 +44,16 @@ describe("mobile layout helpers", () => {
         platformOS: "android",
         safeAreaBottom: 34
       })
-    ).toBeGreaterThan(MOBILE_TAB_BAR_HEIGHT);
+    ).toBe(MOBILE_TAB_BAR_HEIGHT + MOBILE_TAB_BAR_CONTENT_GAP);
+  });
+
+  it("adds only the visible Android navigation inset when system navigation is shown", () => {
+    expect(
+      getMobileScreenContentBottomPadding({
+        androidNavigationVisibility: "visible",
+        platformOS: "android",
+        safeAreaBottom: 34
+      })
+    ).toBe(MOBILE_TAB_BAR_HEIGHT + MOBILE_TAB_BAR_CONTENT_GAP + 34);
   });
 });

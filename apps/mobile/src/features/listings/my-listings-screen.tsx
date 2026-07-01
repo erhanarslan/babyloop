@@ -1,9 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Paragraph, Screen } from "../../ui/screen";
-import { colors, radius, shadows } from "../../ui/theme";
+import { colors, radius, shadows, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
   fetchMobileMyListings,
@@ -14,6 +15,7 @@ import {
 import { getMobileListingStatusActions } from "./my-listings-model";
 
 type LoadStatus = "loading" | "ready" | "error";
+type MyListingActionIconName = "archive-outline" | "cart-outline" | "refresh-outline";
 
 export function MyListingsScreen() {
   const router = useRouter();
@@ -156,6 +158,9 @@ function MyListingCard({
   pending: boolean;
 }) {
   const actions = getMobileListingStatusActions(listing.status);
+  const chips = [listing.statusText, listing.listingTypeText, listing.conditionText].filter(
+    isNonEmptyLabel
+  );
 
   return (
     <View style={styles.card}>
@@ -169,19 +174,43 @@ function MyListingCard({
         )}
 
         <View style={styles.cardContent}>
-          <Text numberOfLines={2} style={styles.title}>
-            {listing.title}
-          </Text>
-          <Text style={styles.price}>{listing.priceText}</Text>
-          <Text numberOfLines={1} style={styles.location}>
-            {listing.locationText}
-          </Text>
+          <View style={styles.cardMain}>
+            <Text numberOfLines={2} style={styles.title}>
+              {listing.title}
+            </Text>
+            <Text numberOfLines={1} style={styles.price}>
+              {listing.priceText}
+            </Text>
+            <View style={styles.iconTextRow}>
+              <Ionicons
+                accessibilityElementsHidden
+                color={colors.subtle}
+                importantForAccessibility="no"
+                name="location-outline"
+                size={14}
+              />
+              <Text numberOfLines={1} style={styles.location}>
+                {listing.locationText}
+              </Text>
+            </View>
+          </View>
 
-          <Text numberOfLines={1} style={styles.listingMetaLine}>
-            {[listing.statusText, listing.listingTypeText, listing.conditionText].filter(Boolean).join(" • ")}
-          </Text>
+          <View style={styles.chipRow}>
+            {chips.map((chip) => (
+              <ListingChip key={`${listing.id}-${chip}`} label={chip} />
+            ))}
+          </View>
 
-          <Text style={styles.meta}>{listing.favoriteCount ?? 0} favori</Text>
+          <View style={styles.favoriteRow}>
+            <Ionicons
+              accessibilityElementsHidden
+              color={colors.subtle}
+              importantForAccessibility="no"
+              name="heart-outline"
+              size={14}
+            />
+            <Text style={styles.meta}>{listing.favoriteCount ?? 0} favori</Text>
+          </View>
         </View>
       </Pressable>
 
@@ -200,6 +229,14 @@ function MyListingCard({
                 pending ? styles.actionButtonDisabled : null
               ]}
             >
+              <Ionicons
+                accessibilityElementsHidden
+                color={getActionIconColor(action.tone)}
+                importantForAccessibility="no"
+                name={getActionIconName(action.label)}
+                size={15}
+                style={styles.actionButtonIcon}
+              />
               <Text
                 style={[
                   styles.actionButtonText,
@@ -216,6 +253,44 @@ function MyListingCard({
       ) : null}
     </View>
   );
+}
+
+function ListingChip({ label }: { label: string }) {
+  return (
+    <View style={styles.chip}>
+      <Text numberOfLines={1} style={styles.chipText}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function isNonEmptyLabel(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function getActionIconName(label: string): MyListingActionIconName {
+  if (label === "Satıldı yap") {
+    return "cart-outline";
+  }
+
+  if (label === "Arşivle") {
+    return "archive-outline";
+  }
+
+  return "refresh-outline";
+}
+
+function getActionIconColor(tone: "primary" | "secondary" | "danger"): string {
+  if (tone === "primary") {
+    return colors.primaryForeground;
+  }
+
+  if (tone === "danger") {
+    return colors.danger;
+  }
+
+  return colors.primaryDark;
 }
 
 const styles = StyleSheet.create({
@@ -247,40 +322,42 @@ const styles = StyleSheet.create({
     paddingVertical: 11
   },
   headerPrimaryButtonText: {
-    color: "#ffffff",
+    color: colors.primaryForeground,
     fontSize: 13,
     fontWeight: "900"
   },
   list: {
-    gap: 13
+    gap: spacing.md
   },
   card: {
     ...shadows.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    padding: 12,
-    gap: 12
+    padding: spacing.md,
+    gap: spacing.md
   },
   cardBody: {
     flexDirection: "row",
-    gap: 12
+    alignItems: "stretch",
+    gap: spacing.md,
+    minHeight: 128
   },
   image: {
-    width: 96,
-    height: 112,
+    width: 106,
+    height: 128,
     borderRadius: radius.md,
     backgroundColor: colors.cream
   },
   imagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
-    width: 96,
-    height: 112,
+    width: 106,
+    height: 128,
     borderRadius: radius.md,
     backgroundColor: colors.cream,
-    padding: 8
+    padding: spacing.sm
   },
   imagePlaceholderText: {
     color: colors.primaryDark,
@@ -290,29 +367,62 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flex: 1,
-    gap: 5
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    minWidth: 0
+  },
+  cardMain: {
+    gap: spacing.xs
   },
   title: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
-    lineHeight: 20
+    lineHeight: 19
   },
   price: {
-    color: colors.primary,
-    fontSize: 16,
+    color: colors.text,
+    fontSize: 17,
     fontWeight: "900"
+  },
+  iconTextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
   },
   location: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: "700"
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800"
   },
-  listingMetaLine: {
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
+  },
+  chip: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3
+  },
+  chipText: {
     color: colors.primaryDark,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "900",
-    paddingTop: 2
+    lineHeight: 14,
+    textAlign: "center"
+  },
+  favoriteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
   },
   meta: {
     color: colors.subtle,
@@ -321,39 +431,48 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8
+    gap: spacing.sm
   },
   actionButton: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 10
+    justifyContent: "center",
+    minHeight: 42,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
   },
   actionButtonPrimary: {
     backgroundColor: colors.primary
   },
   actionButtonSecondary: {
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surfaceSoft
   },
   actionButtonDanger: {
-    backgroundColor: "#fff0ed"
+    backgroundColor: colors.dangerSoft
   },
   actionButtonDisabled: {
     opacity: 0.55
   },
   actionButtonText: {
     fontSize: 12,
-    fontWeight: "900"
+    fontWeight: "900",
+    lineHeight: 16
+  },
+  actionButtonIcon: {
+    marginRight: 5
   },
   actionButtonTextPrimary: {
-    color: "#ffffff"
+    color: colors.primaryForeground
   },
   actionButtonTextSecondary: {
     color: colors.primaryDark
   },
   actionButtonTextDanger: {
-    color: "#b42318"
+    color: colors.danger
   },
   stateCard: {
     borderWidth: 1,

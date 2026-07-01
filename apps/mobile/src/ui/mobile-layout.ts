@@ -4,7 +4,7 @@ export type AndroidNavigationVisibility = "hidden" | "visible" | string;
 export const MOBILE_TAB_BAR_HEIGHT = 62;
 export const MOBILE_TAB_BAR_HORIZONTAL_MARGIN = 14;
 export const MOBILE_TAB_BAR_RADIUS = 28;
-export const MOBILE_TAB_BAR_CONTENT_GAP = 24;
+export const MOBILE_TAB_BAR_CONTENT_GAP = 14;
 export const MOBILE_SCREEN_BASE_BOTTOM_PADDING = 32;
 
 type BottomOffsetInput = {

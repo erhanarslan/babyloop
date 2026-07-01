@@ -20,7 +20,7 @@ export function getMobileListingStatusActions(
         {
           label: "Arşivle",
           status: "archived",
-          tone: "danger"
+          tone: "secondary"
         }
       ];
 
@@ -39,7 +39,7 @@ export function getMobileListingStatusActions(
         {
           label: "Arşivle",
           status: "archived",
-          tone: "danger"
+          tone: "secondary"
         }
       ];
 
@@ -48,7 +48,7 @@ export function getMobileListingStatusActions(
         {
           label: "Arşivle",
           status: "archived",
-          tone: "danger"
+          tone: "secondary"
         }
       ];
 
