@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   fetchMobileCurrentUser,
+  hydrateMobileAuthToken,
   logoutMobileSession,
   refreshMobileSession,
   submitMobileAuthRequest,
@@ -36,6 +37,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     setStatus("checking");
     setError(null);
     setMfaChallenge(null);
+
+    const hydratedToken = await hydrateMobileAuthToken();
+
+    if (hydratedToken) {
+      const currentSession = await fetchMobileCurrentUser();
+
+      if (currentSession.ok) {
+        setCurrentUser(currentSession.data);
+        setStatus("authenticated");
+        return;
+      }
+    }
 
     const refreshed = await refreshMobileSession();
 

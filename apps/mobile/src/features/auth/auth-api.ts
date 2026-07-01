@@ -1,4 +1,9 @@
 import { getApiBaseUrl } from "../../config/api";
+import {
+  clearStoredMobileAuthToken,
+  getStoredMobileAuthToken,
+  setStoredMobileAuthToken
+} from "./auth-token-storage";
 
 const PUBLIC_CSRF_HEADER_NAME = "x-babyloop-csrf-token";
 
@@ -65,14 +70,30 @@ export function getMobileAuthToken(): string | null {
   return memoryAuthToken;
 }
 
+export async function hydrateMobileAuthToken(): Promise<string | null> {
+  if (memoryAuthToken) {
+    return memoryAuthToken;
+  }
+
+  const storedToken = await getStoredMobileAuthToken();
+
+  if (storedToken) {
+    memoryAuthToken = storedToken;
+  }
+
+  return memoryAuthToken;
+}
+
 export function setMobileAuthToken(token: string): void {
   memoryAuthToken = token;
+  void setStoredMobileAuthToken(token);
 }
 
 export function clearMobileAuthToken(): void {
   memoryAuthToken = null;
   cachedPublicCsrfToken = null;
   publicCsrfTokenPromise = null;
+  void clearStoredMobileAuthToken();
 }
 
 export async function submitMobileAuthRequest(
@@ -165,7 +186,7 @@ export async function mobileAuthFetch(path: string, init: RequestInit = {}): Pro
 
 async function buildMobileAuthRequestInit(init: RequestInit): Promise<RequestInit> {
   const headers = new Headers(init.headers);
-  const token = getMobileAuthToken();
+  const token = await hydrateMobileAuthToken();
 
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
