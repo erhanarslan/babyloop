@@ -1,5 +1,5 @@
-import { cartItems, listings } from "@babyloop/database/schema";
-import { eq } from "drizzle-orm";
+import { cartItems, events, listings } from "@babyloop/database/schema";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { authHeader, createUser } from "./helpers/auth.js";
@@ -66,6 +66,30 @@ describe("cart and mock iyzico checkout API", () => {
       ]
     });
     expect(JSON.stringify(cartResponse.json())).not.toMatch(/password|accessToken|refreshToken|phone|email/iu);
+
+    const [cartAddedEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(and(eq(events.entityId, listing.id), eq(events.eventType, "product_cart_item_added")));
+
+    expect(cartAddedEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: listing.id,
+      entityType: "listing",
+      eventType: "product_cart_item_added"
+    });
+    expect(cartAddedEvent?.metadata).toEqual({
+      listingId: listing.id,
+      result: "added",
+      source: "server_cart"
+    });
+    expect(JSON.stringify(cartAddedEvent)).not.toMatch(/password|accessToken|refreshToken|phone|email|providerPaymentId/iu);
   });
 
   it("rejects adding the seller's own listing to cart", async () => {
@@ -129,6 +153,90 @@ describe("cart and mock iyzico checkout API", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("records privacy-safe cart remove and clear product events", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const firstListing = await createListing(app, seller.accessToken, {
+      title: "Cart remove event stroller"
+    });
+    const secondListing = await createListing(app, seller.accessToken, {
+      title: "Cart clear event carrier"
+    });
+
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/cart/items",
+      payload: { listingId: firstListing.id }
+    });
+    await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/cart/items",
+      payload: { listingId: secondListing.id }
+    });
+
+    const removeResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "DELETE",
+      url: `/api/v1/cart/items/${firstListing.id}`
+    });
+    const clearResponse = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "DELETE",
+      url: "/api/v1/cart"
+    });
+
+    expect(removeResponse.statusCode).toBe(200);
+    expect(clearResponse.statusCode).toBe(200);
+
+    const [removedEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(and(eq(events.entityId, firstListing.id), eq(events.eventType, "product_cart_item_removed")));
+
+    const [clearedEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(and(eq(events.entityId, buyer.profile.id), eq(events.eventType, "product_cart_cleared")));
+
+    expect(removedEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: firstListing.id,
+      entityType: "listing",
+      eventType: "product_cart_item_removed"
+    });
+    expect(removedEvent?.metadata).toEqual({
+      listingId: firstListing.id,
+      source: "server_cart"
+    });
+
+    expect(clearedEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: buyer.profile.id,
+      entityType: "cart",
+      eventType: "product_cart_cleared"
+    });
+    expect(clearedEvent?.metadata).toEqual({
+      itemCount: 1,
+      source: "server_cart"
+    });
+
+    expect(JSON.stringify({ removedEvent, clearedEvent })).not.toMatch(/password|accessToken|refreshToken|phone|email|providerPaymentId/iu);
+  });
+
   it("checks out successfully, marks listing sold, and clears cart", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
@@ -175,12 +283,40 @@ describe("cart and mock iyzico checkout API", () => {
     expect(checkoutResponse.json().data.checkout.mockIyzicoPaymentId).toMatch(/^mock-iyzico-/u);
     expect(listingRow?.status).toBe("sold");
     expect(cartResponse.json().data.cart.items).toHaveLength(0);
+
+    const [checkoutEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(and(eq(events.entityId, listing.id), eq(events.eventType, "product_mock_checkout_succeeded")));
+
+    expect(checkoutEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: listing.id,
+      entityType: "listing",
+      eventType: "product_mock_checkout_succeeded"
+    });
+    expect(checkoutEvent?.metadata).toMatchObject({
+      itemCount: 1,
+      listingId: listing.id,
+      paidAmount: "1250.00",
+      paymentProvider: "mock_iyzico",
+      source: "server_checkout"
+    });
+    expect(JSON.stringify(checkoutEvent)).not.toMatch(/password|accessToken|refreshToken|phone|email|providerPaymentId/iu);
   });
 
   it("keeps cart and listing state when mock checkout fails", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+    const listing = await createListing(app, seller.accessToken, {
+      priceAmount: "5800.00"
+    });
 
     await app.inject({
       headers: authHeader(buyer.accessToken),
@@ -209,6 +345,32 @@ describe("cart and mock iyzico checkout API", () => {
     expect(checkoutResponse.json().error.code).toBe("MOCK_IYZICO_PAYMENT_FAILED");
     expect(listingRow?.status).toBe("active");
     expect(cartResponse.json().data.cart.items).toHaveLength(1);
+
+    const [checkoutFailedEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(and(eq(events.entityId, buyer.profile.id), eq(events.eventType, "product_mock_checkout_failed")));
+
+    expect(checkoutFailedEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: buyer.profile.id,
+      entityType: "cart",
+      eventType: "product_mock_checkout_failed"
+    });
+    expect(checkoutFailedEvent?.metadata).toEqual({
+      itemCount: 1,
+      paymentProvider: "mock_iyzico",
+      reason: "mock_failure",
+      source: "server_checkout",
+      totalAmount: "5800.00"
+    });
+    expect(JSON.stringify(checkoutFailedEvent)).not.toMatch(/password|accessToken|refreshToken|phone|email|providerPaymentId/iu);
   });
 
   it("does not allow a sold listing to be checked out again", async () => {

@@ -1,3 +1,5 @@
+import { events } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
@@ -77,6 +79,47 @@ describe("assistant API", () => {
         }
       }
     });
+  });
+
+  it("records privacy-safe assistant message product events without raw message text", async () => {
+    const message = "Bebek arabası alırken nelere dikkat etmeliyim?";
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/assistant/messages",
+      payload: {
+        locale: "tr",
+        message
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const [assistantEvent] = await app.db
+      .select({
+        actorProfileId: events.actorProfileId,
+        entityId: events.entityId,
+        entityType: events.entityType,
+        eventType: events.eventType,
+        metadata: events.metadata
+      })
+      .from(events)
+      .where(eq(events.eventType, "product_assistant_message_sent"));
+
+    expect(assistantEvent).toMatchObject({
+      actorProfileId: null,
+      entityId: "00000000-0000-0000-0000-000000000000",
+      entityType: "assistant",
+      eventType: "product_assistant_message_sent"
+    });
+    expect(assistantEvent?.metadata).toEqual({
+      authenticated: "false",
+      locale: "tr",
+      messageLength: message.length,
+      source: "assistant"
+    });
+    expect(JSON.stringify(assistantEvent)).not.toContain(message);
+    expect(JSON.stringify(assistantEvent)).not.toMatch(/password|accessToken|refreshToken|phone|email|messageBody|rawPrompt/iu);
   });
 
   it("rejects invalid assistant chat requests", async () => {

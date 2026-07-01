@@ -121,6 +121,18 @@ export async function addCartItem(
       .set({ updatedAt: now })
       .where(eq(cartItems.id, existing.id));
 
+    await recordCartProductEvent(app, {
+      actorProfileId: currentUser.profile.id,
+      entityId: listingId,
+      entityType: "listing",
+      eventType: "product_cart_item_added",
+      metadata: {
+        listingId,
+        result: "already_exists",
+        source: "server_cart"
+      }
+    });
+
     return {
       status: "already_exists",
       cart: await getCartForCurrentUser(app, currentUser)
@@ -134,6 +146,18 @@ export async function addCartItem(
     updatedAt: now
   });
 
+  await recordCartProductEvent(app, {
+    actorProfileId: currentUser.profile.id,
+    entityId: listingId,
+    entityType: "listing",
+    eventType: "product_cart_item_added",
+    metadata: {
+      listingId,
+      result: "added",
+      source: "server_cart"
+    }
+  });
+
   return {
     status: "added",
     cart: await getCartForCurrentUser(app, currentUser)
@@ -145,9 +169,23 @@ export async function removeCartItem(
   currentUser: CurrentUser,
   listingId: string
 ): Promise<CartResponse> {
-  await app.db
+  const removedRows = await app.db
     .delete(cartItems)
-    .where(and(eq(cartItems.buyerProfileId, currentUser.profile.id), eq(cartItems.listingId, listingId)));
+    .where(and(eq(cartItems.buyerProfileId, currentUser.profile.id), eq(cartItems.listingId, listingId)))
+    .returning({ listingId: cartItems.listingId });
+
+  for (const removedRow of removedRows) {
+    await recordCartProductEvent(app, {
+      actorProfileId: currentUser.profile.id,
+      entityId: removedRow.listingId,
+      entityType: "listing",
+      eventType: "product_cart_item_removed",
+      metadata: {
+        listingId: removedRow.listingId,
+        source: "server_cart"
+      }
+    });
+  }
 
   return getCartForCurrentUser(app, currentUser);
 }
@@ -156,7 +194,25 @@ export async function clearCart(
   app: FastifyInstance,
   currentUser: CurrentUser
 ): Promise<CartResponse> {
+  const existingRows = await app.db
+    .select({ listingId: cartItems.listingId })
+    .from(cartItems)
+    .where(eq(cartItems.buyerProfileId, currentUser.profile.id));
+
   await app.db.delete(cartItems).where(eq(cartItems.buyerProfileId, currentUser.profile.id));
+
+  if (existingRows.length > 0) {
+    await recordCartProductEvent(app, {
+      actorProfileId: currentUser.profile.id,
+      entityId: currentUser.profile.id,
+      entityType: "cart",
+      eventType: "product_cart_cleared",
+      metadata: {
+        itemCount: existingRows.length,
+        source: "server_cart"
+      }
+    });
+  }
 
   return getCartForCurrentUser(app, currentUser);
 }
@@ -185,6 +241,20 @@ export async function checkoutCartWithMockIyzico(
   }
 
   if (scenario === "failure") {
+    await recordCartProductEvent(app, {
+      actorProfileId: currentUser.profile.id,
+      entityId: currentUser.profile.id,
+      entityType: "cart",
+      eventType: "product_mock_checkout_failed",
+      metadata: {
+        itemCount: rows.length,
+        paymentProvider: "mock_iyzico",
+        reason: "mock_failure",
+        source: "server_checkout",
+        totalAmount: formatMoney(rows.reduce((sum, row) => sum + parseMoney(row.priceAmount), 0))
+      }
+    });
+
     return {
       status: "payment_failed",
       cart: await buildCartResponse(app, rows)
@@ -248,13 +318,16 @@ export async function checkoutCartWithMockIyzico(
     await tx.insert(events).values(
       rows.map((row) => ({
         actorProfileId: currentUser.profile.id,
-        eventType: "mock_checkout_paid",
+        eventType: "product_mock_checkout_succeeded",
         entityType: "listing",
         entityId: row.listingId,
         metadata: {
+          itemCount: rows.length,
+          listingId: row.listingId,
           orderId: order.id,
+          paidAmount: totalAmount,
           paymentProvider: "mock_iyzico",
-          providerPaymentId: order.providerPaymentId
+          source: "server_checkout"
         }
       }))
     );
@@ -424,4 +497,29 @@ function parseMoney(value: string | null): number {
 
 function formatMoney(value: number): string {
   return value.toFixed(2);
+}
+
+type CartProductEventInput = {
+  actorProfileId: string;
+  entityId: string;
+  entityType: "cart" | "listing";
+  eventType:
+    | "product_cart_item_added"
+    | "product_cart_item_removed"
+    | "product_cart_cleared"
+    | "product_mock_checkout_failed";
+  metadata: Record<string, number | string>;
+};
+
+async function recordCartProductEvent(
+  app: FastifyInstance,
+  input: CartProductEventInput
+): Promise<void> {
+  await app.db.insert(events).values({
+    actorProfileId: input.actorProfileId,
+    entityId: input.entityId,
+    entityType: input.entityType,
+    eventType: input.eventType,
+    metadata: input.metadata
+  });
 }

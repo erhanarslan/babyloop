@@ -24,7 +24,13 @@ const PRODUCT_EVENT_TYPES: string[] = [
   "product_contact_seller_intent",
   "product_recently_viewed_listing_clicked",
   "product_category_viewed",
-  "product_search_performed"
+  "product_search_performed",
+  "product_cart_item_added",
+  "product_cart_item_removed",
+  "product_cart_cleared",
+  "product_mock_checkout_succeeded",
+  "product_mock_checkout_failed",
+  "product_assistant_message_sent"
 ];
 
 const LISTING_PRODUCT_EVENT_TYPES: string[] = [
@@ -32,7 +38,10 @@ const LISTING_PRODUCT_EVENT_TYPES: string[] = [
   "product_listing_card_clicked",
   "product_listing_recommendation_impression",
   "product_contact_seller_intent",
-  "product_recently_viewed_listing_clicked"
+  "product_recently_viewed_listing_clicked",
+  "product_cart_item_added",
+  "product_cart_item_removed",
+  "product_mock_checkout_succeeded"
 ];
 
 export async function getAdminProductAnalyticsSummary(

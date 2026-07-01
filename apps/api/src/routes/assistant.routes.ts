@@ -1,4 +1,5 @@
 import type { ApiFailure, ApiResponse } from "@babyloop/shared";
+import { events } from "@babyloop/database/schema";
 import type { FastifyInstance } from "fastify";
 import type {
   AssistantMessageOutput,
@@ -82,6 +83,11 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
           }
         });
       }
+
+      await recordAssistantMessageProductEvent(app, request, {
+        locale: parsedBody.data.locale,
+        messageLength: parsedBody.data.message.length
+      });
 
       const ragAssistantService = options.ragAssistantService ?? null;
 
@@ -218,4 +224,32 @@ function sanitizeActions(actions: AssistantMessageOutput["actions"]): AssistantM
       href: action.href.slice(0, 200)
     }))
     .slice(0, 3);
+}
+
+const ASSISTANT_PRODUCT_EVENT_ENTITY_ID = "00000000-0000-0000-0000-000000000000";
+
+async function recordAssistantMessageProductEvent(
+  app: FastifyInstance,
+  request: { currentUser?: { profile: { id: string } } | null; log?: { warn: (payload: unknown, message?: string) => void } },
+  input: {
+    locale: "tr" | "en";
+    messageLength: number;
+  }
+): Promise<void> {
+  try {
+    await app.db.insert(events).values({
+      ...(request.currentUser?.profile.id ? { actorProfileId: request.currentUser.profile.id } : {}),
+      entityId: ASSISTANT_PRODUCT_EVENT_ENTITY_ID,
+      entityType: "assistant",
+      eventType: "product_assistant_message_sent",
+      metadata: {
+        authenticated: request.currentUser?.profile.id ? "true" : "false",
+        locale: input.locale,
+        messageLength: input.messageLength,
+        source: "assistant"
+      }
+    });
+  } catch (error) {
+    request.log?.warn({ error }, "Assistant product event could not be recorded.");
+  }
 }

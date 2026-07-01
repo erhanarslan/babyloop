@@ -10,7 +10,13 @@ export type AdminProductAnalyticsEventName =
   | "contact_seller_intent"
   | "recently_viewed_listing_clicked"
   | "category_viewed"
-  | "search_performed";
+  | "search_performed"
+  | "cart_item_added"
+  | "cart_item_removed"
+  | "cart_cleared"
+  | "mock_checkout_succeeded"
+  | "mock_checkout_failed"
+  | "assistant_message_sent";
 
 export type AdminProductAnalyticsSummary = {
   totals: {
