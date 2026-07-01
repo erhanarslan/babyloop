@@ -236,7 +236,7 @@ export async function checkoutCartWithMockIyzico(
     return { status: "listing_unavailable" };
   }
 
-  if (rows.some((row) => row.listingType !== "sale")) {
+  if (rows.some((row) => row.listingType === "donation")) {
     return { status: "unsupported_listing_type" };
   }
 

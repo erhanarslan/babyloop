@@ -174,8 +174,8 @@ export function registerCartRoutes(app: FastifyInstance): void {
         return reply.status(400).send({
           ok: false,
           error: {
-            code: "CHECKOUT_SALE_LISTINGS_ONLY",
-            message: "Mock iyzico checkout can only be used for sale listings."
+            code: "CHECKOUT_DONATION_LISTINGS_NOT_SUPPORTED",
+            message: "Mock iyzico checkout cannot be used for donation listings."
           }
         });
       }

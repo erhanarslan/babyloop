@@ -145,14 +145,16 @@ export function BasketScreen() {
               <Text style={styles.summaryLabel}>Ara toplam</Text>
               <Text style={styles.summaryValue}>{cart.subtotalText}</Text>
             </View>
-            <Text style={styles.summaryHint}>Bağış/takas ilanları sepetlenebilir ama mock ödeme sadece satılık ilanlar içindir.</Text>
+            <Text style={styles.summaryHint}>
+              Takas ilanlarında ürün teklifi, ödeme farkı veya yalnızca ödeme pazarlığı olabilir. Bağış ilanlarında ödeme alınmaz.
+            </Text>
             <MobileButton
               accessibilityLabel="Mock iyzico ile öde"
               disabled={actionStatus === "pending"}
               iconName="card-outline"
               onPress={() => void handleCheckout()}
             >
-              {actionStatus === "pending" ? "İşleniyor..." : "Mock iyzico ile öde"}
+              {actionStatus === "pending" ? "İşleniyor..." : "Mock iyzico ile öde / teklif ver"}
             </MobileButton>
             <MobileButton
               accessibilityLabel="Sepeti temizle"
