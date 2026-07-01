@@ -27,3 +27,19 @@ export function formatMobileListingCondition(value: string | null | undefined): 
       return null;
   }
 }
+
+
+export function formatMobileListingStatus(value: string | null | undefined): string {
+  switch (value) {
+    case "active":
+      return "Aktif";
+    case "reserved":
+      return "Rezerve";
+    case "sold":
+      return "Satıldı";
+    case "archived":
+      return "Arşivde";
+    default:
+      return "Durum bilinmiyor";
+  }
+}

@@ -16,6 +16,11 @@ const accountShortcuts = [
     description: "Alıcı ve satıcı konuşmalarını takip et."
   },
   {
+    href: "/my-listings",
+    title: "İlanlarım",
+    description: "Yayındaki, satılan ve arşivlenen ilanlarını yönet."
+  },
+  {
     href: "/sell",
     title: "İlan Ver",
     description: "Satmak istediğin ürünü hazırlamaya başla."

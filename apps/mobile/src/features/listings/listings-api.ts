@@ -1,8 +1,12 @@
-import { apiGet, isRecord, resolveApiAssetUrl } from "../../api/client";
+import { apiGet, isRecord, resolveApiAssetUrl, safeApiErrorMessage } from "../../api/client";
+import { mobileAuthFetch } from "../auth/auth-api";
 import {
   formatMobileListingCondition,
+  formatMobileListingStatus,
   formatMobileListingType
 } from "./listing-labels";
+
+export type MobileListingStatus = "active" | "reserved" | "sold" | "archived";
 
 export type MobileListingSummary = {
   id: string;
@@ -19,6 +23,13 @@ export type MobileListingDetail = MobileListingSummary & {
   description: string | null;
   createdAt: string | null;
   sellerProfileId: string | null;
+};
+
+export type MobileMyListingSummary = MobileListingSummary & {
+  createdAt: string | null;
+  favoriteCount: number | null;
+  status: string | null;
+  statusText: string;
 };
 
 export type FetchMobileListingsParams = {
@@ -58,6 +69,41 @@ export async function fetchMobileListingDetail(listingId: string): Promise<Mobil
   }
 
   return normalizeListingDetail(extractListingObject(result.data));
+}
+
+export async function fetchMobileMyListings(): Promise<MobileMyListingSummary[]> {
+  const response = await mobileAuthFetch("/api/v1/me/listings");
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      safeApiErrorMessage(payload, "İlanların şu an yüklenemedi. Biraz sonra tekrar dene.")
+    );
+  }
+
+  return extractListingArray(payload).map(normalizeMyListingSummary);
+}
+
+export async function updateMobileListingStatus(
+  listingId: string,
+  status: MobileListingStatus
+): Promise<MobileMyListingSummary> {
+  const response = await mobileAuthFetch(`/api/v1/listings/${encodeURIComponent(listingId)}/status`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ status })
+  });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      safeApiErrorMessage(payload, "İlan durumu şu an güncellenemedi. Biraz sonra tekrar dene.")
+    );
+  }
+
+  return normalizeMyListingSummary(extractListingObject(payload));
 }
 
 function extractListingArray(payload: unknown): unknown[] {
@@ -133,6 +179,20 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
       pickString(record, ["sellerProfileId", "profileId"]) ??
       pickNestedString(record, ["seller", "profileId"]) ??
       pickNestedString(record, ["seller", "id"])
+  };
+}
+
+function normalizeMyListingSummary(value: unknown): MobileMyListingSummary {
+  const record = isRecord(value) ? value : {};
+  const summary = normalizeListingSummary(record);
+  const status = pickString(record, ["status"]);
+
+  return {
+    ...summary,
+    createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
+    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"]),
+    status,
+    statusText: formatMobileListingStatus(status)
   };
 }
 

@@ -159,6 +159,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="my-listings"
+        options={{
+          href: null,
+          title: "İlanlarım"
+        }}
+      />
+
+      <Tabs.Screen
         name="listing/[listingId]"
         options={{
           href: null
