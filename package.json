@@ -35,7 +35,8 @@
     "test:e2e:web:marketplace": "node scripts/run-e2e-test-bundle.mjs web marketplace",
     "test:e2e:web:messaging": "node scripts/run-e2e-test-bundle.mjs web messaging",
     "test:e2e:backoffice:trust": "node scripts/run-e2e-test-bundle.mjs backoffice trust",
-    "test:e2e:backoffice:ops": "node scripts/run-e2e-test-bundle.mjs backoffice ops"
+    "test:e2e:backoffice:ops": "node scripts/run-e2e-test-bundle.mjs backoffice ops",
+    "smoke:release": "bash scripts/release-smoke.sh"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
