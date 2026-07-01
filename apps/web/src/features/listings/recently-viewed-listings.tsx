@@ -2,16 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Badge, Card } from "../../components/ui";
+import { Card } from "../../components/ui";
 import type { RecentlyViewedListing } from "./recently-viewed-storage";
 import { getRecentlyViewedListings } from "./recently-viewed-storage";
 import { ListingImageFrame } from "./listing-image-frame";
-import {
-  formatCategoryName,
-  formatListingCondition,
-  formatListingPrice,
-  formatListingType
-} from "./listing-display";
+import { formatListingPrice } from "./listing-display";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { recordProductEvent } from "../../features/product-events/api";
 
@@ -51,48 +46,42 @@ export function RecentlyViewedListings({
   }
 
   return (
-    <Card className="recently-viewed-panel">
-      <div className="section-heading">
-        <h2>Recently viewed</h2>
-        <p className="muted">Listings you opened on this device.</p>
+    <Card className="recently-viewed-panel babyloop-recently-viewed-panel">
+      <div className="babyloop-recently-viewed-heading">
+        <h2>Son baktıkların</h2>
+        <Link className="babyloop-recently-viewed-all" href="/browse">
+          Keşfe dön
+        </Link>
       </div>
 
-      <div className="recently-viewed-grid">
+      <div className="recently-viewed-grid babyloop-recently-viewed-rail" aria-label="Son baktığın ilanlar">
         {recentListings.map((listing) => (
-          <article className="recently-viewed-card" key={listing.id}>
-            <ListingImageFrame
-              alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
-              apiBaseUrl={apiBaseUrl}
-              className="recently-viewed-image"
-              fallbackLabel={dictionary.listings.noProductImage}
-              url={listing.firstImage?.url ?? null}
-            />
-            <div className="recently-viewed-body">
-              <div className="listing-card-badges">
-                <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
-                <Badge tone="success">{formatListingType(listing.listingType, dictionary)}</Badge>
-              </div>
-              <h3>{listing.title}</h3>
-              <p className="muted">
-                {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
-              </p>
-              <div className="listing-card-footer">
+          <article className="recently-viewed-card babyloop-recently-viewed-card" key={listing.id}>
+            <Link
+              className="babyloop-recently-viewed-card-link"
+              href={`/listings/${listing.id}`}
+              onClick={() => {
+                void recordProductEvent(apiBaseUrl, {
+                  categoryId: listing.category.id,
+                  eventType: "recently_viewed_listing_clicked",
+                  listingId: listing.id,
+                  source: "recently_viewed"
+                });
+              }}
+            >
+              <ListingImageFrame
+                alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
+                apiBaseUrl={apiBaseUrl}
+                className="recently-viewed-image"
+                fallbackLabel={dictionary.listings.noProductImage}
+                url={listing.firstImage?.url ?? null}
+              />
+              <div className="recently-viewed-body babyloop-recently-viewed-body">
+                <h3>{listing.title}</h3>
                 <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-                <Link
-                  href={`/listings/${listing.id}`}
-                  onClick={() => {
-                    void recordProductEvent(apiBaseUrl, {
-                      categoryId: listing.category.id,
-                      eventType: "recently_viewed_listing_clicked",
-                      listingId: listing.id,
-                      source: "recently_viewed"
-                    });
-                  }}
-                >
-                  {dictionary.common.viewDetails}
-                </Link>
+                <span>{dictionary.common.viewDetails}</span>
               </div>
-            </div>
+            </Link>
           </article>
         ))}
       </div>

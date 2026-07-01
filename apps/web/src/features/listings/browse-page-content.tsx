@@ -26,7 +26,6 @@ import {
   formatCategoryName,
   formatListingCondition,
   formatListingPrice,
-  formatListingStatus,
   formatListingType
 } from "./listing-display";
 import styles from "./browse-page-content.module.css";
@@ -121,142 +120,18 @@ export function BrowsePageContent({
         />
       ) : null}
 
-      <PageContainer className="grid gap-5 pb-12 pt-5 lg:grid-cols-[300px_minmax(0,1fr)]" ariaLabel={dictionary.listings.browseAriaLabel}>
-        <Card as="aside" className="filter-panel self-start" aria-label="Filtreler">
-          <h2>Filtreler</h2>
-
-          <CategoryNavigation
-            categories={categoryTree}
-            dictionary={dictionary}
-            filters={filters}
-            selectedCategoryId={filters.categoryId}
-          />
-
-          <form action={paginationBasePath} method="get" className="form-stack">
-            <label>
-              <span>Arama</span>
-              <input
-                defaultValue={filters.q}
-                list="browse-search-suggestions"
-                maxLength={120}
-                name="q"
-                placeholder={dictionary.publicShell.header.searchPlaceholder}
-                type="search"
-              />
-              {searchSuggestions.length > 0 ? (
-                <datalist id="browse-search-suggestions">
-                  {searchSuggestions.map((suggestion) => (
-                    <option
-                      key={`${suggestion.kind}-${suggestion.label}`}
-                      value={suggestion.label}
-                    />
-                  ))}
-                </datalist>
-              ) : null}
-            </label>
-
-            <SearchSuggestionLinks
-              basePath={paginationBasePath}
-              currentCategorySlug={currentCategorySlug}
-              filters={filters}
-              searchSuggestions={searchSuggestions}
-            />
-
-            {!currentCategorySlug ? (
-              <label>
-                <span>Kategoriler</span>
-                <select defaultValue={filters.categoryId} name="categoryId">
-                  <option value="">{dictionary.publicPages.browse.allCategories}</option>
-                  {orderedCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
-            <label>
-              <span>İlan tipi</span>
-              <select defaultValue={filters.listingType} name="listingType">
-                <option value="">{dictionary.publicPages.browse.allTypes}</option>
-                {LISTING_TYPE_OPTIONS.map((listingType) => (
-                  <option key={listingType} value={listingType}>
-                    {formatListingType(listingType, dictionary)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>Durum</span>
-              <select defaultValue={filters.condition} name="condition">
-                <option value="">{dictionary.publicPages.browse.allConditions}</option>
-                {CONDITION_OPTIONS.map((condition) => (
-                  <option key={condition} value={condition}>
-                    {formatListingCondition(condition, dictionary)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>En az</span>
-              <input
-                defaultValue={filters.priceMin}
-                inputMode="decimal"
-                maxLength={13}
-                name="priceMin"
-                placeholder="0"
-                type="text"
-              />
-            </label>
-
-            <label>
-              <span>En çok</span>
-              <input
-                defaultValue={filters.priceMax}
-                inputMode="decimal"
-                maxLength={13}
-                name="priceMax"
-                placeholder="5000"
-                type="text"
-              />
-            </label>
-
-            <label className="checkbox-row">
-              <input
-                defaultChecked={filters.hasImages === "true"}
-                name="hasImages"
-                type="checkbox"
-                value="true"
-              />
-              <span>{dictionary.publicPages.browse.imagesOnly}</span>
-            </label>
-
-            <label>
-              <span>Sıralama</span>
-              <select defaultValue={filters.sort} name="sort">
-                {SORT_OPTIONS.map((sortOption) => (
-                  <option key={sortOption.value} value={sortOption.value}>
-                    {getSortLabel(sortOption.labelKey, dictionary)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button type="submit">Uygula</button>
-            <Link href={currentCategorySlug ? `/categories/${currentCategorySlug}` : "/browse"}>
-              Temizle
-            </Link>
-          </form>
-
-          <SaveSearchButton
-            apiBaseUrl={apiBaseUrl}
-            categoryName={selectedCategory ? formatCategoryName(selectedCategory, dictionary) : undefined}
-            filters={filters}
-          />
-        </Card>
+      <PageContainer className="grid gap-5 pb-12 pt-5 lg:grid-cols-[320px_minmax(0,1fr)]" ariaLabel={dictionary.listings.browseAriaLabel}>
+        <BrowseFilterSidebar
+          apiBaseUrl={apiBaseUrl}
+          clearFiltersHref={clearFiltersHref}
+          currentCategorySlug={currentCategorySlug}
+          dictionary={dictionary}
+          filters={filters}
+          orderedCategories={orderedCategories}
+          paginationBasePath={paginationBasePath}
+          searchSuggestions={searchSuggestions}
+          selectedCategory={selectedCategory}
+        />
 
         <div className="listing-column">
           {error ? (
@@ -355,6 +230,180 @@ export function BrowsePageContent({
   );
 }
 
+function BrowseFilterSidebar({
+  apiBaseUrl,
+  clearFiltersHref,
+  currentCategorySlug,
+  dictionary,
+  filters,
+  orderedCategories,
+  paginationBasePath,
+  searchSuggestions,
+  selectedCategory
+}: {
+  apiBaseUrl: string;
+  clearFiltersHref: string;
+  currentCategorySlug: string | null;
+  dictionary: ReturnType<typeof useI18n>["dictionary"];
+  filters: BrowseListingsFilters;
+  orderedCategories: CategoryTreeNode[];
+  paginationBasePath: string;
+  searchSuggestions: SearchSuggestion[];
+  selectedCategory: Category | null;
+}) {
+  const selectedCategoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : null;
+
+  return (
+    <Card as="aside" className="filter-panel babyloop-filter-panel self-start" aria-label="Filtreler">
+      <div className="babyloop-filter-heading">
+        <h2>Filtreler</h2>
+        <Link className="babyloop-filter-reset" href={clearFiltersHref}>
+          Temizle
+        </Link>
+      </div>
+
+      <form action={paginationBasePath} method="get" className="babyloop-filter-form">
+        <section className="babyloop-filter-section">
+          <label className="babyloop-filter-field">
+            <span>Arama</span>
+            <input
+              defaultValue={filters.q}
+              list="browse-search-suggestions"
+              maxLength={120}
+              name="q"
+              placeholder={dictionary.publicShell.header.searchPlaceholder}
+              type="search"
+            />
+            {searchSuggestions.length > 0 ? (
+              <datalist id="browse-search-suggestions">
+                {searchSuggestions.map((suggestion) => (
+                  <option
+                    key={`${suggestion.kind}-${suggestion.label}`}
+                    value={suggestion.label}
+                  />
+                ))}
+              </datalist>
+            ) : null}
+          </label>
+        </section>
+
+        <section className="babyloop-filter-section">
+          {!currentCategorySlug ? (
+            <label className="babyloop-filter-field">
+              <span>Kategori</span>
+              <select defaultValue={filters.categoryId} name="categoryId">
+                <option value="">{dictionary.publicPages.browse.allCategories}</option>
+                {orderedCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {buildCategoryOptionLabel(formatCategoryName(category, dictionary), category.depth)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="babyloop-selected-category">
+              <span>Kategori</span>
+              <strong>{selectedCategoryName ?? dictionary.publicPages.browse.category}</strong>
+              <Link href="/browse">Tüm kategoriler</Link>
+            </div>
+          )}
+        </section>
+
+        <section className="babyloop-filter-section">
+          <label className="babyloop-filter-field">
+            <span>İlan tipi</span>
+            <select defaultValue={filters.listingType} name="listingType">
+              <option value="">{dictionary.publicPages.browse.allTypes}</option>
+              {LISTING_TYPE_OPTIONS.map((listingType) => (
+                <option key={listingType} value={listingType}>
+                  {formatListingType(listingType, dictionary)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="babyloop-filter-field">
+            <span>Durum</span>
+            <select defaultValue={filters.condition} name="condition">
+              <option value="">{dictionary.publicPages.browse.allConditions}</option>
+              {CONDITION_OPTIONS.map((condition) => (
+                <option key={condition} value={condition}>
+                  {formatListingCondition(condition, dictionary)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+
+        <section className="babyloop-filter-section">
+          <div className="babyloop-filter-row">
+            <label className="babyloop-filter-field">
+              <span>En az</span>
+              <input
+                defaultValue={filters.priceMin}
+                inputMode="decimal"
+                maxLength={13}
+                name="priceMin"
+                placeholder="0"
+                type="text"
+              />
+            </label>
+
+            <label className="babyloop-filter-field">
+              <span>En çok</span>
+              <input
+                defaultValue={filters.priceMax}
+                inputMode="decimal"
+                maxLength={13}
+                name="priceMax"
+                placeholder="5000"
+                type="text"
+              />
+            </label>
+          </div>
+
+          <label className="babyloop-checkbox-card">
+            <input
+              defaultChecked={filters.hasImages === "true"}
+              name="hasImages"
+              type="checkbox"
+              value="true"
+            />
+            <span>{dictionary.publicPages.browse.imagesOnly}</span>
+          </label>
+        </section>
+
+        <section className="babyloop-filter-section">
+          <label className="babyloop-filter-field">
+            <span>Sıralama</span>
+            <select defaultValue={filters.sort} name="sort">
+              {SORT_OPTIONS.map((sortOption) => (
+                <option key={sortOption.value} value={sortOption.value}>
+                  {getSortLabel(sortOption.labelKey, dictionary)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+
+        <div className="babyloop-filter-actions">
+          <button type="submit">Uygula</button>
+        </div>
+      </form>
+
+      <details className="babyloop-save-search-details">
+        <summary>Aramayı kaydet</summary>
+        <SaveSearchButton
+          apiBaseUrl={apiBaseUrl}
+          categoryName={selectedCategoryName ?? undefined}
+          filters={filters}
+        />
+      </details>
+    </Card>
+  );
+}
+
+
 function CategoryLandingHero({
   clearFiltersHref,
   filters,
@@ -442,43 +491,6 @@ function BrowseNoResultsPanel({
   );
 }
 
-function SearchSuggestionLinks({
-  basePath,
-  currentCategorySlug,
-  filters,
-  searchSuggestions
-}: {
-  basePath: string;
-  currentCategorySlug: string | null;
-  filters: BrowseListingsFilters;
-  searchSuggestions: SearchSuggestion[];
-}) {
-  if (searchSuggestions.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="search-suggestion-links" aria-label="Arama önerileri">
-      <span>Öneriler</span>
-      {searchSuggestions.slice(0, 5).map((suggestion) => (
-        <Link
-          href={buildBrowseHref(
-            { ...filters, q: suggestion.label },
-            0,
-            {
-              basePath,
-              includeCategoryId: !currentCategorySlug
-            }
-          )}
-          key={`${suggestion.kind}-${suggestion.label}`}
-        >
-          {suggestion.label}
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 function buildBrowseAssistantPrompt(
   filters: BrowseListingsFilters,
   selectedCategory: Category | null,
@@ -526,89 +538,6 @@ function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
   ].filter((value) => String(value).trim().length > 0).length;
 }
 
-function CategoryNavigation({
-  categories,
-  dictionary,
-  filters,
-  selectedCategoryId
-}: {
-  categories: CategoryTreeNode[];
-  dictionary: ReturnType<typeof useI18n>["dictionary"];
-  filters: BrowseListingsFilters;
-  selectedCategoryId: string;
-}) {
-  if (categories.length === 0) {
-    return <p className="muted">{dictionary.listings.categoriesUnavailable}</p>;
-  }
-
-  return (
-    <nav aria-label={dictionary.listings.categoriesAriaLabel}>
-      <ul className="category-list">
-        <li>
-          {selectedCategoryId ? (
-            <Link href={buildBrowseHref(filters, 0, {
-              basePath: "/browse",
-              includeCategoryId: false
-            })}>
-              Tüm kategoriler
-            </Link>
-          ) : (
-            <strong>Tüm kategoriler</strong>
-          )}
-        </li>
-        {categories.map((category) => (
-          <CategoryNavigationItem
-            category={category}
-            dictionary={dictionary}
-            filters={filters}
-            key={category.id}
-            selectedCategoryId={selectedCategoryId}
-          />
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-function CategoryNavigationItem({
-  category,
-  dictionary,
-  filters,
-  selectedCategoryId
-}: {
-  category: CategoryTreeNode;
-  dictionary: ReturnType<typeof useI18n>["dictionary"];
-  filters: BrowseListingsFilters;
-  selectedCategoryId: string;
-}) {
-  const isSelected = category.id === selectedCategoryId;
-
-  return (
-    <li>
-      {isSelected ? (
-        <strong>{formatCategoryName(category, dictionary)}</strong>
-      ) : (
-        <Link href={buildCategoryLandingHref(filters, category.slug)}>
-          {formatCategoryName(category, dictionary)}
-        </Link>
-      )}
-      {category.children.length > 0 ? (
-        <ul>
-          {category.children.map((child) => (
-            <CategoryNavigationItem
-              category={child}
-              dictionary={dictionary}
-              filters={filters}
-              key={child.id}
-              selectedCategoryId={selectedCategoryId}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
 function ListingCard({
   apiBaseUrl,
   listing,
@@ -629,33 +558,18 @@ function ListingCard({
         fallbackLabel={dictionary.listings.noProductImage}
         images={listing.images?.length ? listing.images : listing.firstImage ? [listing.firstImage] : []}
       />
-      <div className="listing-card-body">
-        <div>
-          <div className={styles.cardTopline}>
-            <div className="listing-card-badges">
-              <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
-              <Badge tone="success">
-                {dictionary.listings.typeLabel}: {formatListingType(listing.listingType, dictionary)}
-              </Badge>
-              {listing.status === "reserved" ? (
-                <Badge tone="warning">{formatListingStatus(listing.status, dictionary)}</Badge>
-              ) : (
-                <Badge>{formatListingStatus(listing.status, dictionary)}</Badge>
-              )}
-            </div>
-            <time dateTime={listing.createdAt}>{formatBrowseListingDate(listing.createdAt)}</time>
-          </div>
-          <h2>{listing.title}</h2>
-          <p className="muted">
-            {dictionary.listings.conditionLabel}: {formatListingCondition(listing.condition, dictionary)}
-          </p>
+      <div className="listing-card-body babyloop-listing-card-body">
+        <div className="listing-card-badges babyloop-listing-card-badges">
+          <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
+          <Badge tone={listing.listingType === "donation" ? "warning" : "success"}>
+            {formatListingType(listing.listingType, dictionary)}
+          </Badge>
         </div>
 
-        <div className="listing-card-footer">
-          <div className={styles.priceStack}>
-            <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-            <span>{listing.favoriteCount} favori · {formatListingCondition(listing.condition, dictionary)}</span>
-          </div>
+        <h2>{listing.title}</h2>
+
+        <div className="listing-card-footer babyloop-listing-card-footer">
+          <strong>{formatListingPrice(listing.price, dictionary)}</strong>
           <Link
             href={`/listings/${listing.id}`}
             onClick={() => {
@@ -674,6 +588,7 @@ function ListingCard({
     </article>
   );
 }
+
 
 function buildCategoryTree(categories: Category[]): CategoryTreeNode[] {
   const nodes = new Map<string, CategoryTreeNode>();
@@ -722,13 +637,6 @@ function flattenCategoryTree(nodes: CategoryTreeNode[]): CategoryTreeNode[] {
 
 function buildCategoryOptionLabel(label: string, depth: number): string {
   return `${"— ".repeat(depth)}${label}`;
-}
-
-function buildCategoryLandingHref(filters: BrowseListingsFilters, slug: string): string {
-  return buildBrowseHref(filters, 0, {
-    basePath: `/categories/${slug}`,
-    includeCategoryId: false
-  });
 }
 
 function buildActiveFilterChips({
@@ -888,17 +796,4 @@ function buildAssistantHref(mode: AssistantEntryMode, prompt: string): string {
   });
 
   return `/assistant?${params.toString()}`;
-}
-
-function formatBrowseListingDate(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Recently listed";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short"
-  }).format(date);
 }
