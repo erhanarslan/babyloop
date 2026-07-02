@@ -378,7 +378,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
         title={getErrorTitle(state)}
         message={message}
         actionHref={state === "auth" ? "/login" : "/conversations"}
-        actionLabel={state === "auth" ? "Giriş yap" : "Mesajlara dön"}
+        actionLabel={state === "auth" ? "Giriş yap" : "Mesajlar"}
       />
     );
   }
@@ -388,17 +388,17 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
   }
 
   const listingTitle = conversation.contextListing?.title ?? "İlan bilgisi yok";
-  const listingStatusLabel = conversation.contextListing ? "Aktif ilan" : "İlan kapalı";
+  const listingStatusLabel = conversation.contextListing ? "İlan açık" : "İlan kapalı";
 
   return (
-    <div className="flex min-h-[calc(100dvh-150px)] w-full min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-background shadow-sm lg:h-[calc(100dvh-190px)] lg:min-h-[620px]">
-      <section className="border-b border-border bg-background/95 p-4 sm:p-5">
+    <div className="message-thread-p0 flex min-h-[calc(100dvh-150px)] w-full min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-sm lg:h-[calc(100dvh-190px)] lg:min-h-[620px]">
+      <section className="message-thread-p0-header border-b border-border bg-background/95 p-3 sm:p-4">
         <Link
           className="mb-4 inline-flex items-center gap-2 text-sm font-black text-rose-700 hover:text-rose-800 dark:text-rose-200 lg:hidden"
           href="/conversations"
         >
           <span aria-hidden="true">&#8592;</span>
-          Mesajlara dön
+          Mesajlar
         </Link>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -410,20 +410,20 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
               {getInitials(conversation.otherProfile.displayName)}
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-black tracking-tight text-foreground">
+              <h1 className="truncate text-lg font-black tracking-tight text-foreground">
                 {conversation.otherProfile.displayName}
               </h1>
               <p className="truncate text-sm font-semibold text-muted-foreground">{listingTitle}</p>
             </div>
           </div>
-          <span className="w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
+          <span className="message-thread-p0-status w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
             {listingStatusLabel}
           </span>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="message-thread-p0-context mt-3 flex flex-col gap-2 rounded-2xl border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">İlan</p>
+
             {conversation.contextListing ? (
               <Link
                 className="mt-1 block truncate text-sm font-black text-foreground hover:text-rose-700"
@@ -436,14 +436,13 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             )}
           </div>
           <p className="text-xs font-semibold text-muted-foreground">
-            Son hareket: {formatTurkishDateTime(conversation.lastMessageAt ?? conversation.updatedAt)}
+            {formatTurkishDateTime(conversation.lastMessageAt ?? conversation.updatedAt)}
           </p>
         </div>
 
-        <details className="mt-3 rounded-2xl border border-border bg-background px-3 py-2 text-sm">
-          <summary className="cursor-pointer font-black text-muted-foreground">Güvenlik</summary>
+        <details className="message-thread-p0-safety mt-2 rounded-2xl border border-border bg-background px-3 py-2 text-sm">
+          <summary className="cursor-pointer font-black text-muted-foreground">Bildir / engelle</summary>
           <div className="mt-3 grid gap-3" aria-label="Güvenlik işlemleri">
-            <p className="text-xs font-black text-muted-foreground">Bu konuşmada sorun mu var?</p>
             <ReportAction
               actionLabel="Konuşmayı bildir"
               onSubmitReport={(payload) => reportProfile(apiBaseUrl, conversation.otherProfile.id, payload)}
@@ -455,13 +454,10 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
               onBlockedChange={setIsOtherProfileBlocked}
             />
           </div>
-          <p className="mt-3 text-xs font-semibold leading-5 text-muted-foreground">
-            Rahatsız edici davranış, dolandırıcılık veya uygunsuz içerik görürsen buradan bildirebilirsin.
-          </p>
         </details>
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-muted/25 to-background">
+      <section className="message-thread-p0-body flex min-h-0 flex-1 flex-col bg-gradient-to-b from-muted/20 to-background">
         {messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-4">
             <EmptyState
@@ -483,10 +479,10 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
                 >
                   <div
                     className={[
-                      "max-w-[82%] rounded-3xl px-4 py-3 shadow-sm sm:max-w-[68%]",
+                      "message-thread-p0-bubble max-w-[82%] rounded-3xl px-4 py-3 shadow-sm sm:max-w-[68%]",
                       item.sender.id === currentProfileId
-                        ? "rounded-br-md bg-rose-500 text-white"
-                        : "rounded-bl-md border border-border bg-background text-foreground",
+                        ? "message-thread-p0-bubble-own rounded-br-md text-white"
+                        : "message-thread-p0-bubble-other rounded-bl-md border border-border bg-background text-foreground",
                       highlightedMessageIds.has(item.id) ? "ring-2 ring-rose-300" : ""
                     ].join(" ")}
                   >
@@ -506,7 +502,7 @@ export function MessageThread({ apiBaseUrl, conversationId }: MessageThreadProps
             </ol>
             {hasNewMessages ? (
               <button
-                className="mx-auto mb-3 rounded-full bg-rose-500 px-4 py-2 text-sm font-black text-white shadow-sm"
+                className="message-thread-p0-new mx-auto mb-3 rounded-full px-4 py-2 text-sm font-black text-white shadow-sm"
                 type="button"
                 onClick={() => {
                   setHasNewMessages(false);

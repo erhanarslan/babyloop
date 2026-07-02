@@ -52,39 +52,30 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
     }
   }
 
+  const showGuidance = composerGuidance?.tone === "warning";
+
   return (
-    <form className="space-y-3 border-t border-border bg-background p-3 sm:p-4" onSubmit={handleSubmit}>
+    <form className="message-composer-p0" onSubmit={handleSubmit}>
       <Textarea
         label="Mesaj"
         maxLength={5000}
-        rows={3}
+        rows={2}
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder="Mesaj yaz..."
+        placeholder="Durum, teslim veya ek fotoğraf sor..."
       />
-      {composerGuidance ? (
-        <div
-          className={[
-            "rounded-2xl px-3 py-2 text-xs font-semibold leading-5",
-            composerGuidance.tone === "warning"
-              ? "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
-              : "bg-muted text-muted-foreground"
-          ].join(" ")}
-        >
+
+      {showGuidance && composerGuidance ? (
+        <div className="message-composer-p0-warning">
           {composerGuidance.message}
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
-        <p>Konuşmayı BabyLoop içinde tut.</p>
-        <span>{body.length}/5000</span>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="message-composer-p0-footer">
         {errorMessage ? (
           <Alert title="Mesaj gönderilemedi" message={errorMessage} />
         ) : (
-          <p className="text-xs font-semibold text-muted-foreground">Yalnızca konuşmadaki kişiler görebilir.</p>
+          <span>{body.length}/5000</span>
         )}
         <Button disabled={isPending || body.trim().length === 0} type="submit">
           {isPending ? "Gönderiliyor" : "Gönder"}

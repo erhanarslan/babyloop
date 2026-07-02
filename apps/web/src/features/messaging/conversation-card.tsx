@@ -25,7 +25,7 @@ export function ConversationCard({
       ? "Sen: "
       : "";
   const unreadCount = Math.max(conversation.unreadCount, isUnread ? 1 : 0);
-  const statusLabel = conversation.contextListing ? "Aktif ilan" : "İlan kapalı";
+  const statusLabel = conversation.contextListing ? "İlan" : "Kapalı";
   const initials = getInitials(conversation.otherProfile.displayName);
 
   return (
@@ -80,7 +80,7 @@ export function ConversationCard({
                 : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200"
             ].join(" ")}
           >
-            {unreadCount > 0 ? "Okunmadı" : "Okundu"}
+            {unreadCount > 0 ? "Yeni" : "Okundu"}
           </span>
           <span className="rounded-full bg-muted px-2 py-1 text-[0.68rem] font-black text-muted-foreground">
             {statusLabel}

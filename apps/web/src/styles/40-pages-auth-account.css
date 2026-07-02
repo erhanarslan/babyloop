@@ -2170,3 +2170,214 @@
     width: 100%;
   }
 }
+
+/* BabyLoop P0 messaging UX */
+.messages-p0-page {
+  --message-accent: #2f8c78;
+  --message-accent-soft: rgba(47, 140, 120, 0.12);
+}
+
+.messages-p0-list-panel,
+.message-thread-p0,
+.messages-p0-empty-panel {
+  border-color: rgba(55, 48, 42, 0.09) !important;
+  background:
+    radial-gradient(circle at top left, rgba(111, 191, 159, 0.10), transparent 34%),
+    rgba(255, 255, 255, 0.84) !important;
+  box-shadow: 0 14px 34px rgba(55, 48, 42, 0.07) !important;
+  backdrop-filter: blur(14px);
+}
+
+.messages-p0-list-panel {
+  overflow: hidden;
+}
+
+.messages-p0-list-panel h1 {
+  font-size: 1.25rem;
+  letter-spacing: -0.035em;
+}
+
+.messages-p0-list-panel input {
+  min-height: 2.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.messages-p0-filters button {
+  min-height: 2.1rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.messages-p0-card-list {
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.babyloop-conversation-card {
+  border-radius: 1.05rem !important;
+  padding: 0.75rem !important;
+  background: rgba(255, 250, 244, 0.72) !important;
+  box-shadow: none !important;
+}
+
+.babyloop-conversation-card:hover {
+  transform: none !important;
+  border-color: rgba(47, 140, 120, 0.22) !important;
+}
+
+.babyloop-conversation-card span {
+  line-height: 1.25;
+}
+
+.message-thread-p0 {
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+.message-thread-p0-header {
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+.message-thread-p0-header h1 {
+  font-size: 1.08rem;
+  font-weight: 850;
+}
+
+.message-thread-p0-status {
+  background: var(--message-accent-soft) !important;
+  color: var(--message-accent) !important;
+}
+
+.message-thread-p0-context {
+  border-color: rgba(55, 48, 42, 0.08) !important;
+  background: rgba(255, 250, 244, 0.66) !important;
+}
+
+.message-thread-p0-context a {
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.message-thread-p0-context p {
+  font-size: 0.76rem;
+}
+
+.message-thread-p0-safety {
+  border-color: rgba(55, 48, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+}
+
+.message-thread-p0-safety summary {
+  font-size: 0.8rem;
+}
+
+.message-thread-p0-body ol {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(111, 191, 159, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(255, 250, 244, 0.38), rgba(255, 255, 255, 0.72));
+}
+
+.message-thread-p0-bubble {
+  box-shadow: 0 8px 22px rgba(55, 48, 42, 0.07) !important;
+}
+
+.message-thread-p0-bubble-own {
+  background: var(--message-accent) !important;
+}
+
+.message-thread-p0-bubble-other {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
+
+.message-thread-p0-bubble time,
+.message-thread-p0-bubble strong {
+  font-size: 0.68rem;
+}
+
+.message-thread-p0-new {
+  background: var(--message-accent) !important;
+}
+
+.message-composer-p0 {
+  display: grid;
+  gap: 0.65rem;
+  border-top: 1px solid rgba(55, 48, 42, 0.09);
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.75rem;
+}
+
+.message-composer-p0 textarea {
+  min-height: 4.7rem;
+  border-radius: 1rem;
+  background: rgba(255, 250, 244, 0.78);
+}
+
+.message-composer-p0-warning {
+  border-radius: 1rem;
+  background: rgba(251, 191, 36, 0.18);
+  color: #7c4a03;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.45;
+  padding: 0.6rem 0.75rem;
+}
+
+.message-composer-p0-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.message-composer-p0-footer span {
+  color: var(--muted-foreground);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.message-composer-p0-footer button {
+  min-height: 2.45rem;
+  border-radius: 999px;
+  padding-inline: 1.1rem;
+}
+
+.dark .messages-p0-list-panel,
+.dark .message-thread-p0,
+.dark .messages-p0-empty-panel,
+.dark .message-thread-p0-header,
+.dark .message-thread-p0-context,
+.dark .message-thread-p0-safety,
+.dark .message-composer-p0,
+.dark .message-thread-p0-bubble-other,
+.dark .babyloop-conversation-card {
+  border-color: rgba(255, 250, 244, 0.12) !important;
+  background: rgba(38, 30, 24, 0.84) !important;
+}
+
+@media (max-width: 768px) {
+  .messages-p0-layout {
+    gap: 0.75rem;
+  }
+
+  .messages-p0-list-panel,
+  .message-thread-p0 {
+    border-radius: 1.1rem !important;
+  }
+
+  .message-thread-p0-header {
+    padding: 0.75rem !important;
+  }
+
+  .message-thread-p0-context {
+    margin-top: 0.7rem;
+  }
+
+  .message-thread-p0-bubble {
+    max-width: 88% !important;
+  }
+
+  .message-composer-p0 {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}

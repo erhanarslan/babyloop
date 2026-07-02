@@ -14,9 +14,9 @@ export function ConversationPageContent({
   conversationId
 }: ConversationPageContentProps) {
   return (
-    <PageContainer className="max-w-7xl py-4 sm:py-6" ariaLabel="Konuşma">
-      <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
-        <section className="hidden rounded-[1.75rem] border border-border bg-background/88 p-4 shadow-sm backdrop-blur lg:block lg:h-[calc(100dvh-190px)] lg:min-h-[620px]">
+    <PageContainer className="messages-p0-page max-w-7xl py-4 sm:py-6" ariaLabel="Konuşma">
+      <div className="messages-p0-layout grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="messages-p0-list-panel hidden rounded-[1.5rem] border border-border bg-background/88 p-3 shadow-sm backdrop-blur lg:block lg:h-[calc(100dvh-190px)] lg:min-h-[620px]">
           <ConversationList
             apiBaseUrl={apiBaseUrl}
             getConversationHref={(nextConversationId) => `/conversations?conversationId=${encodeURIComponent(nextConversationId)}`}

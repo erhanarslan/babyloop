@@ -247,7 +247,7 @@ export function ConversationList({
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <div className="space-y-2">
-        <h1 className="text-2xl font-black tracking-tight text-foreground">Mesajlar</h1>
+        <h1 className="text-xl font-black tracking-tight text-foreground">Mesajlar</h1>
         <p className="text-sm font-medium leading-6 text-muted-foreground">
           Ürün sorularını ve konuşmalarını BabyLoop içinde güvenle takip et.
         </p>
@@ -260,12 +260,12 @@ export function ConversationList({
         className="h-11 rounded-full border border-border bg-background px-4 text-sm font-semibold outline-none transition placeholder:text-muted-foreground/70 focus:border-rose-300 focus:ring-2 focus:ring-rose-200 dark:focus:ring-rose-900"
         id="conversation-search"
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Konuşma veya ilan ara"
+        placeholder="Ara"
         type="search"
         value={query}
       />
 
-      <div className="flex flex-wrap gap-2" aria-label="Mesaj filtreleri">
+      <div className="messages-p0-filters flex flex-wrap gap-2" aria-label="Mesaj filtreleri">
         {FILTERS.map((item) => (
           <button
             key={item.value}
