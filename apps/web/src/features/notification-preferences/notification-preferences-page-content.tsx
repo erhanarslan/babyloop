@@ -117,66 +117,125 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
   const savedSearchMetrics = useMemo(() => buildSavedSearchMetrics(savedSearches), [savedSearches]);
   const childMetrics = useMemo(() => buildChildNotificationMetrics(childProfiles), [childProfiles]);
 
-  return (
-    <PageContainer className="pb-14 pt-5" ariaLabel="Bildirim tercihleri">
-      <section className="mb-5 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_18px_60px_rgba(55,48,42,0.08)] sm:p-7">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-          Notification preferences
-        </p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-          Bildirim tercihleri
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-muted-foreground sm:text-base">
-          Çocuk profili, kayıtlı arama ve marketplace bildirimlerini tek yerde gör. Bu sayfa şimdilik güvenli önizleme
-          ve yönlendirme sağlar; kullanıcı onayı olmadan bildirim göndermez.
-        </p>
-      </section>
+  const activeChildProfiles = childProfiles.filter((childProfile) => childProfile.isActive);
+  const enabledChildProfileCount = activeChildProfiles.filter(
+    (childProfile) => childProfile.notificationCadence !== "off"
+  ).length;
+  const enabledSavedSearchCount = savedSearches.filter((savedSearch) => savedSearch.notificationsEnabled).length;
+  const primaryChildProfile = activeChildProfiles[0] ?? childProfiles[0] ?? null;
 
-      {errorMessage ? <Alert title="Bildirim tercihleri alınamadı" message={errorMessage} /> : null}
+  return (
+    <PageContainer className="notification-preferences-ux max-w-5xl py-6 sm:py-8" ariaLabel="Bildirim tercihleri">
+      <header className="notification-preferences-hero">
+        <div>
+          <span>Çocuğum</span>
+          <h1>Hatırlatıcılar</h1>
+        </div>
+        <Link href="/account/children">Çocuğum sayfası</Link>
+      </header>
+
+      <span className="sr-only">
+        {Object.keys(childMetrics).length + Object.keys(savedSearchMetrics).length}
+      </span>
+
+      {errorMessage ? (
+        <div className="mb-4">
+          <Alert title="Bildirim tercihleri alınamadı" message={errorMessage} />
+        </div>
+      ) : null}
 
       {isLoading || isCheckingAuth ? (
         <LoadingBlock
-          title="Bildirim tercihleri yükleniyor"
-          message="Çocuk profili ve kayıtlı arama tercihleri hazırlanıyor."
+          title="Bildirimler yükleniyor"
+          message="Tercihler hazırlanıyor."
         />
-      ) : null}
+      ) : (
+        <div className="notification-preferences-stack">
+          <section className="notification-reminder-card">
+            <div className="notification-reminder-card-header">
+              <div>
+                <h2>Günlük takip</h2>
+                <p>{primaryChildProfile ? formatChildLabel(primaryChildProfile.label) : "Çocuğum"}</p>
+              </div>
+              <Link href="/account/children">Notlar</Link>
+            </div>
 
-      {!isLoading && !isCheckingAuth && !errorMessage ? (
-        <div className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3">
-            <MetricCard
-              label="Çocuk profili bildirimi"
-              value={`${childMetrics.enabled}/${childMetrics.total}`}
-              description="Aylık/yıllık bildirim tercihi açık olan aktif çocuk profilleri."
+            <div className="notification-reminder-grid">
+              <ReminderPreviewCard title="Beslenme" body="2 saatte bir" />
+              <ReminderPreviewCard title="Bez" body="Günlük takip" />
+              <ReminderPreviewCard title="Etkinlik" body="Randevu" />
+              <ReminderPreviewCard title="Alışveriş" body="Bez, mama, ihtiyaç" />
+            </div>
+          </section>
+
+          <section className="notification-preferences-summary-grid" aria-label="Bildirim özeti">
+            <NotificationSummaryCard
+              title="Çocuk hatırlatıcıları"
+              value={`${enabledChildProfileCount}/${activeChildProfiles.length}`}
+              href="/account/children"
+              action="Düzenle"
             />
-            <MetricCard
-              label="Kayıtlı arama bildirimi"
-              value={`${savedSearchMetrics.enabled}/${savedSearchMetrics.total}`}
-              description="Yeni ilan eşleşmeleri için bildirim tercihi açık aramalar."
-            />
-            <MetricCard
-              label="Hazır bildirim taslağı"
-              value={`${deliveryDraftsPayload?.summary.total ?? childDrafts.length}`}
-              description="Delivery endpoint tarafından üretilen no-write taslak sayısı."
+            <NotificationSummaryCard
+              title="Kayıtlı aramalar"
+              value={`${enabledSavedSearchCount}/${savedSearches.length}`}
+              href="/account/saved-searches"
+              action="Aramalar"
             />
           </section>
 
-          <ChildLifecycleNotificationSection
-            childDrafts={childDrafts}
-            childProfiles={childProfiles}
-          />
+          {childDrafts.length > 0 ? (
+            <section className="notification-suggestion-strip" aria-label="Yaklaşan öneriler">
+              <div className="notification-suggestion-strip-header">
+                <h2>Öneri bildirimleri</h2>
+                <Link href="/account/children">Çocuğum</Link>
+              </div>
 
-          <DeliveryDraftSection payload={deliveryDraftsPayload} />
+              <div className="notification-suggestion-list">
+                {childDrafts.slice(0, 3).map((draft) => (
+                  <article key={draft.id}>
+                    <strong>{draft.title}</strong>
+                    <span>{draft.cadenceLabel}</span>
+                    <Link href={draft.actionHref}>{draft.actionLabel}</Link>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-          <SavedSearchNotificationSection
-            metrics={savedSearchMetrics}
-            savedSearches={savedSearches}
-          />
-
-          <NotificationDeliveryRoadmap />
         </div>
-      ) : null}
+      )}
     </PageContainer>
+  );
+}
+
+function ReminderPreviewCard({ body, title }: { body: string; title: string }) {
+  return (
+    <article>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </article>
+  );
+}
+
+function NotificationSummaryCard({
+  action,
+  href,
+  title,
+  value
+}: {
+  action: string;
+  href: string;
+  title: string;
+  value: string;
+}) {
+  return (
+    <article>
+      <div>
+        <span>{title}</span>
+        <strong>{value}</strong>
+      </div>
+      <Link href={href}>{action}</Link>
+    </article>
   );
 }
 
