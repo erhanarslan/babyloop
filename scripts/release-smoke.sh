@@ -21,6 +21,9 @@ git status --short --untracked-files=all
 section "Diff whitespace check"
 git diff --check
 
+section "Release artifact guard"
+pnpm release:artifacts
+
 section "API typecheck"
 pnpm --filter @babyloop/api typecheck
 
