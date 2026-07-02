@@ -1,24 +1,18 @@
 import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import {
+  getMobileChildNoteItems,
+  getMobileChildReminderItems
+} from "../../src/features/child/child-reminders-model";
 import { MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
 
-const noteItems = [
-  { title: "Beslenme", value: "2 saatte bir" },
-  { title: "Bez", value: "Günlük takip" },
-  { title: "Etkinlik", value: "Randevu ve oyun" },
-  { title: "Alışveriş", value: "Bez, mama, ihtiyaç" }
-] as const;
-
-const reminderItems = [
-  "Hafta sonu bez al",
-  "Havuz etkinliği için 1 hafta önce hatırlat",
-  "Uyku düzenini akşam not et"
-] as const;
-
 export default function ChildProfileRoute() {
+  const noteItems = getMobileChildNoteItems();
+  const reminderItems = getMobileChildReminderItems();
+
   return (
     <Screen eyebrow="Çocuğum" title="Notlar">
       <MobileCard style={styles.heroCard}>

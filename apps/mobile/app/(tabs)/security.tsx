@@ -2,6 +2,10 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
+import {
+  getMobileSecurityRows,
+  type MobileSecurityRowTone
+} from "../../src/features/security/security-model";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
@@ -40,10 +44,15 @@ export default function SecurityRoute() {
       </MobileCard>
 
       <View style={styles.list}>
-        <SecurityRow title="Oturum" value="Açık" tone="success" />
-        <SecurityRow title="Şifre" value="Hesap şifresiyle giriş yapıldı" />
-        <SecurityRow title="OTP / MFA" value="Bağlanacak" tone="pending" />
-        <SecurityRow title="Mobil onay" value="Bağlanacak" tone="pending" />
+        {getMobileSecurityRows().map((row) => (
+          <SecurityRow
+            badge={row.badge}
+            key={row.title}
+            title={row.title}
+            tone={row.tone}
+            value={row.value}
+          />
+        ))}
       </View>
 
       <MobileCard style={styles.card}>
@@ -58,13 +67,15 @@ export default function SecurityRoute() {
 }
 
 function SecurityRow({
+  badge,
   title,
   value,
   tone = "neutral"
 }: {
+  badge: string;
   title: string;
   value: string;
-  tone?: "neutral" | "success" | "pending";
+  tone?: MobileSecurityRowTone;
 }) {
   return (
     <MobileCard style={styles.row}>
@@ -79,7 +90,7 @@ function SecurityRow({
           tone === "pending" ? styles.statusPending : null
         ]}
       >
-        {tone === "success" ? "Aktif" : tone === "pending" ? "P1" : "Bilgi"}
+        {badge}
       </Text>
     </MobileCard>
   );

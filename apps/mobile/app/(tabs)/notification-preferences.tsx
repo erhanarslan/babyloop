@@ -1,18 +1,14 @@
 import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
+import { getMobileChildReminderSettings } from "../../src/features/child/child-reminders-model";
 import { MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
 
-const reminderSettings = [
-  { title: "Beslenme", value: "2 saatte bir" },
-  { title: "Bez takibi", value: "Günlük" },
-  { title: "Etkinlik", value: "1 hafta ve 1 gün önce" },
-  { title: "Alışveriş", value: "Seçilen gün sabah 10:00" }
-] as const;
-
 export default function NotificationPreferencesRoute() {
+  const reminderSettings = getMobileChildReminderSettings();
+
   return (
     <Screen eyebrow="Bildirimler" title="Hatırlatıcılar">
       <MobileCard style={styles.heroCard}>
