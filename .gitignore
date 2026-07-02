@@ -309,3 +309,14 @@ apps/*/.env
 apps/*/.env.local
 packages/*/.env
 packages/*/.env.local
+# Safe example env files are documentation and should remain trackable.
+!apps/*/.env.example
+!apps/*/.env.local.example
+!apps/*/.env.development.example
+!apps/*/.env.production.example
+!apps/*/.env.test.example
+!packages/*/.env.example
+!packages/*/.env.local.example
+!packages/*/.env.development.example
+!packages/*/.env.production.example
+!packages/*/.env.test.example
