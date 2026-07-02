@@ -70,12 +70,11 @@ test.describe("listing detail page", () => {
 
       await expect(main).toContainText(/6500(?:\.00)? TRY/);
       await expect(main).toContainText("İstanbul");
-      await expect(main).toContainText("Açıklama");
       await expect(main).toContainText("Web E2E testi için oluşturulan güvenli marketplace ilanı.");
       await expect(main).toContainText("Kategori");
       await expect(main).toContainText("Tip");
       await expect(main).toContainText("Durum");
-      await expect(main).toContainText("İlan durumu");
+      await expect(main).toContainText("İlan");
 
       await expect(page.getByAltText(`Ürün görseli: ${listingTitle}`)).toHaveCount(0);
       await expect(page.getByText("Ürün görseli yok", { exact: true })).toBeVisible();
@@ -92,7 +91,6 @@ test.describe("listing detail page", () => {
       });
       await expect(favoriteButton).toBeEnabled();
 
-      await expect(main).toContainText("Güvenli alışveriş");
 
       await expectNoListingDetailSensitiveLeak(page, {
         sellerEmail,

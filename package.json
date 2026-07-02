@@ -39,7 +39,8 @@
     "smoke:release": "bash scripts/release-smoke.sh",
     "db:seed": "pnpm --filter @babyloop/database db:seed",
     "demo:seed": "pnpm --filter @babyloop/database db:seed",
-    "demo:seed:keep-e2e": "BABYLOOP_SEED_KEEP_E2E_LISTINGS=1 pnpm --filter @babyloop/database db:seed"
+    "demo:seed:keep-e2e": "BABYLOOP_SEED_KEEP_E2E_LISTINGS=1 pnpm --filter @babyloop/database db:seed",
+    "test:e2e:web:release": "node scripts/run-e2e-test-bundle.mjs web release"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

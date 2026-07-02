@@ -361,17 +361,27 @@ async function assertBrowseSaveSearchCreatesSafePayload(
     { waitUntil: "domcontentloaded" },
   );
 
-  const saveSearchPanel = page.locator(".save-search-panel");
+  const saveSearchDetails = page.locator("details.babyloop-save-search-details").first();
+
+  await expect(saveSearchDetails).toBeVisible({ timeout: 15_000 });
+
+  const isSaveSearchOpen = await saveSearchDetails.evaluate((element) => element.hasAttribute("open"));
+
+  if (!isSaveSearchOpen) {
+    await saveSearchDetails.locator("summary").click();
+  }
+
+  const saveSearchPanel = saveSearchDetails.locator(".save-search-panel");
 
   await expect(saveSearchPanel).toBeVisible({ timeout: 15_000 });
-  await expect(saveSearchPanel.getByText("Aramayı kaydet", { exact: true })).toBeVisible();
-  await expect(saveSearchPanel.getByText(`Arama: ${input.query}`, { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("Tip: sale", { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("Durum: good", { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("En az: 1000", { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("En çok: 5000", { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("Sadece görselli", { exact: false })).toBeVisible();
-  await expect(saveSearchPanel.getByText("Sıralama: price_asc", { exact: false })).toBeVisible();
+  await expect(saveSearchPanel).toContainText("Aramayı kaydet");
+  await expect(saveSearchPanel).toContainText(`Arama: ${input.query}`);
+  await expect(saveSearchPanel).toContainText("Tip: sale");
+  await expect(saveSearchPanel).toContainText("Durum: good");
+  await expect(saveSearchPanel).toContainText("En az: 1000");
+  await expect(saveSearchPanel).toContainText("En çok: 5000");
+  await expect(saveSearchPanel).toContainText("Sadece görselli");
+  await expect(saveSearchPanel).toContainText("Sıralama: price_asc");
 
   await expectNoBrowseSensitiveLeak(page, {
     sellerAccessToken: input.sellerAccessToken,
@@ -404,9 +414,7 @@ async function assertBrowseSaveSearchCreatesSafePayload(
     },
   ]);
 
-  await expect(
-    saveSearchPanel.getByText("Arama kaydedildi. Hesabından tekrar açabilirsin.", { exact: true }),
-  ).toBeVisible({
+  await expect(saveSearchPanel).toContainText("Arama kaydedildi. Hesabından tekrar açabilirsin.", {
     timeout: 15_000,
   });
 

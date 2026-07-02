@@ -75,9 +75,11 @@ test.describe("auth session flow", () => {
       const accountTrigger = () => page.locator(".market-account-trigger").filter({ hasText: displayName });
       await expect(accountTrigger()).toBeVisible({ timeout: 15_000 });
 
-      await page.goto("/my-listings");
+      await page.goto("/my-listings", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/my-listings/, { timeout: 15_000 });
       await expect(page.getByRole("main")).toBeVisible();
+
+      await page.goto("/browse", { waitUntil: "domcontentloaded" });
       await expect(accountTrigger()).toBeVisible({ timeout: 15_000 });
 
       await accountTrigger().click();
