@@ -172,7 +172,6 @@ export const quickCategoryLinks: QuickNavigationLink[] = [
   { href: "/guides", labelKey: "parentGuide" },
   { href: "/account/children", labelKey: "childNeeds" },
   { href: "/assistant", labelKey: "assistant" },
-  { href: "/guides?topic=parent-reviews", labelKey: "parentReviews" }
 ];
 
 export const accountLinks: AccountNavigationLink[] = [

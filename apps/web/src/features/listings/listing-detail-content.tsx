@@ -17,7 +17,6 @@ import { useI18n } from "../../lib/i18n/i18n-provider";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
 import {
   formatCategoryName,
-  formatDateTime,
   formatListingCondition,
   formatListingPrice,
   formatListingStatus,
@@ -38,7 +37,7 @@ export function ListingDetailContent({
   apiBaseUrl,
   listing
 }: ListingDetailContentProps) {
-  const { dictionary, locale } = useI18n();
+  const { dictionary } = useI18n();
   const [currentUser, setCurrentUser] = useState<CurrentUserState>({
     status: "checking",
     profileId: null
@@ -96,93 +95,79 @@ export function ListingDetailContent({
   const condition = formatListingCondition(listing.condition, dictionary);
   const listingType = formatListingType(listing.listingType, dictionary);
   const listingStatus = formatListingStatus(listing.status, dictionary);
+  const canAddToCart = listing.status === "active" && listing.listingType !== "donation";
 
   return (
-    <PageContainer className="grid gap-5 pb-12 pt-5 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,760px)_420px]">
+    <PageContainer className="listing-detail-p0-shell pb-12 pt-5" ariaLabel="İlan detayları">
       {!isOwner && currentUser.status !== "checking" ? <RecentlyViewedTracker listing={listing} /> : null}
 
-      <section className="min-w-0" aria-label={dictionary.listings.imageGalleryAriaLabel}>
-        <ImageReviewNotice
-          title={dictionary.listings.imageNeedsReviewTitle}
-          message={dictionary.listings.imageNeedsReviewBody}
-        />
-        <ListingDetailGallery
-          apiBaseUrl={apiBaseUrl}
-          listing={listing}
-        />
-      </section>
+      <ImageReviewNotice
+        title={dictionary.listings.imageNeedsReviewTitle}
+        message={dictionary.listings.imageNeedsReviewBody}
+      />
 
-      <article className="self-start rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm sm:p-5 lg:sticky lg:top-28">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <Link className="text-sm font-black text-primary hover:underline" href="/browse">
-            {dictionary.common.backToBrowse}
-          </Link>
-          {isOwner ? <Badge tone="success">Bu senin ilanın</Badge> : null}
-        </div>
+      <div className="listing-detail-p0-grid">
+        <section className="listing-detail-p0-gallery-card" aria-label={dictionary.listings.imageGalleryAriaLabel}>
+          <ListingDetailGallery
+            apiBaseUrl={apiBaseUrl}
+            listing={listing}
+          />
+        </section>
 
-        <div className="flex flex-wrap gap-2">
-          <Badge>{categoryName}</Badge>
-          <Badge>{listingType}</Badge>
-          <Badge>{condition}</Badge>
-          <Badge tone={listing.status === "reserved" ? "warning" : "success"}>{listingStatus}</Badge>
-        </div>
+        <aside className="listing-detail-p0-panel" aria-label="İlan özeti">
+          <div className="listing-detail-p0-badges">
+            <Badge>{categoryName}</Badge>
+            <Badge>{listingType}</Badge>
+            <Badge>{condition}</Badge>
+            <Badge tone={listing.status === "reserved" ? "warning" : "success"}>{listingStatus}</Badge>
+          </div>
 
-        <h1 className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl">
-          {listing.title}
-        </h1>
-        <p className="mt-3 text-3xl font-black text-foreground">
-          {formatListingPrice(listing.price, dictionary)}
-        </p>
-        <p className="mt-2 text-sm font-semibold text-muted-foreground">
-          {listing.favoriteCount} favori · {listing.seller.locationCity ?? "Şehir belirtilmedi"} ·{" "}
-          {formatDateTime(listing.createdAt, locale)}
-        </p>
+          <div className="listing-detail-p0-title">
+            <h1>{listing.title}</h1>
+            <strong>{formatListingPrice(listing.price, dictionary)}</strong>
+            <p>
+              {listing.seller.locationCity ?? dictionary.listings.locationNotProvided}
+              {listing.favoriteCount > 0 ? ` · ${listing.favoriteCount} favori` : ""}
+            </p>
+          </div>
 
-        <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <h2 className="text-sm font-black text-foreground">Açıklama</h2>
-          <p className="mt-2 line-clamp-5 text-sm font-semibold leading-6 text-muted-foreground">
+          <p className="listing-detail-p0-description">
             {listing.description?.trim() || dictionary.listings.noDescription}
           </p>
-        </div>
 
-        <dl className="mt-4 grid gap-2 text-sm font-semibold text-muted-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <dt>Kategori</dt>
-            <dd className="text-right text-foreground">{categoryName}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt>Tip</dt>
-            <dd className="text-right text-foreground">{listingType}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt>Durum</dt>
-            <dd className="text-right text-foreground">{condition}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt>İlan durumu</dt>
-            <dd className="text-right text-foreground">{listingStatus}</dd>
-          </div>
-        </dl>
+          <dl className="listing-detail-p0-facts">
+            <div>
+              <dt>Kategori</dt>
+              <dd>{categoryName}</dd>
+            </div>
+            <div>
+              <dt>Tip</dt>
+              <dd>{listingType}</dd>
+            </div>
+            <div>
+              <dt>Durum</dt>
+              <dd>{condition}</dd>
+            </div>
+            <div>
+              <dt>İlan</dt>
+              <dd>{listingStatus}</dd>
+            </div>
+          </dl>
 
-        {isOwner ? (
-          <OwnerListingActions />
-        ) : null}
+          {isOwner ? (
+            <OwnerListingActions />
+          ) : null}
 
-        {currentUser.status === "checking" ? (
-          <p className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm font-bold text-muted-foreground">
-            Aksiyonlar hazırlanıyor.
-          </p>
-        ) : null}
+          {currentUser.status === "checking" ? (
+            <p className="listing-detail-p0-note">Aksiyonlar hazırlanıyor.</p>
+          ) : null}
 
-        {currentUser.status === "error" ? (
-          <p className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm font-bold text-muted-foreground">
-            Hesap bilgisi şu an kontrol edilemedi.
-          </p>
-        ) : null}
+          {currentUser.status === "error" ? (
+            <p className="listing-detail-p0-note">Hesap bilgisi şu an kontrol edilemedi.</p>
+          ) : null}
 
-        {canShowBuyerActions ? (
-          <>
-            <div className="mt-5 grid gap-3">
+          {canShowBuyerActions ? (
+            <div className="listing-detail-p0-actions">
               <MessageSellerButton
                 apiBaseUrl={apiBaseUrl}
                 categoryId={listing.category.id}
@@ -190,47 +175,37 @@ export function ListingDetailContent({
                 sellerProfileId={listing.seller.id}
               />
 
-              <div className="max-w-sm">
-                <FavoriteButton
+              {canAddToCart ? (
+                <AddToCartButton
                   apiBaseUrl={apiBaseUrl}
-                  initiallyFavorited={false}
+                  isAuthenticated={currentUser.status === "known"}
                   listingId={listing.id}
                 />
-              </div>
-
-              {listing.status === "active" ? (
-                <div className="max-w-sm">
-                  <AddToCartButton
-                    apiBaseUrl={apiBaseUrl}
-                    isAuthenticated={currentUser.status === "known"}
-                    listingId={listing.id}
-                  />
-                </div>
               ) : null}
-            </div>
 
-            <SellerCard listing={listing} />
+              <FavoriteButton
+                apiBaseUrl={apiBaseUrl}
+                initiallyFavorited={false}
+                listingId={listing.id}
+              />
 
-            <details className="mt-4 rounded-2xl border border-border/70 bg-muted/20 p-3">
-              <summary className="cursor-pointer text-sm font-black text-foreground">
-                Güvenli alışveriş
-              </summary>
-              <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
-                Ödeme ve teslim detaylarını BabyLoop mesajlaşmasında netleştir.
-              </p>
-              <div className="mt-3">
+              <SellerCard listing={listing} />
+
+              <details className="listing-detail-p0-safety">
+                <summary>Güvenlik / bildir</summary>
                 <ReportAction
                   actionLabel={dictionary.safety.reportListing}
                   onSubmitReport={(payload) => reportListing(apiBaseUrl, listing.id, payload)}
                 />
-              </div>
-            </details>
-          </>
-        ) : null}
-      </article>
+              </details>
+            </div>
+          ) : null}
+        </aside>
+      </div>
     </PageContainer>
   );
 }
+
 
 export function ListingDetailUnavailable({ error }: { error: ApiError }) {
   const { dictionary } = useI18n();
@@ -310,11 +285,11 @@ function ListingDetailGallery({
       onKeyDown={handleGalleryKeyDown}
       tabIndex={hasMultipleImages ? 0 : undefined}
     >
-      <div className="relative grid aspect-[4/3] max-h-[560px] min-h-[260px] place-items-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-muted/30">
+      <div className="listing-detail-main-image relative overflow-hidden rounded-[1.35rem] border border-border/70 bg-muted/20">
         {selectedImageUrl ? (
           <img
             alt={`Ürün görseli: ${listing.title}`}
-            className="block h-full max-h-[560px] w-full object-contain"
+            className="block h-full w-full object-cover"
             decoding="async"
             loading="eager"
             src={selectedImageUrl}

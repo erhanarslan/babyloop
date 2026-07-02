@@ -221,11 +221,8 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
 
   return (
     <PageContainer className="max-w-6xl py-8 sm:py-10" ariaLabel="Çocuğum">
-      <header className="mb-5 space-y-2">
+      <header className="mb-5">
         <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">Çocuğum</h1>
-        <p className="max-w-xl text-sm font-semibold leading-6 text-muted-foreground">
-          Çocuğuna ait temel bilgileri sade şekilde tut.
-        </p>
       </header>
 
       {message ? (
@@ -474,27 +471,22 @@ function ChildProfileSummary({
   onToggleActive: () => void;
 }) {
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
-            Seçili çocuk
-          </p>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-foreground">
-            {formatChildLabel(childProfile.label)}
-          </h2>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <h2 className="text-2xl font-black tracking-tight text-foreground">
+          {formatChildLabel(childProfile.label)}
+        </h2>
         <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">
           {childProfile.isActive ? "Aktif" : "Pasif"}
         </span>
       </div>
 
       <dl className="grid gap-3 sm:grid-cols-2">
-        <SummaryItem label="Yaş bilgisi" value={formatAgeSummary(childProfile)} />
+        <SummaryItem label="Yaş" value={formatAgeSummary(childProfile)} />
         <SummaryItem label="Cinsiyet" value={formatGender(childProfile.gender)} />
-        <SummaryItem label="Bildirim sıklığı" value={formatNotificationCadence(childProfile.notificationCadence)} />
-        <SummaryItem label="Kayıt durumu" value={childProfile.isActive ? "Aktif" : "Pasif"} />
       </dl>
+
+      <ChildNotebookPanel childProfile={childProfile} />
 
       <ChildLifecycleRecommendations
         childProfile={childProfile}
@@ -516,7 +508,43 @@ function ChildProfileSummary({
   );
 }
 
+function ChildNotebookPanel({ childProfile }: { childProfile: ChildProfile }) {
+  const items = buildNotebookPreviewItems(childProfile);
 
+  return (
+    <section className="rounded-[1.25rem] border border-border bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-black text-foreground">Notlar ve hatırlatıcılar</h3>
+        <Link
+          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground"
+          href="/account/notification-preferences"
+        >
+          Bildirimler
+        </Link>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <article className="rounded-2xl border border-border bg-background/80 p-3" key={item.title}>
+            <strong className="block text-sm font-black text-foreground">{item.title}</strong>
+            <span className="mt-1 block text-xs font-bold text-muted-foreground">{item.meta}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function buildNotebookPreviewItems(childProfile: ChildProfile): Array<{ title: string; meta: string }> {
+  const childLabel = formatChildLabel(childProfile.label);
+
+  return [
+    { title: "Beslenme", meta: "2 saatte bir" },
+    { title: "Bez", meta: "Günlük takip" },
+    { title: "Etkinlik", meta: "Randevu" },
+    { title: "Genel not", meta: childLabel }
+  ];
+}
 function ChildLifecycleRecommendations({
   childProfile,
   recommendationGroup
@@ -525,92 +553,47 @@ function ChildLifecycleRecommendations({
   recommendationGroup: LifecycleRecommendationGroup | null;
 }) {
   const recommendations = recommendationGroup?.recommendations ?? [];
-  const ageBandLabel = recommendationGroup
-    ? formatAgeBand(recommendationGroup.ageBand)
-    : formatAgeBand(childProfile.ageBand);
 
-  if (!childProfile.isActive) {
-    return (
-      <section className="rounded-[1.35rem] border border-dashed border-border bg-muted/20 p-4">
-        <p className="text-sm font-black text-foreground">Öneriler pasif</p>
-        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-          Bu çocuk profili pasif olduğu için yaşa göre ürün önerileri gösterilmiyor.
-        </p>
-      </section>
-    );
-  }
-
-  if (recommendations.length === 0) {
-    return (
-      <section className="rounded-[1.35rem] border border-dashed border-border bg-muted/20 p-4">
-        <p className="text-sm font-black text-foreground">Henüz öneri yok</p>
-        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-          Kategori verileri hazır olduğunda yaş dönemine göre takip edilebilecek ürünler burada görünür.
-        </p>
-      </section>
-    );
+  if (!childProfile.isActive || recommendations.length === 0) {
+    return null;
   }
 
   return (
-    <section className="space-y-3 rounded-[1.35rem] border border-rose-100 bg-rose-50/55 p-4 dark:border-rose-900/60 dark:bg-rose-950/15">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-700 dark:text-rose-200">
-          Yaşa göre öneriler
-        </p>
-        <h3 className="mt-1 text-lg font-black text-foreground">
-          {formatChildLabel(childProfile.label)} için takip edilebilecek ürünler
-        </h3>
-        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-          Bu alan alışveriş takibi içindir; otomatik bildirim veya kayıtlı arama oluşturmaz.
-        </p>
-      </div>
+    <details className="rounded-[1.25rem] border border-border bg-background/75 p-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-black text-foreground [&::-webkit-details-marker]:hidden">
+        <span>Yaşa göre öneriler</span>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+          {recommendations.length}
+        </span>
+      </summary>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {recommendations.slice(0, 4).map((recommendation) => (
           <article
-            className="rounded-2xl border border-border bg-background/88 p-4 shadow-sm"
+            className="rounded-2xl border border-border bg-muted/20 p-3"
             key={`${recommendation.categoryId}-${recommendation.reasonCode}`}
           >
-            <div className="flex flex-col gap-1">
-              <strong className="text-base font-black text-foreground">{recommendation.categoryName}</strong>
-              <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                {ageBandLabel}
-              </span>
-            </div>
-            <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
-              {recommendation.whyNow}
-            </p>
+            <strong className="block text-sm font-black text-foreground">{recommendation.categoryName}</strong>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
-                className="rounded-full bg-foreground px-3 py-2 text-xs font-black text-background"
+                className="rounded-full bg-foreground px-3 py-1.5 text-xs font-black text-background"
                 href={buildRecommendationBrowseHref(recommendation)}
               >
-                İlanlara bak
+                İlanlar
               </Link>
               <Link
-                className="rounded-full border border-border bg-background px-3 py-2 text-xs font-black text-foreground"
+                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground"
                 href={buildAssistantPromptHref(childProfile, recommendation)}
               >
-                Asistana sor
+                Asistan
               </Link>
             </div>
           </article>
         ))}
       </div>
-
-      {childProfile.notificationCadence === "off" ? (
-        <p className="rounded-2xl border border-border bg-background/80 p-3 text-xs font-bold leading-5 text-muted-foreground">
-          Bildirimler kapalı. İstersen “Düzenle” ile aylık/yıllık hatırlatma tercihini açabilirsin.
-        </p>
-      ) : (
-        <p className="rounded-2xl border border-border bg-background/80 p-3 text-xs font-bold leading-5 text-muted-foreground">
-          Bildirim tercihi: {formatNotificationCadence(childProfile.notificationCadence)}. Gönderim altyapısı sonraki notification paketinde bağlanacak.
-        </p>
-      )}
-    </section>
+    </details>
   );
 }
-
 
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
@@ -817,4 +800,3 @@ function buildAssistantPromptHref(
 
   return `/assistant?${new URLSearchParams({ prompt }).toString()}`;
 }
-
