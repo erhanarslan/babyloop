@@ -39,6 +39,9 @@ pnpm --filter @babyloop/mobile typecheck
 section "Mobile unit tests"
 pnpm --filter @babyloop/mobile test
 
+section "Web SEO regression tests"
+pnpm test:web:seo
+
 section "API release regression bundle"
 pnpm test:api:release
 
