@@ -90,13 +90,13 @@ export function BasketScreen() {
   return (
     <Screen
       eyebrow="Sepetim"
-      title="Mock iyzico checkout"
-      subtitle="Gerçek kart bilgisi alınmaz; demo ödeme başarılı olursa ilan satıldı durumuna geçer."
+      title="Sepet"
+      subtitle="Satın alma ve teklif akışını buradan tamamla."
     >
       {authSession.status !== "authenticated" ? (
         <MobileEmptyState
           actionLabel="Giriş yap"
-          message="Sepete eklediğin ilanlar ve demo checkout akışı hesabına bağlıdır."
+          message="Sepet hesabına bağlıdır."
           onAction={() => router.push("/login")}
           title="Sepet için giriş yap"
         />
@@ -116,7 +116,7 @@ export function BasketScreen() {
       {authSession.status === "authenticated" && status === "ready" && cart && cart.items.length === 0 ? (
         <MobileEmptyState
           actionLabel="Keşfe dön"
-          message="Aktif satılık ilanları sepete ekleyerek mock checkout akışını deneyebilirsin."
+          message="Beğendiğin ilanları sepete ekleyebilirsin."
           onAction={() => router.push("/")}
           title="Sepetin boş"
         />
@@ -124,10 +124,7 @@ export function BasketScreen() {
 
       {authSession.status === "authenticated" && cart && cart.items.length > 0 ? (
         <>
-          <MobileSectionHeader
-            title="Sepetteki ilanlar"
-            description="Checkout sırasında ilan durumu tekrar kontrol edilir."
-          />
+          <MobileSectionHeader title="Sepetteki ilanlar" />
           <View style={styles.list}>
             {cart.items.map((item) => (
               <CartItemCard
@@ -145,16 +142,14 @@ export function BasketScreen() {
               <Text style={styles.summaryLabel}>Ara toplam</Text>
               <Text style={styles.summaryValue}>{cart.subtotalText}</Text>
             </View>
-            <Text style={styles.summaryHint}>
-              Takas ilanlarında ürün teklifi, ödeme farkı veya yalnızca ödeme pazarlığı olabilir. Bağış ilanlarında ödeme alınmaz.
-            </Text>
+
             <MobileButton
-              accessibilityLabel="Mock iyzico ile öde"
+              accessibilityLabel="Sepet işlemine devam et"
               disabled={actionStatus === "pending"}
               iconName="card-outline"
               onPress={() => void handleCheckout()}
             >
-              {actionStatus === "pending" ? "İşleniyor..." : "Mock iyzico ile öde / teklif ver"}
+              {actionStatus === "pending" ? "İşleniyor..." : "Devam et"}
             </MobileButton>
             <MobileButton
               accessibilityLabel="Sepeti temizle"
@@ -170,11 +165,9 @@ export function BasketScreen() {
       ) : null}
 
       {checkout ? (
-        <MobileCard accessible accessibilityLabel="Mock ödeme başarılı" style={styles.successCard}>
-          <Text style={styles.successTitle}>Mock ödeme başarılı</Text>
-          <Text style={styles.successText}>Order ID: {checkout.orderId}</Text>
-          <Text style={styles.successText}>Payment ID: {checkout.paymentId}</Text>
-          <Text style={styles.successText}>Tutar: {checkout.paidAmountText}</Text>
+        <MobileCard accessible accessibilityLabel="İşlem tamamlandı" style={styles.successCard}>
+          <Text style={styles.successTitle}>İşlem tamamlandı</Text>
+                              <Text style={styles.successText}>Tutar: {checkout.paidAmountText}</Text>
         </MobileCard>
       ) : null}
 

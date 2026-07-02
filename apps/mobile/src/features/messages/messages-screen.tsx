@@ -94,7 +94,6 @@ export function MessagesScreen() {
     <Screen
       eyebrow="Mesajlar"
       title="Konuşmalar"
-      subtitle="İlanlarla ilgili soruları ve yanıtları burada takip et."
     >
       {status === "loading" ? <MobileSkeleton label="Konuşmalar yükleniyor..." /> : null}
 
@@ -109,7 +108,7 @@ export function MessagesScreen() {
 
       {status === "ready" && conversations.length === 0 ? (
         <MobileEmptyState
-          message="Bir ilandan “Satıcıya yaz” dediğinde konuşma burada görünür."
+          message="Satıcıya yazdığında konuşman burada görünür."
           title="Henüz konuşma yok"
         />
       ) : null}

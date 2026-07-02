@@ -35,13 +35,13 @@ const accountShortcuts = [
     href: "/child-profile",
     icon: "happy-outline",
     title: "Çocuğum",
-    description: "Temel çocuk bilgileri ve ihtiyaç fikirleri."
+    description: "Notlar ve hatırlatıcılar."
   },
   {
     href: "/notification-preferences",
     icon: "notifications-outline",
-    title: "Bildirim tercihlerim",
-    description: "Mesaj ve ilan hareketleri için tercihlerini düzenle."
+    title: "Hatırlatıcılar",
+    description: "Bildirim ve takip ayarları."
   },
   {
     href: "/security",
@@ -70,12 +70,8 @@ export function AccountScreen() {
   return (
     <Screen
       eyebrow="Hesap"
-      title={currentUser ? "Mobil hesabım" : "Hesap gerekli"}
-      subtitle={
-        currentUser
-          ? "Favoriler, mesajlar, ilanlar ve aile ihtiyaçları burada."
-          : "Favoriler ve mesajlar için giriş yap."
-      }
+      title={currentUser ? "Hesabım" : "Hesap gerekli"}
+      subtitle={currentUser ? "Favoriler, mesajlar ve çocuk notları." : "Favoriler ve mesajlar için giriş yap."}
     >
       <MobileCard style={styles.profileCard}>
         <View style={styles.avatar}>

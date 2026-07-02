@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-import { Paragraph, Screen } from "../../ui/screen";
+import { Screen } from "../../ui/screen";
 import {
   MobileButton,
   MobileCard,
@@ -46,6 +46,9 @@ export function ListingDetailScreen() {
   const [cartError, setCartError] = useState<string | null>(null);
   const isOwnListing = Boolean(
     currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId
+  );
+  const canAddToCart = Boolean(
+    listing && listing.status === "active" && listing.listingType !== "donation"
   );
 
   useEffect(() => {
@@ -198,7 +201,7 @@ export function ListingDetailScreen() {
   }
 
   return (
-    <Screen eyebrow="İlan detayı" title={listing?.title ?? "İlan detayı"}>
+    <Screen eyebrow="İlan" title="İlan detayı">
       {status === "loading" ? <MobileSkeleton label="İlan detayı yükleniyor..." /> : null}
 
       {status === "error" ? (
@@ -213,13 +216,14 @@ export function ListingDetailScreen() {
       {listing ? (
         <>
           {listing.imageUrl ? (
-            <Image source={{ uri: listing.imageUrl }} style={styles.image} />
+            <Image resizeMode="cover" source={{ uri: listing.imageUrl }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Text style={styles.imageText}>Görsel yok</Text>
             </View>
           )}
 
+          <Text style={styles.title}>{listing.title}</Text>
           <Text style={styles.price}>{listing.priceText}</Text>
           <Text style={styles.meta}>{listing.locationText}</Text>
 
@@ -261,7 +265,7 @@ export function ListingDetailScreen() {
                   : "Favoriye ekle"}
               </MobileButton>
 
-              {listing.status === "active" ? (
+              {canAddToCart ? (
                 <MobileButton
                   accessibilityLabel="Sepete ekle"
                   disabled={cartStatus === "pending"}
@@ -287,16 +291,12 @@ export function ListingDetailScreen() {
           {favoriteError ? <Text style={styles.actionError}>{favoriteError}</Text> : null}
           {cartError ? <Text style={styles.actionError}>{cartError}</Text> : null}
 
-          <MobileCard style={styles.safetyCard}>
-            <Text style={styles.safetyTitle}>Güvenli mesajlaşma</Text>
-            <Text style={styles.safetyText}>
-              Telefon, e-posta, açık adres veya ödeme bilgisini mesajlarda paylaşmadan BabyLoop içinde kal.
+          <MobileCard style={styles.descriptionCard}>
+            <Text style={styles.descriptionTitle}>Açıklama</Text>
+            <Text style={styles.descriptionText}>
+              {listing.description ?? "Bu ilan için açıklama girilmemiş."}
             </Text>
           </MobileCard>
-
-          <Paragraph>
-            {listing.description ?? "Bu ilan için açıklama girilmemiş."}
-          </Paragraph>
         </>
       ) : null}
 
@@ -310,7 +310,7 @@ export function ListingDetailScreen() {
 const styles = StyleSheet.create({
   image: {
     width: "100%",
-    height: 260,
+    height: 300,
     borderRadius: radius.lg,
     backgroundColor: colors.cream
   },
@@ -326,9 +326,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800"
   },
+  title: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    lineHeight: 27
+  },
   price: {
     color: colors.primary,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900"
   },
   meta: {
@@ -363,17 +370,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900"
   },
-  safetyCard: {
+  descriptionCard: {
     gap: spacing.xs
   },
-  safetyTitle: {
+  descriptionTitle: {
     color: colors.text,
     fontSize: 15,
     fontWeight: "900"
   },
-  safetyText: {
+  descriptionText: {
     color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18
+    fontSize: 14,
+    lineHeight: 20
   },
 });

@@ -143,12 +143,12 @@ const styles = StyleSheet.create({
     flex: 1
   },
   content: {
-    padding: 20,
-    gap: 18
+    padding: 16,
+    gap: 14
   },
   header: {
-    gap: 8,
-    paddingTop: 8
+    gap: 6,
+    paddingTop: 6
   },
   eyebrow: {
     color: colors.primaryDark,
@@ -159,23 +159,23 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: -1.1,
-    lineHeight: 38
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.8,
+    lineHeight: 34
   },
   subtitle: {
     color: colors.muted,
-    fontSize: 16,
-    lineHeight: 23
+    fontSize: 14,
+    lineHeight: 20
   },
   body: {
     gap: 16
   },
   paragraph: {
     color: colors.muted,
-    fontSize: 16,
-    lineHeight: 23
+    fontSize: 14,
+    lineHeight: 20
   },
   sectionHeader: {
     gap: 4,

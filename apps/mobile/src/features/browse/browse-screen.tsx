@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Paragraph, Screen } from "../../ui/screen";
+import { Screen } from "../../ui/screen";
 import {
   MobileButton,
   MobileCard,
@@ -64,18 +64,14 @@ export function BrowseScreen() {
 
   return (
     <Screen
-      eyebrow="Marketplace"
+      eyebrow="BabyLoop"
       title="Keşfet"
-      subtitle="İkinci el bebek ve çocuk ürünlerini hızlıca incele."
+      subtitle="Bebek ve çocuk ürünlerini hızlıca bul."
     >
-      <Paragraph>
-        Ürünleri gör, favorilerine ekle veya satıcıyla güvenli mesajlaşmaya hazırlan.
-      </Paragraph>
-
       <DiscoverHeroBanner />
 
       <MobileCard style={styles.searchCard}>
-        <Text style={styles.searchTitle}>Ne arıyorsun?</Text>
+        <Text style={styles.searchTitle}>Ara</Text>
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
