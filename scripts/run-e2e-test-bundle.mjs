@@ -52,6 +52,14 @@ const bundles = {
       "e2e/login.smoke.spec.ts",
       "e2e/ai-ops.smoke.spec.ts",
     ],
+    release: [
+      "e2e/login.smoke.spec.ts",
+      "e2e/protected-auth-shell.smoke.spec.ts",
+      "e2e/moderation-case.smoke.spec.ts",
+      "e2e/trust-ops.smoke.spec.ts",
+      "e2e/listing-image-review.smoke.spec.ts",
+      "e2e/ai-ops.smoke.spec.ts",
+    ],
   },
 };
 
