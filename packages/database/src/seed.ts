@@ -293,6 +293,7 @@ async function seed() {
     await ensureSeedSchemaCompatibility(client.db);
     await seedUsersAndProfiles(client.db, passwordHash);
     await seedProductCategories(client.db);
+    await archiveLocalTestListings(client.db);
 
     const categoryIdBySlug = await loadCategoryIdBySlug(
       client.db,
@@ -321,6 +322,33 @@ seed().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+
+async function archiveLocalTestListings(db: ReturnType<typeof createDatabaseClient>["db"]): Promise<void> {
+  if (process.env.BABYLOOP_SEED_KEEP_E2E_LISTINGS === "1") {
+    return;
+  }
+
+  await db
+    .update(listings)
+    .set({
+      status: "archived",
+      updatedAt: new Date()
+    })
+    .where(sql`
+      ${listings.status} in ('active', 'reserved')
+      and (
+        ${listings.title} ilike '%e2e%'
+        or ${listings.title} ilike '%playwright%'
+        or ${listings.title} ilike '%smoke%'
+        or ${listings.title} ilike '%test listing%'
+        or ${listings.title} ilike '%web e2e%'
+        or ${listings.title} ilike '%mobile e2e%'
+        or ${listings.description} ilike '%e2e%'
+        or ${listings.description} ilike '%playwright%'
+        or ${listings.description} ilike '%smoke%'
+      )
+    `);
+}
 
 async function seedUsersAndProfiles(
   db: ReturnType<typeof createDatabaseClient>["db"],

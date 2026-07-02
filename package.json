@@ -36,7 +36,10 @@
     "test:e2e:web:messaging": "node scripts/run-e2e-test-bundle.mjs web messaging",
     "test:e2e:backoffice:trust": "node scripts/run-e2e-test-bundle.mjs backoffice trust",
     "test:e2e:backoffice:ops": "node scripts/run-e2e-test-bundle.mjs backoffice ops",
-    "smoke:release": "bash scripts/release-smoke.sh"
+    "smoke:release": "bash scripts/release-smoke.sh",
+    "db:seed": "pnpm --filter @babyloop/database db:seed",
+    "demo:seed": "pnpm --filter @babyloop/database db:seed",
+    "demo:seed:keep-e2e": "BABYLOOP_SEED_KEEP_E2E_LISTINGS=1 pnpm --filter @babyloop/database db:seed"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
