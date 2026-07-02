@@ -97,8 +97,11 @@ export default function TabLayout() {
           elevation: 10
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: "800"
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4
         },
         sceneStyle: {
           backgroundColor: colors.background
@@ -126,7 +129,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sell"
         options={{
-          title: "İlan Ver",
+          title: "Sat",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon color={color} focused={focused} name={focused ? "add-circle" : "add-circle-outline"} />
           )
@@ -135,7 +138,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="basket"
         options={{
-          title: "Sepetim",
+          title: "Sepet",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon color={color} focused={focused} name={focused ? "basket" : "basket-outline"} />
           )
@@ -153,7 +156,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="account"
         options={{
-          title: "Hesabım",
+          title: "Hesap",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon color={color} focused={focused} name={focused ? "person-circle" : "person-circle-outline"} />
           )
@@ -173,6 +176,43 @@ export default function TabLayout() {
           href: null
         }}
       />
+
+      <Tabs.Screen
+        name="conversation/[conversationId]"
+        options={{
+          href: null,
+          title: "Konuşma"
+        }}
+      />
+      <Tabs.Screen
+        name="child-profile"
+        options={{
+          href: null,
+          title: "Çocuğum"
+        }}
+      />
+      <Tabs.Screen
+        name="notification-preferences"
+        options={{
+          href: null,
+          title: "Hatırlatıcılar"
+        }}
+      />
+      <Tabs.Screen
+        name="security"
+        options={{
+          href: null,
+          title: "Güvenlik"
+        }}
+      />
+      <Tabs.Screen
+        name="assistant"
+        options={{
+          href: null,
+          title: "Asistan"
+        }}
+      />
+
     </Tabs>
   );
 }

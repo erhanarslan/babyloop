@@ -1,9 +1,9 @@
 import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { MobileCard } from "../src/ui/mobile-primitives";
-import { Screen } from "../src/ui/screen";
-import { colors, radius, spacing } from "../src/ui/theme";
+import { MobileCard } from "../../src/ui/mobile-primitives";
+import { Screen } from "../../src/ui/screen";
+import { colors, radius, spacing } from "../../src/ui/theme";
 
 const noteItems = [
   { title: "Beslenme", value: "2 saatte bir" },

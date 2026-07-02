@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { useAuthSession } from "../src/features/auth/auth-session";
-import { MobileButton, MobileCard } from "../src/ui/mobile-primitives";
-import { Screen } from "../src/ui/screen";
-import { colors, radius, spacing } from "../src/ui/theme";
+import { useAuthSession } from "../../src/features/auth/auth-session";
+import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
+import { Screen } from "../../src/ui/screen";
+import { colors, radius, spacing } from "../../src/ui/theme";
 
 export default function SecurityRoute() {
   const router = useRouter();

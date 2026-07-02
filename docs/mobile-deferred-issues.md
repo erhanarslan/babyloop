@@ -10,7 +10,7 @@ Durum:
 
 Şimdilik karar:
 - Bu konu release backlog'a alındı.
-- Geçici olarak mevcut en stabil conversation detail davranışı korunacak.
+- Mevcut en stabil conversation detail davranışı korunacak.
 - Sonraki çözüm için `react-native-keyboard-controller` veya `react-native-keyboard-aware-scroll-view` değerlendirilecek.
 - Sadece padding/absolute dock ile geçiştirilmeyecek; gerçek Android cihazda manuel doğrulanacak.
 
