@@ -35,6 +35,32 @@ export type MfaPreferencePayload = MfaStatusPayload & {
   updated: true;
 };
 
+export type AuthSessionPayload = {
+  id: string;
+  current: boolean;
+  deviceLabel: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+};
+
+export type AuthSessionsPayload = {
+  currentSessionId: string | null;
+  sessions: AuthSessionPayload[];
+};
+
+export type AuthSessionRevokePayload = {
+  currentSessionRevoked: boolean;
+  revoked: true;
+  sessionId: string;
+};
+
+export type AuthSessionsRevokeAllPayload = {
+  revokedCount: number;
+};
+
 export type EmailVerificationRequestPayload = {
   requested: true;
   devEmailVerificationToken?: string;
@@ -203,4 +229,32 @@ export async function confirmEmailVerification(
   });
 
   return response.json() as Promise<ApiResponse<EmailVerificationConfirmPayload>>;
+}
+
+
+export async function fetchAuthSessions(apiBaseUrl: string): Promise<ApiResponse<AuthSessionsPayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/auth/sessions");
+
+  return response.json() as Promise<ApiResponse<AuthSessionsPayload>>;
+}
+
+export async function revokeAuthSessionRequest(
+  apiBaseUrl: string,
+  sessionId: string
+): Promise<ApiResponse<AuthSessionRevokePayload>> {
+  const response = await authFetch(apiBaseUrl, `/api/v1/auth/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST"
+  });
+
+  return response.json() as Promise<ApiResponse<AuthSessionRevokePayload>>;
+}
+
+export async function revokeAllAuthSessionsRequest(
+  apiBaseUrl: string
+): Promise<ApiResponse<AuthSessionsRevokeAllPayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/auth/sessions/revoke-all", {
+    method: "POST"
+  });
+
+  return response.json() as Promise<ApiResponse<AuthSessionsRevokeAllPayload>>;
 }

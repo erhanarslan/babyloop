@@ -3,6 +3,7 @@ import { buildNoIndexMetadata } from "../../../lib/seo";
 import { PageContainer, SiteShell } from "../../../components/ui";
 import { ChangePasswordForm } from "../../../features/auth/change-password-form";
 import { MfaSettingsPanel } from "../../../features/auth/mfa-settings-panel";
+import { SessionManagementPanel } from "../../../features/auth/session-management-panel";
 import { getApiBaseUrl } from "../../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
@@ -44,6 +45,7 @@ export default function AccountPasswordPage() {
             </div>
             <section className="grid gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
               <MfaSettingsPanel apiBaseUrl={getApiBaseUrl()} />
+              <SessionManagementPanel apiBaseUrl={getApiBaseUrl()} />
               <DisabledSecurityRow label="Mobil onay" />
               <DisabledSecurityRow label="Güvenilen cihazlar" />
             </section>
