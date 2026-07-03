@@ -32,6 +32,9 @@ import {
   registerUser,
   requestPasswordReset,
   requestEmailVerification,
+  revokeAuthSessionById,
+  revokeAllAuthSessions,
+  listAuthSessions,
   revokeAuthSession,
   unauthorizedAuthRequest,
   updateMfaPreference,
@@ -48,6 +51,9 @@ import {
   type PasswordChangeResponse,
   type PasswordResetConfirmResponse,
   type PasswordResetRequestResponse,
+  type AuthSessionRevokeResponse,
+  type AuthSessionsResponse,
+  type AuthSessionsRevokeAllResponse,
   type AuthSessionRequestMeta,
   type AuthTokenOptions,
   type SafeAuthProfile,
@@ -110,6 +116,10 @@ type BackofficeCsrfRouteResponse =
   | ReturnType<typeof adminForbidden>;
 
 type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
+
+type AuthSessionsRouteResponse = AuthSessionsResponse;
+type AuthSessionRevokeRouteResponse = AuthSessionRevokeResponse | ReturnType<typeof invalidAuthRequest>;
+type AuthSessionsRevokeAllRouteResponse = AuthSessionsRevokeAllResponse;
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -358,6 +368,67 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
     return reply.status(200).send(buildLogoutAuthResponse());
   });
+
+  app.get<{ Reply: AuthSessionsRouteResponse }>("/auth/sessions", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return listAuthSessions(
+      app,
+      currentUser.userId,
+      readRefreshTokenCookie(request.headers.cookie)
+    );
+  });
+
+  app.post<{ Reply: AuthSessionsRevokeAllRouteResponse }>(
+    "/auth/sessions/revoke-all",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const response = await revokeAllAuthSessions(app, currentUser.userId);
+
+      clearPublicAuthCookies(reply);
+
+      return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Params: { sessionId: string }; Reply: AuthSessionRevokeRouteResponse }>(
+    "/auth/sessions/:sessionId/revoke",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const result = await revokeAuthSessionById(
+        app,
+        currentUser.userId,
+        request.params.sessionId,
+        readRefreshTokenCookie(request.headers.cookie)
+      );
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(result.response);
+      }
+
+      const response = result.response;
+
+      if (response.ok && response.data.currentSessionRevoked) {
+        clearPublicAuthCookies(reply);
+      }
+
+      return reply.status(200).send(response);
+    }
+  );
 
   app.post<{ Body: unknown; Reply: BackofficeAuthRouteResponse }>(
     "/auth/backoffice/login",

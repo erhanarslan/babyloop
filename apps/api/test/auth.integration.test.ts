@@ -12,7 +12,7 @@ import {
   sessions,
   users
 } from "@babyloop/database/schema";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   REALTIME_EVENTS,
@@ -1062,6 +1062,216 @@ describe("auth API", () => {
     expect(nextPublicCsrfCookie).toContain("Max-Age=");
     expect(getCookieValue(nextPublicCsrfCookie)).toEqual(expect.any(String));
     expect(getCookieValue(nextPublicCsrfCookie)).not.toBe(getCookieValue(firstPublicCsrfCookie));
+  });
+
+
+  it("lists active auth sessions without exposing refresh tokens", async () => {
+    await createUser(app, {
+      email: "session-list@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      headers: {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X) BabyLoopWeb"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "session-list@example.com",
+        password: "Password123!"
+      }
+    });
+    const publicAccessCookie = getPublicAccessSetCookie(loginResponse);
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${toCookieHeader(publicAccessCookie)}; ${toCookieHeader(refreshCookie)}`
+      },
+      method: "GET",
+      url: "/api/v1/auth/sessions"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        currentSessionId: expect.any(String),
+        sessions: expect.arrayContaining([
+          expect.objectContaining({
+            current: true,
+            deviceLabel: "Mac tarayıcı",
+            id: expect.any(String),
+            expiresAt: expect.any(String)
+          })
+        ])
+      }
+    });
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("refresh_token");
+    expect(response.body).not.toContain("refreshTokenHash");
+    expect(response.body).not.toContain("passwordHash");
+    expect(response.body).not.toContain("accessToken");
+  });
+
+  it("revokes one auth session owned by the current user", async () => {
+    await createUser(app, {
+      email: "session-revoke@example.com",
+      password: "Password123!"
+    });
+
+    const firstLogin = await app.inject({
+      headers: {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X) BabyLoopWeb"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "session-revoke@example.com",
+        password: "Password123!"
+      }
+    });
+    const secondLogin = await app.inject({
+      headers: {
+        "user-agent": "BabyLoopMobile Android"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "session-revoke@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const secondRefreshCookie = getRefreshSetCookie(secondLogin);
+    const secondRefreshToken = getCookieValue(secondRefreshCookie);
+    const [secondSession] = await app.db
+      .select({
+        id: sessions.id
+      })
+      .from(sessions)
+      .where(eq(sessions.refreshTokenHash, hashRefreshToken(secondRefreshToken)))
+      .limit(1);
+
+    expect(secondSession).toBeDefined();
+
+    const revokeResponse = await app.inject({
+      headers: authHeader(firstLogin.json().data.accessToken),
+      method: "POST",
+      url: `/api/v1/auth/sessions/${secondSession!.id}/revoke`
+    });
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(secondRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+
+    expect(revokeResponse.statusCode).toBe(200);
+    expect(revokeResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        currentSessionRevoked: false,
+        revoked: true,
+        sessionId: secondSession!.id
+      }
+    });
+    expect(refreshResponse.statusCode).toBe(401);
+    expect(revokeResponse.body).not.toContain("refreshToken");
+    expect(revokeResponse.body).not.toContain("passwordHash");
+  });
+
+  it("revokes all auth sessions and clears public auth cookies", async () => {
+    await createUser(app, {
+      email: "session-revoke-all@example.com",
+      password: "Password123!"
+    });
+
+    const firstLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "session-revoke-all@example.com",
+        password: "Password123!"
+      }
+    });
+    const secondLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "session-revoke-all@example.com",
+        password: "Password123!"
+      }
+    });
+    const firstPublicAccessCookie = getPublicAccessSetCookie(firstLogin);
+    const firstRefreshCookie = getRefreshSetCookie(firstLogin);
+    const secondRefreshCookie = getRefreshSetCookie(secondLogin);
+
+    const revokeAllResponse = await app.inject({
+      headers: {
+        cookie: `${toCookieHeader(firstPublicAccessCookie)}; ${toCookieHeader(firstRefreshCookie)}`
+      },
+      method: "POST",
+      url: "/api/v1/auth/sessions/revoke-all"
+    });
+    const firstRefreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(firstRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+    const secondRefreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(secondRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+    const activeSessions = await app.db
+      .select({
+        id: sessions.id
+      })
+      .from(sessions)
+      .where(and(isNull(sessions.revokedAt), gt(sessions.expiresAt, new Date())));
+
+    expect(revokeAllResponse.statusCode).toBe(200);
+    expect(revokeAllResponse.json()).toMatchObject({
+      ok: true,
+      data: {
+        revokedCount: expect.any(Number)
+      }
+    });
+    expect(revokeAllResponse.json().data.revokedCount).toBeGreaterThanOrEqual(2);
+    expect(getRefreshSetCookie(revokeAllResponse)).toContain("Max-Age=0");
+    expect(getPublicAccessSetCookie(revokeAllResponse)).toContain("Max-Age=0");
+    expect(getPublicCsrfSetCookie(revokeAllResponse)).toContain("Max-Age=0");
+    expect(firstRefreshResponse.statusCode).toBe(401);
+    expect(secondRefreshResponse.statusCode).toBe(401);
+    expect(activeSessions).toHaveLength(0);
+    expect(revokeAllResponse.body).not.toContain("refreshToken");
+    expect(revokeAllResponse.body).not.toContain("passwordHash");
+  });
+
+  it("requires auth for session management endpoints", async () => {
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/sessions"
+    });
+    const revokeAllResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/sessions/revoke-all"
+    });
+    const revokeOneResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/sessions/00000000-0000-4000-8000-000000000000/revoke"
+    });
+
+    expect(listResponse.statusCode).toBe(401);
+    expect(revokeAllResponse.statusCode).toBe(401);
+    expect(revokeOneResponse.statusCode).toBe(401);
   });
 
   it("logout clears public access and CSRF cookies", async () => {

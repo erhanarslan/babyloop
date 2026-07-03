@@ -9,7 +9,7 @@ import {
 } from "@babyloop/database/schema";
 import type { Database } from "@babyloop/database";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -140,6 +140,32 @@ export type MfaStatusResponse = ApiResponse<MfaStatusPayload>;
 
 export type MfaPreferenceResponse = ApiResponse<MfaStatusPayload & {
   updated: true;
+}>;
+
+export type SafeAuthSession = {
+  id: string;
+  current: boolean;
+  deviceLabel: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+};
+
+export type AuthSessionsResponse = ApiResponse<{
+  currentSessionId: string | null;
+  sessions: SafeAuthSession[];
+}>;
+
+export type AuthSessionRevokeResponse = ApiResponse<{
+  currentSessionRevoked: boolean;
+  revoked: true;
+  sessionId: string;
+}>;
+
+export type AuthSessionsRevokeAllResponse = ApiResponse<{
+  revokedCount: number;
 }>;
 
 type AuthSessionCreation = {
@@ -978,6 +1004,139 @@ export async function revokeAuthSession(app: FastifyInstance, refreshToken: stri
     );
 }
 
+export async function listAuthSessions(
+  app: FastifyInstance,
+  userId: string,
+  currentRefreshToken: string | null
+): Promise<AuthSessionsResponse> {
+  const now = new Date();
+  const currentRefreshTokenHash = currentRefreshToken ? hashRefreshToken(currentRefreshToken) : null;
+  const rows = await app.db
+    .select({
+      id: sessions.id,
+      refreshTokenHash: sessions.refreshTokenHash,
+      expiresAt: sessions.expiresAt,
+      userAgent: sessions.userAgent,
+      ipAddress: sessions.ipAddress,
+      createdAt: sessions.createdAt,
+      updatedAt: sessions.updatedAt
+    })
+    .from(sessions)
+    .where(and(
+      eq(sessions.userId, userId),
+      isNull(sessions.revokedAt),
+      gt(sessions.expiresAt, now)
+    ))
+    .orderBy(desc(sessions.updatedAt), desc(sessions.createdAt))
+    .limit(50);
+
+  const currentSessionId =
+    currentRefreshTokenHash
+      ? rows.find((row) => row.refreshTokenHash === currentRefreshTokenHash)?.id ?? null
+      : null;
+
+  return {
+    ok: true,
+    data: {
+      currentSessionId,
+      sessions: rows.map((row) => serializeAuthSession(row, currentRefreshTokenHash))
+    }
+  };
+}
+
+export async function revokeAuthSessionById(
+  app: FastifyInstance,
+  userId: string,
+  sessionId: string,
+  currentRefreshToken: string | null
+): Promise<
+  | { status: "ok"; response: AuthSessionRevokeResponse }
+  | { status: "not_found"; response: ApiFailure }
+> {
+  if (!isUuid(sessionId)) {
+    return {
+      status: "not_found",
+      response: authSessionNotFound()
+    };
+  }
+
+  const now = new Date();
+  const currentRefreshTokenHash = currentRefreshToken ? hashRefreshToken(currentRefreshToken) : null;
+
+  const [targetSession] = await app.db
+    .select({
+      id: sessions.id,
+      refreshTokenHash: sessions.refreshTokenHash
+    })
+    .from(sessions)
+    .where(and(
+      eq(sessions.id, sessionId),
+      eq(sessions.userId, userId),
+      isNull(sessions.revokedAt),
+      gt(sessions.expiresAt, now)
+    ))
+    .limit(1);
+
+  if (!targetSession) {
+    return {
+      status: "not_found",
+      response: authSessionNotFound()
+    };
+  }
+
+  await app.db
+    .update(sessions)
+    .set({
+      revokedAt: now,
+      updatedAt: now
+    })
+    .where(and(
+      eq(sessions.id, targetSession.id),
+      eq(sessions.userId, userId),
+      isNull(sessions.revokedAt)
+    ));
+
+  return {
+    status: "ok",
+    response: {
+      ok: true,
+      data: {
+        currentSessionRevoked: currentRefreshTokenHash === targetSession.refreshTokenHash,
+        revoked: true,
+        sessionId: targetSession.id
+      }
+    }
+  };
+}
+
+export async function revokeAllAuthSessions(
+  app: FastifyInstance,
+  userId: string
+): Promise<AuthSessionsRevokeAllResponse> {
+  const now = new Date();
+  const revokedSessions = await app.db
+    .update(sessions)
+    .set({
+      revokedAt: now,
+      updatedAt: now
+    })
+    .where(and(
+      eq(sessions.userId, userId),
+      isNull(sessions.revokedAt),
+      gt(sessions.expiresAt, now)
+    ))
+    .returning({
+      id: sessions.id
+    });
+
+  return {
+    ok: true,
+    data: {
+      revokedCount: revokedSessions.length
+    }
+  };
+}
+
 export function buildLogoutAuthResponse(): LogoutAuthResponse {
   return {
     ok: true,
@@ -1072,6 +1231,78 @@ function buildMfaPreferenceResponse(mfaEnabled: boolean): MfaPreferenceResponse 
   };
 }
 
+function serializeAuthSession(
+  row: {
+    id: string;
+    refreshTokenHash: string;
+    expiresAt: Date;
+    userAgent: string | null;
+    ipAddress: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  currentRefreshTokenHash: string | null
+): SafeAuthSession {
+  const userAgent = sanitizeSessionText(row.userAgent, 180);
+  const ipAddress = sanitizeSessionText(row.ipAddress, 80);
+
+  return {
+    id: row.id,
+    current: currentRefreshTokenHash === row.refreshTokenHash,
+    deviceLabel: buildDeviceLabel(userAgent),
+    userAgent,
+    ipAddress,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    expiresAt: row.expiresAt.toISOString()
+  };
+}
+
+function buildDeviceLabel(userAgent: string | null): string {
+  if (!userAgent) {
+    return "Bilinmeyen cihaz";
+  }
+
+  const value = userAgent.toLowerCase();
+
+  if (value.includes("android")) {
+    return "Android cihaz";
+  }
+
+  if (value.includes("iphone") || value.includes("ipad") || value.includes("ios")) {
+    return "iOS cihaz";
+  }
+
+  if (value.includes("macintosh") || value.includes("mac os")) {
+    return "Mac tarayıcı";
+  }
+
+  if (value.includes("windows")) {
+    return "Windows tarayıcı";
+  }
+
+  if (value.includes("linux")) {
+    return "Linux tarayıcı";
+  }
+
+  return "Web oturumu";
+}
+
+function sanitizeSessionText(value: string | null, maxLength: number): string | null {
+  if (!value || value.trim().length === 0) {
+    return null;
+  }
+
+  return safePlainTextFallback(value, "Bilinmeyen", {
+    maxLength,
+    minLength: 1
+  });
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
+}
+
 export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   return {
     ok: true,
@@ -1155,6 +1386,16 @@ function invalidMfaCode(): ApiFailure {
     error: {
       code: "MFA_CODE_INVALID",
       message: "MFA code is invalid or expired."
+    }
+  };
+}
+
+function authSessionNotFound(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "AUTH_SESSION_NOT_FOUND",
+      message: "Auth session was not found."
     }
   };
 }
