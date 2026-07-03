@@ -24,6 +24,11 @@ git diff --check
 section "Release artifact guard"
 pnpm release:artifacts
 
+if [ "${RUN_DEPLOYMENT_CHECK:-0}" = "1" ]; then
+  section "Deployment readiness check"
+  node scripts/check-deployment-readiness.mjs --target="${DEPLOYMENT_READINESS_TARGET:-staging}"
+fi
+
 section "API typecheck"
 pnpm --filter @babyloop/api typecheck
 
