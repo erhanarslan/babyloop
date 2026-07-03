@@ -6,6 +6,7 @@ import {
   favorites,
   listingImages,
   listings,
+  loginApprovalChallenges,
   mfaOtpChallenges,
   passwordResetTokens,
   profiles,
@@ -1272,6 +1273,311 @@ describe("auth API", () => {
     expect(listResponse.statusCode).toBe(401);
     expect(revokeAllResponse.statusCode).toBe(401);
     expect(revokeOneResponse.statusCode).toBe(401);
+  });
+
+  it("returns and updates mobile login approval preference with the current password", async () => {
+    const user = await createUser(app, {
+      email: "login-approval-preference@example.com",
+      password: "Password123!"
+    });
+
+    const initialStatus = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "GET",
+      url: "/api/v1/auth/login-approval/status"
+    });
+
+    const wrongPassword = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "WrongPassword123!"
+      },
+      url: "/api/v1/auth/login-approval/enable"
+    });
+
+    const enable = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/login-approval/enable"
+    });
+
+    const enabledStatus = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "GET",
+      url: "/api/v1/auth/login-approval/status"
+    });
+
+    const disable = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/login-approval/disable"
+    });
+
+    const [userRow] = await app.db
+      .select({ mobileLoginApprovalEnabled: users.mobileLoginApprovalEnabled })
+      .from(users)
+      .where(eq(users.id, user.user.id));
+
+    expect(initialStatus.statusCode).toBe(200);
+    expect(initialStatus.json()).toEqual({
+      ok: true,
+      data: {
+        delivery: "in_app",
+        method: "mobile_approval",
+        mobileLoginApprovalEnabled: false
+      }
+    });
+
+    expect(wrongPassword.statusCode).toBe(401);
+    expect(wrongPassword.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_CREDENTIALS"
+      }
+    });
+
+    expect(enable.statusCode).toBe(200);
+    expect(enable.json()).toEqual({
+      ok: true,
+      data: {
+        delivery: "in_app",
+        method: "mobile_approval",
+        mobileLoginApprovalEnabled: true,
+        updated: true
+      }
+    });
+
+    expect(enabledStatus.json().data.mobileLoginApprovalEnabled).toBe(true);
+
+    expect(disable.statusCode).toBe(200);
+    expect(disable.json().data).toMatchObject({
+      delivery: "in_app",
+      method: "mobile_approval",
+      mobileLoginApprovalEnabled: false,
+      updated: true
+    });
+
+    expect(userRow?.mobileLoginApprovalEnabled).toBe(false);
+
+    for (const response of [initialStatus, wrongPassword, enable, enabledStatus, disable]) {
+      expect(response.body).not.toContain("passwordHash");
+      expect(response.body).not.toContain("password_hash");
+      expect(response.body).not.toContain("currentPassword");
+      expect(response.body).not.toContain("refreshToken");
+      expect(response.body).not.toContain("refresh_token");
+      expect(response.body).not.toContain("accessToken");
+    }
+  });
+
+  it("lists and resolves pending mobile login approval challenges without exposing secrets", async () => {
+    const user = await createUser(app, {
+      email: "login-approval-list@example.com",
+      password: "Password123!"
+    });
+    const otherUser = await createUser(app, {
+      email: "login-approval-other@example.com",
+      password: "Password123!"
+    });
+
+    const loginResponse = await app.inject({
+      method: "POST",
+      payload: {
+        email: "login-approval-list@example.com",
+        password: "Password123!"
+      },
+      url: "/api/v1/auth/login"
+    });
+    const refreshCookie = getRefreshSetCookie(loginResponse);
+
+    const [pendingApproval] = await app.db
+      .insert(loginApprovalChallenges)
+      .values({
+        approvalTokenHash: "pending-approval-token-hash",
+        expiresAt: new Date(Date.now() + 60_000),
+        requestIpAddress: "10.0.0.10",
+        requestUserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X) BabyLoopWeb",
+        status: "pending",
+        userId: user.user.id
+      })
+      .returning({ id: loginApprovalChallenges.id });
+
+    const [denyApproval] = await app.db
+      .insert(loginApprovalChallenges)
+      .values({
+        approvalTokenHash: "deny-approval-token-hash",
+        expiresAt: new Date(Date.now() + 60_000),
+        requestIpAddress: "10.0.0.11",
+        requestUserAgent: "BabyLoopMobile Android",
+        status: "pending",
+        userId: user.user.id
+      })
+      .returning({ id: loginApprovalChallenges.id });
+
+    await app.db.insert(loginApprovalChallenges).values([
+      {
+        approvalTokenHash: "expired-approval-token-hash",
+        expiresAt: new Date(Date.now() - 60_000),
+        requestIpAddress: "10.0.0.12",
+        requestUserAgent: "Expired Browser",
+        status: "pending",
+        userId: user.user.id
+      },
+      {
+        approvalTokenHash: "other-user-approval-token-hash",
+        expiresAt: new Date(Date.now() + 60_000),
+        requestIpAddress: "10.0.0.13",
+        requestUserAgent: "Other Browser",
+        status: "pending",
+        userId: otherUser.user.id
+      }
+    ]);
+
+    const list = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "GET",
+      url: "/api/v1/auth/login-approvals"
+    });
+
+    const approve = await app.inject({
+      headers: {
+        ...authHeader(user.accessToken),
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: `/api/v1/auth/login-approvals/${pendingApproval!.id}/approve`
+    });
+
+    const deny = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: `/api/v1/auth/login-approvals/${denyApproval!.id}/deny`
+    });
+
+    const missing = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: "/api/v1/auth/login-approvals/00000000-0000-4000-8000-000000000000/approve"
+    });
+
+    const resolvedRows = await app.db
+      .select({
+        id: loginApprovalChallenges.id,
+        status: loginApprovalChallenges.status,
+        resolvedAt: loginApprovalChallenges.resolvedAt,
+        approvedBySessionId: loginApprovalChallenges.approvedBySessionId
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.userId, user.user.id))
+      .orderBy(asc(loginApprovalChallenges.createdAt));
+
+    expect(list.statusCode).toBe(200);
+    expect(list.json()).toMatchObject({
+      ok: true,
+      data: {
+        approvals: expect.arrayContaining([
+          expect.objectContaining({
+            id: pendingApproval!.id,
+            status: "pending",
+            deviceLabel: "Mac tarayıcı",
+            requestIpAddress: "10.0.0.10"
+          }),
+          expect.objectContaining({
+            id: denyApproval!.id,
+            status: "pending",
+            deviceLabel: "Android cihaz",
+            requestIpAddress: "10.0.0.11"
+          })
+        ])
+      }
+    });
+    expect(list.json().data.approvals).toHaveLength(2);
+
+    expect(approve.statusCode).toBe(200);
+    expect(approve.json()).toEqual({
+      ok: true,
+      data: {
+        approvalId: pendingApproval!.id,
+        resolved: true,
+        status: "approved"
+      }
+    });
+
+    expect(deny.statusCode).toBe(200);
+    expect(deny.json()).toEqual({
+      ok: true,
+      data: {
+        approvalId: denyApproval!.id,
+        resolved: true,
+        status: "denied"
+      }
+    });
+
+    expect(missing.statusCode).toBe(404);
+    expect(resolvedRows.find((row) => row.id === pendingApproval!.id)).toMatchObject({
+      status: "approved",
+      resolvedAt: expect.any(Date),
+      approvedBySessionId: expect.any(String)
+    });
+    expect(resolvedRows.find((row) => row.id === denyApproval!.id)).toMatchObject({
+      status: "denied",
+      resolvedAt: expect.any(Date),
+      approvedBySessionId: null
+    });
+
+    for (const response of [list, approve, deny, missing]) {
+      expect(response.body).not.toContain("approvalTokenHash");
+      expect(response.body).not.toContain("approval_token_hash");
+      expect(response.body).not.toContain("passwordHash");
+      expect(response.body).not.toContain("refreshToken");
+      expect(response.body).not.toContain("accessToken");
+    }
+  });
+
+  it("requires authentication for mobile login approval endpoints", async () => {
+    const status = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/login-approval/status"
+    });
+    const enable = await app.inject({
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/login-approval/enable"
+    });
+    const disable = await app.inject({
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/login-approval/disable"
+    });
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/login-approvals"
+    });
+    const approve = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login-approvals/00000000-0000-4000-8000-000000000000/approve"
+    });
+    const deny = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login-approvals/00000000-0000-4000-8000-000000000000/deny"
+    });
+
+    expect(status.statusCode).toBe(401);
+    expect(enable.statusCode).toBe(401);
+    expect(disable.statusCode).toBe(401);
+    expect(list.statusCode).toBe(401);
+    expect(approve.statusCode).toBe(401);
+    expect(deny.statusCode).toBe(401);
   });
 
   it("logout clears public access and CSRF cookies", async () => {

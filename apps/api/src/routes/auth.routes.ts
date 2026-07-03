@@ -8,6 +8,7 @@ import {
   emailVerificationConfirmSchema,
   emailVerificationRequestSchema,
   loginBodySchema,
+  loginApprovalPreferenceSchema,
   mfaPreferenceSchema,
   mfaVerifySchema,
   passwordChangeSchema,
@@ -59,6 +60,17 @@ import {
   type SafeAuthProfile,
   type SafeAuthUser
 } from "../services/auth.service.js";
+import {
+  approveLoginApprovalChallenge,
+  denyLoginApprovalChallenge,
+  getLoginApprovalStatus,
+  listPendingLoginApprovals,
+  updateLoginApprovalPreference,
+  type LoginApprovalActionResponse,
+  type LoginApprovalPreferenceResponse,
+  type LoginApprovalsResponse,
+  type LoginApprovalStatusResponse
+} from "../services/login-approval.service.js";
 import { adminForbidden, isBackofficeRole } from "../services/admin-context.service.js";
 import {
   buildGoogleAuthorizationUrl,
@@ -120,6 +132,15 @@ type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
 type AuthSessionsRouteResponse = AuthSessionsResponse;
 type AuthSessionRevokeRouteResponse = AuthSessionRevokeResponse | ReturnType<typeof invalidAuthRequest>;
 type AuthSessionsRevokeAllRouteResponse = AuthSessionsRevokeAllResponse;
+
+type LoginApprovalStatusRouteResponse = LoginApprovalStatusResponse;
+type LoginApprovalPreferenceRouteResponse =
+  | LoginApprovalPreferenceResponse
+  | ReturnType<typeof invalidAuthRequest>;
+type LoginApprovalsRouteResponse = LoginApprovalsResponse;
+type LoginApprovalActionRouteResponse =
+  | LoginApprovalActionResponse
+  | ReturnType<typeof invalidAuthRequest>;
 
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
@@ -354,6 +375,130 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       });
 
       return reply.status(200).send(response);
+    }
+  );
+
+  app.get<{ Reply: LoginApprovalStatusRouteResponse }>(
+    "/auth/login-approval/status",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      return getLoginApprovalStatus(app, currentUser.userId);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: LoginApprovalPreferenceRouteResponse }>(
+    "/auth/login-approval/enable",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = loginApprovalPreferenceSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await updateLoginApprovalPreference(app, currentUser.userId, parsedBody.data, true);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: LoginApprovalPreferenceRouteResponse }>(
+    "/auth/login-approval/disable",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = loginApprovalPreferenceSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await updateLoginApprovalPreference(app, currentUser.userId, parsedBody.data, false);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.get<{ Reply: LoginApprovalsRouteResponse }>(
+    "/auth/login-approvals",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      return listPendingLoginApprovals(app, currentUser.userId);
+    }
+  );
+
+  app.post<{ Params: { approvalId: string }; Reply: LoginApprovalActionRouteResponse }>(
+    "/auth/login-approvals/:approvalId/approve",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const result = await approveLoginApprovalChallenge(
+        app,
+        currentUser.userId,
+        request.params.approvalId,
+        readRefreshTokenCookie(request.headers.cookie)
+      );
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Params: { approvalId: string }; Reply: LoginApprovalActionRouteResponse }>(
+    "/auth/login-approvals/:approvalId/deny",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const result = await denyLoginApprovalChallenge(
+        app,
+        currentUser.userId,
+        request.params.approvalId,
+        readRefreshTokenCookie(request.headers.cookie)
+      );
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
     }
   );
 

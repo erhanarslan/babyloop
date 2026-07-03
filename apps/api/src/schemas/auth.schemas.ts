@@ -62,6 +62,12 @@ export const mfaPreferenceSchema = z
   })
   .strict();
 
+export const loginApprovalPreferenceSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128)
+  })
+  .strict();
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
@@ -71,6 +77,7 @@ export type EmailVerificationRequestBody = z.infer<typeof emailVerificationReque
 export type EmailVerificationConfirmBody = z.infer<typeof emailVerificationConfirmSchema>;
 export type MfaVerifyBody = z.infer<typeof mfaVerifySchema>;
 export type MfaPreferenceBody = z.infer<typeof mfaPreferenceSchema>;
+export type LoginApprovalPreferenceBody = z.infer<typeof loginApprovalPreferenceSchema>;
 
 function plainTextField(options: {
   maxLength: number;

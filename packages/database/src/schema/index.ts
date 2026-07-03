@@ -96,6 +96,13 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "system"
 ]);
 
+export const loginApprovalChallengeStatusEnum = pgEnum("login_approval_challenge_status", [
+  "pending",
+  "approved",
+  "denied",
+  "expired"
+]);
+
 export const childProfileNoteTypeEnum = pgEnum("child_profile_note_type", [
   "general",
   "feeding",
@@ -150,6 +157,7 @@ export const users = pgTable(
     email: varchar("email", { length: 320 }).notNull(),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     mfaEnabled: boolean("mfa_enabled").notNull().default(false),
+    mobileLoginApprovalEnabled: boolean("mobile_login_approval_enabled").notNull().default(false),
     passwordHash: text("password_hash").notNull(),
     role: varchar("role", { length: 40 }).notNull().default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -358,6 +366,31 @@ export const mfaOtpChallenges = pgTable(
     index("mfa_otp_challenges_code_hash_idx").on(table.codeHash),
     index("mfa_otp_challenges_user_id_idx").on(table.userId),
     index("mfa_otp_challenges_expires_at_idx").on(table.expiresAt)
+  ]
+);
+
+export const loginApprovalChallenges = pgTable(
+  "login_approval_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    approvalTokenHash: text("approval_token_hash").notNull(),
+    status: loginApprovalChallengeStatusEnum("status").notNull().default("pending"),
+    requestUserAgent: text("request_user_agent"),
+    requestIpAddress: text("request_ip_address"),
+    approvedBySessionId: uuid("approved_by_session_id").references(() => sessions.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("login_approval_challenges_token_hash_unique").on(table.approvalTokenHash),
+    index("login_approval_challenges_user_status_idx").on(table.userId, table.status),
+    index("login_approval_challenges_expires_at_idx").on(table.expiresAt),
+    index("login_approval_challenges_approved_by_session_idx").on(table.approvedBySessionId)
   ]
 );
 
@@ -905,6 +938,7 @@ export const schema = {
   favorites,
   listingImages,
   listings,
+  loginApprovalChallenges,
   messages,
   mfaOtpChallenges,
   moderationActions,
