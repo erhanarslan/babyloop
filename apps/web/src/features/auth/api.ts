@@ -25,6 +25,16 @@ export type PasswordChangePayload = {
   passwordChanged: true;
 };
 
+export type MfaStatusPayload = {
+  delivery: "email";
+  method: "email_otp";
+  mfaEnabled: boolean;
+};
+
+export type MfaPreferencePayload = MfaStatusPayload & {
+  updated: true;
+};
+
 export type EmailVerificationRequestPayload = {
   requested: true;
   devEmailVerificationToken?: string;
@@ -125,6 +135,42 @@ export async function changePassword(
   });
 
   return response.json() as Promise<ApiResponse<PasswordChangePayload>>;
+}
+
+export async function fetchMfaStatus(apiBaseUrl: string): Promise<ApiResponse<MfaStatusPayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/auth/mfa/status");
+
+  return response.json() as Promise<ApiResponse<MfaStatusPayload>>;
+}
+
+export async function enableMfa(
+  apiBaseUrl: string,
+  currentPassword: string
+): Promise<ApiResponse<MfaPreferencePayload>> {
+  return submitMfaPreference(apiBaseUrl, "/api/v1/auth/mfa/enable", currentPassword);
+}
+
+export async function disableMfa(
+  apiBaseUrl: string,
+  currentPassword: string
+): Promise<ApiResponse<MfaPreferencePayload>> {
+  return submitMfaPreference(apiBaseUrl, "/api/v1/auth/mfa/disable", currentPassword);
+}
+
+async function submitMfaPreference(
+  apiBaseUrl: string,
+  path: string,
+  currentPassword: string
+): Promise<ApiResponse<MfaPreferencePayload>> {
+  const response = await authFetch(apiBaseUrl, path, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ currentPassword })
+  });
+
+  return response.json() as Promise<ApiResponse<MfaPreferencePayload>>;
 }
 
 export async function requestEmailVerification(

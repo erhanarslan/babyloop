@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { buildNoIndexMetadata } from "../../../lib/seo";
 import { PageContainer, SiteShell } from "../../../components/ui";
 import { ChangePasswordForm } from "../../../features/auth/change-password-form";
+import { MfaSettingsPanel } from "../../../features/auth/mfa-settings-panel";
 import { getApiBaseUrl } from "../../../lib/api";
 
 export const metadata: Metadata = buildNoIndexMetadata(
@@ -35,14 +36,14 @@ export default function AccountPasswordPage() {
             <div className="rounded-[1.25rem] border border-border/70 bg-background p-4">
               <h1 className="text-2xl font-black tracking-tight text-foreground">Güvenlik ve şifre</h1>
               <p className="mt-1 text-sm font-semibold text-muted-foreground">
-                Şifreni güncelle ve yakında gelecek güvenlik seçeneklerini takip et.
+                Şifreni, e-posta OTP doğrulamasını ve yakında cihaz oturumlarını buradan yönet.
               </p>
             </div>
             <div className="rounded-[1.25rem] border border-border/70 bg-background p-4">
               <ChangePasswordForm apiBaseUrl={getApiBaseUrl()} />
             </div>
             <section className="grid gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
-              <DisabledSecurityRow label="OTP / MFA" />
+              <MfaSettingsPanel apiBaseUrl={getApiBaseUrl()} />
               <DisabledSecurityRow label="Mobil onay" />
               <DisabledSecurityRow label="Güvenilen cihazlar" />
             </section>
