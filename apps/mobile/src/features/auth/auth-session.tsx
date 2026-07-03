@@ -6,6 +6,7 @@ import {
   logoutMobileSession,
   refreshMobileSession,
   submitMobileAuthRequest,
+  verifyMobileMfaLogin,
   type MobileAuthMe,
   type MobileAuthMode,
   type MobileAuthRequest,
@@ -21,6 +22,8 @@ type AuthSessionContextValue = {
   mfaChallenge: MobileMfaChallenge | null;
   login: (payload: MobileAuthRequest) => Promise<boolean>;
   register: (payload: MobileAuthRequest) => Promise<boolean>;
+  verifyMfa: (code: string) => Promise<boolean>;
+  cancelMfa: () => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -74,6 +77,20 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  const applyAuthenticatedPayload = useCallback(async (fallback: MobileAuthMe): Promise<void> => {
+    const me = await fetchMobileCurrentUser();
+
+    if (!me.ok) {
+      setCurrentUser(fallback);
+    } else {
+      setCurrentUser(me.data);
+    }
+
+    setMfaChallenge(null);
+    setError(null);
+    setStatus("authenticated");
+  }, []);
+
   const submit = useCallback(
     async (mode: MobileAuthMode, payload: MobileAuthRequest): Promise<boolean> => {
       setError(null);
@@ -92,25 +109,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         setCurrentUser(null);
         setMfaChallenge(result.data);
         setStatus("mfa_required");
-        setError("Bu hesap için MFA doğrulaması gerekiyor. Mobil MFA doğrulama ekranı sonraki pakette eklenecek.");
+        setError(null);
         return false;
       }
 
-      const me = await fetchMobileCurrentUser();
+      await applyAuthenticatedPayload({
+        user: result.data.user,
+        profile: result.data.profile
+      });
 
-      if (!me.ok) {
-        setCurrentUser({
-          user: result.data.user,
-          profile: result.data.profile
-        });
-      } else {
-        setCurrentUser(me.data);
-      }
-
-      setStatus("authenticated");
       return true;
     },
-    []
+    [applyAuthenticatedPayload]
   );
 
   const login = useCallback(
@@ -122,6 +132,44 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     (payload: MobileAuthRequest) => submit("register", payload),
     [submit]
   );
+
+  const verifyMfa = useCallback(
+    async (code: string): Promise<boolean> => {
+      if (!mfaChallenge) {
+        setStatus("guest");
+        setError("MFA doğrulama isteği bulunamadı. Lütfen yeniden giriş yap.");
+        return false;
+      }
+
+      setError(null);
+
+      const result = await verifyMobileMfaLogin({
+        challengeId: mfaChallenge.challengeId,
+        code: code.trim()
+      });
+
+      if (!result.ok) {
+        setStatus("mfa_required");
+        setError(result.error.message);
+        return false;
+      }
+
+      await applyAuthenticatedPayload({
+        user: result.data.user,
+        profile: result.data.profile
+      });
+
+      return true;
+    },
+    [applyAuthenticatedPayload, mfaChallenge]
+  );
+
+  const cancelMfa = useCallback(() => {
+    setMfaChallenge(null);
+    setCurrentUser(null);
+    setError(null);
+    setStatus("guest");
+  }, []);
 
   const logout = useCallback(async () => {
     await logoutMobileSession();
@@ -139,10 +187,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       mfaChallenge,
       login,
       register,
+      verifyMfa,
+      cancelMfa,
       logout,
       refresh
     }),
-    [currentUser, error, login, logout, mfaChallenge, refresh, register, status]
+    [cancelMfa, currentUser, error, login, logout, mfaChallenge, refresh, register, status, verifyMfa]
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

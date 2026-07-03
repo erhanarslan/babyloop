@@ -16,6 +16,7 @@ import type {
   LoginBody,
   EmailVerificationConfirmBody,
   EmailVerificationRequestBody,
+  MfaPreferenceBody,
   MfaVerifyBody,
   PasswordChangeBody,
   PasswordResetConfirmBody,
@@ -128,6 +129,18 @@ export type EmailVerificationConfirmResponse = ApiResponse<{
 }>;
 
 export type MfaVerifyResponse = ApiResponse<AuthPayload>;
+
+export type MfaStatusPayload = {
+  delivery: "email";
+  method: "email_otp";
+  mfaEnabled: boolean;
+};
+
+export type MfaStatusResponse = ApiResponse<MfaStatusPayload>;
+
+export type MfaPreferenceResponse = ApiResponse<MfaStatusPayload & {
+  updated: true;
+}>;
 
 type AuthSessionCreation = {
   expiresAt: Date;
@@ -385,6 +398,57 @@ export async function verifyMfaLogin(
         role: verified.role
       }
     })
+  };
+}
+
+export async function getMfaStatus(
+  app: FastifyInstance,
+  userId: string
+): Promise<MfaStatusResponse> {
+  const [user] = await app.db
+    .select({
+      mfaEnabled: users.mfaEnabled
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return buildMfaStatusResponse(Boolean(user?.mfaEnabled));
+}
+
+export async function updateMfaPreference(
+  app: FastifyInstance,
+  userId: string,
+  body: MfaPreferenceBody,
+  enabled: boolean
+): Promise<{ status: "ok"; response: MfaPreferenceResponse } | { status: "invalid"; response: ApiFailure }> {
+  const [user] = await app.db
+    .select({
+      id: users.id,
+      passwordHash: users.passwordHash
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+    return {
+      status: "invalid",
+      response: invalidCredentials()
+    };
+  }
+
+  await app.db
+    .update(users)
+    .set({
+      mfaEnabled: enabled,
+      updatedAt: new Date()
+    })
+    .where(eq(users.id, userId));
+
+  return {
+    status: "ok",
+    response: buildMfaPreferenceResponse(enabled)
   };
 }
 
@@ -981,6 +1045,29 @@ function buildMfaChallengeResponse(challengeId: string, devOtpCode?: string): Mf
       challengeId,
       mfaRequired: true,
       ...(devOtpCode ? { devOtpCode } : {})
+    }
+  };
+}
+
+function buildMfaStatusResponse(mfaEnabled: boolean): MfaStatusResponse {
+  return {
+    ok: true,
+    data: {
+      delivery: "email",
+      method: "email_otp",
+      mfaEnabled
+    }
+  };
+}
+
+function buildMfaPreferenceResponse(mfaEnabled: boolean): MfaPreferenceResponse {
+  return {
+    ok: true,
+    data: {
+      delivery: "email",
+      method: "email_otp",
+      mfaEnabled,
+      updated: true
     }
   };
 }

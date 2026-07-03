@@ -38,6 +38,21 @@ export type MobileMfaChallenge = {
   mfaRequired: true;
 };
 
+export type MobileMfaVerifyRequest = {
+  challengeId: string;
+  code: string;
+};
+
+export type MobileMfaStatus = {
+  delivery: "email";
+  method: "email_otp";
+  mfaEnabled: boolean;
+};
+
+export type MobileMfaPreferencePayload = MobileMfaStatus & {
+  updated: true;
+};
+
 export type MobileApiFailure = {
   ok: false;
   error: {
@@ -60,6 +75,10 @@ export type MobileAuthRequest = {
   password: string;
   displayName?: string;
   locationCity?: string;
+};
+
+export type MobileMfaPreferenceRequest = {
+  currentPassword: string;
 };
 
 let memoryAuthToken: string | null = null;
@@ -122,6 +141,31 @@ export async function submitMobileAuthRequest(
   }
 }
 
+export async function verifyMobileMfaLogin(
+  payload: MobileMfaVerifyRequest
+): Promise<MobileApiResponse<MobileAuthPayload>> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/mfa/verify`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const body = await parseApiResponse<MobileAuthPayload>(response);
+
+    if (body.ok) {
+      setMobileAuthToken(body.data.accessToken);
+    }
+
+    return body;
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
 export async function fetchMobileCurrentUser(): Promise<MobileApiResponse<MobileAuthMe>> {
   try {
     const response = await mobileAuthFetch("/api/v1/auth/me");
@@ -164,6 +208,47 @@ export async function logoutMobileSession(): Promise<void> {
     });
   } catch {
     return;
+  }
+}
+
+export async function fetchMobileMfaStatus(): Promise<MobileApiResponse<MobileMfaStatus>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/mfa/status");
+
+    return parseApiResponse<MobileMfaStatus>(response);
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
+export async function enableMobileMfa(
+  payload: MobileMfaPreferenceRequest
+): Promise<MobileApiResponse<MobileMfaPreferencePayload>> {
+  return submitMobileMfaPreference("/api/v1/auth/mfa/enable", payload);
+}
+
+export async function disableMobileMfa(
+  payload: MobileMfaPreferenceRequest
+): Promise<MobileApiResponse<MobileMfaPreferencePayload>> {
+  return submitMobileMfaPreference("/api/v1/auth/mfa/disable", payload);
+}
+
+async function submitMobileMfaPreference(
+  path: string,
+  payload: MobileMfaPreferenceRequest
+): Promise<MobileApiResponse<MobileMfaPreferencePayload>> {
+  try {
+    const response = await mobileAuthFetch(path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return parseApiResponse<MobileMfaPreferencePayload>(response);
+  } catch {
+    return apiUnavailableResponse();
   }
 }
 

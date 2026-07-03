@@ -7,7 +7,11 @@ export type MobileSecurityRow = {
   badge: string;
 };
 
-export function getMobileSecurityRows(): MobileSecurityRow[] {
+export type MobileSecuritySettings = {
+  mfaEnabled?: boolean | null;
+};
+
+export function getMobileSecurityRows(settings: MobileSecuritySettings = {}): MobileSecurityRow[] {
   return [
     {
       title: "Oturum",
@@ -21,17 +25,39 @@ export function getMobileSecurityRows(): MobileSecurityRow[] {
       tone: "neutral",
       badge: "Bilgi"
     },
-    {
-      title: "OTP / MFA",
-      value: "Bağlanacak",
-      tone: "pending",
-      badge: "P1"
-    },
+    buildMfaRow(settings.mfaEnabled ?? null),
     {
       title: "Mobil onay",
-      value: "Bağlanacak",
+      value: "Cihaz onayı ve push güvenlik bildirimi ayrı P1 paketinde tamamlanacak",
       tone: "pending",
       badge: "P1"
     }
   ];
+}
+
+function buildMfaRow(mfaEnabled: boolean | null): MobileSecurityRow {
+  if (mfaEnabled === true) {
+    return {
+      title: "OTP / MFA",
+      value: "E-posta OTP doğrulaması aktif",
+      tone: "success",
+      badge: "Aktif"
+    };
+  }
+
+  if (mfaEnabled === false) {
+    return {
+      title: "OTP / MFA",
+      value: "E-posta OTP doğrulaması kapalı",
+      tone: "neutral",
+      badge: "Kapalı"
+    };
+  }
+
+  return {
+    title: "OTP / MFA",
+    value: "Hesap MFA durumu kontrol ediliyor",
+    tone: "neutral",
+    badge: "Kontrol"
+  };
 }

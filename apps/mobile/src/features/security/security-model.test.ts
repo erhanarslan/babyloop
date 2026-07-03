@@ -1,8 +1,10 @@
 import { getMobileSecurityRows } from "./security-model";
 
 describe("mobile security model", () => {
-  it("shows the active session row and keeps MFA/mobile approval as pending work", () => {
-    expect(getMobileSecurityRows()).toEqual([
+  it("shows MFA as active when email OTP is enabled", () => {
+    const rows = getMobileSecurityRows({ mfaEnabled: true });
+
+    expect(rows).toEqual([
       {
         title: "Oturum",
         value: "Açık",
@@ -17,24 +19,40 @@ describe("mobile security model", () => {
       },
       {
         title: "OTP / MFA",
-        value: "Bağlanacak",
-        tone: "pending",
-        badge: "P1"
+        value: "E-posta OTP doğrulaması aktif",
+        tone: "success",
+        badge: "Aktif"
       },
       {
         title: "Mobil onay",
-        value: "Bağlanacak",
+        value: "Cihaz onayı ve push güvenlik bildirimi ayrı P1 paketinde tamamlanacak",
         tone: "pending",
         badge: "P1"
       }
     ]);
   });
 
-  it("does not imply that unfinished security features are already enabled", () => {
-    const pendingRows = getMobileSecurityRows().filter((row) => row.tone === "pending");
+  it("shows MFA as disabled without implying pending implementation", () => {
+    const mfaRow = getMobileSecurityRows({ mfaEnabled: false }).find((row) => row.title === "OTP / MFA");
 
-    expect(pendingRows).toHaveLength(2);
-    expect(pendingRows.every((row) => row.value === "Bağlanacak")).toBe(true);
-    expect(pendingRows.every((row) => row.badge === "P1")).toBe(true);
+    expect(mfaRow).toEqual({
+      title: "OTP / MFA",
+      value: "E-posta OTP doğrulaması kapalı",
+      tone: "neutral",
+      badge: "Kapalı"
+    });
+  });
+
+  it("keeps only mobile approval as pending work after OTP/MFA is wired", () => {
+    const pendingRows = getMobileSecurityRows({ mfaEnabled: false }).filter((row) => row.tone === "pending");
+
+    expect(pendingRows).toEqual([
+      {
+        title: "Mobil onay",
+        value: "Cihaz onayı ve push güvenlik bildirimi ayrı P1 paketinde tamamlanacak",
+        tone: "pending",
+        badge: "P1"
+      }
+    ]);
   });
 });

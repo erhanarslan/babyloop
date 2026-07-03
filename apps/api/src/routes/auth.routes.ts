@@ -8,6 +8,7 @@ import {
   emailVerificationConfirmSchema,
   emailVerificationRequestSchema,
   loginBodySchema,
+  mfaPreferenceSchema,
   mfaVerifySchema,
   passwordChangeSchema,
   passwordResetConfirmSchema,
@@ -24,6 +25,7 @@ import {
   confirmEmailVerification,
   confirmPasswordReset,
   createAuthSession,
+  getMfaStatus,
   invalidAuthRequest,
   loginUser,
   refreshAuthSession,
@@ -32,6 +34,7 @@ import {
   requestEmailVerification,
   revokeAuthSession,
   unauthorizedAuthRequest,
+  updateMfaPreference,
   verifyMfaLogin,
   type AuthMeResponse,
   type AuthResponse,
@@ -39,6 +42,8 @@ import {
   type EmailVerificationRequestResponse,
   type LogoutAuthResponse,
   type MfaChallengeResponse,
+  type MfaPreferenceResponse,
+  type MfaStatusResponse,
   type MfaVerifyResponse,
   type PasswordChangeResponse,
   type PasswordResetConfirmResponse,
@@ -241,6 +246,71 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       });
 
       return reply.status(200).send(response);
+    }
+  );
+
+  app.get<{ Reply: MfaStatusResponse }>(
+    "/auth/mfa/status",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      return getMfaStatus(app, currentUser.userId);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: MfaPreferenceResponse | ReturnType<typeof invalidAuthRequest> }>(
+    "/auth/mfa/enable",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = mfaPreferenceSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await updateMfaPreference(app, currentUser.userId, parsedBody.data, true);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: MfaPreferenceResponse | ReturnType<typeof invalidAuthRequest> }>(
+    "/auth/mfa/disable",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = mfaPreferenceSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await updateMfaPreference(app, currentUser.userId, parsedBody.data, false);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
+
+      return reply.status(200).send(result.response);
     }
   );
 

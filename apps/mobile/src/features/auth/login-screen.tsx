@@ -10,6 +10,7 @@ export function LoginScreen() {
   const authSession = useAuthSession();
   const [email, setEmail] = useState("demo@babyloop.local");
   const [password, setPassword] = useState("Password123!");
+  const [otpCode, setOtpCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleLogin() {
@@ -29,45 +30,112 @@ export function LoginScreen() {
     }
   }
 
+  async function handleVerifyMfa() {
+    setSubmitting(true);
+
+    try {
+      const ok = await authSession.verifyMfa(otpCode);
+
+      if (ok) {
+        setOtpCode("");
+        router.replace("/account");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const isMfaRequired = authSession.status === "mfa_required" && authSession.mfaChallenge;
+
   return (
     <Screen
       eyebrow="Auth"
-      title="Hesabına giriş yap"
-      subtitle="Favoriler, mesajlar ve ilan yönetimi için BabyLoop hesabını kullan."
+      title={isMfaRequired ? "OTP doğrulaması" : "Hesabına giriş yap"}
+      subtitle={
+        isMfaRequired
+          ? "Hesabın için e-posta OTP doğrulaması gerekiyor."
+          : "Favoriler, mesajlar ve ilan yönetimi için BabyLoop hesabını kullan."
+      }
     >
       <View style={styles.card}>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder="E-posta"
-          placeholderTextColor={colors.subtle}
-          style={styles.input}
-          value={email}
-        />
+        {isMfaRequired ? (
+          <>
+            <Text style={styles.mfaTitle}>E-postana gönderilen 6 haneli kodu gir</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="number-pad"
+              maxLength={6}
+              onChangeText={(value) => setOtpCode(value.replace(/\\D/gu, "").slice(0, 6))}
+              placeholder="000000"
+              placeholderTextColor={colors.subtle}
+              style={styles.input}
+              value={otpCode}
+            />
 
-        <TextInput
-          onChangeText={setPassword}
-          placeholder="Şifre"
-          placeholderTextColor={colors.subtle}
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
+            <Pressable
+              disabled={submitting || otpCode.length !== 6}
+              onPress={handleVerifyMfa}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed || submitting || otpCode.length !== 6 ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {submitting ? "Doğrulanıyor..." : "OTP kodunu doğrula"}
+              </Text>
+            </Pressable>
 
-        <Pressable
-          disabled={submitting}
-          onPress={handleLogin}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed || submitting ? styles.pressed : null
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>
-            {submitting ? "Giriş yapılıyor..." : "Giriş yap"}
-          </Text>
-        </Pressable>
+            <Pressable
+              disabled={submitting}
+              onPress={() => {
+                setOtpCode("");
+                authSession.cancelMfa();
+              }}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed || submitting ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>Girişe geri dön</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="E-posta"
+              placeholderTextColor={colors.subtle}
+              style={styles.input}
+              value={email}
+            />
+
+            <TextInput
+              onChangeText={setPassword}
+              placeholder="Şifre"
+              placeholderTextColor={colors.subtle}
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+
+            <Pressable
+              disabled={submitting}
+              onPress={handleLogin}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed || submitting ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {submitting ? "Giriş yapılıyor..." : "Giriş yap"}
+              </Text>
+            </Pressable>
+          </>
+        )}
 
         {authSession.error ? (
           <View style={styles.errorBox}>
@@ -76,13 +144,17 @@ export function LoginScreen() {
         ) : null}
 
         <Paragraph>
-          Oturum uygulama açıkken kullanılabilir. Uygulamayı kapatırsan yeniden giriş yapman gerekebilir.
+          {isMfaRequired
+            ? "OTP kodu kısa süre geçerlidir. Kod hatalıysa yeniden giriş deneyerek yeni kod isteyebilirsin."
+            : "Oturum tokenı cihazda SecureStore ile saklanır; düz AsyncStorage kullanılmaz."}
         </Paragraph>
       </View>
 
-      <Link href="/register" style={styles.link}>
-        Hesap oluştur
-      </Link>
+      {!isMfaRequired ? (
+        <Link href="/register" style={styles.link}>
+          Hesap oluştur
+        </Link>
+      ) : null}
 
       <Link href="/" style={styles.linkSecondary}>
         Keşfe dön
@@ -111,6 +183,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13
   },
+  mfaTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 22
+  },
   primaryButton: {
     alignItems: "center",
     borderRadius: 999,
@@ -119,6 +197,19 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.primaryForeground,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.background,
+    paddingVertical: 13
+  },
+  secondaryButtonText: {
+    color: colors.primaryDark,
     fontSize: 15,
     fontWeight: "900"
   },

@@ -2638,6 +2638,131 @@ describe("auth API", () => {
     }
   });
 
+  it("returns and updates MFA preference with the current password", async () => {
+    const user = await createUser(app, {
+      email: "mfa-preference@example.com",
+      password: "Password123!"
+    });
+
+    const initialStatus = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "GET",
+      url: "/api/v1/auth/mfa/status"
+    });
+
+    const wrongPassword = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "WrongPassword123!"
+      },
+      url: "/api/v1/auth/mfa/enable"
+    });
+
+    const enable = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/mfa/enable"
+    });
+
+    const enabledStatus = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "GET",
+      url: "/api/v1/auth/mfa/status"
+    });
+
+    const disable = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/mfa/disable"
+    });
+
+    const [userRow] = await app.db
+      .select({ mfaEnabled: users.mfaEnabled })
+      .from(users)
+      .where(eq(users.id, user.user.id));
+
+    expect(initialStatus.statusCode).toBe(200);
+    expect(initialStatus.json()).toEqual({
+      ok: true,
+      data: {
+        delivery: "email",
+        method: "email_otp",
+        mfaEnabled: false
+      }
+    });
+
+    expect(wrongPassword.statusCode).toBe(401);
+    expect(wrongPassword.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_CREDENTIALS"
+      }
+    });
+
+    expect(enable.statusCode).toBe(200);
+    expect(enable.json()).toEqual({
+      ok: true,
+      data: {
+        delivery: "email",
+        method: "email_otp",
+        mfaEnabled: true,
+        updated: true
+      }
+    });
+
+    expect(enabledStatus.json().data.mfaEnabled).toBe(true);
+
+    expect(disable.statusCode).toBe(200);
+    expect(disable.json().data).toMatchObject({
+      delivery: "email",
+      method: "email_otp",
+      mfaEnabled: false,
+      updated: true
+    });
+
+    expect(userRow?.mfaEnabled).toBe(false);
+
+    for (const response of [initialStatus, wrongPassword, enable, enabledStatus, disable]) {
+      expect(response.body).not.toContain("passwordHash");
+      expect(response.body).not.toContain("password_hash");
+      expect(response.body).not.toContain("currentPassword");
+      expect(response.body).not.toContain("refreshToken");
+      expect(response.body).not.toContain("refresh_token");
+    }
+  });
+
+  it("requires authentication for MFA preference endpoints", async () => {
+    const status = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/mfa/status"
+    });
+    const enable = await app.inject({
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/mfa/enable"
+    });
+    const disable = await app.inject({
+      method: "POST",
+      payload: {
+        currentPassword: "Password123!"
+      },
+      url: "/api/v1/auth/mfa/disable"
+    });
+
+    expect(status.statusCode).toBe(401);
+    expect(enable.statusCode).toBe(401);
+    expect(disable.statusCode).toBe(401);
+  });
+
   it("returns auth/me with a valid token", async () => {
     const user = await createUser(app);
 
