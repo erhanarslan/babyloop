@@ -81,6 +81,32 @@ export type MobileMfaPreferenceRequest = {
   currentPassword: string;
 };
 
+export type MobileAuthSession = {
+  id: string;
+  current: boolean;
+  deviceLabel: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+};
+
+export type MobileAuthSessionsPayload = {
+  currentSessionId: string | null;
+  sessions: MobileAuthSession[];
+};
+
+export type MobileAuthSessionRevokePayload = {
+  currentSessionRevoked: boolean;
+  revoked: true;
+  sessionId: string;
+};
+
+export type MobileAuthSessionsRevokeAllPayload = {
+  revokedCount: number;
+};
+
 let memoryAuthToken: string | null = null;
 let cachedPublicCsrfToken: string | null = null;
 let publicCsrfTokenPromise: Promise<string | null> | null = null;
@@ -233,6 +259,42 @@ export async function disableMobileMfa(
   return submitMobileMfaPreference("/api/v1/auth/mfa/disable", payload);
 }
 
+export async function fetchMobileAuthSessions(): Promise<MobileApiResponse<MobileAuthSessionsPayload>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/sessions");
+
+    return parseApiResponse<MobileAuthSessionsPayload>(response);
+  } catch {
+    return mobileApiUnavailable();
+  }
+}
+
+export async function revokeMobileAuthSession(
+  sessionId: string
+): Promise<MobileApiResponse<MobileAuthSessionRevokePayload>> {
+  try {
+    const response = await mobileAuthFetch(`/api/v1/auth/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+      method: "POST"
+    });
+
+    return parseApiResponse<MobileAuthSessionRevokePayload>(response);
+  } catch {
+    return mobileApiUnavailable();
+  }
+}
+
+export async function revokeAllMobileAuthSessions(): Promise<MobileApiResponse<MobileAuthSessionsRevokeAllPayload>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/sessions/revoke-all", {
+      method: "POST"
+    });
+
+    return parseApiResponse<MobileAuthSessionsRevokeAllPayload>(response);
+  } catch {
+    return mobileApiUnavailable();
+  }
+}
+
 async function submitMobileMfaPreference(
   path: string,
   payload: MobileMfaPreferenceRequest
@@ -333,6 +395,16 @@ async function fetchPublicCsrfToken(): Promise<string | null> {
     cachedPublicCsrfToken = null;
     return null;
   }
+}
+
+function mobileApiUnavailable<T>(): MobileApiResponse<T> {
+  return {
+    ok: false,
+    error: {
+      code: "API_UNAVAILABLE",
+      message: "API is unavailable."
+    }
+  };
 }
 
 async function parseApiResponse<T>(response: Response): Promise<MobileApiResponse<T>> {

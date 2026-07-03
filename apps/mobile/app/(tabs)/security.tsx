@@ -6,12 +6,20 @@ import { useAuthSession } from "../../src/features/auth/auth-session";
 import {
   disableMobileMfa,
   enableMobileMfa,
-  fetchMobileMfaStatus
+  fetchMobileAuthSessions,
+  fetchMobileMfaStatus,
+  revokeAllMobileAuthSessions,
+  revokeMobileAuthSession,
+  type MobileAuthSession
 } from "../../src/features/auth/auth-api";
 import {
   getMobileSecurityRows,
   type MobileSecurityRowTone
 } from "../../src/features/security/security-model";
+import {
+  buildMobileSessionCards,
+  getMobileSessionSummary
+} from "../../src/features/security/mobile-session-model";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
@@ -26,10 +34,19 @@ export default function SecurityRoute() {
   const [savingMfa, setSavingMfa] = useState(false);
   const [mfaMessage, setMfaMessage] = useState<string | null>(null);
   const [mfaError, setMfaError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<MobileAuthSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [revokingAllSessions, setRevokingAllSessions] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) {
       setMfaEnabled(null);
+      setSessions([]);
+      setCurrentSessionId(null);
       return;
     }
 
@@ -55,7 +72,30 @@ export default function SecurityRoute() {
       setLoadingMfaStatus(false);
     }
 
+    async function loadSessions() {
+      setLoadingSessions(true);
+      setSessionError(null);
+
+      const response = await fetchMobileAuthSessions();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (response.ok) {
+        setSessions(response.data.sessions);
+        setCurrentSessionId(response.data.currentSessionId);
+      } else {
+        setSessions([]);
+        setCurrentSessionId(null);
+        setSessionError(response.error.message);
+      }
+
+      setLoadingSessions(false);
+    }
+
     void loadMfaStatus();
+    void loadSessions();
 
     return () => {
       cancelled = true;
@@ -65,6 +105,14 @@ export default function SecurityRoute() {
   const securityRows = useMemo(
     () => getMobileSecurityRows({ mfaEnabled }),
     [mfaEnabled]
+  );
+  const sessionCards = useMemo(
+    () => buildMobileSessionCards(sessions, currentSessionId),
+    [sessions, currentSessionId]
+  );
+  const sessionSummary = useMemo(
+    () => getMobileSessionSummary(sessions, currentSessionId),
+    [sessions, currentSessionId]
   );
 
   async function handleLogout() {
@@ -102,6 +150,73 @@ export default function SecurityRoute() {
       );
     } finally {
       setSavingMfa(false);
+    }
+  }
+
+  async function handleSessionRefresh() {
+    setLoadingSessions(true);
+    setSessionError(null);
+    setSessionMessage(null);
+
+    const response = await fetchMobileAuthSessions();
+
+    if (response.ok) {
+      setSessions(response.data.sessions);
+      setCurrentSessionId(response.data.currentSessionId);
+    } else {
+      setSessions([]);
+      setCurrentSessionId(null);
+      setSessionError(response.error.message);
+    }
+
+    setLoadingSessions(false);
+  }
+
+  async function handleRevokeSession(sessionId: string) {
+    setRevokingSessionId(sessionId);
+    setSessionMessage(null);
+    setSessionError(null);
+
+    try {
+      const response = await revokeMobileAuthSession(sessionId);
+
+      if (!response.ok) {
+        setSessionError(response.error.message);
+        return;
+      }
+
+      if (response.data.currentSessionRevoked) {
+        await authSession.logout();
+        router.replace("/login");
+        return;
+      }
+
+      setSessions((current) => current.filter((session) => session.id !== response.data.sessionId));
+      setSessionMessage("Seçili oturum kapatıldı.");
+    } finally {
+      setRevokingSessionId(null);
+    }
+  }
+
+  async function handleRevokeAllSessions() {
+    setRevokingAllSessions(true);
+    setSessionMessage(null);
+    setSessionError(null);
+
+    try {
+      const response = await revokeAllMobileAuthSessions();
+
+      if (!response.ok) {
+        setSessionError(response.error.message);
+        return;
+      }
+
+      setSessions([]);
+      setCurrentSessionId(null);
+      await authSession.logout();
+      router.replace("/login");
+    } finally {
+      setRevokingAllSessions(false);
     }
   }
 
@@ -145,8 +260,9 @@ export default function SecurityRoute() {
         <Text style={styles.text}>
           E-posta OTP aktif olduğunda girişten sonra 6 haneli kod doğrulaması gerekir.
         </Text>
-
         <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
           onChangeText={setCurrentPassword}
           placeholder="Mevcut şifre"
           placeholderTextColor={colors.subtle}
@@ -154,7 +270,6 @@ export default function SecurityRoute() {
           style={styles.input}
           value={currentPassword}
         />
-
         <Pressable
           disabled={savingMfa || loadingMfaStatus}
           onPress={() => void handleMfaToggle(!(mfaEnabled === true))}
@@ -165,19 +280,17 @@ export default function SecurityRoute() {
         >
           <Text style={styles.primaryButtonText}>
             {savingMfa
-              ? "Kaydediliyor..."
+              ? "Güncelleniyor..."
               : mfaEnabled === true
                 ? "OTP/MFA kapat"
                 : "OTP/MFA aç"}
           </Text>
         </Pressable>
-
         {mfaMessage ? (
           <View style={styles.successBox}>
             <Text style={styles.successText}>{mfaMessage}</Text>
           </View>
         ) : null}
-
         {mfaError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{mfaError}</Text>
@@ -186,10 +299,96 @@ export default function SecurityRoute() {
       </MobileCard>
 
       <MobileCard style={styles.card}>
+        <Text style={styles.title}>Aktif cihazlar</Text>
+        <Text style={styles.text}>
+          {sessionSummary.activeCountLabel} · {sessionSummary.currentDeviceLabel}
+        </Text>
+        <Text style={styles.meta}>
+          Oturum tokenları, refresh token hashleri ve şifre bilgileri bu ekranda gösterilmez.
+        </Text>
+
+        {loadingSessions ? <Text style={styles.text}>Oturumlar yükleniyor...</Text> : null}
+
+        {sessionError ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{sessionError}</Text>
+          </View>
+        ) : null}
+
+        {sessionMessage ? (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>{sessionMessage}</Text>
+          </View>
+        ) : null}
+
+        {!loadingSessions && sessionCards.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>Aktif oturum görünmüyor</Text>
+            <Text style={styles.text}>Yeniden giriş yaptığında bu cihaz burada listelenir.</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.sessionList}>
+          {sessionCards.map((session) => (
+            <View key={session.id} style={styles.sessionCard}>
+              <View style={styles.sessionHeader}>
+                <Text style={styles.sessionTitle}>{session.title}</Text>
+                {session.isCurrent ? (
+                  <View style={styles.currentBadge}>
+                    <Text style={styles.currentBadgeText}>Bu cihaz</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.sessionSubtitle}>{session.subtitle}</Text>
+              <Text style={styles.sessionMeta}>{session.meta}</Text>
+              <Pressable
+                disabled={revokingSessionId === session.id || revokingAllSessions}
+                onPress={() => void handleRevokeSession(session.id)}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed || revokingSessionId === session.id || revokingAllSessions ? styles.pressed : null
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {revokingSessionId === session.id ? "Kapatılıyor..." : session.actionLabel}
+                </Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.sessionActions}>
+          <Pressable
+            disabled={loadingSessions || revokingAllSessions}
+            onPress={() => void handleSessionRefresh()}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed || loadingSessions ? styles.pressed : null
+            ]}
+          >
+            <Text style={styles.secondaryButtonText}>Oturumları yenile</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={revokingAllSessions || sessions.length === 0}
+            onPress={() => void handleRevokeAllSessions()}
+            style={({ pressed }) => [
+              styles.dangerButton,
+              pressed || revokingAllSessions || sessions.length === 0 ? styles.pressed : null
+            ]}
+          >
+            <Text style={styles.dangerButtonText}>
+              {revokingAllSessions ? "Çıkış yapılıyor..." : "Tüm cihazlardan çıkış yap"}
+            </Text>
+          </Pressable>
+        </View>
+      </MobileCard>
+
+      <MobileCard style={styles.card}>
         <Text style={styles.title}>Çıkış</Text>
         <Text style={styles.text}>Bu cihazdaki mobil oturumu kapatır.</Text>
         <MobileButton iconName="log-out-outline" onPress={() => void handleLogout()} variant="danger">
-          Çıkış yap
+          Bu cihazdan çıkış yap
         </MobileButton>
       </MobileCard>
     </Screen>
@@ -199,52 +398,74 @@ export default function SecurityRoute() {
 function SecurityRow({
   badge,
   title,
-  value,
-  tone = "neutral"
+  tone,
+  value
 }: {
   badge: string;
   title: string;
+  tone: MobileSecurityRowTone;
   value: string;
-  tone?: MobileSecurityRowTone;
 }) {
   return (
     <MobileCard style={styles.row}>
-      <View style={styles.rowText}>
+      <View style={styles.rowHeader}>
         <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowValue}>{value}</Text>
+        <View style={[styles.badge, getBadgeStyle(tone)]}>
+          <Text style={[styles.badgeText, getBadgeTextStyle(tone)]}>{badge}</Text>
+        </View>
       </View>
-      <Text
-        style={[
-          styles.status,
-          tone === "success" ? styles.statusSuccess : null,
-          tone === "pending" ? styles.statusPending : null
-        ]}
-      >
-        {badge}
-      </Text>
+      <Text style={styles.rowText}>{value}</Text>
     </MobileCard>
   );
 }
 
+function getBadgeStyle(tone: MobileSecurityRowTone) {
+  if (tone === "success") {
+    return styles.badgeSuccess;
+  }
+
+  if (tone === "pending") {
+    return styles.badgePending;
+  }
+
+  return styles.badgeNeutral;
+}
+
+function getBadgeTextStyle(tone: MobileSecurityRowTone) {
+  if (tone === "success") {
+    return styles.badgeSuccessText;
+  }
+
+  if (tone === "pending") {
+    return styles.badgePendingText;
+  }
+
+  return styles.badgeNeutralText;
+}
+
 const styles = StyleSheet.create({
-  profileCard: {
-    gap: spacing.xs
+  list: {
+    gap: spacing.md
   },
   card: {
-    gap: spacing.sm
+    gap: spacing.md
+  },
+  profileCard: {
+    gap: spacing.sm,
+    backgroundColor: colors.cream
   },
   eyebrow: {
     color: colors.primaryDark,
     fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   title: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "900",
-    letterSpacing: -0.3
+    letterSpacing: -0.4
   },
   text: {
     color: colors.muted,
@@ -252,68 +473,71 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   meta: {
-    alignSelf: "flex-start",
-    overflow: "hidden",
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "900",
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  list: {
-    gap: spacing.sm
+    color: colors.subtle,
+    fontSize: 13,
+    fontWeight: "700"
   },
   row: {
-    minHeight: 76,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md
+    gap: spacing.sm
   },
-  rowText: {
-    flex: 1,
-    gap: 3
+  rowHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.sm
   },
   rowTitle: {
     color: colors.text,
-    fontSize: 15,
+    flex: 1,
+    fontSize: 16,
     fontWeight: "900"
   },
-  rowValue: {
+  rowText: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
-    lineHeight: 18
+    fontSize: 14,
+    lineHeight: 20
   },
-  status: {
-    overflow: "hidden",
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceSoft,
-    color: colors.primaryDark,
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  badgeText: {
     fontSize: 11,
-    fontWeight: "900",
-    paddingHorizontal: 9,
-    paddingVertical: 6
+    fontWeight: "900"
   },
-  statusSuccess: {
-    backgroundColor: colors.successSoft,
+  badgeSuccess: {
+    backgroundColor: colors.successSoft
+  },
+  badgeSuccessText: {
     color: colors.success
   },
-  statusPending: {
-    backgroundColor: colors.warningSoft,
+  badgeWarning: {
+    backgroundColor: colors.warningSoft
+  },
+  badgeWarningText: {
     color: colors.warning
   },
+  badgePending: {
+    backgroundColor: colors.surfaceSoft
+  },
+  badgePendingText: {
+    color: colors.primaryDark
+  },
+  badgeNeutral: {
+    backgroundColor: colors.surfaceSoft
+  },
+  badgeNeutralText: {
+    color: colors.muted
+  },
   input: {
-    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
-    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    borderWidth: 1,
     color: colors.text,
     fontSize: 15,
-    paddingHorizontal: 16,
-    paddingVertical: 13
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
   primaryButton: {
     alignItems: "center",
@@ -324,6 +548,32 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: colors.primaryForeground,
     fontSize: 15,
+    fontWeight: "900"
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12
+  },
+  secondaryButtonText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  dangerButton: {
+    alignItems: "center",
+    borderRadius: 999,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 14,
+    paddingVertical: 13
+  },
+  dangerButtonText: {
+    color: colors.primaryForeground,
+    fontSize: 14,
     fontWeight: "900"
   },
   pressed: {
@@ -350,5 +600,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     lineHeight: 20
+  },
+  emptyBox: {
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.md
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  sessionList: {
+    gap: spacing.md
+  },
+  sessionCard: {
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md
+  },
+  sessionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between"
+  },
+  sessionTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  sessionSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19
+  },
+  sessionMeta: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18
+  },
+  currentBadge: {
+    borderRadius: 999,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 5
+  },
+  currentBadgeText: {
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  sessionActions: {
+    gap: spacing.sm
   }
 });
