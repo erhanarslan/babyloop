@@ -48,7 +48,8 @@
     "test:web:seo": "pnpm --filter @babyloop/web exec vitest run src/lib/seo.test.ts src/app/robots.test.ts src/app/sitemap.test.ts",
     "deploy:check": "node scripts/check-deployment-readiness.mjs",
     "deploy:check:staging": "node scripts/check-deployment-readiness.mjs --target=staging",
-    "deploy:check:production": "node scripts/check-deployment-readiness.mjs --target=production"
+    "deploy:check:production": "node scripts/check-deployment-readiness.mjs --target=production",
+    "ci:e2e:release": "bash scripts/ci-release-e2e.sh"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

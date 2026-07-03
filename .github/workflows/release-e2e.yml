@@ -1,0 +1,81 @@
+name: Release E2E
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-e2e:
+    name: Web and backoffice release E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: babyloop_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d babyloop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      AUTH_SECRET: babyloop_ci_e2e_auth_secret_please_change_later_123456
+      ALLOW_AUTH_UNAVAILABLE: "false"
+      EMAIL_DELIVERY_MODE: noop
+      EMAIL_PROVIDER: mock
+      EMAIL_SEND_ENABLED: "false"
+      IMAGE_STORAGE_DRIVER: local
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: mock
+      ASSISTANT_PROVIDER: mock
+      AI_LISTING_DRAFT_PROVIDER: mock
+      AI_MODERATION_SUMMARY_PROVIDER: mock
+      RAG_ENABLED: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Release artifact guard
+        run: pnpm release:artifacts
+
+      - name: Deployment readiness local check
+        run: pnpm deploy:check
+
+      - name: Run release E2E
+        run: pnpm ci:e2e:release
+
+      - name: Upload E2E logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-e2e-logs
+          path: |
+            .e2e-results
+            apps/web/playwright-report
+            apps/backoffice/playwright-report
+            apps/web/test-results
+            apps/backoffice/test-results
+          if-no-files-found: ignore
