@@ -35,6 +35,7 @@ export function RegisterScreen() {
 
   return (
     <Screen
+      hasTabBar={false}
       eyebrow="Yeni hesap"
       title="BabyLoop hesabını oluştur"
       subtitle="Favoriler, mesajlar ve ilan yönetimi için sade bir hesap oluştur."

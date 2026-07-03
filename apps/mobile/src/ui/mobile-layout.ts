@@ -1,5 +1,6 @@
 export type MobilePlatformOS = "android" | "ios" | "web" | string;
 export type AndroidNavigationVisibility = "hidden" | "visible" | string;
+export type MobileKeyboardAvoidingBehavior = "height" | "padding" | "position" | undefined;
 
 export const MOBILE_TAB_BAR_HEIGHT = 62;
 export const MOBILE_TAB_BAR_HORIZONTAL_MARGIN = 14;
@@ -50,4 +51,18 @@ export function getMobileScreenContentBottomPadding({
   }
 
   return MOBILE_TAB_BAR_HEIGHT + MOBILE_TAB_BAR_CONTENT_GAP + bottomOffset;
+}
+
+export function getMobileKeyboardAvoidingBehavior(
+  platformOS: MobilePlatformOS
+): MobileKeyboardAvoidingBehavior {
+  if (platformOS === "ios") {
+    return "padding";
+  }
+
+  if (platformOS === "android") {
+    return "height";
+  }
+
+  return undefined;
 }

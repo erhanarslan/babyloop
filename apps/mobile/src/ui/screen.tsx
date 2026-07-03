@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAndroidNavigationBarVisibility } from "../lib/android-navigation-bar";
-import { getMobileScreenContentBottomPadding } from "./mobile-layout";
+import {
+  getMobileKeyboardAvoidingBehavior,
+  getMobileScreenContentBottomPadding
+} from "./mobile-layout";
 import { colors } from "./theme";
 
 type ScreenProps = {
@@ -12,6 +15,7 @@ type ScreenProps = {
   subtitle?: string;
   children: ReactNode;
   hasTabBar?: boolean;
+  keyboardAvoiding?: boolean;
 };
 
 export function Screen({
@@ -19,7 +23,8 @@ export function Screen({
   eyebrow,
   subtitle,
   children,
-  hasTabBar = true
+  hasTabBar = true,
+  keyboardAvoiding = true
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const androidNavigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
@@ -29,32 +34,41 @@ export function Screen({
     platformOS: Platform.OS,
     safeAreaBottom: insets.bottom
   });
+  const keyboardAvoidingBehavior = getMobileKeyboardAvoidingBehavior(Platform.OS);
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
-      <View pointerEvents="none" style={styles.backgroundPattern}>
-        <View style={[styles.patternDot, styles.patternDotPrimary]} />
-        <View style={[styles.patternDot, styles.patternDotPeach]} />
-        <View style={[styles.patternDot, styles.patternDotMint]} />
-        <View style={[styles.patternRing, styles.patternRingTop]} />
-        <View style={[styles.patternRing, styles.patternRingBottom]} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-      >
-        <View style={styles.header}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    <KeyboardAvoidingView
+      behavior={keyboardAvoidingBehavior}
+      enabled={keyboardAvoiding}
+      keyboardVerticalOffset={0}
+      style={styles.keyboardRoot}
+    >
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+        <View pointerEvents="none" style={styles.backgroundPattern}>
+          <View style={[styles.patternDot, styles.patternDotPrimary]} />
+          <View style={[styles.patternDot, styles.patternDotPeach]} />
+          <View style={[styles.patternDot, styles.patternDotMint]} />
+          <View style={[styles.patternRing, styles.patternRingTop]} />
+          <View style={[styles.patternRing, styles.patternRingBottom]} />
         </View>
 
-        <View style={styles.body}>{children}</View>
-      </ScrollView>
-    </SafeAreaView>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+        >
+          <View style={styles.header}>
+            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+
+          <View style={styles.body}>{children}</View>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -86,6 +100,10 @@ export function Pill({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: {
+    flex: 1,
+    backgroundColor: colors.background
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background

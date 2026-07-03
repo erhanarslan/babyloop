@@ -50,6 +50,7 @@ export function LoginScreen() {
   return (
     <Screen
       eyebrow="Auth"
+      hasTabBar={false}
       title={isMfaRequired ? "OTP doğrulaması" : "Hesabına giriş yap"}
       subtitle={
         isMfaRequired

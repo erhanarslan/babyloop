@@ -1,7 +1,9 @@
 import {
   getAndroidAwareBottomOffset,
+  getMobileKeyboardAvoidingBehavior,
   getMobileScreenContentBottomPadding,
   getMobileTabBarBottomOffset,
+  MOBILE_SCREEN_BASE_BOTTOM_PADDING,
   MOBILE_TAB_BAR_CONTENT_GAP,
   MOBILE_TAB_BAR_HEIGHT
 } from "./mobile-layout";
@@ -55,5 +57,33 @@ describe("mobile layout helpers", () => {
         safeAreaBottom: 34
       })
     ).toBe(MOBILE_TAB_BAR_HEIGHT + MOBILE_TAB_BAR_CONTENT_GAP + 34);
+  });
+
+  it("does not reserve floating tab space for root auth screens", () => {
+    expect(
+      getMobileScreenContentBottomPadding({
+        androidNavigationVisibility: "hidden",
+        hasTabBar: false,
+        platformOS: "android",
+        safeAreaBottom: 34
+      })
+    ).toBe(MOBILE_SCREEN_BASE_BOTTOM_PADDING);
+  });
+
+  it("keeps Android root auth screens above visible system navigation", () => {
+    expect(
+      getMobileScreenContentBottomPadding({
+        androidNavigationVisibility: "visible",
+        hasTabBar: false,
+        platformOS: "android",
+        safeAreaBottom: 34
+      })
+    ).toBe(MOBILE_SCREEN_BASE_BOTTOM_PADDING + 34);
+  });
+
+  it("uses keyboard avoiding behavior that matches the platform", () => {
+    expect(getMobileKeyboardAvoidingBehavior("ios")).toBe("padding");
+    expect(getMobileKeyboardAvoidingBehavior("android")).toBe("height");
+    expect(getMobileKeyboardAvoidingBehavior("web")).toBeUndefined();
   });
 });
