@@ -384,6 +384,136 @@ describe("notifications API", () => {
   });
 
 
+
+  it("generates idempotent saved search in-app notifications for matching listings", async () => {
+    const watcher = await createUser(app, {
+      email: "saved-search-watcher@babyloop.test"
+    });
+    const seller = await createUser(app, {
+      email: "saved-search-seller@babyloop.test"
+    });
+
+    const [category] = await app.db
+      .insert(productCategories)
+      .values({
+        name: "Bebek Arabaları",
+        slug: "saved-search-strollers"
+      })
+      .returning({
+        id: productCategories.id
+      });
+
+    expect(category).toBeDefined();
+
+    const matchingListing = await createListing(app, seller.accessToken, {
+      categoryId: category!.id,
+      condition: "good",
+      listingType: "sale",
+      priceAmount: "2500.00",
+      title: "Temiz puset travel sistem"
+    });
+
+    await createListing(app, seller.accessToken, {
+      condition: "good",
+      listingType: "sale",
+      priceAmount: "900.00",
+      title: "Ahşap oyuncak seti"
+    });
+
+    const ownListing = await createListing(app, watcher.accessToken, {
+      categoryId: category!.id,
+      condition: "good",
+      listingType: "sale",
+      priceAmount: "2000.00",
+      title: "Kendi puset ilanım"
+    });
+
+    const savedSearch = await app.inject({
+      headers: authHeader(watcher.accessToken),
+      method: "POST",
+      url: "/api/v1/saved-searches",
+      payload: {
+        name: "Puset alarmı",
+        q: "puset",
+        categoryId: category!.id,
+        condition: "good",
+        listingType: "sale",
+        priceMin: "1000",
+        priceMax: "5000",
+        notificationsEnabled: true
+      }
+    });
+
+    const disabledSearch = await app.inject({
+      headers: authHeader(watcher.accessToken),
+      method: "POST",
+      url: "/api/v1/saved-searches",
+      payload: {
+        name: "Kapalı puset alarmı",
+        q: "puset",
+        categoryId: category!.id,
+        notificationsEnabled: false
+      }
+    });
+
+    expect(savedSearch.statusCode).toBe(201);
+    expect(disabledSearch.statusCode).toBe(201);
+
+    const firstGenerate = await app.inject({
+      headers: authHeader(watcher.accessToken),
+      method: "POST",
+      url: "/api/v1/notifications/saved-searches/generate"
+    });
+    const secondGenerate = await app.inject({
+      headers: authHeader(watcher.accessToken),
+      method: "POST",
+      url: "/api/v1/notifications/saved-searches/generate"
+    });
+    const listResponse = await app.inject({
+      headers: authHeader(watcher.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications"
+    });
+
+    expect(firstGenerate.statusCode).toBe(200);
+    expect(firstGenerate.json().data).toMatchObject({
+      createdCount: 1,
+      deliveryChannel: "in_app",
+      draftOnly: false
+    });
+    expect(secondGenerate.statusCode).toBe(200);
+    expect(secondGenerate.json().data.createdCount).toBe(0);
+
+    const generatedNotifications = listResponse.json().data.notifications.filter(
+      (notification: { metadata: Record<string, unknown> }) =>
+        notification.metadata.source === "saved_search"
+    );
+
+    expect(generatedNotifications).toHaveLength(1);
+    expect(generatedNotifications[0]).toMatchObject({
+      actorProfile: null,
+      entityId: matchingListing.id,
+      entityType: "listing",
+      type: "system"
+    });
+    expect(generatedNotifications[0].metadata).toMatchObject({
+      kind: "saved_search_match",
+      listingId: matchingListing.id
+    });
+    expect(JSON.stringify(generatedNotifications)).not.toContain(ownListing.id);
+    expect(JSON.stringify(generatedNotifications)).not.toContain("Kapalı puset alarmı");
+    expect(JSON.stringify(generatedNotifications)).not.toMatch(/saved-search-seller@babyloop\.test|saved-search-watcher@babyloop\.test|passwordHash|accessToken|refreshToken/i);
+  });
+
+  it("requires auth for saved search notification generation", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/notifications/saved-searches/generate"
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
   it("generates idempotent child lifecycle in-app notifications from opted-in child profiles", async () => {
     const parent = await createUser(app, {
       displayName: "Lifecycle Parent",

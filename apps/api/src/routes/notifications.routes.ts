@@ -5,6 +5,10 @@ import {
   generateChildLifecycleNotifications,
   type ChildLifecycleNotificationGenerationResponse
 } from "../services/child-lifecycle-notifications.service.js";
+import {
+  generateSavedSearchNotifications,
+  type SavedSearchNotificationGenerationResponse
+} from "../services/saved-search-notifications.service.js";
 import { z } from "zod";
 import {
   emitNotificationRead,
@@ -37,6 +41,8 @@ type ReadAllResponse = ApiResponse<{
 }>;
 
 type ChildLifecycleGenerationResponse = ApiResponse<ChildLifecycleNotificationGenerationResponse>;
+
+type SavedSearchGenerationResponse = ApiResponse<SavedSearchNotificationGenerationResponse>;
 
 type NotificationParams = {
   id: string;
@@ -72,6 +78,22 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: await generateChildLifecycleNotifications(app, currentUser.profile.id)
+      };
+    }
+  );
+
+  app.post<{ Reply: SavedSearchGenerationResponse }>(
+    "/notifications/saved-searches/generate",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      return {
+        ok: true,
+        data: await generateSavedSearchNotifications(app, currentUser.profile.id)
       };
     }
   );
