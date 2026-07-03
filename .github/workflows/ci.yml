@@ -49,6 +49,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Release artifact guard
+        run: pnpm release:artifacts
+
+      - name: Deployment readiness local check
+        run: pnpm deploy:check
+
       - name: Typecheck shared
         run: pnpm --filter @babyloop/shared typecheck
 
@@ -67,8 +73,14 @@ jobs:
       - name: API integration tests
         run: pnpm --filter @babyloop/api test
 
+      - name: API release regression bundle
+        run: pnpm test:api:release
+
       - name: Web unit tests
         run: pnpm --filter @babyloop/web test
+
+      - name: Web SEO regression tests
+        run: pnpm test:web:seo
 
       - name: Backoffice unit tests
         run: pnpm --filter @babyloop/backoffice test
