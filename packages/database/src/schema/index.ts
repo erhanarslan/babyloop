@@ -96,6 +96,27 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "system"
 ]);
 
+export const childProfileNoteTypeEnum = pgEnum("child_profile_note_type", [
+  "general",
+  "feeding",
+  "sleep",
+  "size",
+  "preference",
+  "daycare",
+  "milestone"
+]);
+
+export const childProfileReminderChannelEnum = pgEnum("child_profile_reminder_channel", [
+  "in_app",
+  "email_draft"
+]);
+
+export const childProfileReminderStatusEnum = pgEnum("child_profile_reminder_status", [
+  "scheduled",
+  "completed",
+  "cancelled"
+]);
+
 export const safetyTargetTypeEnum = pgEnum("safety_target_type", [
   "listing",
   "profile",
@@ -222,6 +243,53 @@ export const childProfiles = pgTable(
     check("child_profiles_age_months_check", sql`${table.ageMonths} is null or ${table.ageMonths} between 0 and 96`),
     check("child_profiles_birth_month_check", sql`${table.birthMonth} is null or ${table.birthMonth} between 1 and 12`),
     check("child_profiles_birth_year_check", sql`${table.birthYear} is null or ${table.birthYear} between 2016 and 2035`)
+  ]
+);
+
+
+export const childProfileNotes = pgTable(
+  "child_profile_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    childProfileId: uuid("child_profile_id")
+      .notNull()
+      .references(() => childProfiles.id, { onDelete: "cascade" }),
+    noteType: childProfileNoteTypeEnum("note_type").notNull().default("general"),
+    title: varchar("title", { length: 100 }).notNull(),
+    body: text("body"),
+    isArchived: boolean("is_archived").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("child_profile_notes_child_profile_id_idx").on(table.childProfileId),
+    index("child_profile_notes_child_profile_archived_idx").on(table.childProfileId, table.isArchived),
+    check("child_profile_notes_title_not_blank_check", sql`length(trim(${table.title})) > 0`)
+  ]
+);
+
+export const childProfileReminders = pgTable(
+  "child_profile_reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    childProfileId: uuid("child_profile_id")
+      .notNull()
+      .references(() => childProfiles.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 120 }).notNull(),
+    description: text("description"),
+    remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+    channel: childProfileReminderChannelEnum("channel").notNull().default("in_app"),
+    status: childProfileReminderStatusEnum("status").notNull().default("scheduled"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("child_profile_reminders_child_profile_id_idx").on(table.childProfileId),
+    index("child_profile_reminders_child_profile_status_idx").on(table.childProfileId, table.status),
+    index("child_profile_reminders_remind_at_idx").on(table.remindAt),
+    check("child_profile_reminders_title_not_blank_check", sql`length(trim(${table.title})) > 0`)
   ]
 );
 

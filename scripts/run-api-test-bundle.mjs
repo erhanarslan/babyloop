@@ -41,6 +41,7 @@ const bundles = {
     "test/search-suggestions.routes.test.ts",
     "test/cart-checkout.integration.test.ts",
     "test/child-profiles.routes.test.ts",
+    "test/child-profile-notes-reminders.routes.test.ts",
   ],
   release: [
     "test/health.integration.test.ts",
@@ -58,6 +59,7 @@ const bundles = {
     "test/search-suggestions.routes.test.ts",
     "test/cart-checkout.integration.test.ts",
     "test/child-profiles.routes.test.ts",
+    "test/child-profile-notes-reminders.routes.test.ts",
     "test/messaging.integration.test.ts",
     "test/notifications.integration.test.ts",
     "test/safety.integration.test.ts",
