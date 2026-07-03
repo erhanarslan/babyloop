@@ -1,6 +1,10 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FastifyInstance } from "fastify";
 import { listNotificationDeliveryDrafts } from "../services/notification-delivery-drafts.service.js";
+import {
+  generateChildLifecycleNotifications,
+  type ChildLifecycleNotificationGenerationResponse
+} from "../services/child-lifecycle-notifications.service.js";
 import { z } from "zod";
 import {
   emitNotificationRead,
@@ -32,6 +36,8 @@ type ReadAllResponse = ApiResponse<{
   updatedCount: number;
 }>;
 
+type ChildLifecycleGenerationResponse = ApiResponse<ChildLifecycleNotificationGenerationResponse>;
+
 type NotificationParams = {
   id: string;
 };
@@ -53,6 +59,22 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
       data: await listNotificationDeliveryDrafts(app, currentUser.profile.id)
     };
   });
+
+  app.post<{ Reply: ChildLifecycleGenerationResponse }>(
+    "/notifications/child-lifecycle/generate",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      return {
+        ok: true,
+        data: await generateChildLifecycleNotifications(app, currentUser.profile.id)
+      };
+    }
+  );
 
   app.get<{ Reply: NotificationsResponse }>("/notifications", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listings, notifications } from "@babyloop/database/schema";
+import { childProfiles, listings, notifications, productCategories } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import {
   emitUnreadNotificationCountUpdated,
@@ -381,6 +381,93 @@ describe("notifications API", () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+
+
+  it("generates idempotent child lifecycle in-app notifications from opted-in child profiles", async () => {
+    const parent = await createUser(app, {
+      displayName: "Lifecycle Parent",
+      email: "lifecycle-parent@babyloop.test"
+    });
+
+    await app.db.insert(productCategories).values([
+      {
+        name: "Oyuncak",
+        slug: "toys"
+      },
+      {
+        name: "Montessori oyuncak",
+        slug: "montessori-toys"
+      }
+    ]);
+
+    const [activeChild] = await app.db
+      .insert(childProfiles)
+      .values({
+        profileId: parent.profile.id,
+        label: "Ada",
+        ageBand: "toddler_12_24",
+        notificationCadence: "monthly",
+        isActive: true
+      })
+      .returning({ id: childProfiles.id });
+
+    await app.db.insert(childProfiles).values({
+      profileId: parent.profile.id,
+      label: "Kapalı profil",
+      ageBand: "infant_6_12",
+      notificationCadence: "off",
+      isActive: true
+    });
+
+    const firstGenerate = await app.inject({
+      headers: authHeader(parent.accessToken),
+      method: "POST",
+      url: "/api/v1/notifications/child-lifecycle/generate"
+    });
+    const secondGenerate = await app.inject({
+      headers: authHeader(parent.accessToken),
+      method: "POST",
+      url: "/api/v1/notifications/child-lifecycle/generate"
+    });
+    const listResponse = await app.inject({
+      headers: authHeader(parent.accessToken),
+      method: "GET",
+      url: "/api/v1/notifications"
+    });
+
+    expect(firstGenerate.statusCode).toBe(200);
+    expect(firstGenerate.json().data).toMatchObject({
+      createdCount: 2,
+      deliveryChannel: "in_app",
+      draftOnly: false
+    });
+    expect(secondGenerate.statusCode).toBe(200);
+    expect(secondGenerate.json().data.createdCount).toBe(0);
+
+    const generatedNotifications = listResponse.json().data.notifications.filter(
+      (notification: { metadata: Record<string, unknown> }) =>
+        notification.metadata.source === "child_lifecycle"
+    );
+
+    expect(generatedNotifications).toHaveLength(2);
+    expect(generatedNotifications[0]).toMatchObject({
+      actorProfile: null,
+      entityId: activeChild?.id,
+      entityType: "child_profile",
+      type: "system"
+    });
+    expect(JSON.stringify(generatedNotifications)).not.toMatch(/lifecycle-parent@babyloop\.test|passwordHash|accessToken/i);
+    expect(JSON.stringify(generatedNotifications)).not.toMatch(/ilaç|tedavi planı|tanı koy|terapi|diyet reçetesi/i);
+  });
+
+  it("requires auth for child lifecycle notification generation", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/notifications/child-lifecycle/generate"
+    });
+
+    expect(response.statusCode).toBe(401);
   });
 
   it("keeps notification realtime publishers best-effort", async () => {
