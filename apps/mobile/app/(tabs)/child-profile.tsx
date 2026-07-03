@@ -1,47 +1,329 @@
-import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Link, router } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import {
+  archiveMobileChildNote,
+  cancelMobileChildReminder,
+  completeMobileChildReminder,
+  createMobileChildNote,
+  createMobileChildProfile,
+  createMobileChildReminder,
+  fetchMobileChildNotes,
+  fetchMobileChildProfiles,
+  fetchMobileChildReminders,
+  type MobileChildNote,
+  type MobileChildProfile,
+  type MobileChildReminder
+} from "../../src/features/child/child-reminders-api";
+import {
+  getDefaultMobileChildProfilePayload,
   getMobileChildNoteItems,
-  getMobileChildReminderItems
+  getMobileChildReminderItems,
+  getNextMobileReminderDateIso
 } from "../../src/features/child/child-reminders-model";
-import { MobileCard } from "../../src/ui/mobile-primitives";
+import { useAuthSession } from "../../src/features/auth/auth-session";
+import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
 
 export default function ChildProfileRoute() {
-  const noteItems = getMobileChildNoteItems();
-  const reminderItems = getMobileChildReminderItems();
+  const authSession = useAuthSession();
+  const currentUser = authSession.currentUser;
+  const [childProfile, setChildProfile] = useState<MobileChildProfile | null>(null);
+  const [notes, setNotes] = useState<MobileChildNote[]>([]);
+  const [reminders, setReminders] = useState<MobileChildReminder[]>([]);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const noteItems = useMemo(() => getMobileChildNoteItems(notes), [notes]);
+  const reminderItems = useMemo(() => getMobileChildReminderItems(reminders), [reminders]);
+
+  const loadChildData = useCallback(async () => {
+    if (!currentUser) {
+      setChildProfile(null);
+      setNotes([]);
+      setReminders([]);
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+
+    const profilesResponse = await fetchMobileChildProfiles();
+
+    if (!profilesResponse.ok) {
+      setMessage(profilesResponse.error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    let activeProfile = profilesResponse.data.childProfiles.find((profile) => profile.isActive)
+      ?? profilesResponse.data.childProfiles[0]
+      ?? null;
+
+    if (!activeProfile) {
+      const createdProfile = await createMobileChildProfile(getDefaultMobileChildProfilePayload());
+
+      if (!createdProfile.ok) {
+        setMessage(createdProfile.error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      activeProfile = createdProfile.data.childProfile;
+    }
+
+    setChildProfile(activeProfile);
+
+    const [notesResponse, remindersResponse] = await Promise.all([
+      fetchMobileChildNotes(activeProfile.id),
+      fetchMobileChildReminders(activeProfile.id)
+    ]);
+
+    if (!notesResponse.ok) {
+      setMessage(notesResponse.error.message);
+    } else {
+      setNotes(notesResponse.data.notes);
+    }
+
+    if (!remindersResponse.ok) {
+      setMessage(remindersResponse.error.message);
+    } else {
+      setReminders(remindersResponse.data.reminders);
+    }
+
+    setIsLoading(false);
+  }, [currentUser]);
+
+  useEffect(() => {
+    void loadChildData();
+  }, [loadChildData]);
+
+  const handleCreateNote = useCallback(async () => {
+    if (!childProfile || isSubmitting) {
+      return;
+    }
+
+    const title = noteTitle.trim();
+
+    if (!title) {
+      setMessage("Not başlığı gerekli.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await createMobileChildNote(childProfile.id, {
+      noteType: "general",
+      title,
+      body: null
+    });
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setNotes((current) => [response.data.note, ...current]);
+      setNoteTitle("");
+      setMessage("Not eklendi.");
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, isSubmitting, noteTitle]);
+
+  const handleArchiveNote = useCallback(async (noteId: string) => {
+    if (!childProfile || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await archiveMobileChildNote(childProfile.id, noteId);
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setNotes((current) => current.filter((note) => note.id !== noteId));
+      setMessage("Not arşivlendi.");
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, isSubmitting]);
+
+  const handleCreateReminder = useCallback(async () => {
+    if (!childProfile || isSubmitting) {
+      return;
+    }
+
+    const title = reminderTitle.trim();
+
+    if (!title) {
+      setMessage("Hatırlatıcı başlığı gerekli.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await createMobileChildReminder(childProfile.id, {
+      title,
+      remindAt: getNextMobileReminderDateIso(),
+      channel: "in_app"
+    });
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setReminders((current) => [...current, response.data.reminder]);
+      setReminderTitle("");
+      setMessage("Hatırlatıcı eklendi.");
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, isSubmitting, reminderTitle]);
+
+  const handleCompleteReminder = useCallback(async (reminderId: string) => {
+    if (!childProfile || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await completeMobileChildReminder(childProfile.id, reminderId);
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setReminders((current) =>
+        current.map((reminder) => reminder.id === reminderId ? response.data.reminder : reminder)
+      );
+      setMessage("Hatırlatıcı tamamlandı.");
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, isSubmitting]);
+
+  const handleCancelReminder = useCallback(async (reminderId: string) => {
+    if (!childProfile || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await cancelMobileChildReminder(childProfile.id, reminderId);
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setReminders((current) => current.filter((reminder) => reminder.id !== reminderId));
+      setMessage("Hatırlatıcı iptal edildi.");
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, isSubmitting]);
+
+  if (!currentUser) {
+    return (
+      <Screen eyebrow="Çocuğum" title="Giriş gerekli">
+        <MobileCard style={styles.heroCard}>
+          <Text style={styles.heroTitle}>Çocuk notları hesabına bağlıdır.</Text>
+          <Text style={styles.heroText}>Not ve hatırlatıcılarını görmek için giriş yap.</Text>
+          <MobileButton onPress={() => router.push("/login")}>Giriş yap</MobileButton>
+        </MobileCard>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen eyebrow="Çocuğum" title="Notlar">
+    <Screen eyebrow="Çocuğum" title={childProfile?.label ?? "Notlar"}>
       <MobileCard style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Çocuğum</Text>
-        <Text style={styles.heroText}>Günlük notlar ve hatırlatıcılar burada toplanır.</Text>
-      </MobileCard>
-
-      <View style={styles.grid}>
-        {noteItems.map((item) => (
-          <MobileCard key={item.title} style={styles.noteCard}>
-            <Text style={styles.noteTitle}>{item.title}</Text>
-            <Text style={styles.noteValue}>{item.value}</Text>
-          </MobileCard>
-        ))}
-      </View>
-
-      <MobileCard style={styles.reminderCard}>
+        <Text style={styles.heroTitle}>{childProfile?.label ?? "Çocuğum"}</Text>
+        <Text style={styles.heroText}>
+          Günlük notlar ve uygulama içi hatırlatıcılar burada toplanır.
+        </Text>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Yaklaşanlar</Text>
+          <Text style={styles.metaText}>{isLoading ? "Yükleniyor..." : "API bağlantılı"}</Text>
           <Link href="/notification-preferences" style={styles.sectionLink}>
             Ayarlar
           </Link>
         </View>
+      </MobileCard>
+
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+
+      <MobileCard style={styles.formCard}>
+        <Text style={styles.sectionTitle}>Yeni not</Text>
+        <TextInput
+          autoCapitalize="sentences"
+          editable={!isSubmitting}
+          onChangeText={setNoteTitle}
+          placeholder="Örn. Bez stoğu azaldı"
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+          value={noteTitle}
+        />
+        <MobileButton onPress={() => void handleCreateNote()}>Not ekle</MobileButton>
+      </MobileCard>
+
+      <View style={styles.grid}>
+        {noteItems.map((item) => (
+          <MobileCard key={item.id ?? item.title} style={styles.noteCard}>
+            <Text style={styles.noteTitle}>{item.title}</Text>
+            <Text style={styles.noteValue}>{item.value}</Text>
+            {item.id ? (
+              <MobileButton onPress={() => void handleArchiveNote(item.id!)} variant="ghost">
+                Arşivle
+              </MobileButton>
+            ) : null}
+          </MobileCard>
+        ))}
+      </View>
+
+      <MobileCard style={styles.formCard}>
+        <Text style={styles.sectionTitle}>Yeni hatırlatıcı</Text>
+        <TextInput
+          autoCapitalize="sentences"
+          editable={!isSubmitting}
+          onChangeText={setReminderTitle}
+          placeholder="Örn. Yarın bez al"
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+          value={reminderTitle}
+        />
+        <MobileButton onPress={() => void handleCreateReminder()}>Yarın 10:00 için ekle</MobileButton>
+      </MobileCard>
+
+      <MobileCard style={styles.reminderCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Yaklaşanlar</Text>
+          <Text style={styles.metaText}>{reminderItems.length} kayıt</Text>
+        </View>
 
         <View style={styles.reminderList}>
           {reminderItems.map((item) => (
-            <View key={item} style={styles.reminderRow}>
+            <View key={item.id ?? item.title} style={styles.reminderRow}>
               <View style={styles.dot} />
-              <Text style={styles.reminderText}>{item}</Text>
+              <View style={styles.reminderContent}>
+                <Text style={styles.reminderText}>{item.title}</Text>
+                <Text style={styles.noteValue}>{item.value}</Text>
+                {item.id ? (
+                  <View style={styles.actionRow}>
+                    <MobileButton onPress={() => void handleCompleteReminder(item.id!)} variant="secondary">
+                      Tamamla
+                    </MobileButton>
+                    <MobileButton onPress={() => void handleCancelReminder(item.id!)} variant="ghost">
+                      İptal
+                    </MobileButton>
+                  </View>
+                ) : null}
+              </View>
             </View>
           ))}
         </View>
@@ -52,7 +334,7 @@ export default function ChildProfileRoute() {
 
 const styles = StyleSheet.create({
   heroCard: {
-    gap: spacing.xs,
+    gap: spacing.sm,
     backgroundColor: colors.surface
   },
   heroTitle: {
@@ -66,6 +348,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
+  metaText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  message: {
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+    padding: spacing.md
+  },
+  formCard: {
+    gap: spacing.sm
+  },
+  input: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: 15,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -73,7 +382,7 @@ const styles = StyleSheet.create({
   },
   noteCard: {
     width: "48%",
-    minHeight: 96,
+    minHeight: 116,
     gap: spacing.xs
   },
   noteTitle: {
@@ -93,7 +402,8 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    gap: spacing.sm
   },
   sectionTitle: {
     color: colors.text,
@@ -116,6 +426,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     padding: spacing.md
   },
+  reminderContent: {
+    flex: 1,
+    gap: spacing.xs
+  },
   dot: {
     width: 8,
     height: 8,
@@ -124,10 +438,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary
   },
   reminderText: {
-    flex: 1,
     color: colors.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     lineHeight: 19
+  },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginTop: spacing.xs
   }
 });
