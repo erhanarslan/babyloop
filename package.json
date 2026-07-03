@@ -19,7 +19,7 @@
     "test:web": "pnpm --filter @babyloop/web test",
     "test:backoffice": "pnpm --filter @babyloop/backoffice test",
     "test:mobile": "pnpm --filter @babyloop/mobile test",
-    "test:mobile:p0": "pnpm --filter @babyloop/mobile exec jest --runInBand --runTestsByPath src/ui/mobile-layout.test.ts src/features/auth/auth-api.test.ts src/features/security/security-model.test.ts src/features/sell/sell-form-model.test.ts src/features/sell/image-upload-model.test.ts src/features/child/child-reminders-api.test.ts src/features/child/child-reminders-model.test.ts",
+    "test:mobile:p0": "pnpm --filter @babyloop/mobile exec jest --runInBand --runTestsByPath src/ui/mobile-layout.test.ts src/features/auth/auth-api.test.ts src/features/security/security-model.test.ts src/features/sell/sell-form-model.test.ts src/features/sell/image-upload-model.test.ts src/features/child/child-reminders-api.test.ts src/features/child/child-reminders-model.test.ts src/features/notifications/notifications-api.test.ts src/features/notifications/notifications-model.test.ts",
     "test:e2e:web": "pnpm --filter @babyloop/web test:e2e",
     "test:e2e:backoffice": "pnpm --filter @babyloop/backoffice test:e2e",
     "test:e2e:mobile": "pnpm --filter @babyloop/mobile test:e2e",

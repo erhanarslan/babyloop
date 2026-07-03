@@ -192,6 +192,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+          title: "Bildirimler"
+        }}
+      />
+      <Tabs.Screen
         name="notification-preferences"
         options={{
           href: null,

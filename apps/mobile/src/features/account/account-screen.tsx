@@ -38,6 +38,12 @@ const accountShortcuts = [
     description: "Notlar ve hatırlatıcılar."
   },
   {
+    href: "/notifications",
+    icon: "notifications-outline",
+    title: "Bildirimler",
+    description: "Mesaj, favori ve çocuk önerilerini takip et."
+  },
+  {
     href: "/notification-preferences",
     icon: "notifications-outline",
     title: "Hatırlatıcılar",
