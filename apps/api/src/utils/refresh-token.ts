@@ -60,7 +60,8 @@ export function serializeRefreshTokenCookie(
     "SameSite=Lax",
     `Path=${REFRESH_TOKEN_COOKIE_PATH}`,
     `Max-Age=${REFRESH_TOKEN_TTL_SECONDS}`,
-    `Expires=${options.expiresAt.toUTCString()}`
+    `Expires=${options.expiresAt.toUTCString()}`,
+    ...secureCookieFlag()
   ].join("; ");
 }
 
@@ -71,6 +72,11 @@ export function serializeExpiredRefreshTokenCookie(): string {
     "SameSite=Lax",
     `Path=${REFRESH_TOKEN_COOKIE_PATH}`,
     "Max-Age=0",
-    "Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    ...secureCookieFlag()
   ].join("; ");
+}
+
+function secureCookieFlag(): string[] {
+  return process.env.NODE_ENV === "production" ? ["Secure"] : [];
 }

@@ -24,7 +24,11 @@ export function readPublicAccessTokenCookie(
       return null;
     }
 
-    return decodeURIComponent(rawValue);
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return null;
+    }
   }
 
   return null;
@@ -39,7 +43,8 @@ export function serializePublicAccessTokenCookie(
     `Path=${PUBLIC_ACCESS_TOKEN_COOKIE_PATH}`,
     `Max-Age=${options.maxAgeSeconds}`,
     "HttpOnly",
-    "SameSite=Lax"
+    "SameSite=Lax",
+    ...secureCookieFlag()
   ].join("; ");
 }
 
@@ -49,6 +54,11 @@ export function serializeExpiredPublicAccessTokenCookie(): string {
     `Path=${PUBLIC_ACCESS_TOKEN_COOKIE_PATH}`,
     "Max-Age=0",
     "HttpOnly",
-    "SameSite=Lax"
+    "SameSite=Lax",
+    ...secureCookieFlag()
   ].join("; ");
+}
+
+function secureCookieFlag(): string[] {
+  return process.env.NODE_ENV === "production" ? ["Secure"] : [];
 }

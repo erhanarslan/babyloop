@@ -5,6 +5,11 @@ import { spawnSync } from "node:child_process";
 const bundles = {
   security: [
     "test/auth.integration.test.ts",
+    "test/auth-config.test.ts",
+    "test/backoffice-access-token-cookie.test.ts",
+    "test/backoffice-csrf.test.ts",
+    "test/public-access-token-cookie.test.ts",
+    "test/refresh-token-cookie.test.ts",
     "test/listings.integration.test.ts",
     "test/messaging.integration.test.ts",
     "test/notifications.integration.test.ts",
@@ -40,6 +45,11 @@ const bundles = {
   release: [
     "test/health.integration.test.ts",
     "test/auth.integration.test.ts",
+    "test/auth-config.test.ts",
+    "test/backoffice-access-token-cookie.test.ts",
+    "test/backoffice-csrf.test.ts",
+    "test/public-access-token-cookie.test.ts",
+    "test/refresh-token-cookie.test.ts",
     "test/listings.integration.test.ts",
     "test/listing-image-authenticity.integration.test.ts",
     "test/favorites.integration.test.ts",

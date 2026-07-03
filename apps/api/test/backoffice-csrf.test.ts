@@ -20,6 +20,21 @@ describe("backoffice csrf utility", () => {
     expect(cookie).not.toContain("HttpOnly");
   });
 
+  it("adds Secure in production", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const activeCookie = serializeBackofficeCsrfCookie("csrf.token.value");
+      const expiredCookie = serializeExpiredBackofficeCsrfCookie();
+
+      expect(activeCookie).toContain("Secure");
+      expect(expiredCookie).toContain("Secure");
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
   it("reads only the explicit CSRF cookie", () => {
     const cookie = [
       "other=value",

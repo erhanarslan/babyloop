@@ -19,6 +19,23 @@ describe("backoffice access token cookie", () => {
     expect(cookie).toContain("Max-Age=900");
   });
 
+  it("adds Secure in production", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const activeCookie = serializeBackofficeAccessTokenCookie("access.token.value", {
+        maxAgeSeconds: 900
+      });
+      const expiredCookie = serializeExpiredBackofficeAccessTokenCookie();
+
+      expect(activeCookie).toContain("Secure");
+      expect(expiredCookie).toContain("Secure");
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
   it("reads only the explicit backoffice access token cookie", () => {
     const cookie = [
       "other=value",
