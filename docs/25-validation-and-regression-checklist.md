@@ -576,3 +576,13 @@ http://localhost:3001/moderation
 - [ ] Login approval completion stores an access token only after approval completion succeeds.
 - [ ] Mobile session cards redact token-like values from device/user-agent text.
 - [ ] Mobile realtime uses the hydrated auth token only for socket auth and disconnects on logout/session cleanup.
+
+### Mobile P0 release gate
+
+- [ ] `pnpm release:mobile:p0` passes.
+- [ ] `pnpm security:mobile-auth` passes.
+- [ ] `pnpm test:mobile:p0` passes.
+- [ ] `pnpm --filter @babyloop/mobile typecheck` passes.
+- [ ] The gate remains deterministic and does not start Expo, run Maestro, require ADB, or claim real-device QA.
+- [ ] Maestro smoke remains optional through the dedicated mobile E2E/smoke path.
+- [ ] Real-device S22 manual QA remains separately tracked and is not represented as passed by `pnpm release:mobile:p0`.

@@ -90,3 +90,15 @@ This guard keeps the following decisions explicit:
 - Mobile approval is for approving web login attempts from an already authenticated mobile session.
 - Mobile login must not require mobile approval for itself.
 - Session and approval UI must not expose token-like values, refresh tokens, password hashes, OTP hashes, cookies, or raw auth/session objects.
+
+## Mobile P0 release gate
+
+`pnpm release:mobile:p0` is the deterministic automated release gate for the current mobile P0 slice.
+
+It runs:
+
+- `pnpm security:mobile-auth`
+- `pnpm test:mobile:p0`
+- `pnpm --filter @babyloop/mobile typecheck`
+
+It does not run Maestro, does not start Expo, and does not claim real-device S22 manual QA. Expanded Maestro E2E, push infrastructure validation, and real-device S22 manual QA remain outside the automated gate until the mobile runtime setup is stable.

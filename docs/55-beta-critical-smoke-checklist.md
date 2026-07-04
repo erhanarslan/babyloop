@@ -196,3 +196,11 @@ Beta can proceed only if:
 - [ ] Mobile auth token storage uses SecureStore, not AsyncStorage/localStorage/sessionStorage.
 - [ ] Mobile session and login approval UI do not render token-like values, refresh tokens, password hashes, OTP hashes, cookies, or raw auth/session objects.
 - [ ] Logout clears mobile auth token state and disconnects realtime.
+
+### Mobile P0 release gate
+
+- [ ] `pnpm release:mobile:p0` passes.
+- [ ] The gate includes `pnpm security:mobile-auth`, `pnpm test:mobile:p0`, and `pnpm --filter @babyloop/mobile typecheck`.
+- [ ] The gate does not run Maestro and does not claim real-device QA.
+- [ ] Mobile OTP/MFA P0 boundary still passes: SecureStore token storage, MFA-required unauthenticated state, current-password security toggles, mobile approval for web login approval, and safe session/login approval rendering.
+- [ ] Real-device S22 manual QA is still tracked separately.

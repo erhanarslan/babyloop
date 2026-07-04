@@ -82,3 +82,26 @@ This smoke is not a substitute for:
 - load testing
 - production deployment verification
 - real payment provider verification
+
+## Mobile P0 release gate
+
+Run the automated mobile P0 release gate before claiming the mobile auth/security slice is stable:
+
+```bash
+pnpm release:mobile:p0
+```
+
+This gate intentionally runs only deterministic local checks:
+
+- `pnpm security:mobile-auth`
+- `pnpm test:mobile:p0`
+- `pnpm --filter @babyloop/mobile typecheck`
+
+This gate does **not** run Maestro and does not claim real-device QA. Maestro remains optional through `RUN_MOBILE_E2E=1 pnpm smoke:release`, and real-device S22 manual QA remains a separate checklist item until device setup and push infrastructure are stable.
+
+The automated gate is not a substitute for:
+
+- Android/S22 manual smoke,
+- expanded Maestro E2E,
+- push notification infrastructure validation,
+- App Store / Play Store packaging checks.
