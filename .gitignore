@@ -330,3 +330,15 @@ babyloop-*.zip
 *.bak-*
 *.bak.*
 *.bak*
+
+# =========================================================
+# BabyLoop local env/secret backup artifacts
+# =========================================================
+.env.local.backup*
+.env.*.backup*
+*.backup
+*.backup-*
+*.backup.*
+*.secret
+*.secret-*
+*.secret.*

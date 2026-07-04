@@ -25,6 +25,11 @@ const generatedFilePatterns = [
   /^babyloop-backoffice-e2e-release-target\.txt$/u,
   /^web-full-flow\.json$/u,
   /^backoffice\.json$/u,
+  /^\.env(?:\..*)?\.backup.*$/u,
+  /^.*\.backup(?:[-.].*)?$/u,
+  /^.*\.backup.*$/u,
+  /^.*\.secret(?:[-.].*)?$/u,
+  /^.*\.secret.*$/u,
 ];
 
 const targets = new Set();

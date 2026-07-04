@@ -2503,6 +2503,35 @@ describe("auth API", () => {
     expect(sessionRows).toHaveLength(1);
   });
 
+  it("google callback rejects unverified Google emails without creating a user", async () => {
+    await useGoogleOAuthTestApp({
+      "unverified-code": {
+        email: "unverified.google@example.com",
+        email_verified: false,
+        name: "Unverified Google",
+        sub: "google-sub-unverified"
+      }
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-unverified`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-unverified&code=unverified-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "unverified.google@example.com"));
+
+    expect(userRows).toHaveLength(0);
+  });
+
   it("google callback links an existing password user by normalized email", async () => {
     await useGoogleOAuthTestApp({
       "link-code": {

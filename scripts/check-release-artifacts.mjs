@@ -27,6 +27,11 @@ const generatedFilePatterns = [
   /^backoffice\.json$/u,
   /^.*\.bak(?:[-.].*)?$/u,
   /^.*\.bak.*$/u,
+  /^\.env(?:\..*)?\.backup.*$/u,
+  /^.*\.backup(?:[-.].*)?$/u,
+  /^.*\.backup.*$/u,
+  /^.*\.secret(?:[-.].*)?$/u,
+  /^.*\.secret.*$/u,
 ];
 
 if (process.env.ALLOW_RELEASE_ARTIFACTS === "1") {

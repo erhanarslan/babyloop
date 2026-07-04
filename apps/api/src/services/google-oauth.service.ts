@@ -123,7 +123,8 @@ export function serializeGoogleOAuthStateCookie(state: string): string {
     "SameSite=Lax",
     `Path=${GOOGLE_OAUTH_STATE_COOKIE_PATH}`,
     `Max-Age=${GOOGLE_OAUTH_STATE_TTL_SECONDS}`,
-    `Expires=${expiresAt.toUTCString()}`
+    `Expires=${expiresAt.toUTCString()}`,
+    ...secureCookieFlag()
   ].join("; ");
 }
 
@@ -134,7 +135,8 @@ export function serializeExpiredGoogleOAuthStateCookie(): string {
     "SameSite=Lax",
     `Path=${GOOGLE_OAUTH_STATE_COOKIE_PATH}`,
     "Max-Age=0",
-    "Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    ...secureCookieFlag()
   ].join("; ");
 }
 
@@ -175,4 +177,9 @@ export function readCookieValue(
   }
 
   return null;
+}
+
+
+function secureCookieFlag(): string[] {
+  return process.env.NODE_ENV === "production" ? ["Secure"] : [];
 }

@@ -530,7 +530,7 @@ export async function authenticateGoogleUser(
   app: FastifyInstance,
   googleProfile: GoogleUserInfo
 ): Promise<AuthSuccess> {
-  const email = normalizeEmail(googleProfile.email ?? "");
+  const email = normalizeGoogleOAuthEmail(googleProfile);
   const providerAccountId = googleProfile.sub;
 
   const existingGoogleAccount = await findUserWithProfileByAuthAccount(
@@ -1560,6 +1560,24 @@ async function createProfileForGoogleUser(
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function normalizeGoogleOAuthEmail(googleProfile: GoogleUserInfo): string {
+  if (!googleProfile.email || googleProfile.email_verified !== true) {
+    throw new Error("Google profile email must be verified.");
+  }
+
+  const email = normalizeEmail(googleProfile.email);
+
+  if (!isSafeGoogleOAuthEmail(email)) {
+    throw new Error("Google profile email is invalid.");
+  }
+
+  return email;
+}
+
+function isSafeGoogleOAuthEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) && email.length <= 320;
 }
 
 function buildGoogleProfileDisplayName(googleProfile: GoogleUserInfo, email: string): string {
