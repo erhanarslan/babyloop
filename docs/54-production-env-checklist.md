@@ -247,3 +247,16 @@ Provider previews and admin email ops must never return SMTP credentials, Resend
 | `BABYLOOP_EXPOSE_DEV_AUTH_TOKENS=1` | Local dev only | Allows dev-only auth helper values such as `devOtpCode`, `devResetToken`, and `devEmailVerificationToken` outside tests. Must never be set in staging or production. |
 
 Dev auth helper values are allowed automatically only when `NODE_ENV=test`. In all other non-production environments they require `BABYLOOP_EXPOSE_DEV_AUTH_TOKENS=1`. In production they are always blocked.
+
+## Auth secret/token leak guard
+
+Run before staging or production deployment:
+
+```bash
+pnpm security:auth-leaks
+pnpm test:api:security
+```
+
+The guard fails when generated backup/secret artifacts are present, dev auth token helper functions are duplicated, production exposure is not explicitly blocked, or sensitive auth/session/token fields are logged through `console.*`, `request.log.*`, or `app.log.*`.
+
+This guard is intentionally conservative. If it fails, fix the source instead of bypassing it.
