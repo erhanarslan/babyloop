@@ -293,3 +293,17 @@ The mobile notification surface remains draft-only for email/push/n8n delivery c
 Current mobile notification scope is in-app/read/unread/preferences only. Email/push/n8n delivery remains blocked by the existing delivery policy until delivery logs, deduplication, frequency limiting, idempotency, and admin audit are implemented.
 
 This checklist does not enable native push tokens, Expo push delivery, email notification delivery, n8n webhooks, queues, or background workers.
+
+## Notification delivery log foundation
+
+`notification_delivery_logs` exists as the idempotency and frequency window foundation for future notification delivery.
+
+Production readiness still requires:
+
+- `pnpm security:notification-delivery-log` passing,
+- sender-specific delivery result transitions,
+- retry/failure policy,
+- admin audit for real sends,
+- provider sandbox validation.
+
+The foundation records candidate logs with `deliveryAllowed=false` and `draftOnly=true`; it does not enable email/push/n8n delivery.

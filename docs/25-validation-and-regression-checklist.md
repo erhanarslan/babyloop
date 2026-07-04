@@ -597,3 +597,13 @@ http://localhost:3001/moderation
 - [ ] Child reminder notification cadence is a preference/draft boundary; it does not prove native push delivery.
 - [ ] Notification delivery policy remains draft-only until delivery logs, deduplication, frequency limiting, idempotency, and admin audit are implemented.
 - [ ] Saved-search notification generation may create in-app notifications only; it must not send email, push, or n8n webhooks.
+
+### Notification delivery log foundation
+
+- [ ] `pnpm security:notification-delivery-log` passes.
+- [ ] `pnpm --filter @babyloop/api test test/notification-delivery-log.service.test.ts test/notification-delivery-policy.service.test.ts` passes.
+- [ ] `notification_delivery_logs` migration/schema exists with a unique idempotency key.
+- [ ] Delivery candidate logs store `dedupKey`, `frequencyWindowHours`, `deliveryAllowed=false`, `draftOnly=true`, and safe metadata only.
+- [ ] Frequency window checks block duplicate candidate writes before a real sender is connected.
+- [ ] Metadata sanitation drops raw e-mail, phone, token, password, cookie, OTP, raw body, and authorization fields.
+- [ ] Real email/push/n8n delivery remains disabled until sender integration, retry policy, admin audit, and delivery-result transitions are implemented.

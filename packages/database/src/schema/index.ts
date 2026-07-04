@@ -761,6 +761,38 @@ export const notifications = pgTable(
   ]
 );
 
+
+export const notificationDeliveryLogs = pgTable(
+  "notification_delivery_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    kind: varchar("kind", { length: 80 }).notNull(),
+    sourceType: varchar("source_type", { length: 80 }).notNull(),
+    sourceId: varchar("source_id", { length: 160 }).notNull(),
+    channel: varchar("channel", { length: 40 }).notNull(),
+    status: varchar("status", { length: 40 }).notNull().default("candidate"),
+    idempotencyKey: varchar("idempotency_key", { length: 240 }).notNull(),
+    dedupKey: varchar("dedup_key", { length: 240 }).notNull(),
+    frequencyWindowHours: integer("frequency_window_hours").notNull(),
+    deliveryAllowed: boolean("delivery_allowed").notNull().default(false),
+    draftOnly: boolean("draft_only").notNull().default(true),
+    blockedReasons: jsonb("blocked_reasons").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true })
+  },
+  (table) => [
+    uniqueIndex("notification_delivery_logs_idempotency_key_unique").on(table.idempotencyKey),
+    index("notification_delivery_logs_profile_created_at_idx").on(table.profileId, table.createdAt),
+    index("notification_delivery_logs_dedup_created_at_idx").on(table.dedupKey, table.createdAt),
+    index("notification_delivery_logs_kind_source_idx").on(table.kind, table.sourceType, table.sourceId)
+  ]
+);
+
 export const reports = pgTable(
   "reports",
   {

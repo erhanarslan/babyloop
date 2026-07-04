@@ -214,3 +214,12 @@ Beta can proceed only if:
 - [ ] Child lifecycle notification generation is in-app only and does not claim email/push/n8n delivery.
 - [ ] Child reminder notification cadence remains preference/draft-only until the delivery-log/idempotency package is implemented.
 - [ ] Real email/push/n8n delivery is not claimed in beta.
+
+### Notification delivery log foundation
+
+- [ ] `pnpm security:notification-delivery-log` passes.
+- [ ] Notification delivery candidate logs use a unique idempotency key.
+- [ ] Frequency window behavior blocks duplicate candidate writes.
+- [ ] Candidate log metadata is safe and does not contain raw e-mail, token, OTP, password, cookie, authorization, or raw body values.
+- [ ] The delivery-log foundation keeps `deliveryAllowed=false` and `draftOnly=true`.
+- [ ] No email/push/n8n sender is enabled by this foundation.

@@ -551,3 +551,9 @@ The mobile boundary is:
 - safe notification cards without token/session/raw e-mail leaks.
 
 This is a draft-only/email/push/n8n boundary. Mobile UI and API tests may show notification preferences and in-app notification results, but they must not claim native push, email delivery, n8n hooks, queues, or provider delivery until the dedicated delivery-log/idempotency package is implemented.
+
+## Notification delivery log foundation
+
+`notification_delivery_logs` is the persistence foundation for the notification delivery pipeline. It records candidate delivery attempts with a unique idempotency key, dedup key, frequency window metadata, `deliveryAllowed=false`, and `draftOnly=true`.
+
+This is still not a sender. The foundation only makes duplicate/frequency/idempotency behavior testable before email, push, queue, or n8n delivery is connected. `pnpm security:notification-delivery-log` protects this boundary.

@@ -162,6 +162,13 @@
       "when": 1783193972859,
       "tag": "0022_listing_image_content_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1783208511269,
+      "tag": "0023_notification_delivery_logs",
+      "breakpoints": true
     }
   ]
 }
