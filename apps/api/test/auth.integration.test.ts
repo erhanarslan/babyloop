@@ -2939,6 +2939,230 @@ describe("auth API", () => {
     });
   });
 
+  it("mobile login approval enabled login returns a challenge without issuing a session", async () => {
+    const user = await createUser(app, {
+      email: "login-approval-required@example.com",
+      password: "Password123!"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        mobileLoginApprovalEnabled: true
+      })
+      .where(eq(users.id, user.user.id));
+
+    const response = await app.inject({
+      headers: {
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X) BabyLoopWeb"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "login-approval-required@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const challengeRows = await app.db
+      .select({
+        id: loginApprovalChallenges.id,
+        status: loginApprovalChallenges.status,
+        approvalTokenHash: loginApprovalChallenges.approvalTokenHash
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.userId, user.user.id));
+
+    const sessionRows = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.userId, user.user.id));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        approvalId: expect.any(String),
+        approvalToken: expect.any(String),
+        deviceLabel: "Mac tarayıcı",
+        expiresAt: expect.any(String),
+        loginApprovalRequired: true
+      }
+    });
+    expect(response.body).not.toContain("accessToken");
+    expect(response.body).not.toContain("refreshToken");
+    expect(response.body).not.toContain("passwordHash");
+    expect(response.body).not.toContain("approvalTokenHash");
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    expect(challengeRows).toHaveLength(1);
+    expect(challengeRows[0].status).toBe("pending");
+    expect(challengeRows[0].approvalTokenHash).not.toBe(response.json().data.approvalToken);
+    expect(sessionRows).toHaveLength(1);
+  });
+
+  it("mobile login approval complete creates a session only after approval and consumes the challenge", async () => {
+    const user = await createUser(app, {
+      email: "login-approval-complete@example.com",
+      password: "Password123!"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        mobileLoginApprovalEnabled: true
+      })
+      .where(eq(users.id, user.user.id));
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "login-approval-complete@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const approvalId = login.json().data.approvalId;
+    const approvalToken = login.json().data.approvalToken;
+
+    const beforeApproval = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login-approval/complete",
+      payload: {
+        approvalToken
+      }
+    });
+
+    const approve = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: `/api/v1/auth/login-approvals/${approvalId}/approve`
+    });
+
+    const complete = await app.inject({
+      headers: {
+        "user-agent": "BabyLoopMobile Android"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login-approval/complete",
+      payload: {
+        approvalToken
+      }
+    });
+
+    const reused = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login-approval/complete",
+      payload: {
+        approvalToken
+      }
+    });
+
+    const [challengeRow] = await app.db
+      .select({
+        status: loginApprovalChallenges.status
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.id, approvalId));
+
+    expect(beforeApproval.statusCode).toBe(400);
+    expect(beforeApproval.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "LOGIN_APPROVAL_INVALID"
+      }
+    });
+
+    expect(approve.statusCode).toBe(200);
+
+    expect(complete.statusCode).toBe(200);
+    expect(complete.json()).toMatchObject({
+      ok: true,
+      data: {
+        accessToken: expect.any(String),
+        user: {
+          id: user.user.id,
+          email: "login-approval-complete@example.com"
+        }
+      }
+    });
+    expect(getRefreshSetCookie(complete)).toContain("HttpOnly");
+    expect(challengeRow?.status).toBe("consumed");
+
+    expect(reused.statusCode).toBe(400);
+    expect(reused.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "LOGIN_APPROVAL_INVALID"
+      }
+    });
+
+    for (const response of [beforeApproval, approve, complete, reused]) {
+      expect(response.body).not.toContain("approvalTokenHash");
+      expect(response.body).not.toContain("passwordHash");
+      expect(response.body).not.toContain("refreshToken");
+    }
+  });
+
+  it("MFA verify returns mobile login approval challenge before issuing a session when both are enabled", async () => {
+    const user = await createUser(app, {
+      email: "mfa-then-login-approval@example.com"
+    });
+
+    await app.db
+      .update(users)
+      .set({
+        mfaEnabled: true,
+        mobileLoginApprovalEnabled: true
+      })
+      .where(eq(users.id, user.user.id));
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "mfa-then-login-approval@example.com",
+        password: "Password123!"
+      }
+    });
+
+    const verify = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/verify",
+      payload: {
+        challengeId: login.json().data.challengeId,
+        code: login.json().data.devOtpCode
+      }
+    });
+
+    const loginApprovalRows = await app.db
+      .select({
+        id: loginApprovalChallenges.id,
+        status: loginApprovalChallenges.status
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.userId, user.user.id));
+
+    expect(login.statusCode).toBe(200);
+    expect(login.json().data.mfaRequired).toBe(true);
+    expect(login.body).not.toContain("loginApprovalRequired");
+
+    expect(verify.statusCode).toBe(200);
+    expect(verify.json()).toMatchObject({
+      ok: true,
+      data: {
+        approvalId: expect.any(String),
+        approvalToken: expect.any(String),
+        loginApprovalRequired: true
+      }
+    });
+    expect(verify.body).not.toContain("accessToken");
+    expect(verify.body).not.toContain("refreshToken");
+    expect(verify.headers["set-cookie"]).toBeUndefined();
+    expect(loginApprovalRows).toHaveLength(1);
+    expect(loginApprovalRows[0].status).toBe("pending");
+  });
+
   it("normal login is unchanged when MFA is disabled", async () => {
     const user = await createUser(app, {
       email: "mfa-disabled@example.com"

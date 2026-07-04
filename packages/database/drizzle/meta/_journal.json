@@ -148,6 +148,13 @@
       "when": 1783118556727,
       "tag": "0020_login_approval_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783156233512,
+      "tag": "0021_login_approval_consumed_status",
+      "breakpoints": true
     }
   ]
 }

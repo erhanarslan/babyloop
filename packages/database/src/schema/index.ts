@@ -100,7 +100,8 @@ export const loginApprovalChallengeStatusEnum = pgEnum("login_approval_challenge
   "pending",
   "approved",
   "denied",
-  "expired"
+  "expired",
+  "consumed"
 ]);
 
 export const childProfileNoteTypeEnum = pgEnum("child_profile_note_type", [

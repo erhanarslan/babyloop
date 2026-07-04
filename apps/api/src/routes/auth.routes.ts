@@ -8,6 +8,7 @@ import {
   emailVerificationConfirmSchema,
   emailVerificationRequestSchema,
   loginBodySchema,
+  loginApprovalCompleteSchema,
   loginApprovalPreferenceSchema,
   mfaPreferenceSchema,
   mfaVerifySchema,
@@ -62,13 +63,16 @@ import {
 } from "../services/auth.service.js";
 import {
   approveLoginApprovalChallenge,
+  completeApprovedLoginApprovalChallenge,
   denyLoginApprovalChallenge,
   getLoginApprovalStatus,
   listPendingLoginApprovals,
   updateLoginApprovalPreference,
   type LoginApprovalActionResponse,
+  type LoginApprovalCompleteResponse,
   type LoginApprovalPreferenceResponse,
   type LoginApprovalsResponse,
+  type LoginApprovalRequiredResponse,
   type LoginApprovalStatusResponse
 } from "../services/login-approval.service.js";
 import { adminForbidden, isBackofficeRole } from "../services/admin-context.service.js";
@@ -119,7 +123,7 @@ type PasswordResetRequestRouteResponse =
   | PasswordResetRequestResponse
   | ReturnType<typeof invalidAuthRequest>;
 
-type LoginRouteResponse = AuthResponse | MfaChallengeResponse;
+type LoginRouteResponse = AuthResponse | MfaChallengeResponse | LoginApprovalRequiredResponse;
 
 type BackofficeAuthRouteResponse = AuthMeResponse | MfaChallengeResponse | ReturnType<typeof adminForbidden>;
 
@@ -140,6 +144,9 @@ type LoginApprovalPreferenceRouteResponse =
 type LoginApprovalsRouteResponse = LoginApprovalsResponse;
 type LoginApprovalActionRouteResponse =
   | LoginApprovalActionResponse
+  | ReturnType<typeof invalidAuthRequest>;
+type LoginApprovalCompleteRouteResponse =
+  | LoginApprovalCompleteResponse
   | ReturnType<typeof invalidAuthRequest>;
 
 type EmailVerificationRequestRouteResponse =
@@ -206,6 +213,8 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       const result = await loginUser(app, parsedBody.data, {
         emailDelivery: options.emailDelivery,
+        requestMeta: buildAuthSessionRequestMeta(request),
+        requireMobileLoginApproval: true,
         webAppUrl: options.webAppUrl
       });
 
@@ -226,6 +235,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
             : result.response;
 
         return reply.status(200).send(response);
+      }
+
+      if (result.status === "approval_required") {
+        return reply.status(200).send(result.response);
       }
 
       const response = attachAccessToken(result.response, options);
@@ -256,7 +269,48 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await verifyMfaLogin(app, parsedBody.data);
+      const result = await verifyMfaLogin(app, parsedBody.data, {
+        requestMeta: buildAuthSessionRequestMeta(request),
+        requireMobileLoginApproval: true
+      });
+
+      if (result.status === "invalid") {
+        return reply.status(400).send(result.response);
+      }
+
+      if (result.status === "approval_required") {
+        return reply.status(200).send(result.response);
+      }
+
+      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+
+      setPublicAuthCookies(reply, {
+        accessToken: response.data.accessToken,
+        accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+        refreshToken: session.refreshToken,
+        refreshTokenExpiresAt: session.expiresAt
+      });
+
+      return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: LoginApprovalCompleteRouteResponse }>(
+    "/auth/login-approval/complete",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const parsedBody = loginApprovalCompleteSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await completeApprovedLoginApprovalChallenge(app, parsedBody.data);
 
       if (result.status === "invalid") {
         return reply.status(400).send(result.response);
@@ -607,6 +661,11 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
             : result.response;
 
         return reply.status(200).send(response);
+      }
+
+      if (result.status === "approval_required") {
+        clearBackofficeAuthCookies(reply);
+        return reply.status(403).send(adminForbidden());
       }
 
       if (!isBackofficeRole(result.response.data.user.role)) {

@@ -1,16 +1,19 @@
 import { createHash, randomBytes } from "node:crypto";
-import { loginApprovalChallenges, sessions, users } from "@babyloop/database/schema";
+import { loginApprovalChallenges, profiles, sessions, users } from "@babyloop/database/schema";
 import type { ApiFailure, ApiResponse } from "@babyloop/shared";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import type { LoginApprovalPreferenceBody } from "../schemas/auth.schemas.js";
+import type {
+  LoginApprovalCompleteBody,
+  LoginApprovalPreferenceBody
+} from "../schemas/auth.schemas.js";
 import { hashRefreshToken } from "../utils/refresh-token.js";
 import { verifyPassword } from "../utils/password.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
 
 const LOGIN_APPROVAL_TTL_SECONDS = 10 * 60;
 
-type LoginApprovalChallengeStatus = "pending" | "approved" | "denied" | "expired";
+type LoginApprovalChallengeStatus = "pending" | "approved" | "denied" | "expired" | "consumed";
 
 export type LoginApprovalStatusPayload = {
   delivery: "in_app";
@@ -49,6 +52,36 @@ export type LoginApprovalChallengeCreation = {
   approvalToken: string;
   approval: SafeLoginApprovalChallenge;
 };
+
+export type LoginApprovalRequiredResponse = ApiResponse<{
+  approvalId: string;
+  approvalToken: string;
+  deviceLabel: string;
+  expiresAt: string;
+  loginApprovalRequired: true;
+}>;
+
+type LoginApprovalAuthPayload = {
+  accessToken: string;
+  user: {
+    id: string;
+    email: string;
+    emailVerifiedAt: string | null;
+    role: string;
+  };
+  profile: {
+    id: string;
+    displayName: string;
+    locationCity: string | null;
+  };
+};
+
+type LoginApprovalCompleteSuccessResponse = {
+  ok: true;
+  data: LoginApprovalAuthPayload;
+};
+
+export type LoginApprovalCompleteResponse = ApiResponse<LoginApprovalAuthPayload>;
 
 export async function getLoginApprovalStatus(
   app: FastifyInstance,
@@ -145,6 +178,108 @@ export async function createLoginApprovalChallenge(
   return {
     approvalToken,
     approval: serializeLoginApprovalChallenge(challenge)
+  };
+}
+
+export function buildLoginApprovalRequiredResponse(
+  creation: LoginApprovalChallengeCreation
+): LoginApprovalRequiredResponse {
+  return {
+    ok: true,
+    data: {
+      approvalId: creation.approval.id,
+      approvalToken: creation.approvalToken,
+      deviceLabel: creation.approval.deviceLabel,
+      expiresAt: creation.approval.expiresAt,
+      loginApprovalRequired: true
+    }
+  };
+}
+
+export async function completeApprovedLoginApprovalChallenge(
+  app: FastifyInstance,
+  body: LoginApprovalCompleteBody
+): Promise<
+  | { status: "ok"; response: LoginApprovalCompleteSuccessResponse }
+  | { status: "invalid"; response: ApiFailure }
+> {
+  const now = new Date();
+  const approvalTokenHash = hashLoginApprovalToken(body.approvalToken);
+
+  const completed = await app.db.transaction(async (tx) => {
+    const [challenge] = await tx
+      .select({
+        id: loginApprovalChallenges.id,
+        userId: loginApprovalChallenges.userId,
+        email: users.email,
+        emailVerifiedAt: users.emailVerifiedAt,
+        role: users.role,
+        profileId: profiles.id,
+        displayName: profiles.displayName,
+        locationCity: profiles.locationCity
+      })
+      .from(loginApprovalChallenges)
+      .innerJoin(users, eq(users.id, loginApprovalChallenges.userId))
+      .innerJoin(profiles, eq(profiles.userId, users.id))
+      .where(and(
+        eq(loginApprovalChallenges.approvalTokenHash, approvalTokenHash),
+        eq(loginApprovalChallenges.status, "approved"),
+        gt(loginApprovalChallenges.expiresAt, now)
+      ))
+      .limit(1);
+
+    if (!challenge) {
+      return null;
+    }
+
+    const [updated] = await tx
+      .update(loginApprovalChallenges)
+      .set({
+        status: "consumed",
+        updatedAt: now
+      })
+      .where(and(
+        eq(loginApprovalChallenges.id, challenge.id),
+        eq(loginApprovalChallenges.status, "approved"),
+        gt(loginApprovalChallenges.expiresAt, now)
+      ))
+      .returning({
+        id: loginApprovalChallenges.id
+      });
+
+    if (!updated) {
+      return null;
+    }
+
+    return challenge;
+  });
+
+  if (!completed) {
+    return {
+      status: "invalid",
+      response: invalidLoginApprovalToken()
+    };
+  }
+
+  return {
+    status: "ok",
+    response: {
+      ok: true,
+      data: {
+        accessToken: "",
+        user: {
+          id: completed.userId,
+          email: completed.email,
+          emailVerifiedAt: completed.emailVerifiedAt?.toISOString() ?? null,
+          role: completed.role
+        },
+        profile: {
+          id: completed.profileId,
+          displayName: completed.displayName,
+          locationCity: completed.locationCity
+        }
+      }
+    }
   };
 }
 
@@ -412,6 +547,17 @@ function loginApprovalNotFound(): ApiFailure {
     error: {
       code: "LOGIN_APPROVAL_NOT_FOUND",
       message: "Login approval request was not found."
+    }
+  };
+}
+
+
+function invalidLoginApprovalToken(): ApiFailure {
+  return {
+    ok: false,
+    error: {
+      code: "LOGIN_APPROVAL_INVALID",
+      message: "Login approval token is invalid or expired."
     }
   };
 }

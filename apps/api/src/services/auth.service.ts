@@ -55,6 +55,11 @@ import {
   MFA_OTP_TTL_SECONDS
 } from "../utils/mfa-otp.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
+import {
+  buildLoginApprovalRequiredResponse,
+  createLoginApprovalChallenge,
+  type LoginApprovalRequiredResponse
+} from "./login-approval.service.js";
 
 export type SafeAuthUser = {
   id: string;
@@ -128,7 +133,7 @@ export type EmailVerificationConfirmResponse = ApiResponse<{
   emailVerified: true;
 }>;
 
-export type MfaVerifyResponse = ApiResponse<AuthPayload>;
+export type MfaVerifyResponse = AuthResponse | LoginApprovalRequiredResponse;
 
 export type MfaStatusPayload = {
   delivery: "email";
@@ -176,6 +181,16 @@ type AuthSessionCreation = {
 type EmailDeliveryOptions = {
   emailDelivery: EmailDeliveryService;
   webAppUrl: string;
+};
+
+type LoginOptions = EmailDeliveryOptions & {
+  requestMeta?: AuthSessionRequestMeta;
+  requireMobileLoginApproval?: boolean;
+};
+
+type MfaVerifyOptions = {
+  requestMeta?: AuthSessionRequestMeta;
+  requireMobileLoginApproval?: boolean;
 };
 
 type RefreshAuthSessionResult =
@@ -290,10 +305,11 @@ export async function registerUser(
 export async function loginUser(
   app: FastifyInstance,
   body: LoginBody,
-  options: EmailDeliveryOptions
+  options: LoginOptions
 ): Promise<
   | { status: "ok"; response: AuthSuccess }
   | { status: "mfa_required"; response: MfaChallengeResponse; devOtpCode: string }
+  | { status: "approval_required"; response: LoginApprovalRequiredResponse }
   | { status: "invalid"; response: ApiFailure }
 > {
   const userWithProfile = await findUserWithProfileByEmail(app, body.email);
@@ -337,6 +353,19 @@ export async function loginUser(
     };
   }
 
+  if (options.requireMobileLoginApproval && userWithProfile.mobileLoginApprovalEnabled) {
+    const creation = await createLoginApprovalChallenge(
+      app,
+      userWithProfile.id,
+      options.requestMeta ?? { ipAddress: null, userAgent: null }
+    );
+
+    return {
+      status: "approval_required",
+      response: buildLoginApprovalRequiredResponse(creation)
+    };
+  }
+
   return {
     status: "ok",
     response: buildAuthResponse({
@@ -357,8 +386,13 @@ export async function loginUser(
 
 export async function verifyMfaLogin(
   app: FastifyInstance,
-  body: MfaVerifyBody
-): Promise<{ status: "ok"; response: AuthSuccess } | { status: "invalid"; response: ApiFailure }> {
+  body: MfaVerifyBody,
+  options: MfaVerifyOptions = {}
+): Promise<
+  | { status: "ok"; response: AuthSuccess }
+  | { status: "approval_required"; response: LoginApprovalRequiredResponse }
+  | { status: "invalid"; response: ApiFailure }
+> {
   const now = new Date();
   const codeHash = hashMfaOtpCode(body.code);
 
@@ -370,6 +404,7 @@ export async function verifyMfaLogin(
         email: users.email,
         emailVerifiedAt: users.emailVerifiedAt,
         role: users.role,
+        mobileLoginApprovalEnabled: users.mobileLoginApprovalEnabled,
         profileId: profiles.id,
         displayName: profiles.displayName,
         locationCity: profiles.locationCity
@@ -406,6 +441,19 @@ export async function verifyMfaLogin(
     return {
       status: "invalid",
       response: invalidMfaCode()
+    };
+  }
+
+  if (options.requireMobileLoginApproval && verified.mobileLoginApprovalEnabled) {
+    const creation = await createLoginApprovalChallenge(
+      app,
+      verified.userId,
+      options.requestMeta ?? { ipAddress: null, userAgent: null }
+    );
+
+    return {
+      status: "approval_required",
+      response: buildLoginApprovalRequiredResponse(creation)
     };
   }
 
@@ -1442,6 +1490,7 @@ async function findUserWithProfileByEmail(app: FastifyInstance, email: string) {
       email: users.email,
       emailVerifiedAt: users.emailVerifiedAt,
       mfaEnabled: users.mfaEnabled,
+      mobileLoginApprovalEnabled: users.mobileLoginApprovalEnabled,
       role: users.role,
       passwordHash: users.passwordHash,
       profileId: profiles.id,
