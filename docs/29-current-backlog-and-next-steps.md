@@ -1,246 +1,91 @@
-# Current Backlog and Next Steps
+# BabyLoop Current Backlog and Next Steps
 
-## Purpose
+This document is the active backlog summary after the mobile MFA/login-flow hardening and roadmap reset.
 
-This document keeps the BabyLoop backlog aligned with the actual codebase so future work starts from true project state.
+## Product direction
 
-See also `docs/41-current-task-map-and-roadmap.md` for the current implementation map, prioritized task list, and sequencing from backoffice intelligence to web listing AI.
+BabyLoop is a real product/ecosystem, not only a listing demo. The intended product is:
 
-## Product Vision
+- safe baby/child marketplace,
+- child-aware notebook/reminder/recommendation layer,
+- messaging and trust/safety workflow,
+- RAG/assistant as a marketing differentiator,
+- realistic checkout/payment simulation until legal/company setup exists,
+- mobile app completed alongside web,
+- exhaustive test support because there is no separate QA team.
 
-BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby/child products.
+## P0 current priority
 
-## Completed Or Mostly Completed
+1. Repo hygiene and docs truth reset.
+2. Auth security review.
+3. Google OAuth hardening.
+4. Production email provider foundation.
+5. S3/R2 production image storage wiring.
+6. Managed PostgreSQL migration plan.
+7. Queue/job foundation.
+8. Advanced filtering and pagination.
+9. Realtime duplicate/missing/reconnect groundwork.
+10. Legal pages: Terms of Use, Privacy Policy, marketplace rules on web and mobile.
 
-- pnpm monorepo
-- Turborepo
-- Next.js web app
-- Fastify API
-- PostgreSQL with Drizzle schema and migrations
-- Docker Compose local dependencies for PostgreSQL and Redis
-- GitHub Actions CI foundation
-- split API integration tests
-- shared unit tests
-- auth register/login/me
-- refresh-token session foundation
-- backoffice httpOnly access cookie session hardening
-- logout/session revoke
-- password reset
-- email verification
-- Google OAuth foundation
-- MFA OTP backend foundation
-- categories
-- listing browse/detail/create/edit/status lifecycle
-- local listing image upload/storage/safety
-- my listings
-- favorites
-- favorite notification privacy
-- privacy-safe favoriteCount
-- notifications foundation
-- notification unread/read/read-all
-- messaging conversations/messages
-- start-conversation idempotency
-- realtime messaging and notifications
-- messaging read-state correction
-- messaging XSS/security hardening
-- Trust & Safety report/block/moderation foundation
-- backoffice listing review tools for safe listing operations
-- backoffice dashboard MVP and listing image approve/reject review workflow
-- profile safety enforcement foundation
-- safe backoffice audit browser
-- deterministic message moderation
-- mock AI listing suggestions
-- AI audit logging
-- backoffice redacted AI moderation summary provider configuration and guardrails
+## P1 product completion
 
-## Partially Complete
+1. Child notebook/reminders/lifecycle notifications end-to-end.
+2. Notification delivery and n8n data pipeline.
+3. Analytics/product-intelligence logging.
+4. RAG/assistant production completion.
+5. Fraud prevention signals.
+6. Seller review/rating/review count.
+7. Payment simulation and commission model.
+8. Mobile app missing flows.
+9. Messaging image attachments only.
+10. Offline queue/reconnect behavior.
 
-- remaining production auth/session hardening: public-web cookie migration, full CSRF token, session/device UI, and granular RBAC
-- real email delivery
-- Google OAuth production validation
-- MFA user-facing management
-- listing discovery/filtering
-- image handling beyond local storage: object storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full moderation workflow beyond current report/block, case triage, profile/listing/message enforcement, timeline, listing review, image review, audit browser, and dashboard foundations
-- realtime production scaling
-- AI production operations: summary history, rate limiting, cost guardrails, evaluation, listing image understanding, valuation, RAG, and recommendations
-- UI system
-- web tests/E2E
+## P2 polish and QA
 
-## Production Blockers
+1. Full web UI/UX polish after all remaining features are complete.
+2. Full mobile UI/UX polish after all remaining features are complete.
+3. End-to-end manual QA pass.
+4. Exhaustive automated test expansion.
+5. Release smoke hardening.
 
-- production-safe public-web auth transport, CSRF token enforcement, and device/session UI
-- real email provider
-- verified Google OAuth deployment config
-- R2/S3-compatible image storage, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
-- full assignment/SLA moderation workflow and advanced admin review operations
-- search filters/pagination
-- web E2E tests
-- observability and production deployment hardening
+## Final production package
 
-## Next P0 Tasks
+1. Production managed PostgreSQL.
+2. Production Redis.
+3. Queue workers.
+4. API/web/backoffice/mobile deployment pipeline.
+5. Secrets management.
+6. Observability: logs, metrics, error tracking, alerts.
+7. Backup/restore and migration rollback.
+8. Incident runbooks.
+9. Cost monitoring.
+10. Final production readiness and security pass.
 
-- Complete Phase 0 cleanup and manual QA for auth, listing lifecycle, local image upload, favorites, notifications, messaging, realtime, and mobile-width checks.
-- Harden the report/block foundation with manual QA and edge-case copy.
-- Stabilize and manually QA the current backoffice dashboard, moderation, listing review, and image review foundations.
-- Move image storage from local disk to an S3/R2-compatible provider without changing public API contracts.
-- Add image moderation and safer image processing/metadata handling.
-- Add production email delivery.
-- Add web E2E tests for auth, listing create/upload, favorites, notifications, and messaging.
+## Explicitly removed from near-term backlog
 
-## Product Foundation Roadmap
+- Rental.
+- Deposit/date rental flow.
+- Admin assignment.
+- SLA tracking.
+- Escalation workflow.
+- Text/document message attachments.
 
-P0:
+## Payment direction
 
-- Phase 0 cleanup/manual QA.
-- Trust & Safety: report/block/moderation foundation. Implemented as a backend/API/minimal-web foundation; deeper review workflows remain.
-- Admin/backoffice moderation and marketplace review foundation.
-- Account security panel for sessions/devices, production email, Google OAuth validation, CSRF token hardening, and MFA management.
+Real payment collection is intentionally disabled until there is a company/legal setup. The product still needs a realistic checkout simulation:
 
-P1:
+- order state machine,
+- payment state machine,
+- commission calculator,
+- platform fee,
+- seller net amount,
+- buyer total amount,
+- Iyzico-ready provider abstraction,
+- webhook skeleton,
+- demo/payment-disabled guard.
 
-- Search/discovery with filters, pagination, saved search, and ranking.
-- Seller dashboard with listing lifecycle, favoriteCount, and messaging activity summaries.
-- Mobile-first UI pass, including a WhatsApp-like chat UI direction. This is a UX direction, not WhatsApp integration.
-- Hybrid payment model: external agreement mode plus optional safe payment mode.
+The goal is that later only real Iyzico API keys and legal setup remain.
 
-P2:
+## Testing direction
 
-- AI recommendation and intelligence layer with real provider support.
-- AI ops/workers for asynchronous suggestions, moderation assistance, and auditability.
-- RAG/recommendation layer after the core marketplace data and trust foundations are stable.
-- Mobile app exploration after web flows and trust foundations mature.
-- Future admin-managed pinned promo cards in conversations.
-
-## P1/P2 Future Features
-
-- saved search
-- improved search filters and pagination
-- Redis-backed Socket.IO adapter and queues
-- notification delivery expansion
-- advanced analytics/dashboard beyond the current aggregate-only backoffice dashboard MVP
-- reviews/ratings
-- payment/secure checkout
-- rental/date/deposit flow
-- public listing real provider and production AI operations
-- AI valuation
-- RAG/recommendations
-- mobile app
-
-## Manual QA Checklist
-
-- register/login/logout
-- password reset dev flow
-- email verification dev flow
-- browse listings
-- listing detail
-- create listing with JPEG/PNG/WEBP upload
-- reject SVG/HTML/oversized image upload
-- my listings edit/status/upload/delete image controls
-- favorite/unfavorite without exposing actor identity
-- favoriteCount changes after favorite/unfavorite
-- notification unread/read/read-all behavior
-- message seller
-- idempotent start conversation
-- send normal message
-- reject unsafe message body
-- unread count drops only after conversation content is viewed
-- mobile width check for listing upload and messaging
-
-## Validation Commands
-
-```bash
-pnpm preflight
-pnpm --filter @babyloop/api typecheck
-TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test pnpm --filter @babyloop/api test
-pnpm --filter @babyloop/web typecheck
-pnpm --filter @babyloop/web build
-pnpm typecheck
-pnpm build
-```
-
-## Known Risks
-
-- Local image files are not durable production storage.
-- Realtime is not yet scaled with a Redis adapter.
-- Email delivery is still no-op/dev.
-- Web flows depend on manual QA until E2E tests exist.
-- Public web still uses Bearer-token compatibility; backoffice has moved off readable access-token browser storage.
-- Public listing suggestions are mock-only. Backoffice moderation summaries can use mock or server-configured OpenAI providers, but AI history, rate limiting, evaluation, and cost monitoring remain incomplete.
-- Admin moderation is foundation-level: report/block intake, redacted backoffice list/detail, triage filters, timeline, profile/listing/message enforcement, permissioned sensitive access, listing review, image review, safe audit browser, and an aggregate dashboard MVP exist; assignment/SLA, full user directory, appeals/export, and advanced analytics remain incomplete.
-
-
-<!-- 2026-06-11-backoffice-privacy-redaction-foundation -->
-## 2026-06-11 Update — Backoffice Data Privacy + Redaction Foundation
-
-### Current active backlog item
-
-```txt
-Permissioned Sensitive Raw Data Access + Audit
-```
-
-### Why this is active now
-
-Backoffice moderation list/detail flow now works with real case IDs.
-
-Before adding more trust & safety, support, or AI tooling, the API response contract must stop exposing unnecessary sensitive data.
-
-### Done before this item
-
-- Backoffice app created.
-- Backoffice port set to `3001`.
-- Backoffice shell/auth basic flow added.
-- Admin/non-admin access behavior added.
-- Moderation list route added.
-- Moderation detail route added.
-- Dynamic case route moved to correct app router location.
-- Detail screen opens with real case ID.
-- Basic status/action forms exist.
-
-### Previously completed privacy work
-
-- API redaction utility.
-- Server-side safe message preview.
-- Reporter identity redaction.
-- Query-level reporter minimization.
-- Backoffice raw DTO update.
-- PII regression tests.
-- Redaction utility unit tests.
-- Docs update.
-
-### Implemented in this item
-
-```txt
-Permissioned Sensitive Raw Data Access + Audit
-```
-
-- Separate `POST /api/v1/admin/moderation/cases/:caseId/sensitive-access` endpoint.
-- Explicit reason and allowlisted fields required.
-- Dedicated sensitive-access gate helper.
-- Successful raw access audited through the `events` table.
-- Denied sensitive-access attempts are audited when actor and case context are safely available.
-- Backoffice client function added without automatic reveal on page load.
-- Backoffice case detail now has an explicit sensitive-access request panel with warning, reason, field selection, audit id display, and clear-from-state action.
-- Backoffice moderation list now has safe triage filters for status, target type, search, sort, and limit.
-- Moderation list summary cards/counts are based on the current redacted result set and do not expose raw sensitive data.
-- Backoffice case detail now has a safe combined timeline for case/report context, moderation actions, status changes, and sensitive-access granted/denied audit events.
-- Timeline audit metadata is allowlisted server-side and does not expose raw message bodies, reporter emails, tokens, full profile/listing/conversation data, or conversation participants.
-- Backoffice case detail now has reason-required enforcement controls for supported listing/message targets.
-- Enforcement actions are audited and shown through the safe moderation timeline.
-- Backoffice listing review tools now provide safe listing list/detail screens, read-only image review, related moderation case summaries, reason-required archive/restore actions, and listing-scoped audit events.
-- Marketplace review operations now include approved/rejected listing image review, public filtering for rejected images, listing activity visibility, and an aggregate-only dashboard MVP.
-
-### Later backlog
-
-1. Granular sensitive-data permission model beyond the current admin compatibility gate.
-2. Admin actor minimization in timeline response.
-3. AI moderation summary endpoint using redacted inputs by default.
-4. AI recommendation UI in backoffice.
-5. Deeper moderation queue pagination, assignment, SLA tracking, and dashboard workflows.
-6. Pending image review queue and automated image moderation.
-7. Stabilize profile enforcement and audit browser through manual QA, then design appeals/export boundaries.
-8. Full trust & safety audit event dashboard and advanced analytics.
-9. Granular denied-audit policy for unauthenticated and malformed requests.
-
-
-See also: `docs/40-ai-moderation-provider-configuration.md` for the AI moderation provider configuration and redaction guardrails.
+Testing must become exhaustive across API, web, backoffice, mobile, RAG, auth security, storage, queue/jobs, notifications, payment simulation, realtime, and fraud signals. Manual QA will still be performed by the owner, but the software must provide as much automated support as possible.

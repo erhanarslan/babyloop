@@ -18,11 +18,13 @@ const generatedExactPaths = [
 ];
 
 const generatedFilePatterns = [
-  /^babyloop-.*-(audit|target)\.txt$/,
-  /^babyloop-api-regression-target\.txt$/,
-  /^babyloop-backoffice-e2e-release-target\.txt$/,
-  /^web-full-flow\.json$/,
-  /^backoffice\.json$/,
+  /^babyloop-.*\.txt$/u,
+  /^babyloop-.*\.zip$/u,
+  /^babyloop-.*-(audit|target)\.txt$/u,
+  /^babyloop-api-regression-target\.txt$/u,
+  /^babyloop-backoffice-e2e-release-target\.txt$/u,
+  /^web-full-flow\.json$/u,
+  /^backoffice\.json$/u,
 ];
 
 const targets = new Set();

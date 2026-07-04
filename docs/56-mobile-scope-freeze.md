@@ -1,140 +1,78 @@
-# Mobile Scope Freeze
+# Mobile Scope Status
 
-This document freezes the first BabyLoop mobile scope before creating the mobile app skeleton.
+This document supersedes the original mobile skeleton scope freeze.
 
-## Decision
+## Current status
 
-BabyLoop mobile will start with an Expo / React Native / TypeScript app.
+BabyLoop mobile is no longer only a skeleton. It is an Expo / React Native / TypeScript app with multiple API-backed product flows.
 
-The first mobile release is not a full marketplace replacement. It is a focused MVP that proves the highest-value parent marketplace flows on mobile while reusing the existing API and product rules.
+Implemented or mostly implemented:
 
-## Why Expo first
+- app shell and tab navigation,
+- login/register,
+- secure token storage,
+- browse listings,
+- listing detail,
+- favorites,
+- account/security,
+- MFA/OTP flow,
+- mobile security settings,
+- auth session controls,
+- mobile login approval management for web login approval,
+- messages list/detail foundation,
+- realtime messaging foundation,
+- sell listing and image-upload model foundations,
+- my listings,
+- notifications/preferences,
+- child profile notes/reminders foundation,
+- basket/mock checkout foundation,
+- assistant entry,
+- Jest P0 test package,
+- Maestro smoke foundation.
 
-Expo is selected for the first mobile slice because it provides:
+## Remaining mobile completion scope
 
-- faster app skeleton setup
-- simpler local development
-- easier image picker integration later
-- OTA/update-friendly development path
-- enough flexibility for a marketplace MVP
+Mobile must be completed fully:
 
-Bare React Native or native iOS/Android should be avoided at this stage because it would slow down beta velocity without solving a current blocker.
-
-## First mobile MVP scope
-
-### P0 mobile flows
-
-1. App shell and navigation.
-2. Login/register shell.
-3. Browse listings.
-4. Listing detail.
-5. Favorite/unfavorite.
-6. Basic account state.
-7. Messaging list/detail minimal.
-8. Safe logout.
-
-### P1 mobile flows
-
-1. Sell listing minimal form.
-2. Image picker/upload.
-3. My listings.
-4. Listing status update.
-5. Saved searches.
-6. Notification preferences.
-7. Child profile list and lifecycle suggestions.
-
-### Deferred mobile flows
-
-1. Payment / checkout.
-2. Promoted listings.
-3. Full backoffice mobile.
-4. Full RAG admin tools.
-5. n8n automation management.
-6. Advanced seller analytics.
-7. Native push notification delivery.
-8. Deep offline mode.
-
-## API reuse
-
-The mobile app should reuse existing API routes instead of creating mobile-specific duplicate endpoints.
-
-Expected initial API dependencies:
-
-- POST /api/v1/auth/login
-- POST /api/v1/auth/register
-- POST /api/v1/auth/logout
-- GET /api/v1/auth/me
-- GET /api/v1/listings
-- GET /api/v1/listings/:id
-- favorites endpoints
-- messaging endpoints
-- upload endpoints later
-
-If native cookie behavior becomes unreliable, mobile auth may need a dedicated secure-token client strategy. Tokens must use secure storage, not AsyncStorage.
+- auth edge-case QA,
+- MFA/OTP final QA,
+- security settings final QA,
+- browse/filter parity,
+- listing detail parity,
+- sell listing completion,
+- image upload real-device QA,
+- messages realtime hardening,
+- image-only message attachments,
+- offline/reconnect behavior,
+- notifications,
+- child notebook/reminders,
+- assistant,
+- checkout simulation,
+- legal links,
+- Android keyboard/composer fix,
+- Android/iOS safe area/tab polish,
+- app icon/splash,
+- expanded Maestro E2E,
+- real-device S22 manual QA.
 
 ## Security boundaries
 
-Mobile must preserve existing product safety boundaries:
+Mobile must preserve these boundaries:
 
-- no access token in plain AsyncStorage
-- no refresh token in plain AsyncStorage
-- no seller email/phone exposure
-- no private child profile exposure
-- no raw admin data
-- no medical, therapy, diagnosis, medication, treatment, or diet-plan assistant behavior
-- no unsafe HTML/script rendering in messages or listings
-- report/block flows must remain available but not visually overexposed
+- no access token in AsyncStorage,
+- no refresh token in AsyncStorage,
+- no token/secret leak in responses or logs,
+- no seller email/phone exposure,
+- no private child profile exposure,
+- no raw admin data,
+- no diagnosis/therapy/medication/treatment/diet-plan assistant behavior,
+- no unsafe HTML/script rendering,
+- report/block flows remain available without being visually overexposed,
+- mobile login must not require mobile approval for itself.
 
-## UX priorities
+## Deferred to final DevOps package
 
-The mobile app must feel like a marketplace first.
-
-Priority order:
-
-1. Search and browse.
-2. Listing image/detail quality.
-3. Fast favorite/save behavior.
-4. Safe messaging.
-5. Simple selling flow.
-6. Child-aware discovery later.
-
-The first mobile UI should be clean and direct, not a dashboard-heavy experience.
-
-## Technical baseline
-
-Recommended initial stack:
-
-- Expo
-- React Native
-- TypeScript
-- Expo Router
-- React Query or a lightweight fetch layer
-- SecureStore for sensitive native auth state if needed
-- shared API types copied or imported only where stable
-
-Do not introduce Redux for the first mobile slice unless state complexity forces it. Server state should remain request/cache driven.
-
-## App package location
-
-Preferred monorepo location: apps/mobile
-
-The mobile app should be added as a workspace package without disrupting existing API, web, and backoffice builds.
-
-## First skeleton acceptance criteria
-
-The skeleton is acceptable when:
-
-- apps/mobile exists.
-- TypeScript works.
-- Expo starts locally.
-- Basic tabs/stack navigation exists.
-- API base URL config exists.
-- Login screen placeholder exists.
-- Browse screen placeholder exists.
-- Listing detail placeholder exists.
-- No secrets are committed.
-- Existing web/api/backoffice typechecks are not broken.
-
-## Release rule
-
-Do not expand mobile scope until the skeleton runs and the first API-backed browse/detail flow works.
+- store release/build pipeline,
+- EAS/signing/release automation,
+- production observability,
+- production push infrastructure where applicable.

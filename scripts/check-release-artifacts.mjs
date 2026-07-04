@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -18,11 +18,15 @@ const generatedExactPaths = [
 ];
 
 const generatedFilePatterns = [
-  /^babyloop-.*-(audit|target)\.txt$/,
-  /^babyloop-api-regression-target\.txt$/,
-  /^babyloop-backoffice-e2e-release-target\.txt$/,
-  /^web-full-flow\.json$/,
-  /^backoffice\.json$/,
+  /^babyloop-.*\.txt$/u,
+  /^babyloop-.*\.zip$/u,
+  /^babyloop-.*-(audit|target)\.txt$/u,
+  /^babyloop-api-regression-target\.txt$/u,
+  /^babyloop-backoffice-e2e-release-target\.txt$/u,
+  /^web-full-flow\.json$/u,
+  /^backoffice\.json$/u,
+  /^.*\.bak(?:[-.].*)?$/u,
+  /^.*\.bak.*$/u,
 ];
 
 if (process.env.ALLOW_RELEASE_ARTIFACTS === "1") {
@@ -41,34 +45,20 @@ for (const relativePath of generatedExactPaths) {
 }
 
 for (const entry of safeReadDir(root)) {
-  if (generatedFilePatterns.some((pattern) => pattern.test(entry))) {
+  if (isGeneratedPath(entry)) {
     problems.add(entry);
   }
 }
 
-const gitStatus = spawnSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
-  cwd: root,
-  encoding: "utf8",
-});
+for (const relativePath of readGitPaths(["ls-files"])) {
+  if (isGeneratedPath(relativePath)) {
+    problems.add(relativePath);
+  }
+}
 
-if (gitStatus.status === 0) {
-  for (const line of gitStatus.stdout.split("\n")) {
-    const trimmed = line.trim();
-
-    if (!trimmed.startsWith("?? ")) {
-      continue;
-    }
-
-    const relativePath = trimmed.slice(3).trim();
-
-    if (
-      generatedExactPaths.some((artifactPath) => {
-        return relativePath === artifactPath || relativePath.startsWith(`${artifactPath}/`);
-      }) ||
-      generatedFilePatterns.some((pattern) => pattern.test(path.basename(relativePath)))
-    ) {
-      problems.add(relativePath);
-    }
+for (const relativePath of readUntrackedGitPaths()) {
+  if (isGeneratedPath(relativePath)) {
+    problems.add(relativePath);
   }
 }
 
@@ -83,8 +73,57 @@ for (const problem of [...problems].sort()) {
 }
 console.error("");
 console.error("Run: pnpm release:clean");
+console.error("Tracked backup files must be removed with git rm.");
 console.error("Or bypass intentionally with: ALLOW_RELEASE_ARTIFACTS=1 pnpm smoke:release");
 process.exit(1);
+
+function isGeneratedPath(relativePath) {
+  const normalizedPath = relativePath.split(path.sep).join("/");
+
+  if (
+    generatedExactPaths.some((artifactPath) => {
+      return normalizedPath === artifactPath || normalizedPath.startsWith(`${artifactPath}/`);
+    })
+  ) {
+    return true;
+  }
+
+  return generatedFilePatterns.some((pattern) => pattern.test(path.basename(normalizedPath)));
+}
+
+function readGitPaths(args) {
+  const result = spawnSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    return [];
+  }
+
+  return result.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function readUntrackedGitPaths() {
+  const result = spawnSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    return [];
+  }
+
+  return result.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("?? "))
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean);
+}
 
 function safeReadDir(directory) {
   try {

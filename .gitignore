@@ -320,3 +320,13 @@ packages/*/.env.local
 !packages/*/.env.development.example
 !packages/*/.env.production.example
 !packages/*/.env.test.example
+
+# =========================================================
+# BabyLoop local generated review/patch artifacts
+# =========================================================
+babyloop-*.txt
+babyloop-*.zip
+*.bak
+*.bak-*
+*.bak.*
+*.bak*
