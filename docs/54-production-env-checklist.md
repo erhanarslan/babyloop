@@ -238,3 +238,12 @@ Production is blocked if any of these are true:
 
 `EMAIL_SEND_ENABLED=true` is supported only with `EMAIL_PROVIDER=smtp` or `EMAIL_PROVIDER=resend`.
 Provider previews and admin email ops must never return SMTP credentials, Resend API keys, auth tokens, reset tokens, verification tokens, or OTP codes.
+
+
+## Dev auth token exposure
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `BABYLOOP_EXPOSE_DEV_AUTH_TOKENS=1` | Local dev only | Allows dev-only auth helper values such as `devOtpCode`, `devResetToken`, and `devEmailVerificationToken` outside tests. Must never be set in staging or production. |
+
+Dev auth helper values are allowed automatically only when `NODE_ENV=test`. In all other non-production environments they require `BABYLOOP_EXPOSE_DEV_AUTH_TOKENS=1`. In production they are always blocked.

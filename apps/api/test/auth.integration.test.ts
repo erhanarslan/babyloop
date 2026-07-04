@@ -3663,6 +3663,129 @@ describe("auth API", () => {
       }
     });
   });
+  it("does not expose dev auth tokens outside test or explicitly enabled local dev", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousExposeDevTokens = process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS;
+
+    try {
+      process.env.NODE_ENV = "development";
+      delete process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS;
+
+      const registerResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/register",
+        payload: {
+          email: "dev-token-register-guard@example.com",
+          password: "Password123!",
+          displayName: "Dev Token Guard",
+          locationCity: "İstanbul"
+        }
+      });
+
+      expect(registerResponse.statusCode).toBe(201);
+      expect(registerResponse.body).not.toContain("devEmailVerificationToken");
+      expect(registerResponse.body).not.toMatch(/emailVerificationToken|verificationToken/iu);
+
+      const resetUser = await createUser(app, {
+        email: "dev-token-reset-guard@example.com",
+        password: "Password123!"
+      });
+
+      const resetResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/password-reset/request",
+        payload: {
+          email: resetUser.user.email
+        }
+      });
+
+      expect(resetResponse.statusCode).toBe(200);
+      expect(resetResponse.body).not.toContain("devResetToken");
+      expect(resetResponse.body).not.toMatch(/resetToken/iu);
+
+      await app.db
+        .update(users)
+        .set({ mfaEnabled: true })
+        .where(eq(users.id, resetUser.user.id));
+
+      const mfaLoginResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: {
+          email: resetUser.user.email,
+          password: "Password123!"
+        }
+      });
+
+      expect(mfaLoginResponse.statusCode).toBe(200);
+      expect(mfaLoginResponse.json().data.mfaRequired).toBe(true);
+      expect(mfaLoginResponse.body).not.toContain("devOtpCode");
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+
+      if (previousExposeDevTokens === undefined) {
+        delete process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS;
+      } else {
+        process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS = previousExposeDevTokens;
+      }
+    }
+  });
+
+  it("allows dev auth tokens only when explicitly enabled outside production", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousExposeDevTokens = process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS;
+
+    try {
+      process.env.NODE_ENV = "development";
+      process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS = "1";
+
+      const registerResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/register",
+        payload: {
+          email: "dev-token-register-enabled@example.com",
+          password: "Password123!",
+          displayName: "Dev Token Enabled",
+          locationCity: "İstanbul"
+        }
+      });
+
+      expect(registerResponse.statusCode).toBe(201);
+      expect(registerResponse.json().data.devEmailVerificationToken).toEqual(expect.any(String));
+
+      const user = await createUser(app, {
+        email: "dev-token-mfa-enabled@example.com",
+        password: "Password123!"
+      });
+
+      await app.db
+        .update(users)
+        .set({ mfaEnabled: true })
+        .where(eq(users.id, user.user.id));
+
+      const loginResponse = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: {
+          email: user.user.email,
+          password: "Password123!"
+        }
+      });
+
+      expect(loginResponse.statusCode).toBe(200);
+      expect(loginResponse.json().data.devOtpCode).toEqual(expect.stringMatching(/^\d{6}$/));
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+
+      if (previousExposeDevTokens === undefined) {
+        delete process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS;
+      } else {
+        process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS = previousExposeDevTokens;
+      }
+    }
+  });
+
+
 });
 
 function getPublicAccessSetCookie(response: {

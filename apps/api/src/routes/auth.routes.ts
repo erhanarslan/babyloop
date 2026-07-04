@@ -152,6 +152,32 @@ function shouldRequireMobileLoginApproval(clientType: AuthClientType): boolean {
   return clientType === "web";
 }
 
+
+function shouldExposeDevAuthToken(): boolean {
+  if (process.env.NODE_ENV === "test") {
+    return true;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
+  return process.env.BABYLOOP_EXPOSE_DEV_AUTH_TOKENS === "1";
+}
+
+
+function shouldExposeDevEmailVerificationToken(): boolean {
+  return shouldExposeDevAuthToken();
+}
+
+function shouldExposeDevResetToken(): boolean {
+  return shouldExposeDevAuthToken();
+}
+
+function shouldExposeDevOtpCode(): boolean {
+  return shouldExposeDevAuthToken();
+}
+
 type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
 
 type AuthSessionsRouteResponse = AuthSessionsResponse;
@@ -1175,14 +1201,5 @@ function googleOAuthUnavailableResponse() {
   };
 }
 
-function shouldExposeDevResetToken() {
-  return process.env.NODE_ENV === "test";
-}
 
-function shouldExposeDevEmailVerificationToken() {
-  return process.env.NODE_ENV === "test";
-}
 
-function shouldExposeDevOtpCode() {
-  return process.env.NODE_ENV === "test";
-}
