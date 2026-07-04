@@ -589,6 +589,16 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         });
       }
 
+      if (result.status === "duplicate_image") {
+        return reply.status(409).send({
+          ok: false,
+          error: {
+            code: "DUPLICATE_LISTING_IMAGE",
+            message: "This image has already been uploaded for this listing."
+          }
+        });
+      }
+
       if (result.status === "authenticity_rejected") {
         return reply.status(400).send({
           ok: false,

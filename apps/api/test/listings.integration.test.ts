@@ -539,7 +539,7 @@ describe("listings API", () => {
 
     for (let index = 0; index < 5; index += 1) {
       const request = multipartRequest({
-        buffer: tinyPng(),
+        buffer: variantTinyPng(index),
         filename: `stroller-${index}.png`,
         mimetype: "image/png"
       });
@@ -558,7 +558,7 @@ describe("listings API", () => {
     }
 
     const sixthRequest = multipartRequest({
-      buffer: tinyPng(),
+      buffer: variantTinyPng(99),
       filename: "sixth.png",
       mimetype: "image/png"
     });
@@ -1906,6 +1906,10 @@ describe("listings API", () => {
     expect(response.body).not.toContain("metadata");
   });
 });
+
+function variantTinyPng(index: number): Buffer {
+  return Buffer.concat([tinyPng(), Buffer.from([index & 0xff])]);
+}
 
 function tinyPng(): Buffer {
   return Buffer.from(

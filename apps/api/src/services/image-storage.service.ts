@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
 import { optimizeListingImage } from "./image-optimization.service.js";
 import type { SafeImage } from "./image-safety.service.js";
 import {
@@ -13,11 +14,16 @@ import {
 export type ImageStorageDriver = "local" | "s3";
 
 export type StoredListingImage = {
+  contentHash: string;
   filePath?: string;
   objectKey?: string;
   storageDriver: ImageStorageDriver;
   url: string;
 };
+
+export function createListingImageContentHash(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
 
 export type LocalImageStorageConfig = {
   driver: "local";
@@ -105,6 +111,7 @@ export async function storeListingImage(input: {
 }): Promise<StoredListingImage> {
   const config = getImageStorageConfig(input.env);
   const image = await optimizeListingImage(input.image, input.env);
+  const contentHash = createListingImageContentHash(image.buffer);
 
   if (config.driver === "local") {
     const stored = await storeLocalListingImage({
@@ -113,11 +120,12 @@ export async function storeListingImage(input: {
       uploadRoot: input.uploadRoot
     });
 
-    return fromLocalStoredImage(stored);
+    return { ...fromLocalStoredImage(stored), contentHash };
   }
 
   return storeS3ListingImage({
     config,
+    contentHash,
     image,
     listingId: input.listingId
   });
@@ -227,6 +235,7 @@ export async function resolveStoredListingImage(input: {
 
 async function storeS3ListingImage(input: {
   config: S3ImageStorageConfig;
+  contentHash: string;
   image: SafeImage;
   listingId: string;
 }): Promise<StoredListingImage> {
@@ -241,6 +250,7 @@ async function storeS3ListingImage(input: {
   }));
 
   return {
+    contentHash: input.contentHash,
     objectKey,
     storageDriver: "s3",
     url: `${input.config.publicBaseUrl}/${objectKey}`
@@ -449,7 +459,7 @@ function isS3NotFoundError(error: unknown): boolean {
 }
 
 
-function fromLocalStoredImage(stored: LocalStoredListingImage): StoredListingImage {
+function fromLocalStoredImage(stored: LocalStoredListingImage): Omit<StoredListingImage, "contentHash"> {
   return {
     filePath: stored.filePath,
     storageDriver: "local",

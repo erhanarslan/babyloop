@@ -167,3 +167,14 @@ Required production boundaries:
 - Magic bytes are checked in addition to MIME and extension.
 - API image responses set `nosniff`.
 - EXIF stripping, resize/transform processing, CDN/cache policy, upload rate limits, and image moderation are intentionally deferred.
+
+## Duplicate Image Detection
+
+Listing images store a server-side SHA-256 `content_hash` of the normalized image bytes. The API rejects uploading the same image content twice to the same listing with `DUPLICATE_LISTING_IMAGE`.
+
+Current product rule:
+
+- duplicate image content within the same listing is rejected,
+- the same image content across different listings is allowed for now,
+- cross-listing duplicates should be treated later as a fraud/risk signal rather than a hard block,
+- content hashes are internal metadata and must not be exposed in public, owner, or admin DTOs.

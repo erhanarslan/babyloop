@@ -95,6 +95,7 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] MIME/extension/magic-byte mismatch is rejected
 - [ ] oversized image is rejected
 - [ ] more than 5 uploaded/listing images is rejected
+- [ ] same image content cannot be uploaded twice to the same listing
 - [ ] uploaded images are served only through the safe media route
 - [ ] deleting an image removes the DB row and does not return 500 if file cleanup is best-effort
 - [ ] reordering listing images returns the new `sortOrder`

@@ -486,6 +486,7 @@ export const listingImages = pgTable(
       .notNull()
       .references(() => listings.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
+    contentHash: text("content_hash"),
     sortOrder: integer("sort_order").notNull().default(0),
     reviewStatus: listingImageReviewStatusEnum("review_status").notNull().default("approved"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
@@ -504,6 +505,8 @@ export const listingImages = pgTable(
   },
   (table) => [
     index("listing_images_listing_id_idx").on(table.listingId),
+    index("listing_images_content_hash_idx").on(table.contentHash),
+    uniqueIndex("listing_images_listing_content_hash_unique").on(table.listingId, table.contentHash),
     index("listing_images_review_status_idx").on(table.reviewStatus),
     index("listing_images_authenticity_decision_idx").on(table.authenticityDecision),
     index("listing_images_authenticity_checked_at_idx").on(table.authenticityCheckedAt)

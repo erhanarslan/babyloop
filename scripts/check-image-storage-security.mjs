@@ -26,6 +26,8 @@ checkImageOptimizationService();
 checkDeploymentReadiness();
 checkAdminStorageOps();
 checkStorageDocs();
+checkImageContentHashMigration();
+checkImageContentHashMigrationJournal();
 checkSensitiveStorageLogSinks();
 checkStaleFutureStorageDocs();
 
@@ -56,6 +58,8 @@ function checkImageStorageService() {
   mustContain(source, file, "resolveS3ObjectKeyFromPublicUrl");
   mustContain(source, file, "assertPublicBaseUrl");
   mustContain(source, file, "IMAGE_PROXY_MEMORY_CACHE_ENABLED");
+  mustContain(source, file, "createListingImageContentHash");
+  mustContain(source, file, "contentHash");
 
   if (/console\.(?:log|debug|info|warn|error).*S3_SECRET_ACCESS_KEY/u.test(source)) {
     problems.push(`${file} must not log S3_SECRET_ACCESS_KEY.`);
@@ -261,4 +265,37 @@ function isIgnoredPath(relativePath) {
     relativePath.includes("/playwright-report/") ||
     relativePath.includes("/test-results/")
   );
+}
+
+function checkImageContentHashMigration() {
+  const migrationDir = path.join(root, "packages/database/drizzle");
+
+  if (!existsSync(migrationDir)) {
+    problems.push("Missing packages/database/drizzle directory.");
+    return;
+  }
+
+  const migrationSources = readdirSync(migrationDir)
+    .filter((entry) => entry.endsWith(".sql"))
+    .map((entry) => readFileSync(path.join(migrationDir, entry), "utf8"))
+    .join("\n");
+
+  mustContain(migrationSources, "packages/database/drizzle/*.sql", "content_hash");
+  mustContain(migrationSources, "packages/database/drizzle/*.sql", "listing_images_listing_content_hash_unique");
+}
+
+function checkImageContentHashMigrationJournal() {
+  const journalPath = path.join(root, "packages/database/drizzle/meta/_journal.json");
+
+  if (!existsSync(journalPath)) {
+    problems.push("Missing packages/database/drizzle/meta/_journal.json for Drizzle migrations.");
+    return;
+  }
+
+  const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+  const entries = Array.isArray(journal.entries) ? journal.entries : [];
+
+  if (!entries.some((entry) => typeof entry?.tag === "string" && entry.tag.includes("listing_image_content_hash"))) {
+    problems.push("Drizzle journal must include listing_image_content_hash migration so test/prod migrator applies content_hash.");
+  }
 }

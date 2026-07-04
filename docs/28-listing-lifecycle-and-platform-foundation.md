@@ -150,7 +150,7 @@ S3/R2-compatible object storage preserves the API contract by keeping `listing_i
 
 Intentionally deferred:
 
-- S3/R2 storage hardening: duplicate-image content hash detection, CDN/cache validation, upload rate-limit review, and broader image moderation validation
+- S3/R2 storage hardening: listing-scoped duplicate-image content hash detection is implemented; remaining work is CDN/cache validation, upload rate-limit review, fraud scoring for cross-listing duplicates, and broader image moderation validation
 - Redis-backed queues and Socket.IO adapter
 - saved searches
 - admin moderation

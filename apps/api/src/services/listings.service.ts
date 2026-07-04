@@ -296,7 +296,7 @@ export async function addListingImage(
       reason: string;
     }
   | { status: "authenticity_unavailable"; reason: string }
-  | { status: "not_found" | "forbidden" | "too_many_images" | "storage_failed" }
+  | { status: "not_found" | "forbidden" | "too_many_images" | "duplicate_image" | "storage_failed" }
 > {
   const listing = await selectListingOwnerRow(app, input.listingId);
 
@@ -357,11 +357,23 @@ export async function addListingImage(
       uploadRoot: input.uploadRoot
     });
 
+    const duplicateImage = await findListingImageByContentHash(app, input.listingId, storedImage.contentHash);
+
+    if (duplicateImage) {
+      await deleteStoredListingImage({
+        uploadRoot: input.uploadRoot,
+        url: storedImage.url
+      }).catch(() => undefined);
+
+      return { status: "duplicate_image" };
+    }
+
     const [createdImage] = await app.db
       .insert(listingImages)
       .values({
         listingId: input.listingId,
         url: storedImage.url,
+        contentHash: storedImage.contentHash,
         sortOrder: currentImageCount,
         reviewStatus,
         authenticityProvider: authenticity.providerName,
@@ -399,6 +411,10 @@ export async function addListingImage(
         uploadRoot: input.uploadRoot,
         url: storedImage.url
       }).catch(() => undefined);
+    }
+
+    if (isListingImageContentHashUniqueViolation(error)) {
+      return { status: "duplicate_image" };
     }
 
     app.log.error(error);
@@ -519,6 +535,36 @@ export async function reorderListingImages(
     status: "updated",
     images: await getOwnerListingImages(app, listingId)
   };
+}
+
+async function findListingImageByContentHash(
+  app: FastifyInstance,
+  listingId: string,
+  contentHash: string
+): Promise<{ id: string } | null> {
+  const [image] = await app.db
+    .select({
+      id: listingImages.id
+    })
+    .from(listingImages)
+    .where(and(eq(listingImages.listingId, listingId), eq(listingImages.contentHash, contentHash)))
+    .limit(1);
+
+  return image ?? null;
+}
+
+function isListingImageContentHashUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const maybeError = error as { constraint?: unknown; code?: unknown };
+
+  return (
+    maybeError.code === "23505" &&
+    typeof maybeError.constraint === "string" &&
+    maybeError.constraint.includes("listing_images_listing_content_hash_unique")
+  );
 }
 
 async function countAllListingImages(

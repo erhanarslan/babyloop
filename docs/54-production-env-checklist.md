@@ -280,4 +280,4 @@ The guard fails when:
 - storage secrets are logged,
 - stale docs claim S3/R2 storage is still only future work.
 
-Remaining product hardening after this guard: duplicate-image content hash detection, CDN/cache validation, upload rate-limit review, and broader image moderation validation.
+Remaining product hardening after this guard: CDN/cache validation, upload rate-limit review, fraud scoring for cross-listing duplicate images, and broader image moderation validation.
