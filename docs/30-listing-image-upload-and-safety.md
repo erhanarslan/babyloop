@@ -203,3 +203,18 @@ Current upload abuse protection is intentionally layered:
 - optional S3/R2 proxy memory cache is capped by `IMAGE_PROXY_MEMORY_CACHE_MAX_BYTES` and `IMAGE_PROXY_MEMORY_CACHE_MAX_ITEM_BYTES`.
 
 Dedicated per-profile/per-IP upload frequency quotas remain future work. They should be implemented before scale with a shared backend such as Redis so multi-instance API deployments enforce the same abuse window. The current beta boundary must still keep size/count limits, safe 400/413/429 errors, and storage credential secrecy intact.
+
+## Listing image authenticity provider boundary
+
+Listing image authenticity is a provider-backed trust signal for uploaded listing photos. The current boundary supports:
+
+- local/test mock execution for deterministic tests;
+- `unavailable` mode for safe fallback when real enforcement is not configured;
+- Gemini-backed enforcement through `LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini`;
+- server-side API key use through `GEMINI_API_KEY` or `GOOGLE_API_KEY`;
+- decision mapping to `allow`, `needs_review`, or `reject`;
+- safe upload errors for rejected and unavailable decisions;
+- AI run/audit metadata for provider, model, prompt version, confidence, decision, reasons, and safe flags;
+- backoffice visibility through AI Ops and listing image review panels.
+
+The mock provider is local/test only and must not be considered production image authenticity enforcement. The service does not store raw image bytes, base64, raw prompts, raw provider output, API keys, tokens, cookies, or password hashes in listing image authenticity audit metadata. Broader policy tuning, cross-listing fraud scoring, appeal workflows, and perceptual duplicate detection remain future work.

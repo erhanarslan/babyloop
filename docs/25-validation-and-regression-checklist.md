@@ -537,3 +537,15 @@ http://localhost:3001/moderation
 - [ ] Image review approve/reject remains listing-scoped and does not call sensitive-access.
 - [ ] Image review E2E keeps private sentinels hidden from UI.
 - [ ] Image review audit metadata remains allowlisted and excludes raw reason text, seller contact data, reporter identity, raw message bodies, tokens, cookies, password hashes, raw profile/user objects, object storage credentials, and raw image binary data.
+
+### Listing image authenticity provider boundary
+
+- [ ] `pnpm security:image-authenticity` passes.
+- [ ] Mock provider remains local/test-only; mock/unavailable must not be accepted for production image authenticity enforcement.
+- [ ] Production requires `LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini` and a server-side `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+- [ ] Gemini provider failures return safe unavailable responses without leaking raw provider error bodies to clients.
+- [ ] Upload decisions map safely: `allow`, `needs_review`, and `reject`.
+- [ ] Rejected provider decisions reject upload with a safe `IMAGE_AUTHENTICITY_REJECTED` error.
+- [ ] Unavailable provider decisions reject upload with a safe `IMAGE_AUTHENTICITY_UNAVAILABLE` error.
+- [ ] Listing image authenticity audit/run metadata excludes raw image bytes, base64, raw prompt, raw provider output, API keys, tokens, cookies, password hashes, raw profile/user objects, and seller contact data.
+- [ ] Backoffice AI Ops and listing image review show only safe provider/model/prompt/confidence/decision/reason/flag metadata.

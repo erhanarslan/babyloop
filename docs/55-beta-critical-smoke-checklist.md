@@ -165,3 +165,14 @@ Beta can proceed only if:
 - [ ] S3/R2 public media base URL is HTTPS in staging/production.
 - [ ] Storage ops preview does not expose bucket credentials, object storage secrets, raw object keys beyond safe public URLs, or raw image binary data.
 - [ ] Dedicated per-profile/per-IP upload frequency quotas are either implemented or explicitly tracked as a beta blocker.
+
+### Listing image authenticity provider boundary
+
+- [ ] `pnpm security:image-authenticity` passes.
+- [ ] `LISTING_IMAGE_AUTHENTICITY_PROVIDER=mock` is rejected for production readiness.
+- [ ] `LISTING_IMAGE_AUTHENTICITY_PROVIDER=unavailable` is rejected for production readiness.
+- [ ] `LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini` requires `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+- [ ] Upload with provider `reject` returns a safe `IMAGE_AUTHENTICITY_REJECTED`.
+- [ ] Upload with provider unavailable returns a safe `IMAGE_AUTHENTICITY_UNAVAILABLE`.
+- [ ] AI Ops and listing image review must show safe metadata only: provider, model, prompt version, confidence, decision, reasons, safe flags, and status.
+- [ ] No raw image bytes, base64, raw provider output, raw prompt, API key, token, cookie, password hash, seller email/phone, or raw user/profile object appears in API responses or backoffice UI.
