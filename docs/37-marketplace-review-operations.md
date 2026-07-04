@@ -153,3 +153,19 @@ Listing image review continues to operate on `listing_images.url`. Local image U
 ## Storage ops visibility
 
 Backoffice storage ops preview shows whether listing image storage is running in local or S3/R2-compatible mode. It is an operational preview only and must not be used to expose credentials or mutate stored images.
+
+## Automated image review regression guard
+
+Backoffice listing image review is covered by a dedicated E2E smoke and a security guard:
+
+- `apps/backoffice/e2e/listing-image-review.smoke.spec.ts`
+- `scripts/check-backoffice-image-review-security.mjs`
+
+The guard locks the backoffice/API contract for approve/reject review actions, useful reasons, safe error rendering, audit visibility, storage credential boundaries, and the separation from sensitive-access. Image review must continue to operate on safe listing image metadata only; it must not expose raw image bytes, object storage credentials, raw admin reasons, seller contact data, reporter identity, raw message bodies, tokens, cookies, password hashes, or raw profile/user objects.
+
+Focused validation:
+
+```bash
+pnpm security:backoffice-image-review
+BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test e2e/listing-image-review.smoke.spec.ts --reporter=list
+```

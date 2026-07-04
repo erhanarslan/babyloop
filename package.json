@@ -52,7 +52,9 @@
     "deploy:check:production": "node scripts/check-deployment-readiness.mjs --target=production",
     "ci:e2e:release": "bash scripts/ci-release-e2e.sh",
     "security:auth-leaks": "node scripts/check-auth-secret-leaks.mjs",
-    "security:image-storage": "node scripts/check-image-storage-security.mjs"
+    "security:image-storage": "node scripts/check-image-storage-security.mjs",
+    "security:backoffice-image-review": "node scripts/check-backoffice-image-review-security.mjs",
+    "test:backoffice:image-review": "pnpm --filter @babyloop/backoffice exec playwright test e2e/listing-image-review.smoke.spec.ts --reporter=list"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

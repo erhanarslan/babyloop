@@ -529,3 +529,11 @@ http://localhost:3001/moderation
 - Listing image optimization must not preserve EXIF/metadata.
 - Duplicate image content hashes must reject repeated images within the same listing.
 - S3/R2 image storage contract must not expose credentials or raw object data.
+
+### Backoffice image review automated guard
+
+- [ ] `pnpm security:backoffice-image-review` passes.
+- [ ] `BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test e2e/listing-image-review.smoke.spec.ts --reporter=list` passes.
+- [ ] Image review approve/reject remains listing-scoped and does not call sensitive-access.
+- [ ] Image review E2E keeps private sentinels hidden from UI.
+- [ ] Image review audit metadata remains allowlisted and excludes raw reason text, seller contact data, reporter identity, raw message bodies, tokens, cookies, password hashes, raw profile/user objects, object storage credentials, and raw image binary data.
