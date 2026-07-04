@@ -250,7 +250,7 @@ Dev auth helper values are allowed automatically only when `NODE_ENV=test`. In a
 
 ## Auth secret/token leak guard
 
-Run before staging or production deployment:
+Run before staging or production deployment. This guard also verifies MIME/magic-byte validation, S3/R2 credential boundaries, duplicate image hash coverage, and metadata-stripping image normalization:
 
 ```bash
 pnpm security:auth-leaks
@@ -264,7 +264,7 @@ This guard is intentionally conservative. If it fails, fix the source instead of
 
 ## Image storage security guard
 
-Run before staging or production deployment:
+Run before staging or production deployment. This guard also verifies MIME/magic-byte validation, S3/R2 credential boundaries, duplicate image hash coverage, and metadata-stripping image normalization:
 
 ```bash
 pnpm security:image-storage

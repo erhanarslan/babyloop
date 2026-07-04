@@ -142,7 +142,7 @@ Required production boundaries:
 - keep storage credentials server-side only
 - keep image normalization enabled before broad production use
 - keep backoffice storage preview credential-safe
-- add duplicate-image content hash detection before broad production use
+- keep duplicate-image content hash detection enabled before broad production use
 
 ## Manual QA Checklist
 
@@ -182,3 +182,9 @@ Current product rule:
 ## S3/R2 Contract Regression
 
 S3/R2 store/delete/resolve contract is covered by `apps/api/test/image-storage-s3-contract.test.ts`. The regression verifies that public media URLs map to bucket object keys, delete ignores attacker-controlled public base URLs, unsafe filenames are rejected before object reads, and returned storage metadata does not expose credentials.
+
+## MIME, magic-byte, and metadata boundary
+
+Listing image upload validation rejects unsupported or mismatched files by comparing the filename extension, declared MIME type, and detected image magic bytes before storage. Supported content types remain JPEG, PNG, and WEBP.
+
+The storage path normalizes images through Sharp before local/S3/R2 writes. Re-encoded listing images must not preserve EXIF or other original metadata. The image storage security guard checks for the MIME/magic-byte boundary and rejects accidental metadata-preserving optimization changes.

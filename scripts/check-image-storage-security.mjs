@@ -2,6 +2,12 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+
+function readFile(relativePath) {
+  return readFileSync(`${process.cwd()}/${relativePath}`, "utf8");
+}
+
+
 const root = process.cwd();
 const problems = [];
 
@@ -31,6 +37,34 @@ checkImageContentHashMigration();
 checkImageContentHashMigrationJournal();
 checkSensitiveStorageLogSinks();
 checkStaleFutureStorageDocs();
+
+
+function checkStorageHardeningUnitTests() {
+  const safetyFile = "apps/api/src/services/image-safety.service.ts";
+  const safetySource = readFile(safetyFile);
+  mustContain(safetySource, safetyFile, "detectImageMime");
+  mustContain(safetySource, safetyFile, "magicMime");
+  mustContain(safetySource, safetyFile, "extensionMime !== declaredMime");
+  mustContain(safetySource, safetyFile, "magicMime !== declaredMime");
+
+  const optimizationFile = "apps/api/src/services/image-optimization.service.ts";
+  const optimizationSource = readFile(optimizationFile);
+  mustContain(optimizationSource, optimizationFile, "sharp");
+  mustContain(optimizationSource, optimizationFile, ".rotate()");
+  mustContain(optimizationSource, optimizationFile, ".jpeg(");
+  if (optimizationSource.includes("withMetadata(")) {
+    problems.push(`${optimizationFile} must not preserve EXIF/metadata for listing images.`);
+  }
+
+  const testFile = "apps/api/test/image-storage-hardening.test.ts";
+  const testSource = readFile(testFile);
+  mustContain(testSource, testFile, "rejects MIME, extension, and magic-byte mismatches");
+  mustContain(testSource, testFile, "strips EXIF and original metadata");
+  mustContain(testSource, testFile, "validateListingImage");
+  mustContain(testSource, testFile, "optimizeListingImage");
+}
+
+checkStorageHardeningUnitTests();
 
 if (problems.length > 0) {
   console.error("Image storage security guard failed:");

@@ -522,3 +522,10 @@ http://localhost:3001/moderation
 - Note/action creation still works.
 
 - [ ] S3/R2 storage contract tests cover store/delete/resolve without credential leakage.
+
+## Storage MIME/magic-byte and metadata checks
+
+- `validateListingImage` must compare file extension, declared MIME, and detected magic bytes.
+- Listing image optimization must not preserve EXIF/metadata.
+- Duplicate image content hashes must reject repeated images within the same listing.
+- S3/R2 image storage contract must not expose credentials or raw object data.
