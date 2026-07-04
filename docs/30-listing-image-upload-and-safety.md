@@ -218,3 +218,21 @@ Listing image authenticity is a provider-backed trust signal for uploaded listin
 - backoffice visibility through AI Ops and listing image review panels.
 
 The mock provider is local/test only and must not be considered production image authenticity enforcement. The service does not store raw image bytes, base64, raw prompts, raw provider output, API keys, tokens, cookies, or password hashes in listing image authenticity audit metadata. Broader policy tuning, cross-listing fraud scoring, appeal workflows, and perceptual duplicate detection remain future work.
+
+## Cross-listing duplicate image boundary
+
+BabyLoop currently rejects duplicate image content only within the same listing. This is intentional.
+
+A global hard block on the same `content_hash` across different listings is risky in the MVP because the same seller may relist the same item, migrate a listing, recover from an archived listing, or upload a legitimate replacement listing. Cross-listing duplicate image use should become a fraud/risk signal rather than an automatic reject.
+
+Future cross-listing duplicate/fraud scoring must include at least:
+
+- seller context and account age;
+- listing status/history and prior archive/sold state;
+- time window between uploads;
+- whether the image is identical by normalized hash or only visually similar by perceptual hash/provider signal;
+- category and high-risk product context;
+- admin review queue/audit metadata;
+- appeal or manual override boundaries.
+
+Content hashes are internal storage/trust metadata. They must not be exposed in public, owner, or admin DTOs. The current database uniqueness boundary must remain `(listing_id, content_hash)`, while the standalone `content_hash` index remains available for future risk-signal queries.

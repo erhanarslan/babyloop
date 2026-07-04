@@ -549,3 +549,15 @@ http://localhost:3001/moderation
 - [ ] Unavailable provider decisions reject upload with a safe `IMAGE_AUTHENTICITY_UNAVAILABLE` error.
 - [ ] Listing image authenticity audit/run metadata excludes raw image bytes, base64, raw prompt, raw provider output, API keys, tokens, cookies, password hashes, raw profile/user objects, and seller contact data.
 - [ ] Backoffice AI Ops and listing image review show only safe provider/model/prompt/confidence/decision/reason/flag metadata.
+
+### Cross-listing duplicate image boundary
+
+- [ ] `pnpm security:cross-listing-duplicates` passes.
+- [ ] Same listing duplicate image content is rejected with `DUPLICATE_LISTING_IMAGE`.
+- [ ] Same listing duplicate rejection does not expose `contentHash`, `content_hash`, `sha256`, object keys, storage credentials, or raw image bytes.
+- [ ] The database keeps `listing_images_content_hash_idx` for future review queries.
+- [ ] The database uniqueness boundary remains `(listing_id, content_hash)`, not global `content_hash` uniqueness.
+- [ ] Cross-listing duplicate image use is not hard-blocked across listings in this MVP.
+- [ ] Cross-listing duplicate image use is not claimed as production fraud detection.
+- [ ] Future cross-listing fraud signal work must include seller context, listing status/history, time window, perceptual hash or provider signal, admin audit, and appeal/manual review boundaries.
+- [ ] Content hashes remain internal and are not exposed in public, owner, or admin DTOs.

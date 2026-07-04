@@ -176,3 +176,11 @@ Beta can proceed only if:
 - [ ] Upload with provider unavailable returns a safe `IMAGE_AUTHENTICITY_UNAVAILABLE`.
 - [ ] AI Ops and listing image review must show safe metadata only: provider, model, prompt version, confidence, decision, reasons, safe flags, and status.
 - [ ] No raw image bytes, base64, raw provider output, raw prompt, API key, token, cookie, password hash, seller email/phone, or raw user/profile object appears in API responses or backoffice UI.
+
+### Cross-listing duplicate image boundary
+
+- [ ] `pnpm security:cross-listing-duplicates` passes.
+- [ ] A same listing duplicate image upload is rejected with a safe duplicate-image error.
+- [ ] Duplicate-image responses do not expose `contentHash`, `content_hash`, `sha256`, object keys, storage credentials, or raw image bytes.
+- [ ] The DB unique constraint is scoped to `(listing_id, content_hash)`.
+- [ ] Cross-listing duplicate image use is not claimed as production fraud detection until seller context, listing history, time window, perceptual hash/provider signal, audit, and appeal boundaries exist.

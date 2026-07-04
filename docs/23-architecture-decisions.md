@@ -83,7 +83,7 @@ BabyLoop supports local listing image upload for development and test through `v
 
 BabyLoop still accepts `imageUrls` during listing creation as compatibility metadata for existing local development and regression coverage. Manual arbitrary URL entry is not acceptable as the primary production marketplace photo flow.
 
-Production storage now has an S3/R2-compatible driver, image normalization foundation, and listing-scoped duplicate-image content hash detection. Remaining storage hardening includes dedicated upload frequency/quota controls, fraud scoring for cross-listing duplicate images, broader image moderation policy tuning, appeal workflows, and perceptual duplicate detection. CDN/cache, public media URL boundaries, and listing image authenticity provider boundaries are guarded through dedicated security scripts.
+Production storage now has an S3/R2-compatible driver, image normalization foundation, and listing-scoped duplicate-image content hash detection. Remaining storage hardening includes dedicated upload frequency/quota controls, fraud scoring for cross-listing duplicate images, broader image moderation policy tuning, appeal workflows, and perceptual duplicate detection. CDN/cache, public media URL boundaries, listing image authenticity provider boundaries, and cross-listing duplicate-image MVP boundaries are guarded through dedicated security scripts.
 
 Current upload safety includes:
 
