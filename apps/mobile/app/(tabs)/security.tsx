@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
+import { subscribeMobileRealtime } from "../../src/features/realtime/mobile-realtime";
 import {
   approveMobileLoginApproval,
   denyMobileLoginApproval,
@@ -190,6 +191,37 @@ export default function SecurityRoute() {
     () => getMobileSessionSummary(sessions, currentSessionId),
     [sessions, currentSessionId]
   );
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    void subscribeMobileRealtime({
+      onLoginApprovalCreated: (payload) => {
+        setPendingLoginApprovals((current) =>
+          mergePendingLoginApprovals(current, payload.approval)
+        );
+        setLoginApprovalError(null);
+        setLoginApprovalMessage("Yeni giriş isteği geldi. Onaylamak veya reddetmek için kartı kullan.");
+      }
+    }).then((subscription) => {
+      if (!active) {
+        subscription.unsubscribe();
+        return;
+      }
+
+      unsubscribe = subscription.unsubscribe;
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [currentUser]);
 
   async function handleLogout() {
     await authSession.logout();
@@ -679,6 +711,26 @@ function SecurityRow({
       <Text style={styles.rowText}>{value}</Text>
     </MobileCard>
   );
+}
+
+function mergePendingLoginApprovals(
+  current: MobileLoginApprovalChallenge[],
+  approval: MobileLoginApprovalChallenge
+): MobileLoginApprovalChallenge[] {
+  const merged = [
+    approval,
+    ...current.filter((currentApproval) => currentApproval.id !== approval.id)
+  ];
+
+  return merged.sort((left, right) => {
+    return getDateTime(right.createdAt) - getDateTime(left.createdAt);
+  });
+}
+
+function getDateTime(value: string): number {
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function getBadgeStyle(tone: MobileSecurityRowTone) {

@@ -41,3 +41,4 @@ export {
   type RealtimeNotificationType,
   type RealtimeServerToClientEvents
 } from "./realtime.js";
+export type { LoginApprovalCreatedPayload, RealtimeLoginApprovalChallenge } from "./realtime.js";

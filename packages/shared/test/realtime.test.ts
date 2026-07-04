@@ -17,6 +17,7 @@ describe("realtime contracts", () => {
       conversationLeave: "conversation:leave",
       conversationUpdated: "conversation:updated",
       messageCreated: "message:created",
+      loginApprovalCreated: "login_approval:created",
       notificationCreated: "notification:created",
       notificationRead: "notification:read",
       notificationReadAll: "notification:read_all",

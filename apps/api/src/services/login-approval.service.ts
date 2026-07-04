@@ -10,6 +10,7 @@ import type {
 import { hashRefreshToken } from "../utils/refresh-token.js";
 import { verifyPassword } from "../utils/password.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
+import { emitLoginApprovalCreated } from "../realtime/publisher.js";
 
 const LOGIN_APPROVAL_TTL_SECONDS = 90;
 
@@ -175,9 +176,24 @@ export async function createLoginApprovalChallenge(
     throw new Error("Login approval challenge insert failed.");
   }
 
+  const approval = serializeLoginApprovalChallenge(challenge);
+  const [profile] = await app.db
+    .select({
+      id: profiles.id
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  if (profile) {
+    emitLoginApprovalCreated(app, profile.id, {
+      approval
+    });
+  }
+
   return {
     approvalToken,
-    approval: serializeLoginApprovalChallenge(challenge)
+    approval
   };
 }
 

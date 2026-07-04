@@ -2939,38 +2939,6 @@ describe("auth API", () => {
     });
   });
 
-  it("mobile client login does not return mobile login approval even when mobile approval is enabled", async () => {
-    const user = await createUser(app, {
-      email: "mobile-client-no-approval@example.com",
-      password: "Password123!"
-    });
-
-    await app.db
-      .update(users)
-      .set({ mobileLoginApprovalEnabled: true })
-      .where(eq(users.id, user.user.id));
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/auth/login",
-      headers: {
-        "x-babyloop-client": "mobile"
-      },
-      payload: {
-        email: "mobile-client-no-approval@example.com",
-        password: "Password123!",
-        clientType: "mobile"
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data).not.toHaveProperty("loginApprovalRequired");
-    expect(response.json().data).not.toHaveProperty("approvalToken");
-    expect(response.json().data.accessToken).toEqual(expect.any(String));
-    expect(response.body).not.toContain("passwordHash");
-    expect(response.body).not.toContain("password_hash");
-  });
-
   it("mobile login approval enabled login returns a challenge without issuing a session", async () => {
     const user = await createUser(app, {
       email: "login-approval-required@example.com",

@@ -3,7 +3,8 @@ import { io, type Socket } from "socket.io-client";
 import { getApiBaseUrl } from "../../config/api";
 import {
   getMobileAuthToken,
-  hydrateMobileAuthToken
+  hydrateMobileAuthToken,
+  type MobileLoginApprovalChallenge
 } from "../auth/auth-api";
 
 export const MOBILE_REALTIME_EVENTS = {
@@ -11,6 +12,7 @@ export const MOBILE_REALTIME_EVENTS = {
   conversationLeave: "conversation:leave",
   conversationUpdated: "conversation:updated",
   messageCreated: "message:created",
+  loginApprovalCreated: "login_approval:created",
   realtimeError: "realtime:error"
 } as const;
 
@@ -74,6 +76,10 @@ export type MobileConversationUpdatedPayload = {
   conversation: MobileRealtimeConversationSummary;
 };
 
+export type MobileLoginApprovalCreatedPayload = {
+  approval: MobileLoginApprovalChallenge;
+};
+
 export type MobileRealtimeClientToServerEvents = {
   [MOBILE_REALTIME_EVENTS.conversationJoin]: (payload: MobileRealtimeConversationRoomPayload) => void;
   [MOBILE_REALTIME_EVENTS.conversationLeave]: (payload: MobileRealtimeConversationRoomPayload) => void;
@@ -82,6 +88,7 @@ export type MobileRealtimeClientToServerEvents = {
 export type MobileRealtimeServerToClientEvents = {
   [MOBILE_REALTIME_EVENTS.conversationUpdated]: (payload: MobileConversationUpdatedPayload) => void;
   [MOBILE_REALTIME_EVENTS.messageCreated]: (payload: MobileMessageCreatedPayload) => void;
+  [MOBILE_REALTIME_EVENTS.loginApprovalCreated]: (payload: MobileLoginApprovalCreatedPayload) => void;
   [MOBILE_REALTIME_EVENTS.realtimeError]: (payload: MobileRealtimeErrorPayload) => void;
 };
 
@@ -93,6 +100,7 @@ export type MobileRealtimeSocket = Socket<
 export type MobileRealtimeCallbacks = {
   onConversationUpdated?: (payload: MobileConversationUpdatedPayload) => void;
   onMessageCreated?: (payload: MobileMessageCreatedPayload) => void;
+  onLoginApprovalCreated?: (payload: MobileLoginApprovalCreatedPayload) => void;
   onRealtimeError?: (payload: MobileRealtimeErrorPayload) => void;
 };
 
@@ -169,6 +177,10 @@ export async function subscribeMobileRealtime(
     socket.on(MOBILE_REALTIME_EVENTS.messageCreated, callbacks.onMessageCreated);
   }
 
+  if (callbacks.onLoginApprovalCreated) {
+    socket.on(MOBILE_REALTIME_EVENTS.loginApprovalCreated, callbacks.onLoginApprovalCreated);
+  }
+
   if (callbacks.onRealtimeError) {
     socket.on(MOBILE_REALTIME_EVENTS.realtimeError, callbacks.onRealtimeError);
   }
@@ -183,6 +195,10 @@ export async function subscribeMobileRealtime(
 
       if (callbacks.onMessageCreated) {
         socket.off(MOBILE_REALTIME_EVENTS.messageCreated, callbacks.onMessageCreated);
+      }
+
+      if (callbacks.onLoginApprovalCreated) {
+        socket.off(MOBILE_REALTIME_EVENTS.loginApprovalCreated, callbacks.onLoginApprovalCreated);
       }
 
       if (callbacks.onRealtimeError) {

@@ -523,37 +523,4 @@ describe("mobile auth API MFA flow", () => {
     expect(serialized).not.toMatch(/passwordHash|refreshToken|accessToken/iu);
   });
 
-  it("sends the mobile client channel on login requests", async () => {
-    fetchMock.mockResolvedValueOnce(
-      mockApiResponse(200, {
-        ok: true,
-        data: {
-          accessToken: "mobile-access-token",
-          user: {
-            id: "user-mobile-channel",
-            email: "parent@babyloop.test",
-            emailVerifiedAt: new Date().toISOString()
-          },
-          profile: {
-            id: "profile-mobile-channel",
-            displayName: "Parent",
-            locationCity: "İstanbul"
-          }
-        }
-      })
-    );
-
-    await submitMobileAuthRequest("login", {
-      email: "parent@babyloop.test",
-      password: "Password123!"
-    });
-
-    const [, init] = fetchMock.mock.calls[0]!;
-    const headers = new Headers(init?.headers as HeadersInit);
-
-    expect(headers.get("x-babyloop-client")).toBe("mobile");
-    expect(String(init?.body)).toContain('"clientType":"mobile"');
-    expect(String(init?.body)).not.toMatch(/approvalToken|refreshTokenHash|passwordHash/iu);
-  });
-
 });

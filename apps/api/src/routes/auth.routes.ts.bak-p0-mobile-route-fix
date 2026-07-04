@@ -131,27 +131,6 @@ type BackofficeCsrfRouteResponse =
   | { ok: true; data: { csrfToken: string } }
   | ReturnType<typeof adminForbidden>;
 
-type AuthClientType = "web" | "mobile" | "backoffice";
-
-function resolveAuthClientType(
-  request: { headers: Record<string, string | string[] | undefined> },
-  bodyClientType?: AuthClientType
-): AuthClientType {
-  const headerValue = request.headers["x-babyloop-client"];
-  const rawHeader = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  const normalizedHeader = typeof rawHeader === "string" ? rawHeader.trim().toLowerCase() : "";
-
-  if (normalizedHeader === "mobile" || normalizedHeader === "web" || normalizedHeader === "backoffice") {
-    return normalizedHeader;
-  }
-
-  return bodyClientType ?? "web";
-}
-
-function shouldRequireMobileLoginApproval(clientType: AuthClientType): boolean {
-  return clientType === "web";
-}
-
 type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
 
 type AuthSessionsRouteResponse = AuthSessionsResponse;
@@ -232,12 +211,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const clientType = resolveAuthClientType(request, parsedBody.data.clientType);
-
       const result = await loginUser(app, parsedBody.data, {
         emailDelivery: options.emailDelivery,
         requestMeta: buildAuthSessionRequestMeta(request),
-        requireMobileLoginApproval: shouldRequireMobileLoginApproval(clientType),
+        requireMobileLoginApproval: true,
         webAppUrl: options.webAppUrl
       });
 
@@ -294,7 +271,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       const result = await verifyMfaLogin(app, parsedBody.data, {
         requestMeta: buildAuthSessionRequestMeta(request),
-        requireMobileLoginApproval: shouldRequireMobileLoginApproval(resolveAuthClientType(request, "web"))
+        requireMobileLoginApproval: true
       });
 
       if (result.status === "invalid") {

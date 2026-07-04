@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { validatePlainText } from "../services/text-safety.service.js";
-
 export const authClientTypeSchema = z.enum(["web", "mobile", "backoffice"]);
+import { validatePlainText } from "../services/text-safety.service.js";
 
 export const registerBodySchema = z
   .object({

@@ -3,6 +3,7 @@ import {
   realtimeConversationRoom,
   realtimeProfileRoom,
   type ConversationUpdatedPayload,
+  type LoginApprovalCreatedPayload,
   type MessageCreatedPayload,
   type NotificationCreatedPayload,
   type NotificationReadAllPayload,
@@ -73,6 +74,23 @@ export function emitConversationUpdated(
       .emit(REALTIME_EVENTS.conversationUpdated, payload);
   } catch (error) {
     app.log.warn({ error, conversationId: payload.conversationId, profileId }, "Realtime conversation publish failed.");
+  }
+}
+
+export function emitLoginApprovalCreated(
+  app: FastifyInstance,
+  profileId: string,
+  payload: LoginApprovalCreatedPayload
+): void {
+  try {
+    app.realtime?.io
+      .to(realtimeProfileRoom(profileId))
+      .emit(REALTIME_EVENTS.loginApprovalCreated, payload);
+  } catch (error) {
+    app.log.warn(
+      { error, approvalId: payload.approval.id, profileId },
+      "Realtime login approval publish failed."
+    );
   }
 }
 

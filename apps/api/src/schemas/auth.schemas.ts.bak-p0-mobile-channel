@@ -1,8 +1,5 @@
 import { z } from "zod";
-
 import { validatePlainText } from "../services/text-safety.service.js";
-
-export const authClientTypeSchema = z.enum(["web", "mobile", "backoffice"]);
 
 export const registerBodySchema = z
   .object({
@@ -16,8 +13,7 @@ export const registerBodySchema = z
 export const loginBodySchema = z
   .object({
     email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
-    password: z.string().min(1).max(128),
-    clientType: authClientTypeSchema.optional()
+    password: z.string().min(1).max(128)
   })
   .strict();
 

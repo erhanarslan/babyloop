@@ -3,6 +3,7 @@ export const REALTIME_EVENTS = {
   conversationLeave: "conversation:leave",
   conversationUpdated: "conversation:updated",
   messageCreated: "message:created",
+  loginApprovalCreated: "login_approval:created",
   notificationCreated: "notification:created",
   notificationRead: "notification:read",
   notificationReadAll: "notification:read_all",
@@ -97,6 +98,21 @@ export type ConversationUpdatedPayload = {
   conversation: RealtimeConversationSummary;
 };
 
+export type RealtimeLoginApprovalChallenge = {
+  id: string;
+  status: "pending" | "approved" | "denied" | "expired" | "consumed";
+  deviceLabel: string;
+  requestUserAgent: string | null;
+  requestIpAddress: string | null;
+  createdAt: string;
+  expiresAt: string;
+  resolvedAt: string | null;
+};
+
+export type LoginApprovalCreatedPayload = {
+  approval: RealtimeLoginApprovalChallenge;
+};
+
 export type NotificationCreatedPayload = {
   notification: RealtimeNotification;
   unreadCount: number;
@@ -125,6 +141,7 @@ export type RealtimeClientToServerEvents = {
 export type RealtimeServerToClientEvents = {
   [REALTIME_EVENTS.conversationUpdated]: (payload: ConversationUpdatedPayload) => void;
   [REALTIME_EVENTS.messageCreated]: (payload: MessageCreatedPayload) => void;
+  [REALTIME_EVENTS.loginApprovalCreated]: (payload: LoginApprovalCreatedPayload) => void;
   [REALTIME_EVENTS.notificationCreated]: (payload: NotificationCreatedPayload) => void;
   [REALTIME_EVENTS.notificationRead]: (payload: NotificationReadPayload) => void;
   [REALTIME_EVENTS.notificationReadAll]: (payload: NotificationReadAllPayload) => void;
