@@ -1,6 +1,6 @@
 # BabyLoop Current Task Map and Roadmap
 
-This is the active task map. Older roadmap assumptions about rental, SLA, assignment, escalation, and text/document attachments are superseded.
+This is the active task map. Older enterprise-ops and unsupported attachment assumptions are superseded.
 
 ## Completed / strong foundation
 

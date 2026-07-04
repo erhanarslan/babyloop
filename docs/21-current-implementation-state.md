@@ -73,11 +73,10 @@ The following remain active and required:
 
 The following are intentionally out of near-term scope:
 
-- Rental/deposit/date rental flow.
-- Admin assignment.
-- SLA tracking.
-- Escalation workflow.
+- Non-core rental-style marketplace flows.
+- Multi-admin operations workflows.
+- Enterprise moderation workload tracking.
 - Multi-agent moderation matching.
-- Text/document message attachments.
+- Unsupported document-style message attachments.
 
 Rationale: the first real operating model is a single-admin product. Fraud prevention, legal surfaces, auth security, logging, and product completion are higher priority.

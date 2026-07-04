@@ -63,12 +63,10 @@ BabyLoop is a real product/ecosystem, not only a listing demo. The intended prod
 
 ## Explicitly removed from near-term backlog
 
-- Rental.
-- Deposit/date rental flow.
-- Admin assignment.
-- SLA tracking.
-- Escalation workflow.
-- Text/document message attachments.
+- Non-core rental-style marketplace flows.
+- Multi-admin operations workflows.
+- Enterprise moderation workload tracking.
+- Unsupported document-style message attachments.
 
 ## Payment direction
 
