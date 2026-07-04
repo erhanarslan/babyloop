@@ -260,3 +260,24 @@ pnpm test:api:security
 The guard fails when generated backup/secret artifacts are present, dev auth token helper functions are duplicated, production exposure is not explicitly blocked, or sensitive auth/session/token fields are logged through `console.*`, `request.log.*`, or `app.log.*`.
 
 This guard is intentionally conservative. If it fails, fix the source instead of bypassing it.
+
+
+## Image storage security guard
+
+Run before staging or production deployment:
+
+```bash
+pnpm security:image-storage
+pnpm test:api:security
+```
+
+The guard fails when:
+
+- S3/R2 storage config support is missing,
+- production readiness no longer rejects local disk uploads,
+- storage ops preview risks exposing credentials,
+- image safety/optimization foundations disappear,
+- storage secrets are logged,
+- stale docs claim S3/R2 storage is still only future work.
+
+Remaining product hardening after this guard: duplicate-image content hash detection, CDN/cache validation, upload rate-limit review, and broader image moderation validation.

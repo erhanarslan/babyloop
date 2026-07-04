@@ -144,13 +144,13 @@ Listing image upload is implemented as a local development/test foundation:
 - image serving uses `/api/v1/uploads/listings/:listingId/:filename`
 - production object storage, transforms/resizing, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation are not implemented yet
 
-Future R2/S3-compatible object storage should preserve the API contract.
+S3/R2-compatible object storage preserves the API contract by keeping `listing_images.url` as the stable public media URL.
 
 ## Deferred Work
 
 Intentionally deferred:
 
-- R2/S3 image storage integration, transforms/resizing, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
+- S3/R2 storage hardening: duplicate-image content hash detection, CDN/cache validation, upload rate-limit review, and broader image moderation validation
 - Redis-backed queues and Socket.IO adapter
 - saved searches
 - admin moderation

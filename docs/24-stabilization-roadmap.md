@@ -122,7 +122,7 @@ Use `docs/25-validation-and-regression-checklist.md` as the detailed regression 
 ## Productization Blockers
 
 - production-grade auth/session transport
-- R2/S3-compatible image storage migration, transforms, EXIF stripping, CDN/cache strategy, upload rate limits, and image moderation
+- S3/R2 storage hardening: duplicate-image content hash detection, CDN/cache validation, upload rate-limit review, and broader image moderation validation
 - search/filter/pagination
 - messaging report/block flows
 - admin/moderation

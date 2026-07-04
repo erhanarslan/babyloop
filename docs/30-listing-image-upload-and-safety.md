@@ -130,17 +130,19 @@ Unexpected storage failures return a generic server error and do not expose file
 - When an image is deleted through the API, the DB row is removed and the local file is deleted best-effort.
 - Uploaded test files use test-specific temporary directories.
 
-## Future R2/S3 Migration
+## R2/S3 Storage Status
 
-The current API contract should not need to change for object storage.
+Listing image upload now uses an image storage abstraction. `IMAGE_STORAGE_DRIVER=local` keeps the local development route, while `IMAGE_STORAGE_DRIVER=s3` stores listing images in an S3/R2-compatible bucket and returns stable public media URLs.
 
-Future work can replace local storage with R2/S3-compatible storage by:
+Required production boundaries:
 
-- changing the storage service implementation
-- keeping `listing_images.url` as the public API URL or stable media URL
-- preserving safety validation before object write
-- adding signed upload/download or CDN strategy if needed
-- adding transforms/resizing, EXIF stripping, upload rate limits, and image moderation before broad production use
+- keep `listing_images.url` as the public API/stable media URL
+- preserve safety validation before object write
+- use HTTPS `IMAGE_STORAGE_PUBLIC_BASE_URL`
+- keep storage credentials server-side only
+- keep image normalization enabled before broad production use
+- keep backoffice storage preview credential-safe
+- add duplicate-image content hash detection before broad production use
 
 ## Manual QA Checklist
 
