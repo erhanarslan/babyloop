@@ -1,4 +1,9 @@
-import { getMobileSecurityRows } from "./security-model";
+import {
+  buildMobileSensitiveToggleDescription,
+  buildMobileSensitiveToggleTitle,
+  canSubmitMobileSensitiveTogglePassword,
+  getMobileSecurityRows
+} from "./security-model";
 
 describe("mobile security model", () => {
   it("shows MFA as active when email OTP is enabled", () => {
@@ -56,4 +61,25 @@ describe("mobile security model", () => {
     });
   });
 
+});
+
+
+describe("mobile sensitive security toggle modal helpers", () => {
+  it("builds current password modal copy for email OTP changes", () => {
+    expect(buildMobileSensitiveToggleTitle("mfa_email_otp")).toBe("E-posta OTP ayarını değiştir");
+    expect(buildMobileSensitiveToggleDescription("mfa_email_otp", true)).toContain("mevcut şifreni gir");
+    expect(buildMobileSensitiveToggleDescription("mfa_email_otp", false)).toContain("kapatmak");
+  });
+
+  it("builds current password modal copy for mobile approval changes", () => {
+    expect(buildMobileSensitiveToggleTitle("mobile_login_approval")).toBe("Mobil onay ayarını değiştir");
+    expect(buildMobileSensitiveToggleDescription("mobile_login_approval", true)).toContain("Web girişleri");
+    expect(buildMobileSensitiveToggleDescription("mobile_login_approval", false)).toContain("kapatmak");
+  });
+
+  it("requires a strong enough current password before submitting sensitive toggles", () => {
+    expect(canSubmitMobileSensitiveTogglePassword("")).toBe(false);
+    expect(canSubmitMobileSensitiveTogglePassword("short")).toBe(false);
+    expect(canSubmitMobileSensitiveTogglePassword("Password123!")).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import { subscribeMobileRealtime } from "../../src/features/realtime/mobile-realtime";
@@ -21,8 +21,13 @@ import {
   type MobileLoginApprovalChallenge
 } from "../../src/features/auth/auth-api";
 import {
+  buildMobileSensitiveToggleDescription,
+  buildMobileSensitiveToggleTitle,
+  canSubmitMobileSensitiveTogglePassword,
   getMobileSecurityRows,
-  type MobileSecurityRowTone
+  type MobileSecurityRowTone,
+  type MobileSensitiveSecurityToggleState,
+  type MobileSensitiveSecurityToggleTarget
 } from "../../src/features/security/security-model";
 import {
   buildMobileLoginApprovalCards,
@@ -41,13 +46,15 @@ export default function SecurityRoute() {
   const authSession = useAuthSession();
   const currentUser = authSession.currentUser;
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [sensitiveToggle, setSensitiveToggle] = useState<MobileSensitiveSecurityToggleState | null>(null);
+  const [sensitiveTogglePassword, setSensitiveTogglePassword] = useState("");
+  const [sensitiveToggleError, setSensitiveToggleError] = useState<string | null>(null);
+  const [savingSensitiveToggle, setSavingSensitiveToggle] = useState(false);
   const [loadingMfaStatus, setLoadingMfaStatus] = useState(false);
   const [savingMfa, setSavingMfa] = useState(false);
   const [mfaMessage, setMfaMessage] = useState<string | null>(null);
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mobileLoginApprovalEnabled, setMobileLoginApprovalEnabled] = useState<boolean | null>(null);
-  const [loginApprovalPassword, setLoginApprovalPassword] = useState("");
   const [loadingLoginApprovalStatus, setLoadingLoginApprovalStatus] = useState(false);
   const [savingLoginApproval, setSavingLoginApproval] = useState(false);
   const [loginApprovalMessage, setLoginApprovalMessage] = useState<string | null>(null);
@@ -67,7 +74,9 @@ export default function SecurityRoute() {
     if (!currentUser) {
       setMfaEnabled(null);
       setMobileLoginApprovalEnabled(null);
-      setLoginApprovalPassword("");
+      setSensitiveToggle(null);
+      setSensitiveTogglePassword("");
+      setSensitiveToggleError(null);
       setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
@@ -228,69 +237,104 @@ export default function SecurityRoute() {
     router.replace("/");
   }
 
-  async function handleMfaToggle(nextEnabled: boolean) {
-    if (!currentPassword.trim()) {
+  function openSensitiveToggle(target: MobileSensitiveSecurityToggleTarget, nextEnabled: boolean) {
+    setSensitiveToggle({ target, nextEnabled });
+    setSensitiveTogglePassword("");
+    setSensitiveToggleError(null);
+
+    if (target === "mfa_email_otp") {
       setMfaMessage(null);
-      setMfaError("MFA ayarını değiştirmek için mevcut şifreni gir.");
-      return;
-    }
-
-    setSavingMfa(true);
-    setMfaMessage(null);
-    setMfaError(null);
-
-    try {
-      const response = nextEnabled
-        ? await enableMobileMfa({ currentPassword })
-        : await disableMobileMfa({ currentPassword });
-
-      if (!response.ok) {
-        setMfaError(response.error.message);
-        return;
-      }
-
-      setMfaEnabled(response.data.mfaEnabled);
-      setCurrentPassword("");
-      setMfaMessage(
-        response.data.mfaEnabled
-          ? "OTP/MFA aktif. Bir sonraki girişte e-posta kodu istenecek."
-          : "OTP/MFA kapatıldı. Bir sonraki girişte ek kod istenmeyecek."
-      );
-    } finally {
-      setSavingMfa(false);
+      setMfaError(null);
+    } else {
+      setLoginApprovalMessage(null);
+      setLoginApprovalError(null);
     }
   }
 
-  async function handleLoginApprovalToggle(nextEnabled: boolean) {
-    if (!loginApprovalPassword.trim()) {
-      setLoginApprovalMessage(null);
-      setLoginApprovalError("Mobil onay ayarını değiştirmek için mevcut şifreni gir.");
+  function closeSensitiveToggle() {
+    if (savingSensitiveToggle) {
       return;
     }
 
-    setSavingLoginApproval(true);
-    setLoginApprovalMessage(null);
-    setLoginApprovalError(null);
+    setSensitiveToggle(null);
+    setSensitiveTogglePassword("");
+    setSensitiveToggleError(null);
+  }
+
+  async function handleSensitiveToggleSubmit() {
+    if (!sensitiveToggle) {
+      return;
+    }
+
+    if (!canSubmitMobileSensitiveTogglePassword(sensitiveTogglePassword)) {
+      setSensitiveToggleError("Mevcut şifren en az 8 karakter olmalı.");
+      return;
+    }
+
+    const target = sensitiveToggle.target;
+    const nextEnabled = sensitiveToggle.nextEnabled;
+
+    setSavingSensitiveToggle(true);
+    setSensitiveToggleError(null);
+
+    if (target === "mfa_email_otp") {
+      setSavingMfa(true);
+      setMfaMessage(null);
+      setMfaError(null);
+    } else {
+      setSavingLoginApproval(true);
+      setLoginApprovalMessage(null);
+      setLoginApprovalError(null);
+    }
 
     try {
-      const response = nextEnabled
-        ? await enableMobileLoginApproval({ currentPassword: loginApprovalPassword })
-        : await disableMobileLoginApproval({ currentPassword: loginApprovalPassword });
+      if (target === "mfa_email_otp") {
+        const response = nextEnabled
+          ? await enableMobileMfa({ currentPassword: sensitiveTogglePassword })
+          : await disableMobileMfa({ currentPassword: sensitiveTogglePassword });
 
-      if (!response.ok) {
-        setLoginApprovalError(response.error.message);
-        return;
+        if (!response.ok) {
+          setSensitiveToggleError(response.error.message);
+          setMfaError(response.error.message);
+          return;
+        }
+
+        setMfaEnabled(response.data.mfaEnabled);
+        setMfaMessage(
+          response.data.mfaEnabled
+            ? "OTP/MFA aktif. Bir sonraki girişte e-posta kodu istenecek."
+            : "OTP/MFA kapatıldı. Bir sonraki girişte ek kod istenmeyecek."
+        );
+      } else {
+        const response = nextEnabled
+          ? await enableMobileLoginApproval({ currentPassword: sensitiveTogglePassword })
+          : await disableMobileLoginApproval({ currentPassword: sensitiveTogglePassword });
+
+        if (!response.ok) {
+          setSensitiveToggleError(response.error.message);
+          setLoginApprovalError(response.error.message);
+          return;
+        }
+
+        setMobileLoginApprovalEnabled(response.data.mobileLoginApprovalEnabled);
+        setLoginApprovalMessage(
+          response.data.mobileLoginApprovalEnabled
+            ? "Mobil giriş onayı aktif. Web girişleri bu uygulamada onay bekleyecek."
+            : "Mobil giriş onayı kapatıldı."
+        );
       }
 
-      setMobileLoginApprovalEnabled(response.data.mobileLoginApprovalEnabled);
-      setLoginApprovalPassword("");
-      setLoginApprovalMessage(
-        response.data.mobileLoginApprovalEnabled
-          ? "Mobil giriş onayı aktif. Yeni cihaz girişleri uygulamada onay bekleyecek."
-          : "Mobil giriş onayı kapatıldı."
-      );
+      setSensitiveToggle(null);
+      setSensitiveTogglePassword("");
+      setSensitiveToggleError(null);
     } finally {
-      setSavingLoginApproval(false);
+      if (target === "mfa_email_otp") {
+        setSavingMfa(false);
+      } else {
+        setSavingLoginApproval(false);
+      }
+
+      setSavingSensitiveToggle(false);
     }
   }
 
@@ -349,7 +393,9 @@ export default function SecurityRoute() {
       setCurrentSessionId(response.data.currentSessionId);
     } else {
       setMobileLoginApprovalEnabled(null);
-      setLoginApprovalPassword("");
+      setSensitiveToggle(null);
+      setSensitiveTogglePassword("");
+      setSensitiveToggleError(null);
       setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
@@ -399,7 +445,9 @@ export default function SecurityRoute() {
       }
 
       setMobileLoginApprovalEnabled(null);
-      setLoginApprovalPassword("");
+      setSensitiveToggle(null);
+      setSensitiveTogglePassword("");
+      setSensitiveToggleError(null);
       setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
@@ -450,32 +498,24 @@ export default function SecurityRoute() {
         <Text style={styles.text}>
           E-posta OTP aktif olduğunda girişten sonra 6 haneli kod doğrulaması gerekir.
         </Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setCurrentPassword}
-          placeholder="Mevcut şifre"
-          placeholderTextColor={colors.subtle}
-          secureTextEntry
-          style={styles.input}
-          value={currentPassword}
-        />
-        <Pressable
-          disabled={savingMfa || loadingMfaStatus}
-          onPress={() => void handleMfaToggle(!(mfaEnabled === true))}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed || savingMfa || loadingMfaStatus ? styles.pressed : null
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>
-            {savingMfa
-              ? "Güncelleniyor..."
-              : mfaEnabled === true
-                ? "OTP/MFA kapat"
-                : "OTP/MFA aç"}
-          </Text>
-        </Pressable>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleText}>
+            <Text style={styles.emptyTitle}>E-posta OTP</Text>
+            <Text style={styles.text}>
+              {mfaEnabled === true
+                ? "Aktif. Bir sonraki girişte kod istenir."
+                : mfaEnabled === false
+                  ? "Kapalı. Açmak için anahtarı kullan."
+                  : "Durum kontrol ediliyor."}
+            </Text>
+          </View>
+          <Switch
+            disabled={savingMfa || loadingMfaStatus || mfaEnabled === null}
+            onValueChange={(nextEnabled) => openSensitiveToggle("mfa_email_otp", nextEnabled)}
+            value={mfaEnabled === true}
+          />
+        </View>
+        <Text style={styles.meta}>Bu ayarı değiştirmek için mevcut şifre modalda doğrulanır.</Text>
         {mfaMessage ? (
           <View style={styles.successBox}>
             <Text style={styles.successText}>{mfaMessage}</Text>
@@ -491,34 +531,26 @@ export default function SecurityRoute() {
       <MobileCard style={styles.card}>
         <Text style={styles.title}>Mobil giriş onayı</Text>
         <Text style={styles.text}>
-          Aktif olduğunda yeni cihaz girişleri, oturum açılmadan önce bu uygulamada onay bekler.
+          Aktif olduğunda web girişleri, oturum açılmadan önce bu uygulamada onay bekler.
         </Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setLoginApprovalPassword}
-          placeholder="Mevcut şifre"
-          placeholderTextColor={colors.subtle}
-          secureTextEntry
-          style={styles.input}
-          value={loginApprovalPassword}
-        />
-        <Pressable
-          disabled={savingLoginApproval || loadingLoginApprovalStatus}
-          onPress={() => void handleLoginApprovalToggle(!(mobileLoginApprovalEnabled === true))}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed || savingLoginApproval || loadingLoginApprovalStatus ? styles.pressed : null
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>
-            {savingLoginApproval
-              ? "Güncelleniyor..."
-              : mobileLoginApprovalEnabled === true
-                ? "Mobil onayı kapat"
-                : "Mobil onayı aç"}
-          </Text>
-        </Pressable>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleText}>
+            <Text style={styles.emptyTitle}>Web girişlerini mobilde onayla</Text>
+            <Text style={styles.text}>
+              {mobileLoginApprovalEnabled === true
+                ? "Aktif. Web girişleri bu cihazda onay bekler."
+                : mobileLoginApprovalEnabled === false
+                  ? "Kapalı. Açmak için anahtarı kullan."
+                  : "Durum kontrol ediliyor."}
+            </Text>
+          </View>
+          <Switch
+            disabled={savingLoginApproval || loadingLoginApprovalStatus || mobileLoginApprovalEnabled === null}
+            onValueChange={(nextEnabled) => openSensitiveToggle("mobile_login_approval", nextEnabled)}
+            value={mobileLoginApprovalEnabled === true}
+          />
+        </View>
+        <Text style={styles.meta}>Bu ayar mobil uygulama girişini değil, web giriş onayını yönetir.</Text>
 
         <View style={styles.approvalHeader}>
           <View style={styles.approvalHeaderText}>
@@ -678,6 +710,16 @@ export default function SecurityRoute() {
         </View>
       </MobileCard>
 
+      <SensitiveSecurityToggleModal
+        error={sensitiveToggleError}
+        onCancel={closeSensitiveToggle}
+        onPasswordChange={setSensitiveTogglePassword}
+        onSubmit={() => void handleSensitiveToggleSubmit()}
+        password={sensitiveTogglePassword}
+        saving={savingSensitiveToggle}
+        state={sensitiveToggle}
+      />
+
       <MobileCard style={styles.card}>
         <Text style={styles.title}>Çıkış</Text>
         <Text style={styles.text}>Bu cihazdaki mobil oturumu kapatır.</Text>
@@ -686,6 +728,80 @@ export default function SecurityRoute() {
         </MobileButton>
       </MobileCard>
     </Screen>
+  );
+}
+
+function SensitiveSecurityToggleModal({
+  error,
+  onCancel,
+  onPasswordChange,
+  onSubmit,
+  password,
+  saving,
+  state
+}: {
+  error: string | null;
+  onCancel: () => void;
+  onPasswordChange: (value: string) => void;
+  onSubmit: () => void;
+  password: string;
+  saving: boolean;
+  state: MobileSensitiveSecurityToggleState | null;
+}) {
+  return (
+    <Modal animationType="fade" transparent visible={Boolean(state)} onRequestClose={onCancel}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.eyebrow}>Güvenlik doğrulaması</Text>
+          <Text style={styles.title}>
+            {state ? buildMobileSensitiveToggleTitle(state.target) : "Güvenlik ayarını değiştir"}
+          </Text>
+          <Text style={styles.text}>
+            {state
+              ? buildMobileSensitiveToggleDescription(state.target, state.nextEnabled)
+              : "Bu ayarı değiştirmek için mevcut şifreni gir."}
+          </Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!saving}
+            onChangeText={onPasswordChange}
+            placeholder="Mevcut şifre"
+            placeholderTextColor={colors.subtle}
+            secureTextEntry
+            style={styles.input}
+            value={password}
+          />
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          <View style={styles.modalActions}>
+            <Pressable
+              disabled={saving}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>Vazgeç</Text>
+            </Pressable>
+            <Pressable
+              disabled={saving}
+              onPress={onSubmit}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>{saving ? "Doğrulanıyor..." : "Onayla"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -758,6 +874,40 @@ function getBadgeTextStyle(tone: MobileSecurityRowTone) {
 }
 
 const styles = StyleSheet.create({
+  toggleRow: {
+    alignItems: "center",
+    borderColor: "rgba(148, 163, 184, 0.28)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between",
+    padding: 14
+  },
+  toggleText: {
+    flex: 1,
+    gap: 4
+  },
+  modalBackdrop: {
+    alignItems: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    flex: 1,
+    justifyContent: "center",
+    padding: 20
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    gap: 12,
+    maxWidth: 420,
+    padding: 20,
+    width: "100%"
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "flex-end"
+  },
   list: {
     gap: spacing.md
   },
