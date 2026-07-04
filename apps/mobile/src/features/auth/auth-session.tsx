@@ -7,7 +7,6 @@ import {
   subscribeMobileRealtime
 } from "../realtime/mobile-realtime";
 import {
-  completeMobileLoginApproval,
   fetchMobileCurrentUser,
   hydrateMobileAuthToken,
   logoutMobileSession,
@@ -17,7 +16,6 @@ import {
   type MobileAuthMe,
   type MobileAuthMode,
   type MobileAuthRequest,
-  type MobileLoginApprovalRequiredPayload,
   type MobileMfaChallenge
 } from "./auth-api";
 
@@ -26,7 +24,6 @@ type AuthSessionStatus =
   | "guest"
   | "authenticated"
   | "mfa_required"
-  | "login_approval_required"
   | "error";
 
 type AuthSessionContextValue = {
@@ -34,13 +31,10 @@ type AuthSessionContextValue = {
   currentUser: MobileAuthMe | null;
   error: string | null;
   mfaChallenge: MobileMfaChallenge | null;
-  loginApprovalChallenge: MobileLoginApprovalRequiredPayload | null;
   login: (payload: MobileAuthRequest) => Promise<boolean>;
   register: (payload: MobileAuthRequest) => Promise<boolean>;
   verifyMfa: (code: string) => Promise<boolean>;
-  completeLoginApproval: () => Promise<boolean>;
   cancelMfa: () => void;
-  cancelLoginApproval: () => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -52,13 +46,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthSessionStatus>("checking");
   const [currentUser, setCurrentUser] = useState<MobileAuthMe | null>(null);
   const [mfaChallenge, setMfaChallenge] = useState<MobileMfaChallenge | null>(null);
-  const [loginApprovalChallenge, setLoginApprovalChallenge] =
-    useState<MobileLoginApprovalRequiredPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const clearChallenges = useCallback(() => {
     setMfaChallenge(null);
-    setLoginApprovalChallenge(null);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -150,13 +141,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, [clearChallenges]);
 
-  const applyLoginApprovalRequired = useCallback((challenge: MobileLoginApprovalRequiredPayload) => {
+  const handleUnexpectedMobileApprovalRequired = useCallback(() => {
     setCurrentUser(null);
-    setMfaChallenge(null);
-    setLoginApprovalChallenge(challenge);
-    setStatus("login_approval_required");
-    setError(null);
-  }, []);
+    clearChallenges();
+    setStatus("error");
+    setError("Mobil uygulama girişinde mobil onay beklenmez. Lütfen tekrar giriş yap.");
+  }, [clearChallenges]);
 
   const submit = useCallback(
     async (mode: MobileAuthMode, payload: MobileAuthRequest): Promise<boolean> => {
@@ -175,14 +165,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       if ("mfaRequired" in result.data) {
         setCurrentUser(null);
         setMfaChallenge(result.data);
-        setLoginApprovalChallenge(null);
-        setStatus("mfa_required");
+            setStatus("mfa_required");
         setError(null);
         return false;
       }
 
       if ("loginApprovalRequired" in result.data) {
-        applyLoginApprovalRequired(result.data);
+        handleUnexpectedMobileApprovalRequired();
         return false;
       }
 
@@ -193,7 +182,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [applyAuthenticatedPayload, applyLoginApprovalRequired, clearChallenges]
+    [applyAuthenticatedPayload, clearChallenges, handleUnexpectedMobileApprovalRequired]
   );
 
   const login = useCallback(
@@ -228,7 +217,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }
 
       if ("loginApprovalRequired" in result.data) {
-        applyLoginApprovalRequired(result.data);
+        handleUnexpectedMobileApprovalRequired();
         return false;
       }
 
@@ -239,40 +228,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [applyAuthenticatedPayload, applyLoginApprovalRequired, mfaChallenge]
+    [applyAuthenticatedPayload, handleUnexpectedMobileApprovalRequired, mfaChallenge]
   );
 
-  const completeLoginApproval = useCallback(async (): Promise<boolean> => {
-    if (!loginApprovalChallenge) {
-      setStatus("guest");
-      setError("Mobil onay isteği bulunamadı. Lütfen yeniden giriş yap.");
-      return false;
-    }
-
-    const result = await completeMobileLoginApproval(loginApprovalChallenge.approvalToken);
-
-    if (!result.ok) {
-      return false;
-    }
-
-    await applyAuthenticatedPayload({
-      user: result.data.user,
-      profile: result.data.profile
-    });
-
-    return true;
-  }, [applyAuthenticatedPayload, loginApprovalChallenge]);
-
   const cancelMfa = useCallback(() => {
-    setMfaChallenge(null);
-    setLoginApprovalChallenge(null);
-    setCurrentUser(null);
-    setError(null);
-    setStatus("guest");
-  }, []);
-
-  const cancelLoginApproval = useCallback(() => {
-    setLoginApprovalChallenge(null);
     setMfaChallenge(null);
     setCurrentUser(null);
     setError(null);
@@ -294,24 +253,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       currentUser,
       error,
       mfaChallenge,
-      loginApprovalChallenge,
       login,
       register,
       verifyMfa,
-      completeLoginApproval,
       cancelMfa,
-      cancelLoginApproval,
       logout,
       refresh
     }),
     [
-      cancelLoginApproval,
       cancelMfa,
-      completeLoginApproval,
       currentUser,
       error,
       login,
-      loginApprovalChallenge,
       logout,
       mfaChallenge,
       refresh,

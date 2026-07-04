@@ -114,6 +114,11 @@ describe("mobile auth API MFA flow", () => {
         })
       })
     );
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const headers = new Headers(init?.headers as HeadersInit);
+
+    expect(headers.get("x-babyloop-client")).toBe("mobile");
     expect(JSON.stringify(result)).not.toMatch(/refreshToken|passwordHash|currentPassword/iu);
   });
 
@@ -142,7 +147,7 @@ describe("mobile auth API MFA flow", () => {
     expect(getMobileAuthToken()).toBeNull();
   });
 
-  it("keeps mobile login approval challenge unauthenticated until completion", async () => {
+  it("keeps unexpected mobile login approval challenge unauthenticated", async () => {
     fetchMock.mockResolvedValueOnce(
       mockApiResponse(200, {
         ok: true,
@@ -212,7 +217,7 @@ describe("mobile auth API MFA flow", () => {
     expect(JSON.stringify(result)).not.toMatch(/refreshToken|passwordHash|currentPassword/iu);
   });
 
-  it("keeps MFA verify unauthenticated when mobile login approval is required next", async () => {
+  it("keeps unexpected MFA approval challenge unauthenticated", async () => {
     fetchMock.mockResolvedValueOnce(
       mockApiResponse(200, {
         ok: true,
