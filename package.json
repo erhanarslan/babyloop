@@ -59,8 +59,9 @@
     "security:image-authenticity": "node scripts/check-listing-image-authenticity-security.mjs",
     "security:cross-listing-duplicates": "node scripts/check-cross-listing-duplicate-boundary.mjs",
     "security:mobile-auth": "node scripts/check-mobile-auth-security.mjs",
-    "release:mobile:p0": "pnpm security:mobile-auth && pnpm test:mobile:p0 && pnpm --filter @babyloop/mobile typecheck",
-    "security:mobile-p0-gate": "node scripts/check-mobile-p0-release-gate.mjs"
+    "release:mobile:p0": "pnpm security:mobile-auth && pnpm security:mobile-notifications && pnpm test:mobile:p0 && pnpm --filter @babyloop/mobile typecheck",
+    "security:mobile-p0-gate": "node scripts/check-mobile-p0-release-gate.mjs",
+    "security:mobile-notifications": "node scripts/check-mobile-notification-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

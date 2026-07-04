@@ -536,3 +536,18 @@ Backoffice `/storage` page reads `GET /api/v1/admin/storage/ops-preview` and dis
 ## Email provider foundation
 
 Email delivery now has a provider abstraction with `EMAIL_PROVIDER=mock|smtp|resend`. Real SMTP sending is gated by `EMAIL_SEND_ENABLED=true`; when disabled, the provider remains sandbox-only. It validates configuration and exposes only safe ops metadata through `GET /api/v1/admin/email/ops-preview` without leaking secrets. Admin-only `POST /api/v1/admin/email/test-send` can send a controlled smoke-test draft; it does not create verification/reset tokens and real SMTP still requires `EMAIL_SEND_ENABLED=true`.
+
+## Mobile notification boundary
+
+Mobile notifications are locked by `pnpm security:mobile-notifications`.
+
+The mobile boundary is:
+
+- authenticated in-app notification list,
+- unread count,
+- mark-one-read and mark-all-read,
+- child lifecycle in-app generation,
+- child notification cadence preference display,
+- safe notification cards without token/session/raw e-mail leaks.
+
+This is a draft-only/email/push/n8n boundary. Mobile UI and API tests may show notification preferences and in-app notification results, but they must not claim native push, email delivery, n8n hooks, queues, or provider delivery until the dedicated delivery-log/idempotency package is implemented.

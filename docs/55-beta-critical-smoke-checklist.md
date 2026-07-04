@@ -204,3 +204,13 @@ Beta can proceed only if:
 - [ ] The gate does not run Maestro and does not claim real-device QA.
 - [ ] Mobile OTP/MFA P0 boundary still passes: SecureStore token storage, MFA-required unauthenticated state, current-password security toggles, mobile approval for web login approval, and safe session/login approval rendering.
 - [ ] Real-device S22 manual QA is still tracked separately.
+
+### Mobile notification boundary
+
+- [ ] `pnpm security:mobile-notifications` passes.
+- [ ] `pnpm release:mobile:p0` includes the mobile notification boundary guard.
+- [ ] Mobile notifications list/unread/read/read-all flows work through authenticated mobile fetch.
+- [ ] Mobile notification cards do not expose tokens, refresh tokens, password hashes, cookies, raw session payloads, or raw e-mail values.
+- [ ] Child lifecycle notification generation is in-app only and does not claim email/push/n8n delivery.
+- [ ] Child reminder notification cadence remains preference/draft-only until the delivery-log/idempotency package is implemented.
+- [ ] Real email/push/n8n delivery is not claimed in beta.

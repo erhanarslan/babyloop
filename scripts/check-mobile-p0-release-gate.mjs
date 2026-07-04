@@ -6,6 +6,7 @@ const requiredFiles = [
   "package.json",
   "apps/mobile/package.json",
   "scripts/check-mobile-auth-security.mjs",
+  "scripts/check-mobile-notification-boundary.mjs",
   "docs/24-release-smoke-checklist.md",
   "docs/25-validation-and-regression-checklist.md",
   "docs/55-beta-critical-smoke-checklist.md",
@@ -73,6 +74,7 @@ function checkRootScripts(rootPackage) {
   const security = scripts["security:mobile-auth"] ?? "";
 
   mustContain(gate, "package.json#release:mobile:p0", "pnpm security:mobile-auth");
+  mustContain(gate, "package.json#release:mobile:p0", "pnpm security:mobile-notifications");
   mustContain(gate, "package.json#release:mobile:p0", "pnpm test:mobile:p0");
   mustContain(gate, "package.json#release:mobile:p0", "pnpm --filter @babyloop/mobile typecheck");
 

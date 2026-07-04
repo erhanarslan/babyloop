@@ -283,3 +283,13 @@ The guard fails when:
 Remaining product hardening after this guard: dedicated upload frequency/quota controls, real fraud scoring for cross-listing duplicate images, broader image moderation policy tuning, appeal workflows, and perceptual duplicate detection.
 
 - `apps/api/test/image-storage-s3-contract.test.ts` must pass before enabling S3/R2 uploads outside local development.
+
+## Mobile notification boundary
+
+The mobile notification surface remains draft-only for email/push/n8n delivery claims; in-app notification reads and preference previews do not enable external delivery.
+
+`pnpm security:mobile-notifications` must pass before mobile P0 or beta claims include notification functionality.
+
+Current mobile notification scope is in-app/read/unread/preferences only. Email/push/n8n delivery remains blocked by the existing delivery policy until delivery logs, deduplication, frequency limiting, idempotency, and admin audit are implemented.
+
+This checklist does not enable native push tokens, Expo push delivery, email notification delivery, n8n webhooks, queues, or background workers.

@@ -102,3 +102,28 @@ It runs:
 - `pnpm --filter @babyloop/mobile typecheck`
 
 It does not run Maestro, does not start Expo, and does not claim real-device S22 manual QA. Expanded Maestro E2E, push infrastructure validation, and real-device S22 manual QA remain outside the automated gate until the mobile runtime setup is stable.
+
+## Mobile notification boundary
+
+Mobile notification preferences and child cadence remain draft-only for external email/push/n8n delivery until delivery logs, idempotency, frequency limiting, and audit are implemented.
+
+`pnpm security:mobile-notifications` protects the mobile notifications/preferences slice.
+
+Scope included:
+
+- in-app notifications,
+- unread/read/read-all,
+- child lifecycle in-app generation,
+- child reminder notification cadence preferences,
+- safe notification card rendering.
+
+Scope excluded until a later delivery package:
+
+- native push tokens,
+- real push delivery,
+- real notification email delivery,
+- n8n webhooks,
+- queues/workers,
+- delivery logs and send audit.
+
+This keeps the surface useful without claiming email/push/n8n delivery before the delivery-log/idempotency foundation exists.

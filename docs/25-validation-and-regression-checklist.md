@@ -586,3 +586,14 @@ http://localhost:3001/moderation
 - [ ] The gate remains deterministic and does not start Expo, run Maestro, require ADB, or claim real-device QA.
 - [ ] Maestro smoke remains optional through the dedicated mobile E2E/smoke path.
 - [ ] Real-device S22 manual QA remains separately tracked and is not represented as passed by `pnpm release:mobile:p0`.
+
+### Mobile notification boundary
+
+- [ ] `pnpm security:mobile-notifications` passes.
+- [ ] `pnpm release:mobile:p0` includes `pnpm security:mobile-notifications`.
+- [ ] Mobile notification list, unread count, mark-one-read, and mark-all-read use authenticated mobile fetch only.
+- [ ] Mobile notification cards do not expose `accessToken`, `refreshToken`, `passwordHash`, raw e-mail values, cookies, or raw auth/session payloads.
+- [ ] Child lifecycle generation remains in-app only and does not claim real email/push/n8n delivery.
+- [ ] Child reminder notification cadence is a preference/draft boundary; it does not prove native push delivery.
+- [ ] Notification delivery policy remains draft-only until delivery logs, deduplication, frequency limiting, idempotency, and admin audit are implemented.
+- [ ] Saved-search notification generation may create in-app notifications only; it must not send email, push, or n8n webhooks.
