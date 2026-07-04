@@ -520,3 +520,5 @@ http://localhost:3001/moderation
 - Reporter identity is not visible.
 - Status update still works.
 - Note/action creation still works.
+
+- [ ] S3/R2 storage contract tests cover store/delete/resolve without credential leakage.

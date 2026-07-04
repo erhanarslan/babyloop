@@ -11,6 +11,7 @@ const requiredFiles = [
   "apps/api/src/services/image-optimization.service.ts",
   "apps/api/src/services/admin-storage-ops.service.ts",
   "scripts/check-deployment-readiness.mjs",
+  "apps/api/test/image-storage-s3-contract.test.ts",
   "docs/54-production-env-checklist.md"
 ];
 
@@ -40,6 +41,23 @@ if (problems.length > 0) {
 }
 
 console.log("Image storage security guard passed.");
+
+checkS3StorageContractTest();
+
+function checkS3StorageContractTest() {
+  const file = "apps/api/test/image-storage-s3-contract.test.ts";
+  const source = read(file);
+
+  if (!source) return;
+
+  mustContain(source, file, "PutObjectCommand");
+  mustContain(source, file, "DeleteObjectCommand");
+  mustContain(source, file, "GetObjectCommand");
+  mustContain(source, file, "Readable.from(Buffer.from([1, 2, 3]))");
+  mustContain(source, file, "without exposing credentials");
+  mustContain(source, file, "attacker.example.test");
+  mustContain(source, file, "../secret.jpg");
+}
 
 function checkImageStorageService() {
   const file = "apps/api/src/services/image-storage.service.ts";

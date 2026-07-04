@@ -178,3 +178,7 @@ Current product rule:
 - the same image content across different listings is allowed for now,
 - cross-listing duplicates should be treated later as a fraud/risk signal rather than a hard block,
 - content hashes are internal metadata and must not be exposed in public, owner, or admin DTOs.
+
+## S3/R2 Contract Regression
+
+S3/R2 store/delete/resolve contract is covered by `apps/api/test/image-storage-s3-contract.test.ts`. The regression verifies that public media URLs map to bucket object keys, delete ignores attacker-controlled public base URLs, unsafe filenames are rejected before object reads, and returned storage metadata does not expose credentials.
