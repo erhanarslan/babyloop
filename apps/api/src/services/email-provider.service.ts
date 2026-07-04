@@ -1,5 +1,7 @@
 import * as nodemailer from "nodemailer";
 
+const RESEND_EMAILS_ENDPOINT = "https://api.resend.com/emails";
+
 export type EmailProviderDriver = "mock" | "smtp" | "resend";
 
 export type EmailProviderConfig =
@@ -22,12 +24,14 @@ export type EmailProviderConfig =
     }
   | {
       driver: "resend";
-      sendEnabled: false;
+      sendEnabled: boolean;
       from: string;
+      apiKey?: string;
       apiKeyConfigured: boolean;
     };
 
 export type SmtpEmailProviderConfig = Extract<EmailProviderConfig, { driver: "smtp" }>;
+export type ResendEmailProviderConfig = Extract<EmailProviderConfig, { driver: "resend" }>;
 
 export type EmailProviderPreview = {
   driver: EmailProviderDriver;
@@ -61,7 +65,7 @@ export type EmailSendResult =
     }
   | {
       sent: true;
-      provider: "smtp";
+      provider: "smtp" | "resend";
       sandboxOnly: false;
       messageId: string | null;
     };
@@ -79,12 +83,16 @@ type SmtpTransporter = {
 
 type SmtpTransportFactory = (config: SmtpEmailProviderConfig) => SmtpTransporter;
 
+type ResendEmailResponse = {
+  id?: unknown;
+};
+
 export function getEmailProviderConfig(env: NodeJS.ProcessEnv = process.env): EmailProviderConfig {
   const driver = normalizeDriver(env.EMAIL_PROVIDER);
   const sendEnabled = readSendEnabled(env.EMAIL_SEND_ENABLED);
 
-  if (sendEnabled && driver !== "smtp") {
-    throw new Error("EMAIL_SEND_ENABLED=true is currently supported only with EMAIL_PROVIDER=smtp.");
+  if (sendEnabled && driver === "mock") {
+    throw new Error("EMAIL_SEND_ENABLED=true requires EMAIL_PROVIDER=smtp or EMAIL_PROVIDER=resend.");
   }
 
   if (driver === "mock") {
@@ -96,11 +104,18 @@ export function getEmailProviderConfig(env: NodeJS.ProcessEnv = process.env): Em
   }
 
   if (driver === "resend") {
+    const apiKey = optionalEnv(env, "RESEND_API_KEY");
+
+    if (sendEnabled && !apiKey) {
+      throw new Error("RESEND_API_KEY is required when EMAIL_PROVIDER=resend and EMAIL_SEND_ENABLED=true.");
+    }
+
     return {
       driver: "resend",
-      sendEnabled: false,
+      sendEnabled,
       from: requireEnv(env, "EMAIL_FROM"),
-      apiKeyConfigured: Boolean(optionalEnv(env, "RESEND_API_KEY"))
+      ...(apiKey ? { apiKey } : {}),
+      apiKeyConfigured: Boolean(apiKey)
     };
   }
 
@@ -108,7 +123,7 @@ export function getEmailProviderConfig(env: NodeJS.ProcessEnv = process.env): Em
   const password = optionalEnv(env, "SMTP_PASS");
 
   if (sendEnabled && (!username || !password)) {
-    throw new Error("SMTP_USER and SMTP_PASS are required when EMAIL_SEND_ENABLED=true.");
+    throw new Error("SMTP_USER and SMTP_PASS are required when EMAIL_PROVIDER=smtp and EMAIL_SEND_ENABLED=true.");
   }
 
   return {
@@ -131,8 +146,8 @@ export function getEmailProviderPreview(env: NodeJS.ProcessEnv = process.env): E
   const missing: string[] = [];
   const fromConfigured = Boolean(optionalEnv(env, "EMAIL_FROM"));
 
-  if (sendEnabled && driver !== "smtp") {
-    missing.push("EMAIL_PROVIDER=smtp");
+  if (sendEnabled && driver === "mock") {
+    missing.push("EMAIL_PROVIDER=smtp|resend");
   }
 
   if (driver === "resend") {
@@ -142,8 +157,14 @@ export function getEmailProviderPreview(env: NodeJS.ProcessEnv = process.env): E
 
   if (driver === "smtp") {
     if (!fromConfigured) missing.push("EMAIL_FROM");
-    for (const key of ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"]) {
+    for (const key of ["SMTP_HOST", "SMTP_PORT"]) {
       if (!optionalEnv(env, key)) missing.push(key);
+    }
+
+    if (sendEnabled) {
+      for (const key of ["SMTP_USER", "SMTP_PASS"]) {
+        if (!optionalEnv(env, key)) missing.push(key);
+      }
     }
   }
 
@@ -167,7 +188,7 @@ export async function sendEmailDraft(
 ): Promise<EmailSendResult> {
   const config = getEmailProviderConfig(env);
 
-  if (config.driver !== "smtp" || !config.sendEnabled) {
+  if (!config.sendEnabled) {
     void draft;
 
     return {
@@ -178,20 +199,28 @@ export async function sendEmailDraft(
     };
   }
 
-  const transporter = createTransport(config);
-  const result = await transporter.sendMail({
-    from: config.from,
-    to: draft.to,
-    subject: draft.subject,
-    text: draft.text
-  });
+  if (config.driver === "smtp") {
+    const transporter = createTransport(config);
+    const result = await transporter.sendMail({
+      from: config.from,
+      to: draft.to,
+      subject: draft.subject,
+      text: draft.text
+    });
 
-  return {
-    sent: true,
-    provider: "smtp",
-    sandboxOnly: false,
-    messageId: result.messageId ?? null
-  };
+    return {
+      sent: true,
+      provider: "smtp",
+      sandboxOnly: false,
+      messageId: result.messageId ?? null
+    };
+  }
+
+  if (config.driver === "resend") {
+    return sendResendEmailDraft(config, draft);
+  }
+
+  throw new Error("Unsupported email provider configuration.");
 }
 
 function createSmtpTransport(config: SmtpEmailProviderConfig): SmtpTransporter {
@@ -217,6 +246,42 @@ function createSmtpTransport(config: SmtpEmailProviderConfig): SmtpTransporter {
   }
 
   return nodemailer.createTransport(transportOptions);
+}
+
+async function sendResendEmailDraft(
+  config: ResendEmailProviderConfig,
+  draft: EmailDraft
+): Promise<EmailSendResult> {
+  if (!config.apiKey) {
+    throw new Error("RESEND_API_KEY is required when EMAIL_PROVIDER=resend and EMAIL_SEND_ENABLED=true.");
+  }
+
+  const response = await fetch(RESEND_EMAILS_ENDPOINT, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.apiKey}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      from: config.from,
+      to: [draft.to],
+      subject: draft.subject,
+      text: draft.text
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Resend email delivery failed.");
+  }
+
+  const body = (await response.json()) as ResendEmailResponse;
+
+  return {
+    sent: true,
+    provider: "resend",
+    sandboxOnly: false,
+    messageId: typeof body.id === "string" && body.id.length > 0 ? body.id : null
+  };
 }
 
 function normalizeDriver(value: string | undefined): EmailProviderDriver {

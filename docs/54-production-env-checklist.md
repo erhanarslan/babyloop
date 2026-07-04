@@ -222,3 +222,19 @@ Production is blocked if any of these are true:
 - RAG answers can provide diagnosis, medication, treatment, diet plan, or therapy claims.
 - Notification real delivery is enabled without delivery logs, deduplication, frequency limits, idempotency, and admin audit.
 - Payment/checkout is enabled without dedicated payment audit, webhook verification, and legal review.
+
+## Email provider
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `EMAIL_DELIVERY_MODE=noop|provider` | Yes | `noop` skips auth email delivery; `provider` routes through configured provider |
+| `EMAIL_PROVIDER=mock|smtp|resend` | Yes | `mock` never sends real email |
+| `EMAIL_SEND_ENABLED=true|false` | Yes | Must remain false until provider is configured and tested |
+| `EMAIL_FROM` | Required for `smtp` or `resend` | Sender identity |
+| `SMTP_HOST`, `SMTP_PORT` | SMTP only | Required when `EMAIL_PROVIDER=smtp` |
+| `SMTP_USER`, `SMTP_PASS` | SMTP send only | Required when `EMAIL_PROVIDER=smtp` and `EMAIL_SEND_ENABLED=true` |
+| `SMTP_SECURE` | SMTP only | Defaults to true when omitted |
+| `RESEND_API_KEY` | Resend send only | Required when `EMAIL_PROVIDER=resend` and `EMAIL_SEND_ENABLED=true` |
+
+`EMAIL_SEND_ENABLED=true` is supported only with `EMAIL_PROVIDER=smtp` or `EMAIL_PROVIDER=resend`.
+Provider previews and admin email ops must never return SMTP credentials, Resend API keys, auth tokens, reset tokens, verification tokens, or OTP codes.

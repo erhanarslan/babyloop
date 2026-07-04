@@ -128,5 +128,6 @@ describe("admin email routes", () => {
     });
     expect(JSON.stringify(response.json())).not.toContain("SMTP_PASS");
     expect(JSON.stringify(response.json())).not.toContain("RESEND_API_KEY");
+    expect(JSON.stringify(response.json())).not.toContain("re_secret");
   });
 });
