@@ -53,6 +53,41 @@ export type MobileMfaPreferencePayload = MobileMfaStatus & {
   updated: true;
 };
 
+export type MobileLoginApprovalStatus = {
+  delivery: "in_app";
+  method: "mobile_approval";
+  mobileLoginApprovalEnabled: boolean;
+};
+
+export type MobileLoginApprovalPreferencePayload = MobileLoginApprovalStatus & {
+  updated: true;
+};
+
+export type MobileLoginApprovalPreferenceRequest = {
+  currentPassword: string;
+};
+
+export type MobileLoginApprovalChallenge = {
+  id: string;
+  status: "pending" | "approved" | "denied" | "expired";
+  deviceLabel: string;
+  requestUserAgent: string | null;
+  requestIpAddress: string | null;
+  createdAt: string;
+  expiresAt: string;
+  resolvedAt: string | null;
+};
+
+export type MobileLoginApprovalsPayload = {
+  approvals: MobileLoginApprovalChallenge[];
+};
+
+export type MobileLoginApprovalActionPayload = {
+  approvalId: string;
+  resolved: true;
+  status: "approved" | "denied";
+};
+
 export type MobileApiFailure = {
   ok: false;
   error: {
@@ -295,6 +330,50 @@ export async function revokeAllMobileAuthSessions(): Promise<MobileApiResponse<M
   }
 }
 
+export async function fetchMobileLoginApprovalStatus(): Promise<MobileApiResponse<MobileLoginApprovalStatus>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/login-approval/status");
+
+    return parseApiResponse<MobileLoginApprovalStatus>(response);
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
+export async function enableMobileLoginApproval(
+  payload: MobileLoginApprovalPreferenceRequest
+): Promise<MobileApiResponse<MobileLoginApprovalPreferencePayload>> {
+  return submitMobileLoginApprovalPreference("/api/v1/auth/login-approval/enable", payload);
+}
+
+export async function disableMobileLoginApproval(
+  payload: MobileLoginApprovalPreferenceRequest
+): Promise<MobileApiResponse<MobileLoginApprovalPreferencePayload>> {
+  return submitMobileLoginApprovalPreference("/api/v1/auth/login-approval/disable", payload);
+}
+
+export async function fetchMobileLoginApprovals(): Promise<MobileApiResponse<MobileLoginApprovalsPayload>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/login-approvals");
+
+    return parseApiResponse<MobileLoginApprovalsPayload>(response);
+  } catch {
+    return mobileApiUnavailable();
+  }
+}
+
+export async function approveMobileLoginApproval(
+  approvalId: string
+): Promise<MobileApiResponse<MobileLoginApprovalActionPayload>> {
+  return submitMobileLoginApprovalAction(approvalId, "approve");
+}
+
+export async function denyMobileLoginApproval(
+  approvalId: string
+): Promise<MobileApiResponse<MobileLoginApprovalActionPayload>> {
+  return submitMobileLoginApprovalAction(approvalId, "deny");
+}
+
 async function submitMobileMfaPreference(
   path: string,
   payload: MobileMfaPreferenceRequest
@@ -311,6 +390,43 @@ async function submitMobileMfaPreference(
     return parseApiResponse<MobileMfaPreferencePayload>(response);
   } catch {
     return apiUnavailableResponse();
+  }
+}
+
+async function submitMobileLoginApprovalPreference(
+  path: string,
+  payload: MobileLoginApprovalPreferenceRequest
+): Promise<MobileApiResponse<MobileLoginApprovalPreferencePayload>> {
+  try {
+    const response = await mobileAuthFetch(path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return parseApiResponse<MobileLoginApprovalPreferencePayload>(response);
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
+async function submitMobileLoginApprovalAction(
+  approvalId: string,
+  action: "approve" | "deny"
+): Promise<MobileApiResponse<MobileLoginApprovalActionPayload>> {
+  try {
+    const response = await mobileAuthFetch(
+      `/api/v1/auth/login-approvals/${encodeURIComponent(approvalId)}/${action}`,
+      {
+        method: "POST"
+      }
+    );
+
+    return parseApiResponse<MobileLoginApprovalActionPayload>(response);
+  } catch {
+    return mobileApiUnavailable();
   }
 }
 

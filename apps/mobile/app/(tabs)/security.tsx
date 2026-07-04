@@ -4,18 +4,29 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import {
+  approveMobileLoginApproval,
+  denyMobileLoginApproval,
+  disableMobileLoginApproval,
   disableMobileMfa,
+  enableMobileLoginApproval,
   enableMobileMfa,
   fetchMobileAuthSessions,
+  fetchMobileLoginApprovals,
+  fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
   revokeAllMobileAuthSessions,
   revokeMobileAuthSession,
-  type MobileAuthSession
+  type MobileAuthSession,
+  type MobileLoginApprovalChallenge
 } from "../../src/features/auth/auth-api";
 import {
   getMobileSecurityRows,
   type MobileSecurityRowTone
 } from "../../src/features/security/security-model";
+import {
+  buildMobileLoginApprovalCards,
+  getMobileLoginApprovalSummary
+} from "../../src/features/security/mobile-login-approval-model";
 import {
   buildMobileSessionCards,
   getMobileSessionSummary
@@ -34,6 +45,15 @@ export default function SecurityRoute() {
   const [savingMfa, setSavingMfa] = useState(false);
   const [mfaMessage, setMfaMessage] = useState<string | null>(null);
   const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mobileLoginApprovalEnabled, setMobileLoginApprovalEnabled] = useState<boolean | null>(null);
+  const [loginApprovalPassword, setLoginApprovalPassword] = useState("");
+  const [loadingLoginApprovalStatus, setLoadingLoginApprovalStatus] = useState(false);
+  const [savingLoginApproval, setSavingLoginApproval] = useState(false);
+  const [loginApprovalMessage, setLoginApprovalMessage] = useState<string | null>(null);
+  const [loginApprovalError, setLoginApprovalError] = useState<string | null>(null);
+  const [pendingLoginApprovals, setPendingLoginApprovals] = useState<MobileLoginApprovalChallenge[]>([]);
+  const [loadingLoginApprovals, setLoadingLoginApprovals] = useState(false);
+  const [resolvingApprovalId, setResolvingApprovalId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<MobileAuthSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -45,6 +65,9 @@ export default function SecurityRoute() {
   useEffect(() => {
     if (!currentUser) {
       setMfaEnabled(null);
+      setMobileLoginApprovalEnabled(null);
+      setLoginApprovalPassword("");
+      setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
       return;
@@ -72,6 +95,45 @@ export default function SecurityRoute() {
       setLoadingMfaStatus(false);
     }
 
+    async function loadLoginApprovalStatus() {
+      setLoadingLoginApprovalStatus(true);
+      setLoginApprovalError(null);
+
+      const response = await fetchMobileLoginApprovalStatus();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (response.ok) {
+        setMobileLoginApprovalEnabled(response.data.mobileLoginApprovalEnabled);
+      } else {
+        setMobileLoginApprovalEnabled(null);
+        setLoginApprovalError(response.error.message);
+      }
+
+      setLoadingLoginApprovalStatus(false);
+    }
+
+    async function loadLoginApprovals() {
+      setLoadingLoginApprovals(true);
+
+      const response = await fetchMobileLoginApprovals();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (response.ok) {
+        setPendingLoginApprovals(response.data.approvals);
+      } else {
+        setPendingLoginApprovals([]);
+        setLoginApprovalError(response.error.message);
+      }
+
+      setLoadingLoginApprovals(false);
+    }
+
     async function loadSessions() {
       setLoadingSessions(true);
       setSessionError(null);
@@ -95,6 +157,8 @@ export default function SecurityRoute() {
     }
 
     void loadMfaStatus();
+    void loadLoginApprovalStatus();
+    void loadLoginApprovals();
     void loadSessions();
 
     return () => {
@@ -103,8 +167,20 @@ export default function SecurityRoute() {
   }, [currentUser]);
 
   const securityRows = useMemo(
-    () => getMobileSecurityRows({ mfaEnabled }),
-    [mfaEnabled]
+    () => getMobileSecurityRows({
+      mfaEnabled,
+      mobileLoginApprovalEnabled,
+      pendingLoginApprovalCount: pendingLoginApprovals.length
+    }),
+    [mfaEnabled, mobileLoginApprovalEnabled, pendingLoginApprovals.length]
+  );
+  const loginApprovalCards = useMemo(
+    () => buildMobileLoginApprovalCards(pendingLoginApprovals),
+    [pendingLoginApprovals]
+  );
+  const loginApprovalSummary = useMemo(
+    () => getMobileLoginApprovalSummary(pendingLoginApprovals),
+    [pendingLoginApprovals]
   );
   const sessionCards = useMemo(
     () => buildMobileSessionCards(sessions, currentSessionId),
@@ -153,6 +229,82 @@ export default function SecurityRoute() {
     }
   }
 
+  async function handleLoginApprovalToggle(nextEnabled: boolean) {
+    if (!loginApprovalPassword.trim()) {
+      setLoginApprovalMessage(null);
+      setLoginApprovalError("Mobil onay ayarını değiştirmek için mevcut şifreni gir.");
+      return;
+    }
+
+    setSavingLoginApproval(true);
+    setLoginApprovalMessage(null);
+    setLoginApprovalError(null);
+
+    try {
+      const response = nextEnabled
+        ? await enableMobileLoginApproval({ currentPassword: loginApprovalPassword })
+        : await disableMobileLoginApproval({ currentPassword: loginApprovalPassword });
+
+      if (!response.ok) {
+        setLoginApprovalError(response.error.message);
+        return;
+      }
+
+      setMobileLoginApprovalEnabled(response.data.mobileLoginApprovalEnabled);
+      setLoginApprovalPassword("");
+      setLoginApprovalMessage(
+        response.data.mobileLoginApprovalEnabled
+          ? "Mobil giriş onayı aktif. Yeni cihaz girişleri uygulamada onay bekleyecek."
+          : "Mobil giriş onayı kapatıldı."
+      );
+    } finally {
+      setSavingLoginApproval(false);
+    }
+  }
+
+  async function handleLoginApprovalsRefresh() {
+    setLoadingLoginApprovals(true);
+    setLoginApprovalError(null);
+    setLoginApprovalMessage(null);
+
+    const response = await fetchMobileLoginApprovals();
+
+    if (response.ok) {
+      setPendingLoginApprovals(response.data.approvals);
+    } else {
+      setPendingLoginApprovals([]);
+      setLoginApprovalError(response.error.message);
+    }
+
+    setLoadingLoginApprovals(false);
+  }
+
+  async function handleResolveLoginApproval(approvalId: string, action: "approve" | "deny") {
+    setResolvingApprovalId(approvalId);
+    setLoginApprovalError(null);
+    setLoginApprovalMessage(null);
+
+    try {
+      const response = action === "approve"
+        ? await approveMobileLoginApproval(approvalId)
+        : await denyMobileLoginApproval(approvalId);
+
+      if (!response.ok) {
+        setLoginApprovalError(response.error.message);
+        return;
+      }
+
+      setPendingLoginApprovals((current) => current.filter((approval) => approval.id !== response.data.approvalId));
+      setLoginApprovalMessage(
+        response.data.status === "approved"
+          ? "Giriş isteği onaylandı."
+          : "Giriş isteği reddedildi."
+      );
+    } finally {
+      setResolvingApprovalId(null);
+    }
+  }
+
   async function handleSessionRefresh() {
     setLoadingSessions(true);
     setSessionError(null);
@@ -164,6 +316,9 @@ export default function SecurityRoute() {
       setSessions(response.data.sessions);
       setCurrentSessionId(response.data.currentSessionId);
     } else {
+      setMobileLoginApprovalEnabled(null);
+      setLoginApprovalPassword("");
+      setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
       setSessionError(response.error.message);
@@ -211,6 +366,9 @@ export default function SecurityRoute() {
         return;
       }
 
+      setMobileLoginApprovalEnabled(null);
+      setLoginApprovalPassword("");
+      setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
       await authSession.logout();
@@ -294,6 +452,110 @@ export default function SecurityRoute() {
         {mfaError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{mfaError}</Text>
+          </View>
+        ) : null}
+      </MobileCard>
+
+      <MobileCard style={styles.card}>
+        <Text style={styles.title}>Mobil giriş onayı</Text>
+        <Text style={styles.text}>
+          Aktif olduğunda yeni cihaz girişleri, oturum açılmadan önce bu uygulamada onay bekler.
+        </Text>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setLoginApprovalPassword}
+          placeholder="Mevcut şifre"
+          placeholderTextColor={colors.subtle}
+          secureTextEntry
+          style={styles.input}
+          value={loginApprovalPassword}
+        />
+        <Pressable
+          disabled={savingLoginApproval || loadingLoginApprovalStatus}
+          onPress={() => void handleLoginApprovalToggle(!(mobileLoginApprovalEnabled === true))}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed || savingLoginApproval || loadingLoginApprovalStatus ? styles.pressed : null
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>
+            {savingLoginApproval
+              ? "Güncelleniyor..."
+              : mobileLoginApprovalEnabled === true
+                ? "Mobil onayı kapat"
+                : "Mobil onayı aç"}
+          </Text>
+        </Pressable>
+
+        <View style={styles.approvalHeader}>
+          <View style={styles.approvalHeaderText}>
+            <Text style={styles.emptyTitle}>Bekleyen giriş istekleri</Text>
+            <Text style={styles.text}>{loginApprovalSummary.activeCountLabel}</Text>
+          </View>
+          <Pressable
+            disabled={loadingLoginApprovals}
+            onPress={() => void handleLoginApprovalsRefresh()}
+            style={({ pressed }) => [
+              styles.smallSecondaryButton,
+              pressed || loadingLoginApprovals ? styles.pressed : null
+            ]}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {loadingLoginApprovals ? "Yenileniyor..." : "Yenile"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {!loadingLoginApprovals && loginApprovalCards.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>Bekleyen istek yok</Text>
+            <Text style={styles.text}>{loginApprovalSummary.emptyLabel}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.sessionList}>
+          {loginApprovalCards.map((approval) => (
+            <View key={approval.id} style={styles.sessionCard}>
+              <Text style={styles.sessionTitle}>{approval.title}</Text>
+              <Text style={styles.sessionSubtitle}>{approval.subtitle}</Text>
+              <Text style={styles.sessionMeta}>{approval.meta}</Text>
+              <View style={styles.approvalActions}>
+                <Pressable
+                  disabled={resolvingApprovalId === approval.id}
+                  onPress={() => void handleResolveLoginApproval(approval.id, "approve")}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed || resolvingApprovalId === approval.id ? styles.pressed : null
+                  ]}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {resolvingApprovalId === approval.id ? "İşleniyor..." : approval.approveLabel}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  disabled={resolvingApprovalId === approval.id}
+                  onPress={() => void handleResolveLoginApproval(approval.id, "deny")}
+                  style={({ pressed }) => [
+                    styles.dangerOutlineButton,
+                    pressed || resolvingApprovalId === approval.id ? styles.pressed : null
+                  ]}
+                >
+                  <Text style={styles.dangerOutlineButtonText}>{approval.denyLabel}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {loginApprovalMessage ? (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>{loginApprovalMessage}</Text>
+          </View>
+        ) : null}
+        {loginApprovalError ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{loginApprovalError}</Text>
           </View>
         ) : null}
       </MobileCard>
@@ -660,5 +922,41 @@ const styles = StyleSheet.create({
   },
   sessionActions: {
     gap: spacing.sm
+  },
+  approvalHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between"
+  },
+  approvalHeaderText: {
+    flex: 1,
+    gap: 2
+  },
+  approvalActions: {
+    gap: spacing.sm
+  },
+  smallSecondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  dangerOutlineButton: {
+    alignItems: "center",
+    borderColor: colors.danger,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12
+  },
+  dangerOutlineButtonText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: "900"
   }
 });

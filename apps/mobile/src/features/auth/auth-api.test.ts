@@ -1,7 +1,13 @@
 import {
+  approveMobileLoginApproval,
   clearMobileAuthToken,
+  denyMobileLoginApproval,
+  disableMobileLoginApproval,
   disableMobileMfa,
+  enableMobileLoginApproval,
   enableMobileMfa,
+  fetchMobileLoginApprovals,
+  fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
   getMobileAuthToken,
   submitMobileAuthRequest,
@@ -133,6 +139,192 @@ describe("mobile auth API MFA flow", () => {
       }
     });
     expect(getMobileAuthToken()).toBeNull();
+  });
+
+  it("reads and updates mobile login approval preferences through authenticated mobile requests", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            delivery: "in_app",
+            method: "mobile_approval",
+            mobileLoginApprovalEnabled: false
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            csrfToken: "csrf-token"
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            delivery: "in_app",
+            method: "mobile_approval",
+            mobileLoginApprovalEnabled: true,
+            updated: true
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            delivery: "in_app",
+            method: "mobile_approval",
+            mobileLoginApprovalEnabled: false,
+            updated: true
+          }
+        })
+      );
+
+    const status = await fetchMobileLoginApprovalStatus();
+    const enabled = await enableMobileLoginApproval({ currentPassword: "Password123!" });
+    const disabled = await disableMobileLoginApproval({ currentPassword: "Password123!" });
+
+    expect(status).toEqual({
+      ok: true,
+      data: {
+        delivery: "in_app",
+        method: "mobile_approval",
+        mobileLoginApprovalEnabled: false
+      }
+    });
+    expect(enabled).toEqual({
+      ok: true,
+      data: {
+        delivery: "in_app",
+        method: "mobile_approval",
+        mobileLoginApprovalEnabled: true,
+        updated: true
+      }
+    });
+    expect(disabled).toEqual({
+      ok: true,
+      data: {
+        delivery: "in_app",
+        method: "mobile_approval",
+        mobileLoginApprovalEnabled: false,
+        updated: true
+      }
+    });
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://api.babyloop.test/api/v1/auth/login-approval/status",
+      "https://api.babyloop.test/api/v1/auth/csrf",
+      "https://api.babyloop.test/api/v1/auth/login-approval/enable",
+      "https://api.babyloop.test/api/v1/auth/login-approval/disable"
+    ]);
+
+    const serialized = JSON.stringify({ status, enabled, disabled });
+
+    expect(serialized).not.toMatch(/passwordHash|refreshToken|accessToken|currentPassword/iu);
+  });
+
+  it("lists and resolves pending mobile login approval requests without exposing secrets", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            approvals: [
+              {
+                id: "00000000-0000-4000-8000-000000000011",
+                status: "pending",
+                deviceLabel: "Mac tarayıcı",
+                requestUserAgent: "Mozilla BabyLoopWeb",
+                requestIpAddress: "10.0.0.10",
+                createdAt: "2026-07-04T01:00:00.000Z",
+                expiresAt: "2026-07-04T01:10:00.000Z",
+                resolvedAt: null
+              }
+            ]
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            csrfToken: "csrf-token"
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            approvalId: "00000000-0000-4000-8000-000000000011",
+            resolved: true,
+            status: "approved"
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            approvalId: "00000000-0000-4000-8000-000000000012",
+            resolved: true,
+            status: "denied"
+          }
+        })
+      );
+
+    const list = await fetchMobileLoginApprovals();
+    const approve = await approveMobileLoginApproval("00000000-0000-4000-8000-000000000011");
+    const deny = await denyMobileLoginApproval("00000000-0000-4000-8000-000000000012");
+
+    expect(list).toEqual({
+      ok: true,
+      data: {
+        approvals: [
+          {
+            id: "00000000-0000-4000-8000-000000000011",
+            status: "pending",
+            deviceLabel: "Mac tarayıcı",
+            requestUserAgent: "Mozilla BabyLoopWeb",
+            requestIpAddress: "10.0.0.10",
+            createdAt: "2026-07-04T01:00:00.000Z",
+            expiresAt: "2026-07-04T01:10:00.000Z",
+            resolvedAt: null
+          }
+        ]
+      }
+    });
+    expect(approve).toEqual({
+      ok: true,
+      data: {
+        approvalId: "00000000-0000-4000-8000-000000000011",
+        resolved: true,
+        status: "approved"
+      }
+    });
+    expect(deny).toEqual({
+      ok: true,
+      data: {
+        approvalId: "00000000-0000-4000-8000-000000000012",
+        resolved: true,
+        status: "denied"
+      }
+    });
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://api.babyloop.test/api/v1/auth/login-approvals",
+      "https://api.babyloop.test/api/v1/auth/csrf",
+      "https://api.babyloop.test/api/v1/auth/login-approvals/00000000-0000-4000-8000-000000000011/approve",
+      "https://api.babyloop.test/api/v1/auth/login-approvals/00000000-0000-4000-8000-000000000012/deny"
+    ]);
+
+    const serialized = JSON.stringify({ list, approve, deny });
+
+    expect(serialized).not.toMatch(/approvalToken|approvalTokenHash|refreshToken|passwordHash|accessToken/iu);
   });
 
   it("reads and updates MFA preferences through authenticated mobile requests", async () => {

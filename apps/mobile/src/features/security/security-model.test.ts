@@ -25,9 +25,9 @@ describe("mobile security model", () => {
       },
       {
         title: "Mobil onay",
-        value: "Cihaz onayı ve push güvenlik bildirimi ayrı P1 paketinde tamamlanacak",
-        tone: "pending",
-        badge: "P1"
+        value: "Mobil giriş onayı durumu kontrol ediliyor",
+        tone: "neutral",
+        badge: "Kontrol"
       }
     ]);
   });
@@ -43,16 +43,17 @@ describe("mobile security model", () => {
     });
   });
 
-  it("keeps only mobile approval as pending work after OTP/MFA is wired", () => {
-    const pendingRows = getMobileSecurityRows({ mfaEnabled: false }).filter((row) => row.tone === "pending");
+  it("shows mobile login approval as checking while status is unknown", () => {
+    const mobileApprovalRow = getMobileSecurityRows({ mfaEnabled: false }).find(
+      (row) => row.title === "Mobil onay"
+    );
 
-    expect(pendingRows).toEqual([
-      {
-        title: "Mobil onay",
-        value: "Cihaz onayı ve push güvenlik bildirimi ayrı P1 paketinde tamamlanacak",
-        tone: "pending",
-        badge: "P1"
-      }
-    ]);
+    expect(mobileApprovalRow).toEqual({
+      title: "Mobil onay",
+      value: "Mobil giriş onayı durumu kontrol ediliyor",
+      tone: "neutral",
+      badge: "Kontrol"
+    });
   });
+
 });
