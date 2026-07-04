@@ -280,6 +280,6 @@ The guard fails when:
 - storage secrets are logged,
 - stale docs claim S3/R2 storage is still only future work.
 
-Remaining product hardening after this guard: CDN/cache validation, upload rate-limit review, fraud scoring for cross-listing duplicate images, and broader image moderation validation.
+Remaining product hardening after this guard: dedicated upload frequency/quota controls, fraud scoring for cross-listing duplicate images, and broader image moderation validation.
 
 - `apps/api/test/image-storage-s3-contract.test.ts` must pass before enabling S3/R2 uploads outside local development.

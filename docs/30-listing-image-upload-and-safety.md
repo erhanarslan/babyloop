@@ -166,7 +166,7 @@ Required production boundaries:
 - No arbitrary filesystem serving.
 - Magic bytes are checked in addition to MIME and extension.
 - API image responses set `nosniff`.
-- EXIF stripping, resize/transform processing, CDN/cache policy, upload rate limits, and image moderation are intentionally deferred.
+- Dedicated per-profile/per-IP upload frequency quotas and broader image moderation remain future work.
 
 ## Duplicate Image Detection
 
@@ -188,3 +188,18 @@ S3/R2 store/delete/resolve contract is covered by `apps/api/test/image-storage-s
 Listing image upload validation rejects unsupported or mismatched files by comparing the filename extension, declared MIME type, and detected image magic bytes before storage. Supported content types remain JPEG, PNG, and WEBP.
 
 The storage path normalizes images through Sharp before local/S3/R2 writes. Re-encoded listing images must not preserve EXIF or other original metadata. The image storage security guard checks for the MIME/magic-byte boundary and rejects accidental metadata-preserving optimization changes.
+
+## Upload abuse and public media cache boundary
+
+Current upload abuse protection is intentionally layered:
+
+- global API rate limiting is registered through `@fastify/rate-limit`;
+- multipart parsing is bounded by `MAX_LISTING_IMAGE_BYTES` and `MAX_LISTING_IMAGES`;
+- dedicated listing image upload keeps a per-file `fileSize` limit;
+- per-listing image count is capped before storage;
+- MIME, extension, magic-byte, SVG/HTML, oversized, and duplicate-content checks run before DB exposure;
+- local uploaded media responses set `Cache-Control: public, max-age=31536000, immutable`;
+- S3/R2 storage requires an explicit `IMAGE_STORAGE_PUBLIC_BASE_URL` and validates public URL boundaries;
+- optional S3/R2 proxy memory cache is capped by `IMAGE_PROXY_MEMORY_CACHE_MAX_BYTES` and `IMAGE_PROXY_MEMORY_CACHE_MAX_ITEM_BYTES`.
+
+Dedicated per-profile/per-IP upload frequency quotas remain future work. They should be implemented before scale with a shared backend such as Redis so multi-instance API deployments enforce the same abuse window. The current beta boundary must still keep size/count limits, safe 400/413/429 errors, and storage credential secrecy intact.

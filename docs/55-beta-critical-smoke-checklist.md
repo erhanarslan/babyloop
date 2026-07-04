@@ -154,3 +154,14 @@ Beta can proceed only if:
 - Production storage plan is not local ephemeral disk.
 - RAG medical/safety boundaries pass manual prompts.
 - Backoffice audit/redaction remains intact.
+
+### Upload abuse and public media cache boundary
+
+- [ ] `pnpm security:upload-storage-boundary` passes.
+- [ ] Oversized listing image upload returns a safe 413/`IMAGE_TOO_LARGE` response.
+- [ ] Invalid image type and MIME/extension/magic-byte mismatch return safe 400 responses.
+- [ ] Sixth listing image is rejected before storage.
+- [ ] Local uploaded images include `Cache-Control: public, max-age=31536000, immutable`.
+- [ ] S3/R2 public media base URL is HTTPS in staging/production.
+- [ ] Storage ops preview does not expose bucket credentials, object storage secrets, raw object keys beyond safe public URLs, or raw image binary data.
+- [ ] Dedicated per-profile/per-IP upload frequency quotas are either implemented or explicitly tracked as a beta blocker.

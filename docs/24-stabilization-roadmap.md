@@ -122,7 +122,7 @@ Use `docs/25-validation-and-regression-checklist.md` as the detailed regression 
 ## Productization Blockers
 
 - production-grade auth/session transport
-- S3/R2 storage hardening: listing-scoped duplicate-image content hash detection is implemented; remaining work is CDN/cache validation, upload rate-limit review, fraud scoring for cross-listing duplicates, and broader image moderation validation
+- S3/R2 storage hardening: listing-scoped duplicate-image content hash detection and upload/storage boundary guards are implemented; remaining work is dedicated upload frequency/quota controls, fraud scoring for cross-listing duplicates, and broader image moderation validation
 - search/filter/pagination
 - messaging report/block flows
 - admin/moderation
