@@ -70,11 +70,21 @@ export type EmailVerificationConfirmPayload = {
   emailVerified: true;
 };
 
+export type LoginApprovalRequiredPayload = {
+  approvalId: string;
+  approvalToken: string;
+  deviceLabel: string;
+  expiresAt: string;
+  loginApprovalRequired: true;
+};
+
+export type AuthSubmitPayload = AuthPayload | LoginApprovalRequiredPayload;
+
 export async function submitAuthRequest(
   apiBaseUrl: string,
   mode: AuthMode,
   payload: AuthRequest
-): Promise<ApiResponse<AuthPayload>> {
+): Promise<ApiResponse<AuthSubmitPayload>> {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/${mode}`, {
     method: "POST",
     credentials: "include",
@@ -82,6 +92,22 @@ export async function submitAuthRequest(
       "content-type": "application/json"
     },
     body: JSON.stringify(payload)
+  });
+
+  return response.json() as Promise<ApiResponse<AuthSubmitPayload>>;
+}
+
+export async function completeLoginApproval(
+  apiBaseUrl: string,
+  approvalToken: string
+): Promise<ApiResponse<AuthPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/login-approval/complete`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ approvalToken })
   });
 
   return response.json() as Promise<ApiResponse<AuthPayload>>;

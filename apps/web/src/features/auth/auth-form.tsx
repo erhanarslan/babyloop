@@ -13,7 +13,13 @@ import {
   clearStoredAuthReturnTo,
   getStoredAuthReturnTo
 } from "./auth-action-prompt-modal";
-import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
+import {
+  completeLoginApproval,
+  startGoogleLogin,
+  submitAuthRequest,
+  type AuthMode,
+  type LoginApprovalRequiredPayload
+} from "./api";
 
 type AuthFormProps = {
   apiBaseUrl: string;
@@ -28,6 +34,9 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginApproval, setLoginApproval] = useState<LoginApprovalRequiredPayload | null>(null);
+  const [approvalSecondsLeft, setApprovalSecondsLeft] = useState(0);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const isRegister = mode === "register";
 
@@ -35,10 +44,107 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     setIsHydrated(true);
   }, []);
 
+  useEffect(() => {
+    if (!loginApproval) {
+      setApprovalSecondsLeft(0);
+      return;
+    }
+
+    function updateSecondsLeft() {
+      const expiresAt = new Date(loginApproval!.expiresAt).getTime();
+      const secondsLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+
+      setApprovalSecondsLeft(secondsLeft);
+
+      if (secondsLeft <= 0) {
+        setLoginApproval(null);
+        setErrorMessage("Mobil onay süresi doldu. Lütfen tekrar giriş yap.");
+      }
+    }
+
+    updateSecondsLeft();
+    const intervalId = window.setInterval(updateSecondsLeft, 250);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [loginApproval]);
+
+  useEffect(() => {
+    if (!loginApproval) {
+      return;
+    }
+
+    let active = true;
+    let inFlight = false;
+    let timerId: number | null = null;
+
+    async function attemptComplete() {
+      if (!active || inFlight || !loginApproval) {
+        return;
+      }
+
+      const expiresAt = new Date(loginApproval.expiresAt).getTime();
+
+      if (Date.now() >= expiresAt) {
+        return;
+      }
+
+      inFlight = true;
+
+      try {
+        const response = await completeLoginApproval(apiBaseUrl, loginApproval.approvalToken);
+
+        if (!active) {
+          return;
+        }
+
+        if (response.ok) {
+          setAuthToken(response.data.accessToken);
+          setLoginApproval(null);
+          setErrorMessage(null);
+          setSuccessMessage("Giriş yapıldı. Hesap bilgilerin güncelleniyor...");
+
+          router.refresh();
+
+          const returnTo = getStoredAuthReturnTo("/browse");
+
+          window.setTimeout(() => {
+            clearStoredAuthReturnTo();
+            router.push(returnTo);
+            router.refresh();
+          }, 2000);
+
+          return;
+        }
+      } catch {
+        // Pending state is expected until the mobile device approves the request.
+      } finally {
+        inFlight = false;
+      }
+
+      if (active) {
+        timerId = window.setTimeout(attemptComplete, 1000);
+      }
+    }
+
+    timerId = window.setTimeout(attemptComplete, 500);
+
+    return () => {
+      active = false;
+
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [apiBaseUrl, loginApproval, router]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setDevEmailVerificationToken(null);
     setErrorMessage(null);
+    setLoginApproval(null);
+    setSuccessMessage(null);
     setRegistrationComplete(false);
 
     const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister);
@@ -55,6 +161,17 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
       if (!body.ok) {
         setErrorMessage(getApiErrorMessage(body.error, dictionary));
+        return;
+      }
+
+      if (isLoginApprovalRequired(body.data)) {
+        if (isRegister) {
+          setErrorMessage("Kayıt sırasında mobil onay beklenmiyordu. Lütfen tekrar deneyin.");
+          return;
+        }
+
+        setLoginApproval(body.data);
+        setApprovalSecondsLeft(secondsUntil(body.data.expiresAt));
         return;
       }
 
@@ -78,6 +195,12 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     }
   }
 
+  function handleCancelApproval() {
+    setLoginApproval(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  }
+
   return (
     <form className="listing-form auth-form-polished" method="post" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
@@ -94,7 +217,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <Button
           type="button"
           variant="secondary"
-          disabled={isSubmitting || isGoogleRedirecting}
+          disabled={isSubmitting || isGoogleRedirecting || Boolean(loginApproval)}
           onClick={async () => {
             setErrorMessage(null);
             setIsGoogleRedirecting(true);
@@ -139,6 +262,29 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         </div>
       </div>
 
+      {successMessage ? (
+        <div className="dev-token-panel auth-success-panel" role="status">
+          <h2>Giriş yapıldı</h2>
+          <p>{successMessage}</p>
+        </div>
+      ) : null}
+
+      {loginApproval ? (
+        <div className="dev-token-panel auth-success-panel" role="status">
+          <h2>Mobil onay bekleniyor</h2>
+          <p>
+            {loginApproval.deviceLabel} için giriş isteği oluşturuldu. Mobil uygulamadan onay verir vermez
+            bu ekran otomatik devam edecek.
+          </p>
+          <p className="form-note">
+            Kalan süre: <strong>{approvalSecondsLeft}</strong> saniye
+          </p>
+          <Button type="button" variant="secondary" onClick={handleCancelApproval}>
+            İptal et
+          </Button>
+        </div>
+      ) : null}
+
       {errorMessage ? (
         <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
@@ -163,16 +309,37 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <p className="form-note">
           {isRegister ? dictionary.auth.registerNote : dictionary.auth.loginNote}
         </p>
-        <Button type="submit" disabled={!isHydrated || isSubmitting}>
-          {isSubmitting
-            ? dictionary.auth.submitting
-            : isRegister
-              ? dictionary.auth.submitRegister
-              : dictionary.auth.submitLogin}
+        <Button type="submit" disabled={!isHydrated || isSubmitting || Boolean(loginApproval)}>
+          {loginApproval
+            ? "Mobil onay bekleniyor"
+            : isSubmitting
+              ? dictionary.auth.submitting
+              : isRegister
+                ? dictionary.auth.submitRegister
+                : dictionary.auth.submitLogin}
         </Button>
       </div>
     </form>
   );
+}
+
+function isLoginApprovalRequired(value: unknown): value is LoginApprovalRequiredPayload {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "loginApprovalRequired" in value &&
+    (value as { loginApprovalRequired?: unknown }).loginApprovalRequired === true
+  );
+}
+
+function secondsUntil(expiresAt: string): number {
+  const time = new Date(expiresAt).getTime();
+
+  if (Number.isNaN(time)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.ceil((time - Date.now()) / 1000));
 }
 
 function GoogleIcon() {

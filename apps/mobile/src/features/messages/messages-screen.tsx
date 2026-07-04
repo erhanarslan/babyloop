@@ -12,22 +12,25 @@ import {
 } from "../../ui/mobile-primitives";
 import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
+import { subscribeMobileRealtime } from "../realtime/mobile-realtime";
 import {
   fetchMobileConversations,
   type MobileConversationSummary
 } from "./messages-api";
+import { mergeRealtimeConversationSummary } from "./messages-realtime-model";
 
 const CONVERSATION_LIST_POLL_INTERVAL_MS = 4000;
 
 export function MessagesScreen() {
   const authSession = useAuthSession();
+  const currentProfileId = authSession.currentUser?.profile.id ?? null;
   const [conversations, setConversations] = useState<MobileConversationSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
 
   const loadConversations = useCallback(
     async (options: { silent?: boolean } = {}) => {
-      if (!authSession.currentUser) {
+      if (!currentProfileId) {
         setConversations([]);
         setStatus("ready");
         setError(null);
@@ -51,7 +54,7 @@ export function MessagesScreen() {
         }
       }
     },
-    [authSession.currentUser]
+    [currentProfileId]
   );
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export function MessagesScreen() {
   }, [loadConversations]);
 
   useEffect(() => {
-    if (!authSession.currentUser) {
+    if (!currentProfileId) {
       return;
     }
 
@@ -70,7 +73,38 @@ export function MessagesScreen() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [authSession.currentUser, loadConversations]);
+  }, [currentProfileId, loadConversations]);
+
+  useEffect(() => {
+    if (!currentProfileId) {
+      return;
+    }
+
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    void subscribeMobileRealtime({
+      onConversationUpdated: (payload) => {
+        setConversations((currentConversations) =>
+          mergeRealtimeConversationSummary(currentConversations, payload.conversation)
+        );
+        setStatus("ready");
+        setError(null);
+      }
+    }).then((subscription) => {
+      if (!active) {
+        subscription.unsubscribe();
+        return;
+      }
+
+      unsubscribe = subscription.unsubscribe;
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [currentProfileId]);
 
   if (!authSession.currentUser) {
     return (

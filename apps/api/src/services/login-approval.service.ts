@@ -11,7 +11,7 @@ import { hashRefreshToken } from "../utils/refresh-token.js";
 import { verifyPassword } from "../utils/password.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
 
-const LOGIN_APPROVAL_TTL_SECONDS = 10 * 60;
+const LOGIN_APPROVAL_TTL_SECONDS = 90;
 
 type LoginApprovalChallengeStatus = "pending" | "approved" | "denied" | "expired" | "consumed";
 

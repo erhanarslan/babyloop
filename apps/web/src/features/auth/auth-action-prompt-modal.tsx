@@ -79,6 +79,13 @@ export function AuthActionPromptModal({
         return;
       }
 
+      if ("loginApprovalRequired" in body.data) {
+        setErrorMessage(
+          "Bu hesap için mobil onay gerekiyor. Lütfen giriş sayfasından devam et."
+        );
+        return;
+      }
+
       setAuthToken(body.data.accessToken);
       onAuthenticated?.(body.data);
       onClose();
@@ -268,4 +275,3 @@ function sanitizeReturnTo(value: string | null): string | null {
 
   return value;
 }
-

@@ -302,7 +302,6 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
   app.post<{ Body: unknown; Reply: LoginApprovalCompleteRouteResponse }>(
     "/auth/login-approval/complete",
-    authRateLimitOptions(options),
     async (request, reply) => {
       const parsedBody = loginApprovalCompleteSchema.safeParse(request.body);
 

@@ -18,12 +18,20 @@ import { getAndroidAwareBottomOffset } from "../../ui/mobile-layout";
 import { colors, radius, shadows, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
+  MOBILE_REALTIME_EVENTS,
+  subscribeMobileRealtime
+} from "../realtime/mobile-realtime";
+import {
   fetchMobileConversationDetail,
   fetchMobileConversationMessages,
   sendMobileConversationMessage,
   type MobileConversationDetail,
   type MobileConversationMessage
 } from "./messages-api";
+import {
+  appendRealtimeMessage,
+  mergeRealtimeConversationDetail
+} from "./messages-realtime-model";
 
 export function ConversationDetailScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
@@ -99,6 +107,61 @@ export function ConversationDetailScreen() {
       showSubscription.remove();
     };
   }, [scrollToBottom]);
+
+  useEffect(() => {
+    if (!authSession.currentUser || !conversationId) {
+      return;
+    }
+
+    let active = true;
+    let cleanup: (() => void) | null = null;
+
+    void subscribeMobileRealtime({
+      onConversationUpdated: (payload) => {
+        if (payload.conversationId !== conversationId) {
+          return;
+        }
+
+        setConversation((currentConversation) =>
+          mergeRealtimeConversationDetail(currentConversation, payload.conversation)
+        );
+      },
+      onMessageCreated: (payload) => {
+        if (payload.conversationId !== conversationId) {
+          return;
+        }
+
+        setMessages((currentMessages) => appendRealtimeMessage(currentMessages, payload, conversationId));
+        scrollToBottom(true);
+      }
+    }).then((subscription) => {
+      if (!active) {
+        subscription.unsubscribe();
+        return;
+      }
+
+      if (subscription.socket) {
+        subscription.socket.emit(MOBILE_REALTIME_EVENTS.conversationJoin, {
+          conversationId
+        });
+      }
+
+      cleanup = () => {
+        if (subscription.socket) {
+          subscription.socket.emit(MOBILE_REALTIME_EVENTS.conversationLeave, {
+            conversationId
+          });
+        }
+
+        subscription.unsubscribe();
+      };
+    });
+
+    return () => {
+      active = false;
+      cleanup?.();
+    };
+  }, [authSession.currentUser, conversationId, scrollToBottom]);
 
   async function handleSend() {
     const nextBody = body.trim();

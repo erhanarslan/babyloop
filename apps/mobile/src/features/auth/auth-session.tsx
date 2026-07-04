@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { disconnectMobileRealtimeSocket } from "../realtime/mobile-realtime";
 import {
   fetchMobileCurrentUser,
   hydrateMobileAuthToken,
@@ -172,6 +173,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    disconnectMobileRealtimeSocket();
     await logoutMobileSession();
     setCurrentUser(null);
     setMfaChallenge(null);
