@@ -24,6 +24,26 @@ const approvals: MobileLoginApprovalChallenge[] = [
     createdAt: "2026-07-04T01:00:00.000Z",
     expiresAt: "2026-07-04T01:10:00.000Z",
     resolvedAt: "2026-07-04T01:05:00.000Z"
+  },
+  {
+    id: "approval-denied",
+    status: "denied",
+    deviceLabel: "Şüpheli tarayıcı",
+    requestUserAgent: "Unknown Browser",
+    requestIpAddress: "10.0.0.11",
+    createdAt: "2026-07-04T01:00:00.000Z",
+    expiresAt: "2026-07-04T01:10:00.000Z",
+    resolvedAt: "2026-07-04T01:06:00.000Z"
+  },
+  {
+    id: "approval-expired",
+    status: "expired",
+    deviceLabel: "Eski istek",
+    requestUserAgent: null,
+    requestIpAddress: null,
+    createdAt: "2026-07-04T00:00:00.000Z",
+    expiresAt: "2026-07-04T00:10:00.000Z",
+    resolvedAt: null
   }
 ];
 
@@ -40,6 +60,14 @@ describe("mobile login approval model", () => {
       denyLabel: "Reddet"
     });
     expect(JSON.stringify(cards)).not.toMatch(/approvalToken|approvalTokenHash|refreshToken|passwordHash/iu);
+  });
+
+  it("keeps denied and expired approval requests out of actionable cards", () => {
+    const cards = buildMobileLoginApprovalCards(approvals);
+
+    expect(cards).toHaveLength(1);
+    expect(cards.map((card) => card.id)).toEqual(["approval-1"]);
+    expect(JSON.stringify(cards)).not.toMatch(/approval-denied|approval-expired|approvalToken|approvalTokenHash|refreshToken|passwordHash/iu);
   });
 
   it("summarizes pending approval count", () => {

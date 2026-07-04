@@ -57,7 +57,8 @@
     "test:backoffice:image-review": "pnpm --filter @babyloop/backoffice exec playwright test e2e/listing-image-review.smoke.spec.ts --reporter=list",
     "security:upload-storage-boundary": "node scripts/check-upload-storage-boundary.mjs",
     "security:image-authenticity": "node scripts/check-listing-image-authenticity-security.mjs",
-    "security:cross-listing-duplicates": "node scripts/check-cross-listing-duplicate-boundary.mjs"
+    "security:cross-listing-duplicates": "node scripts/check-cross-listing-duplicate-boundary.mjs",
+    "security:mobile-auth": "node scripts/check-mobile-auth-security.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

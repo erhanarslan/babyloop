@@ -561,3 +561,18 @@ http://localhost:3001/moderation
 - [ ] Cross-listing duplicate image use is not claimed as production fraud detection.
 - [ ] Future cross-listing fraud signal work must include seller context, listing status/history, time window, perceptual hash or provider signal, admin audit, and appeal/manual review boundaries.
 - [ ] Content hashes remain internal and are not exposed in public, owner, or admin DTOs.
+
+### Mobile OTP/MFA P0 boundary
+
+- [ ] `pnpm security:mobile-auth` passes.
+- [ ] `pnpm test:mobile:p0` passes.
+- [ ] Mobile access token persistence uses Expo `SecureStore`; no mobile auth token is stored in `AsyncStorage`, `localStorage`, or `sessionStorage`.
+- [ ] Login that returns `mfaRequired` leaves the user unauthenticated until the e-mail OTP challenge is verified.
+- [ ] MFA-required login does not store an access token before OTP verification.
+- [ ] Invalid/expired/reused OTP responses stay safe and do not leak `accessToken`, `refreshToken`, `passwordHash`, `currentPassword`, raw session data, or OTP hashes.
+- [ ] MFA enable/disable uses a current-password modal flow and CSRF-backed authenticated mutations.
+- [ ] Mobile approval is for web login approval; mobile login must not require mobile approval for itself.
+- [ ] Mobile login approval preference changes require current password.
+- [ ] Login approval completion stores an access token only after approval completion succeeds.
+- [ ] Mobile session cards redact token-like values from device/user-agent text.
+- [ ] Mobile realtime uses the hydrated auth token only for socket auth and disconnects on logout/session cleanup.

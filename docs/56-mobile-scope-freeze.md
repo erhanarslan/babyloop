@@ -76,3 +76,17 @@ Mobile must preserve these boundaries:
 - EAS/signing/release automation,
 - production observability,
 - production push infrastructure where applicable.
+
+## Mobile OTP/MFA P0 guard
+
+The mobile OTP/MFA boundary is locked by `pnpm security:mobile-auth` and `pnpm test:mobile:p0`.
+
+This guard keeps the following decisions explicit:
+
+- Mobile token persistence uses Expo SecureStore only.
+- Mobile login uses password plus e-mail OTP when MFA is enabled.
+- MFA-required login is unauthenticated until the OTP challenge succeeds.
+- Mobile security toggles require the current password in a modal flow.
+- Mobile approval is for approving web login attempts from an already authenticated mobile session.
+- Mobile login must not require mobile approval for itself.
+- Session and approval UI must not expose token-like values, refresh tokens, password hashes, OTP hashes, cookies, or raw auth/session objects.

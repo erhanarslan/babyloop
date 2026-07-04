@@ -184,3 +184,15 @@ Beta can proceed only if:
 - [ ] Duplicate-image responses do not expose `contentHash`, `content_hash`, `sha256`, object keys, storage credentials, or raw image bytes.
 - [ ] The DB unique constraint is scoped to `(listing_id, content_hash)`.
 - [ ] Cross-listing duplicate image use is not claimed as production fraud detection until seller context, listing history, time window, perceptual hash/provider signal, audit, and appeal boundaries exist.
+
+### Mobile OTP/MFA P0 boundary
+
+- [ ] `pnpm security:mobile-auth` passes.
+- [ ] `pnpm test:mobile:p0` passes.
+- [ ] Mobile login can enter the MFA-required state and complete with a 6-digit e-mail OTP.
+- [ ] MFA-required state does not authenticate or store a token until OTP verification succeeds.
+- [ ] Mobile security settings use current-password modal confirmation for e-mail OTP and mobile approval toggles.
+- [ ] Mobile approval is for web login approval; mobile login must not require mobile approval for itself.
+- [ ] Mobile auth token storage uses SecureStore, not AsyncStorage/localStorage/sessionStorage.
+- [ ] Mobile session and login approval UI do not render token-like values, refresh tokens, password hashes, OTP hashes, cookies, or raw auth/session objects.
+- [ ] Logout clears mobile auth token state and disconnects realtime.
