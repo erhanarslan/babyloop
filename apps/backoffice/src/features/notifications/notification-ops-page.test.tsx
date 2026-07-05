@@ -63,6 +63,28 @@ describe("NotificationOpsPage", () => {
               privacyNote:
                 "Transition preview aggregate/policy bilgisidir; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
             },
+            pushReadinessPreview: {
+              status: "blocked",
+              deliveryAllowed: false,
+              draftOnly: true,
+              pushSenderEnabled: false,
+              providerConfigured: false,
+              tokenRegistryEnabled: false,
+              tokenCollectionAllowed: false,
+              consentRequired: true,
+              auditRequired: true,
+              idempotencyRequired: true,
+              rateLimitRequired: true,
+              requirements: [
+                { key: "native_device_token_registry", label: "Native device token registry", status: "missing", requiredBeforeSend: true }
+              ],
+              blockedReasons: ["push_sender_disabled"],
+              rolloutStages: [
+                { stage: "registry", status: "planned", note: "Token registry plan" }
+              ],
+              warning:
+                "Native push readiness preview yalnızca planlama/ops görünürlüğüdür; Expo, Firebase, APNs, push provider, queue, n8n veya webhook çağrısı yapmaz."
+            },
             deliveryLogPreview: {
               enabled: true,
               draftOnly: true,
@@ -114,6 +136,10 @@ describe("NotificationOpsPage", () => {
     expect(screen.getAllByText("Draft-only").length).toBeGreaterThan(0);
     expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
     expect(screen.getByText("Transition model")).toBeInTheDocument();
+    expect(screen.getByText("Native push readiness")).toBeInTheDocument();
+    expect(screen.getByText(/Push sender kapalı/iu)).toBeInTheDocument();
+    expect(screen.getByText(/Expo\/Firebase\/APNs çağrısı yok/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Expo/Firebase/APNs çağrısı yok");
     expect(screen.getByText("candidate → skipped")).toBeInTheDocument();
     expect(screen.getByText(/sent\/failed future sender gerektirir/iu)).toBeInTheDocument();
     expect(document.body.textContent).toContain("sent/failed future sender gerektirir");

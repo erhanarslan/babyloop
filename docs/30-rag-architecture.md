@@ -581,3 +581,9 @@ The preview intentionally excludes metadata, idempotency key, dedup key, e-mail,
 The notification delivery transition model defines draft-only status movement for `notification_delivery_logs`. In the current phase, safe transitions are limited to candidate/block/skip flows. `sent/failed` remains future-only and blocked until provider sandbox, retry/dead-letter policy, idempotency enforcement, and admin audit exist.
 
 Backoffice notification ops preview exposes the transition model so admins can see why real delivery is still disabled. The model keeps `deliveryAllowed=false` and `draftOnly=true`; it does not enable email/push/n8n senders, queues, webhooks, or provider calls. Guard: `pnpm security:notification-delivery-transitions`.
+
+## Native push readiness
+
+Native push readiness is an ops/planning preview only. It documents the prerequisites before a mobile push sender can exist: native device token registry, device-level consent, platform token validation/revocation, delivery transition model, delivery log idempotency, provider sandbox, retry/dead-letter policy, admin audit, and rate limits.
+
+The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`, `pushSenderEnabled=false`, `providerConfigured=false`, `tokenRegistryEnabled=false`, and `tokenCollectionAllowed=false`. No Expo/Firebase/APNs provider call, queue, n8n hook, webhook, or sender is enabled. Guard: `pnpm security:notification-push-readiness`.

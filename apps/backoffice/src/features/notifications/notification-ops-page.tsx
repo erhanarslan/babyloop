@@ -43,6 +43,23 @@ type AdminNotificationOpsPreview = {
     terminalStatuses: string[];
     privacyNote: string;
   };
+  pushReadinessPreview: {
+    status: string;
+    deliveryAllowed: false;
+    draftOnly: true;
+    pushSenderEnabled: false;
+    providerConfigured: false;
+    tokenRegistryEnabled: false;
+    tokenCollectionAllowed: false;
+    consentRequired: true;
+    auditRequired: true;
+    idempotencyRequired: true;
+    rateLimitRequired: true;
+    requirements: Array<{ key: string; label: string; status: string; requiredBeforeSend: true }>;
+    blockedReasons: string[];
+    rolloutStages: Array<{ stage: string; status: string; note: string }>;
+    warning: string;
+  };
   deliveryLogPreview?: {
     enabled: true;
     draftOnly: true;
@@ -184,6 +201,45 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                 <div key={`${transition.from}-${transition.to}`}>
                   <strong className="text-slate-950">{transition.from} → {transition.to}</strong>
                   <p className="mt-1">Blocked until: {transition.blockedUntil.join(", ")}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Mobile notifications</p>
+        <h2 className="text-2xl font-black text-slate-950">Native push readiness</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Push sender kapalı. Token registry ve token collection kapalıdır; Expo/Firebase/APNs çağrısı yok.
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{data.pushReadinessPreview.warning}</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard label="Push sender" value={data.pushReadinessPreview.pushSenderEnabled ? 1 : 0} />
+          <SummaryCard label="Provider" value={data.pushReadinessPreview.providerConfigured ? 1 : 0} />
+          <SummaryCard label="Token registry" value={data.pushReadinessPreview.tokenRegistryEnabled ? 1 : 0} />
+          <SummaryCard label="Token collection" value={data.pushReadinessPreview.tokenCollectionAllowed ? 1 : 0} />
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Required before push sender</h3>
+            <div className="mt-3 space-y-2 text-sm text-slate-600">
+              {data.pushReadinessPreview.requirements.map((requirement) => (
+                <div className="flex justify-between gap-3" key={requirement.key}>
+                  <span>{requirement.label}</span>
+                  <strong className="text-slate-950">{requirement.status}</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Rollout stages</h3>
+            <div className="mt-3 space-y-3 text-sm text-slate-600">
+              {data.pushReadinessPreview.rolloutStages.map((stage) => (
+                <div key={stage.stage}>
+                  <strong className="text-slate-950">{stage.stage}: {stage.status}</strong>
+                  <p className="mt-1">{stage.note}</p>
                 </div>
               ))}
             </div>

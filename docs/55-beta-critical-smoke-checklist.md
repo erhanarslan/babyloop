@@ -257,3 +257,11 @@ Beta can proceed only if:
 - [ ] Candidate/block/skip flows are allowed only as draft-only operational states.
 - [ ] `sent/failed` remains blocked until provider sandbox, retry/dead-letter policy, idempotency, and admin audit are complete.
 - [ ] No email/push/n8n sender, queue, webhook, or provider call is enabled by this model.
+
+### Native push readiness
+
+- [ ] `pnpm security:notification-push-readiness` passes.
+- [ ] Backoffice notification ops preview shows native push readiness.
+- [ ] Push sender is visibly blocked and draft-only.
+- [ ] Token registry and token collection remain disabled.
+- [ ] Expo/Firebase/APNs provider calls, queues, n8n hooks, webhooks, or senders are not enabled.

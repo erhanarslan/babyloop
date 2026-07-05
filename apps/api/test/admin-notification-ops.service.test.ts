@@ -67,6 +67,14 @@ describe("admin notification ops service", () => {
       status: "draft_only",
       draftOnly: true
     });
+    expect(preview.pushReadinessPreview).toMatchObject({
+      deliveryAllowed: false,
+      draftOnly: true,
+      pushSenderEnabled: false,
+      providerConfigured: false,
+      tokenRegistryEnabled: false,
+      tokenCollectionAllowed: false
+    });
     expect(preview.transitionPreview).toMatchObject({
       draftOnly: true,
       deliveryAllowed: false

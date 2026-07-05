@@ -648,3 +648,12 @@ http://localhost:3001/moderation
 - [ ] `sent/failed` transitions remain blocked until provider sandbox, retry/dead-letter policy, idempotency, and admin audit exist.
 - [ ] Backoffice ops preview shows the transition model without exposing metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body.
 - [ ] The transition model does not enable email/push/n8n senders, queues, or provider calls.
+
+### Native push readiness
+
+- [ ] `pnpm security:notification-push-readiness` passes.
+- [ ] `pnpm --filter @babyloop/api test test/notification-push-readiness.service.test.ts test/admin-notification-ops.service.test.ts` passes.
+- [ ] Backoffice notification ops preview shows native push readiness.
+- [ ] Push sender remains disabled: `deliveryAllowed=false`, `draftOnly=true`, `pushSenderEnabled=false`.
+- [ ] Token registry and token collection remain disabled until explicit consent, validation, revocation, audit, and rate limits exist.
+- [ ] Expo/Firebase/APNs provider calls, queues, n8n hooks, webhooks, or senders are not enabled.
