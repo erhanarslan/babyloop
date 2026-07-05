@@ -15,6 +15,10 @@ import {
   getNotificationPushReadinessPreview,
   type NotificationPushReadinessPreview
 } from "./notification-push-readiness.service.js";
+import {
+  getNotificationN8nReadinessPreview,
+  type NotificationN8nReadinessPreview
+} from "./notification-n8n-readiness.service.js";
 // Notification delivery transition preview must expose allowedDraftOnlyTransitions and futureSenderTransitions
 // through admin ops without enabling provider senders.
 
@@ -42,6 +46,7 @@ export type AdminNotificationOpsPreview = {
   policyPreview: ReturnType<typeof getNotificationDeliveryPolicyPreview>;
   transitionPreview: NotificationDeliveryTransitionPreview;
   pushReadinessPreview: NotificationPushReadinessPreview;
+  n8nReadinessPreview: NotificationN8nReadinessPreview;
   deliveryLogPreview: AdminNotificationDeliveryLogPreview;
   warning: string;
 };
@@ -91,6 +96,7 @@ type CountRow<T extends string> = {
   count: number;
 };
 
+// n8n workflow readiness source-token boundary: n8nWorkflowEnabled stays false via n8nReadinessPreview.
 // Native push readiness is exposed as blocked/draft-only ops metadata.
 // Native push readiness source-token boundary: pushSenderEnabled stays false via pushReadinessPreview.
 export async function getAdminNotificationOpsPreview(app: FastifyInstance): Promise<AdminNotificationOpsPreview> {
@@ -144,6 +150,7 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
     policyPreview: getNotificationDeliveryPolicyPreview(),
     transitionPreview: getNotificationDeliveryTransitionPreview(),
     pushReadinessPreview: getNotificationPushReadinessPreview(),
+    n8nReadinessPreview: getNotificationN8nReadinessPreview(),
     deliveryLogPreview: await getAdminNotificationDeliveryLogPreview(app),
     warning:
       "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."

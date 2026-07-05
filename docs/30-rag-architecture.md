@@ -587,3 +587,9 @@ Backoffice notification ops preview exposes the transition model so admins can s
 Native push readiness is an ops/planning preview only. It documents the prerequisites before a mobile push sender can exist: native device token registry, device-level consent, platform token validation/revocation, delivery transition model, delivery log idempotency, provider sandbox, retry/dead-letter policy, admin audit, and rate limits.
 
 The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`, `pushSenderEnabled=false`, `providerConfigured=false`, `tokenRegistryEnabled=false`, and `tokenCollectionAllowed=false`. No Expo/Firebase/APNs provider call, queue, n8n hook, webhook, or sender is enabled. Guard: `pnpm security:notification-push-readiness`.
+
+## n8n workflow readiness
+
+n8n workflow readiness is an ops/planning preview only. It documents prerequisites before workflow delivery can exist: versioned webhook contract, idempotency header, signed payload, delivery transition model, delivery log candidate source, queue/worker, retry/dead-letter policy, admin audit, rate limit, and consent model.
+
+The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`, `n8nWorkflowEnabled=false`, `webhookConfigured=false`, `webhookCallsAllowed=false`, and `queueEnabled=false`. Existing child lifecycle, child reminder, and saved-search candidate logs are workflow candidates only; no n8n webhook, queue, worker, email, push, provider call, or real workflow trigger is enabled. Guard: `pnpm security:notification-n8n-readiness`.

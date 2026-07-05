@@ -657,3 +657,12 @@ http://localhost:3001/moderation
 - [ ] Push sender remains disabled: `deliveryAllowed=false`, `draftOnly=true`, `pushSenderEnabled=false`.
 - [ ] Token registry and token collection remain disabled until explicit consent, validation, revocation, audit, and rate limits exist.
 - [ ] Expo/Firebase/APNs provider calls, queues, n8n hooks, webhooks, or senders are not enabled.
+
+### n8n workflow readiness
+
+- [ ] `pnpm security:notification-n8n-readiness` passes.
+- [ ] `pnpm --filter @babyloop/api test test/notification-n8n-readiness.service.test.ts test/admin-notification-ops.service.test.ts` passes.
+- [ ] Backoffice notification ops preview shows n8n workflow readiness.
+- [ ] n8n workflow remains disabled: `deliveryAllowed=false`, `draftOnly=true`, `n8nWorkflowEnabled=false`, `webhookCallsAllowed=false`.
+- [ ] Webhook, queue, worker, retry, dead-letter, consent, rate limit, signed payload, and audit prerequisites are visible.
+- [ ] Real n8n workflow, webhook, queue, email, push, provider calls, or senders are not enabled.

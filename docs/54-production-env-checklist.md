@@ -325,3 +325,9 @@ Production readiness requires an explicit notification delivery transition model
 Production readiness requires native push readiness to remain blocked until token registry, device consent, platform token validation/revocation, provider sandbox, retry/dead-letter policy, admin audit, rate limits, and delivery transition enforcement exist.
 
 `pnpm security:notification-push-readiness` must pass before release smoke. The preview must not enable Expo/Firebase/APNs provider calls, queues, n8n hooks, webhooks, token collection, or push sender delivery.
+
+## n8n workflow readiness
+
+Production readiness requires n8n workflow readiness to remain blocked until webhook contract, idempotency header, signed payload, queue/worker, retry/dead-letter policy, admin audit, rate limits, consent, and delivery transition enforcement exist.
+
+`pnpm security:notification-n8n-readiness` must pass before release smoke. The preview must not enable n8n webhooks, queue workers, provider calls, email, push, or real workflow delivery.

@@ -85,6 +85,32 @@ describe("NotificationOpsPage", () => {
               warning:
                 "Native push readiness preview yalnızca planlama/ops görünürlüğüdür; Expo, Firebase, APNs, push provider, queue, n8n veya webhook çağrısı yapmaz."
             },
+            n8nReadinessPreview: {
+              status: "blocked",
+              deliveryAllowed: false,
+              draftOnly: true,
+              n8nWorkflowEnabled: false,
+              webhookConfigured: false,
+              webhookCallsAllowed: false,
+              queueEnabled: false,
+              retryEnabled: false,
+              idempotencyRequired: true,
+              auditRequired: true,
+              rateLimitRequired: true,
+              consentRequired: true,
+              requirements: [
+                { key: "webhook_contract", label: "Versioned webhook contract", status: "missing", requiredBeforeWebhook: true }
+              ],
+              workflowCandidates: [
+                { key: "child_reminder", label: "Child reminders", status: "candidate_ready", note: "n8n workflow gönderimi yoktur" }
+              ],
+              blockedReasons: ["n8n_workflow_disabled"],
+              rolloutStages: [
+                { stage: "contract", status: "planned", note: "Contract plan" }
+              ],
+              warning:
+                "n8n readiness preview yalnızca planlama/ops görünürlüğüdür; webhook, queue, worker, provider call, email, push veya gerçek n8n workflow tetiklemesi yapmaz."
+            },
             deliveryLogPreview: {
               enabled: true,
               draftOnly: true,
@@ -137,6 +163,12 @@ describe("NotificationOpsPage", () => {
     expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
     expect(screen.getByText("Transition model")).toBeInTheDocument();
     expect(screen.getByText("Native push readiness")).toBeInTheDocument();
+    expect(screen.getByText("n8n workflow readiness")).toBeInTheDocument();
+    expect(screen.getByText(/Webhook kapalı/iu)).toBeInTheDocument();
+    expect(screen.getByText(/Queue\/worker kapalı/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Queue/worker kapalı");
+    expect(screen.getByText(/Gerçek n8n workflow tetiklemesi yok/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Gerçek n8n workflow tetiklemesi yok");
     expect(screen.getByText(/Push sender kapalı/iu)).toBeInTheDocument();
     expect(screen.getByText(/Expo\/Firebase\/APNs çağrısı yok/iu)).toBeInTheDocument();
     expect(document.body.textContent).toContain("Expo/Firebase/APNs çağrısı yok");

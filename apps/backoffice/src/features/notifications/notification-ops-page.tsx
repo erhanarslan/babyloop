@@ -60,6 +60,25 @@ type AdminNotificationOpsPreview = {
     rolloutStages: Array<{ stage: string; status: string; note: string }>;
     warning: string;
   };
+  n8nReadinessPreview: {
+    status: string;
+    deliveryAllowed: false;
+    draftOnly: true;
+    n8nWorkflowEnabled: false;
+    webhookConfigured: false;
+    webhookCallsAllowed: false;
+    queueEnabled: false;
+    retryEnabled: false;
+    idempotencyRequired: true;
+    auditRequired: true;
+    rateLimitRequired: true;
+    consentRequired: true;
+    requirements: Array<{ key: string; label: string; status: string; requiredBeforeWebhook: true }>;
+    workflowCandidates: Array<{ key: string; label: string; status: string; note: string }>;
+    blockedReasons: string[];
+    rolloutStages: Array<{ stage: string; status: string; note: string }>;
+    warning: string;
+  };
   deliveryLogPreview?: {
     enabled: true;
     draftOnly: true;
@@ -240,6 +259,45 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                 <div key={stage.stage}>
                   <strong className="text-slate-950">{stage.stage}: {stage.status}</strong>
                   <p className="mt-1">{stage.note}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Automation readiness</p>
+        <h2 className="text-2xl font-black text-slate-950">n8n workflow readiness</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Webhook kapalı. Queue/worker kapalı. Gerçek n8n workflow tetiklemesi yok.
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{data.n8nReadinessPreview.warning}</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard label="n8n workflow" value={data.n8nReadinessPreview.n8nWorkflowEnabled ? 1 : 0} />
+          <SummaryCard label="Webhook" value={data.n8nReadinessPreview.webhookCallsAllowed ? 1 : 0} />
+          <SummaryCard label="Queue" value={data.n8nReadinessPreview.queueEnabled ? 1 : 0} />
+          <SummaryCard label="Retry" value={data.n8nReadinessPreview.retryEnabled ? 1 : 0} />
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Workflow candidates</h3>
+            <div className="mt-3 space-y-3 text-sm text-slate-600">
+              {data.n8nReadinessPreview.workflowCandidates.map((candidate) => (
+                <div key={candidate.key}>
+                  <strong className="text-slate-950">{candidate.label}</strong>
+                  <p className="mt-1">{candidate.note}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Required before webhook</h3>
+            <div className="mt-3 space-y-2 text-sm text-slate-600">
+              {data.n8nReadinessPreview.requirements.map((requirement) => (
+                <div className="flex justify-between gap-3" key={requirement.key}>
+                  <span>{requirement.label}</span>
+                  <strong className="text-slate-950">{requirement.status}</strong>
                 </div>
               ))}
             </div>

@@ -265,3 +265,11 @@ Beta can proceed only if:
 - [ ] Push sender is visibly blocked and draft-only.
 - [ ] Token registry and token collection remain disabled.
 - [ ] Expo/Firebase/APNs provider calls, queues, n8n hooks, webhooks, or senders are not enabled.
+
+### n8n workflow readiness
+
+- [ ] `pnpm security:notification-n8n-readiness` passes.
+- [ ] Backoffice notification ops preview shows n8n workflow readiness.
+- [ ] Webhook and queue/worker remain disabled.
+- [ ] Child lifecycle, child reminder, and saved-search remain candidate sources only.
+- [ ] No n8n webhook, queue worker, provider call, email, push, or real workflow trigger is enabled.
