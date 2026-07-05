@@ -67,6 +67,16 @@ describe("admin notification ops service", () => {
       status: "draft_only",
       draftOnly: true
     });
+    expect(preview.transitionPreview).toMatchObject({
+      draftOnly: true,
+      deliveryAllowed: false
+    });
+    expect(preview.transitionPreview.allowedDraftOnlyTransitions).toEqual(
+      expect.arrayContaining([
+        { from: "candidate", to: "skipped", reason: "draft_only_skip" }
+      ])
+    );
+
     expect(preview.deliveryLogPreview.totals).toMatchObject({
       all: 2,
       candidate: 1,

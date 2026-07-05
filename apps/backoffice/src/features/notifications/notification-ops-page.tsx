@@ -35,6 +35,14 @@ type AdminNotificationOpsPreview = {
     savedSearchFrequencyWindowHours: number;
     requiredBeforeSend: string[];
   };
+  transitionPreview: {
+    draftOnly: true;
+    deliveryAllowed: false;
+    allowedDraftOnlyTransitions: Array<{ from: string; to: string; reason: string }>;
+    futureSenderTransitions: Array<{ from: string; to: string; blockedUntil: string[] }>;
+    terminalStatuses: string[];
+    privacyNote: string;
+  };
   deliveryLogPreview?: {
     enabled: true;
     draftOnly: true;
@@ -147,6 +155,39 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             label="Frequency limit"
             value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"}
           />
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Delivery transitions</p>
+        <h2 className="text-2xl font-black text-slate-950">Transition model</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Draft-only dönemde güvenli geçişler candidate/block/skip ile sınırlıdır; sent/failed future sender gerektirir.
+          Örnek draft-only geçiş: candidate → skipped.
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{data.transitionPreview.privacyNote}</p>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Allowed draft-only transitions</h3>
+            <div className="mt-3 space-y-2 text-sm text-slate-600">
+              {data.transitionPreview.allowedDraftOnlyTransitions.map((transition) => (
+                <div key={`${transition.from}-${transition.to}`}>
+                  {transition.from} → {transition.to}
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-black text-slate-950">Future sender transitions</h3>
+            <div className="mt-3 space-y-3 text-sm text-slate-600">
+              {data.transitionPreview.futureSenderTransitions.map((transition) => (
+                <div key={`${transition.from}-${transition.to}`}>
+                  <strong className="text-slate-950">{transition.from} → {transition.to}</strong>
+                  <p className="mt-1">Blocked until: {transition.blockedUntil.join(", ")}</p>
+                </div>
+              ))}
+            </div>
+          </article>
         </div>
       </section>
 

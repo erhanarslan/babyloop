@@ -249,3 +249,11 @@ Beta can proceed only if:
 - [ ] Recent rows use redacted source refs only.
 - [ ] Metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, and raw body values are not shown.
 - [ ] No email/push/n8n sender, queue, or provider call is enabled by the preview.
+
+### Notification delivery transition model
+
+- [ ] `pnpm security:notification-delivery-transitions` passes.
+- [ ] Backoffice notification ops preview shows draft-only transition rules.
+- [ ] Candidate/block/skip flows are allowed only as draft-only operational states.
+- [ ] `sent/failed` remains blocked until provider sandbox, retry/dead-letter policy, idempotency, and admin audit are complete.
+- [ ] No email/push/n8n sender, queue, webhook, or provider call is enabled by this model.

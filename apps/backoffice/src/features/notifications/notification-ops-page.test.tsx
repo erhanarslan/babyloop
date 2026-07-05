@@ -50,6 +50,19 @@ describe("NotificationOpsPage", () => {
               savedSearchFrequencyWindowHours: 24,
               requiredBeforeSend: ["Dedup"]
             },
+            transitionPreview: {
+              draftOnly: true,
+              deliveryAllowed: false,
+              allowedDraftOnlyTransitions: [
+                { from: "candidate", to: "skipped", reason: "draft_only_skip" }
+              ],
+              futureSenderTransitions: [
+                { from: "candidate", to: "sent", blockedUntil: ["provider sandbox"] }
+              ],
+              terminalStatuses: ["sent", "failed", "skipped"],
+              privacyNote:
+                "Transition preview aggregate/policy bilgisidir; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
+            },
             deliveryLogPreview: {
               enabled: true,
               draftOnly: true,
@@ -100,6 +113,10 @@ describe("NotificationOpsPage", () => {
     expect(await screen.findByText("Notification Ops Preview")).toBeInTheDocument();
     expect(screen.getAllByText("Draft-only").length).toBeGreaterThan(0);
     expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
+    expect(screen.getByText("Transition model")).toBeInTheDocument();
+    expect(screen.getByText("candidate → skipped")).toBeInTheDocument();
+    expect(screen.getByText(/sent\/failed future sender gerektirir/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("sent/failed future sender gerektirir");
     expect(screen.getByText("Total")).toBeInTheDocument();
     expect(screen.getAllByText("saved_search").length).toBeGreaterThan(0);
     expect(screen.getByText("saved_search:saved…ing-1")).toBeInTheDocument();

@@ -639,3 +639,12 @@ http://localhost:3001/moderation
 - [ ] Recent delivery-log preview rows show redacted source refs only.
 - [ ] Preview does not expose metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body.
 - [ ] The preview does not enable email/push/n8n senders, queues, or provider calls.
+
+### Notification delivery transition model
+
+- [ ] `pnpm security:notification-delivery-transitions` passes.
+- [ ] `pnpm --filter @babyloop/api test test/notification-delivery-transitions.service.test.ts test/admin-notification-ops.service.test.ts` passes.
+- [ ] Draft-only transitions allow only safe candidate/block/skip flows.
+- [ ] `sent/failed` transitions remain blocked until provider sandbox, retry/dead-letter policy, idempotency, and admin audit exist.
+- [ ] Backoffice ops preview shows the transition model without exposing metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body.
+- [ ] The transition model does not enable email/push/n8n senders, queues, or provider calls.

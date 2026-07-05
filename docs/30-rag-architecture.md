@@ -575,3 +575,9 @@ The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not sen
 Backoffice `GET /api/v1/admin/notifications/ops-preview` now includes a notification delivery-log ops preview. It exposes aggregate counts by status, kind, and channel plus recent rows with redacted source refs.
 
 The preview intentionally excludes metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, and raw body values. It remains an ops visibility surface only and does not enable email/push/n8n senders, queues, provider calls, or delivery transitions. Guard: `pnpm security:notification-ops-preview`.
+
+## Notification delivery transition model
+
+The notification delivery transition model defines draft-only status movement for `notification_delivery_logs`. In the current phase, safe transitions are limited to candidate/block/skip flows. `sent/failed` remains future-only and blocked until provider sandbox, retry/dead-letter policy, idempotency enforcement, and admin audit exist.
+
+Backoffice notification ops preview exposes the transition model so admins can see why real delivery is still disabled. The model keeps `deliveryAllowed=false` and `draftOnly=true`; it does not enable email/push/n8n senders, queues, webhooks, or provider calls. Guard: `pnpm security:notification-delivery-transitions`.

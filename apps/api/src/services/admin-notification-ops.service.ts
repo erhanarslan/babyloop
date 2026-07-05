@@ -7,6 +7,12 @@ import {
   type NotificationDeliveryChannel
 } from "./notification-delivery-policy.service.js";
 import type { NotificationDeliveryLogStatus } from "./notification-delivery-log.service.js";
+import {
+  getNotificationDeliveryTransitionPreview,
+  type NotificationDeliveryTransitionPreview
+} from "./notification-delivery-transitions.service.js";
+// Notification delivery transition preview must expose allowedDraftOnlyTransitions and futureSenderTransitions
+// through admin ops without enabling provider senders.
 
 export type AdminNotificationOpsPreview = {
   summary: {
@@ -30,6 +36,7 @@ export type AdminNotificationOpsPreview = {
   }>;
   nextSteps: string[];
   policyPreview: ReturnType<typeof getNotificationDeliveryPolicyPreview>;
+  transitionPreview: NotificationDeliveryTransitionPreview;
   deliveryLogPreview: AdminNotificationDeliveryLogPreview;
   warning: string;
 };
@@ -128,6 +135,7 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
       "n8n webhook idempotency token"
     ],
     policyPreview: getNotificationDeliveryPolicyPreview(),
+    transitionPreview: getNotificationDeliveryTransitionPreview(),
     deliveryLogPreview: await getAdminNotificationDeliveryLogPreview(app),
     warning:
       "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."

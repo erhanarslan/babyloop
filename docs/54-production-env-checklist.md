@@ -313,3 +313,9 @@ The foundation records candidate logs with `deliveryAllowed=false` and `draftOnl
 Production readiness includes a backoffice notification delivery-log ops preview. The preview is aggregate and redacted: it can show counts by status/kind/channel and recent redacted source refs, but must not expose metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body values.
 
 This preview does not enable email/push/n8n delivery. `pnpm security:notification-ops-preview` must pass before release smoke.
+
+## Notification delivery transition model
+
+Production readiness requires an explicit notification delivery transition model before real sender rollout. Current allowed transitions are draft-only candidate/block/skip flows. `sent/failed` transitions must remain blocked until provider sandbox, retry/dead-letter policy, idempotency enforcement, and admin audit exist.
+
+`pnpm security:notification-delivery-transitions` must pass before release smoke. The model must not enable email/push/n8n senders, queues, webhooks, or provider calls.
