@@ -367,3 +367,11 @@ Beta can proceed only if:
 - [ ] Free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, and owner-only access are documented.
 - [ ] Runtime child notebook/reminder flows are manually QA'd before beta.
 - [ ] Medical/therapy/diagnosis/drug/diet advice remains blocked.
+
+### Notification preference QA
+
+- [ ] `pnpm security:notification-preference-qa` passes.
+- [ ] `pnpm beta:critical-smoke` includes notification preference QA.
+- [ ] Backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, and manual QA evidence are documented.
+- [ ] Raw contact logging remains disabled.
+- [ ] Manual QA evidence is required before beta release.

@@ -407,3 +407,11 @@ Production/beta readiness requires `pnpm security:child-notebook-reminder-harden
 Child notebook/reminder hardening covers free note, recurring reminder, advance reminder, every 2 hours feeding reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, owner-only access, inactive child profile handling, and no medical/therapy/diagnosis/drug/diet advice.
 
 This gate does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.
+
+## Notification preference QA
+
+Production/beta readiness requires `pnpm security:notification-preference-qa` and `pnpm beta:critical-smoke` to pass before marking notification preferences complete.
+
+Notification preference QA covers backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, raw contact logging, and manual QA evidence.
+
+This gate does not enable real sending, provider calls, queue jobs, or webhook calls.

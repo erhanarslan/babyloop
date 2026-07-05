@@ -59,6 +59,7 @@ function checkRunner() {
     "qa:mobile:s22",
     "security:mobile-otp-mfa-hardening",
     "security:child-notebook-reminder-hardening",
+    "security:notification-preference-qa",
     "security:notification-n8n-readiness",
     "security:notification-push-readiness",
     "security:notification-sender-provider-design",

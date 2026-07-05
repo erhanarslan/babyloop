@@ -10,6 +10,7 @@ const steps = [
   { label: "Mobile real-device S22 QA guard", command: "pnpm", args: ["qa:mobile:s22"] },
   { label: "Mobile OTP/MFA hardening guard", command: "pnpm", args: ["security:mobile-otp-mfa-hardening"] },
   { label: "Child notebook reminder hardening guard", command: "pnpm", args: ["security:child-notebook-reminder-hardening"] },
+  { label: "Notification preference QA guard", command: "pnpm", args: ["security:notification-preference-qa"] },
   { label: "Notification n8n readiness guard", command: "pnpm", args: ["security:notification-n8n-readiness"] },
   { label: "Notification push readiness guard", command: "pnpm", args: ["security:notification-push-readiness"] },
   { label: "Notification sender provider design guard", command: "pnpm", args: ["security:notification-sender-provider-design"] },

@@ -760,3 +760,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, and owner-only access are documented.
 - [ ] Medical/therapy/diagnosis/drug/diet advice remains blocked.
 - [ ] The gate does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.
+
+### Notification preference QA
+
+- [ ] `pnpm security:notification-preference-qa` passes.
+- [ ] Notification preference QA is included in `pnpm beta:critical-smoke`.
+- [ ] Backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, and manual QA evidence are documented.
+- [ ] Raw contact logging remains disabled.
+- [ ] The gate does not enable real sending, provider calls, queue jobs, or webhook calls.

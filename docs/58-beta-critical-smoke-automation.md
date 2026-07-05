@@ -109,3 +109,9 @@ Mobile OTP/MFA hardening verifies SecureStore, OTP, MFA, rate limit, session ref
 Full beta critical smoke automation includes `pnpm security:child-notebook-reminder-hardening`.
 
 Child notebook/reminder hardening verifies free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, owner-only access, inactive child profile handling, and no medical/therapy/diagnosis/drug/diet advice. It does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.
+
+## Notification preference QA
+
+Full beta critical smoke automation includes `pnpm security:notification-preference-qa`.
+
+Notification preference QA verifies backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, raw contact logging, and manual QA evidence. It does not enable real sending, provider calls, queue jobs, or webhook calls.

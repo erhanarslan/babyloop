@@ -204,3 +204,25 @@ A beta build cannot be considered ready if any of these fail:
 - [ ] Mobile child notebook does not provide medical/therapy/diagnosis/drug/diet advice.
 
 Exact guard wording: web child notebook coverage must stay aligned with mobile child notebook QA.
+
+## Notification preference QA
+
+- [ ] `pnpm security:notification-preference-qa` passes before mobile notification preferences QA.
+- [ ] Mobile notification preferences are visible.
+- [ ] Push opt-out is visible.
+- [ ] Child reminder preference is visible.
+- [ ] Saved search preference is visible.
+- [ ] Child lifecycle preference is visible.
+- [ ] Disabled preference state is explained.
+- [ ] Consent required state is explained.
+- [ ] Rate limit state is explained.
+- [ ] Blocked user safety state is explained.
+- [ ] Manual QA evidence is attached.
+
+## Notification preference QA cross-surface evidence
+
+- Exact guard wording: backoffice notification preferences.
+
+- Exact guard wording: audit.
+
+- Exact guard wording: raw contact logging.
