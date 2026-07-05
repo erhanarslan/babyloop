@@ -298,3 +298,14 @@ Beta can proceed only if:
 - [ ] Hallucination guard requires grounding/source IDs for specific claims.
 - [ ] Everyday parenting checklist/routine/comfort support remains available.
 - [ ] Raw child data, raw message body, email, phone, token, cookie, OTP, password, and authorization values are not exposed.
+
+### Full beta critical smoke automation
+
+- [ ] `pnpm security:beta-critical-smoke` passes.
+- [ ] `pnpm beta:critical-smoke` passes.
+- [ ] Assistant safety guard passes.
+- [ ] Storage ops preview passes.
+- [ ] Mobile real-device S22 QA checklist guard passes and physical QA evidence is recorded.
+- [ ] Notification readiness guards pass.
+- [ ] `security:auth-leaks` and `release:artifacts` pass.
+- [ ] The gate does not enable push sender, n8n workflow, S3/R2 external storage, or autonomous RAG answers.

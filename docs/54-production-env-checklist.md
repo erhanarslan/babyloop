@@ -343,3 +343,11 @@ The run must cover OTP/MFA, auth/session, browse/listing detail, sell listing wi
 Production readiness requires storage ops preview to remain local-only until provider selection, private bucket policy, signed upload contract, EXIF stripping, lifecycle cleanup, admin audit, CDN cache policy, and local-to-object-storage migration replay plan exist.
 
 `pnpm security:storage-ops-preview` must pass before release smoke. External storage provider disabled must remain true until real S3/R2 rollout is explicitly implemented. Signed upload, bucket delete, object copy, CDN purge, and queue worker must stay disabled in this preview.
+
+## Full beta critical smoke automation
+
+Production/beta readiness requires `pnpm security:beta-critical-smoke` and `pnpm beta:critical-smoke` to pass.
+
+Full beta critical smoke automation collects assistant safety guard, storage ops preview, mobile real-device S22 QA, notification readiness, `security:auth-leaks`, `release:artifacts`, and API/backoffice/web/mobile typechecks. It does not replace manual physical Galaxy S22 QA evidence.
+
+The gate must not enable push sender, n8n workflow, S3/R2 external storage, autonomous RAG answers, provider calls, webhook calls, queue workers, or production secrets.

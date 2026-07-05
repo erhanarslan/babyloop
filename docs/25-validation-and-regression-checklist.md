@@ -695,3 +695,11 @@ http://localhost:3001/moderation
 - [ ] Raw child data, raw message body, email, phone, token, cookie, OTP, password, and authorization values are not exposed.
 
 Exact guard wording: assistant safety guard requires grounding for specific claims.
+
+### Full beta critical smoke automation
+
+- [ ] `pnpm security:beta-critical-smoke` passes.
+- [ ] `pnpm beta:critical-smoke` passes before beta release.
+- [ ] Full beta critical smoke automation covers assistant safety guard, storage ops preview, mobile real-device S22 QA, notification readiness, `security:auth-leaks`, and `release:artifacts`.
+- [ ] Physical Galaxy S22 QA evidence is still recorded; the command does not replace manual physical Galaxy S22 QA evidence.
+- [ ] The command does not enable push sender, does not enable n8n workflow, does not enable S3/R2 external storage, and does not enable autonomous RAG answers.
