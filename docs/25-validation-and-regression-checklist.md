@@ -684,3 +684,14 @@ http://localhost:3001/moderation
 - [ ] Backoffice storage ops preview shows external storage provider disabled.
 - [ ] S3/R2 provider, signed upload, bucket delete, object copy, CDN purge, and queue worker remain disabled.
 - [ ] Storage preview does not expose object keys, bucket credentials, signed URLs, access tokens, cookies, raw upload body, EXIF metadata, email, phone, or user contact data.
+
+### Assistant safety guard
+
+- [ ] `pnpm security:assistant-safety-guard` passes.
+- [ ] `pnpm --filter @babyloop/api test test/assistant-safety-guard.service.test.ts` passes.
+- [ ] Assistant/RAG answers block medical diagnosis, medication/dosage advice, treatment plans, diet prescriptions, therapy claims, and unsupported product safety claims.
+- [ ] Specific claims require grounding/source IDs; hallucination guard uses `maxUnsupportedSpecificClaims=0`.
+- [ ] Everyday parenting support remains allowed only as checklist/routine/comfort guidance.
+- [ ] Raw child data, raw message body, email, phone, token, cookie, OTP, password, and authorization values are not exposed.
+
+Exact guard wording: assistant safety guard requires grounding for specific claims.

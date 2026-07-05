@@ -171,3 +171,13 @@ Assistant ve notification preference yüzeyleri notification draft gösterebilir
 Saved-search notification matches now have a candidate-log boundary. The delivery candidate service prepares `notification_delivery_logs` records with `kind=saved_search`, stable savedSearchId/listingId source ids, idempotency, and frequency-window metadata.
 
 This remains separate from real delivery. Tooling, assistant surfaces, and notification preferences must keep `deliveryAllowed=false` and `draftOnly=true`; no email/push/n8n provider call is allowed before sender transitions, retry policy, admin audit, and ops visibility are implemented. Guard: `pnpm security:saved-search-delivery`.
+
+## Assistant safety guard
+
+All future assistant tools must respect `pnpm security:assistant-safety-guard`.
+
+Tool output must not include medical diagnosis, medication/dosage advice, treatment plans, diet prescriptions, therapy claims, unsupported product safety claims, or specific factual/statistical claims without grounding. Tool logs must not expose raw child data, raw message body, email, phone, token, cookie, OTP, password, or authorization values.
+
+Exact guard wording: assistant safety guard hallucination controls require grounding for specific claims.
+
+Exact guard wording: assistant tool outputs require hallucination controls and requires grounding for specific claims.

@@ -290,3 +290,11 @@ Beta can proceed only if:
 - [ ] Backoffice storage ops preview shows external storage provider disabled.
 - [ ] S3/R2 provider, signed upload, bucket delete, object copy, CDN purge, and queue worker remain disabled.
 - [ ] Storage preview does not expose object keys, bucket credentials, signed URLs, tokens, cookies, raw upload body, EXIF metadata, email, or phone.
+
+### Assistant safety guard
+
+- [ ] `pnpm security:assistant-safety-guard` passes.
+- [ ] Medical diagnosis, medication/dosage advice, treatment plans, diet prescriptions, and therapy claims are blocked.
+- [ ] Hallucination guard requires grounding/source IDs for specific claims.
+- [ ] Everyday parenting checklist/routine/comfort support remains available.
+- [ ] Raw child data, raw message body, email, phone, token, cookie, OTP, password, and authorization values are not exposed.

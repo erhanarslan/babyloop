@@ -593,3 +593,9 @@ The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`
 n8n workflow readiness is an ops/planning preview only. It documents prerequisites before workflow delivery can exist: versioned webhook contract, idempotency header, signed payload, delivery transition model, delivery log candidate source, queue/worker, retry/dead-letter policy, admin audit, rate limit, and consent model.
 
 The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`, `n8nWorkflowEnabled=false`, `webhookConfigured=false`, `webhookCallsAllowed=false`, and `queueEnabled=false`. Existing child lifecycle, child reminder, and saved-search candidate logs are workflow candidates only; no n8n webhook, queue, worker, email, push, provider call, or real workflow trigger is enabled. Guard: `pnpm security:notification-n8n-readiness`.
+
+## Assistant safety guard
+
+Assistant/RAG work must pass `pnpm security:assistant-safety-guard`. The guard requires grounding/source IDs for specific claims and blocks medical diagnosis, medication/dosage advice, treatment plans, diet prescriptions, therapy claims, and unsupported product safety claims.
+
+The allowed scope remains everyday parenting checklists, age-band shopping reminders, comfort/routine suggestions, and safe human referral prompts. This package does not enable autonomous RAG answers; it is a hallucination and safety boundary layer.
