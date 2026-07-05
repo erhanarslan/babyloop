@@ -91,3 +91,9 @@ Notification sender provider design gate verifies provider selection, sandbox, c
 Full beta critical smoke automation includes `pnpm security:notification-observability-taxonomy`.
 
 Notification observability taxonomy verifies event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, PII restrictions, retry/dead-letter observability, preference observability, and click tracking readiness before real notification delivery. It does not enable metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, or real n8n workflow triggering.
+
+## Notification consent/preference policy
+
+Full beta critical smoke automation includes `pnpm security:notification-consent-preference`.
+
+Notification consent/preference policy verifies consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze windows, source/channel scopes, privacy boundaries, and raw contact logging before real notification delivery. It does not enable real email sending, real push sending, real n8n workflow triggering, provider calls, queue jobs, webhook calls, or unconsented delivery.

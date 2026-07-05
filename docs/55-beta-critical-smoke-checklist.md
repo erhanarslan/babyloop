@@ -343,3 +343,11 @@ Beta can proceed only if:
 - [ ] Event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, and PII restrictions are documented.
 - [ ] Forbidden fields are not logged.
 - [ ] Metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, and real n8n workflow triggering remain disabled.
+
+### Notification consent/preference policy
+
+- [ ] `pnpm security:notification-consent-preference` passes.
+- [ ] `pnpm beta:critical-smoke` includes notification consent/preference policy.
+- [ ] Consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze, and source/channel scopes are documented.
+- [ ] Raw contact logging remains disabled.
+- [ ] Real sending, provider calls, queue jobs, webhook calls, and unconsented delivery remain disabled.
