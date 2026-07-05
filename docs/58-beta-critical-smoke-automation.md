@@ -79,3 +79,9 @@ Deployment readiness gate verifies staging/production readiness documentation fo
 Full beta critical smoke automation includes `pnpm security:public-auth-cookie-migration`.
 
 Public auth cookie migration planning verifies httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, protected routes, MFA/OTP, manual QA, and rollback coverage before runtime auth changes. It does not change runtime auth behavior, does not introduce document-cookie token handling, and does not store access tokens in localStorage or sessionStorage.
+
+## Notification sender provider design gate
+
+Full beta critical smoke automation includes `pnpm security:notification-sender-provider-design`.
+
+Notification sender provider design gate verifies provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, rollback, email sender readiness, push sender readiness, and n8n workflow readiness before real delivery implementation. It does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, queue jobs, or production notification delivery.

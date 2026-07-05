@@ -326,3 +326,12 @@ Beta can proceed only if:
 - [ ] httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, protected routes, MFA/OTP, favorites, messaging, and rollback are documented.
 - [ ] Manual QA must cover register, login, refresh, logout, MFA/OTP, favorites, messaging, and protected routes.
 - [ ] Runtime auth behavior remains unchanged until explicit implementation.
+
+### Notification sender provider design gate
+
+- [ ] `pnpm security:notification-sender-provider-design` passes.
+- [ ] `pnpm beta:critical-smoke` includes notification sender provider design gate.
+- [ ] Provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, and rollback are documented.
+- [ ] Manual approval is required before enabling real notification sender.
+- [ ] Draft-only notification readiness remains honest until provider rollout.
+- [ ] Real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, and queue jobs remain disabled.

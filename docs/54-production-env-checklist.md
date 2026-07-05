@@ -367,3 +367,11 @@ Production/beta readiness requires `pnpm security:public-auth-cookie-migration` 
 Public auth cookie migration planning must document httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, CORS, protected routes, MFA/OTP, manual QA, and rollback.
 
 This gate does not change runtime auth behavior and must not store access tokens in browser storage or expose refresh tokens to JavaScript.
+
+## Notification sender provider design gate
+
+Production/beta readiness requires `pnpm security:notification-sender-provider-design` and `pnpm beta:critical-smoke` to pass before any real notification sender rollout.
+
+Notification sender provider design gate covers provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, rollback, email provider readiness, push provider readiness, and n8n workflow readiness.
+
+This gate does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, queue jobs, or production notification delivery.

@@ -719,3 +719,12 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, MFA/OTP, protected routes, favorites, messaging, and rollback are documented before runtime migration.
 - [ ] Manual QA must cover register, login, refresh, logout, MFA/OTP, favorites, messaging, and protected routes.
 - [ ] The planning gate does not change runtime auth behavior, does not introduce document-cookie token handling, and does not store access tokens in localStorage or sessionStorage.
+
+### Notification sender provider design gate
+
+- [ ] `pnpm security:notification-sender-provider-design` passes.
+- [ ] Notification sender provider design gate is included in `pnpm beta:critical-smoke`.
+- [ ] Provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, and rollback are documented before real sending.
+- [ ] Manual approval is required before enabling any real notification sender.
+- [ ] Draft-only notification readiness must remain honest until provider rollout.
+- [ ] The gate does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, or queue jobs.

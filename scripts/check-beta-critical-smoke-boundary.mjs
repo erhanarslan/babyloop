@@ -59,6 +59,7 @@ function checkRunner() {
     "qa:mobile:s22",
     "security:notification-n8n-readiness",
     "security:notification-push-readiness",
+    "security:notification-sender-provider-design",
     "security:notification-delivery-transitions",
     "security:notification-ops-preview",
     "security:notification-delivery-log",
