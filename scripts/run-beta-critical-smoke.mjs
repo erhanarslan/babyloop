@@ -11,6 +11,7 @@ const steps = [
   { label: "Notification n8n readiness guard", command: "pnpm", args: ["security:notification-n8n-readiness"] },
   { label: "Notification push readiness guard", command: "pnpm", args: ["security:notification-push-readiness"] },
   { label: "Notification sender provider design guard", command: "pnpm", args: ["security:notification-sender-provider-design"] },
+  { label: "Notification observability taxonomy guard", command: "pnpm", args: ["security:notification-observability-taxonomy"] },
   { label: "Notification delivery transitions guard", command: "pnpm", args: ["security:notification-delivery-transitions"] },
   { label: "Notification ops preview guard", command: "pnpm", args: ["security:notification-ops-preview"] },
   { label: "Notification delivery log guard", command: "pnpm", args: ["security:notification-delivery-log"] },

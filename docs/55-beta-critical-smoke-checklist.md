@@ -335,3 +335,11 @@ Beta can proceed only if:
 - [ ] Manual approval is required before enabling real notification sender.
 - [ ] Draft-only notification readiness remains honest until provider rollout.
 - [ ] Real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, and queue jobs remain disabled.
+
+### Notification observability taxonomy
+
+- [ ] `pnpm security:notification-observability-taxonomy` passes.
+- [ ] `pnpm beta:critical-smoke` includes notification observability taxonomy.
+- [ ] Event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, and PII restrictions are documented.
+- [ ] Forbidden fields are not logged.
+- [ ] Metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, and real n8n workflow triggering remain disabled.

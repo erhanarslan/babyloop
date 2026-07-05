@@ -60,6 +60,7 @@ function checkRunner() {
     "security:notification-n8n-readiness",
     "security:notification-push-readiness",
     "security:notification-sender-provider-design",
+    "security:notification-observability-taxonomy",
     "security:notification-delivery-transitions",
     "security:notification-ops-preview",
     "security:notification-delivery-log",

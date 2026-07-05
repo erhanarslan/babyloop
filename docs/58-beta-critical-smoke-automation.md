@@ -85,3 +85,9 @@ Public auth cookie migration planning verifies httpOnly, sameSite, secure cookie
 Full beta critical smoke automation includes `pnpm security:notification-sender-provider-design`.
 
 Notification sender provider design gate verifies provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, rollback, email sender readiness, push sender readiness, and n8n workflow readiness before real delivery implementation. It does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, queue jobs, or production notification delivery.
+
+## Notification observability taxonomy
+
+Full beta critical smoke automation includes `pnpm security:notification-observability-taxonomy`.
+
+Notification observability taxonomy verifies event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, PII restrictions, retry/dead-letter observability, preference observability, and click tracking readiness before real notification delivery. It does not enable metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, or real n8n workflow triggering.

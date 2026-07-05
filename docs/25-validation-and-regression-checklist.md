@@ -728,3 +728,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Manual approval is required before enabling any real notification sender.
 - [ ] Draft-only notification readiness must remain honest until provider rollout.
 - [ ] The gate does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, or queue jobs.
+
+### Notification observability taxonomy
+
+- [ ] `pnpm security:notification-observability-taxonomy` passes.
+- [ ] Notification observability taxonomy is included in `pnpm beta:critical-smoke`.
+- [ ] Event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, and PII restrictions are documented.
+- [ ] Forbidden fields include email, phone, token, cookie, OTP, password, raw message body, raw provider response, raw webhook payload, authorization header, and provider secret.
+- [ ] The gate does not enable metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, or real n8n workflow triggering.

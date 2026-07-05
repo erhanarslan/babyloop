@@ -375,3 +375,11 @@ Production/beta readiness requires `pnpm security:notification-sender-provider-d
 Notification sender provider design gate covers provider selection, sandbox, consent, rate limit, retry, dead-letter, audit, observability, rollback, email provider readiness, push provider readiness, and n8n workflow readiness.
 
 This gate does not enable real email sending, real push sending, real n8n workflow triggering, provider credentials, webhook calls, queue jobs, or production notification delivery.
+
+## Notification observability taxonomy
+
+Production/beta readiness requires `pnpm security:notification-observability-taxonomy` and `pnpm beta:critical-smoke` to pass before real notification delivery.
+
+Notification observability taxonomy covers event taxonomy, privacy-safe dimensions, metrics, dashboard plans, raw payload logging boundary, PII restrictions, retry/dead-letter observability, preference observability, and click tracking readiness.
+
+This gate does not enable metrics exporters, tracing exporters, provider calls, queue jobs, webhook calls, real email sending, real push sending, or real n8n workflow triggering.
