@@ -273,3 +273,13 @@ Beta can proceed only if:
 - [ ] Webhook and queue/worker remain disabled.
 - [ ] Child lifecycle, child reminder, and saved-search remain candidate sources only.
 - [ ] No n8n webhook, queue worker, provider call, email, push, or real workflow trigger is enabled.
+
+### Mobile real-device S22 QA
+
+- [ ] `pnpm qa:mobile:s22` passes.
+- [ ] Physical Galaxy S22 run is completed using `docs/56-mobile-real-device-s22-qa-checklist.md`.
+- [ ] OTP/MFA and auth/session critical path passes.
+- [ ] Browse/detail/sell listing/image upload/favorites/messaging paths pass.
+- [ ] Android bottom tab safe-area behavior passes.
+- [ ] Push sender disabled and n8n workflow disabled copy remains accurate.
+- [ ] No token/cookie/OTP/password/email/phone/raw body leakage is observed.

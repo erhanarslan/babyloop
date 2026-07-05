@@ -666,3 +666,12 @@ http://localhost:3001/moderation
 - [ ] n8n workflow remains disabled: `deliveryAllowed=false`, `draftOnly=true`, `n8nWorkflowEnabled=false`, `webhookCallsAllowed=false`.
 - [ ] Webhook, queue, worker, retry, dead-letter, consent, rate limit, signed payload, and audit prerequisites are visible.
 - [ ] Real n8n workflow, webhook, queue, email, push, provider calls, or senders are not enabled.
+
+### Mobile real-device S22 QA
+
+- [ ] `pnpm qa:mobile:s22` passes.
+- [ ] `docs/56-mobile-real-device-s22-qa-checklist.md` is completed on a physical Galaxy S22 before beta release.
+- [ ] OTP/MFA, auth/session refresh, logout, browse, listing detail, sell listing with image upload, favorites, messaging, reports/block, and child profile/reminder entry points are checked.
+- [ ] Android bottom tab behavior is checked with navigation buttons/gesture bar hidden and visible.
+- [ ] Push sender disabled and n8n workflow disabled readiness copy is verified on mobile/backoffice.
+- [ ] No access token, refresh token, OTP, cookie, password, email, phone, or raw message body appears in UI/debug logs.

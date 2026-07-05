@@ -331,3 +331,9 @@ Production readiness requires native push readiness to remain blocked until toke
 Production readiness requires n8n workflow readiness to remain blocked until webhook contract, idempotency header, signed payload, queue/worker, retry/dead-letter policy, admin audit, rate limits, consent, and delivery transition enforcement exist.
 
 `pnpm security:notification-n8n-readiness` must pass before release smoke. The preview must not enable n8n webhooks, queue workers, provider calls, email, push, or real workflow delivery.
+
+## Mobile real-device S22 QA
+
+Production readiness requires a physical Galaxy S22 QA pass before beta. `pnpm qa:mobile:s22` must pass and `docs/56-mobile-real-device-s22-qa-checklist.md` must be completed.
+
+The run must cover OTP/MFA, auth/session, browse/listing detail, sell listing with camera/gallery upload, favorites, messaging/realtime reconnect, reports/block, child profile/reminder entry points, Android bottom tab safe-area behavior, and privacy/log leakage. Push sender disabled and n8n workflow disabled copy must remain accurate until real senders are implemented.

@@ -68,7 +68,8 @@
     "security:notification-ops-preview": "node scripts/check-notification-ops-preview-boundary.mjs",
     "security:notification-delivery-transitions": "node scripts/check-notification-delivery-transitions-boundary.mjs",
     "security:notification-push-readiness": "node scripts/check-notification-push-readiness-boundary.mjs",
-    "security:notification-n8n-readiness": "node scripts/check-notification-n8n-readiness-boundary.mjs"
+    "security:notification-n8n-readiness": "node scripts/check-notification-n8n-readiness-boundary.mjs",
+    "qa:mobile:s22": "node scripts/check-mobile-real-device-s22-qa-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
