@@ -103,3 +103,9 @@ Notification consent/preference policy verifies consent, preference, opt-out, au
 Full beta critical smoke automation includes `pnpm security:mobile-otp-mfa-hardening`.
 
 Mobile OTP/MFA hardening verifies SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, invalid/expired code states, resend cooldown, and Galaxy S22 QA readiness. It does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.
+
+## Child notebook/reminder hardening
+
+Full beta critical smoke automation includes `pnpm security:child-notebook-reminder-hardening`.
+
+Child notebook/reminder hardening verifies free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, owner-only access, inactive child profile handling, and no medical/therapy/diagnosis/drug/diet advice. It does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.

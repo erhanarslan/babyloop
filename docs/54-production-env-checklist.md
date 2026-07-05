@@ -399,3 +399,11 @@ Production/beta readiness requires `pnpm security:mobile-otp-mfa-hardening` and 
 Mobile OTP/MFA hardening covers SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, invalid/expired code states, resend cooldown, and Galaxy S22 QA evidence.
 
 This gate does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.
+
+## Child notebook/reminder hardening
+
+Production/beta readiness requires `pnpm security:child-notebook-reminder-hardening` and `pnpm beta:critical-smoke` to pass before marking child notebook/reminder complete.
+
+Child notebook/reminder hardening covers free note, recurring reminder, advance reminder, every 2 hours feeding reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, owner-only access, inactive child profile handling, and no medical/therapy/diagnosis/drug/diet advice.
+
+This gate does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.

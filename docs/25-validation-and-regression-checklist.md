@@ -752,3 +752,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, and Galaxy S22 QA are documented.
 - [ ] OTP/token/cookie/password values must not be logged.
 - [ ] The gate does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.
+
+### Child notebook/reminder hardening
+
+- [ ] `pnpm security:child-notebook-reminder-hardening` passes.
+- [ ] Child notebook/reminder hardening is included in `pnpm beta:critical-smoke`.
+- [ ] Free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, and owner-only access are documented.
+- [ ] Medical/therapy/diagnosis/drug/diet advice remains blocked.
+- [ ] The gate does not create runtime CRUD, schedule queue jobs, send notifications, call providers, or trigger n8n.

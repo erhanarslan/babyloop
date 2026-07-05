@@ -359,3 +359,11 @@ Beta can proceed only if:
 - [ ] SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, and Galaxy S22 QA are documented.
 - [ ] OTP/token/cookie/password values must not be logged.
 - [ ] Manual Galaxy S22 QA evidence is required before beta release.
+
+### Child notebook/reminder hardening
+
+- [ ] `pnpm security:child-notebook-reminder-hardening` passes.
+- [ ] `pnpm beta:critical-smoke` includes child notebook/reminder hardening.
+- [ ] Free note, recurring reminder, advance reminder, notification preference, web child notebook, mobile child notebook, complete/cancel/snooze, and owner-only access are documented.
+- [ ] Runtime child notebook/reminder flows are manually QA'd before beta.
+- [ ] Medical/therapy/diagnosis/drug/diet advice remains blocked.

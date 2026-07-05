@@ -191,3 +191,16 @@ A beta build cannot be considered ready if any of these fail:
 - [ ] SecureStore or equivalent secure device storage is used for sensitive mobile auth/session material.
 - [ ] OTP/token/cookie/password values are not logged in console output, analytics, crash reports, screenshots, or notification payloads.
 - [ ] Mobile OTP/MFA hardening evidence is attached to the Galaxy S22 QA record.
+
+## Child notebook/reminder hardening
+
+- [ ] `pnpm security:child-notebook-reminder-hardening` passes before mobile child notebook QA.
+- [ ] Mobile child notebook free note create/edit/delete is tested.
+- [ ] Mobile recurring reminder create/edit/delete is tested.
+- [ ] Mobile advance reminder one week before and one day before is tested.
+- [ ] Mobile reminder time selection is tested.
+- [ ] Mobile complete/cancel/snooze is tested.
+- [ ] Mobile notification preference link is tested.
+- [ ] Mobile child notebook does not provide medical/therapy/diagnosis/drug/diet advice.
+
+Exact guard wording: web child notebook coverage must stay aligned with mobile child notebook QA.
