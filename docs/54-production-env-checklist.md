@@ -359,3 +359,11 @@ Production/beta readiness requires `pnpm security:deployment-readiness` and `pnp
 Deployment readiness gate covers staging and production environment variables, secrets, database migration, rollback, observability, health checks, CORS/cookie/CSRF environment configuration, and manual go/no-go approval.
 
 This gate does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access. Staging/prod deploy remains blocked until explicit implementation.
+
+## Public auth cookie migration
+
+Production/beta readiness requires `pnpm security:public-auth-cookie-migration` and `pnpm beta:critical-smoke` to pass before any public auth runtime migration.
+
+Public auth cookie migration planning must document httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, CORS, protected routes, MFA/OTP, manual QA, and rollback.
+
+This gate does not change runtime auth behavior and must not store access tokens in browser storage or expose refresh tokens to JavaScript.

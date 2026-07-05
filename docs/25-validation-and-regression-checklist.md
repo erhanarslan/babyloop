@@ -711,3 +711,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Staging and production environment variables are documented with owner, purpose, rotation plan, service scope, and secret/non-secret classification.
 - [ ] Secrets, database migration, rollback, observability, health checks, and manual go/no-go release approval are documented.
 - [ ] The gate does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access.
+
+### Public auth cookie migration
+
+- [ ] `pnpm security:public-auth-cookie-migration` passes.
+- [ ] Public auth cookie migration is included in `pnpm beta:critical-smoke`.
+- [ ] httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, MFA/OTP, protected routes, favorites, messaging, and rollback are documented before runtime migration.
+- [ ] Manual QA must cover register, login, refresh, logout, MFA/OTP, favorites, messaging, and protected routes.
+- [ ] The planning gate does not change runtime auth behavior, does not introduce document-cookie token handling, and does not store access tokens in localStorage or sessionStorage.

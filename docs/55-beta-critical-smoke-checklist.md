@@ -318,3 +318,11 @@ Beta can proceed only if:
 - [ ] Secrets, database migration, rollback, observability, health checks, and manual go/no-go approval are documented.
 - [ ] The gate does not deploy or create cloud resources.
 - [ ] AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, and production database access remain disabled until explicit implementation.
+
+### Public auth cookie migration
+
+- [ ] `pnpm security:public-auth-cookie-migration` passes.
+- [ ] `pnpm beta:critical-smoke` includes public auth cookie migration.
+- [ ] httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, protected routes, MFA/OTP, favorites, messaging, and rollback are documented.
+- [ ] Manual QA must cover register, login, refresh, logout, MFA/OTP, favorites, messaging, and protected routes.
+- [ ] Runtime auth behavior remains unchanged until explicit implementation.

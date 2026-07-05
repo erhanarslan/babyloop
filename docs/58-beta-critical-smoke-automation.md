@@ -73,3 +73,9 @@ The command intentionally covers:
 Full beta critical smoke automation includes `pnpm security:deployment-readiness`.
 
 Deployment readiness gate verifies staging/production readiness documentation for environment variables, secrets, database migration, rollback, observability, health checks, and manual go/no-go approval. It does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, production database access, or autonomous RAG answers.
+
+## Public auth cookie migration
+
+Full beta critical smoke automation includes `pnpm security:public-auth-cookie-migration`.
+
+Public auth cookie migration planning verifies httpOnly, sameSite, secure cookie, CSRF, refresh token, logout, session refresh, protected routes, MFA/OTP, manual QA, and rollback coverage before runtime auth changes. It does not change runtime auth behavior, does not introduce document-cookie token handling, and does not store access tokens in localStorage or sessionStorage.

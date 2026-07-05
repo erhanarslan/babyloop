@@ -63,6 +63,7 @@ function checkRunner() {
     "security:notification-ops-preview",
     "security:notification-delivery-log",
     "security:auth-leaks",
+    "security:public-auth-cookie-migration",
     "release:artifacts",
     "security:deployment-readiness",
     "@babyloop/api",
