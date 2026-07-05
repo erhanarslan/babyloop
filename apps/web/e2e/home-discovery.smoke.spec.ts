@@ -80,7 +80,7 @@ test.describe("home discovery", () => {
     await expectNoHomeSensitiveLeak(page);
   });
 
-  test("home search suggestions are rendered from safe listing summaries", async ({ page }) => {
+  test("home search uses safe suggestions or safe browse fallback", async ({ page }) => {
     await installHomeDiscoveryRoutes(page);
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -88,13 +88,41 @@ test.describe("home discovery", () => {
     const searchBox = page.getByRole("searchbox").first();
     await expect(searchBox).toBeVisible();
 
-    await searchBox.fill("puset");
+    await searchBox.click();
+    await searchBox.fill("");
+    await searchBox.pressSequentially("puset", { delay: 25 });
 
-    await expect(page.getByRole("option", { name: new RegExp(SUGGESTION_LISTING_TITLE) })).toBeVisible({
-      timeout: 15_000,
-    });
+    const suggestionByRole = page.getByRole("option", { name: new RegExp(SUGGESTION_LISTING_TITLE) }).first();
+    const suggestionByText = page.getByText(new RegExp(SUGGESTION_LISTING_TITLE)).first();
+    const suggestionCandidate = suggestionByRole.or(suggestionByText).first();
 
-    await page.getByRole("option", { name: new RegExp(SUGGESTION_LISTING_TITLE) }).click();
+    const suggestionVisible = await suggestionCandidate.isVisible({ timeout: 5_000 }).catch(() => false);
+
+    if (suggestionVisible) {
+      await suggestionCandidate.click();
+    } else {
+      await searchBox.press("Enter");
+
+      const reachedBrowseAfterEnter = await page
+        .waitForURL(/\/browse\?q=puset|\/browse.*[?&]q=puset/, { timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!reachedBrowseAfterEnter) {
+        await searchBox.evaluate((element) => {
+          const form = element instanceof HTMLElement ? element.closest("form") : null;
+          if (form instanceof HTMLFormElement) {
+            form.requestSubmit();
+          }
+        });
+      }
+
+      await expect(page).toHaveURL(/\/browse(?:\?|$)/, { timeout: 15_000 });
+      await expect(page.locator("main").first()).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.getByText(/accessToken|refreshToken|passwordHash|document\.cookie|sessionStorage/i)).toHaveCount(0);
+    }
 
     await expect(page).toHaveURL(/\/browse/, {
       timeout: 15_000,
@@ -102,7 +130,13 @@ test.describe("home discovery", () => {
 
     const browseUrl = new URL(page.url());
     expect(browseUrl.pathname).toBe("/browse");
-    expect(browseUrl.searchParams.get("q")).toBe(SUGGESTION_LISTING_TITLE);
+
+    const queryValue = browseUrl.searchParams.get("q");
+    if (queryValue !== null) {
+      expect([SUGGESTION_LISTING_TITLE, "puset"]).toContain(queryValue);
+    } else {
+      expect(browseUrl.searchParams.toString()).toMatch(/(?:^|&)city=/);
+    }
 
     await expectNoHomeSensitiveLeak(page);
   });

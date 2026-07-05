@@ -299,9 +299,14 @@ test.describe("public account operations", () => {
     });
     await expect(page.getByRole("heading", { name: "Şifreni güncelle", exact: true })).toBeVisible();
 
-    await page.locator('input[name="currentPassword"]').fill("CurrentPassword123!");
-    await page.locator('input[name="newPassword"]').fill("NewPassword123!");
-    await page.locator('input[name="confirmPassword"]').fill("DifferentPassword123!");
+    const passwordUpdateForm = page.locator("form").filter({
+      has: page.getByRole("heading", { name: "Şifreni güncelle", exact: true }),
+    });
+    await expect(passwordUpdateForm).toBeVisible();
+
+    await passwordUpdateForm.locator('input[name="currentPassword"]').fill("CurrentPassword123!");
+    await passwordUpdateForm.locator('input[name="newPassword"]').fill("NewPassword123!");
+    await passwordUpdateForm.locator('input[name="confirmPassword"]').fill("DifferentPassword123!");
 
     await page.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
 
@@ -309,7 +314,7 @@ test.describe("public account operations", () => {
     await expect(page).toHaveURL(/\/account\/password$/);
     expect(state.passwordChangeRequests).toEqual([]);
 
-    const passwordForm = page.locator("form.auth-recovery-form");
+    const passwordForm = passwordUpdateForm;
 
     await passwordForm.locator('input[name="confirmPassword"]').fill("NewPassword123!");
 
