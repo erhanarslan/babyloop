@@ -15,6 +15,7 @@ const requiredFiles = [
   "apps/mobile/src/features/messages/messages-realtime-model.test.ts",
   "apps/mobile/src/features/realtime/mobile-realtime.ts",
   "apps/mobile/package.json",
+  "apps/mobile/README.md",
   "package.json",
   "docs/25-validation-and-regression-checklist.md",
   "docs/55-beta-critical-smoke-checklist.md",
@@ -67,6 +68,7 @@ if (problems.length === 0) {
   checkMobileLoginApprovalBoundary();
   checkMobileRealtimeBoundary();
   checkP0ScriptsAndDocs();
+  checkMobileAuthDocsNoStaleStorage();
 }
 
 function checkSecureTokenStorage() {
@@ -412,6 +414,40 @@ function checkP0ScriptsAndDocs() {
     "mobile login must not require mobile approval for itself"
   ]) {
     mustContainCaseInsensitive(smoke, "docs/55-beta-critical-smoke-checklist.md", token);
+  }
+}
+
+
+function checkMobileAuthDocsNoStaleStorage() {
+  const file = "apps/mobile/README.md";
+  const source = read(file);
+
+  for (const token of [
+    "Expo SecureStore",
+    "SecureStore-backed token storage",
+    "pnpm security:mobile-auth",
+    "refresh tokens are not stored in AsyncStorage, localStorage, sessionStorage"
+  ]) {
+    mustContain(source, file, token);
+  }
+
+  for (const staleClaim of [
+    "mobile keeps the access token in memory only",
+    "SecureStore strategy in a later package",
+    "SecureStore later",
+    "memory-only"
+  ]) {
+    mustNotContain(source, file, staleClaim);
+  }
+
+  for (const forbidden of [
+    "@react-native-async-storage/async-storage",
+    "AsyncStorage.setItem",
+    "localStorage.setItem",
+    "sessionStorage.setItem",
+    "refreshToken:"
+  ]) {
+    mustNotContain(source, file, forbidden);
   }
 }
 
