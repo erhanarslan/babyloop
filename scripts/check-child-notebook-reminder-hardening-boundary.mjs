@@ -5,6 +5,13 @@ const problems = [];
 const requiredFiles = [
   "apps/api/src/services/child-notebook-reminder-policy.service.ts",
   "apps/api/test/child-notebook-reminder-policy.service.test.ts",
+  "apps/mobile/src/features/child/child-reminders-model.test.ts",
+  "apps/mobile/src/features/child/child-reminders-model.ts",
+  "apps/mobile/src/features/child/child-reminders-api.test.ts",
+  "apps/mobile/src/features/child/child-reminders-api.ts",
+  "apps/mobile/src/features/child/child-reminder-screen-state-model.test.ts",
+  "apps/mobile/src/features/child/child-reminder-screen-state-model.ts",
+  "apps/mobile/app/(tabs)/child-profile.tsx",
   "scripts/check-child-notebook-reminder-hardening-boundary.mjs",
   "scripts/run-beta-critical-smoke.mjs",
   "scripts/check-beta-critical-smoke-boundary.mjs",
@@ -47,6 +54,7 @@ function mustNotContain(source, file, token) {
 
 if (problems.length === 0) {
   checkServiceAndTests();
+  checkMobileChildNotebookScreenState();
   checkPackageScripts();
   checkBetaSmokeWiring();
   checkDocs();
@@ -112,6 +120,92 @@ function checkServiceAndTests() {
     "exposes compact readiness-only assertion"
   ]) {
     mustContain(tests, testFile, token);
+  }
+}
+
+
+function checkMobileChildNotebookScreenState() {
+  const routeFile = "apps/mobile/app/(tabs)/child-profile.tsx";
+  const modelFile = "apps/mobile/src/features/child/child-reminder-screen-state-model.ts";
+  const testFile = "apps/mobile/src/features/child/child-reminder-screen-state-model.test.ts";
+  const apiTestFile = "apps/mobile/src/features/child/child-reminders-api.test.ts";
+  const modelTestFile = "apps/mobile/src/features/child/child-reminders-model.test.ts";
+
+  const route = read(routeFile);
+  const model = read(modelFile);
+  const tests = read(testFile);
+  const apiTests = read(apiTestFile);
+  const modelTests = read(modelTestFile);
+
+  for (const token of [
+    "getPreferredMobileChildProfile",
+    "canRunMobileChildProfileAction",
+    "buildMobileChildNoteCreatePayload",
+    "buildMobileChildReminderCreatePayload",
+    "appendMobileChildReminder",
+    "replaceMobileChildReminder",
+    "removeMobileChildReminder",
+    "getMobileChildDeliveryBoundaryText"
+  ]) {
+    mustContain(route, routeFile, token);
+  }
+
+  for (const token of [
+    "getPreferredMobileChildProfile",
+    "canRunMobileChildProfileAction",
+    "normalizeMobileChildEntryTitle",
+    "buildMobileChildNoteCreatePayload",
+    "buildMobileChildReminderCreatePayload",
+    "channel: \"in_app\"",
+    "getMobileChildDeliveryBoundaryText",
+    "appendMobileChildReminder",
+    "replaceMobileChildReminder",
+    "removeMobileChildReminder"
+  ]) {
+    mustContain(model, modelFile, token);
+  }
+
+  for (const token of [
+    "selects an active child profile and falls back safely",
+    "guards child actions while submitting or without profile",
+    "builds in-app reminder payloads without claiming push, email, or n8n delivery",
+    "keeps copy and messages practical, non-medical, and no-real-delivery",
+    "updates local note and reminder collections deterministically"
+  ]) {
+    mustContain(tests, testFile, token);
+  }
+
+  for (const token of [
+    "updates notification cadence on the child profile",
+    "not.toMatch(/accessToken|refreshToken|passwordHash/iu"
+  ]) {
+    mustContain(apiTests, apiTestFile, token);
+  }
+
+  for (const token of [
+    "maps reminders without claiming real push delivery",
+    "exposes notification settings from child cadence",
+    "provides safe default profile and next reminder date"
+  ]) {
+    mustContain(modelTests, modelTestFile, token);
+  }
+
+  for (const forbidden of [
+    "sendPush",
+    "sendEmail",
+    "triggerN8n",
+    "executeWorkflow",
+    "getExpoPushTokenAsync",
+    "accessToken=",
+    "refreshToken=",
+    "passwordHash",
+    "console.log",
+    "@react-native-async-storage/async-storage",
+    "localStorage",
+    "sessionStorage"
+  ]) {
+    mustNotContain(route, routeFile, forbidden);
+    mustNotContain(model, modelFile, forbidden);
   }
 }
 

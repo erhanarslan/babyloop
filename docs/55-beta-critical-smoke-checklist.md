@@ -377,3 +377,5 @@ Beta can proceed only if:
 - [ ] Manual QA evidence is required before beta release.
 
 - Mobile notification preference screen-state QA must pass through `pnpm test:mobile:p0` and `pnpm security:mobile-notifications`; it does not require Maestro/device execution.
+
+- Mobile child notebook/reminder screen-state QA must pass through `pnpm test:mobile:p0` and `pnpm security:child-notebook-reminder-hardening`; Maestro/S22 real-device execution remains separate.

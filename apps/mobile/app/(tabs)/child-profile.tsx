@@ -19,13 +19,28 @@ import {
 import {
   getDefaultMobileChildProfilePayload,
   getMobileChildNoteItems,
-  getMobileChildReminderItems,
-  getNextMobileReminderDateIso
+  getMobileChildReminderItems
 } from "../../src/features/child/child-reminders-model";
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
+import {
+  appendMobileChildReminder,
+  buildMobileChildNoteCreatePayload,
+  buildMobileChildReminderCreatePayload,
+  canRunMobileChildProfileAction,
+  getMobileChildDeliveryBoundaryText,
+  getMobileChildMutationMessage,
+  getMobileChildProfileMetaLabel,
+  getMobileChildRequiredTitleMessage,
+  getPreferredMobileChildProfile,
+  normalizeMobileChildEntryTitle,
+  prependMobileChildNote,
+  removeMobileChildNote,
+  removeMobileChildReminder,
+  replaceMobileChildReminder
+} from "../../src/features/child/child-reminder-screen-state-model";
 
 export default function ChildProfileRoute() {
   const authSession = useAuthSession();
@@ -61,9 +76,7 @@ export default function ChildProfileRoute() {
       return;
     }
 
-    let activeProfile = profilesResponse.data.childProfiles.find((profile) => profile.isActive)
-      ?? profilesResponse.data.childProfiles[0]
-      ?? null;
+    let activeProfile = getPreferredMobileChildProfile(profilesResponse.data.childProfiles);
 
     if (!activeProfile) {
       const createdProfile = await createMobileChildProfile(getDefaultMobileChildProfilePayload());
@@ -104,39 +117,35 @@ export default function ChildProfileRoute() {
   }, [loadChildData]);
 
   const handleCreateNote = useCallback(async () => {
-    if (!childProfile || isSubmitting) {
+    if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
       return;
     }
 
-    const title = noteTitle.trim();
+    const title = normalizeMobileChildEntryTitle(noteTitle);
 
     if (!title) {
-      setMessage("Not başlığı gerekli.");
+      setMessage(getMobileChildRequiredTitleMessage("note"));
       return;
     }
 
     setIsSubmitting(true);
     setMessage(null);
 
-    const response = await createMobileChildNote(childProfile.id, {
-      noteType: "general",
-      title,
-      body: null
-    });
+    const response = await createMobileChildNote(childProfile.id, buildMobileChildNoteCreatePayload(title));
 
     if (!response.ok) {
       setMessage(response.error.message);
     } else {
-      setNotes((current) => [response.data.note, ...current]);
+      setNotes((current) => prependMobileChildNote(current, response.data.note));
       setNoteTitle("");
-      setMessage("Not eklendi.");
+      setMessage(getMobileChildMutationMessage("note_created"));
     }
 
     setIsSubmitting(false);
   }, [childProfile, isSubmitting, noteTitle]);
 
   const handleArchiveNote = useCallback(async (noteId: string) => {
-    if (!childProfile || isSubmitting) {
+    if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
       return;
     }
 
@@ -148,47 +157,43 @@ export default function ChildProfileRoute() {
     if (!response.ok) {
       setMessage(response.error.message);
     } else {
-      setNotes((current) => current.filter((note) => note.id !== noteId));
-      setMessage("Not arşivlendi.");
+      setNotes((current) => removeMobileChildNote(current, noteId));
+      setMessage(getMobileChildMutationMessage("note_archived"));
     }
 
     setIsSubmitting(false);
   }, [childProfile, isSubmitting]);
 
   const handleCreateReminder = useCallback(async () => {
-    if (!childProfile || isSubmitting) {
+    if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
       return;
     }
 
-    const title = reminderTitle.trim();
+    const title = normalizeMobileChildEntryTitle(reminderTitle);
 
     if (!title) {
-      setMessage("Hatırlatıcı başlığı gerekli.");
+      setMessage(getMobileChildRequiredTitleMessage("reminder"));
       return;
     }
 
     setIsSubmitting(true);
     setMessage(null);
 
-    const response = await createMobileChildReminder(childProfile.id, {
-      title,
-      remindAt: getNextMobileReminderDateIso(),
-      channel: "in_app"
-    });
+    const response = await createMobileChildReminder(childProfile.id, buildMobileChildReminderCreatePayload(title));
 
     if (!response.ok) {
       setMessage(response.error.message);
     } else {
-      setReminders((current) => [...current, response.data.reminder]);
+      setReminders((current) => appendMobileChildReminder(current, response.data.reminder));
       setReminderTitle("");
-      setMessage("Hatırlatıcı eklendi.");
+      setMessage(getMobileChildMutationMessage("reminder_created"));
     }
 
     setIsSubmitting(false);
   }, [childProfile, isSubmitting, reminderTitle]);
 
   const handleCompleteReminder = useCallback(async (reminderId: string) => {
-    if (!childProfile || isSubmitting) {
+    if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
       return;
     }
 
@@ -200,17 +205,15 @@ export default function ChildProfileRoute() {
     if (!response.ok) {
       setMessage(response.error.message);
     } else {
-      setReminders((current) =>
-        current.map((reminder) => reminder.id === reminderId ? response.data.reminder : reminder)
-      );
-      setMessage("Hatırlatıcı tamamlandı.");
+      setReminders((current) => replaceMobileChildReminder(current, reminderId, response.data.reminder));
+      setMessage(getMobileChildMutationMessage("reminder_completed"));
     }
 
     setIsSubmitting(false);
   }, [childProfile, isSubmitting]);
 
   const handleCancelReminder = useCallback(async (reminderId: string) => {
-    if (!childProfile || isSubmitting) {
+    if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
       return;
     }
 
@@ -222,8 +225,8 @@ export default function ChildProfileRoute() {
     if (!response.ok) {
       setMessage(response.error.message);
     } else {
-      setReminders((current) => current.filter((reminder) => reminder.id !== reminderId));
-      setMessage("Hatırlatıcı iptal edildi.");
+      setReminders((current) => removeMobileChildReminder(current, reminderId));
+      setMessage(getMobileChildMutationMessage("reminder_cancelled"));
     }
 
     setIsSubmitting(false);
@@ -246,10 +249,10 @@ export default function ChildProfileRoute() {
       <MobileCard style={styles.heroCard}>
         <Text style={styles.heroTitle}>{childProfile?.label ?? "Çocuğum"}</Text>
         <Text style={styles.heroText}>
-          Günlük notlar ve uygulama içi hatırlatıcılar burada toplanır.
+          {getMobileChildDeliveryBoundaryText()}
         </Text>
         <View style={styles.sectionHeader}>
-          <Text style={styles.metaText}>{isLoading ? "Yükleniyor..." : "API bağlantılı"}</Text>
+          <Text style={styles.metaText}>{getMobileChildProfileMetaLabel(isLoading)}</Text>
           <Link href="/notification-preferences" style={styles.sectionLink}>
             Ayarlar
           </Link>

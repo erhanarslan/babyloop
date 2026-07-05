@@ -770,3 +770,5 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] The gate does not enable real sending, provider calls, queue jobs, or webhook calls.
 
 - Mobile notification preference screen-state QA: `src/features/notifications/notification-preferences-model.test.ts` covers active child profile selection, cadence options, update eligibility, safe success copy, and the no-real-push/email/n8n boundary.
+
+- Mobile child notebook/reminder screen-state QA: `src/features/child/child-reminder-screen-state-model.test.ts` covers active profile fallback, note/reminder create payloads, complete/cancel state updates, in-app-only reminder channel, and no-real-push/email/n8n copy.

@@ -93,3 +93,5 @@ The notebook can store everyday parent notes and practical reminders. It must no
 A beta release cannot mark child notebook/reminder complete until web and mobile flows pass, notification preference linkage is implemented, owner access is enforced, inactive child profiles are handled, and beta smoke includes this gate.
 
 Exact guard wording: child notebook/reminder runtime implementation remains blocked until explicit implementation.
+
+- Mobile child notebook/reminder screen-state QA covers child profile fallback, note/reminder payloads, local state updates, in-app reminder channel, and no push/email/n8n delivery claims.
