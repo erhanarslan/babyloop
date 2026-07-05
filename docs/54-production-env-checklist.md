@@ -307,3 +307,9 @@ Production readiness still requires:
 - provider sandbox validation.
 
 The foundation records candidate logs with `deliveryAllowed=false` and `draftOnly=true`; it does not enable email/push/n8n delivery.
+
+## Notification delivery-log ops preview
+
+Production readiness includes a backoffice notification delivery-log ops preview. The preview is aggregate and redacted: it can show counts by status/kind/channel and recent redacted source refs, but must not expose metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body values.
+
+This preview does not enable email/push/n8n delivery. `pnpm security:notification-ops-preview` must pass before release smoke.

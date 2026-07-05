@@ -629,3 +629,13 @@ http://localhost:3001/moderation
 - [ ] Duplicate candidate creation is blocked by the frequency window/idempotency boundary.
 - [ ] Metadata does not persist raw e-mail, token, OTP, password, cookie, authorization, raw body, or unsafe saved-search/listing text.
 - [ ] This package does not enable email/push/n8n senders.
+
+### Notification delivery-log ops preview
+
+- [ ] `pnpm security:notification-ops-preview` passes.
+- [ ] `pnpm --filter @babyloop/api test test/admin-notification-ops.service.test.ts` passes.
+- [ ] `pnpm --filter @babyloop/backoffice test src/features/notifications/notification-ops-page.test.tsx` passes.
+- [ ] Backoffice notification ops preview exposes aggregate delivery-log totals by status, kind, and channel.
+- [ ] Recent delivery-log preview rows show redacted source refs only.
+- [ ] Preview does not expose metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, or raw body.
+- [ ] The preview does not enable email/push/n8n senders, queues, or provider calls.

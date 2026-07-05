@@ -241,3 +241,11 @@ Beta can proceed only if:
 - [ ] The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`.
 - [ ] Metadata stays safe and does not include raw e-mail, token, OTP, password, cookie, authorization, or raw body values.
 - [ ] No email/push/n8n sender is enabled by this pipeline.
+
+### Notification delivery-log ops preview
+
+- [ ] `pnpm security:notification-ops-preview` passes.
+- [ ] Backoffice notification ops preview shows aggregate delivery-log counts.
+- [ ] Recent rows use redacted source refs only.
+- [ ] Metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, and raw body values are not shown.
+- [ ] No email/push/n8n sender, queue, or provider call is enabled by the preview.

@@ -1,12 +1,14 @@
 "use client";
 
+import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState } from "react";
+
+const DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE =
+  "Ops preview uses aggregate counts and redacted sourceRef only; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization and raw body are never exposed.";
 
 type AdminNotificationOpsPreview = {
   summary: {
-    totalDraftCandidates: number;
-    childLifecycleCandidates: number;
-    savedSearchCandidates: number;
+    status: "draft_only";
     draftOnly: true;
   };
   deliveryPolicy: {
@@ -33,21 +35,41 @@ type AdminNotificationOpsPreview = {
     savedSearchFrequencyWindowHours: number;
     requiredBeforeSend: string[];
   };
+  deliveryLogPreview?: {
+    enabled: true;
+    draftOnly: true;
+    totals: {
+      all: number;
+      candidate: number;
+      blocked: number;
+      sent: number;
+      failed: number;
+      skipped: number;
+    };
+    byKind: Array<{ kind: string; count: number }>;
+    byChannel: Array<{ channel: string; count: number }>;
+    byStatus: Array<{ status: string; count: number }>;
+    recent: Array<{
+      kind: string;
+      sourceType: string;
+      sourceRef: string;
+      channel: string;
+      status: string;
+      deliveryAllowed: false;
+      draftOnly: true;
+      blockedReasons: string[];
+      frequencyWindowHours: number;
+      createdAt: string;
+    }>;
+    privacyNote: string;
+  };
   warning: string;
 };
 
-type ApiResponse<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: { code: string; message: string } };
-
-type NotificationOpsPageProps = {
-  apiBaseUrl: string;
-};
-
-export function NotificationOpsPage({ apiBaseUrl }: NotificationOpsPageProps) {
+export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [data, setData] = useState<AdminNotificationOpsPreview | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -90,168 +112,177 @@ export function NotificationOpsPage({ apiBaseUrl }: NotificationOpsPageProps) {
     };
   }, [apiBaseUrl]);
 
+  if (isLoading) {
+    return <main className="mx-auto max-w-6xl p-8">Notification ops preview yükleniyor...</main>;
+  }
+
+  if (errorMessage) {
+    return (
+      <main className="mx-auto max-w-6xl p-8">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">{errorMessage}</div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const deliveryLogPreview = data.deliveryLogPreview;
+
   return (
-    <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8">
-      <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Trust & Safety Ops
+    <main className="mx-auto max-w-6xl space-y-8 p-8">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Notification operations</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-950">Notification Ops Preview</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          {data.warning} Delivery log önizlemesi aggregate ve redacted çalışır; email, push, queue ve n8n
+          bağlantıları kapalıdır.
         </p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-          Notification Ops Preview
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-          Çocuk lifecycle ve kayıtlı arama bildirim adaylarını operasyonel olarak izle. Bu ekran gönderim yapmaz;
-          email, push, queue ve n8n bağlantıları kapalıdır.
-        </p>
-      </header>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <PolicyPill label="Status" value={data.summary.draftOnly ? "Draft-only" : data.summary.status} />
+          <PolicyPill label="Send enabled" value={data.deliveryPolicy.sendEnabled ? "Açık" : "Kapalı"} />
+          <PolicyPill label="Dedup required" value={data.deliveryPolicy.dedupRequired ? "Gerekli" : "Kapalı"} />
+          <PolicyPill
+            label="Frequency limit"
+            value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"}
+          />
+        </div>
+      </section>
 
-      {isLoading ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-600">
-          Notification ops preview yükleniyor...
+      {deliveryLogPreview ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Delivery log</p>
+              <h2 className="text-2xl font-black text-slate-950">Delivery log preview</h2>
+              <p className="mt-2 text-sm text-slate-600">{deliveryLogPreview.privacyNote}</p>
+              <p className="mt-1 text-xs text-slate-500">{DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE}</p>
+            </div>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
+              Draft-only
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <SummaryCard label="Total" value={deliveryLogPreview.totals.all} />
+            <SummaryCard label="Candidate" value={deliveryLogPreview.totals.candidate} />
+            <SummaryCard label="Blocked" value={deliveryLogPreview.totals.blocked} />
+            <SummaryCard label="Sent" value={deliveryLogPreview.totals.sent} />
+            <SummaryCard label="Failed" value={deliveryLogPreview.totals.failed} />
+            <SummaryCard label="Skipped" value={deliveryLogPreview.totals.skipped} />
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <Breakdown title="By kind" items={deliveryLogPreview.byKind} labelKey="kind" />
+            <Breakdown title="By channel" items={deliveryLogPreview.byChannel} labelKey="channel" />
+            <Breakdown title="By status" items={deliveryLogPreview.byStatus} labelKey="status" />
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Kind</th>
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Channel</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Window</th>
+                  <th className="px-4 py-3">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {deliveryLogPreview.recent.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-4 text-slate-500" colSpan={6}>
+                      Henüz delivery log candidate yok.
+                    </td>
+                  </tr>
+                ) : (
+                  deliveryLogPreview.recent.map((item) => (
+                    <tr key={`${item.kind}-${item.sourceRef}-${item.createdAt}`}>
+                      <td className="px-4 py-3 font-bold text-slate-900">{item.kind}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.sourceType}:{item.sourceRef}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.channel}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.status}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.frequencyWindowHours}h</td>
+                      <td className="px-4 py-3 text-slate-600">{item.createdAt}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 
-      {errorMessage ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
-          {errorMessage}
-        </section>
-      ) : null}
-
-      {data ? (
-        <>
-          <section className="grid gap-4 md:grid-cols-3">
-            <MetricCard
-              label="Toplam draft adayı"
-              value={`${data.summary.totalDraftCandidates}`}
-              description="Gerçek gönderim yok; yalnızca aday sayısı."
-            />
-            <MetricCard
-              label="Child lifecycle"
-              value={`${data.summary.childLifecycleCandidates}`}
-              description="Aktif çocuk profili + cadence açık kayıtlar."
-            />
-            <MetricCard
-              label="Saved search"
-              value={`${data.summary.savedSearchCandidates}`}
-              description="Bildirim tercihi açık kayıtlı aramalar."
-            />
-          </section>
-
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Delivery policy
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">
-                Gönderim kapalı, draft-only mod açık
-              </h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                {data.warning}
-              </p>
+      <section className="grid gap-4 md:grid-cols-2">
+        {data.channels.map((channel) => (
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" key={channel.key}>
+            <div className="flex items-center justify-between gap-3">
+              <strong className="text-base font-black text-slate-950">{channel.label}</strong>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {channel.status === "draft_only" ? "Draft-only" : "Future"}
+              </span>
             </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{channel.note}</p>
+          </article>
+        ))}
+      </section>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <PolicyItem label="Send enabled" value={data.deliveryPolicy.sendEnabled ? "Açık" : "Kapalı"} />
-              <PolicyItem label="Queue enabled" value={data.deliveryPolicy.queueEnabled ? "Açık" : "Kapalı"} />
-              <PolicyItem label="Email enabled" value={data.deliveryPolicy.emailEnabled ? "Açık" : "Kapalı"} />
-              <PolicyItem label="n8n enabled" value={data.deliveryPolicy.n8nEnabled ? "Açık" : "Kapalı"} />
-              <PolicyItem label="Dedup required" value={data.deliveryPolicy.dedupRequired ? "Gerekli" : "Kapalı"} />
-              <PolicyItem label="Frequency limit" value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"} />
-            </div>
-          </section>
-
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Policy preview
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">
-                Dedup ve frekans politikası
-              </h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                Child lifecycle penceresi {data.policyPreview.childLifecycleFrequencyWindowHours} saat,
-                saved search penceresi {data.policyPreview.savedSearchFrequencyWindowHours} saat.
-                Gerçek gönderim için delivery log ve idempotency zorunlu.
-              </p>
-            </div>
-            <ul className="grid gap-2 text-sm font-semibold leading-6 text-slate-600 md:grid-cols-2">
-              {data.policyPreview.requiredBeforeSend.map((item) => (
-                <li key={item}>• {item}</li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Channels
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">
-                Kanal durumu
-              </h2>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {data.channels.map((channel) => (
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={channel.key}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong className="text-base font-black text-slate-950">{channel.label}</strong>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-600">
-                      {channel.status === "draft_only" ? "Draft-only" : "Future"}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                    {channel.note}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Next steps
-            </p>
-            <h2 className="text-xl font-black text-slate-950">
-              Gerçek delivery öncesi yapılacaklar
-            </h2>
-            <ul className="grid gap-2 text-sm font-semibold leading-6 text-slate-600 md:grid-cols-2">
-              {data.nextSteps.map((step) => (
-                <li key={step}>• {step}</li>
-              ))}
-            </ul>
-          </section>
-        </>
-      ) : null}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-black text-slate-950">Gerçek delivery öncesi yapılacaklar</h2>
+        <ul className="mt-4 space-y-2 text-sm text-slate-600">
+          {data.nextSteps.map((step) => (
+            <li key={step}>• {step}</li>
+          ))}
+        </ul>
+      </section>
     </main>
   );
 }
 
-function MetricCard({
-  description,
-  label,
-  value
-}: {
-  description: string;
-  label: string;
-  value: string;
-}) {
+function PolicyPill({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <strong className="mt-2 block text-3xl font-black text-slate-950">{value}</strong>
-      <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{description}</p>
+    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
+      {label}: {value}
+    </span>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
     </article>
   );
 }
 
-function PolicyItem({ label, value }: { label: string; value: string }) {
+function Breakdown({
+  title,
+  items,
+  labelKey
+}: {
+  title: string;
+  items: Array<Record<string, string | number>>;
+  labelKey: string;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <span className="text-sm font-black text-slate-700">{label}</span>
-      <strong className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700">
-        {value}
-      </strong>
-    </div>
+    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <h3 className="text-sm font-black text-slate-950">{title}</h3>
+      <div className="mt-3 space-y-2">
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-500">Kayıt yok.</p>
+        ) : (
+          items.map((item) => (
+            <div className="flex justify-between gap-3 text-sm" key={`${String(item[labelKey])}-${String(item.count)}`}>
+              <span className="text-slate-600">{String(item[labelKey])}</span>
+              <strong className="text-slate-950">{String(item.count)}</strong>
+            </div>
+          ))
+        )}
+      </div>
+    </article>
   );
 }

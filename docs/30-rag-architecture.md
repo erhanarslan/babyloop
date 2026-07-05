@@ -569,3 +569,9 @@ The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not sen
 The saved-search delivery candidate pipeline converts saved-search/listing matches into notification delivery candidate logs. It uses `kind=saved_search`, a stable savedSearchId/listingId source id, and the existing `notification_delivery_logs` idempotency key, dedup key, and frequency window foundation.
 
 The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not send email, push, n8n webhooks, queue jobs, or provider calls. `pnpm security:saved-search-delivery` protects this email/push/n8n boundary.
+
+## Notification delivery-log ops preview
+
+Backoffice `GET /api/v1/admin/notifications/ops-preview` now includes a notification delivery-log ops preview. It exposes aggregate counts by status, kind, and channel plus recent rows with redacted source refs.
+
+The preview intentionally excludes metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, and raw body values. It remains an ops visibility surface only and does not enable email/push/n8n senders, queues, provider calls, or delivery transitions. Guard: `pnpm security:notification-ops-preview`.

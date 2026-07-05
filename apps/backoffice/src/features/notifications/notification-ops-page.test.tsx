@@ -1,7 +1,9 @@
+import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { NotificationOpsPage } from "./notification-ops-page";
+
+const apiBaseUrl = "http://api.test";
 
 describe("NotificationOpsPage", () => {
   beforeEach(() => {
@@ -12,16 +14,14 @@ describe("NotificationOpsPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders draft-only ops preview and avoids secret leakage", async () => {
+  it("renders draft-only ops preview, delivery log aggregates, and avoids secret leakage", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           ok: true,
           data: {
             summary: {
-              totalDraftCandidates: 3,
-              childLifecycleCandidates: 1,
-              savedSearchCandidates: 2,
+              status: "draft_only",
               draftOnly: true
             },
             deliveryPolicy: {
@@ -41,40 +41,75 @@ describe("NotificationOpsPage", () => {
                 note: "Preview only"
               }
             ],
-            nextSteps: ["Add delivery log"],
+            nextSteps: ["Add sender transitions"],
             policyPreview: {
               sendEnabled: false,
               draftOnly: true,
               defaultFrequencyWindowHours: 24,
-              childLifecycleFrequencyWindowHours: 72,
+              childLifecycleFrequencyWindowHours: 720,
               savedSearchFrequencyWindowHours: 24,
               requiredBeforeSend: ["Dedup"]
             },
-            warning: "Draft only mode."
+            deliveryLogPreview: {
+              enabled: true,
+              draftOnly: true,
+              totals: {
+                all: 2,
+                candidate: 1,
+                blocked: 1,
+                sent: 0,
+                failed: 0,
+                skipped: 0
+              },
+              byKind: [{ kind: "saved_search", count: 1 }],
+              byChannel: [{ channel: "in_app", count: 1 }],
+              byStatus: [{ status: "candidate", count: 1 }],
+              recent: [
+                {
+                  kind: "saved_search",
+                  sourceType: "saved_search",
+                  sourceRef: "saved…ing-1",
+                  channel: "in_app",
+                  status: "candidate",
+                  deliveryAllowed: false,
+                  draftOnly: true,
+                  blockedReasons: ["delivery_disabled"],
+                  frequencyWindowHours: 24,
+                  createdAt: "2026-07-05T00:00:00.000Z"
+                }
+              ],
+              privacyNote:
+                "Preview yalnızca aggregate count ve redacted sourceRef döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
+            },
+            warning:
+              "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."
           }
         }),
         { status: 200 }
       )
     );
 
-    render(<NotificationOpsPage apiBaseUrl="http://api.test" />);
+    render(<NotificationOpsPage apiBaseUrl={apiBaseUrl} />);
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        "http://api.test/api/v1/admin/notifications/ops-preview",
-        { credentials: "include" }
-      );
+      expect(fetch).toHaveBeenCalledWith(`${apiBaseUrl}/api/v1/admin/notifications/ops-preview`, {
+        credentials: "include"
+      });
     });
+
     expect(await screen.findByText("Notification Ops Preview")).toBeInTheDocument();
-    expect(screen.getByText("Draft-only")).toBeInTheDocument();
-    expect(screen.queryByText(/api[_-]?key/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/password/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Draft-only").length).toBeGreaterThan(0);
+    expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.getAllByText("saved_search").length).toBeGreaterThan(0);
+    expect(screen.getByText("saved_search:saved…ing-1")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/api[_-]?key|password|secret|parent@example|accessToken|refreshToken|secret-idempotency|secret-dedup/iu);
   });
 
   it("renders controlled fetch failures", async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error("network"));
 
-    render(<NotificationOpsPage apiBaseUrl="http://api.test" />);
+    render(<NotificationOpsPage apiBaseUrl={apiBaseUrl} />);
 
     expect(await screen.findByText("Notification ops preview yüklenemedi.")).toBeInTheDocument();
   });
