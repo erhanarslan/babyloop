@@ -309,3 +309,12 @@ Beta can proceed only if:
 - [ ] Notification readiness guards pass.
 - [ ] `security:auth-leaks` and `release:artifacts` pass.
 - [ ] The gate does not enable push sender, n8n workflow, S3/R2 external storage, or autonomous RAG answers.
+
+### Deployment readiness gate
+
+- [ ] `pnpm security:deployment-readiness` passes.
+- [ ] `pnpm beta:critical-smoke` includes deployment readiness gate.
+- [ ] Staging and production environment variables are documented.
+- [ ] Secrets, database migration, rollback, observability, health checks, and manual go/no-go approval are documented.
+- [ ] The gate does not deploy or create cloud resources.
+- [ ] AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, and production database access remain disabled until explicit implementation.

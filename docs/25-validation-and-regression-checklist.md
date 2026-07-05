@@ -703,3 +703,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Full beta critical smoke automation covers assistant safety guard, storage ops preview, mobile real-device S22 QA, notification readiness, `security:auth-leaks`, and `release:artifacts`.
 - [ ] Physical Galaxy S22 QA evidence is still recorded; the command does not replace manual physical Galaxy S22 QA evidence.
 - [ ] The command does not enable push sender, does not enable n8n workflow, does not enable S3/R2 external storage, and does not enable autonomous RAG answers.
+
+### Deployment readiness gate
+
+- [ ] `pnpm security:deployment-readiness` passes.
+- [ ] Deployment readiness gate is included in `pnpm beta:critical-smoke`.
+- [ ] Staging and production environment variables are documented with owner, purpose, rotation plan, service scope, and secret/non-secret classification.
+- [ ] Secrets, database migration, rollback, observability, health checks, and manual go/no-go release approval are documented.
+- [ ] The gate does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access.

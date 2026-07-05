@@ -67,3 +67,9 @@ The command intentionally covers:
 - notification readiness: n8n disabled, push disabled, delivery transitions guarded, ops preview guarded, delivery log guarded
 - auth-leak and release-artifact guards
 - API/backoffice/web/mobile typechecks
+
+## Deployment readiness gate
+
+Full beta critical smoke automation includes `pnpm security:deployment-readiness`.
+
+Deployment readiness gate verifies staging/production readiness documentation for environment variables, secrets, database migration, rollback, observability, health checks, and manual go/no-go approval. It does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, production database access, or autonomous RAG answers.

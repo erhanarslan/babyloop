@@ -64,6 +64,7 @@ function checkRunner() {
     "security:notification-delivery-log",
     "security:auth-leaks",
     "release:artifacts",
+    "security:deployment-readiness",
     "@babyloop/api",
     "@babyloop/backoffice",
     "@babyloop/web",

@@ -15,6 +15,7 @@ const steps = [
   { label: "Notification delivery log guard", command: "pnpm", args: ["security:notification-delivery-log"] },
   { label: "Auth secret leak guard", command: "pnpm", args: ["security:auth-leaks"] },
   { label: "Release artifact guard", command: "pnpm", args: ["release:artifacts"] },
+  { label: "Deployment readiness guard", command: "pnpm", args: ["security:deployment-readiness"] },
   ...(skipTypecheck
     ? []
     : [

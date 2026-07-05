@@ -28,7 +28,7 @@
     "validate": "pnpm preflight && pnpm typecheck && pnpm build && pnpm test",
     "e2e:web:full-flow:guarded": "mkdir -p .e2e-results && WEB_E2E_FULL_FLOW=1 WEB_E2E_BASE_URL=http://localhost:3000 WEB_E2E_API_BASE_URL=http://127.0.0.1:4000 pnpm --filter @babyloop/web exec playwright test --reporter=json --workers=1 > .e2e-results/web-full-flow.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/web-full-flow.json",
     "e2e:backoffice:guarded": "mkdir -p .e2e-results && BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test --reporter=json --workers=1 > .e2e-results/backoffice.json && node scripts/assert-playwright-no-skips.mjs .e2e-results/backoffice.json",
-    "test:api:security": "node scripts/run-api-test-bundle.mjs security && pnpm security:auth-leaks && pnpm security:image-storage && pnpm security:upload-storage-boundary && pnpm security:image-authenticity && pnpm security:cross-listing-duplicates && pnpm security:notification-delivery-log && pnpm security:child-reminder-delivery && pnpm security:saved-search-delivery && pnpm security:notification-ops-preview && pnpm security:notification-delivery-transitions && pnpm security:notification-push-readiness && pnpm security:notification-n8n-readiness && pnpm security:storage-ops-preview && pnpm security:assistant-safety-guard && pnpm security:beta-critical-smoke",
+    "test:api:security": "node scripts/run-api-test-bundle.mjs security && pnpm security:auth-leaks && pnpm security:image-storage && pnpm security:upload-storage-boundary && pnpm security:image-authenticity && pnpm security:cross-listing-duplicates && pnpm security:notification-delivery-log && pnpm security:child-reminder-delivery && pnpm security:saved-search-delivery && pnpm security:notification-ops-preview && pnpm security:notification-delivery-transitions && pnpm security:notification-push-readiness && pnpm security:notification-n8n-readiness && pnpm security:storage-ops-preview && pnpm security:assistant-safety-guard && pnpm security:beta-critical-smoke && pnpm security:deployment-readiness",
     "test:api:trust": "node scripts/run-api-test-bundle.mjs trust",
     "test:api:backoffice": "node scripts/run-api-test-bundle.mjs backoffice",
     "test:api:marketplace": "node scripts/run-api-test-bundle.mjs marketplace",
@@ -73,7 +73,8 @@
     "security:storage-ops-preview": "node scripts/check-storage-ops-preview-boundary.mjs",
     "security:assistant-safety-guard": "node scripts/check-assistant-safety-guard-boundary.mjs",
     "beta:critical-smoke": "node scripts/run-beta-critical-smoke.mjs",
-    "security:beta-critical-smoke": "node scripts/check-beta-critical-smoke-boundary.mjs"
+    "security:beta-critical-smoke": "node scripts/check-beta-critical-smoke-boundary.mjs",
+    "security:deployment-readiness": "node scripts/check-deployment-readiness-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

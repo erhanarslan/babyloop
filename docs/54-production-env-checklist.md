@@ -351,3 +351,11 @@ Production/beta readiness requires `pnpm security:beta-critical-smoke` and `pnpm
 Full beta critical smoke automation collects assistant safety guard, storage ops preview, mobile real-device S22 QA, notification readiness, `security:auth-leaks`, `release:artifacts`, and API/backoffice/web/mobile typechecks. It does not replace manual physical Galaxy S22 QA evidence.
 
 The gate must not enable push sender, n8n workflow, S3/R2 external storage, autonomous RAG answers, provider calls, webhook calls, queue workers, or production secrets.
+
+## Deployment readiness gate
+
+Production/beta readiness requires `pnpm security:deployment-readiness` and `pnpm beta:critical-smoke` to pass.
+
+Deployment readiness gate covers staging and production environment variables, secrets, database migration, rollback, observability, health checks, CORS/cookie/CSRF environment configuration, and manual go/no-go approval.
+
+This gate does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access. Staging/prod deploy remains blocked until explicit implementation.
