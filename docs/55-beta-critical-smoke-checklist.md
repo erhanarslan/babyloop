@@ -223,3 +223,12 @@ Beta can proceed only if:
 - [ ] Candidate log metadata is safe and does not contain raw e-mail, token, OTP, password, cookie, authorization, or raw body values.
 - [ ] The delivery-log foundation keeps `deliveryAllowed=false` and `draftOnly=true`.
 - [ ] No email/push/n8n sender is enabled by this foundation.
+
+### Child reminder delivery candidate pipeline
+
+- [ ] `pnpm security:child-reminder-delivery` passes.
+- [ ] Scheduled reminders create candidate log records only; completed/cancelled reminders are skipped.
+- [ ] Child reminder candidates use `kind=child_reminder`.
+- [ ] The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`.
+- [ ] Metadata stays safe and does not include raw child description, e-mail, token, OTP, password, cookie, authorization, or raw body values.
+- [ ] No email/push/n8n sender is enabled by this pipeline.

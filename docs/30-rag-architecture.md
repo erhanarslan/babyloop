@@ -557,3 +557,9 @@ This is a draft-only/email/push/n8n boundary. Mobile UI and API tests may show n
 `notification_delivery_logs` is the persistence foundation for the notification delivery pipeline. It records candidate delivery attempts with a unique idempotency key, dedup key, frequency window metadata, `deliveryAllowed=false`, and `draftOnly=true`.
 
 This is still not a sender. The foundation only makes duplicate/frequency/idempotency behavior testable before email, push, queue, or n8n delivery is connected. `pnpm security:notification-delivery-log` protects this boundary.
+
+## Child reminder delivery candidate pipeline
+
+The child reminder delivery candidate pipeline converts scheduled child reminders into notification delivery candidate logs. It uses `kind=child_reminder`, the existing `notification_delivery_logs` idempotency key, dedup key, and frequency window foundation.
+
+The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not send email, push, n8n webhooks, queue jobs, or provider calls. `pnpm security:child-reminder-delivery` protects this email/push/n8n boundary.

@@ -169,6 +169,13 @@
       "when": 1783208511269,
       "tag": "0023_notification_delivery_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1783209521786,
+      "tag": "0024_notification_delivery_child_reminder_kind",
+      "breakpoints": true
     }
   ]
 }

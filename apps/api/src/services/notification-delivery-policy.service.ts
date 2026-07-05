@@ -1,4 +1,4 @@
-export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search";
+export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search" | "child_reminder";
 export type NotificationDeliveryChannel = "in_app" | "email_draft";
 
 export type NotificationDeliveryPolicyInput = {
@@ -95,6 +95,10 @@ function resolveFrequencyWindowHours(input: NotificationDeliveryPolicyInput): nu
     }
 
     return CHILD_LIFECYCLE_FREQUENCY_WINDOW_HOURS;
+  }
+
+  if (input.kind === "child_reminder") {
+    return 24;
   }
 
   if (input.kind === "saved_search") {

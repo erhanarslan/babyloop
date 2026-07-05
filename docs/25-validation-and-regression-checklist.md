@@ -607,3 +607,14 @@ http://localhost:3001/moderation
 - [ ] Frequency window checks block duplicate candidate writes before a real sender is connected.
 - [ ] Metadata sanitation drops raw e-mail, phone, token, password, cookie, OTP, raw body, and authorization fields.
 - [ ] Real email/push/n8n delivery remains disabled until sender integration, retry policy, admin audit, and delivery-result transitions are implemented.
+
+### Child reminder delivery candidate pipeline
+
+- [ ] `pnpm security:child-reminder-delivery` passes.
+- [ ] `pnpm --filter @babyloop/api test test/child-reminder-delivery-candidates.service.test.ts test/notification-delivery-log.service.test.ts test/notification-delivery-policy.service.test.ts` passes.
+- [ ] Scheduled child reminders can be converted into `notification_delivery_logs` candidate records.
+- [ ] Completed/cancelled reminders are skipped and do not create delivery candidates.
+- [ ] Candidate records keep `deliveryAllowed=false` and `draftOnly=true`.
+- [ ] Duplicate candidate creation is blocked by the frequency window/idempotency boundary.
+- [ ] Metadata does not persist raw e-mail, token, OTP, password, cookie, authorization, raw body, or child free-text description values.
+- [ ] This package does not enable email/push/n8n senders.

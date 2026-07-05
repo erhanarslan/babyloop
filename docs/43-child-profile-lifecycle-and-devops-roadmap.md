@@ -74,3 +74,9 @@ Full DevOps/deployment/observability is important but should be finalized near t
 - incident runbooks,
 - cost monitoring,
 - release smoke pipeline.
+
+## Child reminder delivery candidate pipeline
+
+Child reminders now have a candidate pipeline target: scheduled reminders can be represented as `notification_delivery_logs` candidate records with `kind=child_reminder`.
+
+This is not real delivery yet. It keeps `deliveryAllowed=false` and `draftOnly=true`, applies frequency window/idempotency boundaries, and avoids email/push/n8n sender integration until retry, audit, and provider-specific result transitions are implemented. Guard: `pnpm security:child-reminder-delivery`.
