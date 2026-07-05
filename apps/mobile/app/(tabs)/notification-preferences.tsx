@@ -8,36 +8,20 @@ import {
   type MobileChildProfile,
   type MobileChildProfileNotificationCadence
 } from "../../src/features/child/child-reminders-api";
-import {
-  formatCadence,
-  getMobileChildReminderSettings
-} from "../../src/features/child/child-reminders-model";
+import { getMobileChildReminderSettings } from "../../src/features/child/child-reminders-model";
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
-
-const cadenceOptions: Array<{
-  cadence: MobileChildProfileNotificationCadence;
-  title: string;
-  description: string;
-}> = [
-  {
-    cadence: "monthly",
-    title: "Aylık",
-    description: "Çocuğun yaş dönemine göre pratik ürün ihtiyacı taslakları."
-  },
-  {
-    cadence: "yearly",
-    title: "Yıllık",
-    description: "Daha seyrek, büyük dönem geçişleri için öneri taslakları."
-  },
-  {
-    cadence: "off",
-    title: "Kapalı",
-    description: "Çocuk profili öneri bildirimlerini durdurur."
-  }
-];
+import {
+  canUpdateMobileNotificationCadence,
+  getMobileNotificationCadenceUpdateMessage,
+  getMobileNotificationPreferenceDeliveryBoundaryText,
+  getMobileNotificationPreferenceProfileLabel,
+  getPreferredMobileNotificationChildProfile,
+  isMobileNotificationCadenceSelected,
+  mobileNotificationPreferenceCadenceOptions
+} from "../../src/features/notifications/notification-preferences-model";
 
 export default function NotificationPreferencesRoute() {
   const authSession = useAuthSession();
@@ -69,11 +53,7 @@ export default function NotificationPreferencesRoute() {
       return;
     }
 
-    setChildProfile(
-      response.data.childProfiles.find((profile) => profile.isActive)
-        ?? response.data.childProfiles[0]
-        ?? null
-    );
+    setChildProfile(getPreferredMobileNotificationChildProfile(response.data.childProfiles));
     setIsLoading(false);
   }, [currentUser]);
 
@@ -82,7 +62,7 @@ export default function NotificationPreferencesRoute() {
   }, [loadChildProfile]);
 
   const handleCadenceUpdate = useCallback(async (cadence: MobileChildProfileNotificationCadence) => {
-    if (!childProfile || isUpdating) {
+    if (!canUpdateMobileNotificationCadence(childProfile, isUpdating)) {
       return;
     }
 
@@ -97,7 +77,7 @@ export default function NotificationPreferencesRoute() {
       setMessage(response.error.message);
     } else {
       setChildProfile(response.data.childProfile);
-      setMessage(`Bildirim sıklığı ${formatCadence(cadence).toLowerCase()} olarak güncellendi.`);
+      setMessage(getMobileNotificationCadenceUpdateMessage(cadence));
     }
 
     setIsUpdating(false);
@@ -120,10 +100,10 @@ export default function NotificationPreferencesRoute() {
       <MobileCard style={styles.heroCard}>
         <Text style={styles.heroTitle}>Çocuk notları için bildirimler</Text>
         <Text style={styles.heroText}>
-          Bu ekran gerçek push gönderimi yapmaz; çocuk profili öneri sıklığını ve uygulama içi hatırlatıcı durumunu yönetir.
+          {getMobileNotificationPreferenceDeliveryBoundaryText()}
         </Text>
         <Text style={styles.metaText}>
-          {isLoading ? "Yükleniyor..." : childProfile ? `Aktif profil: ${childProfile.label}` : "Aktif çocuk profili yok"}
+          {getMobileNotificationPreferenceProfileLabel({ isLoading, childProfile })}
         </Text>
       </MobileCard>
 
@@ -145,7 +125,7 @@ export default function NotificationPreferencesRoute() {
 
       <MobileCard style={styles.heroCard}>
         <Text style={styles.sectionTitle}>Öneri sıklığı</Text>
-        {cadenceOptions.map((option) => (
+        {mobileNotificationPreferenceCadenceOptions.map((option) => (
           <View key={option.cadence} style={styles.cadenceRow}>
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>{option.title}</Text>
@@ -153,7 +133,8 @@ export default function NotificationPreferencesRoute() {
             </View>
             <MobileButton
               onPress={() => void handleCadenceUpdate(option.cadence)}
-              variant={childProfile?.notificationCadence === option.cadence ? "secondary" : "ghost"}
+              disabled={!canUpdateMobileNotificationCadence(childProfile, isUpdating)}
+              variant={isMobileNotificationCadenceSelected(childProfile, option.cadence) ? "secondary" : "ghost"}
             >
               Seç
             </MobileButton>

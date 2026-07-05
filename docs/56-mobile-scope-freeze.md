@@ -127,3 +127,5 @@ Scope excluded until a later delivery package:
 - delivery logs and send audit.
 
 This keeps the surface useful without claiming email/push/n8n delivery before the delivery-log/idempotency foundation exists.
+
+- Mobile notification preference screen-state model keeps child profile cadence selection, draft-only copy, and no-real-delivery boundaries testable without Maestro.

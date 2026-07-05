@@ -375,3 +375,5 @@ Beta can proceed only if:
 - [ ] Backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, and manual QA evidence are documented.
 - [ ] Raw contact logging remains disabled.
 - [ ] Manual QA evidence is required before beta release.
+
+- Mobile notification preference screen-state QA must pass through `pnpm test:mobile:p0` and `pnpm security:mobile-notifications`; it does not require Maestro/device execution.

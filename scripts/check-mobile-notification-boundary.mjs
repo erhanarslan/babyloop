@@ -8,6 +8,9 @@ const requiredFiles = [
   "apps/mobile/src/features/notifications/notifications-model.ts",
   "apps/mobile/src/features/notifications/notifications-model.test.ts",
   "apps/mobile/src/features/notifications/notifications-screen.tsx",
+  "apps/mobile/src/features/notifications/notification-preferences-model.test.ts",
+  "apps/mobile/src/features/notifications/notification-preferences-model.ts",
+  "apps/mobile/app/(tabs)/notification-preferences.tsx",
   "apps/mobile/src/features/child/child-reminders-api.ts",
   "apps/mobile/src/features/child/child-reminders-api.test.ts",
   "apps/mobile/src/features/child/child-reminders-model.ts",
@@ -62,6 +65,7 @@ if (problems.length === 0) {
   checkMobileNotificationApi();
   checkMobileNotificationModelAndScreen();
   checkMobileChildNotificationPreferences();
+  checkMobileNotificationPreferenceScreenBoundary();
   checkApiDeliveryPolicyBoundary();
   checkPackageGate();
   checkDocs();
@@ -217,6 +221,69 @@ function checkMobileChildNotificationPreferences() {
     "notificationCadence: \"monthly\""
   ]) {
     mustContain(modelTests, modelTestFile, token);
+  }
+}
+
+
+function checkMobileNotificationPreferenceScreenBoundary() {
+  const routeFile = "apps/mobile/app/(tabs)/notification-preferences.tsx";
+  const modelFile = "apps/mobile/src/features/notifications/notification-preferences-model.ts";
+  const testFile = "apps/mobile/src/features/notifications/notification-preferences-model.test.ts";
+
+  const route = read(routeFile);
+  const model = read(modelFile);
+  const tests = read(testFile);
+
+  for (const token of [
+    "mobileNotificationPreferenceCadenceOptions",
+    "getPreferredMobileNotificationChildProfile",
+    "getMobileNotificationCadenceUpdateMessage",
+    "getMobileNotificationPreferenceDeliveryBoundaryText",
+    "getMobileNotificationPreferenceProfileLabel",
+    "canUpdateMobileNotificationCadence",
+    "isMobileNotificationCadenceSelected"
+  ]) {
+    mustContain(route, routeFile, token);
+  }
+
+  for (const token of [
+    "mobileNotificationPreferenceCadenceOptions",
+    "getPreferredMobileNotificationChildProfile",
+    "getMobileNotificationPreferenceDeliveryBoundaryText",
+    "getMobileNotificationCadenceUpdateMessage",
+    "canUpdateMobileNotificationCadence",
+    "isMobileNotificationCadenceSelected"
+  ]) {
+    mustContain(model, modelFile, token);
+  }
+
+  for (const token of [
+    "selects the active child profile and falls back safely",
+    "keeps cadence options explicit and draft-only",
+    "builds privacy-safe delivery and profile labels",
+    "formats cadence update messages without claiming real delivery",
+    "guards cadence updates while loading or without a child profile",
+    "not.toMatch(/accessToken|refreshToken|passwordHash|email@|phone|rawContact/iu"
+  ]) {
+    mustContain(tests, testFile, token);
+  }
+
+  for (const forbidden of [
+    "expo-notifications",
+    "getExpoPushTokenAsync",
+    "sendPush",
+    "sendEmail",
+    "n8n çalıştı",
+    "accessToken=",
+    "refreshToken=",
+    "passwordHash",
+    "console.log",
+    "@react-native-async-storage/async-storage",
+    "localStorage",
+    "sessionStorage"
+  ]) {
+    mustNotContain(route, routeFile, forbidden);
+    mustNotContain(model, modelFile, forbidden);
   }
 }
 

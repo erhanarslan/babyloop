@@ -768,3 +768,5 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, and manual QA evidence are documented.
 - [ ] Raw contact logging remains disabled.
 - [ ] The gate does not enable real sending, provider calls, queue jobs, or webhook calls.
+
+- Mobile notification preference screen-state QA: `src/features/notifications/notification-preferences-model.test.ts` covers active child profile selection, cadence options, update eligibility, safe success copy, and the no-real-push/email/n8n boundary.
