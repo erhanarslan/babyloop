@@ -675,3 +675,12 @@ http://localhost:3001/moderation
 - [ ] Android bottom tab behavior is checked with navigation buttons/gesture bar hidden and visible.
 - [ ] Push sender disabled and n8n workflow disabled readiness copy is verified on mobile/backoffice.
 - [ ] No access token, refresh token, OTP, cookie, password, email, phone, or raw message body appears in UI/debug logs.
+
+### Storage ops preview
+
+- [ ] `pnpm security:storage-ops-preview` passes.
+- [ ] `pnpm --filter @babyloop/api test test/admin-storage-ops-preview.service.test.ts` passes.
+- [ ] `pnpm --filter @babyloop/backoffice test src/features/storage/storage-ops-page.test.tsx` passes.
+- [ ] Backoffice storage ops preview shows external storage provider disabled.
+- [ ] S3/R2 provider, signed upload, bucket delete, object copy, CDN purge, and queue worker remain disabled.
+- [ ] Storage preview does not expose object keys, bucket credentials, signed URLs, access tokens, cookies, raw upload body, EXIF metadata, email, phone, or user contact data.

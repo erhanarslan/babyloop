@@ -337,3 +337,9 @@ Production readiness requires n8n workflow readiness to remain blocked until web
 Production readiness requires a physical Galaxy S22 QA pass before beta. `pnpm qa:mobile:s22` must pass and `docs/56-mobile-real-device-s22-qa-checklist.md` must be completed.
 
 The run must cover OTP/MFA, auth/session, browse/listing detail, sell listing with camera/gallery upload, favorites, messaging/realtime reconnect, reports/block, child profile/reminder entry points, Android bottom tab safe-area behavior, and privacy/log leakage. Push sender disabled and n8n workflow disabled copy must remain accurate until real senders are implemented.
+
+## Storage ops preview
+
+Production readiness requires storage ops preview to remain local-only until provider selection, private bucket policy, signed upload contract, EXIF stripping, lifecycle cleanup, admin audit, CDN cache policy, and local-to-object-storage migration replay plan exist.
+
+`pnpm security:storage-ops-preview` must pass before release smoke. External storage provider disabled must remain true until real S3/R2 rollout is explicitly implemented. Signed upload, bucket delete, object copy, CDN purge, and queue worker must stay disabled in this preview.

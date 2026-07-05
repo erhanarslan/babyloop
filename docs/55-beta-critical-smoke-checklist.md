@@ -283,3 +283,10 @@ Beta can proceed only if:
 - [ ] Android bottom tab safe-area behavior passes.
 - [ ] Push sender disabled and n8n workflow disabled copy remains accurate.
 - [ ] No token/cookie/OTP/password/email/phone/raw body leakage is observed.
+
+### Storage ops preview
+
+- [ ] `pnpm security:storage-ops-preview` passes.
+- [ ] Backoffice storage ops preview shows external storage provider disabled.
+- [ ] S3/R2 provider, signed upload, bucket delete, object copy, CDN purge, and queue worker remain disabled.
+- [ ] Storage preview does not expose object keys, bucket credentials, signed URLs, tokens, cookies, raw upload body, EXIF metadata, email, or phone.

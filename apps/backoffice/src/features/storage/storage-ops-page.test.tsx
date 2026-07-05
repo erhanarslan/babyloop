@@ -1,60 +1,98 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { StorageOpsPage } from "./storage-ops-page";
 
+const fetchMock = vi.fn();
+
+global.fetch = fetchMock;
+
 describe("StorageOpsPage", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
-  });
-
   afterEach(() => {
-    vi.unstubAllGlobals();
+    fetchMock.mockReset();
   });
 
-  it("renders ops preview and uses credentialed requests without leaking secrets", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          data: {
-            imageStorage: {
-              driver: "local",
-              localFallback: true,
-              publicBaseUrl: null,
-              s3Configured: false
-            },
-            uploadRoute: {
-              localRouteEnabled: true,
-              routePrefix: "/api/v1/uploads/listings",
-              note: "Local route active"
-            },
-            warning: "Local storage is for development only."
-          }
-        }),
-        { status: 200 }
-      )
-    );
-
-    render(<StorageOpsPage apiBaseUrl="http://api.test" />);
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        "http://api.test/api/v1/admin/storage/ops-preview",
-        { credentials: "include" }
-      );
+  it("renders local-only storage ops preview without enabling external storage", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: {
+          status: "local_only",
+          localStorageEnabled: true,
+          externalStorageEnabled: false,
+          storageProviderConfigured: false,
+          s3Enabled: false,
+          r2Enabled: false,
+          signedUploadEnabled: false,
+          publicBucketEnabled: false,
+          cdnPurgeEnabled: false,
+          queueEnabled: false,
+          imageSafetyRequired: true,
+          moderationQuarantineRequired: true,
+          maxListingImages: 5,
+          allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+          blockedOperations: [
+            "s3_upload",
+            "r2_upload",
+            "signed_upload",
+            "bucket_delete",
+            "object_copy",
+            "cdn_purge",
+            "queue_worker"
+          ],
+          requirements: [
+            {
+              key: "signed_upload_contract",
+              label: "Signed upload/download URL contract",
+              status: "missing",
+              requiredBeforeExternalStorage: true
+            }
+          ],
+          migrationStages: [
+            {
+              stage: "sandbox",
+              status: "blocked",
+              note: "Sandbox bucket/provider tests required."
+            }
+          ],
+          privacyNote:
+            "Storage ops preview never exposes object keys, bucket credentials, signed URLs, access tokens, cookies, raw upload body, EXIF metadata or user contact data.",
+          warning:
+            "Storage ops preview is local-only readiness metadata; no S3/R2 provider call, signed upload, bucket delete, object copy, CDN purge, queue worker or external storage mutation is enabled."
+        }
+      })
     });
-    expect(await screen.findByText("Storage Ops Preview")).toBeInTheDocument();
-    expect(screen.getByText("LOCAL")).toBeInTheDocument();
-    expect(screen.queryByText("AKIA_TEST_SECRET")).not.toBeInTheDocument();
-    expect(screen.queryByText("admin-password")).not.toBeInTheDocument();
+
+    render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
+
+    expect(await screen.findByText("Required before external storage")).toBeInTheDocument();
+    expect(screen.getAllByText("Storage Ops Preview").length).toBeGreaterThan(0);
+    expect(screen.getByText(/External storage provider disabled/iu)).toBeInTheDocument();
+    expect(screen.getByText(/S3\/R2, signed upload, bucket delete/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("S3/R2, signed upload, bucket delete");
+    expect(screen.getByText("Required before external storage")).toBeInTheDocument();
+    expect(screen.getByText("Signed upload/download URL contract")).toBeInTheDocument();
+    expect(screen.getByText("queue_worker")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/AWS_SECRET_ACCESS_KEY_VALUE|S3_BUCKET_NAME_SECRET|R2_ACCESS_KEY_SECRET|signed-url-secret-value|presigned-post-secret-value|raw-upload-body-secret-value|gps-location-secret-value/iu);
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/v1/admin/storage/ops-preview", {
+      credentials: "include",
+      headers: {
+        Accept: "application/json"
+      }
+    });
   });
 
   it("renders controlled fetch failures", async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("network"));
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({})
+    });
 
-    render(<StorageOpsPage apiBaseUrl="http://api.test" />);
+    render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
 
-    expect(await screen.findByText("Storage ops preview yüklenemedi.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Storage ops preview failed: 403/iu)).toBeInTheDocument();
+    });
   });
 });

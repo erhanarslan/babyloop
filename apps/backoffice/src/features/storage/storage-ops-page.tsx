@@ -3,63 +3,64 @@
 import { useEffect, useState } from "react";
 
 type AdminStorageOpsPreview = {
-  imageStorage: {
-    driver: "local" | "s3";
-    localFallback: boolean;
-    publicBaseUrl: string | null;
-    s3Configured: boolean;
-  };
-  uploadRoute: {
-    localRouteEnabled: true;
-    routePrefix: "/api/v1/uploads/listings";
-    note: string;
-  };
+  status: string;
+  localStorageEnabled: true;
+  externalStorageEnabled: false;
+  storageProviderConfigured: false;
+  s3Enabled: false;
+  r2Enabled: false;
+  signedUploadEnabled: false;
+  publicBucketEnabled: false;
+  cdnPurgeEnabled: false;
+  queueEnabled: false;
+  imageSafetyRequired: true;
+  moderationQuarantineRequired: true;
+  maxListingImages: number;
+  allowedMimeTypes: string[];
+  blockedOperations: string[];
+  requirements: Array<{ key: string; label: string; status: string; requiredBeforeExternalStorage: true }>;
+  migrationStages: Array<{ stage: string; status: string; note: string }>;
+  privacyNote: string;
   warning: string;
 };
 
-type ApiResponse<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: { code: string; message: string } };
-
-type StorageOpsPageProps = {
-  apiBaseUrl: string;
+type ApiResponse<T> = {
+  data?: T;
+  error?: { message?: string };
 };
 
-export function StorageOpsPage({ apiBaseUrl }: StorageOpsPageProps) {
+export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [data, setData] = useState<AdminStorageOpsPreview | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     async function loadPreview() {
-      setIsLoading(true);
-      setErrorMessage(null);
-
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/admin/storage/ops-preview`, {
-          credentials: "include"
+          credentials: "include",
+          headers: {
+            Accept: "application/json"
+          }
         });
+
+        if (!response.ok) {
+          throw new Error(`Storage ops preview failed: ${response.status}`);
+        }
+
         const payload = (await response.json()) as ApiResponse<AdminStorageOpsPreview>;
-
-        if (!isMounted) return;
-
-        if (!payload.ok) {
-          setErrorMessage(payload.error.message);
-          setData(null);
-          return;
+        if (!payload.data) {
+          throw new Error(payload.error?.message ?? "Storage ops preview payload is missing.");
         }
 
-        setData(payload.data);
-      } catch {
-        if (isMounted) {
-          setErrorMessage("Storage ops preview yüklenemedi.");
-          setData(null);
+        if (mounted) {
+          setData(payload.data);
+          setError(null);
         }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+      } catch (cause) {
+        if (mounted) {
+          setError(cause instanceof Error ? cause.message : "Storage ops preview yüklenemedi.");
         }
       }
     }
@@ -67,140 +68,98 @@ export function StorageOpsPage({ apiBaseUrl }: StorageOpsPageProps) {
     void loadPreview();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, [apiBaseUrl]);
 
+  if (error) {
+    return (
+      <main className="mx-auto max-w-5xl p-8">
+        <section className="rounded-3xl border border-red-200 bg-red-50 p-6">
+          <h1 className="text-2xl font-black text-red-950">Storage Ops Preview</h1>
+          <p className="mt-2 text-sm text-red-700">{error}</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="mx-auto max-w-5xl p-8">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6">
+          <h1 className="text-2xl font-black text-slate-950">Storage Ops Preview</h1>
+          <p className="mt-2 text-sm text-slate-600">Storage ops preview yükleniyor…</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8">
-      <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Marketplace Ops
+    <main className="mx-auto max-w-6xl space-y-8 p-8">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Storage operations</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-950">Storage Ops Preview</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          Local-only storage readiness görünürlüğü. External storage provider disabled; S3/R2, signed upload, bucket delete,
+          object copy, CDN purge ve queue worker kapalı.
         </p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-          Storage Ops Preview
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-          İlan görsel storage driver durumunu güvenli şekilde izle. Bu ekran credential, secret veya raw image binary göstermez.
-        </p>
-      </header>
+        <p className="mt-2 text-xs text-slate-500">{data.warning}</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard label="Local storage" value={data.localStorageEnabled ? 1 : 0} />
+          <SummaryCard label="External storage" value={data.externalStorageEnabled ? 1 : 0} />
+          <SummaryCard label="Signed upload" value={data.signedUploadEnabled ? 1 : 0} />
+          <SummaryCard label="Queue worker" value={data.queueEnabled ? 1 : 0} />
+        </div>
+      </section>
 
-      {isLoading ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-600">
-          Storage ops preview yükleniyor...
-        </section>
-      ) : null}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-black text-slate-950">Required before external storage</h2>
+          <div className="mt-4 space-y-2 text-sm text-slate-600">
+            {data.requirements.map((requirement) => (
+              <div className="flex justify-between gap-3" key={requirement.key}>
+                <span>{requirement.label}</span>
+                <strong className="text-slate-950">{requirement.status}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
 
-      {errorMessage ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
-          {errorMessage}
-        </section>
-      ) : null}
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-black text-slate-950">Migration stages</h2>
+          <div className="mt-4 space-y-4 text-sm text-slate-600">
+            {data.migrationStages.map((stage) => (
+              <div key={stage.stage}>
+                <strong className="text-slate-950">
+                  {stage.stage}: {stage.status}
+                </strong>
+                <p className="mt-1">{stage.note}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
 
-      {data ? (
-        <>
-          <section className="grid gap-4 md:grid-cols-3">
-            <MetricCard
-              label="Driver"
-              value={data.imageStorage.driver.toUpperCase()}
-              description={data.imageStorage.driver === "local" ? "Local upload route aktif." : "S3/R2 public URL modu."}
-            />
-            <MetricCard
-              label="S3 configured"
-              value={data.imageStorage.s3Configured ? "Evet" : "Hayır"}
-              description="Credential gösterilmez; sadece eksiksiz config durumu."
-            />
-            <MetricCard
-              label="Local fallback"
-              value={data.imageStorage.localFallback ? "Açık" : "Kapalı"}
-              description="Env yoksa local driver ile mevcut davranış korunur."
-            />
-          </section>
-
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Image storage
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">
-                Aktif görsel saklama modu
-              </h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                {data.warning}
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <PolicyItem label="Driver" value={data.imageStorage.driver} />
-              <PolicyItem label="Public base URL" value={data.imageStorage.publicBaseUrl ?? "local route"} />
-              <PolicyItem label="S3/R2 configured" value={data.imageStorage.s3Configured ? "configured" : "not configured"} />
-              <PolicyItem label="Local fallback" value={data.imageStorage.localFallback ? "enabled" : "disabled"} />
-            </div>
-          </section>
-
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Upload route
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950">
-                Local upload route boundary
-              </h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                {data.uploadRoute.note}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                Route prefix
-              </p>
-              <code className="mt-2 block overflow-x-auto rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-800">
-                {data.uploadRoute.routePrefix}
-              </code>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
-            <h2 className="text-xl font-black text-amber-950">
-              Production notu
-            </h2>
-            <p className="mt-2 text-sm font-bold leading-6 text-amber-900">
-              Production ortamında local driver kalıcı storage değildir. Beta deploy öncesi S3/R2 bucket,
-              public CDN domain ve secret yönetimi env üzerinden tamamlanmalıdır.
-            </p>
-          </section>
-        </>
-      ) : null}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-black text-slate-950">Privacy and blocked operations</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{data.privacyNote}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {data.blockedOperations.map((operation) => (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700" key={operation}>
+              {operation}
+            </span>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
 
-function MetricCard({
-  description,
-  label,
-  value
-}: {
-  description: string;
-  label: string;
-  value: string;
-}) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <strong className="mt-2 block text-3xl font-black text-slate-950">{value}</strong>
-      <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{description}</p>
+    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
     </article>
-  );
-}
-
-function PolicyItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <span className="text-sm font-black text-slate-700">{label}</span>
-      <strong className="max-w-[70%] truncate rounded-full bg-white px-3 py-1 text-xs font-black text-slate-700">
-        {value}
-      </strong>
-    </div>
   );
 }
