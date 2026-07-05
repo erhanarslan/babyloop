@@ -618,3 +618,14 @@ http://localhost:3001/moderation
 - [ ] Duplicate candidate creation is blocked by the frequency window/idempotency boundary.
 - [ ] Metadata does not persist raw e-mail, token, OTP, password, cookie, authorization, raw body, or child free-text description values.
 - [ ] This package does not enable email/push/n8n senders.
+
+### Saved-search delivery candidate pipeline
+
+- [ ] `pnpm security:saved-search-delivery` passes.
+- [ ] `pnpm --filter @babyloop/api test test/saved-search-delivery-candidates.service.test.ts test/notification-delivery-log.service.test.ts test/notification-delivery-policy.service.test.ts` passes.
+- [ ] Saved-search/listing matches can be converted into `notification_delivery_logs` candidate records.
+- [ ] Candidate records use a stable savedSearchId/listingId source id.
+- [ ] Candidate records keep `deliveryAllowed=false` and `draftOnly=true`.
+- [ ] Duplicate candidate creation is blocked by the frequency window/idempotency boundary.
+- [ ] Metadata does not persist raw e-mail, token, OTP, password, cookie, authorization, raw body, or unsafe saved-search/listing text.
+- [ ] This package does not enable email/push/n8n senders.

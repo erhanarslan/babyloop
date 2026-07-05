@@ -232,3 +232,12 @@ Beta can proceed only if:
 - [ ] The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`.
 - [ ] Metadata stays safe and does not include raw child description, e-mail, token, OTP, password, cookie, authorization, or raw body values.
 - [ ] No email/push/n8n sender is enabled by this pipeline.
+
+### Saved-search delivery candidate pipeline
+
+- [ ] `pnpm security:saved-search-delivery` passes.
+- [ ] Saved-search/listing matches create candidate log records only.
+- [ ] Candidate source ids remain stable across savedSearchId/listingId pairs.
+- [ ] The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`.
+- [ ] Metadata stays safe and does not include raw e-mail, token, OTP, password, cookie, authorization, or raw body values.
+- [ ] No email/push/n8n sender is enabled by this pipeline.

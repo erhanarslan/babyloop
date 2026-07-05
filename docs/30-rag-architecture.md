@@ -563,3 +563,9 @@ This is still not a sender. The foundation only makes duplicate/frequency/idempo
 The child reminder delivery candidate pipeline converts scheduled child reminders into notification delivery candidate logs. It uses `kind=child_reminder`, the existing `notification_delivery_logs` idempotency key, dedup key, and frequency window foundation.
 
 The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not send email, push, n8n webhooks, queue jobs, or provider calls. `pnpm security:child-reminder-delivery` protects this email/push/n8n boundary.
+
+## Saved-search delivery candidate pipeline
+
+The saved-search delivery candidate pipeline converts saved-search/listing matches into notification delivery candidate logs. It uses `kind=saved_search`, a stable savedSearchId/listingId source id, and the existing `notification_delivery_logs` idempotency key, dedup key, and frequency window foundation.
+
+The pipeline keeps `deliveryAllowed=false` and `draftOnly=true`. It does not send email, push, n8n webhooks, queue jobs, or provider calls. `pnpm security:saved-search-delivery` protects this email/push/n8n boundary.

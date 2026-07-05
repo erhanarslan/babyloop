@@ -165,3 +165,9 @@ Backoffice notification ops preview, assistant/personalization tarafında üreti
 ## Notification delivery policy boundary
 
 Assistant ve notification preference yüzeyleri notification draft gösterebilir; policy katmanı ise gönderimi bilinçli şekilde kapalı tutar. Dedup/frequency metadata yalnızca sonraki delivery provider entegrasyonu için hazırlıktır; tool veya UI seviyesinde email/push/n8n gönderimi yapılmaz.
+
+## Saved-search delivery candidate pipeline
+
+Saved-search notification matches now have a candidate-log boundary. The delivery candidate service prepares `notification_delivery_logs` records with `kind=saved_search`, stable savedSearchId/listingId source ids, idempotency, and frequency-window metadata.
+
+This remains separate from real delivery. Tooling, assistant surfaces, and notification preferences must keep `deliveryAllowed=false` and `draftOnly=true`; no email/push/n8n provider call is allowed before sender transitions, retry policy, admin audit, and ops visibility are implemented. Guard: `pnpm security:saved-search-delivery`.
