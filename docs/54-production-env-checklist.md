@@ -391,3 +391,11 @@ Production/beta readiness requires `pnpm security:notification-consent-preferenc
 Notification consent/preference policy covers consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze windows, source/channel scopes, privacy boundaries, and raw contact logging.
 
 This gate does not enable real email sending, real push sending, real n8n workflow triggering, provider calls, queue jobs, webhook calls, or unconsented delivery.
+
+## Mobile OTP/MFA hardening
+
+Production/beta readiness requires `pnpm security:mobile-otp-mfa-hardening` and `pnpm beta:critical-smoke` to pass before mobile auth runtime changes.
+
+Mobile OTP/MFA hardening covers SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, invalid/expired code states, resend cooldown, and Galaxy S22 QA evidence.
+
+This gate does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.

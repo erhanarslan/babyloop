@@ -351,3 +351,11 @@ Beta can proceed only if:
 - [ ] Consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze, and source/channel scopes are documented.
 - [ ] Raw contact logging remains disabled.
 - [ ] Real sending, provider calls, queue jobs, webhook calls, and unconsented delivery remain disabled.
+
+### Mobile OTP/MFA hardening
+
+- [ ] `pnpm security:mobile-otp-mfa-hardening` passes.
+- [ ] `pnpm beta:critical-smoke` includes mobile OTP/MFA hardening.
+- [ ] SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, and Galaxy S22 QA are documented.
+- [ ] OTP/token/cookie/password values must not be logged.
+- [ ] Manual Galaxy S22 QA evidence is required before beta release.

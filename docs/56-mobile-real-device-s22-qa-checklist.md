@@ -175,3 +175,19 @@ A beta build cannot be considered ready if any of these fail:
 - Android bottom tab safe-area behavior.
 - Security/privacy log leakage check.
 - Notification readiness copy falsely implying real push/n8n delivery.
+
+## Mobile OTP/MFA hardening
+
+- [ ] `pnpm security:mobile-otp-mfa-hardening` passes before the physical Galaxy S22 QA run.
+- [ ] OTP required response is handled on mobile.
+- [ ] Valid OTP verification refreshes session state.
+- [ ] Invalid OTP, expired OTP, rate limit, resend, and network recovery states are visible and controlled.
+- [ ] Logout cleanup clears sensitive state.
+- [ ] OTP/token/cookie/password values are not logged.
+- [ ] Mobile OTP/MFA hardening evidence is attached to the QA record.
+
+## SecureStore mobile auth check
+
+- [ ] SecureStore or equivalent secure device storage is used for sensitive mobile auth/session material.
+- [ ] OTP/token/cookie/password values are not logged in console output, analytics, crash reports, screenshots, or notification payloads.
+- [ ] Mobile OTP/MFA hardening evidence is attached to the Galaxy S22 QA record.

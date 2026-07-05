@@ -97,3 +97,9 @@ Notification observability taxonomy verifies event taxonomy, privacy-safe dimens
 Full beta critical smoke automation includes `pnpm security:notification-consent-preference`.
 
 Notification consent/preference policy verifies consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze windows, source/channel scopes, privacy boundaries, and raw contact logging before real notification delivery. It does not enable real email sending, real push sending, real n8n workflow triggering, provider calls, queue jobs, webhook calls, or unconsented delivery.
+
+## Mobile OTP/MFA hardening
+
+Full beta critical smoke automation includes `pnpm security:mobile-otp-mfa-hardening`.
+
+Mobile OTP/MFA hardening verifies SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, invalid/expired code states, resend cooldown, and Galaxy S22 QA readiness. It does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.

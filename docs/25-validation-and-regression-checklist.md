@@ -744,3 +744,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Consent, preference, opt-out, audit, rate limit, blocked user safety, mute/snooze, and source/channel scopes are documented.
 - [ ] Raw contact logging remains disabled.
 - [ ] The gate does not enable real email sending, real push sending, real n8n workflow triggering, provider calls, queue jobs, webhook calls, or unconsented delivery.
+
+### Mobile OTP/MFA hardening
+
+- [ ] `pnpm security:mobile-otp-mfa-hardening` passes.
+- [ ] Mobile OTP/MFA hardening is included in `pnpm beta:critical-smoke`.
+- [ ] SecureStore, OTP, MFA, rate limit, session refresh, logout cleanup, protected route return, network recovery, and Galaxy S22 QA are documented.
+- [ ] OTP/token/cookie/password values must not be logged.
+- [ ] The gate does not change runtime auth behavior, does not enable SMS OTP, does not enable authenticator MFA, and does not enable push security notification.

@@ -57,6 +57,7 @@ function checkRunner() {
     "security:assistant-safety-guard",
     "security:storage-ops-preview",
     "qa:mobile:s22",
+    "security:mobile-otp-mfa-hardening",
     "security:notification-n8n-readiness",
     "security:notification-push-readiness",
     "security:notification-sender-provider-design",
