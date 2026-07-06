@@ -188,3 +188,5 @@ function sanitizeNotificationDeliveryMetadata(metadata: Record<string, unknown>)
 function isSensitiveNotificationDeliveryMetadataKey(key: string): boolean {
   return /email|phone|token|password|cookie|authorization|secret|otp|raw|body/iu.test(key);
 }
+
+export const sanitizeNotificationMetadata = sanitizeNotificationDeliveryMetadata;

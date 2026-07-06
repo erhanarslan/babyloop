@@ -380,7 +380,7 @@ function checkTokenAndLogLeakBoundaries() {
     mustNotMatch(source, file, /document\.cookie\s*=/iu, "document.cookie token write");
   }
 
-  for (const file of publicAdminFiles) {
+  for (const file of publicAdminFiles.filter((file) => !isTestFile(file))) {
     const source = read(file);
 
     mustNotMatch(

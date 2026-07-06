@@ -30,6 +30,31 @@ export type ChildProfile = {
   updatedAt: string;
 };
 
+export type ChildProfileNote = {
+  id: string;
+  childProfileId: string;
+  noteType: "general" | "feeding" | "sleep" | "size" | "preference" | "daycare" | "milestone";
+  title: string;
+  body: string | null;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ChildProfileReminder = {
+  id: string;
+  childProfileId: string;
+  title: string;
+  description: string | null;
+  remindAt: string;
+  channel: "in_app" | "email_draft";
+  status: "scheduled" | "completed" | "cancelled";
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type LifecycleRecommendationGroup = {
   childProfileId: string;
   childProfileLabel: string;
@@ -57,6 +82,14 @@ export type ChildProfilePayload = {
 
 export type LifecycleRecommendationsPayload = {
   groups: LifecycleRecommendationGroup[];
+};
+
+export type ChildProfileNotesPayload = {
+  notes: ChildProfileNote[];
+};
+
+export type ChildProfileRemindersPayload = {
+  reminders: ChildProfileReminder[];
 };
 
 export async function fetchChildProfiles(
@@ -133,4 +166,28 @@ export async function fetchLifecycleRecommendations(
   const response = await authFetch(apiBaseUrl, "/api/v1/child-profiles/lifecycle-recommendations");
 
   return response.json() as Promise<ApiResponse<LifecycleRecommendationsPayload>>;
+}
+
+export async function fetchChildProfileNotes(
+  apiBaseUrl: string,
+  childProfileId: string
+): Promise<ApiResponse<ChildProfileNotesPayload>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/notes`
+  );
+
+  return response.json() as Promise<ApiResponse<ChildProfileNotesPayload>>;
+}
+
+export async function fetchChildProfileReminders(
+  apiBaseUrl: string,
+  childProfileId: string
+): Promise<ApiResponse<ChildProfileRemindersPayload>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/reminders`
+  );
+
+  return response.json() as Promise<ApiResponse<ChildProfileRemindersPayload>>;
 }

@@ -45,7 +45,7 @@ Explicitly deferred or readiness-only:
 - #202 n8n webhook contract design: no webhook secret or outbound webhook is enabled.
 - #203 n8n sandbox workflow boundary: sandbox/readiness only; no n8n worker is enabled.
 
-Real-device items #137 and #159 remain deferred until Galaxy S22/Maestro evidence is recorded.
+Real-device items #137 and #159 remain deferred until Galaxy S22/Maestro evidence is recorded. Real-device S22/Maestro validation remains a manual QA requirement and is not claimed complete by this guard.
 
 ## Child Notebook And Reminders
 
@@ -53,7 +53,7 @@ Child notes and reminders are implemented under `/api/v1/child-profiles/:childPr
 
 Reminder delivery candidate generation is DB-backed and draft-only. Candidate logs use idempotency keys and frequency windows. `deliveryAllowed=false` and `draftOnly=true` are required for reminder and saved-search notification candidates unless a future provider design gate explicitly changes that behavior.
 
-Notification source/channel policy is readiness-only for `child_reminder`, `saved_search`, `child_lifecycle`, `marketing`, and `security`. Channels are inventoried as `email`, `push`, `in_app`, and `n8n`, but provider calls remain disabled by default.
+Notification source/channel policy is readiness-only for `child_reminder`, `saved_search`, `child_lifecycle`, `marketplace`, `messages`, and `trust_safety`. Channels are inventoried as `email`, `push`, `in_app`, and `n8n`, but provider calls remain disabled by default.
 
 ## No-Leak Checklist
 
