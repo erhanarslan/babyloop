@@ -40,7 +40,7 @@ Explicitly deferred or readiness-only:
 
 - #198 Notification delivery provider design gate sonrası sandbox: provider send remains disabled.
 - #199 Email draft/provider adapter boundary: email is draft/readiness-only; no sender is enabled.
-- #200 Push token registry design gate: no push token collection is enabled.
+- #200 Push token registry design gate: hash-only push token registry/API can exist; native token collection and sender activation remain disabled.
 - #201 Push readiness real mobile integration hazırlığı: readiness only; no native push integration is enabled.
 - #202 n8n webhook contract design: no webhook secret or outbound webhook is enabled.
 - #203 n8n sandbox workflow boundary: sandbox/readiness only; no n8n worker is enabled.
@@ -72,7 +72,7 @@ The release guard checks for these boundaries:
 No real provider is enabled in this package:
 
 - No email sender.
-- No push sender or push token registry.
+- No push sender, no native push token collection, and no raw push token DTO/log exposure.
 - No n8n webhook invocation.
 - No queue worker.
 - No RAG/AI provider activation beyond existing safety boundaries.

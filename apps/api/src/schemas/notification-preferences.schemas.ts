@@ -3,10 +3,15 @@ import { normalizePlainText, validatePlainText } from "../services/text-safety.s
 
 export const notificationPreferenceSourceValues = [
   "child_reminder",
+  "child_note",
   "saved_search",
   "child_lifecycle",
   "marketplace",
   "messages",
+  "message",
+  "listing",
+  "security",
+  "marketing",
   "trust_safety"
 ] as const;
 
@@ -14,11 +19,14 @@ export const notificationPreferenceChannelValues = [
   "in_app",
   "email",
   "push",
-  "n8n"
+  "n8n",
+  "sms"
 ] as const;
+export const notificationPreferenceDigestValues = ["immediate", "daily", "weekly"] as const;
 
 export const notificationPreferenceSourceSchema = z.enum(notificationPreferenceSourceValues);
 export const notificationPreferenceChannelSchema = z.enum(notificationPreferenceChannelValues);
+export const notificationPreferenceDigestSchema = z.enum(notificationPreferenceDigestValues);
 
 export const updateNotificationPreferenceBodySchema = z
   .object({
@@ -26,9 +34,22 @@ export const updateNotificationPreferenceBodySchema = z
     channel: notificationPreferenceChannelSchema,
     enabled: z.boolean(),
     mutedUntil: z.coerce.date().nullable().optional(),
+    quietHoursStart: localTimeSchema().nullable().optional(),
+    quietHoursEnd: localTimeSchema().nullable().optional(),
+    timezone: timezoneSchema().optional().default("Europe/Istanbul"),
+    digest: notificationPreferenceDigestSchema.optional().default("immediate"),
     reason: optionalPreferenceReasonSchema()
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.source === "security" || value.source === "trust_safety") && value.channel === "in_app" && value.enabled === false) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Security-critical in-app notifications cannot be disabled.",
+        path: ["enabled"]
+      });
+    }
+  });
 
 function optionalPreferenceReasonSchema() {
   return z
@@ -60,6 +81,15 @@ function optionalPreferenceReasonSchema() {
     });
 }
 
+function localTimeSchema() {
+  return z.string().regex(/^[0-2][0-9]:[0-5][0-9]$/u, "Quiet hours must use HH:mm format.");
+}
+
+function timezoneSchema() {
+  return z.string().min(3).max(80).regex(/^[A-Za-z_/-]+$/u, "Timezone must be a safe IANA-like name.");
+}
+
 export type NotificationPreferenceSource = z.infer<typeof notificationPreferenceSourceSchema>;
 export type NotificationPreferenceChannel = z.infer<typeof notificationPreferenceChannelSchema>;
+export type NotificationPreferenceDigest = z.infer<typeof notificationPreferenceDigestSchema>;
 export type UpdateNotificationPreferenceBody = z.infer<typeof updateNotificationPreferenceBodySchema>;

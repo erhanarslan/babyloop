@@ -107,7 +107,11 @@ export const loginApprovalChallengeStatusEnum = pgEnum("login_approval_challenge
 export const childProfileNoteTypeEnum = pgEnum("child_profile_note_type", [
   "general",
   "feeding",
+  "diaper",
   "sleep",
+  "activity",
+  "shopping",
+  "health_note",
   "size",
   "preference",
   "daycare",
@@ -121,16 +125,22 @@ export const childProfileReminderChannelEnum = pgEnum("child_profile_reminder_ch
 
 export const childProfileReminderStatusEnum = pgEnum("child_profile_reminder_status", [
   "scheduled",
+  "paused",
   "completed",
   "cancelled"
 ]);
 
 export const notificationPreferenceSourceEnum = pgEnum("notification_preference_source", [
   "child_reminder",
+  "child_note",
   "saved_search",
   "child_lifecycle",
   "marketplace",
   "messages",
+  "message",
+  "listing",
+  "security",
+  "marketing",
   "trust_safety"
 ]);
 
@@ -138,7 +148,8 @@ export const notificationPreferenceChannelEnum = pgEnum("notification_preference
   "in_app",
   "email",
   "push",
-  "n8n"
+  "n8n",
+  "sms"
 ]);
 
 export const safetyTargetTypeEnum = pgEnum("safety_target_type", [
@@ -282,6 +293,7 @@ export const childProfileNotes = pgTable(
     noteType: childProfileNoteTypeEnum("note_type").notNull().default("general"),
     title: varchar("title", { length: 100 }).notNull(),
     body: text("body"),
+    isPinned: boolean("is_pinned").notNull().default(false),
     isArchived: boolean("is_archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -289,6 +301,7 @@ export const childProfileNotes = pgTable(
   (table) => [
     index("child_profile_notes_child_profile_id_idx").on(table.childProfileId),
     index("child_profile_notes_child_profile_archived_idx").on(table.childProfileId, table.isArchived),
+    index("child_profile_notes_child_profile_pinned_idx").on(table.childProfileId, table.isPinned),
     check("child_profile_notes_title_not_blank_check", sql`length(trim(${table.title})) > 0`)
   ]
 );
@@ -302,9 +315,19 @@ export const childProfileReminders = pgTable(
       .references(() => childProfiles.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 120 }).notNull(),
     description: text("description"),
+    reminderType: varchar("reminder_type", { length: 40 }).notNull().default("general"),
+    scheduleKind: varchar("schedule_kind", { length: 40 }).notNull().default("one_time"),
+    intervalMinutes: integer("interval_minutes"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    eventAt: timestamp("event_at", { withTimezone: true }),
+    notifyBeforeMinutes: integer("notify_before_minutes"),
+    localTime: varchar("local_time", { length: 5 }),
+    timezone: varchar("timezone", { length: 80 }).notNull().default("Europe/Istanbul"),
     remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     channel: childProfileReminderChannelEnum("channel").notNull().default("in_app"),
     status: childProfileReminderStatusEnum("status").notNull().default("scheduled"),
+    lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -314,7 +337,13 @@ export const childProfileReminders = pgTable(
     index("child_profile_reminders_child_profile_id_idx").on(table.childProfileId),
     index("child_profile_reminders_child_profile_status_idx").on(table.childProfileId, table.status),
     index("child_profile_reminders_remind_at_idx").on(table.remindAt),
-    check("child_profile_reminders_title_not_blank_check", sql`length(trim(${table.title})) > 0`)
+    index("child_profile_reminders_next_run_at_idx").on(table.nextRunAt),
+    check("child_profile_reminders_title_not_blank_check", sql`length(trim(${table.title})) > 0`),
+    check("child_profile_reminders_schedule_kind_check", sql`${table.scheduleKind} in ('one_time', 'interval', 'daily', 'weekly', 'relative_before_event')`),
+    check("child_profile_reminders_reminder_type_check", sql`${table.reminderType} in ('feeding', 'diaper', 'sleep', 'activity', 'shopping', 'appointment', 'general')`),
+    check("child_profile_reminders_interval_minutes_check", sql`${table.intervalMinutes} is null or ${table.intervalMinutes} between 15 and 43200`),
+    check("child_profile_reminders_notify_before_minutes_check", sql`${table.notifyBeforeMinutes} is null or ${table.notifyBeforeMinutes} between 1 and 43200`),
+    check("child_profile_reminders_local_time_check", sql`${table.localTime} is null or ${table.localTime} ~ '^[0-2][0-9]:[0-5][0-9]$'`)
   ]
 );
 
@@ -820,6 +849,10 @@ export const notificationPreferences = pgTable(
     channel: notificationPreferenceChannelEnum("channel").notNull(),
     enabled: boolean("enabled").notNull().default(false),
     mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    quietHoursStart: varchar("quiet_hours_start", { length: 5 }),
+    quietHoursEnd: varchar("quiet_hours_end", { length: 5 }),
+    timezone: varchar("timezone", { length: 80 }).notNull().default("Europe/Istanbul"),
+    digest: varchar("digest", { length: 20 }).notNull().default("immediate"),
     reason: varchar("reason", { length: 240 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -849,6 +882,12 @@ export const notificationPreferenceAuditEvents = pgTable(
     newEnabled: boolean("new_enabled").notNull(),
     oldMutedUntil: timestamp("old_muted_until", { withTimezone: true }),
     newMutedUntil: timestamp("new_muted_until", { withTimezone: true }),
+    oldDigest: varchar("old_digest", { length: 20 }),
+    newDigest: varchar("new_digest", { length: 20 }),
+    oldQuietHoursStart: varchar("old_quiet_hours_start", { length: 5 }),
+    newQuietHoursStart: varchar("new_quiet_hours_start", { length: 5 }),
+    oldQuietHoursEnd: varchar("old_quiet_hours_end", { length: 5 }),
+    newQuietHoursEnd: varchar("new_quiet_hours_end", { length: 5 }),
     reason: varchar("reason", { length: 240 }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
@@ -856,6 +895,28 @@ export const notificationPreferenceAuditEvents = pgTable(
   (table) => [
     index("notification_preference_audit_profile_created_idx").on(table.profileId, table.createdAt),
     index("notification_preference_audit_source_channel_idx").on(table.source, table.channel)
+  ]
+);
+
+export const notificationPushTokens = pgTable(
+  "notification_push_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 128 }).notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    deviceLabel: varchar("device_label", { length: 120 }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("notification_push_tokens_profile_hash_unique").on(table.profileId, table.tokenHash),
+    index("notification_push_tokens_profile_revoked_idx").on(table.profileId, table.revokedAt),
+    check("notification_push_tokens_platform_check", sql`${table.platform} in ('ios', 'android', 'expo')`)
   ]
 );
 
@@ -1048,6 +1109,7 @@ export const schema = {
   notifications,
   notificationPreferenceAuditEvents,
   notificationPreferences,
+  notificationPushTokens,
   orderItems,
   orders,
   passwordResetTokens,

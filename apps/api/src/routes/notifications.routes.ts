@@ -31,6 +31,12 @@ import {
   type NotificationPreferenceResponse,
   type NotificationPreferencesSummary
 } from "../services/notification-preferences.service.js";
+import {
+  listNotificationPushTokens,
+  registerNotificationPushToken,
+  revokeNotificationPushToken,
+  type PushTokenRegistryResponse
+} from "../services/notification-push-token-registry.service.js";
 
 type NotificationsResponse = ApiResponse<{
   notifications: NotificationResponse[];
@@ -64,6 +70,18 @@ type NotificationPreferenceUpdateResponse = ApiResponse<{
   summary: NotificationPreferencesSummary;
 }>;
 
+type PushTokenRegistryListResponse = ApiResponse<{
+  tokens: PushTokenRegistryResponse[];
+}>;
+
+type PushTokenRegistryMutationResponse = ApiResponse<{
+  token: PushTokenRegistryResponse;
+}>;
+
+type PushTokenRevokeResponse = ApiResponse<{
+  revoked: true;
+}>;
+
 type NotificationParams = {
   id: string;
 };
@@ -71,6 +89,20 @@ type NotificationParams = {
 const notificationParamsSchema = z.object({
   id: z.string().uuid()
 });
+
+const pushTokenBodySchema = z
+  .object({
+    token: z.string().min(20).max(2048),
+    platform: z.enum(["ios", "android", "expo"]),
+    deviceLabel: z.string().min(1).max(120).optional() ?? null
+  })
+  .strict();
+
+const revokePushTokenBodySchema = z
+  .object({
+    token: z.string().min(20).max(2048)
+  })
+  .strict();
 
 export function registerNotificationRoutes(app: FastifyInstance): void {
   app.get<{ Reply: NotificationPreferencesResponse }>("/notification-preferences", async (request, reply) => {
@@ -131,6 +163,75 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
       data: await listNotificationDeliveryDrafts(app, currentUser.profile.id)
     };
   });
+
+  app.get<{ Reply: PushTokenRegistryListResponse }>("/notifications/push-tokens", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return {
+      ok: true,
+      data: {
+        tokens: await listNotificationPushTokens(app, currentUser.profile.id)
+      }
+    };
+  });
+
+  app.post<{ Body: unknown; Reply: PushTokenRegistryMutationResponse }>(
+    "/notifications/push-tokens",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = pushTokenBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidNotificationRequest());
+      }
+
+      return {
+        ok: true,
+        data: {
+          token: await registerNotificationPushToken(app, currentUser.profile.id, parsedBody.data)
+        }
+      };
+    }
+  );
+
+  app.delete<{ Body: unknown; Reply: PushTokenRevokeResponse }>(
+    "/notifications/push-tokens",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = revokePushTokenBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidNotificationRequest());
+      }
+
+      const result = await revokeNotificationPushToken(app, currentUser.profile.id, parsedBody.data.token);
+
+      if (result === "not_found") {
+        return reply.status(404).send(notificationNotFound());
+      }
+
+      return {
+        ok: true,
+        data: {
+          revoked: true
+        }
+      };
+    }
+  );
 
   app.post<{ Reply: ChildLifecycleGenerationResponse }>(
     "/notifications/child-lifecycle/generate",

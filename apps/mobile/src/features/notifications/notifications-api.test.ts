@@ -5,6 +5,8 @@ import {
   generateMobileChildLifecycleNotifications,
   markAllMobileNotificationsRead,
   markMobileNotificationRead,
+  registerMobilePushToken,
+  revokeMobilePushToken,
   updateMobileNotificationPreference
 } from "./notifications-api";
 import { mobileAuthFetch } from "../auth/auth-api";
@@ -142,6 +144,10 @@ describe("mobile notifications API", () => {
             channel: "in_app",
             enabled: true,
             mutedUntil: null,
+            quietHoursStart: null,
+            quietHoursEnd: null,
+            timezone: "Europe/Istanbul",
+            digest: "immediate",
             deliveryAllowed: true,
             providerCallAllowed: false,
             draftOnly: false,
@@ -154,9 +160,10 @@ describe("mobile notifications API", () => {
           deliveryProvidersEnabled: false,
           providerCallsAllowed: false,
           supportedSources: ["messages"],
-          supportedChannels: ["in_app", "email", "push", "n8n"],
+          supportedChannels: ["in_app", "email", "push", "n8n", "sms"],
           defaultEnabledChannels: ["in_app"],
-          draftOnlyChannels: ["email", "push", "n8n"]
+          draftOnlyChannels: ["email", "push", "n8n", "sms"],
+          disabledChannels: ["sms"]
         }
       }
     }));
@@ -179,6 +186,10 @@ describe("mobile notifications API", () => {
           channel: "in_app",
           enabled: false,
           mutedUntil: null,
+          quietHoursStart: "22:00",
+          quietHoursEnd: "07:00",
+          timezone: "Europe/Istanbul",
+          digest: "daily",
           deliveryAllowed: false,
           providerCallAllowed: false,
           draftOnly: false,
@@ -193,6 +204,12 @@ describe("mobile notifications API", () => {
           newEnabled: false,
           oldMutedUntil: null,
           newMutedUntil: null,
+          oldDigest: "immediate",
+          newDigest: "daily",
+          oldQuietHoursStart: null,
+          newQuietHoursStart: "22:00",
+          oldQuietHoursEnd: null,
+          newQuietHoursEnd: "07:00",
           reason: "Sessiz saatler",
           createdAt: "2030-01-01T00:00:00.000Z"
         },
@@ -200,9 +217,10 @@ describe("mobile notifications API", () => {
           deliveryProvidersEnabled: false,
           providerCallsAllowed: false,
           supportedSources: ["messages"],
-          supportedChannels: ["in_app", "email", "push", "n8n"],
+          supportedChannels: ["in_app", "email", "push", "n8n", "sms"],
           defaultEnabledChannels: ["in_app"],
-          draftOnlyChannels: ["email", "push", "n8n"]
+          draftOnlyChannels: ["email", "push", "n8n", "sms"],
+          disabledChannels: ["sms"]
         }
       }
     }));
@@ -211,6 +229,10 @@ describe("mobile notifications API", () => {
       source: "messages",
       channel: "in_app",
       enabled: false,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+      timezone: "Europe/Istanbul",
+      digest: "daily",
       reason: "Sessiz saatler"
     });
     const [, init] = mobileAuthFetchMock.mock.calls[0]!;
@@ -221,9 +243,58 @@ describe("mobile notifications API", () => {
       source: "messages",
       channel: "in_app",
       enabled: false,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+      timezone: "Europe/Istanbul",
+      digest: "daily",
       reason: "Sessiz saatler"
     }));
     expect(JSON.stringify({ result, init })).not.toMatch(/accessToken|refreshToken|passwordHash|providerSecret|pushToken/iu);
+  });
+
+  it("registers and revokes push tokens without exposing raw tokens in responses", async () => {
+    mobileAuthFetchMock
+      .mockResolvedValueOnce(apiResponse({
+        ok: true,
+        data: {
+          token: {
+            id: "66666666-6666-4666-8666-666666666666",
+            platform: "expo",
+            tokenHashPrefix: "abcdef123456",
+            redactedToken: "sha256:abcdef12...",
+            deviceLabel: "Galaxy S22",
+            lastSeenAt: "2030-01-01T00:00:00.000Z",
+            revokedAt: null,
+            deliveryAllowed: false,
+            providerCallAllowed: false
+          }
+        }
+      }))
+      .mockResolvedValueOnce(apiResponse({
+        ok: true,
+        data: {
+          revoked: true
+        }
+      }));
+
+    const rawToken = "ExponentPushToken[raw-device-token-value]";
+    const registerResult = await registerMobilePushToken({
+      token: rawToken,
+      platform: "expo",
+      deviceLabel: "Galaxy S22"
+    });
+    const revokeResult = await revokeMobilePushToken(rawToken);
+
+    expect(registerResult.ok).toBe(true);
+    expect(revokeResult.ok).toBe(true);
+    expect(JSON.stringify(registerResult)).not.toContain(rawToken);
+    expect(JSON.stringify(registerResult)).not.toMatch(/accessToken|refreshToken|passwordHash|providerSecret/iu);
+    expect(mobileAuthFetchMock).toHaveBeenNthCalledWith(1, "/api/v1/notifications/push-tokens", expect.objectContaining({
+      method: "POST"
+    }));
+    expect(mobileAuthFetchMock).toHaveBeenNthCalledWith(2, "/api/v1/notifications/push-tokens", expect.objectContaining({
+      method: "DELETE"
+    }));
   });
 
   it("returns a safe unavailable response when mobile fetch fails", async () => {

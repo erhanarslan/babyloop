@@ -17,7 +17,7 @@ export type NotificationPushReadinessPreview = {
   draftOnly: true;
   pushSenderEnabled: false;
   providerConfigured: false;
-  tokenRegistryEnabled: false;
+  tokenRegistryEnabled: true;
   tokenCollectionAllowed: false;
   consentRequired: true;
   auditRequired: true;
@@ -27,7 +27,6 @@ export type NotificationPushReadinessPreview = {
   blockedReasons: Array<
     | "push_sender_disabled"
     | "provider_not_configured"
-    | "token_registry_missing"
     | "device_consent_missing"
     | "rate_limit_required"
     | "delivery_transition_required"
@@ -48,7 +47,7 @@ export function getNotificationPushReadinessPreview(): NotificationPushReadiness
     draftOnly: true,
     pushSenderEnabled: false,
     providerConfigured: false,
-    tokenRegistryEnabled: false,
+    tokenRegistryEnabled: true,
     tokenCollectionAllowed: false,
     consentRequired: true,
     auditRequired: true,
@@ -58,7 +57,7 @@ export function getNotificationPushReadinessPreview(): NotificationPushReadiness
       {
         key: "native_device_token_registry",
         label: "Native device token registry",
-        status: "missing",
+        status: "complete",
         requiredBeforeSend: true
       },
       {
@@ -70,7 +69,7 @@ export function getNotificationPushReadinessPreview(): NotificationPushReadiness
       {
         key: "platform_token_validation",
         label: "Platform token validation and revocation",
-        status: "missing",
+        status: "complete",
         requiredBeforeSend: true
       },
       {
@@ -113,7 +112,6 @@ export function getNotificationPushReadinessPreview(): NotificationPushReadiness
     blockedReasons: [
       "push_sender_disabled",
       "provider_not_configured",
-      "token_registry_missing",
       "device_consent_missing",
       "rate_limit_required",
       "delivery_transition_required",
@@ -124,7 +122,7 @@ export function getNotificationPushReadinessPreview(): NotificationPushReadiness
         stage: "registry",
         status: "planned",
         note:
-          "Mobile device token registry tasarlanacak; bu preview token toplamaz ve Expo/Firebase/APNs tokenı saklamaz."
+          "Mobile push token registry API ve hash-only storage hazırdır; bu preview native token toplamaz ve Expo/Firebase/APNs sender açmaz."
       },
       {
         stage: "sandbox",

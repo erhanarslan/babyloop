@@ -122,7 +122,11 @@ function formatNoteType(noteType: MobileChildNote["noteType"]): string {
   const labels: Record<MobileChildNote["noteType"], string> = {
     general: "Genel not",
     feeding: "Beslenme",
+    diaper: "Bez",
     sleep: "Uyku",
+    activity: "Etkinlik",
+    shopping: "Alışveriş",
+    health_note: "Sağlık notu",
     size: "Beden / ölçü",
     preference: "Tercih",
     daycare: "Okul / bakım",

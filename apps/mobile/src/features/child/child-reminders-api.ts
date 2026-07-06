@@ -31,9 +31,21 @@ export type MobileChildProfile = {
 export type MobileChildNote = {
   id: string;
   childProfileId: string;
-  noteType: "general" | "feeding" | "sleep" | "size" | "preference" | "daycare" | "milestone";
+  noteType:
+    | "general"
+    | "feeding"
+    | "diaper"
+    | "sleep"
+    | "activity"
+    | "shopping"
+    | "health_note"
+    | "size"
+    | "preference"
+    | "daycare"
+    | "milestone";
   title: string;
   body: string | null;
+  isPinned: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -44,9 +56,19 @@ export type MobileChildReminder = {
   childProfileId: string;
   title: string;
   description: string | null;
+  reminderType: "feeding" | "diaper" | "sleep" | "activity" | "shopping" | "appointment" | "general";
+  scheduleKind: "one_time" | "interval" | "daily" | "weekly" | "relative_before_event";
+  intervalMinutes: number | null;
+  dueAt: string | null;
+  eventAt: string | null;
+  notifyBeforeMinutes: number | null;
+  localTime: string | null;
+  timezone: string;
   remindAt: string;
   channel: "in_app" | "email_draft";
-  status: "scheduled" | "completed" | "cancelled";
+  nextRunAt: string | null;
+  status: "scheduled" | "paused" | "completed" | "cancelled";
+  lastTriggeredAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -70,12 +92,21 @@ export type CreateMobileChildNoteRequest = {
   noteType?: MobileChildNote["noteType"];
   title: string;
   body?: string | null;
+  isPinned?: boolean;
 };
 
 export type CreateMobileChildReminderRequest = {
   title: string;
   description?: string | null;
-  remindAt: string;
+  reminderType?: MobileChildReminder["reminderType"];
+  scheduleKind?: MobileChildReminder["scheduleKind"];
+  intervalMinutes?: number;
+  remindAt?: string;
+  dueAt?: string;
+  eventAt?: string;
+  notifyBeforeMinutes?: number;
+  localTime?: string;
+  timezone?: string;
   channel?: MobileChildReminder["channel"];
 };
 

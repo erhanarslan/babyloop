@@ -250,7 +250,7 @@ function checkDeliveryReadinessBoundaries() {
   for (const token of [
     "pushSenderEnabled: false",
     "providerConfigured: false",
-    "tokenRegistryEnabled: false",
+    "tokenRegistryEnabled: true",
     "tokenCollectionAllowed: false",
     "deliveryAllowed: false",
     "draftOnly: true"

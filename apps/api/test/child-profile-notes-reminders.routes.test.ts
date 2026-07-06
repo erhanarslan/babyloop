@@ -46,9 +46,10 @@ describe("child profile notes and reminders routes", () => {
       method: "POST",
       url: `/api/v1/child-profiles/${childProfileId}/notes`,
       payload: {
-        noteType: "feeding",
+        noteType: "diaper",
         title: "  Beslenme notu  ",
-        body: "  Kahvaltıda muz seviyor.  "
+        body: "  Kahvaltıda muz seviyor.  ",
+        isPinned: true
       }
     });
     const note = createResponse.json().data.note;
@@ -56,9 +57,10 @@ describe("child profile notes and reminders routes", () => {
     expect(createResponse.statusCode).toBe(201);
     expect(note).toMatchObject({
       childProfileId,
-      noteType: "feeding",
+      noteType: "diaper",
       title: "Beslenme notu",
       body: "Kahvaltıda muz seviyor.",
+      isPinned: true,
       isArchived: false
     });
     expect(createResponse.body).not.toContain(user.user.email);
@@ -117,7 +119,9 @@ describe("child profile notes and reminders routes", () => {
       payload: {
         title: "Bez al",
         description: "Hafta sonu alışveriş listesine ekle.",
-        remindAt: "2030-01-01T10:00:00.000Z",
+        reminderType: "shopping",
+        scheduleKind: "one_time",
+        dueAt: "2030-01-01T10:00:00.000Z",
         channel: "in_app"
       }
     });
@@ -128,9 +132,12 @@ describe("child profile notes and reminders routes", () => {
       childProfileId,
       title: "Bez al",
       description: "Hafta sonu alışveriş listesine ekle.",
+      reminderType: "shopping",
+      scheduleKind: "one_time",
       channel: "in_app",
       status: "scheduled"
     });
+    expect(reminder.nextRunAt).toBe("2030-01-01T10:00:00.000Z");
 
     const completeResponse = await app.inject({
       headers: authHeader(user.accessToken),
@@ -154,7 +161,8 @@ describe("child profile notes and reminders routes", () => {
       url: `/api/v1/child-profiles/${childProfileId}/reminders`,
       payload: {
         title: "Etkinlik çantası",
-        remindAt: "2030-01-02T10:00:00.000Z"
+        scheduleKind: "interval",
+        intervalMinutes: 120
       }
     });
     const secondReminder = secondCreate.json().data.reminder;
@@ -203,6 +211,36 @@ describe("child profile notes and reminders routes", () => {
     expect(invalidReminder.statusCode).toBe(400);
     expect(unsafeNote.body).not.toContain("<script");
     expect(invalidReminder.body).not.toContain(user.user.email);
+  });
+
+  it("rejects invalid child reminder schedules and medical reminder copy", async () => {
+    const user = await createUser(app, { email: "child-reminder-validation@example.test" });
+    const childProfileId = await createChildProfile(user.accessToken);
+
+    const invalidInterval = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: `/api/v1/child-profiles/${childProfileId}/reminders`,
+      payload: {
+        title: "Bez takip",
+        scheduleKind: "interval"
+      }
+    });
+    const medicalReminder = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: `/api/v1/child-profiles/${childProfileId}/reminders`,
+      payload: {
+        title: "İlaç ver",
+        scheduleKind: "one_time",
+        dueAt: "2030-01-01T10:00:00.000Z"
+      }
+    });
+
+    expect(invalidInterval.statusCode).toBe(400);
+    expect(medicalReminder.statusCode).toBe(400);
+    expect(medicalReminder.body).not.toContain("İlaç ver");
+    expect(medicalReminder.body).not.toContain(user.user.email);
   });
 
   it("does not allow cross-user access to another profile child notes or reminders", async () => {

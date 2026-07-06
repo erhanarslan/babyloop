@@ -67,9 +67,15 @@ export function buildMobileChildReminderCreatePayload(
   title: string,
   now?: Date
 ): CreateMobileChildReminderRequest {
+  const dueAt = getNextMobileReminderDateIso(now);
+
   return {
     title: normalizeMobileChildEntryTitle(title),
-    remindAt: getNextMobileReminderDateIso(now),
+    reminderType: "shopping",
+    scheduleKind: "one_time",
+    dueAt,
+    remindAt: dueAt,
+    timezone: "Europe/Istanbul",
     channel: "in_app"
   };
 }

@@ -203,7 +203,7 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
                 <div>
                   <h2 className="text-lg font-black text-foreground">Kaynak ve kanal tercihleri</h2>
                   <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-                    Uygulama içi bildirimler yönetilebilir. Email, push ve n8n kanalları sandbox/draft-only kalır.
+                    Uygulama içi bildirimler yönetilebilir. Email, push, SMS ve n8n kanalları sandbox/draft-only kalır.
                   </p>
                 </div>
                 <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">

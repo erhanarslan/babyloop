@@ -53,7 +53,7 @@ describe("mobile notification preference model", () => {
   });
 
   it("builds privacy-safe delivery and profile labels", () => {
-    expect(getMobileNotificationPreferenceDeliveryBoundaryText()).toContain("gerçek push gönderimi yapmaz");
+    expect(getMobileNotificationPreferenceDeliveryBoundaryText()).toContain("gerçek push, email, SMS veya n8n gönderimi yapmaz");
     expect(getMobileNotificationPreferenceProfileLabel({ isLoading: true, childProfile: activeProfile })).toBe(
       "Yükleniyor..."
     );
@@ -99,6 +99,10 @@ describe("mobile notification preference model", () => {
           channel: "in_app",
           enabled: true,
           mutedUntil: null,
+          quietHoursStart: null,
+          quietHoursEnd: null,
+          timezone: "Europe/Istanbul",
+          digest: "immediate",
           deliveryAllowed: true,
           providerCallAllowed: false,
           draftOnly: false,
@@ -111,6 +115,10 @@ describe("mobile notification preference model", () => {
           channel: "push",
           enabled: false,
           mutedUntil: null,
+          quietHoursStart: null,
+          quietHoursEnd: null,
+          timezone: "Europe/Istanbul",
+          digest: "immediate",
           deliveryAllowed: false,
           providerCallAllowed: false,
           draftOnly: true,
@@ -123,9 +131,10 @@ describe("mobile notification preference model", () => {
         deliveryProvidersEnabled: false,
         providerCallsAllowed: false,
         supportedSources: ["messages", "saved_search"],
-        supportedChannels: ["in_app", "push"],
+        supportedChannels: ["in_app", "push", "sms"],
         defaultEnabledChannels: ["in_app"],
-        draftOnlyChannels: ["email", "push", "n8n"]
+        draftOnlyChannels: ["email", "push", "n8n", "sms"],
+        disabledChannels: ["sms"]
       }
     };
 

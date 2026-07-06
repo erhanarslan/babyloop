@@ -36,7 +36,7 @@ export function getPreferredMobileNotificationChildProfile(
 }
 
 export function getMobileNotificationPreferenceDeliveryBoundaryText(): string {
-  return "Bu ekran gerçek push gönderimi yapmaz; çocuk profili öneri sıklığını ve uygulama içi hatırlatıcı durumunu yönetir.";
+  return "Bu ekran gerçek push, email, SMS veya n8n gönderimi yapmaz; çocuk profili öneri sıklığını ve uygulama içi hatırlatıcı durumunu yönetir.";
 }
 
 export function getMobileNotificationPreferenceProfileLabel(

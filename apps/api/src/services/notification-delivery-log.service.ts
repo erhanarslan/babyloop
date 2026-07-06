@@ -49,6 +49,20 @@ export type NotificationDeliveryCandidateWriteDecision =
       reason: "frequency_window_active";
     };
 
+export function truncateNotificationDeliveryLogRecord<T extends Record<string, unknown>>(record: T): T {
+  const truncated = { ...record };
+
+  for (const key of Object.keys(truncated) as Array<keyof T>) {
+    const value = truncated[key];
+
+    if (typeof value === "string" && value.length > 240) {
+      truncated[key] = value.slice(0, 240) as T[typeof key];
+    }
+  }
+
+  return truncated;
+}
+
 export function buildNotificationDeliveryLogRecord(
   input: BuildNotificationDeliveryLogRecordInput
 ): NotificationDeliveryLogRecord {
@@ -126,7 +140,7 @@ export async function createNotificationDeliveryCandidateLog(
   app: FastifyInstance,
   input: BuildNotificationDeliveryLogRecordInput
 ): Promise<{ created: boolean; idempotencyKey: string }> {
-  const record = buildNotificationDeliveryLogRecord(input);
+  const record = truncateNotificationDeliveryLogRecord(buildNotificationDeliveryLogRecord(input));
 
   const inserted = await app.db
     .insert(notificationDeliveryLogs)

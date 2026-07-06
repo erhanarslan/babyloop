@@ -51,9 +51,12 @@ describe("notification preferences routes", () => {
       deliveryProvidersEnabled: false,
       providerCallsAllowed: false,
       defaultEnabledChannels: ["in_app"],
-      draftOnlyChannels: ["email", "push", "n8n"]
+      draftOnlyChannels: ["email", "push", "n8n", "sms"],
+      disabledChannels: ["sms"]
     });
     expect(response.body).toContain("saved_search");
+    expect(response.body).toContain("child_note");
+    expect(response.body).toContain("marketing");
     expect(response.body).toContain("trust_safety");
     expect(response.body).not.toContain(user.user.email);
     expect(response.body).not.toContain("passwordHash");
@@ -71,6 +74,10 @@ describe("notification preferences routes", () => {
         source: "messages",
         channel: "in_app",
         enabled: false,
+        quietHoursStart: "22:00",
+        quietHoursEnd: "07:00",
+        timezone: "Europe/Istanbul",
+        digest: "daily",
         reason: "Mute while traveling. parent@example.test +90 555 111 22 33"
       }
     });
@@ -84,9 +91,15 @@ describe("notification preferences routes", () => {
       source: "messages",
       channel: "in_app",
       enabled: false,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+      timezone: "Europe/Istanbul",
+      digest: "daily",
       deliveryAllowed: false,
       providerCallAllowed: false
     });
+    expect(response.json().data.auditEvent.newDigest).toBe("daily");
+    expect(response.json().data.auditEvent.newQuietHoursStart).toBe("22:00");
     expect(response.json().data.auditEvent.reason).toContain("[redacted-email]");
     expect(response.json().data.auditEvent.reason).toContain("[redacted-phone]");
     expect(auditRows).toHaveLength(1);
@@ -102,7 +115,7 @@ describe("notification preferences routes", () => {
       url: "/api/v1/notification-preferences",
       payload: {
         source: "marketing",
-        channel: "in_app",
+        channel: "pager",
         enabled: true
       }
     });
@@ -114,6 +127,16 @@ describe("notification preferences routes", () => {
         source: "saved_search",
         channel: "email_draft",
         enabled: true
+      }
+    });
+    const protectedSecurityOptOut = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "PATCH",
+      url: "/api/v1/notification-preferences",
+      payload: {
+        source: "security",
+        channel: "in_app",
+        enabled: false
       }
     });
     const unknownField = await app.inject({
@@ -130,6 +153,7 @@ describe("notification preferences routes", () => {
 
     expect(invalidSource.statusCode).toBe(400);
     expect(invalidChannel.statusCode).toBe(400);
+    expect(protectedSecurityOptOut.statusCode).toBe(400);
     expect(unknownField.statusCode).toBe(400);
     expect(unknownField.body).not.toContain("must-not-be-accepted");
   });

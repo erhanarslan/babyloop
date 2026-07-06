@@ -1,11 +1,16 @@
 export type NotificationPreferenceQaSurface = "backoffice" | "mobile" | "web";
-export type NotificationPreferenceQaChannel = "email" | "push" | "in_app" | "n8n";
+export type NotificationPreferenceQaChannel = "email" | "push" | "in_app" | "n8n" | "sms";
 export type NotificationPreferenceQaSource =
   | "child_reminder"
+  | "child_note"
   | "saved_search"
   | "child_lifecycle"
   | "marketplace"
   | "messages"
+  | "message"
+  | "listing"
+  | "security"
+  | "marketing"
   | "trust_safety";
 
 export type NotificationPreferenceQaScenario = {
@@ -119,8 +124,20 @@ export function getNotificationPreferenceQaReadiness(): NotificationPreferenceQa
     webQaRequired: true,
     manualQaEvidenceRequired: true,
     requiredSurfaces: ["backoffice", "mobile", "web"],
-    requiredChannels: ["email", "push", "in_app", "n8n"],
-    requiredSources: ["child_reminder", "saved_search", "child_lifecycle", "marketplace", "messages", "trust_safety"],
+    requiredChannels: ["email", "push", "in_app", "n8n", "sms"],
+    requiredSources: [
+      "child_reminder",
+      "child_note",
+      "saved_search",
+      "child_lifecycle",
+      "marketplace",
+      "messages",
+      "message",
+      "listing",
+      "security",
+      "marketing",
+      "trust_safety"
+    ],
     requiredScenarios: [
       "backoffice notification preferences visible",
       "mobile notification preferences visible",
@@ -129,7 +146,9 @@ export function getNotificationPreferenceQaReadiness(): NotificationPreferenceQa
       "push channel opt-out visible",
       "in-app channel opt-out visible",
       "n8n channel disabled state visible",
+      "SMS channel disabled state visible",
       "child reminder preference visible",
+      "child note preference visible",
       "saved search preference visible",
       "child lifecycle preference visible",
       "preference audit state visible in backoffice",

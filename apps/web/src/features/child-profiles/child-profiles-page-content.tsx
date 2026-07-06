@@ -13,15 +13,24 @@ import {
 } from "../../components/ui";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import {
+  archiveChildProfileNote,
+  cancelChildProfileReminder,
+  createChildProfileNote,
   createChildProfile,
+  createChildProfileReminder,
   deleteChildProfile,
+  fetchChildProfileNotes,
+  fetchChildProfileReminders,
   fetchChildProfiles,
   fetchLifecycleRecommendations,
   updateChildProfile,
+  updateChildProfileReminderStatus,
   type ChildAgeBand,
+  type ChildProfileNote,
   type ChildProfile,
   type ChildProfileGender,
   type ChildProfileNotificationCadence,
+  type ChildProfileReminder,
   type LifecycleRecommendationGroup
 } from "./api";
 
@@ -73,6 +82,8 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
   const { isCheckingAuth, requireAuth } = useProtectedRoute({ apiBaseUrl });
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
   const [recommendationGroups, setRecommendationGroups] = useState<LifecycleRecommendationGroup[]>([]);
+  const [notesByChildId, setNotesByChildId] = useState<Record<string, ChildProfileNote[]>>({});
+  const [remindersByChildId, setRemindersByChildId] = useState<Record<string, ChildProfileReminder[]>>({});
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>("new");
   const [formState, setFormState] = useState<ChildProfileFormState>(DEFAULT_FORM_STATE);
@@ -92,6 +103,8 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
         : null,
     [recommendationGroups, selectedChildProfile]
   );
+  const selectedNotes = selectedChildProfile ? notesByChildId[selectedChildProfile.id] ?? [] : [];
+  const selectedReminders = selectedChildProfile ? remindersByChildId[selectedChildProfile.id] ?? [] : [];
 
   const loadChildProfiles = useCallback(async () => {
     if (!(await requireAuth())) {
@@ -114,7 +127,27 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       }
 
       const nextChildProfiles = childProfilesResponse.data.childProfiles;
+      const nextNotesByChildId: Record<string, ChildProfileNote[]> = {};
+      const nextRemindersByChildId: Record<string, ChildProfileReminder[]> = {};
+
+      await Promise.all(nextChildProfiles.map(async (childProfile) => {
+        const [notesResponse, remindersResponse] = await Promise.all([
+          fetchChildProfileNotes(apiBaseUrl, childProfile.id),
+          fetchChildProfileReminders(apiBaseUrl, childProfile.id)
+        ]);
+
+        if (notesResponse.ok) {
+          nextNotesByChildId[childProfile.id] = notesResponse.data.notes;
+        }
+
+        if (remindersResponse.ok) {
+          nextRemindersByChildId[childProfile.id] = remindersResponse.data.reminders;
+        }
+      }));
+
       setChildProfiles(nextChildProfiles);
+      setNotesByChildId(nextNotesByChildId);
+      setRemindersByChildId(nextRemindersByChildId);
       setRecommendationGroups(lifecycleRecommendationsResponse.ok ? lifecycleRecommendationsResponse.data.groups : []);
       setSelectedChildProfileId((currentId) => {
         if (currentId && nextChildProfiles.some((childProfile) => childProfile.id === currentId)) {
@@ -219,6 +252,113 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     setMessage({ tone: "info", text: "Çocuk bilgisi silindi." });
   }
 
+  async function handleCreateNote(childProfile: ChildProfile, title: string) {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setMessage({ tone: "error", text: "Not başlığı gerekli." });
+      return;
+    }
+
+    const response = await createChildProfileNote(apiBaseUrl, childProfile.id, {
+      noteType: "general",
+      title: trimmedTitle,
+      body: null
+    });
+
+    if (!response.ok) {
+      setMessage({ tone: "error", text: "Not eklenemedi." });
+      return;
+    }
+
+    setNotesByChildId((current) => ({
+      ...current,
+      [childProfile.id]: [response.data.note, ...(current[childProfile.id] ?? [])]
+    }));
+    setMessage({ tone: "info", text: "Not eklendi." });
+  }
+
+  async function handleArchiveNote(childProfile: ChildProfile, noteId: string) {
+    const response = await archiveChildProfileNote(apiBaseUrl, childProfile.id, noteId);
+
+    if (!response.ok) {
+      setMessage({ tone: "error", text: "Not arşivlenemedi." });
+      return;
+    }
+
+    setNotesByChildId((current) => ({
+      ...current,
+      [childProfile.id]: (current[childProfile.id] ?? []).filter((note) => note.id !== noteId)
+    }));
+    setMessage({ tone: "info", text: "Not arşivlendi." });
+  }
+
+  async function handleCreateReminder(childProfile: ChildProfile, title: string) {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setMessage({ tone: "error", text: "Hatırlatıcı başlığı gerekli." });
+      return;
+    }
+
+    const dueAt = buildTomorrowAtTenIso();
+    const response = await createChildProfileReminder(apiBaseUrl, childProfile.id, {
+      title: trimmedTitle,
+      reminderType: "shopping",
+      scheduleKind: "one_time",
+      dueAt,
+      remindAt: dueAt,
+      timezone: "Europe/Istanbul",
+      channel: "in_app"
+    });
+
+    if (!response.ok) {
+      setMessage({ tone: "error", text: "Hatırlatıcı eklenemedi." });
+      return;
+    }
+
+    setRemindersByChildId((current) => ({
+      ...current,
+      [childProfile.id]: [...(current[childProfile.id] ?? []), response.data.reminder]
+    }));
+    setMessage({ tone: "info", text: "Hatırlatıcı eklendi." });
+  }
+
+  async function handleUpdateReminderStatus(
+    childProfile: ChildProfile,
+    reminderId: string,
+    status: ChildProfileReminder["status"]
+  ) {
+    const response = await updateChildProfileReminderStatus(apiBaseUrl, childProfile.id, reminderId, status);
+
+    if (!response.ok) {
+      setMessage({ tone: "error", text: "Hatırlatıcı güncellenemedi." });
+      return;
+    }
+
+    setRemindersByChildId((current) => ({
+      ...current,
+      [childProfile.id]: (current[childProfile.id] ?? []).map((reminder) =>
+        reminder.id === reminderId ? response.data.reminder : reminder
+      )
+    }));
+  }
+
+  async function handleCancelReminder(childProfile: ChildProfile, reminderId: string) {
+    const response = await cancelChildProfileReminder(apiBaseUrl, childProfile.id, reminderId);
+
+    if (!response.ok) {
+      setMessage({ tone: "error", text: "Hatırlatıcı silinemedi." });
+      return;
+    }
+
+    setRemindersByChildId((current) => ({
+      ...current,
+      [childProfile.id]: (current[childProfile.id] ?? []).filter((reminder) => reminder.id !== reminderId)
+    }));
+    setMessage({ tone: "info", text: "Hatırlatıcı iptal edildi." });
+  }
+
   return (
     <PageContainer className="max-w-6xl py-8 sm:py-10" ariaLabel="Çocuğum">
       <header className="mb-5">
@@ -310,8 +450,17 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
             <ChildProfileSummary
               childProfile={selectedChildProfile}
               recommendationGroup={selectedRecommendationGroup}
+              notes={selectedNotes}
+              reminders={selectedReminders}
+              onArchiveNote={(noteId) => void handleArchiveNote(selectedChildProfile, noteId)}
+              onCancelReminder={(reminderId) => void handleCancelReminder(selectedChildProfile, reminderId)}
+              onCompleteReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "completed")}
+              onCreateNote={(title) => void handleCreateNote(selectedChildProfile, title)}
+              onCreateReminder={(title) => void handleCreateReminder(selectedChildProfile, title)}
               onDelete={() => void handleDelete(selectedChildProfile)}
               onEdit={() => startEditProfile(selectedChildProfile)}
+              onPauseReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "paused")}
+              onResumeReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "scheduled")}
               onToggleActive={() => void handleToggleActive(selectedChildProfile)}
             />
           ) : (
@@ -460,14 +609,32 @@ function ChildProfileForm({
 function ChildProfileSummary({
   childProfile,
   recommendationGroup,
+  notes,
+  reminders,
+  onArchiveNote,
+  onCancelReminder,
+  onCompleteReminder,
+  onCreateNote,
+  onCreateReminder,
   onDelete,
   onEdit,
+  onPauseReminder,
+  onResumeReminder,
   onToggleActive
 }: {
   childProfile: ChildProfile;
   recommendationGroup: LifecycleRecommendationGroup | null;
+  notes: ChildProfileNote[];
+  reminders: ChildProfileReminder[];
+  onArchiveNote: (noteId: string) => void;
+  onCancelReminder: (reminderId: string) => void;
+  onCompleteReminder: (reminderId: string) => void;
+  onCreateNote: (title: string) => void;
+  onCreateReminder: (title: string) => void;
   onDelete: () => void;
   onEdit: () => void;
+  onPauseReminder: (reminderId: string) => void;
+  onResumeReminder: (reminderId: string) => void;
   onToggleActive: () => void;
 }) {
   return (
@@ -486,7 +653,18 @@ function ChildProfileSummary({
         <SummaryItem label="Cinsiyet" value={formatGender(childProfile.gender)} />
       </dl>
 
-      <ChildNotebookPanel childProfile={childProfile} />
+      <ChildNotebookPanel
+        childProfile={childProfile}
+        notes={notes}
+        reminders={reminders}
+        onArchiveNote={onArchiveNote}
+        onCancelReminder={onCancelReminder}
+        onCompleteReminder={onCompleteReminder}
+        onCreateNote={onCreateNote}
+        onCreateReminder={onCreateReminder}
+        onPauseReminder={onPauseReminder}
+        onResumeReminder={onResumeReminder}
+      />
 
       <ChildLifecycleRecommendations
         childProfile={childProfile}
@@ -508,8 +686,42 @@ function ChildProfileSummary({
   );
 }
 
-function ChildNotebookPanel({ childProfile }: { childProfile: ChildProfile }) {
-  const items = buildNotebookPreviewItems(childProfile);
+function ChildNotebookPanel({
+  childProfile,
+  notes,
+  reminders,
+  onArchiveNote,
+  onCancelReminder,
+  onCompleteReminder,
+  onCreateNote,
+  onCreateReminder,
+  onPauseReminder,
+  onResumeReminder
+}: {
+  childProfile: ChildProfile;
+  notes: ChildProfileNote[];
+  reminders: ChildProfileReminder[];
+  onArchiveNote: (noteId: string) => void;
+  onCancelReminder: (reminderId: string) => void;
+  onCompleteReminder: (reminderId: string) => void;
+  onCreateNote: (title: string) => void;
+  onCreateReminder: (title: string) => void;
+  onPauseReminder: (reminderId: string) => void;
+  onResumeReminder: (reminderId: string) => void;
+}) {
+  const [noteTitle, setNoteTitle] = useState("");
+  const [reminderTitle, setReminderTitle] = useState("");
+  const items = notes.length > 0
+    ? notes.slice(0, 4).map((note) => ({
+        id: note.id,
+        title: note.title,
+        meta: note.body ?? formatNoteType(note.noteType),
+        kind: "note" as const
+      }))
+    : buildNotebookPreviewItems(childProfile).map((item) => ({
+        ...item,
+        kind: "placeholder" as const
+      }));
 
   return (
     <section className="rounded-[1.25rem] border border-border bg-muted/20 p-4">
@@ -524,10 +736,92 @@ function ChildNotebookPanel({ childProfile }: { childProfile: ChildProfile }) {
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <form
+          className="rounded-2xl border border-border bg-background/80 p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onCreateNote(noteTitle);
+            setNoteTitle("");
+          }}
+        >
+          <TextInput
+            label="Yeni not"
+            maxLength={100}
+            onChange={(event) => setNoteTitle(event.target.value)}
+            placeholder="Örn. Bez stoğu azaldı"
+            value={noteTitle}
+          />
+          <Button className="mt-2" type="submit" variant="secondary">
+            Not ekle
+          </Button>
+        </form>
+        <form
+          className="rounded-2xl border border-border bg-background/80 p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onCreateReminder(reminderTitle);
+            setReminderTitle("");
+          }}
+        >
+          <TextInput
+            label="Yeni hatırlatıcı"
+            maxLength={120}
+            onChange={(event) => setReminderTitle(event.target.value)}
+            placeholder="Örn. Hafta sonu bez al"
+            value={reminderTitle}
+          />
+          <Button className="mt-2" type="submit" variant="secondary">
+            Yarın 10:00'a ekle
+          </Button>
+        </form>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <article className="rounded-2xl border border-border bg-background/80 p-3" key={item.title}>
             <strong className="block text-sm font-black text-foreground">{item.title}</strong>
             <span className="mt-1 block text-xs font-bold text-muted-foreground">{item.meta}</span>
+            {item.kind === "note" ? (
+              <Button className="mt-2" type="button" variant="secondary" onClick={() => onArchiveNote(item.id)}>
+                Arşivle
+              </Button>
+            ) : null}
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {reminders.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border bg-background/70 p-3 text-sm font-semibold text-muted-foreground">
+            Henüz gerçek hatırlatıcı yok.
+          </p>
+        ) : reminders.slice(0, 5).map((reminder) => (
+          <article className="rounded-2xl border border-border bg-background/80 p-3" key={reminder.id}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <strong className="block text-sm font-black text-foreground">{reminder.title}</strong>
+                <span className="mt-1 block text-xs font-bold text-muted-foreground">
+                  {formatReminderDate(reminder.nextRunAt ?? reminder.remindAt)} · {formatReminderStatus(reminder.status)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {reminder.status === "paused" ? (
+                  <Button type="button" variant="secondary" onClick={() => onResumeReminder(reminder.id)}>
+                    Sürdür
+                  </Button>
+                ) : (
+                  <Button type="button" variant="secondary" onClick={() => onPauseReminder(reminder.id)}>
+                    Duraklat
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" onClick={() => onCompleteReminder(reminder.id)}>
+                  Tamamla
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => onCancelReminder(reminder.id)}>
+                  İptal
+                </Button>
+              </div>
+            </div>
           </article>
         ))}
       </div>
@@ -766,6 +1060,57 @@ function formatNotificationCadence(cadence: ChildProfileNotificationCadence): st
   }
 
   return "Kapalı";
+}
+
+function formatNoteType(noteType: ChildProfileNote["noteType"]): string {
+  const labels: Record<ChildProfileNote["noteType"], string> = {
+    general: "Genel not",
+    feeding: "Beslenme",
+    diaper: "Bez",
+    sleep: "Uyku",
+    activity: "Etkinlik",
+    shopping: "Alışveriş",
+    health_note: "Sağlık notu",
+    size: "Beden / ölçü",
+    preference: "Tercih",
+    daycare: "Okul / bakım",
+    milestone: "Gelişim notu"
+  };
+
+  return labels[noteType];
+}
+
+function formatReminderStatus(status: ChildProfileReminder["status"]): string {
+  const labels: Record<ChildProfileReminder["status"], string> = {
+    scheduled: "Planlandı",
+    paused: "Duraklatıldı",
+    completed: "Tamamlandı",
+    cancelled: "İptal"
+  };
+
+  return labels[status];
+}
+
+function formatReminderDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function buildTomorrowAtTenIso(): string {
+  const date = new Date();
+
+  date.setDate(date.getDate() + 1);
+  date.setHours(10, 0, 0, 0);
+
+  return date.toISOString();
 }
 
 function formatChildLabel(label: string): string {

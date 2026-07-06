@@ -1,10 +1,15 @@
-export type NotificationPreferenceChannel = "email" | "push" | "in_app" | "n8n";
+export type NotificationPreferenceChannel = "email" | "push" | "in_app" | "n8n" | "sms";
 export type NotificationPreferenceSource =
   | "child_reminder"
+  | "child_note"
   | "saved_search"
   | "child_lifecycle"
   | "marketplace"
   | "messages"
+  | "message"
+  | "listing"
+  | "security"
+  | "marketing"
   | "trust_safety";
 export type NotificationPreferenceState = "allowed" | "blocked" | "missing_consent" | "muted" | "rate_limited";
 
@@ -104,23 +109,31 @@ export function getNotificationConsentPreferencePreview(): NotificationConsentPr
     rawContactLoggingAllowed: false,
     supportedSources: [
       "child_reminder",
+      "child_note",
       "saved_search",
       "child_lifecycle",
       "marketplace",
       "messages",
+      "message",
+      "listing",
+      "security",
+      "marketing",
       "trust_safety"
     ],
-    supportedChannels: ["email", "push", "in_app", "n8n"],
+    supportedChannels: ["email", "push", "in_app", "n8n", "sms"],
     requiredPreferenceScopes: [
       "global notification opt-in/out",
       "channel-level email preference",
       "channel-level push preference",
+      "channel-level SMS preference disabled by default",
       "channel-level in-app preference",
       "child reminder preference",
+      "child note preference",
       "saved search preference",
       "child lifecycle recommendation preference",
       "marketplace preference",
       "messages preference",
+      "listing preference",
       "trust and safety notification override rules",
       "mute/snooze window",
       "audit of preference updates"

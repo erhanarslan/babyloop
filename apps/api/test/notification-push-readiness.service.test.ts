@@ -14,7 +14,7 @@ describe("notification push readiness", () => {
       draftOnly: true,
       pushSenderEnabled: false,
       providerConfigured: false,
-      tokenRegistryEnabled: false,
+      tokenRegistryEnabled: true,
       tokenCollectionAllowed: false,
       consentRequired: true,
       auditRequired: true,
@@ -23,7 +23,7 @@ describe("notification push readiness", () => {
     });
     expect(preview.blockedReasons).toContain("push_sender_disabled");
     expect(preview.blockedReasons).toContain("provider_not_configured");
-    expect(preview.blockedReasons).toContain("token_registry_missing");
+    expect(preview.blockedReasons).not.toContain("token_registry_missing");
     expect(preview.warning).toContain("Expo, Firebase, APNs");
     expect(JSON.stringify(preview)).not.toMatch(/sendPush|getExpoPushTokenAsync|expo-notifications|firebase-admin|apn\.Provider|fetch\(|https:\/\/exp\.host|n8n hook|webhook called/iu);
   });
@@ -47,7 +47,8 @@ describe("notification push readiness", () => {
     );
     expect(preview.requirements.every((requirement) => requirement.requiredBeforeSend)).toBe(true);
     expect(preview.requirements.find((requirement) => requirement.key === "delivery_transition_model")?.status).toBe("complete");
-    expect(preview.requirements.find((requirement) => requirement.key === "native_device_token_registry")?.status).toBe("missing");
+    expect(preview.requirements.find((requirement) => requirement.key === "native_device_token_registry")?.status).toBe("complete");
+    expect(preview.requirements.find((requirement) => requirement.key === "platform_token_validation")?.status).toBe("complete");
   });
 
   it("exposes a compact sender-disabled assertion for release gates", () => {

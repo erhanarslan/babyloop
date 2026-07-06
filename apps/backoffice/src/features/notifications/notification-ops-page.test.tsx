@@ -69,14 +69,14 @@ describe("NotificationOpsPage", () => {
               draftOnly: true,
               pushSenderEnabled: false,
               providerConfigured: false,
-              tokenRegistryEnabled: false,
+              tokenRegistryEnabled: true,
               tokenCollectionAllowed: false,
               consentRequired: true,
               auditRequired: true,
               idempotencyRequired: true,
               rateLimitRequired: true,
               requirements: [
-                { key: "native_device_token_registry", label: "Native device token registry", status: "missing", requiredBeforeSend: true }
+                { key: "native_device_token_registry", label: "Native device token registry", status: "complete", requiredBeforeSend: true }
               ],
               blockedReasons: ["push_sender_disabled"],
               rolloutStages: [

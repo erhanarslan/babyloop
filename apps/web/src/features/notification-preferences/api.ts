@@ -45,6 +45,10 @@ export type NotificationPreference = {
   channel: string;
   enabled: boolean;
   mutedUntil: string | null;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  timezone: string;
+  digest: "immediate" | "daily" | "weekly";
   deliveryAllowed: boolean;
   providerCallAllowed: false;
   draftOnly: boolean;
@@ -60,6 +64,12 @@ export type NotificationPreferenceAuditEvent = {
   newEnabled: boolean;
   oldMutedUntil: string | null;
   newMutedUntil: string | null;
+  oldDigest: string | null;
+  newDigest: string | null;
+  oldQuietHoursStart: string | null;
+  newQuietHoursStart: string | null;
+  oldQuietHoursEnd: string | null;
+  newQuietHoursEnd: string | null;
   reason: string | null;
   createdAt: string;
 };
@@ -74,6 +84,7 @@ export type NotificationPreferencesPayload = {
     supportedChannels: string[];
     defaultEnabledChannels: string[];
     draftOnlyChannels: string[];
+    disabledChannels: string[];
   };
 };
 

@@ -44,6 +44,7 @@ const note: MobileChildNote = {
   noteType: "general",
   title: "Bez",
   body: null,
+  isPinned: false,
   isArchived: false,
   createdAt: "2030-01-01T00:00:00.000Z",
   updatedAt: "2030-01-01T00:00:00.000Z"
@@ -54,9 +55,19 @@ const reminder: MobileChildReminder = {
   childProfileId: "child-active",
   title: "Bez al",
   description: null,
+  reminderType: "shopping",
+  scheduleKind: "one_time",
+  intervalMinutes: null,
+  dueAt: "2030-01-02T07:00:00.000Z",
+  eventAt: null,
+  notifyBeforeMinutes: null,
+  localTime: null,
+  timezone: "Europe/Istanbul",
   remindAt: "2030-01-02T07:00:00.000Z",
   channel: "in_app",
+  nextRunAt: "2030-01-02T07:00:00.000Z",
   status: "scheduled",
+  lastTriggeredAt: null,
   completedAt: null,
   cancelledAt: null,
   createdAt: "2030-01-01T00:00:00.000Z",
@@ -93,7 +104,11 @@ describe("mobile child reminder screen-state model", () => {
 
     expect(payload).toEqual({
       title: "Yarın bez al",
+      reminderType: "shopping",
+      scheduleKind: "one_time",
+      dueAt: "2030-01-02T07:00:00.000Z",
       remindAt: "2030-01-02T07:00:00.000Z",
+      timezone: "Europe/Istanbul",
       channel: "in_app"
     });
     expect(JSON.stringify(payload)).not.toMatch(/sendPush|sendEmail|n8n|webhook|push gönderildi|email gönderildi/iu);

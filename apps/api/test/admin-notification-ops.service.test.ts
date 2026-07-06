@@ -80,14 +80,14 @@ describe("admin notification ops service", () => {
       draftOnly: true,
       pushSenderEnabled: false,
       providerConfigured: false,
-      tokenRegistryEnabled: false,
+      tokenRegistryEnabled: true,
       tokenCollectionAllowed: false
     });
     expect(preview.preferenceSummary).toMatchObject({
       deliveryProvidersEnabled: false,
       providerCallsAllowed: false,
       defaultEnabledChannels: ["in_app"],
-      draftOnlyChannels: ["email", "push", "n8n"]
+      draftOnlyChannels: ["email", "push", "n8n", "sms"]
     });
     expect(preview.transitionPreview).toMatchObject({
       draftOnly: true,

@@ -1,5 +1,6 @@
 import {
   createMobileChildNote,
+  createMobileChildReminder,
   fetchMobileChildProfiles,
   updateMobileChildProfile
 } from "./child-reminders-api";
@@ -45,6 +46,7 @@ describe("mobile child reminders API", () => {
           noteType: "general",
           title: "Bez notu",
           body: null,
+          isPinned: false,
           isArchived: false,
           createdAt: "2030-01-01T00:00:00.000Z",
           updatedAt: "2030-01-01T00:00:00.000Z"
@@ -66,6 +68,56 @@ describe("mobile child reminders API", () => {
       body: null
     }));
     expect(JSON.stringify({ result, init })).not.toMatch(/accessToken|refreshToken|passwordHash/iu);
+  });
+
+  it("creates scheduled child reminders with safe one-time payloads", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        reminder: {
+          id: "reminder-1",
+          childProfileId: "child-1",
+          title: "Bez al",
+          description: null,
+          reminderType: "shopping",
+          scheduleKind: "one_time",
+          intervalMinutes: null,
+          dueAt: "2030-01-01T10:00:00.000Z",
+          eventAt: null,
+          notifyBeforeMinutes: null,
+          localTime: null,
+          timezone: "Europe/Istanbul",
+          remindAt: "2030-01-01T10:00:00.000Z",
+          nextRunAt: "2030-01-01T10:00:00.000Z",
+          channel: "in_app",
+          status: "scheduled",
+          lastTriggeredAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          createdAt: "2030-01-01T00:00:00.000Z",
+          updatedAt: "2030-01-01T00:00:00.000Z"
+        }
+      }
+    }));
+
+    const result = await createMobileChildReminder("child-1", {
+      title: "Bez al",
+      scheduleKind: "one_time",
+      dueAt: "2030-01-01T10:00:00.000Z",
+      timezone: "Europe/Istanbul"
+    });
+
+    const [, init] = mobileAuthFetchMock.mock.calls[0]!;
+
+    expect(result.ok).toBe(true);
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBe(JSON.stringify({
+      title: "Bez al",
+      scheduleKind: "one_time",
+      dueAt: "2030-01-01T10:00:00.000Z",
+      timezone: "Europe/Istanbul"
+    }));
+    expect(JSON.stringify({ result, init })).not.toMatch(/sendPush|sendEmail|n8n|accessToken|refreshToken|passwordHash/iu);
   });
 
   it("updates notification cadence on the child profile", async () => {

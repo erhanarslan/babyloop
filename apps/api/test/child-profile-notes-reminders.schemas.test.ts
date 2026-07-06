@@ -17,7 +17,8 @@ describe("child profile notes and reminders schemas", () => {
     expect(parsed).toEqual({
       noteType: "preference",
       title: "Park çantası",
-      body: "Yedek kıyafet ve suluk hazır."
+      body: "Yedek kıyafet ve suluk hazır.",
+      isPinned: false
     });
     expect(
       createChildProfileNoteBodySchema.safeParse({
@@ -58,9 +59,11 @@ describe("child profile notes and reminders schemas", () => {
     expect(parsed).toMatchObject({
       title: "Bez stok kontrolü",
       description: "Hafta sonu alışverişinden önce kontrol et.",
+      scheduleKind: "one_time",
       channel: "email_draft"
     });
     expect(parsed.remindAt).toBeInstanceOf(Date);
+    expect(parsed.timezone).toBe("Europe/Istanbul");
     expect(
       createChildProfileReminderBodySchema.safeParse({
         title: "Bez stok kontrolü",
@@ -82,6 +85,30 @@ describe("child profile notes and reminders schemas", () => {
       updateChildProfileReminderBodySchema.safeParse({
         title: "Güncelle",
         passwordHash: "must-not-be-accepted"
+      }).success
+    ).toBe(false);
+  });
+
+  it("validates schedule combinations and medical reminder boundaries", () => {
+    expect(
+      createChildProfileReminderBodySchema.safeParse({
+        title: "Bez takip",
+        scheduleKind: "interval"
+      }).success
+    ).toBe(false);
+    expect(
+      createChildProfileReminderBodySchema.safeParse({
+        title: "Etkinlik çantası",
+        scheduleKind: "relative_before_event",
+        eventAt: "2030-01-10T10:00:00.000Z",
+        notifyBeforeMinutes: 1440
+      }).success
+    ).toBe(true);
+    expect(
+      createChildProfileReminderBodySchema.safeParse({
+        title: "İlaç saati",
+        scheduleKind: "one_time",
+        dueAt: "2030-01-01T10:00:00.000Z"
       }).success
     ).toBe(false);
   });

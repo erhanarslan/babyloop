@@ -8,7 +8,7 @@ This release gate covers backlog items #193-#223. Codex did not run tests in thi
 - #194 Notification preference audit trail: DB-backed `notification_preference_audit_events` with redacted reason text and no raw contact fields.
 - #198 Notification delivery provider design gate sonrası sandbox: provider delivery remains disabled by default.
 - #199 Email draft/provider adapter boundary: email remains draft/readiness-only; no sender is enabled.
-- #200 Push token registry design gate: no raw push token registry or native token collection is enabled in this package.
+- #200 Push token registry design gate: hash-only push token registry/API can exist; native token collection and sender activation remain disabled in this package.
 - #201 Push readiness real mobile integration hazırlığı: mobile has API/model readiness, not native push delivery.
 - #202 n8n webhook contract design: n8n is represented as a disabled channel; no webhook call is enabled.
 - #203 n8n sandbox workflow boundary: dry-run/readiness only; no queue or worker is enabled.

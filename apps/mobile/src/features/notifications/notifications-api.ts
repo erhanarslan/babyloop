@@ -43,6 +43,10 @@ export type MobileNotificationPreference = {
   channel: string;
   enabled: boolean;
   mutedUntil: string | null;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  timezone: string;
+  digest: "immediate" | "daily" | "weekly";
   deliveryAllowed: boolean;
   providerCallAllowed: false;
   draftOnly: boolean;
@@ -58,6 +62,12 @@ export type MobileNotificationPreferenceAuditEvent = {
   newEnabled: boolean;
   oldMutedUntil: string | null;
   newMutedUntil: string | null;
+  oldDigest: string | null;
+  newDigest: string | null;
+  oldQuietHoursStart: string | null;
+  newQuietHoursStart: string | null;
+  oldQuietHoursEnd: string | null;
+  newQuietHoursEnd: string | null;
   reason: string | null;
   createdAt: string;
 };
@@ -72,6 +82,7 @@ export type MobileNotificationPreferencesPayload = {
     supportedChannels: string[];
     defaultEnabledChannels: string[];
     draftOnlyChannels: string[];
+    disabledChannels: string[];
   };
 };
 
@@ -80,7 +91,23 @@ export type UpdateMobileNotificationPreferenceInput = {
   channel: string;
   enabled: boolean;
   mutedUntil?: string | null;
+  quietHoursStart?: string | null;
+  quietHoursEnd?: string | null;
+  timezone?: string;
+  digest?: "immediate" | "daily" | "weekly";
   reason?: string | null;
+};
+
+export type MobilePushTokenRegistration = {
+  id: string;
+  platform: "ios" | "android" | "expo";
+  tokenHashPrefix: string;
+  redactedToken: string;
+  deviceLabel: string | null;
+  lastSeenAt: string;
+  revokedAt: string | null;
+  deliveryAllowed: false;
+  providerCallAllowed: false;
 };
 
 export async function fetchMobileNotifications(): Promise<MobileApiResponse<{
@@ -141,6 +168,36 @@ export async function updateMobileNotificationPreference(
       "content-type": "application/json"
     },
     body: JSON.stringify(input)
+  });
+}
+
+export async function fetchMobilePushTokenRegistrations(): Promise<
+  MobileApiResponse<{ tokens: MobilePushTokenRegistration[] }>
+> {
+  return requestMobileNotificationsApi("/api/v1/notifications/push-tokens");
+}
+
+export async function registerMobilePushToken(input: {
+  token: string;
+  platform: MobilePushTokenRegistration["platform"];
+  deviceLabel?: string;
+}): Promise<MobileApiResponse<{ token: MobilePushTokenRegistration }>> {
+  return requestMobileNotificationsApi("/api/v1/notifications/push-tokens", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+}
+
+export async function revokeMobilePushToken(token: string): Promise<MobileApiResponse<{ revoked: true }>> {
+  return requestMobileNotificationsApi("/api/v1/notifications/push-tokens", {
+    method: "DELETE",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ token })
   });
 }
 

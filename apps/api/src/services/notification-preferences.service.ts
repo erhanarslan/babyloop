@@ -8,6 +8,7 @@ import {
   notificationPreferenceChannelValues,
   notificationPreferenceSourceValues,
   type NotificationPreferenceChannel,
+  type NotificationPreferenceDigest,
   type NotificationPreferenceSource,
   type UpdateNotificationPreferenceBody
 } from "../schemas/notification-preferences.schemas.js";
@@ -19,6 +20,10 @@ export type NotificationPreferenceResponse = {
   channel: NotificationPreferenceChannel;
   enabled: boolean;
   mutedUntil: string | null;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  timezone: string;
+  digest: NotificationPreferenceDigest;
   deliveryAllowed: boolean;
   providerCallAllowed: false;
   draftOnly: boolean;
@@ -34,6 +39,12 @@ export type NotificationPreferenceAuditEventResponse = {
   newEnabled: boolean;
   oldMutedUntil: string | null;
   newMutedUntil: string | null;
+  oldDigest: string | null;
+  newDigest: string | null;
+  oldQuietHoursStart: string | null;
+  newQuietHoursStart: string | null;
+  oldQuietHoursEnd: string | null;
+  newQuietHoursEnd: string | null;
   reason: string | null;
   createdAt: string;
 };
@@ -45,6 +56,7 @@ export type NotificationPreferencesSummary = {
   supportedChannels: NotificationPreferenceChannel[];
   defaultEnabledChannels: NotificationPreferenceChannel[];
   draftOnlyChannels: NotificationPreferenceChannel[];
+  disabledChannels: NotificationPreferenceChannel[];
 };
 
 export type NotificationPreferencesResponse = {
@@ -84,6 +96,10 @@ export async function listNotificationPreferencesForProfile(
           channel,
           enabled: getDefaultEnabled(source, channel),
           mutedUntil: null,
+          quietHoursStart: null,
+          quietHoursEnd: null,
+          timezone: "Europe/Istanbul",
+          digest: "immediate",
           createdAt: null,
           updatedAt: null
         });
@@ -106,6 +122,8 @@ export async function updateNotificationPreferenceForProfile(
 }> {
   const now = new Date();
   const mutedUntil = input.mutedUntil ?? null;
+  const quietHoursStart = input.quietHoursStart ?? null;
+  const quietHoursEnd = input.quietHoursEnd ?? null;
   const safeReason = input.reason ? redactPrivateText(input.reason) : null;
   const result = await app.db.transaction(async (tx) => {
     const [existing] = await tx
@@ -125,6 +143,10 @@ export async function updateNotificationPreferenceForProfile(
         channel: input.channel,
         enabled: input.enabled,
         mutedUntil,
+        quietHoursStart,
+        quietHoursEnd,
+        timezone: input.timezone,
+        digest: input.digest,
         reason: safeReason,
         updatedAt: now
       })
@@ -137,6 +159,10 @@ export async function updateNotificationPreferenceForProfile(
         set: {
           enabled: input.enabled,
           mutedUntil,
+          quietHoursStart,
+          quietHoursEnd,
+          timezone: input.timezone,
+          digest: input.digest,
           reason: safeReason,
           updatedAt: now
         }
@@ -158,12 +184,20 @@ export async function updateNotificationPreferenceForProfile(
         newEnabled: input.enabled,
         oldMutedUntil: existing?.mutedUntil ?? null,
         newMutedUntil: mutedUntil,
+        oldDigest: existing?.digest ?? null,
+        newDigest: input.digest,
+        oldQuietHoursStart: existing?.quietHoursStart ?? null,
+        newQuietHoursStart: quietHoursStart,
+        oldQuietHoursEnd: existing?.quietHoursEnd ?? null,
+        newQuietHoursEnd: quietHoursEnd,
         reason: safeReason,
         metadata: {
           providerCallsAllowed: false,
           deliveryProvidersEnabled: false,
           source: input.source,
-          channel: input.channel
+          channel: input.channel,
+          digest: input.digest,
+          quietHoursConfigured: Boolean(quietHoursStart || quietHoursEnd)
         }
       })
       .returning();
@@ -194,7 +228,9 @@ export async function isNotificationPreferenceEnabledForDelivery(
   const [preference] = await app.db
     .select({
       enabled: notificationPreferences.enabled,
-      mutedUntil: notificationPreferences.mutedUntil
+      mutedUntil: notificationPreferences.mutedUntil,
+      quietHoursStart: notificationPreferences.quietHoursStart,
+      quietHoursEnd: notificationPreferences.quietHoursEnd
     })
     .from(notificationPreferences)
     .where(and(
@@ -206,8 +242,9 @@ export async function isNotificationPreferenceEnabledForDelivery(
 
   const enabled = preference?.enabled ?? getDefaultEnabled(source, channel);
   const isMuted = Boolean(preference?.mutedUntil && preference.mutedUntil.getTime() > Date.now());
+  const isQuiet = preference ? isQuietHoursActive(preference) : false;
 
-  return channel === "in_app" && enabled && !isMuted;
+  return channel === "in_app" && enabled && !isMuted && !isQuiet;
 }
 
 export function getNotificationPreferenceSummary(): NotificationPreferencesSummary {
@@ -217,7 +254,8 @@ export function getNotificationPreferenceSummary(): NotificationPreferencesSumma
     supportedSources: [...notificationPreferenceSourceValues],
     supportedChannels: [...notificationPreferenceChannelValues],
     defaultEnabledChannels: ["in_app"],
-    draftOnlyChannels: ["email", "push", "n8n"]
+    draftOnlyChannels: ["email", "push", "n8n", "sms"],
+    disabledChannels: ["sms"]
   };
 }
 
@@ -227,21 +265,35 @@ function mapPreferenceRow(row: {
   channel: NotificationPreferenceChannel;
   enabled: boolean;
   mutedUntil: Date | null;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  timezone: string;
+  digest: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }): NotificationPreferenceResponse {
+  const isDeliveryAllowed = row.channel === "in_app" && row.enabled && !isQuietHoursActive(row);
+
   return {
     id: row.id,
     source: row.source,
     channel: row.channel,
     enabled: row.enabled,
     mutedUntil: row.mutedUntil?.toISOString() ?? null,
-    deliveryAllowed: row.channel === "in_app" && row.enabled,
+    quietHoursStart: row.quietHoursStart,
+    quietHoursEnd: row.quietHoursEnd,
+    timezone: row.timezone,
+    digest: normalizeDigest(row.digest),
+    deliveryAllowed: isDeliveryAllowed,
     providerCallAllowed: false,
     draftOnly: row.channel !== "in_app",
     createdAt: row.createdAt?.toISOString() ?? null,
     updatedAt: row.updatedAt?.toISOString() ?? null
   };
+}
+
+function normalizeDigest(value: string): NotificationPreferenceDigest {
+  return value === "daily" || value === "weekly" ? value : "immediate";
 }
 
 function mapAuditEventRow(row: typeof notificationPreferenceAuditEvents.$inferSelect): NotificationPreferenceAuditEventResponse {
@@ -253,6 +305,12 @@ function mapAuditEventRow(row: typeof notificationPreferenceAuditEvents.$inferSe
     newEnabled: row.newEnabled,
     oldMutedUntil: row.oldMutedUntil?.toISOString() ?? null,
     newMutedUntil: row.newMutedUntil?.toISOString() ?? null,
+    oldDigest: row.oldDigest,
+    newDigest: row.newDigest,
+    oldQuietHoursStart: row.oldQuietHoursStart,
+    newQuietHoursStart: row.newQuietHoursStart,
+    oldQuietHoursEnd: row.oldQuietHoursEnd,
+    newQuietHoursEnd: row.newQuietHoursEnd,
     reason: row.reason,
     createdAt: row.createdAt.toISOString()
   };
@@ -266,8 +324,19 @@ function buildPreferenceScopeKey(
 }
 
 function getDefaultEnabled(
-  _source: NotificationPreferenceSource,
+  source: NotificationPreferenceSource,
   channel: NotificationPreferenceChannel
 ): boolean {
-  return channel === "in_app";
+  if (channel !== "in_app") {
+    return false;
+  }
+
+  return source !== "marketing";
+}
+
+function isQuietHoursActive(row: {
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+}): boolean {
+  return Boolean(row.quietHoursStart && row.quietHoursEnd);
 }

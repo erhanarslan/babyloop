@@ -33,9 +33,21 @@ export type ChildProfile = {
 export type ChildProfileNote = {
   id: string;
   childProfileId: string;
-  noteType: "general" | "feeding" | "sleep" | "size" | "preference" | "daycare" | "milestone";
+  noteType:
+    | "general"
+    | "feeding"
+    | "diaper"
+    | "sleep"
+    | "activity"
+    | "shopping"
+    | "health_note"
+    | "size"
+    | "preference"
+    | "daycare"
+    | "milestone";
   title: string;
   body: string | null;
+  isPinned: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -46,9 +58,19 @@ export type ChildProfileReminder = {
   childProfileId: string;
   title: string;
   description: string | null;
+  reminderType: "feeding" | "diaper" | "sleep" | "activity" | "shopping" | "appointment" | "general";
+  scheduleKind: "one_time" | "interval" | "daily" | "weekly" | "relative_before_event";
+  intervalMinutes: number | null;
+  dueAt: string | null;
+  eventAt: string | null;
+  notifyBeforeMinutes: number | null;
+  localTime: string | null;
+  timezone: string;
   remindAt: string;
   channel: "in_app" | "email_draft";
-  status: "scheduled" | "completed" | "cancelled";
+  nextRunAt: string | null;
+  status: "scheduled" | "paused" | "completed" | "cancelled";
+  lastTriggeredAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -180,6 +202,47 @@ export async function fetchChildProfileNotes(
   return response.json() as Promise<ApiResponse<ChildProfileNotesPayload>>;
 }
 
+export async function createChildProfileNote(
+  apiBaseUrl: string,
+  childProfileId: string,
+  payload: {
+    noteType?: ChildProfileNote["noteType"];
+    title: string;
+    body?: string | null;
+    isPinned?: boolean;
+  }
+): Promise<ApiResponse<{ note: ChildProfileNote }>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/notes`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  return response.json() as Promise<ApiResponse<{ note: ChildProfileNote }>>;
+}
+
+export async function archiveChildProfileNote(
+  apiBaseUrl: string,
+  childProfileId: string,
+  noteId: string
+): Promise<ApiResponse<{ archived: true }>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  return response.json() as Promise<ApiResponse<{ archived: true }>>;
+}
+
 export async function fetchChildProfileReminders(
   apiBaseUrl: string,
   childProfileId: string
@@ -190,4 +253,74 @@ export async function fetchChildProfileReminders(
   );
 
   return response.json() as Promise<ApiResponse<ChildProfileRemindersPayload>>;
+}
+
+export async function createChildProfileReminder(
+  apiBaseUrl: string,
+  childProfileId: string,
+  payload: {
+    title: string;
+    description?: string | null;
+    reminderType?: ChildProfileReminder["reminderType"];
+    scheduleKind?: ChildProfileReminder["scheduleKind"];
+    intervalMinutes?: number;
+    remindAt?: string;
+    dueAt?: string;
+    eventAt?: string;
+    notifyBeforeMinutes?: number;
+    localTime?: string;
+    timezone?: string;
+    channel?: ChildProfileReminder["channel"];
+  }
+): Promise<ApiResponse<{ reminder: ChildProfileReminder }>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/reminders`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  return response.json() as Promise<ApiResponse<{ reminder: ChildProfileReminder }>>;
+}
+
+export async function updateChildProfileReminderStatus(
+  apiBaseUrl: string,
+  childProfileId: string,
+  reminderId: string,
+  status: ChildProfileReminder["status"]
+): Promise<ApiResponse<{ reminder: ChildProfileReminder }>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/reminders/${encodeURIComponent(reminderId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ status })
+    }
+  );
+
+  return response.json() as Promise<ApiResponse<{ reminder: ChildProfileReminder }>>;
+}
+
+export async function cancelChildProfileReminder(
+  apiBaseUrl: string,
+  childProfileId: string,
+  reminderId: string
+): Promise<ApiResponse<{ cancelled: true }>> {
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/reminders/${encodeURIComponent(reminderId)}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  return response.json() as Promise<ApiResponse<{ cancelled: true }>>;
 }

@@ -49,7 +49,7 @@ type AdminNotificationOpsPreview = {
     draftOnly: true;
     pushSenderEnabled: false;
     providerConfigured: false;
-    tokenRegistryEnabled: false;
+    tokenRegistryEnabled: boolean;
     tokenCollectionAllowed: false;
     consentRequired: true;
     auditRequired: true;
