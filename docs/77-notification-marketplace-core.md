@@ -40,6 +40,7 @@ The package intentionally does not enable:
 - Real email send.
 - Real push send or raw push token collection.
 - Real n8n webhook execution.
+- Real SMS send.
 - Real queue worker.
 - Real payment/Iyzico changes.
 - Real production S3/R2 migration.
@@ -49,6 +50,34 @@ Notification preference channels are `in_app`, `email`, `push`, and `n8n`. `in_a
 No real n8n webhook execution.
 No real push send.
 No real email send.
+No real SMS send.
+
+## Provider Execution Layer
+
+BabyLoop now has an env-gated notification provider execution layer on top of `notification_delivery_logs`. Missing env keeps delivery safe as `provider_disabled` / `skipped` and no network call is made.
+
+Provider env vars:
+
+- n8n: `N8N_NOTIFICATION_WEBHOOK_ENABLED`, `N8N_NOTIFICATION_WEBHOOK_URL`, `N8N_NOTIFICATION_WEBHOOK_BEARER_TOKEN`, `N8N_NOTIFICATION_WEBHOOK_SECRET`, `N8N_NOTIFICATION_WEBHOOK_TIMEOUT_MS`, `N8N_NOTIFICATION_WEBHOOK_MAX_RETRIES`
+- Resend: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`, `RESEND_API_BASE_URL`, `NOTIFICATION_EMAIL_TIMEOUT_MS`, `NOTIFICATION_EMAIL_MAX_RETRIES`
+- Push: `NOTIFICATION_PUSH_ENABLED`, `PUSH_PROVIDER=expo`, `EXPO_ACCESS_TOKEN`, `EXPO_PUSH_API_BASE_URL`, `NOTIFICATION_PUSH_TIMEOUT_MS`, `NOTIFICATION_PUSH_MAX_RETRIES`, `PUSH_TOKEN_ENCRYPTION_KEY`
+
+Delivery lifecycle:
+
+- `candidate` logs are processed by `pnpm --filter @babyloop/api notifications:process`.
+- Preference/consent gates run before provider calls.
+- Provider env missing: `skipped` with `skippedReason=provider_disabled`.
+- Success: `sent`, `providerStatus=sent`, redacted `providerMessageId`, `sentAt`, `deliveredAt`.
+- Retryable provider/network failure: `failed`, `providerStatus=retry_scheduled`, `attemptCount`, `lastAttemptAt`, `nextAttemptAt`.
+- Non-retryable provider rejection: `failed` with redacted error code/message.
+- Idempotency uses the delivery log idempotency key and provider headers.
+
+PII/redaction policy:
+
+- n8n payload allowlist: event type, source, channel, delivery log id, idempotency key, profile/source ids, child/reminder ids, schedule metadata, short sanitized title and timestamps.
+- Resend payload includes only the verified recipient email required for delivery plus sanitized subject/text/html.
+- Push payload includes token only in the provider request, never in logs/DTOs; stored push tokens are hash-only plus encrypted envelope when `PUSH_TOKEN_ENCRYPTION_KEY` or `AUTH_SECRET` is configured.
+- Admin monitor shows provider/status/attempt/error summary only. It does not expose metadata, idempotency keys, e-mail, raw push token, provider secret, webhook secret, raw body, API key, cookie or authorization header.
 
 ## No-Leak Checklist
 

@@ -300,7 +300,8 @@ function checkDeliveryReadinessBoundaries() {
     "emailEnabled: false",
     "pushEnabled: false",
     "n8nEnabled: false",
-    "deliveryAllowed: false",
+    "deliveryPolicy",
+    "deliveryAllowed: row.deliveryAllowed",
     "draftOnly: true",
     "privacyNote"
   ]) {
@@ -398,7 +399,7 @@ function checkSurfaceConsistency() {
   mustContainCaseInsensitive(backofficeNotificationSurface, "backoffice notification ops surface", "deliveryAllowed");
 
   for (const token of [
-    "deliveryAllowed: false",
+    "deliveryAllowed",
     "draftOnly: true",
     "sendEnabled",
     "queueEnabled",

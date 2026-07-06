@@ -4,7 +4,7 @@ import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState } from "react";
 
 const DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE =
-  "Ops preview uses aggregate counts and redacted sourceRef only; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization and raw body are never exposed.";
+  "Ops preview uses aggregate counts, provider status, redacted sourceRef, and redacted refs only; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider secret and raw body are never exposed.";
 
 type AdminNotificationOpsPreview = {
   summary: {
@@ -107,8 +107,20 @@ type AdminNotificationOpsPreview = {
       sourceRef: string;
       channel: string;
       status: string;
-      deliveryAllowed: false;
-      draftOnly: true;
+      provider: string;
+      providerStatus: string | null;
+      providerMessageRef: string | null;
+      attemptCount: number;
+      lastAttemptAt: string | null;
+      nextAttemptAt: string | null;
+      lastErrorCode: string | null;
+      lastErrorMessageRedacted: string | null;
+      skippedReason: string | null;
+      sentAt: string | null;
+      deliveredAt: string | null;
+      failedAt: string | null;
+      deliveryAllowed: boolean;
+      draftOnly: boolean;
       blockedReasons: string[];
       frequencyWindowHours: number;
       createdAt: string;
@@ -356,14 +368,16 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                   <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">Channel</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Window</th>
+                  <th className="px-4 py-3">Provider</th>
+                  <th className="px-4 py-3">Attempts</th>
+                  <th className="px-4 py-3">Last error</th>
                   <th className="px-4 py-3">Created</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {deliveryLogPreview.recent.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-4 text-slate-500" colSpan={6}>
+                    <td className="px-4 py-4 text-slate-500" colSpan={8}>
                       Henüz delivery log candidate yok.
                     </td>
                   </tr>
@@ -374,7 +388,18 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                       <td className="px-4 py-3 text-slate-600">{item.sourceType}:{item.sourceRef}</td>
                       <td className="px-4 py-3 text-slate-600">{item.channel}</td>
                       <td className="px-4 py-3 text-slate-600">{item.status}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.frequencyWindowHours}h</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.provider}
+                        {item.providerStatus ? ` / ${item.providerStatus}` : ""}
+                        {item.providerMessageRef ? ` / ${item.providerMessageRef}` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.attemptCount}
+                        {item.nextAttemptAt ? ` / retry ${item.nextAttemptAt}` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.lastErrorCode ?? item.skippedReason ?? "-"}
+                      </td>
                       <td className="px-4 py-3 text-slate-600">{item.createdAt}</td>
                     </tr>
                   ))

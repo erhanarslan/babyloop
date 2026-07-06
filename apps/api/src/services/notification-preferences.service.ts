@@ -244,7 +244,7 @@ export async function isNotificationPreferenceEnabledForDelivery(
   const isMuted = Boolean(preference?.mutedUntil && preference.mutedUntil.getTime() > Date.now());
   const isQuiet = preference ? isQuietHoursActive(preference) : false;
 
-  return channel === "in_app" && enabled && !isMuted && !isQuiet;
+  return enabled && !isMuted && !isQuiet;
 }
 
 export function getNotificationPreferenceSummary(): NotificationPreferencesSummary {

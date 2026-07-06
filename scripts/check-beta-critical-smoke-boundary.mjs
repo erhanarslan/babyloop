@@ -72,6 +72,7 @@ function checkRunner() {
     "security:notification-delivery-transitions",
     "security:notification-ops-preview",
     "security:notification-delivery-log",
+    "security:notification-provider-execution",
     "security:auth-leaks",
     "security:public-auth-cookie-migration",
     "release:artifacts",

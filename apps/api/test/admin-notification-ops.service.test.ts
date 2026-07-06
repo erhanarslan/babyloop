@@ -28,6 +28,8 @@ describe("admin notification ops service", () => {
         sourceId: "saved-search-very-long-id:listing-very-long-id",
         channel: "in_app",
         status: "candidate",
+        provider: null,
+        providerStatus: null,
         idempotencyKey: "secret-idempotency-key-1",
         dedupKey: "secret-dedup-key-1",
         frequencyWindowHours: 24,
@@ -47,6 +49,14 @@ describe("admin notification ops service", () => {
         sourceId: "reminder-1",
         channel: "email_draft",
         status: "blocked",
+        provider: "resend",
+        providerStatus: "retry_scheduled",
+        providerMessageId: "resend-message-id-secret-long-value",
+        attemptCount: 2,
+        lastAttemptAt: new Date("2030-01-01T10:00:00.000Z"),
+        nextAttemptAt: new Date("2030-01-01T10:05:00.000Z"),
+        lastErrorCode: "resend_500",
+        lastErrorMessageRedacted: "provider failed for [redacted-email]",
         idempotencyKey: "secret-idempotency-key-2",
         dedupKey: "secret-dedup-key-2",
         frequencyWindowHours: 24,
@@ -121,7 +131,11 @@ describe("admin notification ops service", () => {
       expect.arrayContaining([
         expect.objectContaining({
           deliveryAllowed: false,
-          draftOnly: true
+          draftOnly: true,
+          provider: "resend",
+          providerStatus: "retry_scheduled",
+          attemptCount: 2,
+          lastErrorCode: "resend_500"
         })
       ])
     );

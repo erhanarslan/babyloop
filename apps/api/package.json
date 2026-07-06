@@ -8,6 +8,7 @@
     "dev": "pnpm build:deps && pnpm build && node dist/server.js",
     "rag:ingest": "pnpm exec tsx src/scripts/rag-ingest.ts",
     "child-reminders:process": "pnpm exec tsx src/scripts/process-child-reminders.ts",
+    "notifications:process": "pnpm exec tsx src/scripts/process-notification-deliveries.ts",
     "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run --config vitest.config.ts",

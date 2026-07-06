@@ -89,8 +89,20 @@ export type AdminNotificationDeliveryLogPreviewItem = {
   sourceRef: string;
   channel: NotificationDeliveryChannel | "email" | "push" | "n8n" | "unknown";
   status: NotificationDeliveryLogStatus | "unknown";
-  deliveryAllowed: false;
-  draftOnly: true;
+  provider: "resend" | "expo" | "n8n" | "none" | "unknown";
+  providerStatus: string | null;
+  providerMessageRef: string | null;
+  attemptCount: number;
+  lastAttemptAt: string | null;
+  nextAttemptAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessageRedacted: string | null;
+  skippedReason: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  deliveryAllowed: boolean;
+  draftOnly: boolean;
   blockedReasons: string[];
   frequencyWindowHours: number;
   createdAt: string;
@@ -200,6 +212,18 @@ export async function getAdminNotificationDeliveryLogPreview(
         sourceId: notificationDeliveryLogs.sourceId,
         channel: notificationDeliveryLogs.channel,
         status: notificationDeliveryLogs.status,
+        provider: notificationDeliveryLogs.provider,
+        providerStatus: notificationDeliveryLogs.providerStatus,
+        providerMessageId: notificationDeliveryLogs.providerMessageId,
+        attemptCount: notificationDeliveryLogs.attemptCount,
+        lastAttemptAt: notificationDeliveryLogs.lastAttemptAt,
+        nextAttemptAt: notificationDeliveryLogs.nextAttemptAt,
+        lastErrorCode: notificationDeliveryLogs.lastErrorCode,
+        lastErrorMessageRedacted: notificationDeliveryLogs.lastErrorMessageRedacted,
+        skippedReason: notificationDeliveryLogs.skippedReason,
+        sentAt: notificationDeliveryLogs.sentAt,
+        deliveredAt: notificationDeliveryLogs.deliveredAt,
+        failedAt: notificationDeliveryLogs.failedAt,
         deliveryAllowed: notificationDeliveryLogs.deliveryAllowed,
         draftOnly: notificationDeliveryLogs.draftOnly,
         blockedReasons: notificationDeliveryLogs.blockedReasons,
@@ -243,14 +267,26 @@ export async function getAdminNotificationDeliveryLogPreview(
       sourceRef: maskSourceRef(row.sourceId),
       channel: normalizeChannel(row.channel),
       status: normalizeStatus(row.status),
-      deliveryAllowed: false,
-      draftOnly: true,
+      provider: normalizeProvider(row.provider),
+      providerStatus: sanitizeShortText(row.providerStatus),
+      providerMessageRef: row.providerMessageId ? maskSourceRef(row.providerMessageId) : null,
+      attemptCount: row.attemptCount,
+      lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
+      nextAttemptAt: row.nextAttemptAt?.toISOString() ?? null,
+      lastErrorCode: sanitizeShortText(row.lastErrorCode),
+      lastErrorMessageRedacted: sanitizeShortText(row.lastErrorMessageRedacted),
+      skippedReason: sanitizeShortText(row.skippedReason),
+      sentAt: row.sentAt?.toISOString() ?? null,
+      deliveredAt: row.deliveredAt?.toISOString() ?? null,
+      failedAt: row.failedAt?.toISOString() ?? null,
+      deliveryAllowed: row.deliveryAllowed,
+      draftOnly: row.draftOnly,
       blockedReasons: sanitizeBlockedReasons(row.blockedReasons),
       frequencyWindowHours: row.frequencyWindowHours,
       createdAt: row.createdAt.toISOString()
     })),
     privacyNote:
-      "Preview yalnızca aggregate count ve redacted sourceRef döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
+      "Preview yalnızca aggregate count, provider status ve redacted source/message ref döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider secret veya raw body göstermez."
   };
 }
 
@@ -293,6 +329,29 @@ function normalizeStatus(value: string): NotificationDeliveryLogStatus | "unknow
   }
 
   return "unknown";
+}
+
+function normalizeProvider(value: string | null): AdminNotificationDeliveryLogPreviewItem["provider"] {
+  if (!value) {
+    return "none";
+  }
+
+  if (value === "resend" || value === "expo" || value === "n8n") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function sanitizeShortText(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "[redacted-email]")
+    .replace(/\b(?:accessToken|refreshToken|passwordHash|authorization|cookie|set-cookie|api[_-]?key|secret|token)\b[^\s,;]*/giu, "[redacted-secret]")
+    .slice(0, 120);
 }
 
 function sanitizeBlockedReasons(value: unknown): string[] {

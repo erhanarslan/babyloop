@@ -224,10 +224,10 @@ function checkDocs() {
   }
 
   mustContain(docs, "docs/76-core-safety-child-foundation.md", "Codex did not run tests");
-  mustContain(docs, "docs/76-core-safety-child-foundation.md", "provider send remains disabled");
-  mustContain(docs, "docs/76-core-safety-child-foundation.md", "No email sender");
-  mustContain(docs, "docs/76-core-safety-child-foundation.md", "No push sender");
-  mustContain(docs, "docs/76-core-safety-child-foundation.md", "No n8n webhook invocation");
+  mustContain(docs, "docs/76-core-safety-child-foundation.md", "Provider execution is disabled by default");
+  mustContain(docs, "docs/76-core-safety-child-foundation.md", "requires explicit env");
+  mustContain(docs, "docs/76-core-safety-child-foundation.md", "No provider secret");
+  mustContain(docs, "docs/76-core-safety-child-foundation.md", "No real SMS send");
   mustContain(docs, "docs/76-core-safety-child-foundation.md", "Real-device S22/Maestro");
 }
 
@@ -403,17 +403,19 @@ function checkNoRealProviderActivation() {
     "apps/api/src/services/notification-consent-preference-policy.service.ts",
     "apps/api/src/services/child-reminder-delivery-candidates.service.ts",
     "apps/api/src/services/saved-search-delivery-candidates.service.ts",
+    "apps/api/src/services/notification-provider-execution.service.ts",
     "docs/76-core-safety-child-foundation.md"
   ]);
 
   mustContain(providerCorpus, "provider disabled boundary", "deliveryAllowed: false");
   mustContain(providerCorpus, "provider disabled boundary", "draftOnly: true");
   mustContain(providerCorpus, "provider disabled boundary", "providerCallsAllowed: false");
-  mustContain(providerCorpus, "provider disabled boundary", "No email sender");
-  mustContain(providerCorpus, "provider disabled boundary", "No push sender");
-  mustContain(providerCorpus, "provider disabled boundary", "No n8n webhook invocation");
-  mustNotMatch(providerCorpus, "provider disabled boundary", /send(?:Email|Push)\s*\(/u, "real email/push send call");
-  mustNotMatch(providerCorpus, "provider disabled boundary", /fetch\s*\([^)]*n8n/iu, "real n8n webhook call");
+  mustContain(providerCorpus, "provider disabled boundary", "Provider execution is disabled by default");
+  mustContain(providerCorpus, "provider disabled boundary", "NOTIFICATION_EMAIL_ENABLED");
+  mustContain(providerCorpus, "provider disabled boundary", "NOTIFICATION_PUSH_ENABLED");
+  mustContain(providerCorpus, "provider disabled boundary", "N8N_NOTIFICATION_WEBHOOK_ENABLED");
+  mustContain(providerCorpus, "provider disabled boundary", "provider_disabled");
+  mustContain(providerCorpus, "provider disabled boundary", "delivery disabled");
 }
 
 function checkWebAndMobileChildSurfaces() {

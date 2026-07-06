@@ -824,17 +824,29 @@ export const notificationDeliveryLogs = pgTable(
     frequencyWindowHours: integer("frequency_window_hours").notNull(),
     deliveryAllowed: boolean("delivery_allowed").notNull().default(false),
     draftOnly: boolean("draft_only").notNull().default(true),
+    provider: varchar("provider", { length: 40 }),
+    providerStatus: varchar("provider_status", { length: 40 }),
+    providerMessageId: varchar("provider_message_id", { length: 160 }),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastErrorCode: varchar("last_error_code", { length: 80 }),
+    lastErrorMessageRedacted: varchar("last_error_message_redacted", { length: 240 }),
+    providerResponseMeta: jsonb("provider_response_meta").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    skippedReason: varchar("skipped_reason", { length: 120 }),
     blockedReasons: jsonb("blocked_reasons").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true })
   },
   (table) => [
     uniqueIndex("notification_delivery_logs_idempotency_key_unique").on(table.idempotencyKey),
     index("notification_delivery_logs_profile_created_at_idx").on(table.profileId, table.createdAt),
     index("notification_delivery_logs_dedup_created_at_idx").on(table.dedupKey, table.createdAt),
-    index("notification_delivery_logs_kind_source_idx").on(table.kind, table.sourceType, table.sourceId)
+    index("notification_delivery_logs_kind_source_idx").on(table.kind, table.sourceType, table.sourceId),
+    index("notification_delivery_logs_provider_status_idx").on(table.provider, table.status, table.nextAttemptAt)
   ]
 );
 
@@ -906,6 +918,9 @@ export const notificationPushTokens = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     tokenHash: varchar("token_hash", { length: 128 }).notNull(),
+    tokenCiphertext: text("token_ciphertext"),
+    tokenNonce: varchar("token_nonce", { length: 32 }),
+    tokenTag: varchar("token_tag", { length: 32 }),
     platform: varchar("platform", { length: 20 }).notNull(),
     deviceLabel: varchar("device_label", { length: 120 }),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),

@@ -38,12 +38,12 @@ Implemented foundations:
 
 Explicitly deferred or readiness-only:
 
-- #198 Notification delivery provider design gate sonrası sandbox: provider send remains disabled.
-- #199 Email draft/provider adapter boundary: email is draft/readiness-only; no sender is enabled.
+- #198 Notification delivery provider design gate sonrası sandbox: provider execution is env-gated and disabled when env is missing.
+- #199 Email draft/provider adapter boundary: Resend provider execution exists behind `NOTIFICATION_EMAIL_ENABLED=true` and verified-recipient/preference gates.
 - #200 Push token registry design gate: hash-only push token registry/API can exist; native token collection and sender activation remain disabled.
 - #201 Push readiness real mobile integration hazırlığı: readiness only; no native push integration is enabled.
-- #202 n8n webhook contract design: no webhook secret or outbound webhook is enabled.
-- #203 n8n sandbox workflow boundary: sandbox/readiness only; no n8n worker is enabled.
+- #202 n8n webhook contract design: env-gated webhook execution exists with idempotency headers and redacted allowlisted payloads.
+- #203 n8n sandbox workflow boundary: no n8n worker is enabled; execution requires explicit env and never logs webhook secrets.
 
 Real-device items #137 and #159 remain deferred until Galaxy S22/Maestro evidence is recorded. Real-device S22/Maestro validation remains a manual QA requirement and is not claimed complete by this guard.
 
@@ -51,7 +51,7 @@ Real-device items #137 and #159 remain deferred until Galaxy S22/Maestro evidenc
 
 Child notes and reminders are implemented under `/api/v1/child-profiles/:childProfileId/notes` and `/api/v1/child-profiles/:childProfileId/reminders`. They use owner authorization, strict plaintext validation, maximum lengths, safe DTOs, and archive/cancel/complete style lifecycle actions. Responses must not expose parent email, phone, tokens, password hashes, provider secrets, raw message bodies, or internal user identifiers.
 
-Reminder delivery candidate generation is DB-backed and draft-only. Candidate logs use idempotency keys and frequency windows. `deliveryAllowed=false` and `draftOnly=true` are required for reminder and saved-search notification candidates unless a future provider design gate explicitly changes that behavior.
+Reminder delivery candidate generation is DB-backed. Candidate logs use idempotency keys and frequency windows. Provider execution can process eligible `email`, `push`, and `n8n` logs only after preference/consent gates and env config pass. Missing env leaves logs skipped/disabled without network calls.
 
 Notification source/channel policy is readiness-only for `child_reminder`, `saved_search`, `child_lifecycle`, `marketplace`, `messages`, and `trust_safety`. Channels are inventoried as `email`, `push`, `in_app`, and `n8n`, but provider calls remain disabled by default.
 
@@ -69,14 +69,16 @@ The release guard checks for these boundaries:
 
 ## Provider / Queue / External Delivery Checklist
 
-No real provider is enabled in this package:
+Provider execution is disabled by default and requires explicit env:
 
-- No email sender.
-- No push sender, no native push token collection, and no raw push token DTO/log exposure.
-- No n8n webhook invocation.
+- Resend: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
+- n8n: `N8N_NOTIFICATION_WEBHOOK_ENABLED`, `N8N_NOTIFICATION_WEBHOOK_URL`, optional bearer/secret headers.
+- Push: `NOTIFICATION_PUSH_ENABLED`, `PUSH_PROVIDER=expo`, `EXPO_ACCESS_TOKEN`, `PUSH_TOKEN_ENCRYPTION_KEY`.
+- Missing env or disabled flags keep delivery disabled and record a redacted `provider_disabled` skip state instead of making a network call.
+- No real SMS send.
 - No queue worker.
 - No RAG/AI provider activation beyond existing safety boundaries.
-- No provider secret, webhook secret, or outbound delivery URL is introduced.
+- No provider secret, webhook secret, raw push token, raw provider response body, e-mail body, cookie or authorization header is exposed in public/admin default DTOs or logs.
 
 ## Local Commands
 
