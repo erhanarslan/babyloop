@@ -402,3 +402,17 @@ Beta can proceed only if:
 - [ ] Admin listing detail shows safe image review metadata only.
 - [ ] API responses do not expose objectKey, filePath, contentHash, credentials, tokens, raw provider output, raw upload body, base64 image data, storageDriver, uploadRoot, or local absolute paths.
 - [ ] This does not enable S3/R2 rollout.
+
+### Messaging safety full-flow boundary
+
+- [ ] pnpm beta:critical-smoke includes pnpm security:messaging-safety-full-flow.
+- [ ] pnpm security:messaging-safety-full-flow passes.
+- [ ] Unsafe message bodies are rejected before persistence, notification creation, and realtime publish.
+- [ ] Non-participants and blocked profiles cannot bypass send/read/realtime access.
+- [ ] Admin conversation review uses redacted bodyPreview by default.
+- [ ] Public/realtime/admin DTOs do not expose email, phone, accessToken, refreshToken, cookie, authorization, passwordHash, or raw auth/session data.
+- [ ] This does not add a new realtime provider.
+
+Messaging safety full-flow boundary does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose cookie, and does not expose authorization in public, realtime, or admin default DTOs.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

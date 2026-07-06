@@ -244,3 +244,5 @@ Run pnpm security:image-upload-review-storage before claiming the upload/review 
 The image upload/review storage boundary checks that seller upload responses, admin review responses, public listing responses, admin listing detail, and authenticity audit metadata do not expose objectKey, filePath, contentHash, raw provider output, raw upload body, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
 
 This does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

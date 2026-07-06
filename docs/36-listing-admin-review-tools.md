@@ -178,3 +178,5 @@ Listing image review must pass pnpm security:image-upload-review-storage.
 Admin review responses may show safe listing image URL, review status, reviewer profile id, reviewed timestamp, and safe authenticity metadata. They must not expose objectKey, filePath, contentHash, storage credentials, raw image binary data, raw provider output, tokens, cookies, auth/session data, seller contact data, reporter identity, or local absolute filesystem paths.
 
 This does not enable S3/R2 rollout.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

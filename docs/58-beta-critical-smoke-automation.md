@@ -148,3 +148,17 @@ Full beta critical smoke automation includes pnpm security:image-upload-review-s
 This guard confirms that seller upload responses, admin image review responses, public listing responses, admin listing detail, and authenticity audit metadata do not expose objectKey, filePath, contentHash, credentials, tokens, raw provider output, raw upload body, base64 image data, storageDriver, uploadRoot, or local absolute paths.
 
 It does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.
+
+## Messaging safety full-flow boundary
+
+Full beta critical smoke automation includes pnpm security:messaging-safety-full-flow.
+
+The guard confirms unsafe message bodies are rejected before persistence, notification creation, and realtime publish; blocked/non-participant access remains denied; realtime join remains membership-gated; and admin conversation review remains redacted by default.
+
+It does not add a new realtime provider and does not expose email, phone, accessToken, refreshToken, cookie, authorization, passwordHash, or raw auth/session data.
+
+Messaging safety full-flow boundary does not expose authorization in public, realtime, or admin default DTOs.
+
+Messaging safety full-flow boundary does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose cookie, and does not expose authorization in public, realtime, or admin default DTOs.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

@@ -57,3 +57,13 @@ git diff --check
 ```
 
 Privacy grep should show no new DTO leaks for email, raw message bodies, reporter identity, raw report details, or raw AI payloads.
+
+## Messaging safety full-flow boundary
+
+Message conversation admin review must pass pnpm security:messaging-safety-full-flow.
+
+The boundary confirms default bodyPreview redaction, safe participant summaries, related moderation case counts, enforcement history, and sensitive-access audit requirements. It does not expose email, phone, accessToken, refreshToken, cookie, authorization, passwordHash, raw message body, or raw auth/session data by default.
+
+Unsafe message bodies are rejected before persistence and realtime publish. This does not add a new realtime provider.
+
+Messaging safety full-flow boundary does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose cookie, and does not expose authorization in public, realtime, or admin default DTOs.

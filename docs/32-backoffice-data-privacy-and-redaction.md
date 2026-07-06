@@ -317,3 +317,13 @@ pnpm --filter @babyloop/backoffice typecheck
 pnpm typecheck
 pnpm build
 ```
+
+## Messaging safety full-flow boundary
+
+Backoffice conversation review must remain covered by pnpm security:messaging-safety-full-flow.
+
+Admin conversation list/detail surfaces use redacted bodyPreview and safe profile summaries by default. Sensitive message body access requires explicit sensitive-access permission, reason, and audit. Default admin review responses do not expose email, phone, accessToken, refreshToken, cookie, authorization, passwordHash, raw auth/session data, or unredacted reporter/contact details.
+
+Unsafe message bodies are rejected before persistence. This does not add a new realtime provider.
+
+Messaging safety full-flow boundary does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose cookie, and does not expose authorization in public, realtime, or admin default DTOs.

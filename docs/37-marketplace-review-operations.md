@@ -177,3 +177,5 @@ Marketplace review operations must pass pnpm security:image-upload-review-storag
 Rejected and needs-review images remain hidden from public list/detail responses. Admin listing detail may show them only with safe review metadata. Public/admin API responses must not expose objectKey, filePath, contentHash, raw upload body, raw provider output, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
 
 This does not enable S3/R2 rollout.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

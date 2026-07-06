@@ -435,3 +435,5 @@ Production/beta readiness requires pnpm security:image-upload-review-storage.
 This boundary verifies that image upload/review responses do not expose objectKey, filePath, contentHash, raw provider output, raw upload body, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
 
 It does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.
+
+Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.

@@ -33,8 +33,9 @@ const steps = [
         { label: "Backoffice typecheck", command: "pnpm", args: ["--filter", "@babyloop/backoffice", "typecheck"] },
         { label: "Web typecheck", command: "pnpm", args: ["--filter", "@babyloop/web", "typecheck"] },
         { label: "Mobile typecheck", command: "pnpm", args: ["--filter", "@babyloop/mobile", "typecheck"] }
-      ])
+      ]),
   { label: "Image upload/review storage boundary guard", command: "pnpm", args: ["security:image-upload-review-storage"] },
+  { label: "Messaging safety full-flow boundary guard", command: "pnpm", args: ["security:messaging-safety-full-flow"] },
 ];
 
 const startedAt = Date.now();

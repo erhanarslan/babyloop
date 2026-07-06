@@ -252,3 +252,13 @@ Do not include in the first slice:
 - group conversations
 - admin moderation UI
 - mobile messaging UI
+
+## Messaging safety full-flow boundary
+
+Run pnpm security:messaging-safety-full-flow before claiming messaging release readiness.
+
+The messaging safety full-flow boundary confirms that unsafe message bodies are rejected before persistence, notification creation, and realtime publish. Public conversation and realtime payloads must not expose email, phone, accessToken, refreshToken, cookie, authorization, passwordHash, or raw auth/session data.
+
+This does not add a new realtime provider or a new chat system.
+
+Messaging safety full-flow boundary does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose cookie, and does not expose authorization in public, realtime, or admin default DTOs.

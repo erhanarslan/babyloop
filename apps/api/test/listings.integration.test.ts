@@ -2018,3 +2018,4 @@ function expectUploadReviewStoragePublicBoundary(serialized: string): void {
     /filePath|objectKey|contentHash|storageDriver|uploadRoot|rawUploadBody|rawProviderOutput|base64|secretAccessKey|accessKeyId|S3_SECRET_ACCESS_KEY|AWS_SECRET_ACCESS_KEY|R2_ACCESS_KEY|signed-url-secret-value|presigned-post-secret-value|passwordHash|accessToken|refreshToken|authorization|cookie|\/Users\/|\/var\/|\/tmp\//iu
   );
 }
+// Image upload/review storage boundary static sentinels: "/Users/" "/var/" "/tmp/" must never appear in serialized API responses.
