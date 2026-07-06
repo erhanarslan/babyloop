@@ -11,6 +11,7 @@ import {
   createNotification,
   type NotificationResponse
 } from "./notifications.service.js";
+import { isNotificationPreferenceEnabledForDelivery } from "./notification-preferences.service.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
 
 export type ChildLifecycleNotificationGenerationResponse = {
@@ -31,6 +32,12 @@ export async function generateChildLifecycleNotifications(
   app: FastifyInstance,
   profileId: string
 ): Promise<ChildLifecycleNotificationGenerationResponse> {
+  const preferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
+    app,
+    profileId,
+    "child_lifecycle",
+    "in_app"
+  );
   const [childProfiles, lifecycleGroups] = await Promise.all([
     listChildProfiles(app, profileId),
     listLifecycleRecommendations(app, profileId)
@@ -49,6 +56,11 @@ export async function generateChildLifecycleNotifications(
     }
 
     for (const recommendation of group.recommendations.slice(0, 2)) {
+      if (!preferenceEnabled) {
+        skippedCount += 1;
+        continue;
+      }
+
       const dedupeKey = buildChildLifecycleDedupeKey(childProfile, recommendation);
       const alreadyCreated = await hasExistingChildLifecycleNotification(
         app,

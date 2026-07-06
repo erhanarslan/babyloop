@@ -3,6 +3,7 @@ import type {
   MobileChildProfileNotificationCadence
 } from "../child/child-reminders-api";
 import { formatCadence } from "../child/child-reminders-model";
+import type { MobileNotificationPreferencesPayload } from "./notifications-api";
 
 export type MobileNotificationPreferenceCadenceOption = {
   cadence: MobileChildProfileNotificationCadence;
@@ -73,4 +74,24 @@ export function isMobileNotificationCadenceSelected(
   cadence: MobileChildProfileNotificationCadence
 ): boolean {
   return childProfile?.notificationCadence === cadence;
+}
+
+export function getMobileNotificationPreferenceChannelSummary(
+  payload: MobileNotificationPreferencesPayload | null
+): string {
+  if (!payload) {
+    return "Kaynak ve kanal tercihleri yüklenmedi.";
+  }
+
+  const activeCount = payload.preferences.filter((preference) => preference.enabled).length;
+  const draftOnlyChannels = payload.summary.draftOnlyChannels.join(", ");
+
+  return `${activeCount} tercih aktif. ${draftOnlyChannels} kanalları taslak/sandbox modunda kalır.`;
+}
+
+export function canUseMobileNotificationProviderDelivery(
+  payload: MobileNotificationPreferencesPayload | null
+): false {
+  void payload;
+  return false;
 }

@@ -125,6 +125,22 @@ export const childProfileReminderStatusEnum = pgEnum("child_profile_reminder_sta
   "cancelled"
 ]);
 
+export const notificationPreferenceSourceEnum = pgEnum("notification_preference_source", [
+  "child_reminder",
+  "saved_search",
+  "child_lifecycle",
+  "marketplace",
+  "messages",
+  "trust_safety"
+]);
+
+export const notificationPreferenceChannelEnum = pgEnum("notification_preference_channel", [
+  "in_app",
+  "email",
+  "push",
+  "n8n"
+]);
+
 export const safetyTargetTypeEnum = pgEnum("safety_target_type", [
   "listing",
   "profile",
@@ -793,6 +809,56 @@ export const notificationDeliveryLogs = pgTable(
   ]
 );
 
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    source: notificationPreferenceSourceEnum("source").notNull(),
+    channel: notificationPreferenceChannelEnum("channel").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    reason: varchar("reason", { length: 240 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("notification_preferences_profile_source_channel_unique").on(
+      table.profileId,
+      table.source,
+      table.channel
+    ),
+    index("notification_preferences_profile_id_idx").on(table.profileId),
+    index("notification_preferences_source_channel_idx").on(table.source, table.channel)
+  ]
+);
+
+export const notificationPreferenceAuditEvents = pgTable(
+  "notification_preference_audit_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    actorProfileId: uuid("actor_profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    source: notificationPreferenceSourceEnum("source").notNull(),
+    channel: notificationPreferenceChannelEnum("channel").notNull(),
+    oldEnabled: boolean("old_enabled"),
+    newEnabled: boolean("new_enabled").notNull(),
+    oldMutedUntil: timestamp("old_muted_until", { withTimezone: true }),
+    newMutedUntil: timestamp("new_muted_until", { withTimezone: true }),
+    reason: varchar("reason", { length: 240 }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("notification_preference_audit_profile_created_idx").on(table.profileId, table.createdAt),
+    index("notification_preference_audit_source_channel_idx").on(table.source, table.channel)
+  ]
+);
+
 export const reports = pgTable(
   "reports",
   {
@@ -980,6 +1046,8 @@ export const schema = {
   moderationActions,
   moderationCases,
   notifications,
+  notificationPreferenceAuditEvents,
+  notificationPreferences,
   orderItems,
   orders,
   passwordResetTokens,

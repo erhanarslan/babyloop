@@ -79,6 +79,14 @@ type AdminNotificationOpsPreview = {
     rolloutStages: Array<{ stage: string; status: string; note: string }>;
     warning: string;
   };
+  preferenceSummary?: {
+    deliveryProvidersEnabled: false;
+    providerCallsAllowed: false;
+    supportedSources: string[];
+    supportedChannels: string[];
+    defaultEnabledChannels: string[];
+    draftOnlyChannels: string[];
+  };
   deliveryLogPreview?: {
     enabled: true;
     draftOnly: true;
@@ -191,6 +199,12 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             label="Frequency limit"
             value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"}
           />
+          {data.preferenceSummary ? (
+            <>
+              <PolicyPill label="Preference sources" value={String(data.preferenceSummary.supportedSources.length)} />
+              <PolicyPill label="Draft-only channels" value={data.preferenceSummary.draftOnlyChannels.join(", ")} />
+            </>
+          ) : null}
         </div>
       </section>
 

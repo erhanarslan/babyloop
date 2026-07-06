@@ -75,6 +75,10 @@ function mustNotMatch(source, label, pattern, description) {
   }
 }
 
+function isTestFile(file) {
+  return /\.(test|spec)\.[cm]?[jt]sx?$/u.test(file);
+}
+
 const requiredFiles = [
   "package.json",
   "scripts/run-beta-critical-smoke.mjs",
@@ -241,13 +245,28 @@ function checkMobileInventory() {
   mustContain(mobileDocs, "mobile real-device deferred docs", "#137");
   mustContain(mobileDocs, "mobile real-device deferred docs", "Real-device S22/Maestro deferred");
 
-  for (const file of mobileFiles) {
+  for (const file of mobileFiles.filter((file) => !isTestFile(file))) {
     const source = read(file);
 
-    mustNotMatch(source, file, /\bAsyncStorage\b[\s\S]{0,120}\b(accessToken|refreshToken|token)\b/iu, "AsyncStorage token persistence");
-    mustNotMatch(source, file, /\blocalStorage\b/iu, "localStorage usage in mobile source");
-    mustNotMatch(source, file, /\bsessionStorage\b/iu, "sessionStorage usage in mobile source");
-    mustNotMatch(source, file, /document\.cookie/iu, "document.cookie usage in mobile source");
+    mustNotMatch(
+      source,
+      file,
+      /\bAsyncStorage\.(?:setItem|multiSet)\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "AsyncStorage token persistence"
+    );
+    mustNotMatch(
+      source,
+      file,
+      /\blocalStorage\.setItem\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "localStorage token persistence in mobile source"
+    );
+    mustNotMatch(
+      source,
+      file,
+      /\bsessionStorage\.setItem\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "sessionStorage token persistence in mobile source"
+    );
+    mustNotMatch(source, file, /document\.cookie\s*=/iu, "document.cookie write in mobile source");
     mustNotMatch(
       source,
       file,

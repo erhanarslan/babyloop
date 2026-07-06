@@ -29,6 +29,7 @@ import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerListingRecommendationRoutes } from "./routes/listing-recommendations.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
 import { registerNotificationRoutes } from "./routes/notifications.routes.js";
+import { registerProfileRoutes } from "./routes/profiles.routes.js";
 import { registerProductEventRoutes } from "./routes/product-events.routes.js";
 import { registerRagRoutes } from "./routes/rag.routes.js";
 import { registerSearchSuggestionRoutes } from "./routes/search-suggestions.routes.js";
@@ -335,6 +336,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     });
     app.register(registerSearchSuggestionRoutes, { prefix: API_PREFIX });
     app.register(registerSafetyRoutes, { prefix: API_PREFIX });
+    app.register(registerProfileRoutes, { prefix: API_PREFIX });
     app.register(registerSavedSearchRoutes, { prefix: API_PREFIX });
     app.register(registerSellerDashboardRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });

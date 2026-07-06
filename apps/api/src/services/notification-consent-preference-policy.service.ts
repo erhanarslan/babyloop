@@ -1,5 +1,11 @@
 export type NotificationPreferenceChannel = "email" | "push" | "in_app" | "n8n";
-export type NotificationPreferenceSource = "child_reminder" | "saved_search" | "child_lifecycle" | "marketing" | "security";
+export type NotificationPreferenceSource =
+  | "child_reminder"
+  | "saved_search"
+  | "child_lifecycle"
+  | "marketplace"
+  | "messages"
+  | "trust_safety";
 export type NotificationPreferenceState = "allowed" | "blocked" | "missing_consent" | "muted" | "rate_limited";
 
 export type NotificationConsentPreferenceInput = {
@@ -96,7 +102,14 @@ export function getNotificationConsentPreferencePreview(): NotificationConsentPr
     rateLimitRequired: true,
     blockedUserSafetyRequired: true,
     rawContactLoggingAllowed: false,
-    supportedSources: ["child_reminder", "saved_search", "child_lifecycle", "marketing", "security"],
+    supportedSources: [
+      "child_reminder",
+      "saved_search",
+      "child_lifecycle",
+      "marketplace",
+      "messages",
+      "trust_safety"
+    ],
     supportedChannels: ["email", "push", "in_app", "n8n"],
     requiredPreferenceScopes: [
       "global notification opt-in/out",
@@ -106,8 +119,9 @@ export function getNotificationConsentPreferencePreview(): NotificationConsentPr
       "child reminder preference",
       "saved search preference",
       "child lifecycle recommendation preference",
-      "marketing opt-in",
-      "security notification override rules",
+      "marketplace preference",
+      "messages preference",
+      "trust and safety notification override rules",
       "mute/snooze window",
       "audit of preference updates"
     ],

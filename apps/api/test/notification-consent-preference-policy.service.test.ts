@@ -61,7 +61,7 @@ describe("notification consent preference policy", () => {
 
     expect(
       evaluateNotificationConsentPreference({
-        source: "marketing",
+        source: "trust_safety",
         channel: "n8n",
         userConsent: true,
         channelEnabled: true,
@@ -84,7 +84,7 @@ describe("notification consent preference policy", () => {
 
   it("allows only policy-approved candidates while keeping provider calls disabled", () => {
     const decision = evaluateNotificationConsentPreference({
-      source: "security",
+      source: "trust_safety",
       channel: "in_app",
       userConsent: true,
       channelEnabled: true,
@@ -94,7 +94,7 @@ describe("notification consent preference policy", () => {
     expect(decision).toEqual({
       allowed: true,
       state: "allowed",
-      source: "security",
+      source: "trust_safety",
       channel: "in_app",
       reasonCode: "allowed",
       deliveryMutationAllowed: false,
@@ -127,6 +127,8 @@ describe("notification consent preference policy", () => {
         "channel-level push preference",
         "child reminder preference",
         "saved search preference",
+        "marketplace preference",
+        "messages preference",
         "audit of preference updates"
       ])
     );

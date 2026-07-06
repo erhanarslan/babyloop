@@ -1,4 +1,6 @@
 import {
+  canUseMobileNotificationProviderDelivery,
+  getMobileNotificationPreferenceChannelSummary,
   canUpdateMobileNotificationCadence,
   getMobileNotificationCadenceUpdateMessage,
   getMobileNotificationPreferenceDeliveryBoundaryText,
@@ -8,6 +10,7 @@ import {
   mobileNotificationPreferenceCadenceOptions
 } from "./notification-preferences-model";
 import type { MobileChildProfile } from "../child/child-reminders-api";
+import type { MobileNotificationPreferencesPayload } from "./notifications-api";
 
 const inactiveProfile: MobileChildProfile = {
   id: "child-inactive",
@@ -85,5 +88,50 @@ describe("mobile notification preference model", () => {
     expect(canUpdateMobileNotificationCadence(null, false)).toBe(false);
     expect(isMobileNotificationCadenceSelected(activeProfile, "monthly")).toBe(true);
     expect(isMobileNotificationCadenceSelected(activeProfile, "off")).toBe(false);
+  });
+
+  it("summarizes source/channel preferences without enabling providers", () => {
+    const payload: MobileNotificationPreferencesPayload = {
+      preferences: [
+        {
+          id: "pref-1",
+          source: "messages",
+          channel: "in_app",
+          enabled: true,
+          mutedUntil: null,
+          deliveryAllowed: true,
+          providerCallAllowed: false,
+          draftOnly: false,
+          createdAt: "2030-01-01T00:00:00.000Z",
+          updatedAt: "2030-01-01T00:00:00.000Z"
+        },
+        {
+          id: "pref-2",
+          source: "saved_search",
+          channel: "push",
+          enabled: false,
+          mutedUntil: null,
+          deliveryAllowed: false,
+          providerCallAllowed: false,
+          draftOnly: true,
+          createdAt: "2030-01-01T00:00:00.000Z",
+          updatedAt: "2030-01-01T00:00:00.000Z"
+        }
+      ],
+      recentAuditEvents: [],
+      summary: {
+        deliveryProvidersEnabled: false,
+        providerCallsAllowed: false,
+        supportedSources: ["messages", "saved_search"],
+        supportedChannels: ["in_app", "push"],
+        defaultEnabledChannels: ["in_app"],
+        draftOnlyChannels: ["email", "push", "n8n"]
+      }
+    };
+
+    expect(getMobileNotificationPreferenceChannelSummary(payload)).toContain("1 tercih aktif");
+    expect(getMobileNotificationPreferenceChannelSummary(null)).toBe("Kaynak ve kanal tercihleri yüklenmedi.");
+    expect(canUseMobileNotificationProviderDelivery(payload)).toBe(false);
+    expect(JSON.stringify(payload)).not.toMatch(/accessToken|refreshToken|passwordHash|rawContact|providerSecret/iu);
   });
 });

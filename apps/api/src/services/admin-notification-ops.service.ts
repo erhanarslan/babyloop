@@ -19,6 +19,10 @@ import {
   getNotificationN8nReadinessPreview,
   type NotificationN8nReadinessPreview
 } from "./notification-n8n-readiness.service.js";
+import {
+  getNotificationPreferenceSummary,
+  type NotificationPreferencesSummary
+} from "./notification-preferences.service.js";
 // Notification delivery transition preview must expose allowedDraftOnlyTransitions and futureSenderTransitions
 // through admin ops without enabling provider senders.
 
@@ -47,6 +51,7 @@ export type AdminNotificationOpsPreview = {
   transitionPreview: NotificationDeliveryTransitionPreview;
   pushReadinessPreview: NotificationPushReadinessPreview;
   n8nReadinessPreview: NotificationN8nReadinessPreview;
+  preferenceSummary: NotificationPreferencesSummary;
   deliveryLogPreview: AdminNotificationDeliveryLogPreview;
   warning: string;
 };
@@ -151,6 +156,7 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
     transitionPreview: getNotificationDeliveryTransitionPreview(),
     pushReadinessPreview: getNotificationPushReadinessPreview(),
     n8nReadinessPreview: getNotificationN8nReadinessPreview(),
+    preferenceSummary: getNotificationPreferenceSummary(),
     deliveryLogPreview: await getAdminNotificationDeliveryLogPreview(app),
     warning:
       "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."

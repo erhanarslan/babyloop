@@ -10,6 +10,7 @@ import {
   type SavedSearchNotificationGenerationResponse
 } from "../services/saved-search-notifications.service.js";
 import { z } from "zod";
+import { updateNotificationPreferenceBodySchema } from "../schemas/notification-preferences.schemas.js";
 import {
   emitNotificationRead,
   emitNotificationReadAll,
@@ -23,6 +24,13 @@ import {
   markNotificationRead,
   type NotificationResponse
 } from "../services/notifications.service.js";
+import {
+  listNotificationPreferencesForProfile,
+  updateNotificationPreferenceForProfile,
+  type NotificationPreferenceAuditEventResponse,
+  type NotificationPreferenceResponse,
+  type NotificationPreferencesSummary
+} from "../services/notification-preferences.service.js";
 
 type NotificationsResponse = ApiResponse<{
   notifications: NotificationResponse[];
@@ -44,6 +52,18 @@ type ChildLifecycleGenerationResponse = ApiResponse<ChildLifecycleNotificationGe
 
 type SavedSearchGenerationResponse = ApiResponse<SavedSearchNotificationGenerationResponse>;
 
+type NotificationPreferencesResponse = ApiResponse<{
+  preferences: NotificationPreferenceResponse[];
+  recentAuditEvents: NotificationPreferenceAuditEventResponse[];
+  summary: NotificationPreferencesSummary;
+}>;
+
+type NotificationPreferenceUpdateResponse = ApiResponse<{
+  preference: NotificationPreferenceResponse;
+  auditEvent: NotificationPreferenceAuditEventResponse;
+  summary: NotificationPreferencesSummary;
+}>;
+
 type NotificationParams = {
   id: string;
 };
@@ -53,6 +73,52 @@ const notificationParamsSchema = z.object({
 });
 
 export function registerNotificationRoutes(app: FastifyInstance): void {
+  app.get<{ Reply: NotificationPreferencesResponse }>("/notification-preferences", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return {
+      ok: true,
+      data: await listNotificationPreferencesForProfile(app, currentUser.profile.id)
+    };
+  });
+
+  app.patch<{ Body: unknown; Reply: NotificationPreferenceUpdateResponse }>(
+    "/notification-preferences",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = updateNotificationPreferenceBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "INVALID_NOTIFICATION_PREFERENCE_REQUEST",
+            message: "Notification preference request is invalid."
+          }
+        });
+      }
+
+      return {
+        ok: true,
+        data: await updateNotificationPreferenceForProfile(
+          app,
+          currentUser.profile.id,
+          currentUser.profile.id,
+          parsedBody.data
+        )
+      };
+    }
+  );
+
   app.get("/notifications/delivery-drafts", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 

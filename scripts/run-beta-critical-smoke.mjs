@@ -6,6 +6,7 @@ const steps = [
   { label: "Beta critical smoke boundary", command: "pnpm", args: ["security:beta-critical-smoke"] },
   { label: "P0 release surface smoke inventory guard", command: "pnpm", args: ["security:p0-release-surface-smoke-inventory"] },
   { label: "Core safety child foundation guard", command: "pnpm", args: ["security:core-safety-child-foundation"] },
+  { label: "Notification marketplace core guard", command: "pnpm", args: ["security:notification-marketplace-core"] },
   { label: "API security aggregate", command: "pnpm", args: ["test:api:security"] },
   { label: "Assistant safety guard", command: "pnpm", args: ["security:assistant-safety-guard"] },
   { label: "Storage ops preview guard", command: "pnpm", args: ["security:storage-ops-preview"] },

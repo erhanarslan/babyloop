@@ -4,8 +4,9 @@ export type NotificationPreferenceQaSource =
   | "child_reminder"
   | "saved_search"
   | "child_lifecycle"
-  | "marketing"
-  | "security";
+  | "marketplace"
+  | "messages"
+  | "trust_safety";
 
 export type NotificationPreferenceQaScenario = {
   surface: NotificationPreferenceQaSurface;
@@ -119,7 +120,7 @@ export function getNotificationPreferenceQaReadiness(): NotificationPreferenceQa
     manualQaEvidenceRequired: true,
     requiredSurfaces: ["backoffice", "mobile", "web"],
     requiredChannels: ["email", "push", "in_app", "n8n"],
-    requiredSources: ["child_reminder", "saved_search", "child_lifecycle", "marketing", "security"],
+    requiredSources: ["child_reminder", "saved_search", "child_lifecycle", "marketplace", "messages", "trust_safety"],
     requiredScenarios: [
       "backoffice notification preferences visible",
       "mobile notification preferences visible",

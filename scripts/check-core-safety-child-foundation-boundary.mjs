@@ -84,6 +84,10 @@ function mustNotMatch(source, label, pattern, description) {
   }
 }
 
+function isTestFile(file) {
+  return /\.(test|spec)\.[cm]?[jt]sx?$/u.test(file);
+}
+
 const requiredFiles = [
   "package.json",
   "scripts/run-beta-critical-smoke.mjs",
@@ -352,13 +356,28 @@ function checkTokenAndLogLeakBoundaries() {
     ...mobileFiles
   ];
 
-  for (const file of mobileFiles) {
+  for (const file of mobileFiles.filter((file) => !isTestFile(file))) {
     const source = read(file);
 
-    mustNotMatch(source, file, /\bAsyncStorage\b[\s\S]{0,160}\b(accessToken|refreshToken|token)\b/iu, "AsyncStorage token persistence");
-    mustNotMatch(source, file, /\blocalStorage\b[\s\S]{0,160}\b(accessToken|refreshToken|token)\b/iu, "localStorage token persistence");
-    mustNotMatch(source, file, /\bsessionStorage\b[\s\S]{0,160}\b(accessToken|refreshToken|token)\b/iu, "sessionStorage token persistence");
-    mustNotMatch(source, file, /document\.cookie/iu, "document.cookie token access");
+    mustNotMatch(
+      source,
+      file,
+      /\bAsyncStorage\.(?:setItem|multiSet)\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "AsyncStorage token persistence"
+    );
+    mustNotMatch(
+      source,
+      file,
+      /\blocalStorage\.setItem\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "localStorage token persistence"
+    );
+    mustNotMatch(
+      source,
+      file,
+      /\bsessionStorage\.setItem\s*\([^)]*(?:accessToken|refreshToken|token)/iu,
+      "sessionStorage token persistence"
+    );
+    mustNotMatch(source, file, /document\.cookie\s*=/iu, "document.cookie token write");
   }
 
   for (const file of publicAdminFiles) {

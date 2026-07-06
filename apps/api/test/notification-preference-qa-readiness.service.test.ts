@@ -82,7 +82,7 @@ describe("notification preference QA readiness", () => {
     expect(readiness.requiredSurfaces).toEqual(expect.arrayContaining(["backoffice", "mobile", "web"]));
     expect(readiness.requiredChannels).toEqual(expect.arrayContaining(["email", "push", "in_app", "n8n"]));
     expect(readiness.requiredSources).toEqual(
-      expect.arrayContaining(["child_reminder", "saved_search", "child_lifecycle", "marketing", "security"])
+      expect.arrayContaining(["child_reminder", "saved_search", "child_lifecycle", "marketplace", "messages", "trust_safety"])
     );
   });
 

@@ -37,6 +37,52 @@ export type MobileChildLifecycleNotificationGeneration = {
   note: string;
 };
 
+export type MobileNotificationPreference = {
+  id: string | null;
+  source: string;
+  channel: string;
+  enabled: boolean;
+  mutedUntil: string | null;
+  deliveryAllowed: boolean;
+  providerCallAllowed: false;
+  draftOnly: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type MobileNotificationPreferenceAuditEvent = {
+  id: string;
+  source: string;
+  channel: string;
+  oldEnabled: boolean | null;
+  newEnabled: boolean;
+  oldMutedUntil: string | null;
+  newMutedUntil: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type MobileNotificationPreferencesPayload = {
+  preferences: MobileNotificationPreference[];
+  recentAuditEvents: MobileNotificationPreferenceAuditEvent[];
+  summary: {
+    deliveryProvidersEnabled: false;
+    providerCallsAllowed: false;
+    supportedSources: string[];
+    supportedChannels: string[];
+    defaultEnabledChannels: string[];
+    draftOnlyChannels: string[];
+  };
+};
+
+export type UpdateMobileNotificationPreferenceInput = {
+  source: string;
+  channel: string;
+  enabled: boolean;
+  mutedUntil?: string | null;
+  reason?: string | null;
+};
+
 export async function fetchMobileNotifications(): Promise<MobileApiResponse<{
   notifications: MobileNotification[];
 }>> {
@@ -73,6 +119,28 @@ export async function generateMobileChildLifecycleNotifications(): Promise<
 > {
   return requestMobileNotificationsApi("/api/v1/notifications/child-lifecycle/generate", {
     method: "POST"
+  });
+}
+
+export async function fetchMobileNotificationPreferences(): Promise<
+  MobileApiResponse<MobileNotificationPreferencesPayload>
+> {
+  return requestMobileNotificationsApi("/api/v1/notification-preferences");
+}
+
+export async function updateMobileNotificationPreference(
+  input: UpdateMobileNotificationPreferenceInput
+): Promise<MobileApiResponse<{
+  preference: MobileNotificationPreference;
+  auditEvent: MobileNotificationPreferenceAuditEvent;
+  summary: MobileNotificationPreferencesPayload["summary"];
+}>> {
+  return requestMobileNotificationsApi("/api/v1/notification-preferences", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(input)
   });
 }
 

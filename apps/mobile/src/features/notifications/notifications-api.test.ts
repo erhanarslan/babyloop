@@ -1,9 +1,11 @@
 import {
+  fetchMobileNotificationPreferences,
   fetchMobileNotifications,
   fetchMobileUnreadNotificationCount,
   generateMobileChildLifecycleNotifications,
   markAllMobileNotificationsRead,
-  markMobileNotificationRead
+  markMobileNotificationRead,
+  updateMobileNotificationPreference
 } from "./notifications-api";
 import { mobileAuthFetch } from "../auth/auth-api";
 
@@ -127,6 +129,101 @@ describe("mobile notifications API", () => {
     expect(mobileAuthFetchMock).toHaveBeenCalledWith("/api/v1/notifications/child-lifecycle/generate", {
       method: "POST"
     });
+  });
+
+  it("fetches source and channel notification preferences without enabling providers", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        preferences: [
+          {
+            id: null,
+            source: "messages",
+            channel: "in_app",
+            enabled: true,
+            mutedUntil: null,
+            deliveryAllowed: true,
+            providerCallAllowed: false,
+            draftOnly: false,
+            createdAt: null,
+            updatedAt: null
+          }
+        ],
+        recentAuditEvents: [],
+        summary: {
+          deliveryProvidersEnabled: false,
+          providerCallsAllowed: false,
+          supportedSources: ["messages"],
+          supportedChannels: ["in_app", "email", "push", "n8n"],
+          defaultEnabledChannels: ["in_app"],
+          draftOnlyChannels: ["email", "push", "n8n"]
+        }
+      }
+    }));
+
+    const result = await fetchMobileNotificationPreferences();
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data.summary.providerCallsAllowed : true).toBe(false);
+    expect(JSON.stringify(result)).not.toMatch(/accessToken|refreshToken|passwordHash|providerSecret|pushToken/iu);
+    expect(mobileAuthFetchMock).toHaveBeenCalledWith("/api/v1/notification-preferences", {});
+  });
+
+  it("updates source and channel notification preferences through authenticated mobile fetch", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        preference: {
+          id: "88888888-8888-4888-8888-888888888888",
+          source: "messages",
+          channel: "in_app",
+          enabled: false,
+          mutedUntil: null,
+          deliveryAllowed: false,
+          providerCallAllowed: false,
+          draftOnly: false,
+          createdAt: "2030-01-01T00:00:00.000Z",
+          updatedAt: "2030-01-01T00:00:00.000Z"
+        },
+        auditEvent: {
+          id: "77777777-7777-4777-8777-777777777777",
+          source: "messages",
+          channel: "in_app",
+          oldEnabled: true,
+          newEnabled: false,
+          oldMutedUntil: null,
+          newMutedUntil: null,
+          reason: "Sessiz saatler",
+          createdAt: "2030-01-01T00:00:00.000Z"
+        },
+        summary: {
+          deliveryProvidersEnabled: false,
+          providerCallsAllowed: false,
+          supportedSources: ["messages"],
+          supportedChannels: ["in_app", "email", "push", "n8n"],
+          defaultEnabledChannels: ["in_app"],
+          draftOnlyChannels: ["email", "push", "n8n"]
+        }
+      }
+    }));
+
+    const result = await updateMobileNotificationPreference({
+      source: "messages",
+      channel: "in_app",
+      enabled: false,
+      reason: "Sessiz saatler"
+    });
+    const [, init] = mobileAuthFetchMock.mock.calls[0]!;
+
+    expect(result.ok).toBe(true);
+    expect(init?.method).toBe("PATCH");
+    expect(init?.body).toBe(JSON.stringify({
+      source: "messages",
+      channel: "in_app",
+      enabled: false,
+      reason: "Sessiz saatler"
+    }));
+    expect(JSON.stringify({ result, init })).not.toMatch(/accessToken|refreshToken|passwordHash|providerSecret|pushToken/iu);
   });
 
   it("returns a safe unavailable response when mobile fetch fails", async () => {

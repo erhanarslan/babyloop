@@ -25,8 +25,10 @@ import {
 } from "../saved-searches/api";
 import {
   fetchNotificationDeliveryDrafts,
+  fetchNotificationPreferences,
   type NotificationDeliveryDraft,
-  type NotificationDeliveryDraftsPayload
+  type NotificationDeliveryDraftsPayload,
+  type NotificationPreferencesPayload
 } from "./api";
 
 type NotificationPreferencesPageContentProps = {
@@ -50,6 +52,7 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
   const [lifecycleGroups, setLifecycleGroups] = useState<LifecycleRecommendationGroup[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [deliveryDraftsPayload, setDeliveryDraftsPayload] = useState<NotificationDeliveryDraftsPayload | null>(null);
+  const [preferencePayload, setPreferencePayload] = useState<NotificationPreferencesPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -62,11 +65,18 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
     setErrorMessage(null);
 
     try {
-      const [childProfilesResponse, lifecycleResponse, savedSearchesResponse, deliveryDraftsResponse] = await Promise.all([
+      const [
+        childProfilesResponse,
+        lifecycleResponse,
+        savedSearchesResponse,
+        deliveryDraftsResponse,
+        preferencesResponse
+      ] = await Promise.all([
         fetchChildProfiles(apiBaseUrl),
         fetchLifecycleRecommendations(apiBaseUrl),
         fetchSavedSearches(apiBaseUrl),
-        fetchNotificationDeliveryDrafts(apiBaseUrl)
+        fetchNotificationDeliveryDrafts(apiBaseUrl),
+        fetchNotificationPreferences(apiBaseUrl)
       ]);
 
       if (!childProfilesResponse.ok) {
@@ -74,8 +84,8 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
         setChildProfiles([]);
         setLifecycleGroups([]);
         setSavedSearches([]);
-      setDeliveryDraftsPayload(null);
         setDeliveryDraftsPayload(null);
+        setPreferencePayload(null);
         return;
       }
 
@@ -85,6 +95,7 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
         setLifecycleGroups([]);
         setSavedSearches([]);
         setDeliveryDraftsPayload(null);
+        setPreferencePayload(null);
         return;
       }
 
@@ -92,11 +103,14 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
       setLifecycleGroups(lifecycleResponse.ok ? lifecycleResponse.data.groups : []);
       setSavedSearches(savedSearchesResponse.data.savedSearches);
       setDeliveryDraftsPayload(deliveryDraftsResponse.ok ? deliveryDraftsResponse.data : null);
+      setPreferencePayload(preferencesResponse.ok ? preferencesResponse.data : null);
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
       setChildProfiles([]);
       setLifecycleGroups([]);
       setSavedSearches([]);
+      setDeliveryDraftsPayload(null);
+      setPreferencePayload(null);
     } finally {
       setIsLoading(false);
     }
@@ -182,6 +196,33 @@ export function NotificationPreferencesPageContent({ apiBaseUrl }: NotificationP
               action="Aramalar"
             />
           </section>
+
+          {preferencePayload ? (
+            <section className="rounded-[1.25rem] border border-border/70 bg-background p-4" aria-label="Kaynak ve kanal tercihleri">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-foreground">Kaynak ve kanal tercihleri</h2>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+                    Uygulama içi bildirimler yönetilebilir. Email, push ve n8n kanalları sandbox/draft-only kalır.
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">
+                  Provider kapalı
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-bold text-foreground">
+                  {preferencePayload.preferences.filter((item) => item.enabled).length} aktif tercih
+                </span>
+                <span className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-bold text-foreground">
+                  {preferencePayload.summary.supportedSources.length} kaynak
+                </span>
+                <span className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-bold text-foreground">
+                  {preferencePayload.recentAuditEvents.length} audit kaydı
+                </span>
+              </div>
+            </section>
+          ) : null}
 
           {childDrafts.length > 0 ? (
             <section className="notification-suggestion-strip" aria-label="Yaklaşan öneriler">

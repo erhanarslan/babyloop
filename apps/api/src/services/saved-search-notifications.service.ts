@@ -11,6 +11,7 @@ import {
   createNotification,
   type NotificationResponse
 } from "./notifications.service.js";
+import { isNotificationPreferenceEnabledForDelivery } from "./notification-preferences.service.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
 
 export type SavedSearchNotificationGenerationResponse = {
@@ -53,11 +54,22 @@ export async function generateSavedSearchNotifications(
   app: FastifyInstance,
   profileId: string
 ): Promise<SavedSearchNotificationGenerationResponse> {
+  const preferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
+    app,
+    profileId,
+    "saved_search",
+    "in_app"
+  );
   const searches = await listEnabledSavedSearches(app, profileId);
   const createdNotifications: NotificationResponse[] = [];
   let skippedCount = 0;
 
   for (const savedSearch of searches) {
+    if (!preferenceEnabled) {
+      skippedCount += 1;
+      continue;
+    }
+
     const matchingListings = await listMatchingListingsForSavedSearch(app, profileId, savedSearch);
 
     if (matchingListings.length === 0) {
