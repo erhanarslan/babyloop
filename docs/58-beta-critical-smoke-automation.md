@@ -174,3 +174,13 @@ Public safety and default admin review DTOs do not expose email, do not expose p
 Mobile safety surface pending remains an explicit tracked gap until mobile report/block UI is implemented.
 
 Public safety abuse-flow audit does not expose email, does not expose phone, does not expose accessToken, does not expose refreshToken, does not expose passwordHash, does not expose cookie, does not expose authorization, and does not expose raw message body in public safety or default admin review DTOs.
+
+## Auth/session/CSRF/realtime/read-state audit
+
+Run pnpm security:auth-session-realtime-readstate before claiming auth/session/realtime/read-state release readiness.
+
+This audit covers httpOnly cookies, CSRF, public access cookie migration, refresh/logout/session revoke behavior, backoffice admin auth, realtime room access, read-state, unread-count reconciliation, and the release dependency map across API, web, backoffice, and mobile.
+
+Auth/session/realtime/read-state surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
+
+Mobile messaging/realtime parity pending remains an explicit P0 gap until the mobile realtime implementation is completed.
