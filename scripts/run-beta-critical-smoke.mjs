@@ -4,6 +4,7 @@ const skipTypecheck = process.env.BABYLOOP_BETA_SMOKE_SKIP_TYPECHECK === "1";
 
 const steps = [
   { label: "Beta critical smoke boundary", command: "pnpm", args: ["security:beta-critical-smoke"] },
+  { label: "P0 release surface smoke inventory guard", command: "pnpm", args: ["security:p0-release-surface-smoke-inventory"] },
   { label: "API security aggregate", command: "pnpm", args: ["test:api:security"] },
   { label: "Assistant safety guard", command: "pnpm", args: ["security:assistant-safety-guard"] },
   { label: "Storage ops preview guard", command: "pnpm", args: ["security:storage-ops-preview"] },
