@@ -34,6 +34,7 @@ const steps = [
         { label: "Web typecheck", command: "pnpm", args: ["--filter", "@babyloop/web", "typecheck"] },
         { label: "Mobile typecheck", command: "pnpm", args: ["--filter", "@babyloop/mobile", "typecheck"] }
       ])
+  { label: "Image upload/review storage boundary guard", command: "pnpm", args: ["security:image-upload-review-storage"] },
 ];
 
 const startedAt = Date.now();

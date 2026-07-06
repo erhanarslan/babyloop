@@ -140,3 +140,11 @@ Full beta critical smoke automation includes `pnpm security:child-reminder-api-s
 This guard keeps child reminder delivery candidates due-state aware: future reminders are skipped with `reminder_not_due`, invalid dates are skipped with `reminder_invalid_date`, and non-scheduled reminders are skipped with `reminder_not_scheduled`.
 
 It does not run queue jobs, does not send email, does not send push, and does not trigger n8n.
+
+## Image upload/review storage boundary
+
+Full beta critical smoke automation includes pnpm security:image-upload-review-storage.
+
+This guard confirms that seller upload responses, admin image review responses, public listing responses, admin listing detail, and authenticity audit metadata do not expose objectKey, filePath, contentHash, credentials, tokens, raw provider output, raw upload body, base64 image data, storageDriver, uploadRoot, or local absolute paths.
+
+It does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.

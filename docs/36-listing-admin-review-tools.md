@@ -170,3 +170,11 @@ They currently share the same underlying safe listing statuses (`active` and `ar
 - Try archiving an already archived listing and restoring an active listing; confirm both are rejected and no new audit event is written.
 - Try approving an approved image and rejecting a rejected image; confirm both are rejected and no new audit event is written.
 - Confirm no raw reporter identity or raw message body appears.
+
+## Image upload/review storage boundary
+
+Listing image review must pass pnpm security:image-upload-review-storage.
+
+Admin review responses may show safe listing image URL, review status, reviewer profile id, reviewed timestamp, and safe authenticity metadata. They must not expose objectKey, filePath, contentHash, storage credentials, raw image binary data, raw provider output, tokens, cookies, auth/session data, seller contact data, reporter identity, or local absolute filesystem paths.
+
+This does not enable S3/R2 rollout.

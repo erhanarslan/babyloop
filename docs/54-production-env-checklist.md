@@ -427,3 +427,11 @@ This does not run Maestro or require ADB, does not start Expo, and does not repl
 Production/beta readiness requires `pnpm security:child-reminder-api-schedule` to pass before child reminder scheduling is claimed complete.
 
 The boundary enforces `reminder_not_due`, `reminder_invalid_date`, draft-only candidate logs, and notification consent/preference prerequisites. It does not run queue jobs, does not send email, does not send push, and does not trigger n8n.
+
+## Image upload/review storage boundary
+
+Production/beta readiness requires pnpm security:image-upload-review-storage.
+
+This boundary verifies that image upload/review responses do not expose objectKey, filePath, contentHash, raw provider output, raw upload body, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
+
+It does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.

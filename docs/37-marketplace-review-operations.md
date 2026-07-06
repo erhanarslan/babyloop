@@ -169,3 +169,11 @@ Focused validation:
 pnpm security:backoffice-image-review
 BACKOFFICE_E2E_BASE_URL=http://localhost:3001 pnpm --filter @babyloop/backoffice exec playwright test e2e/listing-image-review.smoke.spec.ts --reporter=list
 ```
+
+## Image upload/review storage boundary
+
+Marketplace review operations must pass pnpm security:image-upload-review-storage.
+
+Rejected and needs-review images remain hidden from public list/detail responses. Admin listing detail may show them only with safe review metadata. Public/admin API responses must not expose objectKey, filePath, contentHash, raw upload body, raw provider output, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
+
+This does not enable S3/R2 rollout.

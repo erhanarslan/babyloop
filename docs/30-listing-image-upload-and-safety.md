@@ -236,3 +236,11 @@ Future cross-listing duplicate/fraud scoring must include at least:
 - appeal or manual override boundaries.
 
 Content hashes are internal storage/trust metadata. They must not be exposed in public, owner, or admin DTOs. The current database uniqueness boundary must remain `(listing_id, content_hash)`, while the standalone `content_hash` index remains available for future risk-signal queries.
+
+## Image upload/review storage boundary
+
+Run pnpm security:image-upload-review-storage before claiming the upload/review chain complete.
+
+The image upload/review storage boundary checks that seller upload responses, admin review responses, public listing responses, admin listing detail, and authenticity audit metadata do not expose objectKey, filePath, contentHash, raw provider output, raw upload body, base64 image data, credentials, tokens, cookies, storageDriver, uploadRoot, or local absolute paths.
+
+This does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.

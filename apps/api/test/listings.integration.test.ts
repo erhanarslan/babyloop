@@ -353,6 +353,7 @@ describe("listings API", () => {
     });
 
     expect(upload.statusCode).toBe(201);
+    expectUploadReviewStoragePublicBoundary(upload.body);
     const image = upload.json().data.image;
     expect(image).toMatchObject({
       sortOrder: 0
@@ -1702,6 +1703,19 @@ describe("listings API", () => {
     expect(rejected.body).not.toContain("messageBody");
     expect(rejected.body).not.toContain("accessToken");
     expect(rejected.body).not.toContain("refreshToken");
+
+    for (const responseBody of [
+      rejected.body,
+      rejectAgain.body,
+      publicDetailAfterReject.body,
+      publicListAfterReject.body,
+      adminDetailAfterReject.body,
+      approved.body,
+      approveAgain.body,
+      publicDetailAfterApprove.body
+    ]) {
+      expectUploadReviewStoragePublicBoundary(responseBody);
+    }
   });
 
   it("rejects unsafe admin listing image review requests", async () => {
@@ -1997,4 +2011,10 @@ async function latestListingStatusChangeEvent(listingId: string) {
     .orderBy(asc(events.createdAt));
 
   return rows.at(-1) ?? null;
+}
+
+function expectUploadReviewStoragePublicBoundary(serialized: string): void {
+  expect(serialized).not.toMatch(
+    /filePath|objectKey|contentHash|storageDriver|uploadRoot|rawUploadBody|rawProviderOutput|base64|secretAccessKey|accessKeyId|S3_SECRET_ACCESS_KEY|AWS_SECRET_ACCESS_KEY|R2_ACCESS_KEY|signed-url-secret-value|presigned-post-secret-value|passwordHash|accessToken|refreshToken|authorization|cookie|\/Users\/|\/var\/|\/tmp\//iu
+  );
 }

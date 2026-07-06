@@ -393,3 +393,12 @@ Beta can proceed only if:
 - [ ] `pnpm security:child-reminder-api-schedule` passes.
 - [ ] Future reminders use `reminder_not_due`; invalid dates use `reminder_invalid_date`.
 - [ ] The guard does not run queue jobs, does not send email, does not send push, and does not trigger n8n.
+
+### Image upload/review storage boundary
+
+- [ ] pnpm beta:critical-smoke includes pnpm security:image-upload-review-storage.
+- [ ] pnpm security:image-upload-review-storage passes.
+- [ ] Public listing responses hide rejected and needs-review images.
+- [ ] Admin listing detail shows safe image review metadata only.
+- [ ] API responses do not expose objectKey, filePath, contentHash, credentials, tokens, raw provider output, raw upload body, base64 image data, storageDriver, uploadRoot, or local absolute paths.
+- [ ] This does not enable S3/R2 rollout.
