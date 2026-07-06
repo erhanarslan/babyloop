@@ -44,7 +44,7 @@ export const updateChildProfileNoteBodySchema = z
     isArchived: z.boolean().optional()
   })
   .strict()
-  .refine((value) => Object.keys(value).length > 0, {
+  .refine(hasProvidedUpdateField, {
     message: "At least one note field must be provided."
   });
 
@@ -66,7 +66,7 @@ export const updateChildProfileReminderBodySchema = z
     status: childProfileReminderStatusSchema.optional()
   })
   .strict()
-  .refine((value) => Object.keys(value).length > 0, {
+  .refine(hasProvidedUpdateField, {
     message: "At least one reminder field must be provided."
   });
 
@@ -104,12 +104,20 @@ function optionalPlainTextSchema(options: PlainTextOptions) {
       }
     )
     .transform((value) => {
-      if (value === undefined || value === null) {
+      if (value === undefined) {
+        return undefined;
+      }
+
+      if (value === null) {
         return null;
       }
 
       return normalizePlainText(value, options);
     });
+}
+
+function hasProvidedUpdateField(value: object) {
+  return Object.values(value).some((fieldValue) => fieldValue !== undefined);
 }
 
 export type ChildProfileNoteParams = z.infer<typeof childProfileNoteParamsSchema>;
