@@ -126,4 +126,9 @@ Full beta critical smoke automation includes `pnpm release:mobile:p0` as the det
 
 Guard wording: includes pnpm release:mobile:p0 as the deterministic device-free Mobile P0 release gate. This gate runs `pnpm security:mobile-auth`, `pnpm security:mobile-notifications`, `pnpm test:mobile:p0`, and `pnpm --filter @babyloop/mobile typecheck`.
 
-This mobile P0 gate does not run Maestro or require ADB, does not start Expo, and does not replace manual physical Galaxy S22 QA evidence. Expanded Maestro E2E and real-device S22 QA remain separate backlog/manual QA tracks until device setup is stable.
+This mobile P0 gate does not run Maestro or require ADB, does not start Expo, and does not replace manual physical Galaxy S22 QA evidence. Expanded Maestro E2E and real-device S22 QA remain separate backlog/manual QA tracks until device setup is stable.\n
+## CI Mobile P0 parity
+
+GitHub Actions includes a device-free CI Mobile P0 parity job that runs `pnpm security:ci-mobile-p0-parity`, `pnpm security:mobile-p0-gate`, and `pnpm release:mobile:p0`.
+
+This job does not run Maestro, does not require ADB, does not start Expo, and does not require a Postgres service. Real-device S22 QA and expanded Maestro E2E remain separate backlog/manual QA tracks.

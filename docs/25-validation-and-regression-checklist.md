@@ -773,4 +773,9 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 
 - Mobile child notebook/reminder screen-state QA: `src/features/child/child-reminder-screen-state-model.test.ts` covers active profile fallback, note/reminder create payloads, complete/cancel state updates, in-app-only reminder channel, and no-real-push/email/n8n copy.
 
-- [ ] Release artifact guard UX separates tracked generated artifacts, untracked artifacts, and filesystem artifacts; cleanup guidance uses `pnpm release:clean` plus `git rm` for tracked generated artifacts.
+- [ ] Release artifact guard UX separates tracked generated artifacts, untracked artifacts, and filesystem artifacts; cleanup guidance uses `pnpm release:clean` plus `git rm` for tracked generated artifacts.\n
+### CI Mobile P0 parity
+
+- [ ] GitHub Actions includes a `mobile-p0` job for CI Mobile P0 parity.
+- [ ] The CI Mobile P0 parity job runs `pnpm security:ci-mobile-p0-parity`, `pnpm security:mobile-p0-gate`, and `pnpm release:mobile:p0`.
+- [ ] The CI Mobile P0 parity job does not run Maestro, does not require ADB, does not start Expo, and does not require a Postgres service.

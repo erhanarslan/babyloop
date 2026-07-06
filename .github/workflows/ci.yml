@@ -99,3 +99,38 @@ jobs:
 
       - name: Build workspace
         run: pnpm build
+
+  mobile-p0:
+    name: Mobile P0 release gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Release artifact guard
+        run: pnpm release:artifacts
+
+      - name: Mobile P0 CI parity boundary
+        run: pnpm security:ci-mobile-p0-parity
+
+      - name: Mobile P0 release gate boundary
+        run: pnpm security:mobile-p0-gate
+
+      - name: Mobile P0 release gate
+        run: pnpm release:mobile:p0

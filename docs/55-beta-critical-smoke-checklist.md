@@ -380,4 +380,9 @@ Beta can proceed only if:
 
 - Mobile child notebook/reminder screen-state QA must pass through `pnpm test:mobile:p0` and `pnpm security:child-notebook-reminder-hardening`; Maestro/S22 real-device execution remains separate.
 
-- Release artifact guard UX: `pnpm release:artifacts` reports tracked generated artifacts separately from untracked/filesystem artifacts. Use `pnpm release:clean` for cleanable artifacts and `git rm` for tracked generated artifacts; do not bypass this guard in beta/release flows.
+- Release artifact guard UX: `pnpm release:artifacts` reports tracked generated artifacts separately from untracked/filesystem artifacts. Use `pnpm release:clean` for cleanable artifacts and `git rm` for tracked generated artifacts; do not bypass this guard in beta/release flows.\n
+### CI Mobile P0 parity
+
+- [ ] `.github/workflows/ci.yml` includes the device-free `mobile-p0` job.
+- [ ] CI runs `pnpm security:ci-mobile-p0-parity` before `pnpm release:mobile:p0`.
+- [ ] CI Mobile P0 parity does not run Maestro, does not require ADB, does not start Expo, and does not claim real-device QA.
