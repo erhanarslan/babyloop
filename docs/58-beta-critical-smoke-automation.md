@@ -119,3 +119,11 @@ Notification preference QA verifies backoffice notification preferences, mobile 
 ## Release artifact guard UX
 
 `pnpm release:artifacts` must clearly separate tracked generated artifacts from untracked/filesystem artifacts. `pnpm release:clean` handles cleanable generated artifacts; tracked generated artifacts require intentional `git rm` and a commit. The bypass is diagnostic-only and must not be used to pass beta/release flows.
+
+## Mobile P0 release gate
+
+Full beta critical smoke automation includes `pnpm release:mobile:p0` as the deterministic device-free Mobile P0 release gate.
+
+Guard wording: includes pnpm release:mobile:p0 as the deterministic device-free Mobile P0 release gate. This gate runs `pnpm security:mobile-auth`, `pnpm security:mobile-notifications`, `pnpm test:mobile:p0`, and `pnpm --filter @babyloop/mobile typecheck`.
+
+This mobile P0 gate does not run Maestro or require ADB, does not start Expo, and does not replace manual physical Galaxy S22 QA evidence. Expanded Maestro E2E and real-device S22 QA remain separate backlog/manual QA tracks until device setup is stable.

@@ -415,3 +415,9 @@ Production/beta readiness requires `pnpm security:notification-preference-qa` an
 Notification preference QA covers backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, raw contact logging, and manual QA evidence.
 
 This gate does not enable real sending, provider calls, queue jobs, or webhook calls.
+
+## Beta smoke Mobile P0 release gate
+
+Production/beta readiness requires full beta critical smoke automation to include `pnpm release:mobile:p0` as the deterministic device-free Mobile P0 release gate. It covers mobile auth, mobile notification boundary, mobile P0 Jest tests, and mobile typecheck.
+
+This does not run Maestro or require ADB, does not start Expo, and does not replace manual physical Galaxy S22 QA evidence.

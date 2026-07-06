@@ -56,6 +56,10 @@ function checkRunner() {
     "test:api:security",
     "security:assistant-safety-guard",
     "security:storage-ops-preview",
+    "Mobile P0 release gate boundary",
+    "security:mobile-p0-gate",
+    "Mobile P0 release gate",
+    "release:mobile:p0",
     "qa:mobile:s22",
     "security:mobile-otp-mfa-hardening",
     "security:child-notebook-reminder-hardening",
@@ -93,7 +97,11 @@ function checkRunner() {
     "iyzicoSecret",
     "curl https://hooks.",
     "fetch(",
-    "console.log(process.env)"
+    "console.log(process.env)",
+    "test:e2e:mobile",
+    "maestro test",
+    "RUN_MOBILE_E2E",
+    "expo start"
   ]) {
     mustNotContain(source, file, forbidden);
   }
@@ -105,10 +113,21 @@ function checkPackageScripts() {
   const betaSmoke = scripts["beta:critical-smoke"] ?? "";
   const securitySmoke = scripts["security:beta-critical-smoke"] ?? "";
   const apiSecurity = scripts["test:api:security"] ?? "";
+  const mobileP0 = scripts["release:mobile:p0"] ?? "";
+  const mobileP0Boundary = scripts["security:mobile-p0-gate"] ?? "";
 
   mustContain(betaSmoke, "package.json#beta:critical-smoke", "node scripts/run-beta-critical-smoke.mjs");
   mustContain(securitySmoke, "package.json#security:beta-critical-smoke", "node scripts/check-beta-critical-smoke-boundary.mjs");
   mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:beta-critical-smoke");
+  mustContain(mobileP0Boundary, "package.json#security:mobile-p0-gate", "node scripts/check-mobile-p0-release-gate.mjs");
+  mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm security:mobile-auth");
+  mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm security:mobile-notifications");
+  mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm test:mobile:p0");
+  mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm --filter @babyloop/mobile typecheck");
+  mustNotContain(mobileP0, "package.json#release:mobile:p0", "maestro");
+  mustNotContain(mobileP0, "package.json#release:mobile:p0", "test:e2e:mobile");
+  mustNotContain(mobileP0, "package.json#release:mobile:p0", "RUN_MOBILE_E2E");
+  mustNotContain(mobileP0, "package.json#release:mobile:p0", "expo start");
 }
 
 function checkDocs() {
@@ -126,6 +145,8 @@ function checkDocs() {
     mustContain(source, file, "pnpm security:beta-critical-smoke");
     mustContainCaseInsensitive(source, file, "assistant safety guard");
     mustContainCaseInsensitive(source, file, "storage ops preview");
+    mustContainCaseInsensitive(source, file, "mobile p0 release gate");
+    mustContain(source, file, "pnpm release:mobile:p0");
     mustContainCaseInsensitive(source, file, "mobile real-device s22 qa");
     mustContainCaseInsensitive(source, file, "notification readiness");
     mustContain(source, file, "security:auth-leaks");
@@ -135,6 +156,8 @@ function checkDocs() {
   const mainDoc = read("docs/58-beta-critical-smoke-automation.md");
   for (const token of [
     "does not replace manual physical Galaxy S22 QA evidence",
+    "includes pnpm release:mobile:p0 as the deterministic device-free Mobile P0 release gate",
+    "does not run Maestro or require ADB",
     "does not enable push sender",
     "does not enable n8n workflow",
     "does not enable S3/R2 external storage",

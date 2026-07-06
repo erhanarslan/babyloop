@@ -7,6 +7,8 @@ const steps = [
   { label: "API security aggregate", command: "pnpm", args: ["test:api:security"] },
   { label: "Assistant safety guard", command: "pnpm", args: ["security:assistant-safety-guard"] },
   { label: "Storage ops preview guard", command: "pnpm", args: ["security:storage-ops-preview"] },
+  { label: "Mobile P0 release gate boundary", command: "pnpm", args: ["security:mobile-p0-gate"] },
+  { label: "Mobile P0 release gate", command: "pnpm", args: ["release:mobile:p0"] },
   { label: "Mobile real-device S22 QA guard", command: "pnpm", args: ["qa:mobile:s22"] },
   { label: "Mobile OTP/MFA hardening guard", command: "pnpm", args: ["security:mobile-otp-mfa-hardening"] },
   { label: "Child notebook reminder hardening guard", command: "pnpm", args: ["security:child-notebook-reminder-hardening"] },
