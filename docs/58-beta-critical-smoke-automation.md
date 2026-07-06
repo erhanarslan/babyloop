@@ -184,3 +184,15 @@ This audit covers httpOnly cookies, CSRF, public access cookie migration, refres
 Auth/session/realtime/read-state surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
 
 Mobile messaging/realtime parity pending remains an explicit P0 gap until the mobile realtime implementation is completed.
+
+## Mobile messaging/realtime parity audit
+
+Run pnpm security:mobile-messaging-realtime-parity before claiming mobile messaging, notification unread-count, or read-state release readiness.
+
+This audit covers API, web, and mobile read-state, unread-count, realtime, logout/session cleanup, and mobile P0 release gate expectations.
+
+Mobile messaging/realtime parity pending remains an explicit P0 gap until the mobile implementation and real-device smoke are completed.
+
+Mobile messaging/realtime/read-state surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
+
+Mobile messaging/realtime parity audit permits accessToken only as an internal realtime auth input or E2E helper value; it does not expose accessToken, does not expose refreshToken, does not expose passwordHash, does not expose cookie, and does not expose authorization through response DTOs, logs, or storage.

@@ -39,6 +39,7 @@ const steps = [
   { label: "Notification consistency audit boundary guard", command: "pnpm", args: ["security:notification-consistency-audit"] },
   { label: "Public safety abuse-flow boundary guard", command: "pnpm", args: ["security:public-safety-abuse-flow"] },
   { label: "Auth/session/CSRF/realtime/read-state boundary guard", command: "pnpm", args: ["security:auth-session-realtime-readstate"] },
+  { label: "Mobile messaging/realtime parity boundary guard", command: "pnpm", args: ["security:mobile-messaging-realtime-parity"] },
 ];
 
 const startedAt = Date.now();
