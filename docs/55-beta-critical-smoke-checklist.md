@@ -458,3 +458,11 @@ Mobile messaging/realtime parity pending remains an explicit P0 gap until the mo
 Mobile messaging/realtime/read-state surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
 
 Mobile messaging/realtime parity audit permits accessToken only as an internal realtime auth input or E2E helper value; it does not expose accessToken, does not expose refreshToken, does not expose passwordHash, does not expose cookie, and does not expose authorization through response DTOs, logs, or storage.
+
+## Mobile OTP/MFA session regression audit
+
+Run pnpm security:mobile-auth-otp-session-regression before claiming mobile auth, OTP/MFA, refresh, or logout release readiness.
+
+This audit covers mfa_required, OTP, refresh, logout, SecureStore, mobile P0 release gate, and API/mobile session regression expectations.
+
+Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
