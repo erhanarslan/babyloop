@@ -64,6 +64,62 @@ describe("product event schemas", () => {
     expect(productEventTypeSchema.safeParse("recently_viewed_listing_clicked").success).toBe(true);
     expect(productEventTypeSchema.safeParse("category_viewed").success).toBe(true);
     expect(productEventTypeSchema.safeParse("search_performed").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("saved_search_created").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("favorite_added").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("listing_status_changed").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("browse_filter_applied").success).toBe(true);
+    expect(productEventTypeSchema.safeParse("message_sent").success).toBe(true);
+  });
+
+  it("accepts marketplace lifecycle events with no-PII allowlisted metadata", () => {
+    expect(
+      productEventBodySchema.safeParse({
+        categoryId: CATEGORY_ID,
+        eventType: "saved_search_created",
+        savedSearchId: "00000000-0000-4000-8000-000000000003",
+        sort: "newest",
+        source: "account_saved_searches"
+      }).success
+    ).toBe(true);
+
+    expect(
+      productEventBodySchema.safeParse({
+        categoryId: CATEGORY_ID,
+        eventType: "favorite_removed",
+        listingId: LISTING_ID,
+        source: "favorites"
+      }).success
+    ).toBe(true);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "listing_status_changed",
+        listingId: LISTING_ID,
+        source: "seller_dashboard",
+        status: "reserved"
+      }).success
+    ).toBe(true);
+
+    expect(
+      productEventBodySchema.safeParse({
+        city: "İstanbul",
+        condition: "good",
+        eventType: "browse_filter_applied",
+        limit: 16,
+        listingType: "sale",
+        offset: 0,
+        sort: "price_desc",
+        source: "browse_filters"
+      }).success
+    ).toBe(true);
+
+    expect(
+      productEventBodySchema.safeParse({
+        conversationId: "00000000-0000-4000-8000-000000000004",
+        eventType: "message_sent",
+        source: "conversation"
+      }).success
+    ).toBe(true);
   });
 
   it("rejects raw search query and unknown metadata fields", () => {
@@ -86,6 +142,24 @@ describe("product event schemas", () => {
           phone: "+905551112233"
         },
         source: "listing_detail"
+      }).success
+    ).toBe(false);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "message_sent",
+        conversationId: "00000000-0000-4000-8000-000000000004",
+        rawMessageBody: "private message",
+        source: "conversation"
+      }).success
+    ).toBe(false);
+
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "saved_search_created",
+        query: "private query",
+        savedSearchId: "00000000-0000-4000-8000-000000000003",
+        source: "account_saved_searches"
       }).success
     ).toBe(false);
   });

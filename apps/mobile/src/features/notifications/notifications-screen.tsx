@@ -4,17 +4,24 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuthSession } from "../auth/auth-session";
 import {
+  fetchMobileNotificationPreferences,
   fetchMobileNotifications,
   fetchMobileUnreadNotificationCount,
   generateMobileChildLifecycleNotifications,
   markAllMobileNotificationsRead,
   markMobileNotificationRead,
+  updateMobileNotificationPreference,
+  type MobileNotificationPreferencesPayload,
   type MobileNotification
 } from "./notifications-api";
 import {
   getMobileNotificationCards,
   getMobileUnreadNotificationCountLabel
 } from "./notifications-model";
+import {
+  canUseMobileNotificationProviderDelivery,
+  getMobileNotificationPreferenceChannelSummary
+} from "./notification-preferences-model";
 import {
   MobileButton,
   MobileCard,
@@ -30,11 +37,14 @@ export function NotificationsScreen() {
   const authSession = useAuthSession();
   const currentUser = authSession.currentUser;
   const [notifications, setNotifications] = useState<MobileNotification[]>([]);
+  const [preferencesPayload, setPreferencesPayload] =
+    useState<MobileNotificationPreferencesPayload | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
+  const [isPreferenceUpdating, setIsPreferenceUpdating] = useState(false);
 
   const notificationCards = useMemo(
     () => getMobileNotificationCards(notifications),
@@ -44,6 +54,7 @@ export function NotificationsScreen() {
   const loadNotifications = useCallback(async (options: { silent?: boolean } = {}) => {
     if (!currentUser) {
       setNotifications([]);
+      setPreferencesPayload(null);
       setUnreadCount(0);
       setStatus("ready");
       setError(null);
@@ -56,9 +67,10 @@ export function NotificationsScreen() {
 
     setError(null);
 
-    const [notificationsResponse, unreadResponse] = await Promise.all([
+    const [notificationsResponse, unreadResponse, preferencesResponse] = await Promise.all([
       fetchMobileNotifications(),
-      fetchMobileUnreadNotificationCount()
+      fetchMobileUnreadNotificationCount(),
+      fetchMobileNotificationPreferences()
     ]);
 
     if (!notificationsResponse.ok) {
@@ -75,6 +87,7 @@ export function NotificationsScreen() {
 
     setNotifications(notificationsResponse.data.notifications);
     setUnreadCount(unreadResponse.data.count);
+    setPreferencesPayload(preferencesResponse.ok ? preferencesResponse.data : null);
     setStatus("ready");
   }, [currentUser]);
 
@@ -160,6 +173,60 @@ export function NotificationsScreen() {
     setIsMutating(false);
   }, [isMutating, loadNotifications]);
 
+  const messagesInAppPreference = useMemo(
+    () => preferencesPayload?.preferences.find((preference) =>
+      preference.source === "messages" && preference.channel === "in_app"
+    ) ?? null,
+    [preferencesPayload]
+  );
+
+  const handleToggleMessagesInAppPreference = useCallback(async () => {
+    if (isPreferenceUpdating || !messagesInAppPreference) {
+      return;
+    }
+
+    setIsPreferenceUpdating(true);
+    setMessage(null);
+
+    const response = await updateMobileNotificationPreference({
+      channel: "in_app",
+      enabled: !messagesInAppPreference.enabled,
+      reason: "mobile_notifications_screen",
+      source: "messages"
+    });
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+      setIsPreferenceUpdating(false);
+      return;
+    }
+
+    setPreferencesPayload((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        preferences: current.preferences.map((preference) =>
+          preference.source === "messages" && preference.channel === "in_app"
+            ? response.data.preference
+            : preference
+        ),
+        recentAuditEvents: [
+          response.data.auditEvent,
+          ...current.recentAuditEvents
+        ].slice(0, 20),
+        summary: response.data.summary
+      };
+    });
+    setMessage(
+      response.data.preference.enabled
+        ? "Mesajlar için uygulama içi bildirimler açıldı."
+        : "Mesajlar için uygulama içi bildirimler kapatıldı."
+    );
+    setIsPreferenceUpdating(false);
+  }, [isPreferenceUpdating, messagesInAppPreference]);
+
   function openNotificationTarget(notification: MobileNotification): void {
     if (notification.entityType === "conversation" && notification.entityId) {
       router.push(`/conversation/${encodeURIComponent(notification.entityId)}`);
@@ -222,6 +289,27 @@ export function NotificationsScreen() {
             Çocuk önerilerini yenile
           </MobileButton>
         </View>
+      </MobileCard>
+
+      <MobileCard style={styles.preferenceCard}>
+        <View style={styles.summaryTextBlock}>
+          <Text style={styles.summaryTitle}>Bildirim tercihleri</Text>
+          <Text style={styles.summaryText}>
+            {getMobileNotificationPreferenceChannelSummary(preferencesPayload)}
+          </Text>
+          {!canUseMobileNotificationProviderDelivery(preferencesPayload) ? (
+            <Text style={styles.preferenceBoundaryText}>
+              Email, push ve n8n kanalları bu sürümde taslak/sandbox modunda kalır.
+            </Text>
+          ) : null}
+        </View>
+        <MobileButton
+          disabled={!messagesInAppPreference || isPreferenceUpdating}
+          onPress={() => void handleToggleMessagesInAppPreference()}
+          variant="secondary"
+        >
+          {messagesInAppPreference?.enabled ? "Mesaj bildirimlerini kapat" : "Mesaj bildirimlerini aç"}
+        </MobileButton>
       </MobileCard>
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -327,6 +415,15 @@ const styles = StyleSheet.create({
   },
   summaryActions: {
     gap: spacing.sm
+  },
+  preferenceCard: {
+    gap: spacing.md
+  },
+  preferenceBoundaryText: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17
   },
   message: {
     borderRadius: radius.md,

@@ -17,6 +17,7 @@ import {
   createNotification,
   getUnreadNotificationCount
 } from "../services/notifications.service.js";
+import { recordProductEvent } from "../services/product-events.service.js";
 
 type FavoriteActionResponse = ApiResponse<FavoriteActionResult>;
 
@@ -101,6 +102,15 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
       }
     }
 
+    if (result.result.created) {
+      await recordProductEvent(app, {
+        actorProfileId: currentUser.profile.id,
+        eventType: "favorite_added",
+        listingId: parsedBody.data.listingId,
+        source: "favorites"
+      }).catch(() => undefined);
+    }
+
     const responseData: FavoriteActionResult = {
       favorite: result.result.favorite,
       ...(result.result.created !== undefined ? { created: result.result.created } : {})
@@ -126,6 +136,15 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
     }
 
     const result = await removeFavorite(app, currentUser.profile.id, parsedBody.data);
+
+    if (result.removed) {
+      await recordProductEvent(app, {
+        actorProfileId: currentUser.profile.id,
+        eventType: "favorite_removed",
+        listingId: parsedBody.data.listingId,
+        source: "favorites"
+      }).catch(() => undefined);
+    }
 
     return {
       ok: true,

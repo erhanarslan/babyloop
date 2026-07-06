@@ -32,6 +32,7 @@ import {
   getUnreadNotificationCount,
   markMessageNotificationsReadForConversation
 } from "../services/notifications.service.js";
+import { recordProductEvent } from "../services/product-events.service.js";
 import { safePlainTextFallback } from "../services/text-safety.service.js";
 
 type ConversationResponse = ApiResponse<{
@@ -295,6 +296,12 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         senderProfileId: currentUser.profile.id
       });
       await publishPersistedMessage(app, parsedParams.data.id, result.message);
+      await recordProductEvent(app, {
+        actorProfileId: currentUser.profile.id,
+        eventType: "message_sent",
+        conversationId: parsedParams.data.id,
+        source: "conversation"
+      }).catch(() => undefined);
 
       return reply.status(201).send({
         ok: true,

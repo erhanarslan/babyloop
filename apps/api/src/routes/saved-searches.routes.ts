@@ -13,6 +13,7 @@ import {
   updateSavedSearchNotifications,
   type SavedSearchResponse
 } from "../services/saved-searches.service.js";
+import { recordProductEvent } from "../services/product-events.service.js";
 
 type SavedSearchesResponse = ApiResponse<{
   savedSearches: SavedSearchResponse[];
@@ -63,10 +64,20 @@ export function registerSavedSearchRoutes(app: FastifyInstance): void {
         });
       }
 
+      const savedSearch = await createSavedSearch(app, currentUser.profile.id, parsedBody.data);
+
+      await recordProductEvent(app, {
+        actorProfileId: currentUser.profile.id,
+        ...(savedSearch.categoryId ? { categoryId: savedSearch.categoryId } : {}),
+        eventType: "saved_search_created",
+        savedSearchId: savedSearch.id,
+        source: "account_saved_searches"
+      }).catch(() => undefined);
+
       return reply.status(201).send({
         ok: true,
         data: {
-          savedSearch: await createSavedSearch(app, currentUser.profile.id, parsedBody.data)
+          savedSearch
         }
       });
     }
@@ -113,6 +124,13 @@ export function registerSavedSearchRoutes(app: FastifyInstance): void {
         }
       });
     }
+
+    await recordProductEvent(app, {
+      actorProfileId: currentUser.profile.id,
+      eventType: "saved_search_deleted",
+      savedSearchId: parsedParams.data.savedSearchId,
+      source: "account_saved_searches"
+    }).catch(() => undefined);
 
     return {
       ok: true,

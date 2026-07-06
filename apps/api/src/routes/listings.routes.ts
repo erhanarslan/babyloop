@@ -39,6 +39,7 @@ import type {
   ListingImageResponse,
   ListingSummaryResponse
 } from "../services/listing-response.mapper.js";
+import { recordProductEvent } from "../services/product-events.service.js";
 
 type ListingsResponse = ApiResponse<{
   listings: ListingSummaryResponse[];
@@ -411,6 +412,13 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
           }
         });
       }
+
+      await recordProductEvent(app, {
+        actorProfileId: currentUser.profile.id,
+        eventType: "listing_updated",
+        listingId: parsedParams.data.id,
+        source: "seller_dashboard"
+      }).catch(() => undefined);
 
       return {
         ok: true,

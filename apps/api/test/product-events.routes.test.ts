@@ -252,6 +252,143 @@ describe("product event routes", () => {
     }
   });
 
+  it("records marketplace lifecycle events with allowlisted metadata only", async () => {
+    const seller = await createUser(app, {
+      email: "product-event-lifecycle-seller@example.test"
+    });
+    const buyer = await createUser(app, {
+      displayName: "Product Event Lifecycle Buyer",
+      email: RAW_EMAIL_SENTINEL
+    });
+    const listing = await createListing(app, seller.accessToken, {
+      title: "Product event lifecycle stroller"
+    });
+    const categoryId = await getFirstCategoryId();
+    const savedSearchId = "11111111-1111-4111-8111-111111111111";
+    const conversationId = "22222222-2222-4222-8222-222222222222";
+
+    const savedSearchEvent = await postProductEvent({
+      accessToken: buyer.accessToken,
+      expectedEventType: "product_saved_search_created",
+      payload: {
+        eventType: "saved_search_created",
+        savedSearchId,
+        categoryId,
+        city: "İstanbul",
+        sort: "newest",
+        source: "account_saved_searches"
+      }
+    });
+    expect(savedSearchEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: SEARCH_EVENT_ENTITY_ID,
+      entityType: "search",
+      metadata: {
+        categoryId,
+        city: "İstanbul",
+        savedSearchId,
+        sort: "newest",
+        source: "account_saved_searches"
+      }
+    });
+
+    const favoriteEvent = await postProductEvent({
+      accessToken: buyer.accessToken,
+      expectedEventType: "product_favorite_added",
+      payload: {
+        eventType: "favorite_added",
+        listingId: listing.id,
+        categoryId,
+        source: "favorites"
+      }
+    });
+    expect(favoriteEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: listing.id,
+      entityType: "listing",
+      metadata: {
+        categoryId,
+        listingId: listing.id,
+        source: "favorites"
+      }
+    });
+
+    const listingStatusEvent = await postProductEvent({
+      accessToken: seller.accessToken,
+      expectedEventType: "product_listing_status_changed",
+      payload: {
+        eventType: "listing_status_changed",
+        listingId: listing.id,
+        source: "seller_dashboard",
+        status: "reserved"
+      }
+    });
+    expect(listingStatusEvent.metadata).toEqual({
+      listingId: listing.id,
+      source: "seller_dashboard",
+      status: "reserved"
+    });
+
+    const browseEvent = await postProductEvent({
+      accessToken: buyer.accessToken,
+      expectedEventType: "product_browse_filter_applied",
+      payload: {
+        categoryId,
+        city: "Ankara",
+        condition: "good",
+        eventType: "browse_filter_applied",
+        limit: 16,
+        listingType: "sale",
+        offset: 32,
+        sort: "price_asc",
+        source: "browse_filters"
+      }
+    });
+    expect(browseEvent).toMatchObject({
+      entityId: SEARCH_EVENT_ENTITY_ID,
+      entityType: "search",
+      metadata: {
+        categoryId,
+        city: "Ankara",
+        condition: "good",
+        limit: 16,
+        listingType: "sale",
+        offset: 32,
+        sort: "price_asc",
+        source: "browse_filters"
+      }
+    });
+
+    const messageEvent = await postProductEvent({
+      accessToken: buyer.accessToken,
+      expectedEventType: "product_message_sent",
+      payload: {
+        conversationId,
+        eventType: "message_sent",
+        listingId: listing.id,
+        source: "conversation"
+      }
+    });
+    expect(messageEvent).toMatchObject({
+      actorProfileId: buyer.profile.id,
+      entityId: listing.id,
+      entityType: "listing",
+      metadata: {
+        conversationId,
+        listingId: listing.id,
+        source: "conversation"
+      }
+    });
+
+    expectNoSensitiveEventLeak(JSON.stringify([
+      savedSearchEvent,
+      favoriteEvent,
+      listingStatusEvent,
+      browseEvent,
+      messageEvent
+    ]));
+  });
+
   it("rejects invalid or privacy-unsafe product event payloads without inserting events", async () => {
     const seller = await createUser(app, {
       email: "product-event-invalid-seller@example.test"
@@ -313,6 +450,24 @@ describe("product event routes", () => {
         categoryId,
         accessToken: RAW_ACCESS_TOKEN_SENTINEL,
         source: CATEGORY_SOURCE
+      },
+      {
+        eventType: "saved_search_created",
+        savedSearchId: "33333333-3333-4333-8333-333333333333",
+        query: RAW_SEARCH_QUERY_SENTINEL,
+        source: "account_saved_searches"
+      },
+      {
+        eventType: "message_sent",
+        conversationId: "44444444-4444-4444-8444-444444444444",
+        rawMessageBody: RAW_MESSAGE_SENTINEL,
+        source: "conversation"
+      },
+      {
+        eventType: "favorite_added",
+        listingId: listing.id,
+        phone: RAW_PHONE_SENTINEL,
+        source: "favorites"
       },
       {
         eventType: "raw_message_viewed",
@@ -408,6 +563,8 @@ describe("product event routes", () => {
     return rows.length;
   }
 });
+
+const SEARCH_EVENT_ENTITY_ID = "00000000-0000-0000-0000-000000000000";
 
 function expectNoSensitiveEventLeak(serialized: string): void {
   expect(serialized).not.toContain(RAW_EMAIL_SENTINEL);
