@@ -386,3 +386,10 @@ Beta can proceed only if:
 - [ ] `.github/workflows/ci.yml` includes the device-free `mobile-p0` job.
 - [ ] CI runs `pnpm security:ci-mobile-p0-parity` before `pnpm release:mobile:p0`.
 - [ ] CI Mobile P0 parity does not run Maestro, does not require ADB, does not start Expo, and does not claim real-device QA.
+
+### Child reminder API scheduling boundary
+
+- [ ] `pnpm beta:critical-smoke` includes `pnpm security:child-reminder-api-schedule`.
+- [ ] `pnpm security:child-reminder-api-schedule` passes.
+- [ ] Future reminders use `reminder_not_due`; invalid dates use `reminder_invalid_date`.
+- [ ] The guard does not run queue jobs, does not send email, does not send push, and does not trigger n8n.

@@ -421,3 +421,9 @@ This gate does not enable real sending, provider calls, queue jobs, or webhook c
 Production/beta readiness requires full beta critical smoke automation to include `pnpm release:mobile:p0` as the deterministic device-free Mobile P0 release gate. It covers mobile auth, mobile notification boundary, mobile P0 Jest tests, and mobile typecheck.
 
 This does not run Maestro or require ADB, does not start Expo, and does not replace manual physical Galaxy S22 QA evidence.
+
+## Child reminder API scheduling boundary
+
+Production/beta readiness requires `pnpm security:child-reminder-api-schedule` to pass before child reminder scheduling is claimed complete.
+
+The boundary enforces `reminder_not_due`, `reminder_invalid_date`, draft-only candidate logs, and notification consent/preference prerequisites. It does not run queue jobs, does not send email, does not send push, and does not trigger n8n.

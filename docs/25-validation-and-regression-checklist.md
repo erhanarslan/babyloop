@@ -779,3 +779,10 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] GitHub Actions includes a `mobile-p0` job for CI Mobile P0 parity.
 - [ ] The CI Mobile P0 parity job runs `pnpm security:ci-mobile-p0-parity`, `pnpm security:mobile-p0-gate`, and `pnpm release:mobile:p0`.
 - [ ] The CI Mobile P0 parity job does not run Maestro, does not require ADB, does not start Expo, and does not require a Postgres service.
+
+### Child reminder API scheduling boundary
+
+- [ ] `pnpm security:child-reminder-api-schedule` passes.
+- [ ] Future child reminders are skipped with `reminder_not_due` until `remindAt` is due.
+- [ ] Invalid reminder dates are skipped with `reminder_invalid_date`.
+- [ ] The boundary does not run queue jobs, does not send email, does not send push, and does not trigger n8n.

@@ -132,3 +132,11 @@ This mobile P0 gate does not run Maestro or require ADB, does not start Expo, an
 GitHub Actions includes a device-free CI Mobile P0 parity job that runs `pnpm security:ci-mobile-p0-parity`, `pnpm security:mobile-p0-gate`, and `pnpm release:mobile:p0`.
 
 This job does not run Maestro, does not require ADB, does not start Expo, and does not require a Postgres service. Real-device S22 QA and expanded Maestro E2E remain separate backlog/manual QA tracks.
+
+## Child reminder API scheduling boundary
+
+Full beta critical smoke automation includes `pnpm security:child-reminder-api-schedule`.
+
+This guard keeps child reminder delivery candidates due-state aware: future reminders are skipped with `reminder_not_due`, invalid dates are skipped with `reminder_invalid_date`, and non-scheduled reminders are skipped with `reminder_not_scheduled`.
+
+It does not run queue jobs, does not send email, does not send push, and does not trigger n8n.

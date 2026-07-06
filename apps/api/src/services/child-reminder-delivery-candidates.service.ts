@@ -37,10 +37,15 @@ export type BuildChildReminderDeliveryCandidateInput = {
   now?: Date;
 };
 
+export type ChildReminderDeliverySkipReason =
+  | "reminder_not_scheduled"
+  | "reminder_not_due"
+  | "reminder_invalid_date";
+
 export type CreateChildReminderDeliveryCandidateLogResult =
   | {
       status: "skipped";
-      reason: "reminder_not_scheduled";
+      reason: ChildReminderDeliverySkipReason;
     }
   | {
       status: "blocked";
@@ -66,10 +71,33 @@ export function buildChildReminderDeliveryPolicyInput(
   };
 }
 
+export function getChildReminderDeliveryCandidateSkipReason(
+  reminder: ChildProfileReminderResponse,
+  now: Date = new Date()
+): ChildReminderDeliverySkipReason | null {
+  if (reminder.status !== "scheduled") {
+    return "reminder_not_scheduled";
+  }
+
+  const remindAt = new Date(reminder.remindAt);
+
+  if (Number.isNaN(remindAt.getTime())) {
+    return "reminder_invalid_date";
+  }
+
+  if (remindAt.getTime() > now.getTime()) {
+    return "reminder_not_due";
+  }
+
+  return null;
+}
+
 export function buildChildReminderDeliveryCandidate(
   input: BuildChildReminderDeliveryCandidateInput
 ): ChildReminderDeliveryCandidate | null {
-  if (input.reminder.status !== "scheduled") {
+  const skipReason = getChildReminderDeliveryCandidateSkipReason(input.reminder, input.now ?? new Date());
+
+  if (skipReason) {
     return null;
   }
 
@@ -133,6 +161,15 @@ export async function createChildReminderDeliveryCandidateLog(
   app: FastifyInstance,
   input: BuildChildReminderDeliveryCandidateInput
 ): Promise<CreateChildReminderDeliveryCandidateLogResult> {
+  const skipReason = getChildReminderDeliveryCandidateSkipReason(input.reminder, input.now ?? new Date());
+
+  if (skipReason) {
+    return {
+      status: "skipped",
+      reason: skipReason
+    };
+  }
+
   const candidate = buildChildReminderDeliveryCandidate(input);
 
   if (!candidate) {

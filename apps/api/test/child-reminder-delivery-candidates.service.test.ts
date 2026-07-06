@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChildReminderDeliveryCandidate,
-  buildChildReminderDeliveryPolicyInput
+  buildChildReminderDeliveryPolicyInput,
+  getChildReminderDeliveryCandidateSkipReason
 } from "../src/services/child-reminder-delivery-candidates.service.js";
 import type { ChildProfileReminderResponse } from "../src/services/child-profile-notes-reminders.service.js";
 
@@ -25,7 +26,7 @@ describe("child reminder delivery candidates", () => {
       profileId: "profile-1",
       reminder: scheduledReminder,
       childLabel: "Çocuğum",
-      now: new Date("2026-07-05T00:00:00.000Z")
+      now: new Date("2030-01-01T10:00:00.000Z")
     });
 
     expect(candidate).toMatchObject({
@@ -76,8 +77,8 @@ describe("child reminder delivery candidates", () => {
     const candidate = buildChildReminderDeliveryCandidate({
       profileId: "profile-1",
       reminder: scheduledReminder,
-      lastCandidateCreatedAt: "2026-07-05T00:00:00.000Z",
-      now: new Date("2026-07-05T10:00:00.000Z")
+      lastCandidateCreatedAt: "2030-01-01T10:00:00.000Z",
+      now: new Date("2030-01-01T20:00:00.000Z")
     });
 
     expect(candidate).toMatchObject({
@@ -101,6 +102,43 @@ describe("child reminder delivery candidates", () => {
     expect(candidate).toBeNull();
   });
 
+  it("skips future reminders until remindAt is due", () => {
+    const candidate = buildChildReminderDeliveryCandidate({
+      profileId: "profile-1",
+      reminder: scheduledReminder,
+      now: new Date("2026-07-05T00:00:00.000Z")
+    });
+
+    expect(candidate).toBeNull();
+    expect(
+      getChildReminderDeliveryCandidateSkipReason(
+        scheduledReminder,
+        new Date("2026-07-05T00:00:00.000Z")
+      )
+    ).toBe("reminder_not_due");
+  });
+
+  it("reports invalid reminder dates as skipped without provider calls", () => {
+    const invalidReminder: ChildProfileReminderResponse = {
+      ...scheduledReminder,
+      remindAt: "not-a-date"
+    };
+
+    expect(
+      getChildReminderDeliveryCandidateSkipReason(
+        invalidReminder,
+        new Date("2030-01-01T10:00:00.000Z")
+      )
+    ).toBe("reminder_invalid_date");
+    expect(
+      buildChildReminderDeliveryCandidate({
+        profileId: "profile-1",
+        reminder: invalidReminder,
+        now: new Date("2030-01-01T10:00:00.000Z")
+      })
+    ).toBeNull();
+  });
+
   it("supports email_draft reminders without sending email", () => {
     const candidate = buildChildReminderDeliveryCandidate({
       profileId: "profile-1",
@@ -108,7 +146,8 @@ describe("child reminder delivery candidates", () => {
         ...scheduledReminder,
         id: "reminder-email-draft",
         channel: "email_draft"
-      }
+      },
+      now: new Date("2030-01-01T10:00:00.000Z")
     });
 
     expect(candidate?.channel).toBe("email_draft");
