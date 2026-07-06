@@ -599,3 +599,11 @@ The current state remains blocked with `deliveryAllowed=false`, `draftOnly=true`
 Assistant/RAG work must pass `pnpm security:assistant-safety-guard`. The guard requires grounding/source IDs for specific claims and blocks medical diagnosis, medication/dosage advice, treatment plans, diet prescriptions, therapy claims, and unsupported product safety claims.
 
 The allowed scope remains everyday parenting checklists, age-band shopping reminders, comfort/routine suggestions, and safe human referral prompts. This package does not enable autonomous RAG answers; it is a hallucination and safety boundary layer.
+
+## Notification surface consistency audit
+
+Run pnpm security:notification-consistency-audit before claiming notification release readiness.
+
+This broad audit covers API, web, mobile, and backoffice notification surfaces. It requires deliveryAllowed=false, draftOnly=true, email/push/n8n disabled copy, notification preferences, delivery drafts, push readiness, n8n readiness, observability, and manual QA boundaries to stay aligned.
+
+This audit does not enable real email sending, does not enable real push sending, and does not enable real n8n workflow triggering. It does not enable queues, provider calls, webhook calls, native push token collection, or production notification delivery.

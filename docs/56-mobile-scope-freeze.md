@@ -131,3 +131,11 @@ This keeps the surface useful without claiming email/push/n8n delivery before th
 - Mobile notification preference screen-state model keeps child profile cadence selection, draft-only copy, and no-real-delivery boundaries testable without Maestro.
 
 - Mobile child notebook/reminder screen-state model keeps child notes, reminders, in-app cadence boundaries, and no-real-delivery behavior testable without Maestro.
+
+## Notification surface consistency audit
+
+Run pnpm security:notification-consistency-audit before claiming notification release readiness.
+
+This broad audit covers API, web, mobile, and backoffice notification surfaces. It requires deliveryAllowed=false, draftOnly=true, email/push/n8n disabled copy, notification preferences, delivery drafts, push readiness, n8n readiness, observability, and manual QA boundaries to stay aligned.
+
+This audit does not enable real email sending, does not enable real push sending, and does not enable real n8n workflow triggering. It does not enable queues, provider calls, webhook calls, native push token collection, or production notification delivery.

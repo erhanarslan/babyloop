@@ -437,3 +437,11 @@ This boundary verifies that image upload/review responses do not expose objectKe
 It does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.
 
 Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.
+
+## Notification surface consistency audit
+
+Run pnpm security:notification-consistency-audit before claiming notification release readiness.
+
+This broad audit covers API, web, mobile, and backoffice notification surfaces. It requires deliveryAllowed=false, draftOnly=true, email/push/n8n disabled copy, notification preferences, delivery drafts, push readiness, n8n readiness, observability, and manual QA boundaries to stay aligned.
+
+This audit does not enable real email sending, does not enable real push sending, and does not enable real n8n workflow triggering. It does not enable queues, provider calls, webhook calls, native push token collection, or production notification delivery.

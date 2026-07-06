@@ -786,3 +786,11 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - [ ] Future child reminders are skipped with `reminder_not_due` until `remindAt` is due.
 - [ ] Invalid reminder dates are skipped with `reminder_invalid_date`.
 - [ ] The boundary does not run queue jobs, does not send email, does not send push, and does not trigger n8n.
+
+## Notification surface consistency audit
+
+Run pnpm security:notification-consistency-audit before claiming notification release readiness.
+
+This broad audit covers API, web, mobile, and backoffice notification surfaces. It requires deliveryAllowed=false, draftOnly=true, email/push/n8n disabled copy, notification preferences, delivery drafts, push readiness, n8n readiness, observability, and manual QA boundaries to stay aligned.
+
+This audit does not enable real email sending, does not enable real push sending, and does not enable real n8n workflow triggering. It does not enable queues, provider calls, webhook calls, native push token collection, or production notification delivery.
