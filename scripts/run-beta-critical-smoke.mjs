@@ -37,6 +37,7 @@ const steps = [
   { label: "Image upload/review storage boundary guard", command: "pnpm", args: ["security:image-upload-review-storage"] },
   { label: "Messaging safety full-flow boundary guard", command: "pnpm", args: ["security:messaging-safety-full-flow"] },
   { label: "Notification consistency audit boundary guard", command: "pnpm", args: ["security:notification-consistency-audit"] },
+  { label: "Public safety abuse-flow boundary guard", command: "pnpm", args: ["security:public-safety-abuse-flow"] },
 ];
 
 const startedAt = Date.now();
