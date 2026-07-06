@@ -115,3 +115,7 @@ Child notebook/reminder hardening verifies free note, recurring reminder, advanc
 Full beta critical smoke automation includes `pnpm security:notification-preference-qa`.
 
 Notification preference QA verifies backoffice notification preferences, mobile notification preferences, web notification preferences, opt-out, audit, rate limit, blocked user safety, raw contact logging, and manual QA evidence. It does not enable real sending, provider calls, queue jobs, or webhook calls.
+
+## Release artifact guard UX
+
+`pnpm release:artifacts` must clearly separate tracked generated artifacts from untracked/filesystem artifacts. `pnpm release:clean` handles cleanable generated artifacts; tracked generated artifacts require intentional `git rm` and a commit. The bypass is diagnostic-only and must not be used to pass beta/release flows.

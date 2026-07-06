@@ -772,3 +772,5 @@ Exact guard wording: assistant safety guard requires grounding for specific clai
 - Mobile notification preference screen-state QA: `src/features/notifications/notification-preferences-model.test.ts` covers active child profile selection, cadence options, update eligibility, safe success copy, and the no-real-push/email/n8n boundary.
 
 - Mobile child notebook/reminder screen-state QA: `src/features/child/child-reminder-screen-state-model.test.ts` covers active profile fallback, note/reminder create payloads, complete/cancel state updates, in-app-only reminder channel, and no-real-push/email/n8n copy.
+
+- [ ] Release artifact guard UX separates tracked generated artifacts, untracked artifacts, and filesystem artifacts; cleanup guidance uses `pnpm release:clean` plus `git rm` for tracked generated artifacts.
