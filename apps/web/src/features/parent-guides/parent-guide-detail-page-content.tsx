@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProtectedActionLink } from "../auth/protected-action-link";
 import { Badge, Card, PageContainer, PageHeading } from "../../components/ui";
 import {
   parentGuideTopics,
@@ -40,14 +41,15 @@ export function ParentGuideDetailPageContent({ topic }: ParentGuideDetailPageCon
             <div className="parent-guide-hero-actions">
               <Link href={topic.browseHref}>Find related listings</Link>
               <Link href="/account/saved-searches">Saved searches</Link>
-              <Link
+              <ProtectedActionLink
+                authTitle="Asistana sormak için giriş yap"
                 href={buildAssistantHref(
                   "age_needs",
                   `Turn the ${topic.title} guide into a short BabyLoop marketplace checklist. Avoid medical advice.`
                 )}
               >
                 Ask Assistant
-              </Link>
+              </ProtectedActionLink>
             </div>
           </div>
 
@@ -127,14 +129,15 @@ export function ParentGuideDetailPageContent({ topic }: ParentGuideDetailPageCon
             <Link href={topic.browseHref}>Find related listings</Link>
             <Link href="/account/children">Use child profile</Link>
             <Link href="/account/saved-searches">Saved searches</Link>
-            <Link
+            <ProtectedActionLink
+              authTitle="Asistana sormak için giriş yap"
               href={buildAssistantHref(
                 "safe_buying",
                 `Prepare safe buyer questions for ${topic.title}. Keep it marketplace-only.`
               )}
             >
               Ask buying assistant
-            </Link>
+            </ProtectedActionLink>
           </div>
         </Card>
 

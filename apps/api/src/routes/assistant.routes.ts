@@ -25,6 +25,7 @@ import type {
 } from "../services/assistant-tools.types.js";
 import type { RagUsageLimitService } from "../services/rag-usage-limits.service.js";
 import type { RagMetricsService } from "../services/rag-metrics.service.js";
+import { requireCurrentUser } from "../services/auth-context.service.js";
 
 type AssistantChatResponse = ApiResponse<{
   reply: AssistantChatReply;
@@ -72,6 +73,12 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
   app.post<{ Body: unknown; Reply: AssistantMessageResponse | ApiFailure }>(
     "/assistant/messages",
     async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return;
+      }
+
       const parsedBody = assistantMessageBodySchema.safeParse(request.body);
 
       if (!parsedBody.success) {
@@ -194,6 +201,12 @@ export function registerAssistantRoutes(app: FastifyInstance, options: Assistant
   app.post<{ Body: unknown; Reply: AssistantChatResponse | ApiFailure }>(
     "/assistant/chat",
     async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return;
+      }
+
       const parsedBody = assistantChatBodySchema.safeParse(request.body);
 
       if (!parsedBody.success) {

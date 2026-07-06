@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProtectedActionLink } from "../auth/protected-action-link";
 import { Badge, Card } from "../../components/ui";
 import { parentGuideTopics } from "./parent-guide-data";
 
@@ -49,9 +50,9 @@ export function ParentGuidePreviewSection() {
       <div className="home-personalization-actions parent-guide-preview-actions">
         <Link href="/guides">Open all guides</Link>
         <Link href="/account/children">Get age-band suggestions</Link>
-        <Link href="/assistant?mode=age_needs&prompt=Help%20me%20turn%20parent%20guides%20into%20a%20marketplace%20needs%20plan.">
+        <ProtectedActionLink authTitle="Asistana sormak için giriş yap" href="/assistant?mode=age_needs&prompt=Help%20me%20turn%20parent%20guides%20into%20a%20marketplace%20needs%20plan.">
           Ask Assistant
-        </Link>
+        </ProtectedActionLink>
       </div>
     </section>
   );

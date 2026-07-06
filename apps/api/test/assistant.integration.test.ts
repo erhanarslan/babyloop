@@ -3,10 +3,46 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
+import { authHeader, createUser } from "./helpers/auth.js";
 
 let app: TestApp;
 
 describe("assistant API", () => {
+  it("requires authentication for assistant chat and message endpoints", async () => {
+    const chatResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/assistant/chat",
+      payload: {
+        mode: "safe_buying",
+        content: "What should I check before buying a stroller?"
+      }
+    });
+
+    const messageResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/assistant/messages",
+      payload: {
+        locale: "tr",
+        message: "Bebek arabası alırken nelere dikkat etmeliyim?"
+      }
+    });
+
+    expect(chatResponse.statusCode).toBe(401);
+    expect(messageResponse.statusCode).toBe(401);
+    expect(chatResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+    expect(messageResponse.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
   beforeEach(async () => {
     await resetTestDatabase();
     app = await createTestApp();
@@ -16,8 +52,11 @@ describe("assistant API", () => {
     await app.close();
   });
 
-  it("returns a curated assistant reply without authentication", async () => {
+  it("returns a curated assistant reply for authenticated users", async () => {
+    const user = await createUser(app, { email: "assistant-chat-parent@babyloop.test" });
+
     const response = await app.inject({
+      headers: authHeader(user.accessToken),
       method: "POST",
       url: "/api/v1/assistant/chat",
       payload: {
@@ -58,7 +97,10 @@ describe("assistant API", () => {
   });
 
   it("returns age-band guidance for toddler needs", async () => {
+    const user = await createUser(app, { email: "assistant-age-parent@babyloop.test" });
+
     const response = await app.inject({
+      headers: authHeader(user.accessToken),
       method: "POST",
       url: "/api/v1/assistant/chat",
       payload: {
@@ -83,8 +125,10 @@ describe("assistant API", () => {
 
   it("records privacy-safe assistant message product events without raw message text", async () => {
     const message = "Bebek arabası alırken nelere dikkat etmeliyim?";
+    const user = await createUser(app, { email: "assistant-event-parent@babyloop.test" });
 
     const response = await app.inject({
+      headers: authHeader(user.accessToken),
       method: "POST",
       url: "/api/v1/assistant/messages",
       payload: {
@@ -107,13 +151,13 @@ describe("assistant API", () => {
       .where(eq(events.eventType, "product_assistant_message_sent"));
 
     expect(assistantEvent).toMatchObject({
-      actorProfileId: null,
+      actorProfileId: user.profile.id,
       entityId: "00000000-0000-0000-0000-000000000000",
       entityType: "assistant",
       eventType: "product_assistant_message_sent"
     });
     expect(assistantEvent?.metadata).toEqual({
-      authenticated: "false",
+      authenticated: "true",
       locale: "tr",
       messageLength: message.length,
       source: "assistant"
@@ -123,7 +167,10 @@ describe("assistant API", () => {
   });
 
   it("rejects invalid assistant chat requests", async () => {
+    const user = await createUser(app, { email: "assistant-invalid-parent@babyloop.test" });
+
     const response = await app.inject({
+      headers: authHeader(user.accessToken),
       method: "POST",
       url: "/api/v1/assistant/chat",
       payload: {
