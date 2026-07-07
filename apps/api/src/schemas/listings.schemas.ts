@@ -7,6 +7,7 @@ export const listingStatusValues = ["active", "reserved", "sold", "archived"] as
 export const listingTypeValues = ["sale", "swap", "donation"] as const;
 export const listingConditionValues = ["new", "like_new", "good", "fair", "needs_repair"] as const;
 export const listingSortValues = ["newest", "oldest", "price_asc", "price_desc"] as const;
+export const listingCreatedSinceValues = ["today", "last_7_days"] as const;
 
 
 export const listingParamsSchema = z.object({
@@ -65,6 +66,8 @@ export const listingsQuerySchema = z
     categoryId: optionalUuidQueryParam,
     listingType: optionalEnumQueryParam(listingTypeValues),
     condition: optionalEnumQueryParam(listingConditionValues),
+    city: optionalTrimmedQueryParam,
+    createdSince: optionalEnumQueryParam(listingCreatedSinceValues),
     priceMin: optionalPriceQueryParam,
     priceMax: optionalPriceQueryParam,
     hasImages: optionalBooleanQueryParam,
@@ -190,4 +193,3 @@ function optionalPlainTextField(
       return value;
     });
 }
-

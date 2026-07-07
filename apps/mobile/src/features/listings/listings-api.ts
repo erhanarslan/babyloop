@@ -7,6 +7,9 @@ import {
 } from "./listing-labels";
 
 export type MobileListingStatus = "active" | "reserved" | "sold" | "archived";
+export type MobileListingTypeFilter = "sale" | "donation" | "swap";
+export type MobileListingConditionFilter = "new" | "like_new" | "good" | "fair" | "needs_repair";
+export type MobileListingCreatedSinceFilter = "today" | "last_7_days";
 
 export type MobileListingSummary = {
   id: string;
@@ -33,24 +36,21 @@ export type MobileMyListingSummary = MobileListingSummary & {
 };
 
 export type FetchMobileListingsParams = {
+  categoryId?: string;
+  city?: string;
+  condition?: MobileListingConditionFilter;
+  createdSince?: MobileListingCreatedSinceFilter;
+  listingType?: MobileListingTypeFilter;
   q?: string;
   limit?: number;
+  priceMax?: string;
+  priceMin?: string;
 };
 
 export async function fetchMobileListings(
   params: FetchMobileListingsParams = {}
 ): Promise<MobileListingSummary[]> {
-  const query = new URLSearchParams({
-    limit: String(params.limit ?? 20),
-    offset: "0",
-    sort: "newest"
-  });
-
-  const searchQuery = params.q?.trim();
-
-  if (searchQuery) {
-    query.set("q", searchQuery);
-  }
+  const query = buildMobileListingsQuery(params);
 
   const result = await apiGet<unknown>(`/api/v1/listings?${query.toString()}`);
 
@@ -59,6 +59,33 @@ export async function fetchMobileListings(
   }
 
   return extractListingArray(result.data).map(normalizeListingSummary);
+}
+
+export function buildMobileListingsQuery(params: FetchMobileListingsParams = {}): URLSearchParams {
+  const query = new URLSearchParams({
+    limit: String(params.limit ?? 20),
+    offset: "0",
+    sort: "newest"
+  });
+
+  setTrimmedQueryParam(query, "q", params.q);
+  setTrimmedQueryParam(query, "categoryId", params.categoryId);
+  setTrimmedQueryParam(query, "city", params.city);
+  setTrimmedQueryParam(query, "createdSince", params.createdSince);
+  setTrimmedQueryParam(query, "condition", params.condition);
+  setTrimmedQueryParam(query, "listingType", params.listingType);
+  setTrimmedQueryParam(query, "priceMin", params.priceMin);
+  setTrimmedQueryParam(query, "priceMax", params.priceMax);
+
+  return query;
+}
+
+function setTrimmedQueryParam(query: URLSearchParams, key: string, value: string | undefined): void {
+  const normalized = value?.trim();
+
+  if (normalized) {
+    query.set(key, normalized);
+  }
 }
 
 export async function fetchMobileListingDetail(listingId: string): Promise<MobileListingDetail> {

@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
@@ -484,6 +485,16 @@ export default function SecurityRoute() {
       <View style={styles.list}>
         {securityRows.map((row) => (
           <SecurityRow
+            action={getSecurityRowAction({
+              loadingLoginApprovalStatus,
+              loadingMfaStatus,
+              mfaEnabled,
+              mobileLoginApprovalEnabled,
+              openSensitiveToggle,
+              rowTitle: row.title,
+              savingLoginApproval,
+              savingMfa
+            })}
             badge={row.badge}
             key={row.title}
             title={row.title}
@@ -494,64 +505,6 @@ export default function SecurityRoute() {
       </View>
 
       <MobileCard style={styles.card}>
-        <Text style={styles.title}>OTP / MFA</Text>
-        <Text style={styles.text}>
-          E-posta OTP aktif olduğunda girişten sonra 6 haneli kod doğrulaması gerekir.
-        </Text>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleText}>
-            <Text style={styles.emptyTitle}>E-posta OTP</Text>
-            <Text style={styles.text}>
-              {mfaEnabled === true
-                ? "Aktif. Bir sonraki girişte kod istenir."
-                : mfaEnabled === false
-                  ? "Kapalı. Açmak için anahtarı kullan."
-                  : "Durum kontrol ediliyor."}
-            </Text>
-          </View>
-          <Switch
-            disabled={savingMfa || loadingMfaStatus || mfaEnabled === null}
-            onValueChange={(nextEnabled) => openSensitiveToggle("mfa_email_otp", nextEnabled)}
-            value={mfaEnabled === true}
-          />
-        </View>
-        <Text style={styles.meta}>Bu ayarı değiştirmek için mevcut şifre modalda doğrulanır.</Text>
-        {mfaMessage ? (
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>{mfaMessage}</Text>
-          </View>
-        ) : null}
-        {mfaError ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{mfaError}</Text>
-          </View>
-        ) : null}
-      </MobileCard>
-
-      <MobileCard style={styles.card}>
-        <Text style={styles.title}>Mobil giriş onayı</Text>
-        <Text style={styles.text}>
-          Aktif olduğunda web girişleri, oturum açılmadan önce bu uygulamada onay bekler.
-        </Text>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleText}>
-            <Text style={styles.emptyTitle}>Web girişlerini mobilde onayla</Text>
-            <Text style={styles.text}>
-              {mobileLoginApprovalEnabled === true
-                ? "Aktif. Web girişleri bu cihazda onay bekler."
-                : mobileLoginApprovalEnabled === false
-                  ? "Kapalı. Açmak için anahtarı kullan."
-                  : "Durum kontrol ediliyor."}
-            </Text>
-          </View>
-          <Switch
-            disabled={savingLoginApproval || loadingLoginApprovalStatus || mobileLoginApprovalEnabled === null}
-            onValueChange={(nextEnabled) => openSensitiveToggle("mobile_login_approval", nextEnabled)}
-            value={mobileLoginApprovalEnabled === true}
-          />
-        </View>
-        <Text style={styles.meta}>Bu ayar mobil uygulama girişini değil, web giriş onayını yönetir.</Text>
-
         <View style={styles.approvalHeader}>
           <View style={styles.approvalHeaderText}>
             <Text style={styles.emptyTitle}>Bekleyen giriş istekleri</Text>
@@ -620,6 +573,16 @@ export default function SecurityRoute() {
         {loginApprovalError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{loginApprovalError}</Text>
+          </View>
+        ) : null}
+        {mfaMessage ? (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>{mfaMessage}</Text>
+          </View>
+        ) : null}
+        {mfaError ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{mfaError}</Text>
           </View>
         ) : null}
       </MobileCard>
@@ -707,6 +670,10 @@ export default function SecurityRoute() {
               {revokingAllSessions ? "Çıkış yapılıyor..." : "Tüm cihazlardan çıkış yap"}
             </Text>
           </Pressable>
+
+          <MobileButton iconName="log-out-outline" onPress={() => void handleLogout()} variant="danger">
+            Bu cihazdan çıkış yap
+          </MobileButton>
         </View>
       </MobileCard>
 
@@ -719,14 +686,6 @@ export default function SecurityRoute() {
         saving={savingSensitiveToggle}
         state={sensitiveToggle}
       />
-
-      <MobileCard style={styles.card}>
-        <Text style={styles.title}>Çıkış</Text>
-        <Text style={styles.text}>Bu cihazdaki mobil oturumu kapatır.</Text>
-        <MobileButton iconName="log-out-outline" onPress={() => void handleLogout()} variant="danger">
-          Bu cihazdan çıkış yap
-        </MobileButton>
-      </MobileCard>
     </Screen>
   );
 }
@@ -805,12 +764,56 @@ function SensitiveSecurityToggleModal({
   );
 }
 
+function getSecurityRowAction({
+  loadingLoginApprovalStatus,
+  loadingMfaStatus,
+  mfaEnabled,
+  mobileLoginApprovalEnabled,
+  openSensitiveToggle,
+  rowTitle,
+  savingLoginApproval,
+  savingMfa
+}: {
+  loadingLoginApprovalStatus: boolean;
+  loadingMfaStatus: boolean;
+  mfaEnabled: boolean | null;
+  mobileLoginApprovalEnabled: boolean | null;
+  openSensitiveToggle: (target: MobileSensitiveSecurityToggleTarget, nextEnabled: boolean) => void;
+  rowTitle: string;
+  savingLoginApproval: boolean;
+  savingMfa: boolean;
+}): ReactNode {
+  if (rowTitle === "OTP / MFA") {
+    return (
+      <Switch
+        disabled={savingMfa || loadingMfaStatus || mfaEnabled === null}
+        onValueChange={(nextEnabled) => openSensitiveToggle("mfa_email_otp", nextEnabled)}
+        value={mfaEnabled === true}
+      />
+    );
+  }
+
+  if (rowTitle === "Mobil onay") {
+    return (
+      <Switch
+        disabled={savingLoginApproval || loadingLoginApprovalStatus || mobileLoginApprovalEnabled === null}
+        onValueChange={(nextEnabled) => openSensitiveToggle("mobile_login_approval", nextEnabled)}
+        value={mobileLoginApprovalEnabled === true}
+      />
+    );
+  }
+
+  return null;
+}
+
 function SecurityRow({
+  action,
   badge,
   title,
   tone,
   value
 }: {
+  action?: ReactNode;
   badge: string;
   title: string;
   tone: MobileSecurityRowTone;
@@ -823,6 +826,7 @@ function SecurityRow({
         <View style={[styles.badge, getBadgeStyle(tone)]}>
           <Text style={[styles.badgeText, getBadgeTextStyle(tone)]}>{badge}</Text>
         </View>
+        {action ? <View style={styles.rowAction}>{action}</View> : null}
       </View>
       <Text style={styles.rowText}>{value}</Text>
     </MobileCard>
@@ -955,6 +959,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "900"
+  },
+  rowAction: {
+    marginLeft: spacing.xs
   },
   rowText: {
     color: colors.muted,

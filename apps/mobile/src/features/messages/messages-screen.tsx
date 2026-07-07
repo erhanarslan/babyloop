@@ -108,11 +108,7 @@ export function MessagesScreen() {
 
   if (!authSession.currentUser) {
     return (
-      <Screen
-        eyebrow="Mesajlar"
-        title="Konuşmalar"
-        subtitle="Satıcılarla güvenli mesajlaşmak için giriş yap."
-      >
+      <Screen title="Mesajlar">
         <MobileCard style={styles.stateStack}>
           <Text style={styles.stateTitle}>Hesap gerekli</Text>
           <Text style={styles.stateText}>Favoriler ve mesajlar hesabına bağlı tutulur.</Text>
@@ -125,11 +121,8 @@ export function MessagesScreen() {
   }
 
   return (
-    <Screen
-      eyebrow="Mesajlar"
-      title="Konuşmalar"
-    >
-      {status === "loading" ? <MobileSkeleton label="Konuşmalar yükleniyor..." /> : null}
+    <Screen title="Mesajlar">
+      {status === "loading" ? <MobileSkeleton label="Mesajlar yükleniyor..." /> : null}
 
       {status === "error" ? (
         <MobileErrorState

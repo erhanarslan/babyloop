@@ -12,6 +12,7 @@ import {
   prependMobileChildNote,
   removeMobileChildNote,
   removeMobileChildReminder,
+  replaceMobileChildNote,
   replaceMobileChildReminder
 } from "./child-reminder-screen-state-model";
 import type { MobileChildNote, MobileChildProfile, MobileChildReminder } from "./child-reminders-api";
@@ -122,8 +123,10 @@ describe("mobile child reminder screen-state model", () => {
       getMobileChildRequiredTitleMessage("note"),
       getMobileChildRequiredTitleMessage("reminder"),
       getMobileChildMutationMessage("note_created"),
+      getMobileChildMutationMessage("note_updated"),
       getMobileChildMutationMessage("note_archived"),
       getMobileChildMutationMessage("reminder_created"),
+      getMobileChildMutationMessage("reminder_updated"),
       getMobileChildMutationMessage("reminder_completed"),
       getMobileChildMutationMessage("reminder_cancelled")
     ];
@@ -142,6 +145,9 @@ describe("mobile child reminder screen-state model", () => {
     };
 
     expect(prependMobileChildNote([], note)).toEqual([note]);
+    expect(replaceMobileChildNote([note], "note-1", { ...note, title: "Güncel not" })).toEqual([
+      { ...note, title: "Güncel not" }
+    ]);
     expect(removeMobileChildNote([note], "note-1")).toEqual([]);
     expect(appendMobileChildReminder([], reminder)).toEqual([reminder]);
     expect(replaceMobileChildReminder([reminder], "reminder-1", completedReminder)).toEqual([completedReminder]);

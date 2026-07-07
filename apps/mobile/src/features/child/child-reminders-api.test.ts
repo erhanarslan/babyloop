@@ -2,6 +2,8 @@ import {
   createMobileChildNote,
   createMobileChildReminder,
   fetchMobileChildProfiles,
+  updateMobileChildNote,
+  updateMobileChildReminder,
   updateMobileChildProfile
 } from "./child-reminders-api";
 import { mobileAuthFetch } from "../auth/auth-api";
@@ -118,6 +120,71 @@ describe("mobile child reminders API", () => {
       timezone: "Europe/Istanbul"
     }));
     expect(JSON.stringify({ result, init })).not.toMatch(/sendPush|sendEmail|n8n|accessToken|refreshToken|passwordHash/iu);
+  });
+
+  it("updates child notes and reminders through real PATCH endpoints", async () => {
+    mobileAuthFetchMock
+      .mockResolvedValueOnce(apiResponse({
+        ok: true,
+        data: {
+          note: {
+            id: "note-1",
+            childProfileId: "child-1",
+            noteType: "general",
+            title: "Bez stoğu",
+            body: "2 paket kaldı",
+            isPinned: false,
+            isArchived: false,
+            createdAt: "2030-01-01T00:00:00.000Z",
+            updatedAt: "2030-01-01T00:00:00.000Z"
+          }
+        }
+      }))
+      .mockResolvedValueOnce(apiResponse({
+        ok: true,
+        data: {
+          reminder: {
+            id: "reminder-1",
+            childProfileId: "child-1",
+            title: "Bez al",
+            description: "Pazar günü",
+            reminderType: "shopping",
+            scheduleKind: "one_time",
+            intervalMinutes: null,
+            dueAt: "2030-01-02T10:00:00.000Z",
+            eventAt: null,
+            notifyBeforeMinutes: null,
+            localTime: null,
+            timezone: "Europe/Istanbul",
+            remindAt: "2030-01-02T10:00:00.000Z",
+            nextRunAt: "2030-01-02T10:00:00.000Z",
+            channel: "in_app",
+            status: "scheduled",
+            lastTriggeredAt: null,
+            completedAt: null,
+            cancelledAt: null,
+            createdAt: "2030-01-01T00:00:00.000Z",
+            updatedAt: "2030-01-01T00:00:00.000Z"
+          }
+        }
+      }));
+
+    const noteResult = await updateMobileChildNote("child-1", "note-1", {
+      body: "2 paket kaldı",
+      title: "Bez stoğu"
+    });
+    const reminderResult = await updateMobileChildReminder("child-1", "reminder-1", {
+      description: "Pazar günü",
+      dueAt: "2030-01-02T10:00:00.000Z",
+      remindAt: "2030-01-02T10:00:00.000Z",
+      title: "Bez al"
+    });
+
+    expect(noteResult.ok).toBe(true);
+    expect(reminderResult.ok).toBe(true);
+    expect(mobileAuthFetchMock.mock.calls[0]?.[0]).toBe("/api/v1/child-profiles/child-1/notes/note-1");
+    expect(mobileAuthFetchMock.mock.calls[1]?.[0]).toBe("/api/v1/child-profiles/child-1/reminders/reminder-1");
+    expect(JSON.stringify({ noteResult, reminderResult })).not.toMatch(/accessToken|refreshToken|passwordHash/iu);
   });
 
   it("updates notification cadence on the child profile", async () => {

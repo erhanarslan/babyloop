@@ -1,6 +1,9 @@
 import {
   buildMobileListingImageUploadFile,
-  normalizeMobileImageMimeType
+  MOBILE_LISTING_IMAGE_LIMIT,
+  getRemainingMobileListingImageSlots,
+  normalizeMobileImageMimeType,
+  validateMobileListingImageSelectionCount
 } from "./image-upload-model";
 
 describe("mobile listing image upload model", () => {
@@ -49,5 +52,28 @@ describe("mobile listing image upload model", () => {
 
   it("normalizes image/jpg to image/jpeg", () => {
     expect(normalizeMobileImageMimeType("image/jpg")).toBe("image/jpeg");
+  });
+
+  it("caps mobile listing image selection at five photos", () => {
+    expect(MOBILE_LISTING_IMAGE_LIMIT).toBe(5);
+    expect(getRemainingMobileListingImageSlots(3)).toBe(2);
+    expect(validateMobileListingImageSelectionCount(3, 2)).toEqual({
+      ok: true,
+      remainingSlots: 2
+    });
+  });
+
+  it("rejects image selections beyond the remaining slots", () => {
+    expect(validateMobileListingImageSelectionCount(4, 2)).toEqual({
+      ok: false,
+      message: "En fazla 5 fotoğraf ekleyebilirsin. 1 fotoğraf daha seçebilirsin.",
+      remainingSlots: 1
+    });
+
+    expect(validateMobileListingImageSelectionCount(5, 1)).toEqual({
+      ok: false,
+      message: "En fazla 5 fotoğraf ekleyebilirsin.",
+      remainingSlots: 0
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { Link, router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import {
   archiveMobileChildNote,
@@ -12,6 +12,8 @@ import {
   fetchMobileChildNotes,
   fetchMobileChildProfiles,
   fetchMobileChildReminders,
+  updateMobileChildNote,
+  updateMobileChildReminder,
   type MobileChildNote,
   type MobileChildProfile,
   type MobileChildReminder
@@ -39,8 +41,24 @@ import {
   prependMobileChildNote,
   removeMobileChildNote,
   removeMobileChildReminder,
+  replaceMobileChildNote,
   replaceMobileChildReminder
 } from "../../src/features/child/child-reminder-screen-state-model";
+
+type ChildEditState =
+  | {
+      body: string;
+      kind: "note";
+      note: MobileChildNote;
+      title: string;
+    }
+  | {
+      description: string;
+      dueAt: string;
+      kind: "reminder";
+      reminder: MobileChildReminder;
+      title: string;
+    };
 
 export default function ChildProfileRoute() {
   const authSession = useAuthSession();
@@ -53,6 +71,7 @@ export default function ChildProfileRoute() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [editState, setEditState] = useState<ChildEditState | null>(null);
 
   const noteItems = useMemo(() => getMobileChildNoteItems(notes), [notes]);
   const reminderItems = useMemo(() => getMobileChildReminderItems(reminders), [reminders]);
@@ -71,7 +90,7 @@ export default function ChildProfileRoute() {
     const profilesResponse = await fetchMobileChildProfiles();
 
     if (!profilesResponse.ok) {
-      setMessage(profilesResponse.error.message);
+      setMessage(getSafeChildErrorMessage(profilesResponse.error.message));
       setIsLoading(false);
       return;
     }
@@ -82,7 +101,7 @@ export default function ChildProfileRoute() {
       const createdProfile = await createMobileChildProfile(getDefaultMobileChildProfilePayload());
 
       if (!createdProfile.ok) {
-        setMessage(createdProfile.error.message);
+        setMessage(getSafeChildErrorMessage(createdProfile.error.message));
         setIsLoading(false);
         return;
       }
@@ -98,13 +117,13 @@ export default function ChildProfileRoute() {
     ]);
 
     if (!notesResponse.ok) {
-      setMessage(notesResponse.error.message);
+      setMessage(getSafeChildErrorMessage(notesResponse.error.message));
     } else {
       setNotes(notesResponse.data.notes);
     }
 
     if (!remindersResponse.ok) {
-      setMessage(remindersResponse.error.message);
+      setMessage(getSafeChildErrorMessage(remindersResponse.error.message));
     } else {
       setReminders(remindersResponse.data.reminders);
     }
@@ -134,7 +153,7 @@ export default function ChildProfileRoute() {
     const response = await createMobileChildNote(childProfile.id, buildMobileChildNoteCreatePayload(title));
 
     if (!response.ok) {
-      setMessage(response.error.message);
+      setMessage(getSafeChildErrorMessage(response.error.message));
     } else {
       setNotes((current) => prependMobileChildNote(current, response.data.note));
       setNoteTitle("");
@@ -155,7 +174,7 @@ export default function ChildProfileRoute() {
     const response = await archiveMobileChildNote(childProfile.id, noteId);
 
     if (!response.ok) {
-      setMessage(response.error.message);
+      setMessage(getSafeChildErrorMessage(response.error.message));
     } else {
       setNotes((current) => removeMobileChildNote(current, noteId));
       setMessage(getMobileChildMutationMessage("note_archived"));
@@ -182,7 +201,7 @@ export default function ChildProfileRoute() {
     const response = await createMobileChildReminder(childProfile.id, buildMobileChildReminderCreatePayload(title));
 
     if (!response.ok) {
-      setMessage(response.error.message);
+      setMessage(getSafeChildErrorMessage(response.error.message));
     } else {
       setReminders((current) => appendMobileChildReminder(current, response.data.reminder));
       setReminderTitle("");
@@ -203,7 +222,7 @@ export default function ChildProfileRoute() {
     const response = await completeMobileChildReminder(childProfile.id, reminderId);
 
     if (!response.ok) {
-      setMessage(response.error.message);
+      setMessage(getSafeChildErrorMessage(response.error.message));
     } else {
       setReminders((current) => replaceMobileChildReminder(current, reminderId, response.data.reminder));
       setMessage(getMobileChildMutationMessage("reminder_completed"));
@@ -223,7 +242,7 @@ export default function ChildProfileRoute() {
     const response = await cancelMobileChildReminder(childProfile.id, reminderId);
 
     if (!response.ok) {
-      setMessage(response.error.message);
+      setMessage(getSafeChildErrorMessage(response.error.message));
     } else {
       setReminders((current) => removeMobileChildReminder(current, reminderId));
       setMessage(getMobileChildMutationMessage("reminder_cancelled"));
@@ -231,6 +250,85 @@ export default function ChildProfileRoute() {
 
     setIsSubmitting(false);
   }, [childProfile, isSubmitting]);
+
+  const handleOpenNoteEdit = useCallback((noteId: string) => {
+    const note = notes.find((item) => item.id === noteId);
+
+    if (!note) {
+      return;
+    }
+
+    setEditState({
+      body: note.body ?? "",
+      kind: "note",
+      note,
+      title: note.title
+    });
+  }, [notes]);
+
+  const handleOpenReminderEdit = useCallback((reminderId: string) => {
+    const reminder = reminders.find((item) => item.id === reminderId);
+
+    if (!reminder) {
+      return;
+    }
+
+    setEditState({
+      description: reminder.description ?? "",
+      dueAt: reminder.dueAt ?? reminder.remindAt,
+      kind: "reminder",
+      reminder,
+      title: reminder.title
+    });
+  }, [reminders]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!childProfile || !editState || isSubmitting) {
+      return;
+    }
+
+    const title = normalizeMobileChildEntryTitle(editState.title);
+
+    if (!title) {
+      setMessage(editState.kind === "note" ? getMobileChildRequiredTitleMessage("note") : getMobileChildRequiredTitleMessage("reminder"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    if (editState.kind === "note") {
+      const response = await updateMobileChildNote(childProfile.id, editState.note.id, {
+        body: editState.body.trim() || null,
+        title
+      });
+
+      if (!response.ok) {
+        setMessage(getSafeChildErrorMessage(response.error.message));
+      } else {
+        setNotes((current) => replaceMobileChildNote(current, editState.note.id, response.data.note));
+        setEditState(null);
+        setMessage(getMobileChildMutationMessage("note_updated"));
+      }
+    } else {
+      const dueAt = editState.dueAt.trim();
+      const response = await updateMobileChildReminder(childProfile.id, editState.reminder.id, {
+        description: editState.description.trim() || null,
+        ...(dueAt ? { dueAt, remindAt: dueAt } : {}),
+        title
+      });
+
+      if (!response.ok) {
+        setMessage(getSafeChildErrorMessage(response.error.message));
+      } else {
+        setReminders((current) => replaceMobileChildReminder(current, editState.reminder.id, response.data.reminder));
+        setEditState(null);
+        setMessage(getMobileChildMutationMessage("reminder_updated"));
+      }
+    }
+
+    setIsSubmitting(false);
+  }, [childProfile, editState, isSubmitting]);
 
   if (!currentUser) {
     return (
@@ -277,7 +375,13 @@ export default function ChildProfileRoute() {
 
       <View style={styles.grid}>
         {noteItems.map((item) => (
-          <MobileCard key={item.id ?? item.title} style={styles.noteCard}>
+          <Pressable
+            disabled={!item.id}
+            key={item.id ?? item.title}
+            onPress={() => item.id ? handleOpenNoteEdit(item.id) : undefined}
+            style={styles.pressableCard}
+          >
+          <MobileCard style={styles.noteCard}>
             <Text style={styles.noteTitle}>{item.title}</Text>
             <Text style={styles.noteValue}>{item.value}</Text>
             {item.id ? (
@@ -286,6 +390,7 @@ export default function ChildProfileRoute() {
               </MobileButton>
             ) : null}
           </MobileCard>
+          </Pressable>
         ))}
       </View>
 
@@ -311,13 +416,21 @@ export default function ChildProfileRoute() {
 
         <View style={styles.reminderList}>
           {reminderItems.map((item) => (
-            <View key={item.id ?? item.title} style={styles.reminderRow}>
+            <Pressable
+              disabled={!item.id}
+              key={item.id ?? item.title}
+              onPress={() => item.id ? handleOpenReminderEdit(item.id) : undefined}
+              style={styles.reminderRow}
+            >
               <View style={styles.dot} />
               <View style={styles.reminderContent}>
                 <Text style={styles.reminderText}>{item.title}</Text>
                 <Text style={styles.noteValue}>{item.value}</Text>
                 {item.id ? (
                   <View style={styles.actionRow}>
+                    <MobileButton onPress={() => handleOpenReminderEdit(item.id!)} variant="secondary">
+                      Düzenle
+                    </MobileButton>
                     <MobileButton onPress={() => void handleCompleteReminder(item.id!)} variant="secondary">
                       Tamamla
                     </MobileButton>
@@ -327,12 +440,103 @@ export default function ChildProfileRoute() {
                   </View>
                 ) : null}
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
       </MobileCard>
+
+      <ChildEditModal
+        editState={editState}
+        isSubmitting={isSubmitting}
+        onCancel={() => setEditState(null)}
+        onChange={setEditState}
+        onSave={() => void handleSaveEdit()}
+      />
     </Screen>
   );
+}
+
+function ChildEditModal({
+  editState,
+  isSubmitting,
+  onCancel,
+  onChange,
+  onSave
+}: {
+  editState: ChildEditState | null;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onChange: (state: ChildEditState) => void;
+  onSave: () => void;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={Boolean(editState)}>
+      <View style={styles.modalBackdrop}>
+        {editState ? (
+          <View style={styles.editModal}>
+            <Text style={styles.sectionTitle}>
+              {editState.kind === "note" ? "Notu düzenle" : "Hatırlatıcıyı düzenle"}
+            </Text>
+            <TextInput
+              editable={!isSubmitting}
+              onChangeText={(title) => onChange({ ...editState, title })}
+              placeholder="Başlık"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={editState.title}
+            />
+            {editState.kind === "note" ? (
+              <TextInput
+                editable={!isSubmitting}
+                multiline
+                onChangeText={(body) => onChange({ ...editState, body })}
+                placeholder="Not"
+                placeholderTextColor={colors.muted}
+                style={[styles.input, styles.textArea]}
+                value={editState.body}
+              />
+            ) : (
+              <>
+                <TextInput
+                  editable={!isSubmitting}
+                  multiline
+                  onChangeText={(description) => onChange({ ...editState, description })}
+                  placeholder="Açıklama"
+                  placeholderTextColor={colors.muted}
+                  style={[styles.input, styles.textArea]}
+                  value={editState.description}
+                />
+                <TextInput
+                  editable={!isSubmitting}
+                  onChangeText={(dueAt) => onChange({ ...editState, dueAt })}
+                  placeholder="Hatırlatma zamanı"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={editState.dueAt}
+                />
+              </>
+            )}
+            <View style={styles.actionRow}>
+              <MobileButton disabled={isSubmitting} onPress={onSave}>
+                Kaydet
+              </MobileButton>
+              <MobileButton disabled={isSubmitting} onPress={onCancel} variant="secondary">
+                Vazgeç
+              </MobileButton>
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
+function getSafeChildErrorMessage(message: string): string {
+  if (/500|internal server|request failed with status 500/iu.test(message)) {
+    return "Çocuk notları şu an yüklenemedi. Biraz sonra tekrar dene.";
+  }
+
+  return message;
 }
 
 const styles = StyleSheet.create({
@@ -384,9 +588,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   noteCard: {
-    width: "48%",
     minHeight: 116,
     gap: spacing.xs
+  },
+  pressableCard: {
+    width: "48%"
   },
   noteTitle: {
     color: colors.text,
@@ -451,5 +657,23 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.xs,
     marginTop: spacing.xs
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.34)",
+    padding: spacing.md
+  },
+  editModal: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    gap: spacing.sm
+  },
+  textArea: {
+    minHeight: 92,
+    textAlignVertical: "top"
   }
 });

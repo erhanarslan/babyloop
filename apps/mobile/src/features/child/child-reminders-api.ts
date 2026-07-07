@@ -95,6 +95,14 @@ export type CreateMobileChildNoteRequest = {
   isPinned?: boolean;
 };
 
+export type UpdateMobileChildNoteRequest = Partial<{
+  noteType: MobileChildNote["noteType"];
+  title: string;
+  body: string | null;
+  isPinned: boolean;
+  isArchived: boolean;
+}>;
+
 export type CreateMobileChildReminderRequest = {
   title: string;
   description?: string | null;
@@ -109,6 +117,22 @@ export type CreateMobileChildReminderRequest = {
   timezone?: string;
   channel?: MobileChildReminder["channel"];
 };
+
+export type UpdateMobileChildReminderRequest = Partial<{
+  title: string;
+  description: string | null;
+  reminderType: MobileChildReminder["reminderType"];
+  scheduleKind: MobileChildReminder["scheduleKind"];
+  intervalMinutes: number | null;
+  remindAt: string;
+  dueAt: string | null;
+  eventAt: string | null;
+  notifyBeforeMinutes: number | null;
+  localTime: string | null;
+  timezone: string;
+  channel: MobileChildReminder["channel"];
+  status: "scheduled" | "completed" | "cancelled";
+}>;
 
 export async function fetchMobileChildProfiles(): Promise<MobileApiResponse<{
   childProfiles: MobileChildProfile[];
@@ -151,6 +175,20 @@ export async function createMobileChildNote(
   });
 }
 
+export async function updateMobileChildNote(
+  childProfileId: string,
+  noteId: string,
+  payload: UpdateMobileChildNoteRequest
+): Promise<MobileApiResponse<{ note: MobileChildNote }>> {
+  return requestMobileChildApi(
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }
+  );
+}
+
 export async function archiveMobileChildNote(
   childProfileId: string,
   noteId: string
@@ -177,6 +215,20 @@ export async function createMobileChildReminder(
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export async function updateMobileChildReminder(
+  childProfileId: string,
+  reminderId: string,
+  payload: UpdateMobileChildReminderRequest
+): Promise<MobileApiResponse<{ reminder: MobileChildReminder }>> {
+  return requestMobileChildApi(
+    `/api/v1/child-profiles/${encodeURIComponent(childProfileId)}/reminders/${encodeURIComponent(reminderId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }
+  );
 }
 
 export async function completeMobileChildReminder(

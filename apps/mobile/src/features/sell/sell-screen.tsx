@@ -1,9 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Link, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Paragraph, Screen, SectionHeader } from "../../ui/screen";
+import { Paragraph, Screen } from "../../ui/screen";
 import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
@@ -13,7 +14,10 @@ import {
   type MobileCategory
 } from "./sell-api";
 import {
+  MOBILE_LISTING_IMAGE_LIMIT,
   buildMobileListingImageUploadFile,
+  getRemainingMobileListingImageSlots,
+  validateMobileListingImageSelectionCount,
   type MobilePickedImageInput
 } from "./image-upload-model";
 import {
@@ -38,7 +42,10 @@ export function SellScreen() {
   const [categories, setCategories] = useState<MobileCategory[]>([]);
   const [categoryStatus, setCategoryStatus] = useState<CategoryStatus>("loading");
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
-  const [selectedImage, setSelectedImage] = useState<MobilePickedImageInput | null>(null);
+  const [selectedImages, setSelectedImages] = useState<MobilePickedImageInput[]>([]);
+  const [categorySelectOpen, setCategorySelectOpen] = useState(false);
+  const [listingTypeSelectOpen, setListingTypeSelectOpen] = useState(false);
+  const [conditionSelectOpen, setConditionSelectOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [createdListingTitle, setCreatedListingTitle] = useState<string | null>(null);
   const [createdListingId, setCreatedListingId] = useState<string | null>(null);
@@ -58,13 +65,6 @@ export function SellScreen() {
 
         setCategories(nextCategories);
         setCategoryStatus(nextCategories.length > 0 ? "ready" : "empty");
-
-        if (nextCategories[0]) {
-          setFormState((currentState) => ({
-            ...currentState,
-            categoryId: currentState.categoryId || nextCategories[0]!.id
-          }));
-        }
       } catch {
         if (!active) {
           return;
@@ -85,9 +85,7 @@ export function SellScreen() {
   if (!authSession.currentUser) {
     return (
       <Screen
-        eyebrow="İlan Ver"
-        title="Ürününü satmaya başla"
-        subtitle="İlan hazırlamak için giriş yapman gerekiyor."
+        title="İlan ver"
       >
         <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>Hesabınla ilanlarını yönetebilirsin.</Text>
@@ -115,10 +113,21 @@ export function SellScreen() {
       ...currentState,
       [key]: value
     }));
+
+    if (key === "categoryId") {
+      setCategorySelectOpen(false);
+    }
   }
 
   async function handlePickImage() {
     setMessage(null);
+
+    const remainingSlots = getRemainingMobileListingImageSlots(selectedImages.length);
+
+    if (remainingSlots <= 0) {
+      setMessage(`En fazla ${MOBILE_LISTING_IMAGE_LIMIT} fotoğraf ekleyebilirsin.`);
+      return;
+    }
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -129,37 +138,55 @@ export function SellScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: false,
-      allowsMultipleSelection: false,
+      allowsMultipleSelection: true,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.86
+      quality: 0.86,
+      selectionLimit: remainingSlots
     });
 
     if (result.canceled || !result.assets[0]) {
       return;
     }
 
-    const asset = result.assets[0];
+    const pickedMoreThanRemaining = result.assets.length > remainingSlots;
+    const assets = result.assets.slice(0, remainingSlots);
+    const countValidation = validateMobileListingImageSelectionCount(selectedImages.length, assets.length);
 
-    const imageFile = buildMobileListingImageUploadFile({
-      uri: asset.uri,
-      fileName: asset.fileName,
-      mimeType: asset.mimeType
-    });
-
-    if (!imageFile.ok) {
-      setMessage(imageFile.message);
+    if (!countValidation.ok) {
+      setMessage(countValidation.message);
       return;
     }
 
-    setSelectedImage({
-      uri: asset.uri,
-      fileName: asset.fileName,
-      mimeType: asset.mimeType
-    });
+    const nextImages: MobilePickedImageInput[] = [];
+
+    for (const asset of assets) {
+      const imageFile = buildMobileListingImageUploadFile({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType
+      });
+
+      if (!imageFile.ok) {
+        setMessage(imageFile.message);
+        return;
+      }
+
+      nextImages.push({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType
+      });
+    }
+
+    setSelectedImages((currentImages) => [...currentImages, ...nextImages].slice(0, MOBILE_LISTING_IMAGE_LIMIT));
+
+    if (pickedMoreThanRemaining || selectedImages.length + nextImages.length >= MOBILE_LISTING_IMAGE_LIMIT) {
+      setMessage(`En fazla ${MOBILE_LISTING_IMAGE_LIMIT} fotoğraf ekleyebilirsin.`);
+    }
   }
 
-  function handleRemoveImage() {
-    setSelectedImage(null);
+  function handleRemoveImage(index: number) {
+    setSelectedImages((currentImages) => currentImages.filter((_, currentIndex) => currentIndex !== index));
     setMessage(null);
   }
 
@@ -175,12 +202,11 @@ export function SellScreen() {
       return;
     }
 
-    const imageUploadFile = selectedImage
-      ? buildMobileListingImageUploadFile(selectedImage)
-      : null;
+    const imageUploadFiles = selectedImages.map((image) => buildMobileListingImageUploadFile(image));
+    const invalidImageUploadFile = imageUploadFiles.find((imageUploadFile) => !imageUploadFile.ok);
 
-    if (imageUploadFile && !imageUploadFile.ok) {
-      setMessage(imageUploadFile.message);
+    if (invalidImageUploadFile && !invalidImageUploadFile.ok) {
+      setMessage(invalidImageUploadFile.message);
       return;
     }
 
@@ -192,9 +218,13 @@ export function SellScreen() {
 
       const listing = await createMobileListing(validation.payload);
 
-      if (imageUploadFile?.ok) {
+      if (imageUploadFiles.length > 0) {
         try {
-          await uploadMobileListingImage(listing.id, imageUploadFile.file);
+          for (const imageUploadFile of imageUploadFiles) {
+            if (imageUploadFile.ok) {
+              await uploadMobileListingImage(listing.id, imageUploadFile.file);
+            }
+          }
         } catch (imageUploadError) {
           setCreatedListingTitle(listing.title);
           setCreatedListingId(listing.id);
@@ -207,7 +237,7 @@ export function SellScreen() {
         }
       }
 
-      setSelectedImage(null);
+      setSelectedImages([]);
       setFormState(createDefaultMobileSellFormState());
       router.push(`/listing/${encodeURIComponent(listing.id)}`);
     } catch (error) {
@@ -218,30 +248,12 @@ export function SellScreen() {
   }
 
   const selectedCategory = categories.find((category) => category.id === formState.categoryId);
+  const selectedListingType = mobileListingTypeOptions.find((option) => option.value === formState.listingType);
+  const selectedCondition = mobileListingConditionOptions.find((option) => option.value === formState.condition);
   const isSubmitting = submitStatus === "submitting";
 
   return (
-    <Screen
-      eyebrow="İlan Ver"
-      title="İlanını oluştur"
-      subtitle="Ürünü fotoğrafla birlikte ekle; BabyLoop güvenli ilan kurallarına göre yayınla."
-    >
-      <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Mobil ilan formu</Text>
-        <Text style={styles.heroText}>
-          Başlık, kategori, ürün durumu, fiyat, açıklama ve fotoğraf ekleyerek ilanını oluştur.
-        </Text>
-      </View>
-
-      <SectionHeader
-        title="Kategori"
-        description={
-          selectedCategory
-            ? `Seçili kategori: ${selectedCategory.name}`
-            : "Ürüne en yakın kategoriyi seç."
-        }
-      />
-
+    <Screen title="İlan ver">
       {categoryStatus === "loading" ? <Paragraph>Kategoriler yükleniyor...</Paragraph> : null}
 
       {categoryStatus === "error" ? (
@@ -259,45 +271,91 @@ export function SellScreen() {
       ) : null}
 
       {categories.length > 0 ? (
-        <View style={styles.optionGrid}>
-          {categories.slice(0, 12).map((category) => {
-            const selected = formState.categoryId === category.id;
+        <View style={styles.categoryCard}>
+          <Text style={styles.label}>Kategori</Text>
+          <Pressable
+            accessibilityLabel="Kategori seç"
+            onPress={() => setCategorySelectOpen((currentValue) => !currentValue)}
+            style={styles.categorySelectButton}
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.categorySelectText, selectedCategory ? null : styles.categorySelectPlaceholder]}
+            >
+              {selectedCategory?.name ?? "Kategori seç"}
+            </Text>
+            <Ionicons
+              color={colors.muted}
+              name={categorySelectOpen ? "chevron-up" : "chevron-down"}
+              size={19}
+            />
+          </Pressable>
 
-            return (
-              <Pressable
-                key={category.id}
-                onPress={() => updateFormField("categoryId", category.id)}
-                style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
-              >
-                <Text style={[styles.optionChipText, selected ? styles.optionChipTextSelected : null]}>
-                  {category.name}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {categorySelectOpen ? (
+            <View style={styles.categoryMenu}>
+              {categories.map((category) => {
+                const selected = formState.categoryId === category.id;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={category.id}
+                    onPress={() => updateFormField("categoryId", category.id)}
+                    style={[styles.categoryRow, selected ? styles.categoryRowSelected : null]}
+                  >
+                    <Text style={[styles.categoryRowText, selected ? styles.categoryRowTextSelected : null]}>
+                      {category.name}
+                    </Text>
+                    {selected ? <Ionicons color={colors.primaryDark} name="checkmark" size={18} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
       ) : null}
 
-      <SectionHeader title="Fotoğraf" description="İlk sürümde tek görsel yüklüyoruz; galeri çoklu yükleme sonraki pakete kalabilir." />
-
       <View style={styles.imageCard}>
-        {selectedImage?.uri ? (
+        <Text style={styles.label}>Fotoğraf</Text>
+        {selectedImages.length > 0 ? (
           <>
-            <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} />
-            <View style={styles.imageActions}>
-              <Pressable onPress={handlePickImage} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Değiştir</Text>
-              </Pressable>
-              <Pressable onPress={handleRemoveImage} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Kaldır</Text>
-              </Pressable>
+            <View style={styles.previewGrid}>
+              {selectedImages.map((image, index) => (
+                <View key={`${image.uri ?? "image"}-${index}`} style={styles.previewTile}>
+                  {image.uri ? <Image source={{ uri: image.uri }} style={styles.previewImage} /> : null}
+                  <Pressable
+                    accessibilityLabel={`${index + 1}. fotoğrafı kaldır`}
+                    onPress={() => handleRemoveImage(index)}
+                    style={styles.removeImageButton}
+                  >
+                    <Ionicons color={colors.primaryForeground} name="close" size={15} />
+                  </Pressable>
+                </View>
+              ))}
             </View>
+
+            <Text style={styles.imageCountText}>
+              {selectedImages.length}/{MOBILE_LISTING_IMAGE_LIMIT} fotoğraf seçildi
+            </Text>
+
+            <Pressable
+              disabled={selectedImages.length >= MOBILE_LISTING_IMAGE_LIMIT}
+              onPress={handlePickImage}
+              style={[
+                styles.secondaryButton,
+                selectedImages.length >= MOBILE_LISTING_IMAGE_LIMIT ? styles.disabledButton : null
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {selectedImages.length >= MOBILE_LISTING_IMAGE_LIMIT ? "Maksimuma ulaşıldı" : "Fotoğraf ekle"}
+              </Text>
+            </Pressable>
           </>
         ) : (
           <>
             <View style={styles.imagePlaceholder}>
               <Text style={styles.imagePlaceholderTitle}>Fotoğraf seçilmedi</Text>
-              <Text style={styles.imagePlaceholderText}>JPG, PNG veya WEBP görsel seç.</Text>
+              <Text style={styles.imagePlaceholderText}>JPG, PNG veya WEBP; en fazla 5 fotoğraf.</Text>
             </View>
             <Pressable onPress={handlePickImage} style={styles.secondaryButton}>
               <Text style={styles.secondaryButtonText}>Fotoğraf seç</Text>
@@ -305,8 +363,6 @@ export function SellScreen() {
           </>
         )}
       </View>
-
-      <SectionHeader title="İlan bilgileri" description="Kısa, net ve doğrulanabilir bilgi gir." />
 
       <View style={styles.formCard}>
         <Text style={styles.label}>Başlık</Text>
@@ -342,51 +398,50 @@ export function SellScreen() {
           value={formState.priceAmount}
         />
         <Text style={styles.helperText}>Boş bırakırsan “fiyat belirtilmedi” olarak görünür.</Text>
-      </View>
 
-      <SectionHeader title="Satış tipi" />
-      <View style={styles.optionGrid}>
-        {mobileListingTypeOptions.map((option) => {
-          const selected = formState.listingType === option.value;
+        <Text style={styles.label}>Satış tipi</Text>
+        <SelectButton
+          label={selectedListingType?.label ?? "Satış tipi seç"}
+          onPress={() => setListingTypeSelectOpen((currentValue) => !currentValue)}
+          open={listingTypeSelectOpen}
+        />
+        {listingTypeSelectOpen ? (
+          <View style={styles.categoryMenu}>
+            {mobileListingTypeOptions.map((option) => (
+              <SelectRow
+                key={option.value}
+                label={option.label}
+                onPress={() => {
+                  updateFormField("listingType", option.value as MobileListingType);
+                  setListingTypeSelectOpen(false);
+                }}
+                selected={formState.listingType === option.value}
+              />
+            ))}
+          </View>
+        ) : null}
 
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => updateFormField("listingType", option.value as MobileListingType)}
-              style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
-            >
-              <Text style={[styles.optionChipText, selected ? styles.optionChipTextSelected : null]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <SectionHeader title="Ürün durumu" />
-      <View style={styles.optionGrid}>
-        {mobileListingConditionOptions.map((option) => {
-          const selected = formState.condition === option.value;
-
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => updateFormField("condition", option.value as MobileListingCondition)}
-              style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
-            >
-              <Text style={[styles.optionChipText, selected ? styles.optionChipTextSelected : null]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.safetyCard}>
-        <Text style={styles.safetyTitle}>Güvenli ilan notu</Text>
-        <Text style={styles.safetyText}>
-          Telefon, e-posta, açık adres, ödeme linki veya emin olmadığın güvenlik iddialarını açıklamaya yazma.
-        </Text>
+        <Text style={styles.label}>Ürün durumu</Text>
+        <SelectButton
+          label={selectedCondition?.label ?? "Ürün durumu seç"}
+          onPress={() => setConditionSelectOpen((currentValue) => !currentValue)}
+          open={conditionSelectOpen}
+        />
+        {conditionSelectOpen ? (
+          <View style={styles.categoryMenu}>
+            {mobileListingConditionOptions.map((option) => (
+              <SelectRow
+                key={option.value}
+                label={option.label}
+                onPress={() => {
+                  updateFormField("condition", option.value as MobileListingCondition);
+                  setConditionSelectOpen(false);
+                }}
+                selected={formState.condition === option.value}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {message ? (
@@ -425,26 +480,47 @@ export function SellScreen() {
   );
 }
 
+function SelectButton({
+  label,
+  onPress,
+  open
+}: {
+  label: string;
+  onPress: () => void;
+  open: boolean;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.categorySelectButton}>
+      <Text numberOfLines={1} style={styles.categorySelectText}>
+        {label}
+      </Text>
+      <Ionicons color={colors.muted} name={open ? "chevron-up" : "chevron-down"} size={19} />
+    </Pressable>
+  );
+}
+
+function SelectRow({
+  label,
+  onPress,
+  selected
+}: {
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.categoryRow, selected ? styles.categoryRowSelected : null]}
+    >
+      <Text style={[styles.categoryRowText, selected ? styles.categoryRowTextSelected : null]}>{label}</Text>
+      {selected ? <Ionicons color={colors.primaryDark} name="checkmark" size={18} /> : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  heroCard: {
-    ...shadows.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    padding: 18,
-    gap: 8
-  },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "900"
-  },
-  heroText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21
-  },
   stateCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -463,6 +539,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
+  categoryCard: {
+    ...shadows.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 10
+  },
+  categorySelectButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background,
+    paddingHorizontal: 14
+  },
+  categorySelectText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  categorySelectPlaceholder: {
+    color: colors.subtle,
+    fontWeight: "800"
+  },
+  categoryMenu: {
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background
+  },
+  categoryRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 11
+  },
+  categoryRowSelected: {
+    backgroundColor: colors.surfaceSoft
+  },
+  categoryRowText: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  categoryRowTextSelected: {
+    color: colors.primaryDark,
+    fontWeight: "900"
+  },
   imageCard: {
     ...shadows.card,
     borderWidth: 1,
@@ -472,11 +610,39 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12
   },
-  previewImage: {
-    width: "100%",
-    height: 230,
+  previewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9
+  },
+  previewTile: {
+    position: "relative",
+    width: "31.5%",
+    aspectRatio: 1,
+    overflow: "hidden",
     borderRadius: radius.lg,
     backgroundColor: colors.cream
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: colors.cream
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "rgba(15, 23, 42, 0.72)"
+  },
+  imageCountText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
   },
   imagePlaceholder: {
     alignItems: "center",
@@ -496,10 +662,6 @@ const styles = StyleSheet.create({
   imagePlaceholderText: {
     color: colors.muted,
     fontSize: 13
-  },
-  imageActions: {
-    flexDirection: "row",
-    gap: 10
   },
   formCard: {
     ...shadows.card,
@@ -532,49 +694,6 @@ const styles = StyleSheet.create({
     color: colors.subtle,
     fontSize: 12,
     lineHeight: 17
-  },
-  optionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 9
-  },
-  optionChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 13,
-    paddingVertical: 9
-  },
-  optionChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceSoft
-  },
-  optionChipText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: "800"
-  },
-  optionChipTextSelected: {
-    color: colors.primaryDark
-  },
-  safetyCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
-    padding: 16,
-    gap: 7
-  },
-  safetyTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  safetyText: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19
   },
   alertCard: {
     borderWidth: 1,
@@ -621,7 +740,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14
   },
   secondaryButton: {
-    flex: 1,
+    width: "100%",
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.border,

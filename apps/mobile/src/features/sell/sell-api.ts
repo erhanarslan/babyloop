@@ -1,6 +1,6 @@
 import { apiGet, isRecord, safeApiErrorMessage } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
-import type { MobileListingSummary } from "../listings/listings-api";
+import type { MobileListingStatus, MobileListingSummary } from "../listings/listings-api";
 import type { MobileCreateListingPayload } from "./sell-form-model";
 import type { MobileListingImageUploadFile } from "./image-upload-model";
 
@@ -80,6 +80,7 @@ export async function createMobileListing(
   const priceText =
     formatPriceObject(price) ??
     (payload.priceAmount ? `${payload.priceAmount} TL` : "Fiyat belirtilmedi");
+  const status = normalizeListingStatus(pickString(listing, ["status"]));
 
   if (!id) {
     throw new Error("İlan oluşturuldu ancak ilan id bilgisi alınamadı.");
@@ -94,8 +95,8 @@ export async function createMobileListing(
     conditionText: payload.condition,
     listingType: payload.listingType,
     listingTypeText: formatListingType(payload.listingType),
-    status: "active",
-    statusText: "Aktif"
+    status,
+    statusText: formatListingStatus(status)
   };
 }
 
@@ -203,5 +204,28 @@ function formatListingType(value: string): string {
       return "Takas";
     default:
       return "İlan tipi belirtilmedi";
+  }
+}
+
+function normalizeListingStatus(value: string | null): MobileListingStatus {
+  if (value === "active" || value === "reserved" || value === "sold" || value === "archived") {
+    return value;
+  }
+
+  return "active";
+}
+
+function formatListingStatus(value: MobileListingStatus): string {
+  switch (value) {
+    case "active":
+      return "Aktif";
+    case "reserved":
+      return "Rezerve";
+    case "sold":
+      return "Satıldı";
+    case "archived":
+      return "Arşivli";
+    default:
+      return "Aktif";
   }
 }

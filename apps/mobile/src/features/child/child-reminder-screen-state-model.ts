@@ -9,8 +9,10 @@ import { getNextMobileReminderDateIso } from "./child-reminders-model";
 
 export type MobileChildReminderMutationKind =
   | "note_created"
+  | "note_updated"
   | "note_archived"
   | "reminder_created"
+  | "reminder_updated"
   | "reminder_completed"
   | "reminder_cancelled";
 
@@ -38,8 +40,10 @@ export function getMobileChildRequiredTitleMessage(kind: "note" | "reminder"): s
 export function getMobileChildMutationMessage(kind: MobileChildReminderMutationKind): string {
   const messages: Record<MobileChildReminderMutationKind, string> = {
     note_created: "Not eklendi.",
+    note_updated: "Not güncellendi.",
     note_archived: "Not arşivlendi.",
     reminder_created: "Hatırlatıcı eklendi.",
+    reminder_updated: "Hatırlatıcı güncellendi.",
     reminder_completed: "Hatırlatıcı tamamlandı.",
     reminder_cancelled: "Hatırlatıcı iptal edildi."
   };
@@ -92,6 +96,14 @@ export function removeMobileChildNote(
   noteId: string
 ): MobileChildNote[] {
   return notes.filter((note) => note.id !== noteId);
+}
+
+export function replaceMobileChildNote(
+  notes: MobileChildNote[],
+  noteId: string,
+  nextNote: MobileChildNote
+): MobileChildNote[] {
+  return notes.map((note) => note.id === noteId ? nextNote : note);
 }
 
 export function appendMobileChildReminder(

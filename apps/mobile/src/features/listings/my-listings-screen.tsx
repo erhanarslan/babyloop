@@ -83,11 +83,7 @@ export function MyListingsScreen() {
 
   if (!authSession.currentUser) {
     return (
-      <Screen
-        eyebrow="İlanlarım"
-        title="İlanlarını yönet"
-        subtitle="Kendi ilanlarını görmek ve güncellemek için giriş yap."
-      >
+      <Screen title="İlanlarım">
         <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>Hesap gerekli</Text>
           <Text style={styles.stateText}>İlanlarını yönetmek için BabyLoop hesabına giriş yapmalısın.</Text>
@@ -102,11 +98,7 @@ export function MyListingsScreen() {
   }
 
   return (
-    <Screen
-      eyebrow="İlanlarım"
-      title="İlanlarını yönet"
-      subtitle="Yayındaki, satılan ve arşivlenen ilanlarını buradan takip et."
-    >
+    <Screen title="İlanlarım">
       <View style={styles.headerActions}>
         <Pressable onPress={() => router.replace("/account")} style={styles.backButton}>
           <Text style={styles.backButtonText}>Hesaba dön</Text>
@@ -168,8 +160,16 @@ function MyListingCard({
   return (
     <MobileListingCard
       actions={
-        actions.length > 0 ? (
         <View style={styles.actionRow}>
+          <MobileButton
+            disabled={pending}
+            iconName="open-outline"
+            onPress={onOpen}
+            style={styles.actionButton}
+            variant="secondary"
+          >
+            Detay
+          </MobileButton>
           {actions.map((action) => (
             <MobileButton
               disabled={pending}
@@ -183,7 +183,6 @@ function MyListingCard({
             </MobileButton>
           ))}
         </View>
-        ) : null
       }
       chips={buildMobileListingChips({
         conditionText: listing.conditionText,
@@ -201,11 +200,11 @@ function MyListingCard({
 }
 
 function getActionIconName(label: string): "archive-outline" | "cart-outline" | "refresh-outline" {
-  if (label === "Satıldı yap") {
+  if (label === "Satıldı") {
     return "cart-outline";
   }
 
-  if (label === "Arşivle") {
+  if (label === "Yayından kaldır") {
     return "archive-outline";
   }
 
@@ -250,6 +249,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm
   },
   actionButton: {

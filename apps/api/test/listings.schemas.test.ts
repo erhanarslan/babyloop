@@ -25,6 +25,8 @@ describe("listings schemas", () => {
       q: "  stroller  ",
       categoryId: "00000000-0000-0000-0000-000000000001",
       condition: "good",
+      city: "  İstanbul  ",
+      createdSince: "last_7_days",
       listingType: "sale",
       sort: "price_asc",
       limit: "12",
@@ -37,6 +39,8 @@ describe("listings schemas", () => {
     }
 
     expect(result.data.q).toBe("stroller");
+    expect(result.data.city).toBe("İstanbul");
+    expect(result.data.createdSince).toBe("last_7_days");
     expect(result.data.limit).toBe(12);
     expect(result.data.offset).toBe(24);
   });
@@ -45,6 +49,8 @@ describe("listings schemas", () => {
     const result = listingsQuerySchema.safeParse({
       q: "",
       categoryId: "",
+      city: "",
+      createdSince: "",
       condition: "",
       listingType: "",
       sort: "newest"
@@ -57,6 +63,8 @@ describe("listings schemas", () => {
 
     expect(result.data.q).toBeUndefined();
     expect(result.data.categoryId).toBeUndefined();
+    expect(result.data.city).toBeUndefined();
+    expect(result.data.createdSince).toBeUndefined();
     expect(result.data.condition).toBeUndefined();
     expect(result.data.listingType).toBeUndefined();
   });
@@ -73,6 +81,7 @@ describe("listings schemas", () => {
   it("rejects unsupported filter values", () => {
     const result = listingsQuerySchema.safeParse({
       condition: "broken",
+      createdSince: "yesterday",
       listingType: "rental",
       sort: "popular"
     });

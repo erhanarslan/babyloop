@@ -52,11 +52,7 @@ export function FavoritesScreen() {
   }, [loadFavorites]);
 
   return (
-    <Screen
-      eyebrow="Profilin"
-      title="Favoriler"
-      subtitle="Kaydettiğin ilanları mobilde hızlıca tekrar aç."
-    >
+    <Screen title="Favoriler">
       {status === "loading" ? <MobileSkeleton label="Favoriler yükleniyor..." /> : null}
 
       {status === "guest" ? (

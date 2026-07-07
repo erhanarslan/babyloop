@@ -13,12 +13,12 @@ export function getMobileListingStatusActions(
     case "active":
       return [
         {
-          label: "Satıldı yap",
+          label: "Satıldı",
           status: "sold",
           tone: "primary"
         },
         {
-          label: "Arşivle",
+          label: "Yayından kaldır",
           status: "archived",
           tone: "secondary"
         }
@@ -27,17 +27,17 @@ export function getMobileListingStatusActions(
     case "reserved":
       return [
         {
-          label: "Aktife al",
+          label: "Yayına al",
           status: "active",
           tone: "secondary"
         },
         {
-          label: "Satıldı yap",
+          label: "Satıldı",
           status: "sold",
           tone: "primary"
         },
         {
-          label: "Arşivle",
+          label: "Yayından kaldır",
           status: "archived",
           tone: "secondary"
         }
@@ -46,7 +46,7 @@ export function getMobileListingStatusActions(
     case "sold":
       return [
         {
-          label: "Arşivle",
+          label: "Yayından kaldır",
           status: "archived",
           tone: "secondary"
         }
@@ -55,7 +55,7 @@ export function getMobileListingStatusActions(
     case "archived":
       return [
         {
-          label: "Yeniden aktif et",
+          label: "Yayına al",
           status: "active",
           tone: "primary"
         }

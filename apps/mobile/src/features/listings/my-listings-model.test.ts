@@ -4,29 +4,29 @@ describe("mobile my listings model", () => {
   it("returns release-critical seller actions by listing status", () => {
     expect(getMobileListingStatusActions("active")).toEqual([
       {
-        label: "Satıldı yap",
+        label: "Satıldı",
         status: "sold",
         tone: "primary"
       },
       {
-        label: "Arşivle",
+        label: "Yayından kaldır",
         status: "archived",
         tone: "secondary"
       }
     ]);
 
     expect(getMobileListingStatusActions("reserved").map((action) => action.label)).toEqual([
-      "Aktife al",
-      "Satıldı yap",
-      "Arşivle"
+      "Yayına al",
+      "Satıldı",
+      "Yayından kaldır"
     ]);
 
     expect(getMobileListingStatusActions("sold").map((action) => action.label)).toEqual([
-      "Arşivle"
+      "Yayından kaldır"
     ]);
 
     expect(getMobileListingStatusActions("archived").map((action) => action.label)).toEqual([
-      "Yeniden aktif et"
+      "Yayına al"
     ]);
 
     expect(getMobileListingStatusActions("unknown")).toEqual([]);

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ImageBackground,
+  Pressable,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   ScrollView,
@@ -9,34 +11,25 @@ import {
 } from "react-native";
 
 import { colors, radius, shadows } from "../../ui/theme";
-
-const bannerItems = [
-  {
-    eyebrow: "Güvenli keşif",
-    title: "Almadan önce kontrol et",
-    description: "Durum, eksik parça ve teslim detaylarını mesajlaşmada netleştir."
-  },
-  {
-    eyebrow: "Yeni ilanlar",
-    title: "Bebek ve çocuk ürünleri",
-    description: "Son eklenen ilanları hızlıca incele, beğendiklerini favorilerine al."
-  },
-  {
-    eyebrow: "İyi ilan ipucu",
-    title: "Fotoğraf ve açıklama önemli",
-    description: "Ürünü satarken kusurları ve aksesuarları açıkça paylaş."
-  }
-] as const;
+import type { MobileListingSummary } from "../listings/listings-api";
 
 const autoAdvanceMs = 2000;
+const maxBannerItems = 5;
 
-export function DiscoverHeroBanner() {
+export function DiscoverHeroBanner({
+  listings,
+  onListingPress
+}: {
+  listings: MobileListingSummary[];
+  onListingPress: (listingId: string) => void;
+}) {
   const scrollRef = useRef<ScrollView | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
+  const bannerItems = listings.filter((listing) => listing.imageUrl).slice(0, maxBannerItems);
 
   useEffect(() => {
-    if (containerWidth <= 0) {
+    if (containerWidth <= 0 || bannerItems.length <= 1) {
       return;
     }
 
@@ -54,7 +47,13 @@ export function DiscoverHeroBanner() {
     }, autoAdvanceMs);
 
     return () => clearInterval(timer);
-  }, [containerWidth]);
+  }, [bannerItems.length, containerWidth]);
+
+  useEffect(() => {
+    if (activeIndex >= bannerItems.length) {
+      setActiveIndex(0);
+    }
+  }, [activeIndex, bannerItems.length]);
 
   function handleMomentumEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
     if (containerWidth <= 0) {
@@ -62,7 +61,16 @@ export function DiscoverHeroBanner() {
     }
 
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / containerWidth);
-    setActiveIndex(Math.max(0, Math.min(nextIndex, bannerItems.length - 1)));
+    setActiveIndex(Math.max(0, Math.min(nextIndex, Math.max(0, bannerItems.length - 1))));
+  }
+
+  if (bannerItems.length === 0) {
+    return (
+      <View style={[styles.container, styles.fallbackContainer]}>
+        <Text style={styles.fallbackTitle}>Son ilan görselleri burada dönecek</Text>
+        <Text style={styles.fallbackText}>Fotoğraflı ilanlar eklendiğinde Keşfet alanı ürün odaklı görünür.</Text>
+      </View>
+    );
   }
 
   return (
@@ -80,28 +88,46 @@ export function DiscoverHeroBanner() {
         style={styles.slider}
       >
         {bannerItems.map((item) => (
-          <View key={item.title} style={[styles.slide, { width: containerWidth || 1 }]}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{item.eyebrow}</Text>
-            </View>
-            <Text numberOfLines={1} style={styles.title}>
-              {item.title}
-            </Text>
-            <Text numberOfLines={2} style={styles.description}>
-              {item.description}
-            </Text>
-          </View>
+          <Pressable
+            accessibilityLabel={`İlanı aç: ${item.title}`}
+            key={item.id}
+            onPress={() => onListingPress(item.id)}
+            style={[styles.slide, { width: containerWidth || 1 }]}
+          >
+            <ImageBackground
+              imageStyle={styles.slideImage}
+              resizeMode="cover"
+              source={{ uri: item.imageUrl ?? "" }}
+              style={styles.imageBackground}
+            >
+              <View style={styles.imageOverlay} />
+              <View style={styles.slideContent}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>Son ilan</Text>
+                </View>
+                <Text numberOfLines={1} style={styles.title}>
+                  {item.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.description}>
+                  {item.priceText}
+                  {item.locationText ? ` · ${item.locationText}` : ""}
+                </Text>
+              </View>
+            </ImageBackground>
+          </Pressable>
         ))}
       </ScrollView>
 
-      <View style={styles.dots}>
-        {bannerItems.map((item, index) => (
-          <View
-            key={item.title}
-            style={[styles.dot, index === activeIndex ? styles.dotActive : null]}
-          />
-        ))}
-      </View>
+      {bannerItems.length > 1 ? (
+        <View style={styles.dots}>
+          {bannerItems.map((item, index) => (
+            <View
+              key={item.id}
+              style={[styles.dot, index === activeIndex ? styles.dotActive : null]}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -114,21 +140,38 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.xl,
     backgroundColor: colors.surface,
-    height: 112
+    height: 154
+  },
+  fallbackContainer: {
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    gap: 6
   },
   slider: {
     flex: 1
   },
   slide: {
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 5
+    overflow: "hidden"
+  },
+  imageBackground: {
+    flex: 1,
+    justifyContent: "flex-end"
+  },
+  slideImage: {
+    borderRadius: radius.xl
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.34)"
+  },
+  slideContent: {
+    gap: 6,
+    padding: 16
   },
   badge: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
     paddingHorizontal: 10,
     paddingVertical: 4
   },
@@ -138,11 +181,21 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   title: {
-    color: colors.text,
-    fontSize: 18,
+    color: colors.primaryForeground,
+    fontSize: 19,
     fontWeight: "900"
   },
   description: {
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 13,
+    lineHeight: 18
+  },
+  fallbackTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  fallbackText: {
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18

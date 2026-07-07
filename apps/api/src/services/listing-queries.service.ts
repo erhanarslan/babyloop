@@ -5,7 +5,7 @@ import {
   productCategories,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ListingsQuery } from "../schemas/listings.schemas.js";
 import type {
@@ -24,6 +24,8 @@ type NormalizedActiveListingQuery = {
   categoryId?: string;
   listingType?: ListingsQuery["listingType"];
   condition?: ListingsQuery["condition"];
+  city?: string;
+  createdSince?: ListingsQuery["createdSince"];
   priceMin?: string;
   priceMax?: string;
   hasImages?: boolean;
@@ -314,6 +316,8 @@ function normalizeActiveListingQuery(query: ActiveListingQueryInput): Normalized
     ...(query?.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query?.listingType ? { listingType: query.listingType } : {}),
     ...(query?.condition ? { condition: query.condition } : {}),
+    ...(query?.city ? { city: query.city } : {}),
+    ...(query?.createdSince ? { createdSince: query.createdSince } : {}),
     ...(query?.priceMin ? { priceMin: query.priceMin } : {}),
     ...(query?.priceMax ? { priceMax: query.priceMax } : {}),
     ...(query?.hasImages !== undefined ? { hasImages: query.hasImages } : {}),
@@ -343,6 +347,8 @@ function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
     ...(options.categoryId ? [eq(listings.categoryId, options.categoryId)] : []),
     ...(options.listingType ? [eq(listings.listingType, options.listingType)] : []),
     ...(options.condition ? [eq(listings.condition, options.condition)] : []),
+    ...(options.city ? [ilike(profiles.locationCity, options.city)] : []),
+    ...(options.createdSince ? [gte(listings.createdAt, getCreatedSinceDate(options.createdSince))] : []),
     ...(options.priceMin ? [sql`${listings.priceAmount} >= ${options.priceMin}`] : []),
     ...(options.priceMax ? [sql`${listings.priceAmount} <= ${options.priceMax}`] : []),
     ...(options.hasImages ? [sql`exists (
@@ -367,4 +373,17 @@ function buildActiveListingOrderBy(sort: ListingsQuery["sort"]) {
   }
 
   return [desc(listings.createdAt)];
+}
+
+function getCreatedSinceDate(value: NonNullable<NormalizedActiveListingQuery["createdSince"]>): Date {
+  const date = new Date();
+
+  if (value === "today") {
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  date.setDate(date.getDate() - 7);
+  date.setHours(0, 0, 0, 0);
+  return date;
 }

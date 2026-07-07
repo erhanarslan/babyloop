@@ -88,11 +88,7 @@ export function BasketScreen() {
   }
 
   return (
-    <Screen
-      eyebrow="Sepetim"
-      title="Sepet"
-      subtitle="Satın alma ve teklif akışını buradan tamamla."
-    >
+    <Screen title="Sepet">
       {authSession.status !== "authenticated" ? (
         <MobileEmptyState
           actionLabel="Giriş yap"
@@ -116,7 +112,6 @@ export function BasketScreen() {
       {authSession.status === "authenticated" && status === "ready" && cart && cart.items.length === 0 ? (
         <MobileEmptyState
           actionLabel="Keşfe dön"
-          message="Beğendiğin ilanları sepete ekleyebilirsin."
           onAction={() => router.push("/")}
           title="Sepetin boş"
         />

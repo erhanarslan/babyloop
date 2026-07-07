@@ -20,7 +20,50 @@ export type MobileListingImageUploadResult =
       message: string;
     };
 
+export const MOBILE_LISTING_IMAGE_LIMIT = 5;
+
 const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"] as const;
+
+export function getRemainingMobileListingImageSlots(currentCount: number): number {
+  return Math.max(0, MOBILE_LISTING_IMAGE_LIMIT - Math.max(0, Math.trunc(currentCount)));
+}
+
+export function validateMobileListingImageSelectionCount(
+  currentCount: number,
+  incomingCount: number
+):
+  | {
+      ok: true;
+      remainingSlots: number;
+    }
+  | {
+      ok: false;
+      message: string;
+      remainingSlots: number;
+    } {
+  const remainingSlots = getRemainingMobileListingImageSlots(currentCount);
+
+  if (remainingSlots <= 0) {
+    return {
+      ok: false,
+      message: `En fazla ${MOBILE_LISTING_IMAGE_LIMIT} fotoğraf ekleyebilirsin.`,
+      remainingSlots
+    };
+  }
+
+  if (incomingCount > remainingSlots) {
+    return {
+      ok: false,
+      message: `En fazla ${MOBILE_LISTING_IMAGE_LIMIT} fotoğraf ekleyebilirsin. ${remainingSlots} fotoğraf daha seçebilirsin.`,
+      remainingSlots
+    };
+  }
+
+  return {
+    ok: true,
+    remainingSlots
+  };
+}
 
 export function buildMobileListingImageUploadFile(
   image: MobilePickedImageInput | null

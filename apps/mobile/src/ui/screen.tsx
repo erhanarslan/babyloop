@@ -13,6 +13,7 @@ type ScreenProps = {
   title: string;
   eyebrow?: string;
   subtitle?: string;
+  headerAction?: ReactNode;
   children: ReactNode;
   hasTabBar?: boolean;
   keyboardAvoiding?: boolean;
@@ -22,6 +23,7 @@ export function Screen({
   title,
   eyebrow,
   subtitle,
+  headerAction,
   children,
   hasTabBar = true,
   keyboardAvoiding = true
@@ -60,9 +62,12 @@ export function Screen({
           style={styles.scroll}
         >
           <View style={styles.header}>
-            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            <View style={styles.headerText}>
+              {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+              <Text style={styles.title}>{title}</Text>
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            </View>
+            {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
           </View>
 
           <View style={styles.body}>{children}</View>
@@ -165,8 +170,19 @@ const styles = StyleSheet.create({
     gap: 14
   },
   header: {
-    gap: 6,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
     paddingTop: 6
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6
+  },
+  headerAction: {
+    paddingTop: 2
   },
   eyebrow: {
     color: colors.primaryDark,
