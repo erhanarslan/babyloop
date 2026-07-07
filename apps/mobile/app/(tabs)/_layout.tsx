@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -49,6 +49,8 @@ function TabIcon({
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const navigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
+  const [keyboardInsetLocked, setKeyboardInsetLocked] = useState(false);
+  const keyboardInsetLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== "android" || navigationVisibility !== "visible") {
@@ -57,15 +59,55 @@ export default function TabLayout() {
 
     const timeoutId = setTimeout(() => {
       void hideAndroidNavigationBar();
-    }, 1400);
+    }, keyboardInsetLocked ? 40 : 1400);
 
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [navigationVisibility]);
+  }, [keyboardInsetLocked, navigationVisibility]);
 
+  useEffect(() => {
+    if (Platform.OS !== "android") {
+      return;
+    }
+
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      if (keyboardInsetLockTimeoutRef.current) {
+        clearTimeout(keyboardInsetLockTimeoutRef.current);
+        keyboardInsetLockTimeoutRef.current = null;
+      }
+
+      setKeyboardInsetLocked(true);
+      void hideAndroidNavigationBar();
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      if (keyboardInsetLockTimeoutRef.current) {
+        clearTimeout(keyboardInsetLockTimeoutRef.current);
+      }
+
+      setKeyboardInsetLocked(true);
+      void hideAndroidNavigationBar();
+
+      keyboardInsetLockTimeoutRef.current = setTimeout(() => {
+        setKeyboardInsetLocked(false);
+        keyboardInsetLockTimeoutRef.current = null;
+      }, 420);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+
+      if (keyboardInsetLockTimeoutRef.current) {
+        clearTimeout(keyboardInsetLockTimeoutRef.current);
+        keyboardInsetLockTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const effectiveNavigationVisibility = keyboardInsetLocked ? "hidden" : navigationVisibility;
   const bottomInset = getMobileTabBarBottomOffset({
-    androidNavigationVisibility: navigationVisibility,
+    androidNavigationVisibility: effectiveNavigationVisibility,
     platformOS: Platform.OS,
     safeAreaBottom: insets.bottom
   });
