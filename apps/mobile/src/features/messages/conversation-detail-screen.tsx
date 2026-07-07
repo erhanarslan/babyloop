@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
+  type KeyboardEvent,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -32,6 +34,12 @@ import {
   mergeRealtimeConversationDetail
 } from "./messages-realtime-model";
 
+const COMPOSER_KEYBOARD_GAP = 52;
+const COMPOSER_TAB_GAP = 8;
+const COMPOSER_RESERVED_HEIGHT = 86;
+const KEYBOARD_OFFSET_JUMP_TOLERANCE = 16;
+const KEYBOARD_STABLE_OFFSET_DELAY_MS = 220;
+
 export function ConversationDetailScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const router = useRouter();
@@ -39,6 +47,11 @@ export function ConversationDetailScreen() {
   const currentProfileId = authSession.currentUser?.profile.id ?? null;
   const conversationId = typeof params.conversationId === "string" ? params.conversationId : "";
   const scrollViewRef = useRef<ScrollView>(null);
+  const hideResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keyboardHeightRef = useRef(0);
+  const keyboardSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootLayoutHeightRef = useRef(0);
+  const stableAndroidKeyboardBottomOffsetRef = useRef<number | null>(null);
 
   const [conversation, setConversation] = useState<MobileConversationDetail | null>(null);
   const [messages, setMessages] = useState<MobileConversationMessage[]>([]);
@@ -46,14 +59,129 @@ export function ConversationDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [rootLayoutHeight, setRootLayoutHeight] = useState(0);
   const [sending, setSending] = useState(false);
-  const composerBottomOffset = keyboardHeight > 0 ? 10 : MOBILE_TAB_BAR_HEIGHT + 10;
-  const messageListBottomPadding = composerBottomOffset;
+  const keyboardVisible = keyboardHeight > 0;
+  const viewportKeyboardOverlap =
+    Platform.OS === "android" && keyboardVisible
+      ? Math.max(0, rootLayoutHeightRef.current - rootLayoutHeight)
+      : 0;
+  const rawAndroidKeyboardBottomOffset = Math.max(0, keyboardHeight - viewportKeyboardOverlap);
+  const stableAndroidKeyboardBottomOffset = stableAndroidKeyboardBottomOffsetRef.current;
+  const androidKeyboardBottomOffset =
+    Platform.OS === "android" &&
+    keyboardVisible &&
+    stableAndroidKeyboardBottomOffset !== null &&
+    rawAndroidKeyboardBottomOffset > stableAndroidKeyboardBottomOffset + KEYBOARD_OFFSET_JUMP_TOLERANCE
+      ? stableAndroidKeyboardBottomOffset
+      : rawAndroidKeyboardBottomOffset;
+  const composerBottomOffset = keyboardVisible
+    ? Platform.OS === "android"
+      ? androidKeyboardBottomOffset + COMPOSER_KEYBOARD_GAP
+      : COMPOSER_KEYBOARD_GAP
+    : MOBILE_TAB_BAR_HEIGHT + COMPOSER_TAB_GAP;
+  const messageListBottomPadding = composerBottomOffset + COMPOSER_RESERVED_HEIGHT;
 
   const scrollToBottom = useCallback((animated = true) => {
     requestAnimationFrame(() => {
       scrollViewRef.current?.scrollToEnd({ animated });
     });
+  }, []);
+
+  const clearKeyboardTimers = useCallback(() => {
+    if (hideResetTimeoutRef.current) {
+      clearTimeout(hideResetTimeoutRef.current);
+      hideResetTimeoutRef.current = null;
+    }
+
+    if (keyboardSettleTimeoutRef.current) {
+      clearTimeout(keyboardSettleTimeoutRef.current);
+      keyboardSettleTimeoutRef.current = null;
+    }
+  }, []);
+
+  const isKeyboardCurrentlyVisible = useCallback(() => {
+    const keyboardApi = Keyboard as typeof Keyboard & {
+      isVisible?: () => boolean;
+    };
+
+    return typeof keyboardApi.isVisible === "function" ? keyboardApi.isVisible() : false;
+  }, []);
+
+  const setMeasuredKeyboardHeight = useCallback((nextHeight: number) => {
+    const normalizedHeight = Math.max(0, nextHeight);
+
+    keyboardHeightRef.current = normalizedHeight;
+    setKeyboardHeight(normalizedHeight);
+  }, []);
+
+  const handleKeyboardShow = useCallback((event: KeyboardEvent) => {
+    clearKeyboardTimers();
+    setMeasuredKeyboardHeight(event.endCoordinates?.height ?? 0);
+    scrollToBottom();
+
+    keyboardSettleTimeoutRef.current = setTimeout(() => {
+      if (!isKeyboardCurrentlyVisible()) {
+        keyboardSettleTimeoutRef.current = null;
+        return;
+      }
+
+      setMeasuredKeyboardHeight(event.endCoordinates?.height ?? 0);
+      scrollToBottom(false);
+      keyboardSettleTimeoutRef.current = null;
+    }, 80);
+  }, [clearKeyboardTimers, isKeyboardCurrentlyVisible, scrollToBottom, setMeasuredKeyboardHeight]);
+
+  const handleKeyboardHide = useCallback(() => {
+    if (hideResetTimeoutRef.current) {
+      clearTimeout(hideResetTimeoutRef.current);
+    }
+
+    hideResetTimeoutRef.current = setTimeout(() => {
+      if (isKeyboardCurrentlyVisible()) {
+        hideResetTimeoutRef.current = null;
+        return;
+      }
+
+      setMeasuredKeyboardHeight(0);
+      scrollToBottom(false);
+      hideResetTimeoutRef.current = null;
+    }, 80);
+  }, [isKeyboardCurrentlyVisible, scrollToBottom, setMeasuredKeyboardHeight]);
+
+  const handleInputFocus = useCallback(() => {
+    if (Platform.OS !== "android" || isKeyboardCurrentlyVisible()) {
+      return;
+    }
+
+    if (keyboardHeightRef.current > 0) {
+      setMeasuredKeyboardHeight(0);
+    }
+  }, [isKeyboardCurrentlyVisible, setMeasuredKeyboardHeight]);
+
+  const handleInputBlur = useCallback(() => {
+    if (Platform.OS !== "android" || isKeyboardCurrentlyVisible()) {
+      return;
+    }
+
+    setMeasuredKeyboardHeight(0);
+  }, [isKeyboardCurrentlyVisible, setMeasuredKeyboardHeight]);
+
+  const handleRootLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.round(event.nativeEvent.layout.height);
+
+    if (nextHeight <= 0) {
+      return;
+    }
+
+    setRootLayoutHeight(nextHeight);
+
+    if (keyboardHeightRef.current === 0) {
+      rootLayoutHeightRef.current = nextHeight;
+      return;
+    }
+
+    rootLayoutHeightRef.current = Math.max(rootLayoutHeightRef.current, nextHeight);
   }, []);
 
   const loadConversation = useCallback(async () => {
@@ -93,19 +221,29 @@ export function ConversationDetailScreen() {
   }, [messages.length, scrollToBottom]);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
-      setKeyboardHeight(Math.max(0, event.endCoordinates?.height ?? 0));
-      scrollToBottom();
-    });
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardHeight(0);
-    });
+    const showSubscription = Keyboard.addListener("keyboardDidShow", handleKeyboardShow);
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", handleKeyboardHide);
 
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
+      clearKeyboardTimers();
     };
-  }, [scrollToBottom]);
+  }, [clearKeyboardTimers, handleKeyboardHide, handleKeyboardShow]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android" || !keyboardVisible) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      stableAndroidKeyboardBottomOffsetRef.current = rawAndroidKeyboardBottomOffset;
+    }, KEYBOARD_STABLE_OFFSET_DELAY_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [keyboardVisible, rawAndroidKeyboardBottomOffset]);
 
   useEffect(() => {
     if (!authSession.currentUser || !conversationId) {
@@ -217,13 +355,8 @@ export function ConversationDetailScreen() {
     );
   }
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
-      style={styles.keyboardRoot}
-    >
-      <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+  const screenContent = (
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable onPress={handleBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Mesajlar</Text>
@@ -313,11 +446,13 @@ export function ConversationDetailScreen() {
             <TextInput
               maxLength={500}
               multiline
+              onBlur={handleInputBlur}
               onChangeText={setBody}
+              onFocus={handleInputFocus}
               placeholder="Durum, teslim veya ek fotoğraf sor..."
               placeholderTextColor={colors.subtle}
               style={styles.input}
-              textAlignVertical="top"
+              textAlignVertical="center"
               value={body}
             />
             <Pressable
@@ -333,7 +468,24 @@ export function ConversationDetailScreen() {
           </View>
         </View>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+  );
+
+  if (Platform.OS === "ios") {
+    return (
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={8}
+        style={styles.keyboardRoot}
+      >
+        {screenContent}
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return (
+    <View onLayout={handleRootLayout} style={styles.keyboardRoot}>
+      {screenContent}
+    </View>
   );
 }
 
@@ -466,15 +618,17 @@ const styles = StyleSheet.create({
     left: spacing.md,
     right: spacing.md,
     zIndex: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     backgroundColor: colors.surface,
     paddingHorizontal: 12,
-    paddingTop: 10
+    paddingVertical: 10,
+    ...shadows.card
   },
   composerRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: spacing.sm
   },
   input: {
@@ -483,16 +637,17 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: 999,
     backgroundColor: colors.background,
     color: colors.text,
     fontSize: 15,
     lineHeight: 20,
     paddingHorizontal: 13,
-    paddingVertical: 11
+    paddingVertical: Platform.OS === "android" ? 8 : 11
   },
   sendButton: {
     minHeight: 46,
+    alignItems: "center",
     justifyContent: "center",
     borderRadius: 999,
     backgroundColor: colors.primary,
@@ -505,13 +660,6 @@ const styles = StyleSheet.create({
     color: colors.primaryForeground,
     fontSize: 13,
     fontWeight: "900"
-  },
-  counter: {
-    alignSelf: "flex-end",
-    marginTop: 5,
-    color: colors.subtle,
-    fontSize: 11,
-    fontWeight: "800"
   },
   inlineError: {
     marginBottom: spacing.xs,
