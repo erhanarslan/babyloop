@@ -1,3 +1,4 @@
+
 export type MobileFavoriteListing = {
   id: string;
   title: string;
@@ -22,21 +23,23 @@ export type MobileFavoritesApiClient = {
 };
 
 type RawMobileFavoriteListing = {
-  id: string;
-  title: string;
-  city?: string | null;
-  priceAmount?: string | null;
-  currency?: string | null;
-  imageUrl?: string | null;
-  conditionText?: string | null;
-  favoritedAt?: string | null;
-  locationText?: string | null;
-  priceText?: string | null;
-  seller?: {
-    profileId: string;
-    displayName: string;
-    locationCity?: string | null;
-  } | null;
+  id?: unknown;
+  listingId?: unknown;
+  title?: unknown;
+  city?: unknown;
+  locationCity?: unknown;
+  priceAmount?: unknown;
+  currency?: unknown;
+  imageUrl?: unknown;
+  firstImage?: unknown;
+  images?: unknown;
+  condition?: unknown;
+  conditionText?: unknown;
+  favoritedAt?: unknown;
+  locationText?: unknown;
+  priceText?: unknown;
+  seller?: unknown;
+  listing?: unknown;
 };
 
 type FavoriteActionInput = MobileFavoritesApiClient | string | undefined;
@@ -44,16 +47,39 @@ type FavoriteActionInput = MobileFavoritesApiClient | string | undefined;
 type FavoritesResponse = {
   ok?: boolean;
   data?: {
-    listings?: RawMobileFavoriteListing[];
-    favorites?: RawMobileFavoriteListing[];
-    items?: RawMobileFavoriteListing[];
+    listings?: unknown;
+    favorites?: unknown;
+    items?: unknown;
   };
-  listings?: RawMobileFavoriteListing[];
-  favorites?: RawMobileFavoriteListing[];
-  items?: RawMobileFavoriteListing[];
+  listings?: unknown;
+  favorites?: unknown;
+  items?: unknown;
 };
 
 const DEFAULT_API_BASE_URL = "http://localhost:4000";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type MobileAuthFetch = (path: string, init?: RequestInit) => Promise<Response>;
+
+async function loadMobileAuthFetch(): Promise<MobileAuthFetch> {
+  const authApi = await import("../auth/auth-api");
+  return authApi.mobileAuthFetch;
+}
+
+const conditionLabels: Record<string, string> = {
+  new: "Yeni",
+  like_new: "Yeni gibi",
+  good: "İyi",
+  fair: "Orta",
+  needs_repair: "Tamir gerekli"
+};
+
+function hasExplicitClient(client?: MobileFavoritesApiClient): boolean {
+  return Boolean(client?.apiBaseUrl || client?.accessToken);
+}
 
 function resolveApiBaseUrl(client?: MobileFavoritesApiClient): string {
   return (client?.apiBaseUrl ?? DEFAULT_API_BASE_URL).replace(/\/$/, "");
@@ -63,49 +89,213 @@ function authHeaders(accessToken?: string): Record<string, string> {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
-function normalizePriceText(listing: RawMobileFavoriteListing): string {
-  if (typeof listing.priceText === "string") {
-    return listing.priceText;
+async function requestFavoritesApi(
+  path: string,
+  client: MobileFavoritesApiClient,
+  init: RequestInit = {}
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "application/json");
+
+  if (hasExplicitClient(client)) {
+    for (const [key, value] of Object.entries(authHeaders(client.accessToken))) {
+      headers.set(key, value);
+    }
+
+    return fetch(`${resolveApiBaseUrl(client)}${path}`, {
+      ...init,
+      headers
+    });
   }
 
-  if (listing.priceAmount) {
-    return `${listing.priceAmount}${listing.currency ? ` ${listing.currency}` : ""}`;
+  const mobileFetch = await loadMobileAuthFetch();
+
+  return mobileFetch(path, {
+    ...init,
+    headers
+  });
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function normalizePriceText(listing: RawMobileFavoriteListing): string {
+  const priceText = stringOrNull(listing.priceText);
+
+  if (priceText) {
+    return priceText;
+  }
+
+  const priceAmount =
+    typeof listing.priceAmount === "number"
+      ? String(listing.priceAmount)
+      : stringOrNull(listing.priceAmount);
+
+  if (priceAmount) {
+    const currency = stringOrNull(listing.currency);
+    return `${priceAmount}${currency ? ` ${currency}` : ""}`;
   }
 
   return "Fiyat belirtilmemiş";
 }
 
-function normalizeLocationText(listing: RawMobileFavoriteListing): string {
-  return listing.locationText ?? listing.city ?? listing.seller?.locationCity ?? "Konum belirtilmemiş";
+function normalizeLocationText(listing: RawMobileFavoriteListing, seller: MobileFavoriteListing["seller"]): string {
+  return (
+    stringOrNull(listing.locationText) ??
+    stringOrNull(listing.city) ??
+    stringOrNull(listing.locationCity) ??
+    seller?.locationCity ??
+    "Konum belirtilmemiş"
+  );
 }
 
-function normalizeFavoriteListing(listing: RawMobileFavoriteListing): MobileFavoriteListing {
-  return {
-    id: listing.id,
-    title: listing.title,
-    city: listing.city,
-    priceAmount: listing.priceAmount,
-    currency: listing.currency,
-    imageUrl: listing.imageUrl ?? null,
-    conditionText: listing.conditionText ?? null,
-    favoritedAt: listing.favoritedAt ?? null,
-    locationText: normalizeLocationText(listing),
-    priceText: normalizePriceText(listing),
-    seller: listing.seller
+function normalizeSeller(value: unknown): MobileFavoriteListing["seller"] {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const profileId = stringOrNull(value.profileId);
+  const displayName = stringOrNull(value.displayName);
+
+  if (!profileId || !displayName) {
+    return null;
+  }
+
+  const seller: NonNullable<MobileFavoriteListing["seller"]> = {
+    profileId,
+    displayName
   };
+  const locationCity = stringOrNull(value.locationCity);
+
+  if (locationCity) {
+    seller.locationCity = locationCity;
+  }
+
+  return seller;
+}
+
+function normalizeImageUrl(listing: RawMobileFavoriteListing): string | null {
+  const directImageUrl = stringOrNull(listing.imageUrl);
+
+  if (directImageUrl) {
+    return directImageUrl;
+  }
+
+  if (isRecord(listing.firstImage)) {
+    const firstImageUrl = stringOrNull(listing.firstImage.url);
+
+    if (firstImageUrl) {
+      return firstImageUrl;
+    }
+  }
+
+  if (Array.isArray(listing.images)) {
+    for (const image of listing.images) {
+      if (isRecord(image)) {
+        const imageUrl = stringOrNull(image.url);
+
+        if (imageUrl) {
+          return imageUrl;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeConditionText(listing: RawMobileFavoriteListing): string | null {
+  return stringOrNull(listing.conditionText) ?? conditionLabels[stringOrNull(listing.condition) ?? ""] ?? null;
+}
+
+function unwrapFavoriteListing(value: unknown): RawMobileFavoriteListing | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (isRecord(value.listing)) {
+    return {
+      ...value.listing,
+      favoritedAt: value.favoritedAt ?? value.listing.favoritedAt
+    };
+  }
+
+  return value;
+}
+
+function normalizeFavoriteListing(value: unknown): MobileFavoriteListing | null {
+  const listing = unwrapFavoriteListing(value);
+
+  if (!listing) {
+    return null;
+  }
+
+  const id = stringOrNull(listing.id) ?? stringOrNull(listing.listingId);
+  const title = stringOrNull(listing.title);
+
+  if (!id || !title) {
+    return null;
+  }
+
+  const seller = normalizeSeller(listing.seller);
+
+  const normalized: MobileFavoriteListing = {
+    id,
+    title,
+    imageUrl: normalizeImageUrl(listing),
+    conditionText: normalizeConditionText(listing),
+    favoritedAt: stringOrNull(listing.favoritedAt),
+    locationText: normalizeLocationText(listing, seller),
+    priceText: normalizePriceText(listing),
+    seller
+  };
+  const city = stringOrNull(listing.city);
+  const priceAmount =
+    typeof listing.priceAmount === "number"
+      ? String(listing.priceAmount)
+      : stringOrNull(listing.priceAmount);
+  const currency = stringOrNull(listing.currency);
+
+  if (city) {
+    normalized.city = city;
+  }
+
+  if (priceAmount) {
+    normalized.priceAmount = priceAmount;
+  }
+
+  if (currency) {
+    normalized.currency = currency;
+  }
+
+  return normalized;
+}
+
+function extractFavoriteArray(payload: FavoritesResponse): unknown[] {
+  const candidates = [
+    payload.data?.listings,
+    payload.data?.favorites,
+    payload.data?.items,
+    payload.listings,
+    payload.favorites,
+    payload.items
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [];
 }
 
 function normalizeFavorites(payload: FavoritesResponse): MobileFavoriteListing[] {
-  const listings =
-    payload.data?.listings ??
-    payload.data?.favorites ??
-    payload.data?.items ??
-    payload.listings ??
-    payload.favorites ??
-    payload.items ??
-    [];
-
-  return listings.map(normalizeFavoriteListing);
+  return extractFavoriteArray(payload).flatMap((item) => {
+    const listing = normalizeFavoriteListing(item);
+    return listing ? [listing] : [];
+  });
 }
 
 function resolveClientAndListing(
@@ -127,39 +317,51 @@ function resolveClientAndListing(
   };
 }
 
+function extractApiError(payload: unknown): string | null {
+  if (isRecord(payload) && isRecord(payload.error) && typeof payload.error.message === "string") {
+    return payload.error.message;
+  }
+
+  return null;
+}
+
+async function parseApiPayload(response: Response): Promise<unknown> {
+  return response.json().catch(() => null);
+}
+
 async function writeFavoriteState(
   client: MobileFavoritesApiClient,
   listingId: string,
   nextFavoriteState: boolean
 ): Promise<boolean> {
-  const response = await fetch(`${resolveApiBaseUrl(client)}/api/v1/favorites/${encodeURIComponent(listingId)}`, {
-    method: nextFavoriteState ? "POST" : "DELETE",
-    headers: {
-      Accept: "application/json",
-      ...authHeaders(client.accessToken)
+  const response = await requestFavoritesApi(
+    `/api/v1/favorites/${encodeURIComponent(listingId)}`,
+    client,
+    {
+      method: nextFavoriteState ? "POST" : "DELETE"
     }
-  });
+  );
+  const payload = await parseApiPayload(response);
 
   if (!response.ok) {
-    throw new Error(nextFavoriteState ? "Favorite could not be saved." : "Favorite could not be removed.");
+    throw new Error(
+      extractApiError(payload) ??
+        (nextFavoriteState ? "Favori kaydedilemedi." : "Favori kaldırılamadı.")
+    );
   }
 
   return nextFavoriteState;
 }
 
 export async function fetchMobileFavorites(client: MobileFavoritesApiClient = {}): Promise<MobileFavoriteListing[]> {
-  const response = await fetch(`${resolveApiBaseUrl(client)}/api/v1/favorites`, {
-    headers: {
-      Accept: "application/json",
-      ...authHeaders(client.accessToken)
-    }
-  });
+  const response = await requestFavoritesApi("/api/v1/favorites", client);
+  const payload = await parseApiPayload(response);
 
   if (!response.ok) {
-    throw new Error("Favorites could not be loaded.");
+    throw new Error(extractApiError(payload) ?? "Favoriler yüklenemedi.");
   }
 
-  return normalizeFavorites((await response.json()) as FavoritesResponse);
+  return normalizeFavorites(payload as FavoritesResponse);
 }
 
 export async function saveMobileFavorite(

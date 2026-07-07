@@ -11,12 +11,11 @@ import {
   TextInput,
   View
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAndroidNavigationBarVisibility } from "../../lib/android-navigation-bar";
-import { getAndroidAwareBottomOffset } from "../../ui/mobile-layout";
 import { colors, radius, shadows, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
+import { MOBILE_TAB_BAR_HEIGHT } from "../../ui/mobile-layout";
 import {
   MOBILE_REALTIME_EVENTS,
   subscribeMobileRealtime
@@ -36,8 +35,6 @@ import {
 export function ConversationDetailScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const androidNavigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
   const authSession = useAuthSession();
   const currentProfileId = authSession.currentUser?.profile.id ?? null;
   const conversationId = typeof params.conversationId === "string" ? params.conversationId : "";
@@ -48,13 +45,10 @@ export function ConversationDetailScreen() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [body, setBody] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sending, setSending] = useState(false);
-
-  const composerBottomInset = getAndroidAwareBottomOffset({
-    androidNavigationVisibility,
-    platformOS: Platform.OS,
-    safeAreaBottom: insets.bottom
-  });
+  const composerBottomOffset = keyboardHeight > 0 ? 10 : MOBILE_TAB_BAR_HEIGHT + 10;
+  const messageListBottomPadding = composerBottomOffset;
 
   const scrollToBottom = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -99,12 +93,17 @@ export function ConversationDetailScreen() {
   }, [messages.length, scrollToBottom]);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
-      scrollToBottom(true);
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(Math.max(0, event.endCoordinates?.height ?? 0));
+      scrollToBottom();
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
     });
 
     return () => {
       showSubscription.remove();
+      hideSubscription.remove();
     };
   }, [scrollToBottom]);
 
@@ -220,7 +219,7 @@ export function ConversationDetailScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       style={styles.keyboardRoot}
     >
@@ -262,7 +261,7 @@ export function ConversationDetailScreen() {
         ) : null}
 
         <ScrollView
-          contentContainerStyle={styles.messageList}
+          contentContainerStyle={[styles.messageList, { paddingBottom: messageListBottomPadding }]}
           onContentSizeChange={() => scrollToBottom(false)}
           onLayout={() => scrollToBottom(false)}
           keyboardDismissMode="on-drag"
@@ -307,12 +306,12 @@ export function ConversationDetailScreen() {
           })}
         </ScrollView>
 
-        <View style={[styles.composer, { paddingBottom: Math.max(composerBottomInset, 12) }]}>
+        <View style={[styles.composer, { bottom: composerBottomOffset }]}>
           {error && status === "ready" ? <Text style={styles.inlineError}>{error}</Text> : null}
 
           <View style={styles.composerRow}>
             <TextInput
-              maxLength={5000}
+              maxLength={500}
               multiline
               onChangeText={setBody}
               placeholder="Durum, teslim veya ek fotoğraf sor..."
@@ -332,8 +331,6 @@ export function ConversationDetailScreen() {
               <Text style={styles.sendButtonText}>{sending ? "..." : "Gönder"}</Text>
             </Pressable>
           </View>
-
-          <Text style={styles.counter}>{body.length}/5000</Text>
         </View>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -357,6 +354,7 @@ function formatDate(value: string): string {
 
 const styles = StyleSheet.create({
   keyboardRoot: {
+    position: "relative",
     flex: 1,
     backgroundColor: colors.background
   },
@@ -464,6 +462,10 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.78)"
   },
   composer: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
