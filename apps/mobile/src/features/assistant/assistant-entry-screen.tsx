@@ -1,29 +1,11 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { MobileButton, MobileCard, MobileErrorState, MobileSectionHeader } from "../../ui/mobile-primitives";
+import { MobileButton, MobileCard, MobileErrorState } from "../../ui/mobile-primitives";
 import { Screen } from "../../ui/screen";
 import { colors, radius, spacing } from "../../ui/theme";
 import { askMobileAssistant, type MobileAssistantAnswer } from "./assistant-api";
 
-const assistantTopics = [
-  {
-    title: "Ürün seçimi kontrol listesi",
-    prompt: "Bebek arabası alırken nelere dikkat etmeliyim?"
-  },
-  {
-    title: "İkinci el alışveriş güvenliği",
-    prompt: "İkinci el alışverişte satıcıya hangi soruları sormalıyım?"
-  },
-  {
-    title: "Yaşa göre ihtiyaç fikirleri",
-    prompt: "18 aylık çocuk için hangi ürünler işe yarar?"
-  },
-  {
-    title: "İlan açıklaması yazma yardımı",
-    prompt: "Bebek arabası ilan açıklaması nasıl yazılır?"
-  }
-] as const;
 
 export function AssistantEntryScreen() {
   const [inputValue, setInputValue] = useState("");
@@ -54,22 +36,15 @@ export function AssistantEntryScreen() {
     <Screen
       eyebrow="Asistan"
       title="BabyLoop Asistan"
-      subtitle="Ürün seçimi, ilan hazırlığı ve güvenli alışveriş için kısa yardım noktaları."
+      subtitle="Sorunu kısa yaz, güvenli sınırlar içinde yanıt al."
     >
-      <MobileCard style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Marketplace yardım alanı</Text>
-        <Text style={styles.heroText}>
-          BabyLoop Asistan ürün seçimi, ilan hazırlama ve güvenli alışveriş konularında yardımcı olur.
-          Tanı, tedavi, ilaç, terapi veya diyet önerisi vermez.
-        </Text>
-      </MobileCard>
 
       <MobileCard style={styles.composerCard}>
         <Text style={styles.inputLabel}>Sorunu yaz</Text>
         <TextInput
           accessibilityLabel="Asistana soru yaz"
           multiline
-          maxLength={1000}
+          maxLength={200}
           onChangeText={setInputValue}
           placeholder="Örn. Oto koltuğu ikinci el alınır mı?"
           placeholderTextColor={colors.subtle}
@@ -78,7 +53,6 @@ export function AssistantEntryScreen() {
           value={inputValue}
         />
         <View style={styles.composerFooter}>
-          <Text style={styles.counter}>{inputValue.length}/1000</Text>
           <MobileButton
             accessibilityLabel="Asistana gönder"
             disabled={status === "pending" || inputValue.trim().length === 0}
@@ -89,24 +63,6 @@ export function AssistantEntryScreen() {
           </MobileButton>
         </View>
       </MobileCard>
-
-      <MobileSectionHeader title="Hızlı sorular" description="Güvenli marketplace konularından başlayabilirsin." />
-
-      <View style={styles.topicList}>
-        {assistantTopics.map((topic) => (
-          <MobileCard key={topic.title} style={styles.topicCard}>
-            <Text style={styles.topicTitle}>{topic.title}</Text>
-            <Text style={styles.topicDescription}>{topic.prompt}</Text>
-            <MobileButton
-              disabled={status === "pending"}
-              onPress={() => void handleAsk(topic.prompt)}
-              variant="secondary"
-            >
-              Bu soruyu sor
-            </MobileButton>
-          </MobileCard>
-        ))}
-      </View>
 
       {status === "error" ? (
         <MobileErrorState
@@ -139,19 +95,6 @@ export function AssistantEntryScreen() {
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    gap: 8
-  },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "900"
-  },
-  heroText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21
-  },
   composerCard: {
     gap: spacing.md
   },
@@ -174,30 +117,8 @@ const styles = StyleSheet.create({
   composerFooter: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: spacing.md
-  },
-  counter: {
-    color: colors.subtle,
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  topicList: {
-    gap: 10
-  },
-  topicCard: {
-    gap: spacing.sm,
-    padding: spacing.md
-  },
-  topicTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "900"
-  },
-  topicDescription: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
   },
   answerCard: {
     gap: spacing.sm

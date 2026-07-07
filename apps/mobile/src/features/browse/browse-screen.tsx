@@ -36,6 +36,11 @@ type HomeListingFilters = {
   priceMin: string;
 };
 
+type DropdownOption<TValue extends string> = {
+  label: string;
+  value: TValue;
+};
+
 const emptyHomeListingFilters: HomeListingFilters = {
   categoryId: "",
   city: "",
@@ -242,6 +247,40 @@ function FilterSheet({
   onClose: () => void;
   visible: boolean;
 }) {
+  const [openDropdown, setOpenDropdown] = useState<
+    "category" | "listingType" | "createdSince" | "condition" | null
+  >(null);
+
+  const categoryOptions: DropdownOption<HomeListingFilters["categoryId"]>[] = [
+    { label: "Hepsi", value: "" },
+    ...categories.map((category) => ({
+      label: category.name,
+      value: category.id
+    }))
+  ];
+
+  const listingTypeOptions: DropdownOption<HomeListingFilters["listingType"]>[] = [
+    { label: "Hepsi", value: "" },
+    { label: "Satılık", value: "sale" },
+    { label: "Bağış", value: "donation" },
+    { label: "Takas", value: "swap" }
+  ];
+
+  const createdSinceOptions: DropdownOption<HomeListingFilters["createdSince"]>[] = [
+    { label: "Hepsi", value: "" },
+    { label: "Bugün", value: "today" },
+    { label: "Son 1 hafta", value: "last_7_days" }
+  ];
+
+  const conditionOptions: DropdownOption<HomeListingFilters["condition"]>[] = [
+    { label: "Hepsi", value: "" },
+    { label: "Yeni", value: "new" },
+    { label: "Yeni gibi", value: "like_new" },
+    { label: "İyi", value: "good" },
+    { label: "Kullanılmış", value: "fair" },
+    { label: "Tamir gerekir", value: "needs_repair" }
+  ];
+
   function patchFilters(patch: Partial<HomeListingFilters>) {
     onChangeFilters({
       ...filters,
@@ -261,39 +300,23 @@ function FilterSheet({
         </View>
 
         <ScrollView contentContainerStyle={styles.filterContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.filterLabel}>Kategori</Text>
-          <View style={styles.chipGrid}>
-            <FilterChip
-              label="Hepsi"
-              onPress={() => patchFilters({ categoryId: "" })}
-              selected={!filters.categoryId}
-            />
-            {categories.slice(0, 8).map((category) => (
-              <FilterChip
-                key={category.id}
-                label={category.name}
-                onPress={() => patchFilters({ categoryId: category.id })}
-                selected={filters.categoryId === category.id}
-              />
-            ))}
-          </View>
+          <DropdownSelect
+            label="Kategori"
+            onChange={(categoryId) => patchFilters({ categoryId })}
+            onToggle={() => setOpenDropdown(openDropdown === "category" ? null : "category")}
+            open={openDropdown === "category"}
+            options={categoryOptions}
+            value={filters.categoryId}
+          />
 
-          <Text style={styles.filterLabel}>İlan tipi</Text>
-          <View style={styles.chipGrid}>
-            {[
-              ["", "Hepsi"],
-              ["sale", "Satılık"],
-              ["donation", "Bağış"],
-              ["swap", "Takas"]
-            ].map(([value, label]) => (
-              <FilterChip
-                key={value || "all-types"}
-                label={label}
-                onPress={() => patchFilters({ listingType: value as HomeListingFilters["listingType"] })}
-                selected={filters.listingType === value}
-              />
-            ))}
-          </View>
+          <DropdownSelect
+            label="İlan tipi"
+            onChange={(listingType) => patchFilters({ listingType })}
+            onToggle={() => setOpenDropdown(openDropdown === "listingType" ? null : "listingType")}
+            open={openDropdown === "listingType"}
+            options={listingTypeOptions}
+            value={filters.listingType}
+          />
 
           <Text style={styles.filterLabel}>Konum</Text>
           <TextInput
@@ -305,21 +328,14 @@ function FilterSheet({
             value={filters.city}
           />
 
-          <Text style={styles.filterLabel}>Ürün eklenmesi</Text>
-          <View style={styles.chipGrid}>
-            {[
-              ["today", "Bugün"],
-              ["last_7_days", "Son 1 hafta"],
-              ["", "Hepsi"]
-            ].map(([value, label]) => (
-              <FilterChip
-                key={value || "all-dates"}
-                label={label}
-                onPress={() => patchFilters({ createdSince: value as HomeListingFilters["createdSince"] })}
-                selected={filters.createdSince === value}
-              />
-            ))}
-          </View>
+          <DropdownSelect
+            label="Ürün eklenmesi"
+            onChange={(createdSince) => patchFilters({ createdSince })}
+            onToggle={() => setOpenDropdown(openDropdown === "createdSince" ? null : "createdSince")}
+            open={openDropdown === "createdSince"}
+            options={createdSinceOptions}
+            value={filters.createdSince}
+          />
 
           <Text style={styles.filterLabel}>Fiyat aralığı</Text>
           <View style={styles.priceRow}>
@@ -341,24 +357,14 @@ function FilterSheet({
             />
           </View>
 
-          <Text style={styles.filterLabel}>Ürün durumu</Text>
-          <View style={styles.chipGrid}>
-            {[
-              ["", "Hepsi"],
-              ["new", "Yeni"],
-              ["like_new", "Yeni gibi"],
-              ["good", "İyi"],
-              ["fair", "Kullanılmış"],
-              ["needs_repair", "Tamir gerekir"]
-            ].map(([value, label]) => (
-              <FilterChip
-                key={value || "all-conditions"}
-                label={label}
-                onPress={() => patchFilters({ condition: value as HomeListingFilters["condition"] })}
-                selected={filters.condition === value}
-              />
-            ))}
-          </View>
+          <DropdownSelect
+            label="Ürün durumu"
+            onChange={(condition) => patchFilters({ condition })}
+            onToggle={() => setOpenDropdown(openDropdown === "condition" ? null : "condition")}
+            open={openDropdown === "condition"}
+            options={conditionOptions}
+            value={filters.condition}
+          />
         </ScrollView>
 
         <View style={styles.searchActions}>
@@ -374,21 +380,65 @@ function FilterSheet({
   );
 }
 
-function FilterChip({
+function DropdownSelect<TValue extends string>({
   label,
-  onPress,
-  selected
+  onChange,
+  onToggle,
+  open,
+  options,
+  value
 }: {
   label: string;
-  onPress: () => void;
-  selected: boolean;
+  onChange: (value: TValue) => void;
+  onToggle: () => void;
+  open: boolean;
+  options: DropdownOption<TValue>[];
+  value: TValue;
 }) {
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
   return (
-    <Pressable onPress={onPress} style={[styles.filterChip, selected ? styles.filterChipSelected : null]}>
-      <Text style={[styles.filterChipText, selected ? styles.filterChipTextSelected : null]}>{label}</Text>
-    </Pressable>
+    <View style={styles.dropdownBlock}>
+      <Text style={styles.filterLabel}>{label}</Text>
+      <Pressable
+        accessibilityLabel={`${label} seç`}
+        onPress={onToggle}
+        style={styles.dropdownButton}
+      >
+        <Text numberOfLines={1} style={styles.dropdownButtonText}>
+          {selectedOption?.label ?? "Hepsi"}
+        </Text>
+        <Ionicons color={colors.muted} name={open ? "chevron-up" : "chevron-down"} size={18} />
+      </Pressable>
+
+      {open ? (
+        <View style={styles.dropdownMenu}>
+          {options.map((option) => {
+            const selected = option.value === value;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={`${label}-${option.value || "all"}`}
+                onPress={() => {
+                  onChange(option.value);
+                  onToggle();
+                }}
+                style={[styles.dropdownOption, selected ? styles.dropdownOptionSelected : null]}
+              >
+                <Text style={[styles.dropdownOptionText, selected ? styles.dropdownOptionTextSelected : null]}>
+                  {option.label}
+                </Text>
+                {selected ? <Ionicons color={colors.primaryDark} name="checkmark" size={17} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 }
+
 
 function SearchSheet({
   appliedQuery,
@@ -536,29 +586,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900"
   },
-  chipGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8
+  dropdownBlock: {
+    gap: 7
   },
-  filterChip: {
+  dropdownButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 999,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8
+    backgroundColor: colors.background,
+    paddingHorizontal: 16,
+    paddingVertical: 12
   },
-  filterChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceSoft
-  },
-  filterChipText: {
-    color: colors.muted,
-    fontSize: 12,
+  dropdownButtonText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
     fontWeight: "800"
   },
-  filterChipTextSelected: {
+  dropdownMenu: {
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface
+  },
+  dropdownOption: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 11
+  },
+  dropdownOptionSelected: {
+    backgroundColor: colors.surfaceSoft
+  },
+  dropdownOptionText: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  dropdownOptionTextSelected: {
     color: colors.primaryDark,
     fontWeight: "900"
   },
