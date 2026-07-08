@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthSessionProvider } from "../src/features/auth/auth-session";
+import { MobilePushRegistrationBootstrap } from "../src/features/notifications/mobile-push-registration-bootstrap";
 import { hideAndroidNavigationBar } from "../src/lib/android-navigation-bar";
 
 export default function RootLayout() {
@@ -28,6 +29,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthSessionProvider>
+        <MobilePushRegistrationBootstrap />
         <StatusBar style="dark" />
         <Stack
           screenOptions={{
