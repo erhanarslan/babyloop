@@ -1,5 +1,5 @@
 export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search" | "child_reminder";
-export type NotificationDeliveryChannel = "in_app" | "email_draft";
+export type NotificationDeliveryChannel = "in_app" | "email_draft" | "email" | "push" | "n8n";
 
 export type NotificationDeliveryPolicyInput = {
   profileId: string;

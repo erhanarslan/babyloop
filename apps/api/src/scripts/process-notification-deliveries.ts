@@ -3,9 +3,10 @@ import { processPendingNotificationProviderDeliveries } from "../services/notifi
 
 async function main(): Promise<void> {
   const app = createApp();
-  await app.ready();
-
   try {
+    await app.ready();
+    assertDatabaseConfigured(app);
+
     const limit = Number.parseInt(process.env.NOTIFICATION_PROVIDER_PROCESS_LIMIT ?? "50", 10);
     const summary = await processPendingNotificationProviderDeliveries(app, {
       limit: Number.isFinite(limit) && limit > 0 ? limit : 50
@@ -21,6 +22,12 @@ async function main(): Promise<void> {
     }));
   } finally {
     await app.close();
+  }
+}
+
+function assertDatabaseConfigured(app: ReturnType<typeof createApp>): void {
+  if (!("db" in app) || !app.db) {
+    throw new Error("DATABASE_URL is required to run this notification processor script.");
   }
 }
 

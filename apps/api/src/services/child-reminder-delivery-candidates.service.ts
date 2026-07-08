@@ -18,7 +18,7 @@ export type ChildReminderDeliveryCandidate = {
   profileId: string;
   childProfileId: string;
   reminderId: string;
-  channel: ChildProfileReminderResponse["channel"];
+  channel: NotificationDeliveryPolicyInput["channel"];
   actionHref: string;
   status: "candidate" | "blocked";
   deliveryAllowed: false;
@@ -32,6 +32,7 @@ export type ChildReminderDeliveryCandidate = {
 export type BuildChildReminderDeliveryCandidateInput = {
   profileId: string;
   reminder: ChildProfileReminderResponse;
+  channel?: NotificationDeliveryPolicyInput["channel"];
   childLabel?: string | null;
   lastCandidateCreatedAt?: Date | string | null;
   now?: Date;
@@ -59,14 +60,15 @@ export type CreateChildReminderDeliveryCandidateLogResult =
 
 export function buildChildReminderDeliveryPolicyInput(
   profileId: string,
-  reminder: ChildProfileReminderResponse
+  reminder: ChildProfileReminderResponse,
+  channel?: NotificationDeliveryPolicyInput["channel"]
 ): NotificationDeliveryPolicyInput {
   return {
     profileId,
     kind: "child_reminder",
     sourceType: "child_profile",
     sourceId: reminder.id,
-    channel: reminder.channel,
+    channel: channel ?? reminder.channel,
     actionHref: buildChildReminderActionHref(reminder)
   };
 }
@@ -101,7 +103,8 @@ export function buildChildReminderDeliveryCandidate(
     return null;
   }
 
-  const policyInput = buildChildReminderDeliveryPolicyInput(input.profileId, input.reminder);
+  const channel = input.channel ?? input.reminder.channel;
+  const policyInput = buildChildReminderDeliveryPolicyInput(input.profileId, input.reminder, channel);
   const policy = evaluateNotificationDeliveryPolicy(policyInput);
   const frequencyWindowInput: Parameters<typeof canWriteNotificationDeliveryCandidateLog>[0] = {
     frequencyWindowHours: policy.frequencyWindowHours
@@ -130,7 +133,7 @@ export function buildChildReminderDeliveryCandidate(
       childLabel: input.childLabel ?? null,
       remindAt: input.reminder.remindAt,
       reminderStatus: input.reminder.status,
-      reminderChannel: input.reminder.channel
+      reminderChannel: channel
     }
   };
 
@@ -145,7 +148,7 @@ export function buildChildReminderDeliveryCandidate(
     profileId: input.profileId,
     childProfileId: input.reminder.childProfileId,
     reminderId: input.reminder.id,
-    channel: input.reminder.channel,
+    channel,
     actionHref: policyInput.actionHref,
     status,
     deliveryAllowed: false,
@@ -187,7 +190,7 @@ export async function createChildReminderDeliveryCandidateLog(
     };
   }
 
-  const policyInput = buildChildReminderDeliveryPolicyInput(input.profileId, input.reminder);
+  const policyInput = buildChildReminderDeliveryPolicyInput(input.profileId, input.reminder, input.channel);
   const createInput: Parameters<typeof createNotificationDeliveryCandidateLog>[1] = {
     profileId: input.profileId,
     policyInput,

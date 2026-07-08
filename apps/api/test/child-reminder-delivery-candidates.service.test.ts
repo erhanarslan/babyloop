@@ -149,6 +149,38 @@ describe("child reminder delivery candidates", () => {
     ).toBeNull();
   });
 
+
+  it("supports provider-channel child reminder candidates without executing providers", () => {
+    const emailCandidate = buildChildReminderDeliveryCandidate({
+      profileId: "profile-1",
+      reminder: scheduledReminder,
+      channel: "email",
+      now: new Date("2030-01-01T10:00:00.000Z")
+    });
+    const pushCandidate = buildChildReminderDeliveryCandidate({
+      profileId: "profile-1",
+      reminder: scheduledReminder,
+      channel: "push",
+      now: new Date("2030-01-01T10:00:00.000Z")
+    });
+
+    expect(emailCandidate).toMatchObject({
+      channel: "email",
+      deliveryAllowed: false,
+      draftOnly: true
+    });
+    expect(pushCandidate).toMatchObject({
+      channel: "push",
+      deliveryAllowed: false,
+      draftOnly: true
+    });
+    expect(emailCandidate?.log.channel).toBe("email");
+    expect(pushCandidate?.log.channel).toBe("push");
+    expect(JSON.stringify({ emailCandidate, pushCandidate })).not.toMatch(
+      /parent@example.com|accessToken|refreshToken|passwordHash|otpCode|cookie|authorization|provider secret|raw body/iu
+    );
+  });
+
   it("supports email_draft reminders without sending email", () => {
     const candidate = buildChildReminderDeliveryCandidate({
       profileId: "profile-1",
