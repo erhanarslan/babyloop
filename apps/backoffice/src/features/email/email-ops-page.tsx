@@ -20,7 +20,7 @@ type EmailSendResult =
     }
   | {
       sent: true;
-      provider: "smtp";
+      provider: "smtp" | "resend";
       sandboxOnly: false;
       messageId: string | null;
     };
@@ -168,7 +168,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
           <p className="eyebrow">Email Ops</p>
           <h2>Email delivery operasyonları</h2>
           <p>
-            Provider durumunu, SMTP kill-switch bilgisini ve kontrollü test email akışını
+            Provider durumunu, email kill-switch bilgisini ve kontrollü test email akışını
             secretsız şekilde izle. Bu ekran SMTP şifresi, API key, verification/reset token,
             OTP veya session datası göstermez.
           </p>
@@ -191,7 +191,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
               value={preview.emailProvider.sendEnabled ? "Açık" : "Kapalı"}
               description={
                 preview.emailProvider.sendEnabled
-                  ? "Gerçek SMTP gönderim modu aktif."
+                  ? "Gerçek email provider gönderim modu aktif."
                   : "Gerçek email gönderimi kapalı."
               }
             />
@@ -256,7 +256,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
                 <h3>Admin test email</h3>
                 <p>
                   Kontrollü test email draft’ı gönder. Gerçek mail yalnızca backend tarafında
-                  EMAIL_DELIVERY_MODE=provider, EMAIL_PROVIDER=smtp ve EMAIL_SEND_ENABLED=true ise gider.
+                  EMAIL_DELIVERY_MODE=provider, EMAIL_PROVIDER=smtp|resend ve EMAIL_SEND_ENABLED=true ise gider.
                 </p>
               </div>
 
@@ -360,7 +360,7 @@ function getDriverDescription(driver: EmailProviderDriver): string {
   }
 
   if (driver === "resend") {
-    return "Resend provider seçili; gerçek gönderim şu an SMTP ile sınırlı.";
+    return "Resend provider seçili; EMAIL_SEND_ENABLED=true ve RESEND_API_KEY hazırsa gerçek gönderim desteklenir.";
   }
 
   return "Mock provider seçili.";

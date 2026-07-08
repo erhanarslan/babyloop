@@ -299,7 +299,7 @@ export function NotificationsScreen() {
           </Text>
           {!canUseMobileNotificationProviderDelivery(preferencesPayload) ? (
             <Text style={styles.preferenceBoundaryText}>
-              Email, push ve n8n kanalları bu sürümde taslak/sandbox modunda kalır.
+              Email, push ve n8n gönderimi sunucu provider ayarları, cihaz izni ve tercih durumuna bağlıdır.
             </Text>
           ) : null}
         </View>

@@ -4,7 +4,7 @@ import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState } from "react";
 
 const DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE =
-  "Ops preview uses aggregate counts, provider status, redacted sourceRef, and redacted refs only; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider secret and raw body are never exposed.";
+  "Ops preview uses aggregate counts, provider status, redacted sourceRef, and redacted refs only; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider credential and raw body are never exposed.";
 
 type AdminNotificationOpsPreview = {
   summary: {
@@ -200,8 +200,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Notification operations</p>
         <h1 className="mt-2 text-3xl font-black text-slate-950">Notification Ops Preview</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          {data.warning} Delivery log önizlemesi aggregate ve redacted çalışır; email, push, queue ve n8n
-          bağlantıları kapalıdır.
+          {data.warning} Delivery log önizlemesi aggregate ve redacted çalışır; gerçek provider gönderimleri ayrı processor ve env gate’leri üzerinden yürütülür.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <PolicyPill label="Status" value={data.summary.draftOnly ? "Draft-only" : data.summary.status} />
@@ -224,8 +223,8 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Delivery transitions</p>
         <h2 className="text-2xl font-black text-slate-950">Transition model</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Draft-only dönemde güvenli geçişler candidate/block/skip ile sınırlıdır; sent/failed future sender gerektirir.
-          Örnek draft-only geçiş: candidate → skipped.
+          Manuel ops geçişleri candidate/block/skip gibi güvenli durumlarla sınırlıdır; sent/failed durumları gerçek provider processor sonucunda oluşur.
+          Örnek güvenli geçiş: candidate → skipped.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.transitionPreview.privacyNote}</p>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -257,7 +256,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Mobile notifications</p>
         <h2 className="text-2xl font-black text-slate-950">Native push readiness</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Push sender kapalı. Token registry ve token collection kapalıdır; Expo/Firebase/APNs çağrısı yok.
+          Push sender kapalı ise Expo/Firebase/APNs çağrısı yok. Push sender durumu env, token registry ve provider readiness değerlerine bağlıdır; gerçek Expo gönderimleri notification processor üzerinden yapılır.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.pushReadinessPreview.warning}</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -296,7 +295,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Automation readiness</p>
         <h2 className="text-2xl font-black text-slate-950">n8n workflow readiness</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Webhook kapalı. Queue/worker kapalı. Gerçek n8n workflow tetiklemesi yok.
+          n8n webhook ve worker durumu readiness değerlerine bağlıdır; gerçek tetikleme yalnızca provider env gate’leri açıkken processor üzerinden yapılır.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.n8nReadinessPreview.warning}</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

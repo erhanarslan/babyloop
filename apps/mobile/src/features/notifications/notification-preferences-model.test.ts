@@ -53,7 +53,7 @@ describe("mobile notification preference model", () => {
   });
 
   it("builds privacy-safe delivery and profile labels", () => {
-    expect(getMobileNotificationPreferenceDeliveryBoundaryText()).toContain("gerçek push, email, SMS veya n8n gönderimi yapmaz");
+    expect(getMobileNotificationPreferenceDeliveryBoundaryText()).toContain("sunucu provider ayarları");
     expect(getMobileNotificationPreferenceProfileLabel({ isLoading: true, childProfile: activeProfile })).toBe(
       "Yükleniyor..."
     );
@@ -90,7 +90,7 @@ describe("mobile notification preference model", () => {
     expect(isMobileNotificationCadenceSelected(activeProfile, "off")).toBe(false);
   });
 
-  it("summarizes source/channel preferences without enabling providers", () => {
+  it("summarizes source/channel preferences without leaking provider data", () => {
     const payload: MobileNotificationPreferencesPayload = {
       preferences: [
         {
@@ -139,6 +139,7 @@ describe("mobile notification preference model", () => {
     };
 
     expect(getMobileNotificationPreferenceChannelSummary(payload)).toContain("1 tercih aktif");
+    expect(getMobileNotificationPreferenceChannelSummary(payload)).toContain("sunucu ayarları");
     expect(getMobileNotificationPreferenceChannelSummary(null)).toBe("Kaynak ve kanal tercihleri yüklenmedi.");
     expect(canUseMobileNotificationProviderDelivery(payload)).toBe(false);
     expect(JSON.stringify(payload)).not.toMatch(/accessToken|refreshToken|passwordHash|rawContact|providerSecret/iu);

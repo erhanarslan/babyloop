@@ -36,7 +36,7 @@ export function getPreferredMobileNotificationChildProfile(
 }
 
 export function getMobileNotificationPreferenceDeliveryBoundaryText(): string {
-  return "Bu ekran gerçek push, email, SMS veya n8n gönderimi yapmaz; çocuk profili öneri sıklığını ve uygulama içi hatırlatıcı durumunu yönetir.";
+  return "Bu ekran bildirim tercihlerini yönetir. Email, push ve n8n gönderimi sunucu provider ayarları, izinler ve tercih durumuna göre notification processor tarafından yürütülür.";
 }
 
 export function getMobileNotificationPreferenceProfileLabel(
@@ -86,7 +86,7 @@ export function getMobileNotificationPreferenceChannelSummary(
   const activeCount = payload.preferences.filter((preference) => preference.enabled).length;
   const draftOnlyChannels = payload.summary.draftOnlyChannels.join(", ");
 
-  return `${activeCount} tercih aktif. ${draftOnlyChannels} kanalları taslak/sandbox modunda kalır.`;
+  return `${activeCount} tercih aktif. Provider kanalları sunucu ayarları ve izinler uygun olduğunda işlenir; draft-only kanallar: ${draftOnlyChannels}.`;
 }
 
 export function canUseMobileNotificationProviderDelivery(
