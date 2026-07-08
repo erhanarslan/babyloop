@@ -1,3 +1,4 @@
+// Boundary guard phrase: provider secret must never be rendered in notification ops UI.
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
