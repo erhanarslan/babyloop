@@ -695,6 +695,7 @@ function appendParam(params: URLSearchParams, key: string, value: string) {
 function formatCadence(cadence: ChildProfileNotificationCadence): string {
   const labels: Record<ChildProfileNotificationCadence, string> = {
     off: "Kapalı",
+  weekly: "Haftalık",
     monthly: "Aylık",
     yearly: "Yıllık"
   };

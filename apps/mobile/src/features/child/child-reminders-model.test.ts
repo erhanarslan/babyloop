@@ -88,6 +88,16 @@ describe("mobile child reminders model", () => {
     expect(formatCadence("off")).toBe("Kapalı");
   });
 
+
+  it("exposes weekly notification cadence as active", () => {
+    expect(getMobileChildReminderSettings({ notificationCadence: "weekly" })[0]).toMatchObject({
+      value: "Haftalık",
+      status: "active"
+    });
+    expect(formatCadence("weekly")).toBe("Haftalık");
+  });
+
+
   it("provides safe default profile and next reminder date", () => {
     expect(getDefaultMobileChildProfilePayload()).toEqual({
       label: "Çocuğum",

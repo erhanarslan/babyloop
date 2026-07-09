@@ -78,4 +78,43 @@ describe("child profiles routes", () => {
     expect(invalidParam.body).not.toContain(user.user.email);
     expect(emptyBody.body).not.toContain("accessToken");
   });
+
+  it("creates and updates weekly child profile notification cadence", async () => {
+    const user = await createUser(app, { email: "weekly-child-profile@example.test" });
+
+    const create = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: "/api/v1/child-profiles",
+      payload: {
+        ageBand: "toddler_12_24",
+        label: "Haftalık Öneriler",
+        notificationCadence: "weekly"
+      }
+    });
+
+    expect(create.statusCode).toBe(201);
+    expect(create.json().data.childProfile).toMatchObject({
+      ageBand: "toddler_12_24",
+      label: "Haftalık Öneriler",
+      notificationCadence: "weekly"
+    });
+
+    const childProfileId = create.json().data.childProfile.id;
+
+    const update = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "PATCH",
+      url: `/api/v1/child-profiles/${childProfileId}`,
+      payload: {
+        notificationCadence: "monthly"
+      }
+    });
+
+    expect(update.statusCode).toBe(200);
+    expect(update.json().data.childProfile.notificationCadence).toBe("monthly");
+    expect(`${create.body} ${update.body}`).not.toMatch(/weekly-child-profile@example|accessToken|refreshToken|passwordHash/iu);
+  });
+
+
 });

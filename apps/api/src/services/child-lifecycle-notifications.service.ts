@@ -8,6 +8,11 @@ import {
   type LifecycleRecommendationResponse
 } from "./child-profiles.service.js";
 import {
+  createChildLifecycleDeliveryCandidateLog,
+  type ChildLifecycleDeliveryCandidateResult,
+  type ChildLifecycleDeliveryChannel
+} from "./child-lifecycle-delivery-candidates.service.js";
+import {
   createNotification,
   type NotificationResponse
 } from "./notifications.service.js";
@@ -20,6 +25,20 @@ export type ChildLifecycleNotificationGenerationResponse = {
   notifications: NotificationResponse[];
   deliveryChannel: "in_app";
   draftOnly: false;
+  deliveryCandidateSummary: {
+    channels: ChildLifecycleDeliveryChannel[];
+    created: number;
+    duplicate: number;
+    skipped: number;
+    results: Array<
+      | ChildLifecycleDeliveryCandidateResult
+      | {
+          channel: ChildLifecycleDeliveryChannel;
+          status: "skipped";
+          reason: "preference_disabled";
+        }
+    >;
+  };
   note: string;
 };
 
@@ -27,12 +46,13 @@ type LifecycleRecommendationItem = LifecycleRecommendationResponse["recommendati
 
 const CHILD_LIFECYCLE_NOTIFICATION_SOURCE = "child_lifecycle";
 const CHILD_LIFECYCLE_NOTIFICATION_KIND = "child_lifecycle_recommendation";
+const CHILD_LIFECYCLE_PROVIDER_CHANNELS: ChildLifecycleDeliveryChannel[] = ["email", "push", "n8n"];
 
 export async function generateChildLifecycleNotifications(
   app: FastifyInstance,
   profileId: string
 ): Promise<ChildLifecycleNotificationGenerationResponse> {
-  const preferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
+  const inAppPreferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
     app,
     profileId,
     "child_lifecycle",
@@ -45,6 +65,7 @@ export async function generateChildLifecycleNotifications(
 
   const childProfilesById = new Map(childProfiles.map((childProfile) => [childProfile.id, childProfile]));
   const createdNotifications: NotificationResponse[] = [];
+  const deliveryCandidateResults: ChildLifecycleNotificationGenerationResponse["deliveryCandidateSummary"]["results"] = [];
   let skippedCount = 0;
 
   for (const group of lifecycleGroups) {
@@ -56,54 +77,60 @@ export async function generateChildLifecycleNotifications(
     }
 
     for (const recommendation of group.recommendations.slice(0, 2)) {
-      if (!preferenceEnabled) {
-        skippedCount += 1;
-        continue;
-      }
-
       const dedupeKey = buildChildLifecycleDedupeKey(childProfile, recommendation);
-      const alreadyCreated = await hasExistingChildLifecycleNotification(
-        app,
-        profileId,
-        childProfile.id,
-        dedupeKey
-      );
+      const actionHref = buildChildLifecycleActionHref(recommendation);
 
-      if (alreadyCreated) {
-        skippedCount += 1;
-        continue;
-      }
+      if (inAppPreferenceEnabled) {
+        const alreadyCreated = await hasExistingChildLifecycleNotification(
+          app,
+          profileId,
+          childProfile.id,
+          dedupeKey
+        );
 
-      const notification = await createNotification(app, {
-        recipientProfileId: profileId,
-        actorProfileId: null,
-        type: "system",
-        title: buildNotificationTitle(childProfile, recommendation),
-        body: buildNotificationBody(group.ageBand, recommendation),
-        entityType: "child_profile",
-        entityId: childProfile.id,
-        metadata: {
-          source: CHILD_LIFECYCLE_NOTIFICATION_SOURCE,
-          kind: CHILD_LIFECYCLE_NOTIFICATION_KIND,
-          dedupeKey,
-          childProfileId: childProfile.id,
-          ageBand: group.ageBand,
-          cadence: childProfile.notificationCadence,
-          categoryId: recommendation.categoryId,
-          categorySlug: recommendation.categorySlug,
-          reasonCode: recommendation.reasonCode,
-          actionHref: `/browse?${new URLSearchParams({
-            categoryId: recommendation.categoryId,
-            sort: "newest"
-          }).toString()}`
+        if (alreadyCreated) {
+          skippedCount += 1;
+        } else {
+          const notification = await createNotification(app, {
+            recipientProfileId: profileId,
+            actorProfileId: null,
+            type: "system",
+            title: buildNotificationTitle(childProfile, recommendation),
+            body: buildNotificationBody(group.ageBand, recommendation),
+            entityType: "child_profile",
+            entityId: childProfile.id,
+            metadata: {
+              source: CHILD_LIFECYCLE_NOTIFICATION_SOURCE,
+              kind: CHILD_LIFECYCLE_NOTIFICATION_KIND,
+              dedupeKey,
+              childProfileId: childProfile.id,
+              ageBand: group.ageBand,
+              cadence: childProfile.notificationCadence,
+              categoryId: recommendation.categoryId,
+              categorySlug: recommendation.categorySlug,
+              reasonCode: recommendation.reasonCode,
+              actionHref
+            }
+          });
+
+          if (notification) {
+            createdNotifications.push(notification);
+          } else {
+            skippedCount += 1;
+          }
         }
-      });
-
-      if (notification) {
-        createdNotifications.push(notification);
       } else {
         skippedCount += 1;
       }
+
+      deliveryCandidateResults.push(
+        ...(await createProviderDeliveryCandidatesForRecommendation(app, {
+          profileId,
+          childProfile,
+          recommendation,
+          dedupeKey
+        }))
+      );
     }
   }
 
@@ -113,8 +140,56 @@ export async function generateChildLifecycleNotifications(
     notifications: createdNotifications,
     deliveryChannel: "in_app",
     draftOnly: false,
-    note: "Bu endpoint yalnızca uygulama içi BabyLoop bildirimleri üretir. Email, push veya n8n gönderimi yapmaz."
+    deliveryCandidateSummary: {
+      channels: CHILD_LIFECYCLE_PROVIDER_CHANNELS,
+      created: deliveryCandidateResults.filter((result) => result.status === "created").length,
+      duplicate: deliveryCandidateResults.filter((result) => result.status === "duplicate").length,
+      skipped: deliveryCandidateResults.filter((result) => result.status === "skipped").length,
+      results: deliveryCandidateResults
+    },
+    note:
+      "Bu endpoint yaşa göre uygulama içi ürün önerisi üretir ve email, push, n8n için delivery candidate log oluşturur; gerçek provider gönderimi notification provider processor tarafından yapılır."
   };
+}
+
+async function createProviderDeliveryCandidatesForRecommendation(
+  app: FastifyInstance,
+  input: {
+    profileId: string;
+    childProfile: ChildProfileResponse;
+    recommendation: LifecycleRecommendationItem;
+    dedupeKey: string;
+  }
+): Promise<ChildLifecycleNotificationGenerationResponse["deliveryCandidateSummary"]["results"]> {
+  const results: ChildLifecycleNotificationGenerationResponse["deliveryCandidateSummary"]["results"] = [];
+
+  for (const channel of CHILD_LIFECYCLE_PROVIDER_CHANNELS) {
+    const preferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
+      app,
+      input.profileId,
+      "child_lifecycle",
+      channel
+    );
+
+    if (!preferenceEnabled) {
+      results.push({
+        channel,
+        status: "skipped",
+        reason: "preference_disabled"
+      });
+      continue;
+    }
+
+    results.push(await createChildLifecycleDeliveryCandidateLog(app, {
+      profileId: input.profileId,
+      childProfile: input.childProfile,
+      recommendation: input.recommendation,
+      channel,
+      dedupeKey: input.dedupeKey
+    }));
+  }
+
+  return results;
 }
 
 function shouldGenerateForChildProfile(childProfile: ChildProfileResponse): boolean {
@@ -185,6 +260,15 @@ function buildNotificationBody(
   });
 
   return `${formatAgeBand(ageBand)} döneminde ${categoryName} aramalarını takip etmek pratik olabilir. Bu bir sağlık, tedavi, diyet veya tanı önerisi değildir.`;
+}
+
+function buildChildLifecycleActionHref(recommendation: LifecycleRecommendationItem): string {
+  const params = new URLSearchParams({
+    categoryId: recommendation.categoryId,
+    sort: "newest"
+  });
+
+  return `/browse?${params.toString()}`;
 }
 
 function formatAgeBand(ageBand: string): string {

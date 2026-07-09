@@ -106,4 +106,19 @@ describe("child profile schemas", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts weekly notification cadence", () => {
+    const result = createChildProfileBodySchema.safeParse({
+      ageBand: "toddler_12_24",
+      label: "Haftalık öneriler",
+      notificationCadence: "weekly"
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notificationCadence).toBe("weekly");
+    }
+  });
+
+
 });

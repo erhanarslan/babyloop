@@ -26,6 +26,16 @@ describe("notification delivery policy service", () => {
   });
 
   it("uses longer frequency windows for child lifecycle cadence", () => {
+    const weekly = evaluateNotificationDeliveryPolicy({
+      profileId: "profile-1",
+      kind: "child_lifecycle",
+      sourceType: "child_profile",
+      sourceId: "child-1",
+      channel: "email_draft",
+      actionHref: "/browse?categoryId=cat-1",
+      cadence: "weekly"
+    });
+
     const monthly = evaluateNotificationDeliveryPolicy({
       profileId: "profile-1",
       kind: "child_lifecycle",
@@ -46,6 +56,7 @@ describe("notification delivery policy service", () => {
       cadence: "yearly"
     });
 
+    expect(weekly.frequencyWindowHours).toBe(24 * 7);
     expect(monthly.frequencyWindowHours).toBe(24 * 30);
     expect(yearly.frequencyWindowHours).toBe(24 * 365);
   });

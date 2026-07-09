@@ -111,6 +111,7 @@ export function getNextMobileReminderDateIso(now = new Date()): string {
 export function formatCadence(cadence: MobileChildProfileNotificationCadence): string {
   const labels: Record<MobileChildProfileNotificationCadence, string> = {
     off: "Kapalı",
+    weekly: "Haftalık",
     monthly: "Aylık",
     yearly: "Yıllık"
   };

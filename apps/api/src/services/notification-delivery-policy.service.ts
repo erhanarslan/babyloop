@@ -8,7 +8,7 @@ export type NotificationDeliveryPolicyInput = {
   sourceId: string;
   channel: NotificationDeliveryChannel;
   actionHref: string;
-  cadence?: "off" | "monthly" | "yearly" | undefined;
+  cadence?: "off" | "weekly" | "monthly" | "yearly" | undefined;
 };
 
 export type NotificationDeliveryPolicyResult = {
@@ -90,6 +90,10 @@ export function getNotificationDeliveryPolicyPreview(): NotificationDeliveryPoli
 
 function resolveFrequencyWindowHours(input: NotificationDeliveryPolicyInput): number {
   if (input.kind === "child_lifecycle") {
+    if (input.cadence === "weekly") {
+      return 24 * 7;
+    }
+
     if (input.cadence === "yearly") {
       return 24 * 365;
     }

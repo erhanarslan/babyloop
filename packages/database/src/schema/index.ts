@@ -77,6 +77,7 @@ export const childProfileGenderEnum = pgEnum("child_profile_gender", [
 
 export const childProfileNotificationCadenceEnum = pgEnum("child_profile_notification_cadence", [
   "off",
+  "weekly",
   "monthly",
   "yearly"
 ]);

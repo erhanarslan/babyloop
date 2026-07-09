@@ -18,6 +18,7 @@ export const childProfileGenderSchema = z.enum([
 
 export const childProfileNotificationCadenceSchema = z.enum([
   "off",
+  "weekly",
   "monthly",
   "yearly"
 ]);

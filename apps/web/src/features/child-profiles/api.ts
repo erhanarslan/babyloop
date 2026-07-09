@@ -14,7 +14,7 @@ export type ChildAgeBand =
 
 export type ChildProfileGender = "female" | "male" | "prefer_not_to_say";
 
-export type ChildProfileNotificationCadence = "off" | "monthly" | "yearly";
+export type ChildProfileNotificationCadence = "off" | "weekly" | "monthly" | "yearly";
 
 export type ChildProfile = {
   id: string;

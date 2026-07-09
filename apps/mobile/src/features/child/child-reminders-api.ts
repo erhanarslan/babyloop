@@ -12,7 +12,7 @@ export type MobileChildAgeBand =
   | "preschool_24_36"
   | "child_3_plus";
 
-export type MobileChildProfileNotificationCadence = "off" | "monthly" | "yearly";
+export type MobileChildProfileNotificationCadence = "off" | "weekly" | "monthly" | "yearly";
 
 export type MobileChildProfile = {
   id: string;
