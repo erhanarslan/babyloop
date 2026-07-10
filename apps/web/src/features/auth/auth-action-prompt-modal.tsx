@@ -7,8 +7,14 @@ import type { AuthPayload } from "../../lib/auth-client";
 import { setAuthToken } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
-import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
-import { completeLoginApproval, type LoginApprovalRequiredPayload } from "./api";
+import {
+  completeLoginApproval,
+  isLoginApprovalCompletePendingPayload,
+  startGoogleLogin,
+  submitAuthRequest,
+  type AuthMode,
+  type LoginApprovalRequiredPayload
+} from "./api";
 
 type AuthActionPromptModalProps = {
   apiBaseUrl: string;
@@ -78,12 +84,18 @@ export function AuthActionPromptModal({
         const response = await completeLoginApproval(apiBaseUrl, approval.approvalToken);
 
         if (response.ok) {
+          const authPayload = response.data;
+
+          if (isLoginApprovalCompletePendingPayload(authPayload)) {
+            return;
+          }
+
           active = false;
-          setAuthToken(response.data.accessToken);
+          setAuthToken(authPayload.accessToken);
           setLoginApproval(null);
           setErrorMessage(null);
           window.dispatchEvent(new Event("babyloop-auth-change"));
-          onAuthenticated?.(response.data);
+          onAuthenticated?.(authPayload);
           onClose();
           router.refresh();
           return;

@@ -360,6 +360,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       const result = await completeApprovedLoginApprovalChallenge(app, parsedBody.data);
 
+      if (result.status === "pending") {
+        return reply.status(202).send(result.response);
+      }
+
       if (result.status === "invalid") {
         return reply.status(400).send(result.response);
       }

@@ -15,6 +15,7 @@ import {
 } from "./auth-action-prompt-modal";
 import {
   completeLoginApproval,
+  isLoginApprovalCompletePendingPayload,
   startGoogleLogin,
   submitAuthRequest,
   type AuthMode,
@@ -74,8 +75,14 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         const response = await completeLoginApproval(apiBaseUrl, approval.approvalToken);
 
         if (response.ok) {
+          const authPayload = response.data;
+
+          if (isLoginApprovalCompletePendingPayload(authPayload)) {
+            return;
+          }
+
           active = false;
-          setAuthToken(response.data.accessToken);
+          setAuthToken(authPayload.accessToken);
           setLoginApproval(null);
           setErrorMessage(null);
           window.dispatchEvent(new Event("babyloop-auth-change"));

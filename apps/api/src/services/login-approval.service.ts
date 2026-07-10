@@ -82,12 +82,23 @@ type LoginApprovalAuthPayload = {
   };
 };
 
+type LoginApprovalCompletePendingPayload = {
+  loginApprovalPending: true;
+  status: "pending";
+  expiresAt: string;
+};
+
 type LoginApprovalCompleteSuccessResponse = {
   ok: true;
   data: LoginApprovalAuthPayload;
 };
 
-export type LoginApprovalCompleteResponse = ApiResponse<LoginApprovalAuthPayload>;
+type LoginApprovalCompletePendingResponse = {
+  ok: true;
+  data: LoginApprovalCompletePendingPayload;
+};
+
+export type LoginApprovalCompleteResponse = ApiResponse<LoginApprovalAuthPayload | LoginApprovalCompletePendingPayload>;
 
 export async function getLoginApprovalStatus(
   app: FastifyInstance,
@@ -246,6 +257,7 @@ export async function completeApprovedLoginApprovalChallenge(
   body: LoginApprovalCompleteBody
 ): Promise<
   | { status: "ok"; response: LoginApprovalCompleteSuccessResponse }
+  | { status: "pending"; response: LoginApprovalCompletePendingResponse }
   | { status: "invalid"; response: ApiFailure }
 > {
   const now = new Date();
@@ -300,6 +312,32 @@ export async function completeApprovedLoginApprovalChallenge(
   });
 
   if (!completed) {
+    const [challengeState] = await app.db
+      .select({
+        status: loginApprovalChallenges.status,
+        expiresAt: loginApprovalChallenges.expiresAt
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.approvalTokenHash, approvalTokenHash))
+      .limit(1);
+
+    if (
+      challengeState?.status === "pending" &&
+      challengeState.expiresAt.getTime() > now.getTime()
+    ) {
+      return {
+        status: "pending",
+        response: {
+          ok: true,
+          data: {
+            loginApprovalPending: true,
+            status: "pending",
+            expiresAt: challengeState.expiresAt.toISOString()
+          }
+        }
+      };
+    }
+
     return {
       status: "invalid",
       response: invalidLoginApprovalToken()

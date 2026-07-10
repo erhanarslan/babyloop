@@ -78,6 +78,20 @@ export type LoginApprovalRequiredPayload = {
   loginApprovalRequired: true;
 };
 
+export type LoginApprovalCompletePendingPayload = {
+  loginApprovalPending: true;
+  status: "pending";
+  expiresAt: string;
+};
+
+export type LoginApprovalCompletePayload = AuthPayload | LoginApprovalCompletePendingPayload;
+
+export function isLoginApprovalCompletePendingPayload(
+  payload: LoginApprovalCompletePayload
+): payload is LoginApprovalCompletePendingPayload {
+  return "loginApprovalPending" in payload;
+}
+
 export type AuthSubmitPayload = AuthPayload | LoginApprovalRequiredPayload;
 
 export async function submitAuthRequest(
@@ -100,7 +114,7 @@ export async function submitAuthRequest(
 export async function completeLoginApproval(
   apiBaseUrl: string,
   approvalToken: string
-): Promise<ApiResponse<AuthPayload>> {
+): Promise<ApiResponse<LoginApprovalCompletePayload>> {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/login-approval/complete`, {
     method: "POST",
     credentials: "include",
@@ -110,7 +124,7 @@ export async function completeLoginApproval(
     body: JSON.stringify({ approvalToken })
   });
 
-  return response.json() as Promise<ApiResponse<AuthPayload>>;
+  return response.json() as Promise<ApiResponse<LoginApprovalCompletePayload>>;
 }
 
 export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {

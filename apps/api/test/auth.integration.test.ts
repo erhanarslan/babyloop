@@ -3130,7 +3130,7 @@ describe("auth API", () => {
       .from(loginApprovalChallenges)
       .where(eq(loginApprovalChallenges.id, approvalId));
 
-    expect(beforeApproval.statusCode).toBe(400);
+    expect(beforeApproval.statusCode).toBe(202);
     expect(beforeApproval.json()).toMatchObject({
       ok: false,
       error: {
