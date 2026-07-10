@@ -8,6 +8,7 @@ import { setAuthToken } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { startGoogleLogin, submitAuthRequest, type AuthMode } from "./api";
+import { completeLoginApproval, type LoginApprovalRequiredPayload } from "./api";
 
 type AuthActionPromptModalProps = {
   apiBaseUrl: string;
@@ -37,22 +38,90 @@ export function AuthActionPromptModal({
   const [displayName, setDisplayName] = useState("");
   const [locationCity, setLocationCity] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [loginApproval, setLoginApproval] = useState<LoginApprovalRequiredPayload | null>(null);
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isRegister = mode === "register";
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!loginApproval) {
+      return;
+    }
+
+    const approval = loginApproval;
+    let active = true;
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const expiresAt = new Date(approval.expiresAt).getTime();
+
+    async function tryCompletePromptLoginApproval() {
+      if (!active || inFlight) {
+        return;
+      }
+
+      if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+        active = false;
+        setLoginApproval(null);
+        setErrorMessage("Mobil onay süresi doldu. Lütfen tekrar giriş yap.");
+        return;
+      }
+
+      inFlight = true;
+
+      try {
+        const response = await completeLoginApproval(apiBaseUrl, approval.approvalToken);
+
+        if (response.ok) {
+          active = false;
+          setAuthToken(response.data.accessToken);
+          setLoginApproval(null);
+          setErrorMessage(null);
+          window.dispatchEvent(new Event("babyloop-auth-change"));
+          onAuthenticated?.(response.data);
+          onClose();
+          router.refresh();
+          return;
+        }
+      } catch {
+        // Geçici ağ/API hatalarında onay süresi dolana kadar tekrar denenir.
+      } finally {
+        inFlight = false;
+      }
+
+      if (active) {
+        timer = setTimeout(() => {
+          void tryCompletePromptLoginApproval();
+        }, 1000);
+      }
+    }
+
+    timer = setTimeout(() => {
+      void tryCompletePromptLoginApproval();
+    }, 750);
+
+    return () => {
+      active = false;
+
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [apiBaseUrl, loginApproval, onAuthenticated, onClose, router]);
+
   if (!isOpen || !isMounted) {
     return null;
   }
 
-  const isRegister = mode === "register";
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
+    setLoginApproval(null);
 
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
@@ -80,9 +149,8 @@ export function AuthActionPromptModal({
       }
 
       if ("loginApprovalRequired" in body.data) {
-        setErrorMessage(
-          "Bu hesap için mobil onay gerekiyor. Lütfen giriş sayfasından devam et."
-        );
+        setLoginApproval(body.data);
+        setErrorMessage("Mobil onay bekleniyor. Telefonundaki bildirimi onayladığında giriş tamamlanacak.");
         return;
       }
 
