@@ -77,21 +77,19 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         if (response.ok) {
           const authPayload = response.data;
 
-          if (isLoginApprovalCompletePendingPayload(authPayload)) {
+          if (!isLoginApprovalCompletePendingPayload(authPayload)) {
+            active = false;
+            setAuthToken(authPayload.accessToken);
+            setLoginApproval(null);
+            setErrorMessage(null);
+            window.dispatchEvent(new Event("babyloop-auth-change"));
+
+            const returnTo = getStoredAuthReturnTo("/account");
+            clearStoredAuthReturnTo();
+            router.replace(returnTo);
+            router.refresh();
             return;
           }
-
-          active = false;
-          setAuthToken(authPayload.accessToken);
-          setLoginApproval(null);
-          setErrorMessage(null);
-          window.dispatchEvent(new Event("babyloop-auth-change"));
-
-          const returnTo = getStoredAuthReturnTo("/account");
-          clearStoredAuthReturnTo();
-          router.replace(returnTo);
-          router.refresh();
-          return;
         }
 
         // Onay henüz verilmeden /complete endpoint'i invalid dönebilir.

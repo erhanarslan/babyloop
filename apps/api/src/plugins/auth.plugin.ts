@@ -1,5 +1,5 @@
-import { profiles, users } from "@babyloop/database/schema";
-import { eq } from "drizzle-orm";
+import { profiles, sessions, users } from "@babyloop/database/schema";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { verifyAccessToken } from "../utils/access-token.js";
 import { readBackofficeAccessTokenCookie } from "../utils/backoffice-access-token-cookie.js";
@@ -59,6 +59,8 @@ export async function authenticateAccessToken(
     return null;
   }
 
+  const now = new Date();
+
   const [row] = await app.db
     .select({
       userId: users.id,
@@ -67,14 +69,23 @@ export async function authenticateAccessToken(
       role: users.role,
       profileId: profiles.id,
       displayName: profiles.displayName,
-      locationCity: profiles.locationCity
+      locationCity: profiles.locationCity,
+      activeSessionId: sessions.id
     })
     .from(users)
     .innerJoin(profiles, eq(profiles.userId, users.id))
+    .innerJoin(
+      sessions,
+      and(
+        eq(sessions.userId, users.id),
+        isNull(sessions.revokedAt),
+        gt(sessions.expiresAt, now)
+      )
+    )
     .where(eq(users.id, verifiedToken.userId))
     .limit(1);
 
-  if (!row || row.profileId !== verifiedToken.profileId) {
+  if (!row || row.profileId !== verifiedToken.profileId || !row.activeSessionId) {
     return null;
   }
 
