@@ -372,9 +372,14 @@ export default function SecurityRoute() {
       }
 
       setPendingLoginApprovals((current) => current.filter((approval) => approval.id !== response.data.approvalId));
+
+      if (response.data.status === "approved") {
+        await handleSessionRefresh();
+      }
+
       setLoginApprovalMessage(
         response.data.status === "approved"
-          ? "Giriş isteği onaylandı."
+          ? "Giriş isteği onaylandı. Aktif cihazlar güncellendi."
           : "Giriş isteği reddedildi."
       );
     } finally {
