@@ -129,4 +129,38 @@ describe("mobile push registration", () => {
     });
     expect(JSON.stringify(result)).not.toContain("raw-device-token");
   });
+  it("does not claim registered when the API push-token registration fails", async () => {
+    const notifications = createNotificationsMock();
+    const registerToken = jest.fn().mockResolvedValue({
+      ok: false,
+      error: {
+        code: "API_UNAVAILABLE",
+        message: "BabyLoop bildirimleri şu an yüklenemedi."
+      }
+    });
+
+    const result = await registerMobileDeviceForPushNotifications({
+      constants: {
+        isDevice: true,
+        deviceName: "Galaxy S22",
+        easConfig: {
+          projectId: "project-id"
+        }
+      },
+      notifications,
+      platformOS: "android",
+      registerToken
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      reason: "push_token_register_failed"
+    });
+    expect(registerToken).toHaveBeenCalledWith({
+      token: "ExponentPushToken[raw-device-token]",
+      platform: "expo",
+      deviceLabel: "Galaxy S22"
+    });
+  });
+
 });

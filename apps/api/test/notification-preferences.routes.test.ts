@@ -139,6 +139,16 @@ describe("notification preferences routes", () => {
         enabled: false
       }
     });
+    const protectedSecurityPushOptOut = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "PATCH",
+      url: "/api/v1/notification-preferences",
+      payload: {
+        source: "security",
+        channel: "push",
+        enabled: false
+      }
+    });
     const unknownField = await app.inject({
       headers: authHeader(user.accessToken),
       method: "PATCH",
@@ -154,6 +164,7 @@ describe("notification preferences routes", () => {
     expect(invalidSource.statusCode).toBe(400);
     expect(invalidChannel.statusCode).toBe(400);
     expect(protectedSecurityOptOut.statusCode).toBe(400);
+    expect(protectedSecurityPushOptOut.statusCode).toBe(400);
     expect(unknownField.statusCode).toBe(400);
     expect(unknownField.body).not.toContain("must-not-be-accepted");
   });

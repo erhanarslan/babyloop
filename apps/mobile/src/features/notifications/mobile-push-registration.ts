@@ -75,6 +75,11 @@ export async function registerMobileDeviceForPushNotifications(
   try {
     const deps = await resolvePushRegistrationDependencies(dependencies);
 
+    logMobilePushRegistrationDebug("dependencies resolved", {
+      platformOS: deps.platformOS,
+      isDevice: deps.constants.isDevice !== false
+    });
+
     if (deps.platformOS === "web") {
       return { status: "unavailable", reason: "web_not_supported" };
     }
@@ -87,19 +92,37 @@ export async function registerMobileDeviceForPushNotifications(
 
     const permission = await getGrantedPushPermission(deps.notifications);
 
+    logMobilePushRegistrationDebug("permission result", {
+      granted: permission
+    });
+
     if (!permission) {
       return { status: "denied", reason: "permission_denied" };
     }
 
     const projectId = resolveExpoProjectId(deps.constants);
+
+    logMobilePushRegistrationDebug("requesting expo push token", {
+      hasProjectId: Boolean(projectId)
+    });
+
     const tokenResponse = await deps.notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined
     );
     const rawToken = tokenResponse.data;
 
+    logMobilePushRegistrationDebug("expo push token response", {
+      hasToken: typeof rawToken === "string" && rawToken.length > 0
+    });
+
     if (!rawToken || typeof rawToken !== "string") {
       return { status: "unavailable", reason: "missing_expo_push_token" };
     }
+
+    logMobilePushRegistrationDebug("registering token with API", {
+      platform: "expo",
+      hasDeviceLabel: Boolean(buildSafeDeviceLabel(deps))
+    });
 
     const registration = await deps.registerToken({
       token: rawToken,
@@ -107,13 +130,32 @@ export async function registerMobileDeviceForPushNotifications(
       deviceLabel: buildSafeDeviceLabel(deps)
     });
 
+    logMobilePushRegistrationDebug("API registration response", {
+      success: isSuccessfulPushRegistrationResponse(registration)
+    });
+
+    if (!isSuccessfulPushRegistrationResponse(registration)) {
+      return { status: "error", reason: "push_token_register_failed" };
+    }
+
     const tokenHashPrefix = readTokenHashPrefix(registration);
 
     return {
       status: "registered",
       ...(tokenHashPrefix ? { tokenHashPrefix } : {})
     };
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+
+    logMobilePushRegistrationDebug("registration threw", {
+      name: error instanceof Error ? error.name : "unknown",
+      message: message || "unknown"
+    });
+
+    if (isMissingAndroidFcmConfigurationError(message)) {
+      return { status: "unavailable", reason: "android_fcm_configuration_missing" };
+    }
+
     return { status: "error", reason: "push_registration_failed" };
   }
 }
@@ -199,8 +241,18 @@ function buildSafeDeviceLabel(deps: MobilePushRegistrationDependencies): string 
   return "Expo device";
 }
 
+function isSuccessfulPushRegistrationResponse(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const success = value.ok === true || value.success === true;
+
+  return success && isRecord(value.data) && isRecord(value.data.token);
+}
+
 function readTokenHashPrefix(value: unknown): string | undefined {
-  if (!isRecord(value) || value.success !== true || !isRecord(value.data) || !isRecord(value.data.token)) {
+  if (!isSuccessfulPushRegistrationResponse(value) || !isRecord(value) || !isRecord(value.data) || !isRecord(value.data.token)) {
     return undefined;
   }
 
@@ -211,4 +263,22 @@ function readTokenHashPrefix(value: unknown): string | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+
+
+function isMissingAndroidFcmConfigurationError(message: string): boolean {
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes("firebaseapp is not initialized") ||
+    normalized.includes("fcm-credentials") ||
+    normalized.includes("google-services")
+  );
+}
+
+function logMobilePushRegistrationDebug(message: string, metadata?: Record<string, unknown>): void {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.info(`[BabyLoop push] ${message}`, metadata ?? {});
+  }
 }

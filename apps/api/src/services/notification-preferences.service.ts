@@ -225,6 +225,10 @@ export async function isNotificationPreferenceEnabledForDelivery(
   source: NotificationPreferenceSource,
   channel: NotificationPreferenceChannel
 ): Promise<boolean> {
+  if (source === "security" && channel === "push") {
+    return true;
+  }
+
   const [preference] = await app.db
     .select({
       enabled: notificationPreferences.enabled,
@@ -327,6 +331,10 @@ function getDefaultEnabled(
   source: NotificationPreferenceSource,
   channel: NotificationPreferenceChannel
 ): boolean {
+  if (source === "security" && channel === "push") {
+    return true;
+  }
+
   if (channel !== "in_app") {
     return false;
   }

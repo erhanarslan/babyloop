@@ -57,6 +57,7 @@ import {
 import { safePlainTextFallback } from "./text-safety.service.js";
 import {
   buildLoginApprovalRequiredResponse,
+  canUseMobileLoginApprovalForProfile,
   createLoginApprovalChallenge,
   type LoginApprovalRequiredResponse
 } from "./login-approval.service.js";
@@ -353,7 +354,11 @@ export async function loginUser(
     };
   }
 
-  if (options.requireMobileLoginApproval && userWithProfile.mobileLoginApprovalEnabled) {
+  if (
+    options.requireMobileLoginApproval &&
+    userWithProfile.mobileLoginApprovalEnabled &&
+    await canUseMobileLoginApprovalForProfile(app, userWithProfile.profileId)
+  ) {
     const creation = await createLoginApprovalChallenge(
       app,
       userWithProfile.id,
@@ -444,7 +449,11 @@ export async function verifyMfaLogin(
     };
   }
 
-  if (options.requireMobileLoginApproval && verified.mobileLoginApprovalEnabled) {
+  if (
+    options.requireMobileLoginApproval &&
+    verified.mobileLoginApprovalEnabled &&
+    await canUseMobileLoginApprovalForProfile(app, verified.profileId)
+  ) {
     const creation = await createLoginApprovalChallenge(
       app,
       verified.userId,

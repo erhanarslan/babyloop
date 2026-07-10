@@ -42,10 +42,16 @@ export const updateNotificationPreferenceBodySchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if ((value.source === "security" || value.source === "trust_safety") && value.channel === "in_app" && value.enabled === false) {
+    if (
+      value.enabled === false &&
+      (
+        ((value.source === "security" || value.source === "trust_safety") && value.channel === "in_app") ||
+        (value.source === "security" && value.channel === "push")
+      )
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Security-critical in-app notifications cannot be disabled.",
+        message: "Security-critical notifications cannot be disabled.",
         path: ["enabled"]
       });
     }

@@ -139,6 +139,13 @@ export async function listNotificationPushTokensForDelivery(
   return records;
 }
 
+export async function hasActiveNotificationPushDeliveryTarget(
+  app: FastifyInstance,
+  profileId: string
+): Promise<boolean> {
+  return (await listNotificationPushTokensForDelivery(app, profileId)).length > 0;
+}
+
 export async function revokeNotificationPushTokenById(
   app: FastifyInstance,
   profileId: string,

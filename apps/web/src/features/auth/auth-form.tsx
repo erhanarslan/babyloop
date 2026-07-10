@@ -46,95 +46,71 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
   useEffect(() => {
     if (!loginApproval) {
-      setApprovalSecondsLeft(0);
       return;
     }
 
-    function updateSecondsLeft() {
-      const expiresAt = new Date(loginApproval!.expiresAt).getTime();
-      const secondsLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-
-      setApprovalSecondsLeft(secondsLeft);
-
-      if (secondsLeft <= 0) {
-        setLoginApproval(null);
-        setErrorMessage("Mobil onay süresi doldu. Lütfen tekrar giriş yap.");
-      }
-    }
-
-    updateSecondsLeft();
-    const intervalId = window.setInterval(updateSecondsLeft, 250);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [loginApproval]);
-
-  useEffect(() => {
-    if (!loginApproval) {
-      return;
-    }
-
+    const approval = loginApproval;
     let active = true;
     let inFlight = false;
-    let timerId: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    async function attemptComplete() {
-      if (!active || inFlight || !loginApproval) {
+    const expiresAt = new Date(approval.expiresAt).getTime();
+
+    async function tryCompleteApprovedLogin() {
+      if (!active || inFlight) {
         return;
       }
 
-      const expiresAt = new Date(loginApproval.expiresAt).getTime();
-
-      if (Date.now() >= expiresAt) {
+      if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+        active = false;
+        setLoginApproval(null);
+        setErrorMessage("Mobil onay süresi doldu. Lütfen tekrar giriş yap.");
         return;
       }
 
       inFlight = true;
 
       try {
-        const response = await completeLoginApproval(apiBaseUrl, loginApproval.approvalToken);
-
-        if (!active) {
-          return;
-        }
+        const response = await completeLoginApproval(apiBaseUrl, approval.approvalToken);
 
         if (response.ok) {
+          active = false;
           setAuthToken(response.data.accessToken);
           setLoginApproval(null);
           setErrorMessage(null);
-          setSuccessMessage("Giriş yapıldı. Hesap bilgilerin güncelleniyor...");
+          window.dispatchEvent(new Event("babyloop-auth-change"));
 
+          const returnTo = getStoredAuthReturnTo("/account");
+          clearStoredAuthReturnTo();
+          router.replace(returnTo);
           router.refresh();
-
-          const returnTo = getStoredAuthReturnTo("/browse");
-
-          window.setTimeout(() => {
-            clearStoredAuthReturnTo();
-            router.push(returnTo);
-            router.refresh();
-          }, 2000);
-
           return;
         }
+
+        // Onay henüz verilmeden /complete endpoint'i invalid dönebilir.
+        // Bu durumda hataya düşmek yerine süre dolana kadar poll etmeye devam et.
       } catch {
-        // Pending state is expected until the mobile device approves the request.
+        // Geçici ağ/API hatalarında da onay süresi dolana kadar poll devam eder.
       } finally {
         inFlight = false;
       }
 
       if (active) {
-        timerId = window.setTimeout(attemptComplete, 1000);
+        timer = setTimeout(() => {
+          void tryCompleteApprovedLogin();
+        }, 1000);
       }
     }
 
-    timerId = window.setTimeout(attemptComplete, 500);
+    timer = setTimeout(() => {
+      void tryCompleteApprovedLogin();
+    }, 750);
 
     return () => {
       active = false;
 
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
+      if (timer) {
+        clearTimeout(timer);
       }
     };
   }, [apiBaseUrl, loginApproval, router]);

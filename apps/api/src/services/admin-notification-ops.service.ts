@@ -85,7 +85,7 @@ export type AdminNotificationDeliveryLogPreview = {
 
 export type AdminNotificationDeliveryLogPreviewItem = {
   kind: NotificationDeliveryCandidateKind | "unknown";
-  sourceType: "child_profile" | "saved_search" | "unknown";
+  sourceType: "child_profile" | "saved_search" | "login_approval" | "unknown";
   sourceRef: string;
   channel: NotificationDeliveryChannel | "email" | "push" | "n8n" | "unknown";
   status: NotificationDeliveryLogStatus | "unknown";
@@ -300,15 +300,15 @@ function buildCountList<T extends string>(rows: CountRow<T>[]): Array<{ key: T |
 }
 
 function normalizeKind(value: string): NotificationDeliveryCandidateKind | "unknown" {
-  if (value === "child_lifecycle" || value === "saved_search" || value === "child_reminder") {
+  if (value === "child_lifecycle" || value === "saved_search" || value === "child_reminder" || value === "security") {
     return value;
   }
 
   return "unknown";
 }
 
-function normalizeSourceType(value: string): "child_profile" | "saved_search" | "unknown" {
-  if (value === "child_profile" || value === "saved_search") {
+function normalizeSourceType(value: string): "child_profile" | "saved_search" | "login_approval" | "unknown" {
+  if (value === "child_profile" || value === "saved_search" || value === "login_approval") {
     return value;
   }
 

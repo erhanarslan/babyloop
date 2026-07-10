@@ -189,7 +189,7 @@ function checkMobileChildNotificationPreferences() {
 
   for (const token of [
     "notificationCadence",
-    "\"off\" | \"monthly\" | \"yearly\"",
+    "\"off\" | \"weekly\" | \"monthly\" | \"yearly\"",
     "channel: \"in_app\" | \"email_draft\"",
     "mobileAuthFetch"
   ]) {

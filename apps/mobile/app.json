@@ -14,13 +14,20 @@
       "bundleIdentifier": "com.babyloop.mobile"
     },
     "android": {
-      "package": "com.babyloop.mobile"
+      "package": "com.babyloop.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:4000"
-    }
+      "apiBaseUrl": "http://localhost:4000",
+      "eas": {
+        "projectId": "3cc5b27d-6c4e-4bb2-a9f2-350d87583a0a"
+      }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

@@ -139,7 +139,7 @@ export function canWriteNotificationDeliveryCandidateLog(
 export async function createNotificationDeliveryCandidateLog(
   app: FastifyInstance,
   input: BuildNotificationDeliveryLogRecordInput
-): Promise<{ created: boolean; idempotencyKey: string }> {
+): Promise<{ created: boolean; deliveryLogId: string | null; idempotencyKey: string }> {
   const record = truncateNotificationDeliveryLogRecord(buildNotificationDeliveryLogRecord(input));
 
   const inserted = await app.db
@@ -163,11 +163,13 @@ export async function createNotificationDeliveryCandidateLog(
       target: notificationDeliveryLogs.idempotencyKey
     })
     .returning({
+      id: notificationDeliveryLogs.id,
       idempotencyKey: notificationDeliveryLogs.idempotencyKey
     });
 
   return {
     created: inserted.length > 0,
+    deliveryLogId: inserted[0]?.id ?? null,
     idempotencyKey: record.idempotencyKey
   };
 }

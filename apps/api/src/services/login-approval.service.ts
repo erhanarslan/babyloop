@@ -11,6 +11,11 @@ import { hashRefreshToken } from "../utils/refresh-token.js";
 import { verifyPassword } from "../utils/password.js";
 import { safePlainTextFallback } from "./text-safety.service.js";
 import { emitLoginApprovalCreated } from "../realtime/publisher.js";
+import { hasActiveNotificationPushDeliveryTarget } from "./notification-push-token-registry.service.js";
+import {
+  createLoginApprovalPushCandidateLog,
+  isLoginApprovalPushProviderConfigured
+} from "./login-approval-delivery-candidates.service.js";
 
 const LOGIN_APPROVAL_TTL_SECONDS = 90;
 
@@ -140,6 +145,17 @@ export async function updateLoginApprovalPreference(
   };
 }
 
+export async function canUseMobileLoginApprovalForProfile(
+  app: FastifyInstance,
+  profileId: string
+): Promise<boolean> {
+  if (!isLoginApprovalPushProviderConfigured()) {
+    return false;
+  }
+
+  return hasActiveNotificationPushDeliveryTarget(app, profileId);
+}
+
 export async function createLoginApprovalChallenge(
   app: FastifyInstance,
   userId: string,
@@ -189,6 +205,19 @@ export async function createLoginApprovalChallenge(
     emitLoginApprovalCreated(app, profile.id, {
       approval
     });
+
+    try {
+      await createLoginApprovalPushCandidateLog(app, {
+        profileId: profile.id,
+        approval,
+        now
+      });
+    } catch (error) {
+      app.log.warn(
+        { error, approvalId: approval.id, profileId: profile.id },
+        "Login approval push candidate creation failed."
+      );
+    }
   }
 
   return {

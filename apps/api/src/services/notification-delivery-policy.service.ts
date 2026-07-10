@@ -1,10 +1,10 @@
-export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search" | "child_reminder";
+export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search" | "child_reminder" | "security";
 export type NotificationDeliveryChannel = "in_app" | "email_draft" | "email" | "push" | "n8n";
 
 export type NotificationDeliveryPolicyInput = {
   profileId: string;
   kind: NotificationDeliveryCandidateKind;
-  sourceType: "child_profile" | "saved_search";
+  sourceType: "child_profile" | "saved_search" | "login_approval";
   sourceId: string;
   channel: NotificationDeliveryChannel;
   actionHref: string;
@@ -43,6 +43,7 @@ export type NotificationDeliveryPolicyPreview = {
 const DEFAULT_FREQUENCY_WINDOW_HOURS = 24;
 const CHILD_LIFECYCLE_FREQUENCY_WINDOW_HOURS = 24 * 30;
 const SAVED_SEARCH_FREQUENCY_WINDOW_HOURS = 24;
+const SECURITY_FREQUENCY_WINDOW_HOURS = 1;
 
 export function evaluateNotificationDeliveryPolicy(
   input: NotificationDeliveryPolicyInput
@@ -107,6 +108,10 @@ function resolveFrequencyWindowHours(input: NotificationDeliveryPolicyInput): nu
 
   if (input.kind === "saved_search") {
     return SAVED_SEARCH_FREQUENCY_WINDOW_HOURS;
+  }
+
+  if (input.kind === "security") {
+    return SECURITY_FREQUENCY_WINDOW_HOURS;
   }
 
   return DEFAULT_FREQUENCY_WINDOW_HOURS;

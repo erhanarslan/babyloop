@@ -3013,6 +3013,8 @@ describe("auth API", () => {
       })
       .where(eq(users.id, user.user.id));
 
+    await enableLoginApprovalPushTarget(app, user.accessToken);
+
     const response = await app.inject({
       headers: {
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X) BabyLoopWeb"
@@ -3073,6 +3075,8 @@ describe("auth API", () => {
         mobileLoginApprovalEnabled: true
       })
       .where(eq(users.id, user.user.id));
+
+    await enableLoginApprovalPushTarget(app, user.accessToken);
 
     const login = await app.inject({
       method: "POST",
@@ -3177,6 +3181,8 @@ describe("auth API", () => {
         mobileLoginApprovalEnabled: true
       })
       .where(eq(users.id, user.user.id));
+
+    await enableLoginApprovalPushTarget(app, user.accessToken);
 
     const login = await app.inject({
       method: "POST",
@@ -3849,6 +3855,38 @@ async function useGoogleOAuthTestApp(profilesByCode: Record<string, GoogleUserIn
   app = await createTestApp({
     googleOAuthClient: createFakeGoogleOAuthClient(profilesByCode)
   });
+}
+
+
+async function enableLoginApprovalPushTarget(app: TestApp, accessToken: string): Promise<void> {
+  process.env.PUSH_TOKEN_ENCRYPTION_KEY = process.env.PUSH_TOKEN_ENCRYPTION_KEY || "test-login-approval-push-token-key";
+  process.env.NOTIFICATION_PUSH_ENABLED = "true";
+  process.env.PUSH_PROVIDER = "expo";
+  process.env.EXPO_ACCESS_TOKEN = "test-expo-access-token";
+  process.env.EXPO_PUSH_API_BASE_URL = "https://exp.example.test/push";
+
+  globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({
+    data: [
+      {
+        id: "expo-auth-integration-ticket",
+        status: "ok"
+      }
+    ]
+  }), { status: 200 })) as unknown as typeof fetch;
+
+  const registerPush = await app.inject({
+    headers: authHeader(accessToken),
+    method: "POST",
+    url: "/api/v1/notifications/push-tokens",
+    payload: {
+      token: `ExponentPushToken[auth-integration-${Date.now()}-${Math.random().toString(16).slice(2)}]`,
+      platform: "expo",
+      deviceLabel: "Galaxy S22"
+    }
+  });
+
+  expect(registerPush.statusCode).toBe(200);
+  expect(registerPush.body).not.toMatch(/ExponentPushToken|test-expo-access-token|passwordHash|refreshToken/iu);
 }
 
 async function useEmailDeliveryTestApp(): Promise<RecordingEmailDeliveryService> {

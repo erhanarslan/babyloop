@@ -342,3 +342,9 @@ babyloop-*.zip
 *.secret
 *.secret-*
 *.secret.*
+
+# Firebase private service account keys
+*fcm*service*account*.json
+*firebase*service*account*.json
+*adminsdk*.json
+service-account*.json

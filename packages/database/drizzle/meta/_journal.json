@@ -204,6 +204,13 @@
       "when": 1783599000000,
       "tag": "0030_add_weekly_child_profile_notification_cadence",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1783601400000,
+      "tag": "0031_login_approval_security_push_candidates",
+      "breakpoints": true
     }
   ]
 }

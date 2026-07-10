@@ -288,10 +288,11 @@ function resolveProviderForChannel(channel: string): NotificationProviderName | 
   return null;
 }
 
-function resolvePreferenceSource(kind: string): "child_reminder" | "saved_search" | "child_lifecycle" | "marketplace" {
+function resolvePreferenceSource(kind: string): "child_reminder" | "saved_search" | "child_lifecycle" | "marketplace" | "security" {
   if (kind === "child_reminder") return "child_reminder";
   if (kind === "saved_search") return "saved_search";
   if (kind === "child_lifecycle") return "child_lifecycle";
+  if (kind === "security") return "security";
   return "marketplace";
 }
 
@@ -604,46 +605,69 @@ function buildProviderPayload(row: DeliveryLogRow, now: Date): Record<string, un
   };
 }
 
-function buildPushData(row: DeliveryLogRow): Record<string, string> {
-  const metadata = sanitizeNotificationMetadata(row.metadata);
-  const data: Record<string, string> = {
-    source: row.kind,
-    deliveryLogId: row.id
-  };
-
-  for (const key of ["childProfileId", "reminderId", "listingId", "savedSearchId"]) {
-    const value = readString(metadata[key]);
-
-    if (value) {
-      data[key] = value;
-    }
+function buildPushData(row: DeliveryLogRow): Record<string, unknown> {
+  if (row.kind === "security") {
+    return {
+      source: row.kind,
+      deliveryLogId: row.id,
+      entityType: "login_approval",
+      entityId: row.sourceId
+    };
   }
 
-  return data;
+  const metadata = row.metadata ?? {};
+
+  return {
+    source: row.kind,
+    deliveryLogId: row.id,
+    childProfileId: readString(metadata.childProfileId),
+    reminderId: readString(metadata.reminderId),
+    savedSearchId: readString(metadata.savedSearchId),
+    categoryId: readString(metadata.categoryId),
+    actionHref: readString(metadata.actionHref)
+  };
 }
 
 function buildNotificationSubject(row: DeliveryLogRow): string {
-  const metadata = sanitizeNotificationMetadata(row.metadata);
-  const title = readString(metadata.reminderTitle) ?? readString(metadata.title);
-
-  if (title) {
-    return sanitizeNotificationText(title, 96);
+  if (row.kind === "security") {
+    return "BabyLoop güvenlik onayı";
   }
 
-  if (row.kind === "child_reminder") return "BabyLoop hatırlatıcın var";
-  if (row.kind === "saved_search") return "Kayıtlı araman için yeni eşleşme";
+  if (row.kind === "child_reminder") {
+    return "BabyLoop hatırlatması";
+  }
+
+  if (row.kind === "saved_search") {
+    return "BabyLoop arama bildirimi";
+  }
+
+  if (row.kind === "child_lifecycle") {
+    return "BabyLoop yaşa göre öneri";
+  }
+
   return "BabyLoop bildirimi";
 }
 
 function buildNotificationText(row: DeliveryLogRow): string {
-  const metadata = sanitizeNotificationMetadata(row.metadata);
-  const title = readString(metadata.reminderTitle) ?? readString(metadata.title) ?? buildNotificationSubject(row);
+  const metadata = row.metadata ?? {};
 
-  if (row.kind === "child_reminder") {
-    return sanitizeNotificationText(`${title}. Bu hatırlatıcı yalnızca bakım/alışveriş düzeni içindir; sağlık, tedavi, ilaç, diyet veya tanı önerisi değildir.`, 260);
+  if (row.kind === "security") {
+    return `${readString(metadata.deviceLabel) ?? "Yeni web girişi"} için mobil onay gerekiyor. Bu işlemi siz başlatmadıysanız reddedin.`;
   }
 
-  return sanitizeNotificationText(title, 220);
+  if (row.kind === "child_reminder") {
+    return `${readString(metadata.reminderTitle) ?? "Hatırlatma"} için bildirim zamanı geldi.`;
+  }
+
+  if (row.kind === "saved_search") {
+    return `${readString(metadata.savedSearchTitle) ?? "Kayıtlı aramanız"} için yeni eşleşmeler olabilir.`;
+  }
+
+  if (row.kind === "child_lifecycle") {
+    return `${readString(metadata.categoryName) ?? "Yaşa uygun ürün"} önerisi hazır.`;
+  }
+
+  return "BabyLoop bildiriminiz var.";
 }
 
 function sanitizeNotificationText(value: string, maxLength: number): string {
