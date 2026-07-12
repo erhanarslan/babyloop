@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "../../ui/screen";
 import {
@@ -10,14 +11,22 @@ import {
   MobileErrorState,
   MobileSkeleton
 } from "../../ui/mobile-primitives";
-import { colors, radius, spacing } from "../../ui/theme";
+import { colors, radius, shadows, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
+import {
+  clearPendingMobileLoginIntent,
+  setPendingMobileLoginIntent
+} from "../auth/mobile-login-intent";
 import { addMobileCartItem } from "../basket/basket-api";
 import {
   fetchMobileFavorites,
   saveMobileFavorite
 } from "../favorites/favorites-api";
 import { startMobileConversationForListing } from "../messages/messages-api";
+import {
+  getMobileListingDetailActionState,
+  getMobileListingGalleryImageUrls
+} from "./listing-detail-model";
 import {
   fetchMobileListingDetail,
   type MobileListingDetail
@@ -28,7 +37,10 @@ type ConversationStatus = "idle" | "pending";
 type CartStatus = "idle" | "pending" | "added";
 
 export function ListingDetailScreen() {
-  const params = useLocalSearchParams<{ listingId?: string }>();
+  const params = useLocalSearchParams<{
+    listingId?: string;
+    postLoginAction?: string;
+  }>();
   const router = useRouter();
   const authSession = useAuthSession();
   const currentUser = authSession.currentUser;
@@ -37,6 +49,7 @@ export function ListingDetailScreen() {
   const [listing, setListing] = useState<MobileListingDetail | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>("idle");
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
@@ -44,12 +57,23 @@ export function ListingDetailScreen() {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [cartStatus, setCartStatus] = useState<CartStatus>("idle");
   const [cartError, setCartError] = useState<string | null>(null);
+  const [handledPostLoginAction, setHandledPostLoginAction] = useState<string | null>(null);
+
   const isOwnListing = Boolean(
     currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId
   );
-  const canAddToCart = Boolean(
-    listing && listing.status === "active" && listing.listingType !== "donation"
+  const actionState = listing
+    ? getMobileListingDetailActionState({
+        isOwnListing,
+        listingType: listing.listingType,
+        status: listing.status
+      })
+    : null;
+  const galleryImageUrls = useMemo(
+    () => listing ? getMobileListingGalleryImageUrls(listing) : [],
+    [listing]
   );
+  const activeImageUrl = selectedImageUrl ?? galleryImageUrls[0] ?? null;
 
   useEffect(() => {
     let active = true;
@@ -58,6 +82,9 @@ export function ListingDetailScreen() {
       try {
         setStatus("loading");
         setError(null);
+        setFavoriteError(null);
+        setConversationError(null);
+        setCartError(null);
 
         const nextListing = await fetchMobileListingDetail(listingId);
 
@@ -66,6 +93,7 @@ export function ListingDetailScreen() {
         }
 
         setListing(nextListing);
+        setSelectedImageUrl(null);
         setStatus("ready");
       } catch (loadError) {
         if (!active) {
@@ -90,13 +118,7 @@ export function ListingDetailScreen() {
     async function loadFavoriteState() {
       setFavoriteError(null);
 
-      if (!currentUser || !listing) {
-        setIsFavorited(false);
-        setFavoriteStatus("idle");
-        return;
-      }
-
-      if (isOwnListing) {
+      if (!currentUser || !listing || isOwnListing || !actionState?.canFavorite) {
         setIsFavorited(false);
         setFavoriteStatus("idle");
         return;
@@ -128,28 +150,51 @@ export function ListingDetailScreen() {
     return () => {
       active = false;
     };
-  }, [currentUser, isOwnListing, listing, listingId]);
+  }, [actionState?.canFavorite, currentUser, isOwnListing, listing, listingId]);
 
-  async function handleFavoritePress() {
-    if (!currentUser) {
+  function redirectToLoginForListingAction(action: "favorite" | "message" | "cart") {
+    if (!listing) {
       router.push("/login");
       return;
     }
 
-    if (!listing || isOwnListing || favoriteStatus === "pending") {
+    setPendingMobileLoginIntent({
+      action,
+      listingId: listing.id
+    });
+
+    const redirectTo = `/listing/${encodeURIComponent(listing.id)}`;
+
+    router.push(
+      `/login?redirectTo=${encodeURIComponent(redirectTo)}&postLoginAction=${encodeURIComponent(action)}`
+    );
+  }
+
+  async function handleFavoritePress() {
+    if (!currentUser) {
+      redirectToLoginForListingAction("favorite");
       return;
     }
+
+    if (!listing || !actionState?.canFavorite || favoriteStatus === "pending") {
+      return;
+    }
+
+    const previousFavorited = isFavorited;
+    const nextFavorited = !previousFavorited;
 
     try {
       setFavoriteStatus("pending");
       setFavoriteError(null);
-
-      const nextFavorited = await saveMobileFavorite(listing.id, isFavorited);
-
       setIsFavorited(nextFavorited);
+
+      const savedFavoriteState = await saveMobileFavorite(listing.id, nextFavorited);
+
+      setIsFavorited(savedFavoriteState);
     } catch (favoriteActionError) {
+      setIsFavorited(previousFavorited);
       const message = favoriteActionError instanceof Error ? favoriteActionError.message : "";
-      setFavoriteError(message.includes("own listing") ? "Bu ilan sana ait." : "Favori işlemi tamamlanamadı.");
+      setFavoriteError(message.includes("own listing") ? "Bu ilan sana ait." : message || "Favori işlemi tamamlanamadı.");
     } finally {
       setFavoriteStatus("idle");
     }
@@ -157,11 +202,11 @@ export function ListingDetailScreen() {
 
   async function handleContactSellerPress() {
     if (!currentUser) {
-      router.push("/login");
+      redirectToLoginForListingAction("message");
       return;
     }
 
-    if (!listing || isOwnListing || conversationStatus === "pending") {
+    if (!listing || !actionState?.canMessageSeller || conversationStatus === "pending") {
       return;
     }
 
@@ -181,11 +226,11 @@ export function ListingDetailScreen() {
 
   async function handleAddToCartPress() {
     if (!currentUser) {
-      router.push("/login");
+      redirectToLoginForListingAction("cart");
       return;
     }
 
-    if (!listing || isOwnListing || listing.status !== "active" || cartStatus === "pending") {
+    if (!listing || !actionState?.canAddToCart || cartStatus === "pending") {
       return;
     }
 
@@ -200,8 +245,56 @@ export function ListingDetailScreen() {
     }
   }
 
+  useEffect(() => {
+    const postLoginAction =
+      typeof params.postLoginAction === "string" ? params.postLoginAction : null;
+    const postLoginActionKey = postLoginAction ? `${listingId}:${postLoginAction}` : null;
+
+    if (
+      !postLoginAction ||
+      !postLoginActionKey ||
+      handledPostLoginAction === postLoginActionKey ||
+      !currentUser ||
+      !listing ||
+      !actionState
+    ) {
+      return;
+    }
+
+    setHandledPostLoginAction(postLoginActionKey);
+    clearPendingMobileLoginIntent();
+    router.replace(`/listing/${encodeURIComponent(listing.id)}`);
+
+    if (postLoginAction === "message" && actionState.canMessageSeller) {
+      void handleContactSellerPress();
+      return;
+    }
+
+    if (postLoginAction === "favorite" && actionState.canFavorite && !isFavorited) {
+      void handleFavoritePress();
+      return;
+    }
+
+    if (postLoginAction === "cart" && actionState.canAddToCart) {
+      void handleAddToCartPress();
+    }
+  }, [
+    actionState,
+    currentUser,
+    handledPostLoginAction,
+    isFavorited,
+    listing,
+    listingId,
+    params.postLoginAction,
+    router
+  ]);
+
   return (
-    <Screen eyebrow="İlan" title="İlan detayı">
+    <Screen
+      eyebrow={listing?.statusText ?? "İlan"}
+      title={listing?.title ?? "İlan detayı"}
+      subtitle={listing ? `${listing.priceText} · ${listing.locationText}` : undefined}
+    >
       {status === "loading" ? <MobileSkeleton label="İlan detayı yükleniyor..." /> : null}
 
       {status === "error" ? (
@@ -213,78 +306,120 @@ export function ListingDetailScreen() {
         />
       ) : null}
 
-      {listing ? (
+      {listing && actionState ? (
         <>
-          {listing.imageUrl ? (
-            <Image resizeMode="cover" source={{ uri: listing.imageUrl }} style={styles.image} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.imageText}>Görsel yok</Text>
-            </View>
-          )}
+          <MobileCard style={styles.heroCard}>
+            {activeImageUrl ? (
+              <Image resizeMode="cover" source={{ uri: activeImageUrl }} style={styles.heroImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons color={colors.primaryDark} name="image-outline" size={34} />
+                <Text style={styles.imageText}>Görsel yok</Text>
+              </View>
+            )}
 
-          <Text style={styles.title}>{listing.title}</Text>
-          <Text style={styles.price}>{listing.priceText}</Text>
-          <Text style={styles.meta}>{listing.locationText}</Text>
-
-          <View style={styles.metaChips}>
-            <MobileChip tone={listing.status === "active" ? "success" : "neutral"}>
-              {listing.statusText}
-            </MobileChip>
-            <MobileChip tone="primary">{listing.listingTypeText}</MobileChip>
-            {listing.conditionText ? (
-              <MobileChip>{listing.conditionText}</MobileChip>
+            {galleryImageUrls.length > 1 ? (
+              <ScrollView
+                contentContainerStyle={styles.thumbnailRow}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+              >
+                {galleryImageUrls.map((imageUrl, index) => (
+                  <Pressable
+                    accessibilityLabel={`İlan görseli ${index + 1}`}
+                    accessibilityRole="button"
+                    key={`${imageUrl}-${index}`}
+                    onPress={() => setSelectedImageUrl(imageUrl)}
+                    style={[
+                      styles.thumbnailButton,
+                      activeImageUrl === imageUrl ? styles.thumbnailButtonActive : null
+                    ]}
+                  >
+                    <Image resizeMode="cover" source={{ uri: imageUrl }} style={styles.thumbnailImage} />
+                  </Pressable>
+                ))}
+              </ScrollView>
             ) : null}
+          </MobileCard>
+
+          <View style={styles.priceBlock}>
+            <Text style={styles.price}>{listing.priceText}</Text>
+            <Text style={styles.location}>{listing.locationText}</Text>
           </View>
 
-          {isOwnListing ? (
-            <MobileCard style={styles.ownerNotice}>
-              <Text style={styles.ownerNoticeText}>Bu ilan sana ait.</Text>
+          <View style={styles.metaChips}>
+            <MobileChip tone={actionState.statusTone}>{listing.statusText}</MobileChip>
+            <MobileChip tone="primary">{listing.listingTypeText}</MobileChip>
+            {listing.conditionText ? <MobileChip>{listing.conditionText}</MobileChip> : null}
+          </View>
+
+          {actionState.notice ? (
+            <MobileCard style={styles.noticeCard}>
+              <Text style={styles.noticeText}>{actionState.notice}</Text>
             </MobileCard>
-          ) : (
-            <View style={styles.actionStack}>
+          ) : null}
+
+          <MobileCard style={styles.sellerCard}>
+            <View style={styles.sellerAvatar}>
+              <Text style={styles.sellerAvatarText}>
+                {(listing.sellerDisplayName ?? "S").slice(0, 1).toLocaleUpperCase("tr-TR")}
+              </Text>
+            </View>
+            <View style={styles.sellerTextBlock}>
+              <Text style={styles.sellerLabel}>Satıcı</Text>
+              <Text numberOfLines={1} style={styles.sellerName}>
+                {listing.sellerDisplayName ?? "BabyLoop satıcısı"}
+              </Text>
+            </View>
+          </MobileCard>
+
+          {!isOwnListing ? (
+            <View style={styles.actionGrid}>
               <MobileButton
-                disabled={conversationStatus === "pending"}
+                disabled={!actionState.canMessageSeller || conversationStatus === "pending"}
                 iconName="chatbubble-ellipses-outline"
                 onPress={handleContactSellerPress}
+                style={styles.primaryAction}
                 variant="primary"
               >
-                {conversationStatus === "pending" ? "Konuşma açılıyor..." : "Satıcıya yaz"}
+                {conversationStatus === "pending" ? "Açılıyor..." : "Satıcıya yaz"}
               </MobileButton>
 
               <MobileButton
-                disabled={favoriteStatus === "pending"}
+                disabled={!actionState.canFavorite || favoriteStatus === "pending"}
                 iconName={isFavorited ? "heart" : "heart-outline"}
                 onPress={handleFavoritePress}
+                style={styles.secondaryAction}
                 variant="secondary"
               >
                 {favoriteStatus === "pending"
                   ? "Kaydediliyor..."
                   : isFavorited
-                    ? "Favoriden çıkar"
-                  : "Favoriye ekle"}
+                    ? "Kaydedildi"
+                    : "Favori"}
               </MobileButton>
 
-              {canAddToCart ? (
+              {actionState.canAddToCart ? (
                 <MobileButton
                   accessibilityLabel="Sepete ekle"
                   disabled={cartStatus === "pending"}
                   iconName="basket-outline"
                   onPress={handleAddToCartPress}
+                  style={styles.secondaryAction}
                   variant="secondary"
                 >
                   {cartStatus === "pending"
-                    ? "Sepete ekleniyor..."
+                    ? "Ekleniyor..."
                     : cartStatus === "added"
-                      ? "Sepete eklendi"
-                      : "Sepete ekle"}
+                      ? "Sepette"
+                      : "Sepet"}
                 </MobileButton>
               ) : null}
             </View>
-          )}
+          ) : null}
 
           {favoriteStatus === "checking" ? (
-            <Text style={styles.favoriteHint}>Favori durumu kontrol ediliyor...</Text>
+            <Text style={styles.helperText}>Favori durumu kontrol ediliyor...</Text>
           ) : null}
 
           {conversationError ? <Text style={styles.actionError}>{conversationError}</Text> : null}
@@ -295,6 +430,13 @@ export function ListingDetailScreen() {
             <Text style={styles.descriptionTitle}>Açıklama</Text>
             <Text style={styles.descriptionText}>
               {listing.description ?? "Bu ilan için açıklama girilmemiş."}
+            </Text>
+          </MobileCard>
+
+          <MobileCard style={styles.safetyCard}>
+            <Text style={styles.safetyTitle}>Almadan önce kontrol et</Text>
+            <Text style={styles.safetyText}>
+              Durumunu, eksik parçasını, teslim detayını ve ek fotoğraf ihtiyacını satıcıya BabyLoop mesajları üzerinden sor.
             </Text>
           </MobileCard>
         </>
@@ -308,52 +450,126 @@ export function ListingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  image: {
+  heroCard: {
+    padding: 0,
+    overflow: "hidden"
+  },
+  heroImage: {
     width: "100%",
-    height: 300,
-    borderRadius: radius.lg,
+    height: 330,
     backgroundColor: colors.cream
   },
   imagePlaceholder: {
+    minHeight: 300,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 260,
-    borderRadius: radius.lg,
+    gap: spacing.sm,
     backgroundColor: colors.cream
   },
   imageText: {
     color: colors.primaryDark,
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  title: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-    lineHeight: 27
-  },
-  price: {
-    color: colors.primary,
-    fontSize: 22,
+    fontSize: 14,
     fontWeight: "900"
   },
-  meta: {
+  thumbnailRow: {
+    gap: spacing.sm,
+    padding: spacing.md
+  },
+  thumbnailButton: {
+    width: 58,
+    height: 58,
+    borderWidth: 2,
+    borderColor: "transparent",
+    borderRadius: radius.sm,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceSoft
+  },
+  thumbnailButtonActive: {
+    borderColor: colors.primary
+  },
+  thumbnailImage: {
+    width: "100%",
+    height: "100%"
+  },
+  priceBlock: {
+    gap: 4
+  },
+  price: {
+    color: colors.primaryDark,
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: -0.6
+  },
+  location: {
     color: colors.muted,
-    fontSize: 15
+    fontSize: 14,
+    fontWeight: "800"
   },
   metaChips: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm
   },
-  actionStack: {
+  noticeCard: {
+    borderColor: "#f6dfb8",
+    backgroundColor: colors.warningSoft,
+    padding: spacing.md
+  },
+  noticeText: {
+    color: colors.warning,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20
+  },
+  sellerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md
+  },
+  sellerAvatar: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceSoft
+  },
+  sellerAvatarText: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  sellerTextBlock: {
+    flex: 1,
+    minWidth: 0
+  },
+  sellerLabel: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  sellerName: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm
   },
-  favoriteHint: {
-    color: colors.primaryDark,
-    fontSize: 13,
-    fontWeight: "700"
+  primaryAction: {
+    flexBasis: "100%"
+  },
+  secondaryAction: {
+    flexGrow: 1,
+    minWidth: 132
+  },
+  helperText: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "800"
   },
   actionError: {
     color: colors.danger,
@@ -361,26 +577,34 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 18
   },
-  ownerNotice: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceSoft
-  },
-  ownerNoticeText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
-  },
   descriptionCard: {
-    gap: spacing.xs
+    gap: spacing.sm
   },
   descriptionTitle: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "900"
   },
   descriptionText: {
     color: colors.muted,
     fontSize: 14,
-    lineHeight: 20
+    lineHeight: 21
   },
+  safetyCard: {
+    ...shadows.card,
+    gap: spacing.xs,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft
+  },
+  safetyTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  safetyText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
+  }
 });

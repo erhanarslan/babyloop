@@ -300,30 +300,65 @@ function normalizeFavorites(payload: FavoritesResponse): MobileFavoriteListing[]
 
 function resolveClientAndListing(
   first?: FavoriteActionInput,
-  second?: string | boolean
+  second?: string | boolean,
+  third?: boolean
 ): { client: MobileFavoritesApiClient; listingId: string | undefined; nextFavoriteState: boolean | undefined } {
   if (typeof first === "string") {
     return {
       client: {},
       listingId: first,
-      nextFavoriteState: typeof second === "boolean" ? second : undefined
+      nextFavoriteState: typeof second === "boolean" ? second : third
     };
   }
 
   return {
     client: first ?? {},
     listingId: typeof second === "string" ? second : undefined,
-    nextFavoriteState: undefined
+    nextFavoriteState: typeof third === "boolean" ? third : undefined
   };
 }
 
 function extractApiError(payload: unknown): string | null {
-  if (isRecord(payload) && isRecord(payload.error) && typeof payload.error.message === "string") {
-    return payload.error.message;
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const directMessage = stringOrNull(payload.message);
+
+  if (directMessage) {
+    return directMessage;
+  }
+
+  const directError = stringOrNull(payload.error);
+
+  if (directError) {
+    return directError;
+  }
+
+  if (isRecord(payload.error)) {
+    const nestedMessage =
+      stringOrNull(payload.error.message) ??
+      stringOrNull(payload.error.detail) ??
+      stringOrNull(payload.error.code);
+
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+
+  if (isRecord(payload.data)) {
+    const dataMessage =
+      stringOrNull(payload.data.message) ??
+      stringOrNull(payload.data.error);
+
+    if (dataMessage) {
+      return dataMessage;
+    }
   }
 
   return null;
 }
+
 
 async function parseApiPayload(response: Response): Promise<unknown> {
   return response.json().catch(() => null);
@@ -334,23 +369,63 @@ async function writeFavoriteState(
   listingId: string,
   nextFavoriteState: boolean
 ): Promise<boolean> {
-  const response = await requestFavoritesApi(
-    `/api/v1/favorites/${encodeURIComponent(listingId)}`,
-    client,
-    {
-      method: nextFavoriteState ? "POST" : "DELETE"
-    }
-  );
-  const payload = await parseApiPayload(response);
+  const init: RequestInit = {
+    method: nextFavoriteState ? "POST" : "DELETE",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      listingId
+    })
+  };
 
-  if (!response.ok) {
+  const primary = await requestFavoritesApi("/api/v1/favorites", client, init);
+  const primaryPayload = await parseApiPayload(primary);
+
+  if (primary.ok) {
+    return nextFavoriteState;
+  }
+
+  if (shouldFallbackToPathFavoriteEndpoint(primary.status, primaryPayload)) {
+    const fallback = await requestFavoritesApi(
+      `/api/v1/favorites/${encodeURIComponent(listingId)}`,
+      client,
+      {
+        method: nextFavoriteState ? "POST" : "DELETE"
+      }
+    );
+    const fallbackPayload = await parseApiPayload(fallback);
+
+    if (fallback.ok) {
+      return nextFavoriteState;
+    }
+
     throw new Error(
-      extractApiError(payload) ??
-        (nextFavoriteState ? "Favori kaydedilemedi." : "Favori kaldırılamadı.")
+      extractApiError(fallbackPayload) ??
+        extractApiError(primaryPayload) ??
+        (nextFavoriteState ? "Favori kaydedilemedi." : "Favoriden çıkarılamadı.")
     );
   }
 
-  return nextFavoriteState;
+  throw new Error(
+    extractApiError(primaryPayload) ??
+      (nextFavoriteState ? "Favori kaydedilemedi." : "Favoriden çıkarılamadı.")
+  );
+}
+
+function shouldFallbackToPathFavoriteEndpoint(status: number, payload: unknown): boolean {
+  if (status === 404 || status === 405) {
+    return true;
+  }
+
+  const message = extractApiError(payload)?.toLowerCase() ?? "";
+
+  return status === 400 && (
+    message.includes("listingid") ||
+    message.includes("listing id") ||
+    message.includes("invalid request") ||
+    message.includes("required")
+  );
 }
 
 export async function fetchMobileFavorites(client: MobileFavoritesApiClient = {}): Promise<MobileFavoriteListing[]> {
@@ -366,9 +441,10 @@ export async function fetchMobileFavorites(client: MobileFavoritesApiClient = {}
 
 export async function saveMobileFavorite(
   first?: FavoriteActionInput,
-  second?: string | boolean
+  second?: string | boolean,
+  third?: boolean
 ): Promise<boolean> {
-  const { client, listingId, nextFavoriteState } = resolveClientAndListing(first, second);
+  const { client, listingId, nextFavoriteState } = resolveClientAndListing(first, second, third);
 
   if (!listingId) {
     return false;

@@ -1,4 +1,8 @@
-import { buildMobileListingsQuery } from "./listings-api";
+import { apiGet } from "../../api/client";
+import {
+  buildMobileListingsQuery,
+  fetchMobileListingDetail
+} from "./listings-api";
 
 jest.mock("../../api/client", () => ({
   apiGet: jest.fn(),
@@ -11,7 +15,13 @@ jest.mock("../auth/auth-api", () => ({
   mobileAuthFetch: jest.fn()
 }));
 
+const apiGetMock = apiGet as jest.MockedFunction<typeof apiGet>;
+
 describe("mobile listings API query builder", () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+  });
+
   it("serializes search and marketplace filters for the public listings endpoint", () => {
     const query = buildMobileListingsQuery({
       categoryId: "00000000-0000-4000-8000-000000000001",
@@ -49,5 +59,62 @@ describe("mobile listings API query builder", () => {
     expect(query.get("q")).toBeNull();
     expect(query.get("limit")).toBe("20");
     expect(query.get("offset")).toBe("0");
+  });
+
+  it("normalizes listing detail gallery and safe seller summary without private fields", async () => {
+    apiGetMock.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        ok: true,
+        data: {
+          listing: {
+            id: "listing-1",
+            title: "Bebek arabası",
+            priceAmount: 2500,
+            currency: "TRY",
+            status: "reserved",
+            listingType: "sale",
+            condition: "good",
+            locationCity: "İstanbul",
+            description: "Temiz kullanıldı.",
+            favoriteCount: 3,
+            seller: {
+              id: "seller-profile-1",
+              displayName: "Ayşe",
+              email: "private@example.test",
+              phone: "555"
+            },
+            images: [
+              { url: "/uploads/listing-1-a.jpg" },
+              { publicUrl: "/uploads/listing-1-b.jpg" },
+              { url: "/uploads/listing-1-a.jpg" }
+            ]
+          }
+        }
+      }
+    });
+
+    const detail = await fetchMobileListingDetail("listing-1");
+
+    expect(detail).toMatchObject({
+      id: "listing-1",
+      title: "Bebek arabası",
+      priceText: "2.500 TL",
+      status: "reserved",
+      statusText: "Rezerve",
+      listingTypeText: "Satılık",
+      conditionText: "İyi",
+      locationText: "İstanbul",
+      description: "Temiz kullanıldı.",
+      sellerProfileId: "seller-profile-1",
+      sellerDisplayName: "Ayşe",
+      favoriteCount: 3,
+      imageUrl: "/uploads/listing-1-a.jpg",
+      imageUrls: [
+        "/uploads/listing-1-a.jpg",
+        "/uploads/listing-1-b.jpg"
+      ]
+    });
+    expect(JSON.stringify(detail)).not.toMatch(/private@example|555|accessToken|refreshToken|passwordHash/iu);
   });
 });

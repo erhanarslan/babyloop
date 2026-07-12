@@ -5,6 +5,8 @@ import { MobileButton, MobileCard } from "../../ui/mobile-primitives";
 import { colors, radius, spacing } from "../../ui/theme";
 import { Screen } from "../../ui/screen";
 import { useAuthSession } from "../auth/auth-session";
+import { LoginScreen } from "../auth/login-screen";
+import { peekPendingMobileLoginIntent } from "../auth/mobile-login-intent";
 
 const accountShortcuts = [
   {
@@ -63,7 +65,7 @@ const accountShortcuts = [
   }
 ] as const;
 
-export function AccountScreen() {
+function AccountScreenContent() {
   const router = useRouter();
   const authSession = useAuthSession();
   const currentUser = authSession.currentUser;
@@ -276,3 +278,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   }
 });
+
+
+export function AccountScreen() {
+  if (peekPendingMobileLoginIntent()) {
+    return <LoginScreen />;
+  }
+
+  return <AccountScreenContent />;
+}

@@ -92,6 +92,7 @@ export async function createMobileListing(
     priceText,
     locationText: "Konum belirtilmedi",
     imageUrl: null,
+    imageUrls: [],
     conditionText: payload.condition,
     listingType: payload.listingType,
     listingTypeText: formatListingType(payload.listingType),

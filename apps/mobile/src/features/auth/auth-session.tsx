@@ -1,6 +1,12 @@
+import { useRouter } from "expo-router";
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "react-native";
 import { disconnectMobileRealtimeSocket } from "../realtime/mobile-realtime";
+import { addMobileCartItem } from "../basket/basket-api";
+import { saveMobileFavorite } from "../favorites/favorites-api";
+import { startMobileConversationForListing } from "../messages/messages-api";
+import { claimPendingMobileLoginIntent } from "./mobile-login-intent";
 import {
   fetchMobileCurrentUser,
   hydrateMobileAuthToken,
@@ -37,6 +43,8 @@ type AuthSessionContextValue = {
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const postLoginIntentInFlightRef = useRef(false);
   const [status, setStatus] = useState<AuthSessionStatus>("checking");
   const [currentUser, setCurrentUser] = useState<MobileAuthMe | null>(null);
   const [mfaChallenge, setMfaChallenge] = useState<MobileMfaChallenge | null>(null);
@@ -86,6 +94,68 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // post-login marketplace intent: favorite/message/cart after auth is truly ready
+  useEffect(() => {
+    if (status !== "authenticated" || !currentUser || postLoginIntentInFlightRef.current) {
+      return;
+    }
+
+    let active = true;
+
+    void claimPendingMobileLoginIntent().then(async (intent) => {
+      if (!active || !intent || postLoginIntentInFlightRef.current) {
+        return;
+      }
+
+      postLoginIntentInFlightRef.current = true;
+      const listingPath = `/listing/${encodeURIComponent(intent.listingId)}`;
+
+      try {
+        if (intent.action === "favorite") {
+          await saveMobileFavorite(intent.listingId, true);
+
+          if (active) {
+            router.replace(listingPath);
+          }
+
+          return;
+        }
+
+        if (intent.action === "message") {
+          const conversation = await startMobileConversationForListing(intent.listingId);
+
+          if (active) {
+            router.replace(`/conversation/${encodeURIComponent(conversation.id)}`);
+          }
+
+          return;
+        }
+
+        if (intent.action === "cart") {
+          await addMobileCartItem(intent.listingId);
+
+          if (active) {
+            router.replace(listingPath);
+          }
+        }
+      } catch (error) {
+        if (active) {
+          Alert.alert(
+            "İşlem tamamlanamadı",
+            error instanceof Error ? error.message : "Giriş sonrası işlem tamamlanamadı."
+          );
+          router.replace(listingPath);
+        }
+      } finally {
+        postLoginIntentInFlightRef.current = false;
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser, router, status]);
 
   const applyAuthenticatedPayload = useCallback(async (fallback: MobileAuthMe): Promise<void> => {
     const me = await fetchMobileCurrentUser();

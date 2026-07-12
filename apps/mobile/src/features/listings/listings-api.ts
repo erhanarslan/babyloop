@@ -17,6 +17,7 @@ export type MobileListingSummary = {
   priceText: string;
   locationText: string;
   imageUrl: string | null;
+  imageUrls: string[];
   conditionText: string | null;
   listingType: string | null;
   listingTypeText: string;
@@ -28,6 +29,8 @@ export type MobileListingDetail = MobileListingSummary & {
   description: string | null;
   createdAt: string | null;
   sellerProfileId: string | null;
+  sellerDisplayName: string | null;
+  favoriteCount: number | null;
 };
 
 export type MobileMyListingSummary = MobileListingSummary & {
@@ -173,6 +176,9 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
   const record = isRecord(value) ? value : {};
   const listingType = pickString(record, ["listingType", "type"]);
   const status = pickString(record, ["status"]);
+  const imageUrls = extractImageUrls(record)
+    .map(resolveApiAssetUrl)
+    .filter((url): url is string => typeof url === "string" && url.length > 0);
 
   const title = pickString(record, ["title", "name"]) ?? "İlan";
   const id = pickString(record, ["id", "listingId"]) ?? title;
@@ -188,7 +194,8 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
     title,
     priceText,
     locationText,
-    imageUrl: resolveApiAssetUrl(extractImageUrl(record)),
+    imageUrl: imageUrls[0] ?? null,
+    imageUrls,
     conditionText: formatMobileListingCondition(pickString(record, ["condition", "conditionLabel"])),
     listingType,
     listingTypeText: formatMobileListingType(listingType),
@@ -208,7 +215,12 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
     sellerProfileId:
       pickString(record, ["sellerProfileId", "profileId"]) ??
       pickNestedString(record, ["seller", "profileId"]) ??
-      pickNestedString(record, ["seller", "id"])
+      pickNestedString(record, ["seller", "id"]),
+    sellerDisplayName:
+      pickString(record, ["sellerDisplayName", "sellerName"]) ??
+      pickNestedString(record, ["seller", "displayName"]) ??
+      pickNestedString(record, ["seller", "name"]),
+    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"])
   };
 }
 
@@ -251,21 +263,20 @@ function formatPrice(record: Record<string, unknown>): string {
   return "Fiyat belirtilmedi";
 }
 
-function extractImageUrl(record: Record<string, unknown>): string | null {
-  const direct = pickString(record, ["imageUrl", "coverImageUrl", "thumbnailUrl"]);
+function extractImageUrls(record: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  const pushUrl = (value: unknown) => {
+    if (typeof value === "string" && value.trim().length > 0 && !urls.includes(value.trim())) {
+      urls.push(value.trim());
+    }
+  };
 
-  if (direct) {
-    return direct;
-  }
+  pushUrl(pickString(record, ["imageUrl", "coverImageUrl", "thumbnailUrl"]));
 
   const firstImage = record.firstImage;
 
   if (isRecord(firstImage)) {
-    const url = pickString(firstImage, ["url", "imageUrl", "publicUrl"]);
-
-    if (url) {
-      return url;
-    }
+    pushUrl(pickString(firstImage, ["url", "imageUrl", "publicUrl"]));
   }
 
   const images = record.images;
@@ -273,20 +284,14 @@ function extractImageUrl(record: Record<string, unknown>): string | null {
   if (Array.isArray(images)) {
     for (const image of images) {
       if (typeof image === "string") {
-        return image;
-      }
-
-      if (isRecord(image)) {
-        const url = pickString(image, ["url", "imageUrl", "publicUrl"]);
-
-        if (url) {
-          return url;
-        }
+        pushUrl(image);
+      } else if (isRecord(image)) {
+        pushUrl(pickString(image, ["url", "imageUrl", "publicUrl"]));
       }
     }
   }
 
-  return null;
+  return urls;
 }
 
 function formatPriceObject(value: unknown): string | null {
