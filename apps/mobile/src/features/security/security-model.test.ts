@@ -2,7 +2,8 @@ import {
   buildMobileSensitiveToggleDescription,
   buildMobileSensitiveToggleTitle,
   canSubmitMobileSensitiveTogglePassword,
-  getMobileSecurityRows
+  getMobileSecurityRows,
+  validateMobilePasswordChangeForm
 } from "./security-model";
 
 describe("mobile security model", () => {
@@ -11,16 +12,9 @@ describe("mobile security model", () => {
 
     expect(rows).toEqual([
       {
-        title: "Oturum",
-        value: "Açık",
-        tone: "success",
-        badge: "Aktif"
-      },
-      {
         title: "Şifre",
         value: "Hesap şifresiyle giriş yapıldı",
-        tone: "neutral",
-        badge: "Bilgi"
+        tone: "neutral"
       },
       {
         title: "OTP / MFA",
@@ -81,5 +75,28 @@ describe("mobile sensitive security toggle modal helpers", () => {
     expect(canSubmitMobileSensitiveTogglePassword("")).toBe(false);
     expect(canSubmitMobileSensitiveTogglePassword("short")).toBe(false);
     expect(canSubmitMobileSensitiveTogglePassword("Password123!")).toBe(true);
+  });
+
+  it("validates password change form before calling the API", () => {
+    expect(validateMobilePasswordChangeForm({
+      confirmPassword: "NewPassword123!",
+      currentPassword: "short",
+      newPassword: "NewPassword123!"
+    })).toBe("Mevcut şifren en az 8 karakter olmalı.");
+    expect(validateMobilePasswordChangeForm({
+      confirmPassword: "NewPassword123!",
+      currentPassword: "OldPassword123!",
+      newPassword: "short"
+    })).toBe("Yeni şifre en az 8 karakter olmalı.");
+    expect(validateMobilePasswordChangeForm({
+      confirmPassword: "Different123!",
+      currentPassword: "OldPassword123!",
+      newPassword: "NewPassword123!"
+    })).toBe("Yeni şifreler eşleşmiyor.");
+    expect(validateMobilePasswordChangeForm({
+      confirmPassword: "NewPassword123!",
+      currentPassword: "OldPassword123!",
+      newPassword: "NewPassword123!"
+    })).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ export type MobileSecurityRow = {
   title: string;
   value: string;
   tone: MobileSecurityRowTone;
-  badge: string;
+  badge?: string;
 };
 
 export type MobileSecuritySettings = {
@@ -15,16 +15,9 @@ export type MobileSecuritySettings = {
 export function getMobileSecurityRows(settings: MobileSecuritySettings = {}): MobileSecurityRow[] {
   return [
     {
-      title: "Oturum",
-      value: "Açık",
-      tone: "success",
-      badge: "Aktif"
-    },
-    {
       title: "Şifre",
       value: "Hesap şifresiyle giriş yapıldı",
-      tone: "neutral",
-      badge: "Bilgi"
+      tone: "neutral"
     },
     buildMfaRow(settings.mfaEnabled ?? null),
     buildMobileLoginApprovalRow(settings.mobileLoginApprovalEnabled ?? null)
@@ -119,4 +112,26 @@ export function buildMobileSensitiveToggleDescription(
 
 export function canSubmitMobileSensitiveTogglePassword(password: string): boolean {
   return password.trim().length >= 8;
+}
+
+export type MobilePasswordChangeForm = {
+  confirmPassword: string;
+  currentPassword: string;
+  newPassword: string;
+};
+
+export function validateMobilePasswordChangeForm(form: MobilePasswordChangeForm): string | null {
+  if (!canSubmitMobileSensitiveTogglePassword(form.currentPassword)) {
+    return "Mevcut şifren en az 8 karakter olmalı.";
+  }
+
+  if (form.newPassword.trim().length < 8) {
+    return "Yeni şifre en az 8 karakter olmalı.";
+  }
+
+  if (form.newPassword !== form.confirmPassword) {
+    return "Yeni şifreler eşleşmiyor.";
+  }
+
+  return null;
 }

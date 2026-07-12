@@ -85,12 +85,13 @@ describe("mobile login approval prompt model", () => {
     expect(prompt).toMatchObject({
       id: "approval-1",
       title: "Yeni giriş isteği",
-      description: "Hesabına başka bir cihazdan giriş yapılmak isteniyor.",
       deviceLabel: "Mac tarayıcı",
       approveLabel: "Onayla",
       denyLabel: "Reddet"
     });
     expect(prompt.createdAtLabel).toContain("İstek zamanı:");
-    expect(JSON.stringify(prompt)).not.toMatch(/10\.0\.0\.10|secret-token|approvalToken|refreshToken|passwordHash|expiresAt|Son geçerlilik/iu);
+    expect(JSON.stringify(prompt)).not.toMatch(
+      /Mozilla|10\.0\.0\.10|secret-token|approvalToken|refreshToken|passwordHash|expiresAt|Son geçerlilik/iu
+    );
   });
 });

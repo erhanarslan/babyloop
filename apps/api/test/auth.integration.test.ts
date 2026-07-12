@@ -1617,7 +1617,7 @@ describe("auth API", () => {
     expect(getPublicCsrfSetCookie(response)).toContain("Max-Age=0");
   });
 
-  it("password change clears public access and CSRF cookies for cookie-authenticated sessions", async () => {
+  it("password change keeps the current cookie-authenticated session active", async () => {
     await createUser(app, {
       email: "password-change-cookie-session@example.com",
       password: "OldPassword123!"
@@ -1656,9 +1656,17 @@ describe("auth API", () => {
         passwordChanged: true
       }
     });
-    expect(getRefreshSetCookie(response)).toContain("Max-Age=0");
-    expect(getPublicAccessSetCookie(response)).toContain("Max-Age=0");
-    expect(getPublicCsrfSetCookie(response)).toContain("Max-Age=0");
+    expect(getSetCookieHeaders(response)).toEqual([]);
+
+    const currentSessionResponse = await app.inject({
+      headers: {
+        cookie: `${toCookieHeader(publicAccessCookie)}; ${toCookieHeader(publicCsrfCookie)}`
+      },
+      method: "GET",
+      url: "/api/v1/auth/me"
+    });
+
+    expect(currentSessionResponse.statusCode).toBe(200);
   });
 
   it("returns 401 for auth refresh without a refresh cookie", async () => {
@@ -2237,7 +2245,7 @@ describe("auth API", () => {
     });
   });
 
-  it("authenticated password change requires current password, updates password, and revokes sessions", async () => {
+  it("authenticated password change requires current password, updates password, and revokes other sessions", async () => {
     const user = await createUser(app, {
       email: "change-password@example.com",
       password: "OldPassword123!"
@@ -2252,6 +2260,15 @@ describe("auth API", () => {
     });
     const refreshCookie = getRefreshSetCookie(loginResponse);
     const token = loginResponse.json().data.accessToken;
+    const secondLoginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "change-password@example.com",
+        password: "OldPassword123!"
+      }
+    });
+    const secondRefreshCookie = getRefreshSetCookie(secondLoginResponse);
 
     const wrongPasswordResponse = await app.inject({
       headers: authHeader(token),
@@ -2288,7 +2305,27 @@ describe("auth API", () => {
         passwordChanged: true
       }
     });
-    expect(getRefreshSetCookie(changeResponse)).toContain("Max-Age=0");
+    expect(getSetCookieHeaders(changeResponse)).toEqual([]);
+    expect(changeResponse.body).not.toMatch(/passwordHash|password_hash|refreshToken|accessToken/iu);
+
+    const activeSessionsAfterChange = await app.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(and(eq(sessions.userId, user.user.id), isNull(sessions.revokedAt)));
+    const currentRefreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
+    const revokedOtherRefreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(secondRefreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/refresh"
+    });
 
     const oldPasswordLogin = await app.inject({
       method: "POST",
@@ -2306,22 +2343,11 @@ describe("auth API", () => {
         password: "NewPassword123!"
       }
     });
-    const refreshResponse = await app.inject({
-      headers: {
-        cookie: toCookieHeader(refreshCookie)
-      },
-      method: "POST",
-      url: "/api/v1/auth/refresh"
-    });
-    const activeSessions = await app.db
-      .select({ id: sessions.id })
-      .from(sessions)
-      .where(and(eq(sessions.userId, user.user.id), isNull(sessions.revokedAt)));
-
     expect(oldPasswordLogin.statusCode).toBe(401);
     expect(newPasswordLogin.statusCode).toBe(200);
-    expect(refreshResponse.statusCode).toBe(401);
-    expect(activeSessions).toHaveLength(1);
+    expect(currentRefreshResponse.statusCode).toBe(200);
+    expect(revokedOtherRefreshResponse.statusCode).toBe(401);
+    expect(activeSessionsAfterChange).toHaveLength(1);
   });
 
   it("google start redirects to Google and sets an httpOnly oauth state cookie", async () => {
@@ -3132,11 +3158,13 @@ describe("auth API", () => {
 
     expect(beforeApproval.statusCode).toBe(202);
     expect(beforeApproval.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "LOGIN_APPROVAL_INVALID"
+      ok: true,
+      data: {
+        loginApprovalPending: true,
+        status: "pending"
       }
     });
+    expect(getSetCookieHeaders(beforeApproval)).toEqual([]);
 
     expect(approve.statusCode).toBe(200);
 

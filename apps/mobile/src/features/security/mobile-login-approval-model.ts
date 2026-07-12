@@ -3,9 +3,7 @@ import type { MobileLoginApprovalChallenge } from "../auth/auth-api";
 export type MobileLoginApprovalPrompt = {
   id: string;
   title: string;
-  description: string;
   deviceLabel: string;
-  deviceMeta: string;
   createdAtLabel: string;
   approveLabel: string;
   denyLabel: string;
@@ -49,9 +47,7 @@ export function buildMobileLoginApprovalPrompt(
   return {
     id: approval.id,
     title: "Yeni giriş isteği",
-    description: "Hesabına başka bir cihazdan giriş yapılmak isteniyor.",
     deviceLabel: safePromptText(approval.deviceLabel, "Bilinmeyen cihaz"),
-    deviceMeta: safePromptText(approval.requestUserAgent, "Cihaz bilgisi sınırlı"),
     createdAtLabel: `İstek zamanı: ${formatApprovalDate(approval.createdAt)}`,
     approveLabel: "Onayla",
     denyLabel: "Reddet"

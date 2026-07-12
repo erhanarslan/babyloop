@@ -121,17 +121,12 @@ export function MobileLoginApprovalPrompt() {
     <Modal animationType="fade" transparent visible onRequestClose={() => undefined}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.eyebrow}>Mobil onay</Text>
           <Text style={styles.title}>{prompt.title}</Text>
-          <Text style={styles.description}>{prompt.description}</Text>
 
           <View style={styles.deviceBox}>
             <Text style={styles.deviceLabel}>{prompt.deviceLabel}</Text>
-            <Text style={styles.deviceMeta}>{prompt.deviceMeta}</Text>
-            <Text style={styles.deviceMeta}>{prompt.createdAtLabel}</Text>
+            <Text style={styles.createdAtText}>{prompt.createdAtLabel}</Text>
           </View>
-
-          <Text style={styles.notice}>Bu istek kısa süre içinde geçerliliğini yitirebilir.</Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -186,22 +181,10 @@ const styles = StyleSheet.create({
     padding: 18,
     width: "100%"
   },
-  eyebrow: {
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    textTransform: "uppercase"
-  },
   title: {
     color: colors.text,
     fontSize: 21,
     fontWeight: "900"
-  },
-  description: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
   },
   deviceBox: {
     borderColor: colors.border,
@@ -215,16 +198,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900"
   },
-  deviceMeta: {
+  createdAtText: {
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18
-  },
-  notice: {
-    color: colors.subtle,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17
   },
   errorBox: {
     backgroundColor: colors.dangerSoft,

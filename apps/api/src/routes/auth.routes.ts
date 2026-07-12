@@ -925,13 +925,11 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
-      const result = await changePassword(app, currentUser.userId, parsedBody.data);
+      const result = await changePassword(app, currentUser.userId, currentUser.sessionId, parsedBody.data);
 
       if (result.status === "invalid") {
         return reply.status(401).send(result.response);
       }
-
-      clearPublicAuthCookies(reply);
 
       return reply.status(200).send(result.response);
     }
@@ -1208,6 +1206,5 @@ function googleOAuthUnavailableResponse() {
     }
   };
 }
-
 
 

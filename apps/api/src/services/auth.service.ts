@@ -9,7 +9,7 @@ import {
 } from "@babyloop/database/schema";
 import type { Database } from "@babyloop/database";
 import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -777,6 +777,7 @@ export async function confirmPasswordReset(
 export async function changePassword(
   app: FastifyInstance,
   userId: string,
+  currentSessionId: string | null,
   body: PasswordChangeBody
 ): Promise<{ status: "ok"; response: PasswordChangeResponse } | { status: "invalid"; response: ApiFailure }> {
   const [user] = await app.db
@@ -807,7 +808,7 @@ export async function changePassword(
       })
       .where(eq(users.id, userId));
 
-    await revokeActiveSessionsForUserTx(tx, userId, now);
+    await revokeActiveSessionsForUserTx(tx, userId, now, currentSessionId);
   });
 
   return {
@@ -1655,13 +1656,22 @@ function invalidPasswordResetToken(): ApiFailure {
 async function revokeActiveSessionsForUserTx(
   tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   userId: string,
-  now: Date
+  now: Date,
+  exceptSessionId: string | null = null
 ): Promise<void> {
+  const whereClause = exceptSessionId
+    ? and(
+        eq(sessions.userId, userId),
+        isNull(sessions.revokedAt),
+        ne(sessions.id, exceptSessionId)
+      )
+    : and(eq(sessions.userId, userId), isNull(sessions.revokedAt));
+
   await tx
     .update(sessions)
     .set({
       revokedAt: now,
       updatedAt: now
     })
-    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+    .where(whereClause);
 }

@@ -6,6 +6,7 @@ import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "rea
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import { addMobileAuthSessionsRefreshListener } from "../../src/features/auth/auth-session-events";
 import {
+  changeMobilePassword,
   disableMobileLoginApproval,
   disableMobileMfa,
   enableMobileLoginApproval,
@@ -21,13 +22,13 @@ import {
   buildMobileSensitiveToggleTitle,
   canSubmitMobileSensitiveTogglePassword,
   getMobileSecurityRows,
+  validateMobilePasswordChangeForm,
+  type MobilePasswordChangeForm,
   type MobileSecurityRowTone,
   type MobileSensitiveSecurityToggleState,
   type MobileSensitiveSecurityToggleTarget
 } from "../../src/features/security/security-model";
-import {
-  buildMobileSessionCards,
-} from "../../src/features/security/mobile-session-model";
+import { buildMobileSessionCards } from "../../src/features/security/mobile-session-model";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
 import { colors, radius, spacing } from "../../src/ui/theme";
@@ -56,6 +57,15 @@ export default function SecurityRoute() {
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
+  const [passwordChangeForm, setPasswordChangeForm] = useState<MobilePasswordChangeForm>({
+    confirmPassword: "",
+    currentPassword: "",
+    newPassword: ""
+  });
+  const [savingPasswordChange, setSavingPasswordChange] = useState(false);
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState<string | null>(null);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) {
@@ -64,6 +74,14 @@ export default function SecurityRoute() {
       setSensitiveToggle(null);
       setSensitiveTogglePassword("");
       setSensitiveToggleError(null);
+      setPasswordChangeOpen(false);
+      setPasswordChangeForm({
+        confirmPassword: "",
+        currentPassword: "",
+        newPassword: ""
+      });
+      setPasswordChangeMessage(null);
+      setPasswordChangeError(null);
       setSessions([]);
       setCurrentSessionId(null);
       return;
@@ -279,6 +297,75 @@ export default function SecurityRoute() {
     }
   }
 
+  function openPasswordChange() {
+    setPasswordChangeOpen(true);
+    setPasswordChangeForm({
+      confirmPassword: "",
+      currentPassword: "",
+      newPassword: ""
+    });
+    setPasswordChangeMessage(null);
+    setPasswordChangeError(null);
+  }
+
+  function closePasswordChange() {
+    if (savingPasswordChange) {
+      return;
+    }
+
+    setPasswordChangeOpen(false);
+    setPasswordChangeForm({
+      confirmPassword: "",
+      currentPassword: "",
+      newPassword: ""
+    });
+    setPasswordChangeError(null);
+  }
+
+  function updatePasswordChangeField(field: keyof MobilePasswordChangeForm, value: string) {
+    setPasswordChangeForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+    setPasswordChangeError(null);
+  }
+
+  async function handlePasswordChangeSubmit() {
+    const validationError = validateMobilePasswordChangeForm(passwordChangeForm);
+
+    if (validationError) {
+      setPasswordChangeError(validationError);
+      return;
+    }
+
+    setSavingPasswordChange(true);
+    setPasswordChangeError(null);
+    setPasswordChangeMessage(null);
+
+    try {
+      const response = await changeMobilePassword({
+        currentPassword: passwordChangeForm.currentPassword,
+        newPassword: passwordChangeForm.newPassword
+      });
+
+      if (!response.ok) {
+        setPasswordChangeError(response.error.message);
+        return;
+      }
+
+      setPasswordChangeOpen(false);
+      setPasswordChangeForm({
+        confirmPassword: "",
+        currentPassword: "",
+        newPassword: ""
+      });
+      setPasswordChangeMessage("Şifren değiştirildi. Diğer cihazlardaki oturumlar kapatıldı.");
+      await handleSessionRefresh({ silent: true });
+    } finally {
+      setSavingPasswordChange(false);
+    }
+  }
+
   async function handleSessionRefresh(options: { silent?: boolean } = {}) {
     const silent = options.silent ?? false;
 
@@ -346,17 +433,12 @@ export default function SecurityRoute() {
     );
   }
 
-  return (
-    <Screen eyebrow="Hesap" title="Güvenlik">
-      <MobileCard style={styles.profileCard}>
-        <Text style={styles.eyebrow}>Aktif oturum</Text>
-        <Text style={styles.title}>{currentUser.profile.displayName}</Text>
-        <Text style={styles.text}>{currentUser.user.email}</Text>
-        {currentUser.profile.locationCity ? (
-          <Text style={styles.meta}>{currentUser.profile.locationCity}</Text>
-        ) : null}
-      </MobileCard>
+  const displayName = currentUser.profile.displayName.trim();
+  const greetingTitle = displayName ? `Merhaba, ${displayName}` : "Merhaba";
+  const pagePasswordChangeError = passwordChangeOpen ? null : passwordChangeError;
 
+  return (
+    <Screen title={greetingTitle}>
       <View style={styles.list}>
         {securityRows.map((row) => (
           <SecurityRow
@@ -365,6 +447,7 @@ export default function SecurityRoute() {
               loadingMfaStatus,
               mfaEnabled,
               mobileLoginApprovalEnabled,
+              openPasswordChange,
               openSensitiveToggle,
               rowTitle: row.title,
               savingLoginApproval,
@@ -379,8 +462,18 @@ export default function SecurityRoute() {
         ))}
       </View>
 
-      {mfaMessage || loginApprovalMessage || mfaError || loginApprovalError ? (
+      {passwordChangeMessage || pagePasswordChangeError || mfaMessage || loginApprovalMessage || mfaError || loginApprovalError ? (
         <View style={styles.feedbackList}>
+          {passwordChangeMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>{passwordChangeMessage}</Text>
+            </View>
+          ) : null}
+          {pagePasswordChangeError ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{pagePasswordChangeError}</Text>
+            </View>
+          ) : null}
           {loginApprovalMessage ? (
             <View style={styles.successBox}>
               <Text style={styles.successText}>{loginApprovalMessage}</Text>
@@ -423,7 +516,7 @@ export default function SecurityRoute() {
 
         {!loadingSessions && sessionCards.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Aktif oturum görünmüyor</Text>
+            <Text style={styles.emptyTitle}>Aktif cihaz görünmüyor</Text>
             <Text style={styles.text}>Yeniden giriş yaptığında bu cihaz burada listelenir.</Text>
           </View>
         ) : null}
@@ -467,6 +560,15 @@ export default function SecurityRoute() {
         password={sensitiveTogglePassword}
         saving={savingSensitiveToggle}
         state={sensitiveToggle}
+      />
+      <PasswordChangeModal
+        error={passwordChangeError}
+        form={passwordChangeForm}
+        onCancel={closePasswordChange}
+        onChangeField={updatePasswordChangeField}
+        onSubmit={() => void handlePasswordChangeSubmit()}
+        saving={savingPasswordChange}
+        visible={passwordChangeOpen}
       />
     </Screen>
   );
@@ -546,11 +648,101 @@ function SensitiveSecurityToggleModal({
   );
 }
 
+function PasswordChangeModal({
+  error,
+  form,
+  onCancel,
+  onChangeField,
+  onSubmit,
+  saving,
+  visible
+}: {
+  error: string | null;
+  form: MobilePasswordChangeForm;
+  onCancel: () => void;
+  onChangeField: (field: keyof MobilePasswordChangeForm, value: string) => void;
+  onSubmit: () => void;
+  saving: boolean;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.title}>Şifreyi değiştir</Text>
+          <Text style={styles.text}>Şifre değişince diğer cihazlardaki oturumlar kapatılır.</Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!saving}
+            onChangeText={(value) => onChangeField("currentPassword", value)}
+            placeholder="Mevcut şifre"
+            placeholderTextColor={colors.subtle}
+            secureTextEntry
+            style={styles.input}
+            value={form.currentPassword}
+          />
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!saving}
+            onChangeText={(value) => onChangeField("newPassword", value)}
+            placeholder="Yeni şifre"
+            placeholderTextColor={colors.subtle}
+            secureTextEntry
+            style={styles.input}
+            value={form.newPassword}
+          />
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!saving}
+            onChangeText={(value) => onChangeField("confirmPassword", value)}
+            placeholder="Yeni şifre tekrar"
+            placeholderTextColor={colors.subtle}
+            secureTextEntry
+            style={styles.input}
+            value={form.confirmPassword}
+          />
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          <View style={styles.modalActions}>
+            <Pressable
+              disabled={saving}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>Vazgeç</Text>
+            </Pressable>
+            <Pressable
+              disabled={saving}
+              onPress={onSubmit}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>{saving ? "Kaydediliyor..." : "Onayla"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function getSecurityRowAction({
   loadingLoginApprovalStatus,
   loadingMfaStatus,
   mfaEnabled,
   mobileLoginApprovalEnabled,
+  openPasswordChange,
   openSensitiveToggle,
   rowTitle,
   savingLoginApproval,
@@ -560,11 +752,26 @@ function getSecurityRowAction({
   loadingMfaStatus: boolean;
   mfaEnabled: boolean | null;
   mobileLoginApprovalEnabled: boolean | null;
+  openPasswordChange: () => void;
   openSensitiveToggle: (target: MobileSensitiveSecurityToggleTarget, nextEnabled: boolean) => void;
   rowTitle: string;
   savingLoginApproval: boolean;
   savingMfa: boolean;
 }): ReactNode {
+  if (rowTitle === "Şifre") {
+    return (
+      <Pressable
+        onPress={openPasswordChange}
+        style={({ pressed }) => [
+          styles.compactActionButton,
+          pressed ? styles.pressed : null
+        ]}
+      >
+        <Text style={styles.compactActionButtonText}>Değiştir</Text>
+      </Pressable>
+    );
+  }
+
   if (rowTitle === "OTP / MFA") {
     return (
       <Switch
@@ -596,7 +803,7 @@ function SecurityRow({
   value
 }: {
   action?: ReactNode;
-  badge: string;
+  badge?: string;
   title: string;
   tone: MobileSecurityRowTone;
   value: string;
@@ -605,9 +812,11 @@ function SecurityRow({
     <MobileCard style={styles.row}>
       <View style={styles.rowHeader}>
         <Text style={styles.rowTitle}>{title}</Text>
-        <View style={[styles.badge, getBadgeStyle(tone)]}>
-          <Text style={[styles.badgeText, getBadgeTextStyle(tone)]}>{badge}</Text>
-        </View>
+        {badge ? (
+          <View style={[styles.badge, getBadgeStyle(tone)]}>
+            <Text style={[styles.badgeText, getBadgeTextStyle(tone)]}>{badge}</Text>
+          </View>
+        ) : null}
         {action ? <View style={styles.rowAction}>{action}</View> : null}
       </View>
       <Text style={styles.rowText}>{value}</Text>
@@ -666,10 +875,6 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.md
   },
-  profileCard: {
-    gap: spacing.sm,
-    backgroundColor: colors.cream
-  },
   eyebrow: {
     color: colors.primaryDark,
     fontSize: 12,
@@ -687,11 +892,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20
-  },
-  meta: {
-    color: colors.subtle,
-    fontSize: 13,
-    fontWeight: "700"
   },
   row: {
     gap: spacing.sm
@@ -730,12 +930,6 @@ const styles = StyleSheet.create({
   },
   badgeSuccessText: {
     color: colors.success
-  },
-  badgeWarning: {
-    backgroundColor: colors.warningSoft
-  },
-  badgeWarningText: {
-    color: colors.warning
   },
   badgePending: {
     backgroundColor: colors.surfaceSoft

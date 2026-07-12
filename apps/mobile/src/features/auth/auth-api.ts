@@ -113,6 +113,15 @@ export type MobileLoginApprovalActionPayload = {
   status: "approved" | "denied";
 };
 
+export type MobilePasswordChangeRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type MobilePasswordChangePayload = {
+  passwordChanged: true;
+};
+
 export type MobileApiFailure = {
   ok: false;
   error: {
@@ -319,6 +328,24 @@ export async function logoutMobileSession(): Promise<void> {
     });
   } catch {
     return;
+  }
+}
+
+export async function changeMobilePassword(
+  payload: MobilePasswordChangeRequest
+): Promise<MobileApiResponse<MobilePasswordChangePayload>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/password/change", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return parseApiResponse<MobilePasswordChangePayload>(response);
+  } catch {
+    return apiUnavailableResponse();
   }
 }
 

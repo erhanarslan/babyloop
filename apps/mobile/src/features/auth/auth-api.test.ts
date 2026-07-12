@@ -1,5 +1,6 @@
 import {
   approveMobileLoginApproval,
+  changeMobilePassword,
   clearMobileAuthToken,
   completeMobileLoginApproval,
   denyMobileLoginApproval,
@@ -334,6 +335,51 @@ describe("mobile auth API MFA flow", () => {
     const serialized = JSON.stringify({ status, enabled, disabled });
 
     expect(serialized).not.toMatch(/passwordHash|refreshToken|accessToken|currentPassword/iu);
+  });
+
+  it("changes the mobile password through an authenticated CSRF-protected request", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            csrfToken: "csrf-token"
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        mockApiResponse(200, {
+          ok: true,
+          data: {
+            passwordChanged: true
+          }
+        })
+      );
+
+    const result = await changeMobilePassword({
+      currentPassword: "OldPassword123!",
+      newPassword: "NewPassword123!"
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        passwordChanged: true
+      }
+    });
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://api.babyloop.test/api/v1/auth/csrf",
+      "https://api.babyloop.test/api/v1/auth/password/change"
+    ]);
+
+    const mutationInit = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+
+    expect(mutationInit?.method).toBe("POST");
+    expect(mutationInit?.body).toBe(JSON.stringify({
+      currentPassword: "OldPassword123!",
+      newPassword: "NewPassword123!"
+    }));
+    expect(JSON.stringify(result)).not.toMatch(/passwordHash|refreshToken|accessToken|currentPassword/iu);
   });
 
   it("lists and resolves pending mobile login approval requests without exposing secrets", async () => {
