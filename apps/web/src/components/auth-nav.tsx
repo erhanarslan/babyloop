@@ -92,7 +92,7 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       }
     }
 
-    loadWithRefresh();
+    checkWithoutRefresh();
 
     const intervalId = window.setInterval(checkWithoutRefresh, 5000);
 

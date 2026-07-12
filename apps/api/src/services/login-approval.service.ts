@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { loginApprovalChallenges, profiles, sessions, users } from "@babyloop/database/schema";
 import type { ApiFailure, ApiResponse } from "@babyloop/shared";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type {
   LoginApprovalCompleteBody,
@@ -176,6 +176,12 @@ export async function createLoginApprovalChallenge(
   },
   now = new Date()
 ): Promise<LoginApprovalChallengeCreation> {
+  const existingPending = await rotateExistingPendingLoginApprovalChallenge(app, userId, now);
+
+  if (existingPending) {
+    return existingPending;
+  }
+
   const approvalToken = createLoginApprovalToken();
   const expiresAt = new Date(now.getTime() + LOGIN_APPROVAL_TTL_SECONDS * 1000);
 
@@ -234,6 +240,76 @@ export async function createLoginApprovalChallenge(
   return {
     approvalToken,
     approval
+  };
+}
+
+async function rotateExistingPendingLoginApprovalChallenge(
+  app: FastifyInstance,
+  userId: string,
+  now: Date
+): Promise<LoginApprovalChallengeCreation | null> {
+  const [candidate] = await app.db
+    .select({
+      id: loginApprovalChallenges.id
+    })
+    .from(loginApprovalChallenges)
+    .where(and(
+      eq(loginApprovalChallenges.userId, userId),
+      eq(loginApprovalChallenges.status, "pending"),
+      gt(loginApprovalChallenges.expiresAt, now)
+    ))
+    .orderBy(desc(loginApprovalChallenges.createdAt))
+    .limit(1);
+
+  if (!candidate) {
+    return null;
+  }
+
+  await app.db
+    .update(loginApprovalChallenges)
+    .set({
+      resolvedAt: now,
+      status: "expired",
+      updatedAt: now
+    })
+    .where(and(
+      eq(loginApprovalChallenges.userId, userId),
+      eq(loginApprovalChallenges.status, "pending"),
+      gt(loginApprovalChallenges.expiresAt, now),
+      ne(loginApprovalChallenges.id, candidate.id)
+    ));
+
+  const approvalToken = createLoginApprovalToken();
+
+  const [challenge] = await app.db
+    .update(loginApprovalChallenges)
+    .set({
+      approvalTokenHash: hashLoginApprovalToken(approvalToken),
+      updatedAt: now
+    })
+    .where(and(
+      eq(loginApprovalChallenges.id, candidate.id),
+      eq(loginApprovalChallenges.userId, userId),
+      eq(loginApprovalChallenges.status, "pending"),
+      gt(loginApprovalChallenges.expiresAt, now)
+    ))
+    .returning({
+      id: loginApprovalChallenges.id,
+      status: loginApprovalChallenges.status,
+      requestUserAgent: loginApprovalChallenges.requestUserAgent,
+      requestIpAddress: loginApprovalChallenges.requestIpAddress,
+      createdAt: loginApprovalChallenges.createdAt,
+      expiresAt: loginApprovalChallenges.expiresAt,
+      resolvedAt: loginApprovalChallenges.resolvedAt
+    });
+
+  if (!challenge) {
+    return null;
+  }
+
+  return {
+    approvalToken,
+    approval: serializeLoginApprovalChallenge(challenge)
   };
 }
 

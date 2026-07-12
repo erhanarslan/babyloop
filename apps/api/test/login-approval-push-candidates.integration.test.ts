@@ -1,4 +1,4 @@
-import { notificationDeliveryLogs, users } from "@babyloop/database/schema";
+import { loginApprovalChallenges, notificationDeliveryLogs, users } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authHeader, createUser } from "./api-helpers.js";
@@ -166,6 +166,108 @@ describe("login approval push candidates", () => {
     expect(logs[0]!.sourceId).toBe(response.json().data.approvalId);
     expect(JSON.stringify(logs[0])).not.toMatch(
       /login-approval-sensitive-device-token|web-mobile-approval-target@example|approvalToken|approvalTokenHash|passwordHash|authorization|cookie|set-cookie/iu
+    );
+  });
+
+  it("reuses one pending approval for repeated web login attempts without sending another push", async () => {
+    process.env.NOTIFICATION_PUSH_ENABLED = "true";
+    process.env.PUSH_PROVIDER = "expo";
+    process.env.EXPO_ACCESS_TOKEN = "secret-expo-token";
+    process.env.EXPO_PUSH_API_BASE_URL = "https://exp.example.test/push";
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      data: [
+        { status: "ok", id: "expo-ticket-1" }
+      ]
+    }), { status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const user = await createUser(app, {
+      email: "web-mobile-approval-dedupe@example.test",
+      password: "Password123!"
+    });
+    await app.db
+      .update(users)
+      .set({ mobileLoginApprovalEnabled: true })
+      .where(eq(users.id, user.user.id));
+
+    const registerPush = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "POST",
+      url: "/api/v1/notifications/push-tokens",
+      payload: {
+        token: "ExponentPushToken[login-approval-dedupe-device-token]",
+        platform: "expo",
+        deviceLabel: "Galaxy S22"
+      }
+    });
+
+    expect(registerPush.statusCode).toBe(200);
+
+    const payload = {
+      email: "web-mobile-approval-dedupe@example.test",
+      password: "Password123!",
+      clientType: "web"
+    };
+
+    const first = await app.inject({
+      headers: {
+        "user-agent": "Mozilla/5.0 BabyLoopWeb",
+        "x-babyloop-client": "web"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload
+    });
+
+    const second = await app.inject({
+      headers: {
+        "user-agent": "Mozilla/5.0 BabyLoopWeb",
+        "x-babyloop-client": "web"
+      },
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload
+    });
+
+    const logs = await app.db
+      .select()
+      .from(notificationDeliveryLogs)
+      .where(eq(notificationDeliveryLogs.profileId, user.profile.id));
+
+    const challenges = await app.db
+      .select({
+        id: loginApprovalChallenges.id,
+        status: loginApprovalChallenges.status
+      })
+      .from(loginApprovalChallenges)
+      .where(eq(loginApprovalChallenges.userId, user.user.id));
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(first.json().data).toMatchObject({
+      loginApprovalRequired: true,
+      approvalId: expect.any(String),
+      approvalToken: expect.any(String)
+    });
+    expect(second.json().data).toMatchObject({
+      loginApprovalRequired: true,
+      approvalId: first.json().data.approvalId,
+      approvalToken: expect.any(String)
+    });
+    expect(second.json().data.approvalToken).not.toBe(first.json().data.approvalToken);
+
+    expect(challenges).toEqual([
+      {
+        id: first.json().data.approvalId,
+        status: "pending"
+      }
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]!.sourceId).toBe(first.json().data.approvalId);
+    expect(`${first.body} ${second.body} ${JSON.stringify(logs)}`).not.toMatch(
+      /login-approval-dedupe-device-token|approvalTokenHash|passwordHash|authorization|cookie|set-cookie/iu
     );
   });
 

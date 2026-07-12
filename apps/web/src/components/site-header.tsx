@@ -138,7 +138,7 @@ export function SiteHeader() {
       }
     }
 
-    loadWithRefresh();
+    checkWithoutRefresh();
 
     const intervalId = window.setInterval(checkWithoutRefresh, 5000);
 
