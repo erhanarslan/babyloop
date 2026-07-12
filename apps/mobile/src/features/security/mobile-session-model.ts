@@ -3,7 +3,6 @@ import type { MobileAuthSession } from "../auth/auth-api";
 export type MobileSessionCard = {
   id: string;
   title: string;
-  subtitle: string;
   meta: string;
   isCurrent: boolean;
   actionLabel: string;
@@ -21,25 +20,11 @@ export function buildMobileSessionCards(
       return {
         id: session.id,
         title: safeSessionText(session.deviceLabel, "Bilinmeyen cihaz"),
-        subtitle: safeSessionText(session.userAgent, "Cihaz bilgisi yok"),
-        meta: buildSessionMeta(session),
+        meta: `Son etkinlik: ${formatMobileSessionDate(session.updatedAt)}`,
         isCurrent,
-        actionLabel: isCurrent ? "Bu oturumu kapat" : "Oturumu kapat"
+        actionLabel: isCurrent ? "" : "Kapat"
       };
     });
-}
-
-export function getMobileSessionSummary(
-  sessions: MobileAuthSession[],
-  currentSessionId: string | null
-): {
-  activeCountLabel: string;
-  currentDeviceLabel: string;
-} {
-  return {
-    activeCountLabel: `${sessions.length} aktif oturum`,
-    currentDeviceLabel: currentSessionId ? "Bu cihaz eşleşti" : "Bu cihaz eşleşmedi"
-  };
 }
 
 export function formatMobileSessionDate(value: string): string {
@@ -61,14 +46,6 @@ function isCurrentSession(session: MobileAuthSession, currentSessionId: string |
   return session.current || (Boolean(currentSessionId) && session.id === currentSessionId);
 }
 
-function buildSessionMeta(session: MobileAuthSession): string {
-  const ipAddress = safeSessionText(session.ipAddress, "IP bilinmiyor");
-  const updatedAt = formatMobileSessionDate(session.updatedAt);
-  const expiresAt = formatMobileSessionDate(session.expiresAt);
-
-  return `${ipAddress} · Son güncelleme ${updatedAt} · Bitiş ${expiresAt}`;
-}
-
 function safeSessionText(value: string | null | undefined, fallback: string): string {
   const trimmed = value?.trim();
 
@@ -80,5 +57,5 @@ function safeSessionText(value: string | null | undefined, fallback: string): st
     .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken=[redacted]")
     .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken=[redacted]")
     .replace(/passwordHash["':=\s]+[A-Za-z0-9._-]+/giu, "passwordHash=[redacted]")
-    .slice(0, 180);
+    .slice(0, 80);
 }

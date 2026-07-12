@@ -10,7 +10,6 @@ export type MobileSecurityRow = {
 export type MobileSecuritySettings = {
   mfaEnabled?: boolean | null;
   mobileLoginApprovalEnabled?: boolean | null;
-  pendingLoginApprovalCount?: number;
 };
 
 export function getMobileSecurityRows(settings: MobileSecuritySettings = {}): MobileSecurityRow[] {
@@ -28,10 +27,7 @@ export function getMobileSecurityRows(settings: MobileSecuritySettings = {}): Mo
       badge: "Bilgi"
     },
     buildMfaRow(settings.mfaEnabled ?? null),
-    buildMobileLoginApprovalRow(
-      settings.mobileLoginApprovalEnabled ?? null,
-      settings.pendingLoginApprovalCount ?? 0
-    )
+    buildMobileLoginApprovalRow(settings.mobileLoginApprovalEnabled ?? null)
   ];
 }
 
@@ -63,19 +59,7 @@ function buildMfaRow(mfaEnabled: boolean | null): MobileSecurityRow {
 }
 
 
-function buildMobileLoginApprovalRow(
-  enabled: boolean | null,
-  pendingCount: number
-): MobileSecurityRow {
-  if (enabled === true && pendingCount > 0) {
-    return {
-      title: "Mobil onay",
-      value: `${pendingCount} giriş isteği uygulamadan onay bekliyor`,
-      tone: "pending",
-      badge: "Onay"
-    };
-  }
-
+function buildMobileLoginApprovalRow(enabled: boolean | null): MobileSecurityRow {
   if (enabled === true) {
     return {
       title: "Mobil onay",

@@ -1,9 +1,8 @@
+import type { MobileAuthSession } from "../auth/auth-api";
 import {
   buildMobileSessionCards,
-  formatMobileSessionDate,
-  getMobileSessionSummary
+  formatMobileSessionDate
 } from "./mobile-session-model";
-import type { MobileAuthSession } from "../auth/auth-api";
 
 const sessions: MobileAuthSession[] = [
   {
@@ -29,28 +28,26 @@ const sessions: MobileAuthSession[] = [
 ];
 
 describe("mobile session model", () => {
-  it("prioritizes the current session and hides token-like values", () => {
+  it("prioritizes the current session and exposes compact revoke actions", () => {
     const cards = buildMobileSessionCards(sessions, "session-current");
 
     expect(cards[0]).toMatchObject({
       id: "session-current",
       isCurrent: true,
-      actionLabel: "Bu oturumu kapat"
+      actionLabel: ""
     });
     expect(cards[1]).toMatchObject({
       id: "session-mobile",
       isCurrent: false,
-      actionLabel: "Oturumu kapat"
+      actionLabel: "Kapat"
     });
-    expect(JSON.stringify(cards)).not.toMatch(/secret-token|refreshToken|passwordHash/iu);
   });
 
-  it("builds a compact summary for the security screen", () => {
-    expect(getMobileSessionSummary(sessions, "session-current")).toEqual({
-      activeCountLabel: "2 aktif oturum",
-      currentDeviceLabel: "Bu cihaz eşleşti"
-    });
-    expect(getMobileSessionSummary(sessions, null).currentDeviceLabel).toBe("Bu cihaz eşleşmedi");
+  it("keeps active device display free of IP, expiry, and token-like values", () => {
+    const cards = buildMobileSessionCards(sessions, "session-current");
+
+    expect(JSON.stringify(cards)).not.toMatch(/127\.0\.0\.1|Bitiş|expiresAt|secret-token|refreshToken|passwordHash/iu);
+    expect(cards[0]?.meta).toContain("Son etkinlik:");
   });
 
   it("formats invalid dates defensively", () => {

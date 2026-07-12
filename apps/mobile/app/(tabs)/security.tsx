@@ -4,22 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
-import { subscribeMobileRealtime } from "../../src/features/realtime/mobile-realtime";
+import { addMobileAuthSessionsRefreshListener } from "../../src/features/auth/auth-session-events";
 import {
-  approveMobileLoginApproval,
-  denyMobileLoginApproval,
   disableMobileLoginApproval,
   disableMobileMfa,
   enableMobileLoginApproval,
   enableMobileMfa,
   fetchMobileAuthSessions,
-  fetchMobileLoginApprovals,
   fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
-  revokeAllMobileAuthSessions,
   revokeMobileAuthSession,
-  type MobileAuthSession,
-  type MobileLoginApprovalChallenge
+  type MobileAuthSession
 } from "../../src/features/auth/auth-api";
 import {
   buildMobileSensitiveToggleDescription,
@@ -31,12 +26,7 @@ import {
   type MobileSensitiveSecurityToggleTarget
 } from "../../src/features/security/security-model";
 import {
-  buildMobileLoginApprovalCards,
-  getMobileLoginApprovalSummary
-} from "../../src/features/security/mobile-login-approval-model";
-import {
   buildMobileSessionCards,
-  getMobileSessionSummary
 } from "../../src/features/security/mobile-session-model";
 import { MobileButton, MobileCard } from "../../src/ui/mobile-primitives";
 import { Screen } from "../../src/ui/screen";
@@ -60,14 +50,10 @@ export default function SecurityRoute() {
   const [savingLoginApproval, setSavingLoginApproval] = useState(false);
   const [loginApprovalMessage, setLoginApprovalMessage] = useState<string | null>(null);
   const [loginApprovalError, setLoginApprovalError] = useState<string | null>(null);
-  const [pendingLoginApprovals, setPendingLoginApprovals] = useState<MobileLoginApprovalChallenge[]>([]);
-  const [loadingLoginApprovals, setLoadingLoginApprovals] = useState(false);
-  const [resolvingApprovalId, setResolvingApprovalId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<MobileAuthSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
-  const [revokingAllSessions, setRevokingAllSessions] = useState(false);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
@@ -78,7 +64,6 @@ export default function SecurityRoute() {
       setSensitiveToggle(null);
       setSensitiveTogglePassword("");
       setSensitiveToggleError(null);
-      setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
       return;
@@ -126,25 +111,6 @@ export default function SecurityRoute() {
       setLoadingLoginApprovalStatus(false);
     }
 
-    async function loadLoginApprovals() {
-      setLoadingLoginApprovals(true);
-
-      const response = await fetchMobileLoginApprovals();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (response.ok) {
-        setPendingLoginApprovals(response.data.approvals);
-      } else {
-        setPendingLoginApprovals([]);
-        setLoginApprovalError(response.error.message);
-      }
-
-      setLoadingLoginApprovals(false);
-    }
-
     async function loadSessions() {
       setLoadingSessions(true);
       setSessionError(null);
@@ -169,7 +135,6 @@ export default function SecurityRoute() {
 
     void loadMfaStatus();
     void loadLoginApprovalStatus();
-    void loadLoginApprovals();
     void loadSessions();
 
     return () => {
@@ -180,25 +145,12 @@ export default function SecurityRoute() {
   const securityRows = useMemo(
     () => getMobileSecurityRows({
       mfaEnabled,
-      mobileLoginApprovalEnabled,
-      pendingLoginApprovalCount: pendingLoginApprovals.length
+      mobileLoginApprovalEnabled
     }),
-    [mfaEnabled, mobileLoginApprovalEnabled, pendingLoginApprovals.length]
-  );
-  const loginApprovalCards = useMemo(
-    () => buildMobileLoginApprovalCards(pendingLoginApprovals),
-    [pendingLoginApprovals]
-  );
-  const loginApprovalSummary = useMemo(
-    () => getMobileLoginApprovalSummary(pendingLoginApprovals),
-    [pendingLoginApprovals]
+    [mfaEnabled, mobileLoginApprovalEnabled]
   );
   const sessionCards = useMemo(
     () => buildMobileSessionCards(sessions, currentSessionId),
-    [sessions, currentSessionId]
-  );
-  const sessionSummary = useMemo(
-    () => getMobileSessionSummary(sessions, currentSessionId),
     [sessions, currentSessionId]
   );
 
@@ -221,36 +173,10 @@ export default function SecurityRoute() {
       return;
     }
 
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    void subscribeMobileRealtime({
-      onLoginApprovalCreated: (payload) => {
-        setPendingLoginApprovals((current) =>
-          mergePendingLoginApprovals(current, payload.approval)
-        );
-        setLoginApprovalError(null);
-        setLoginApprovalMessage("Yeni giriş isteği geldi. Onaylamak veya reddetmek için kartı kullan.");
-      }
-    }).then((subscription) => {
-      if (!active) {
-        subscription.unsubscribe();
-        return;
-      }
-
-      unsubscribe = subscription.unsubscribe;
+    return addMobileAuthSessionsRefreshListener(() => {
+      void handleSessionRefresh({ silent: true });
     });
-
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
   }, [currentUser]);
-
-  async function handleLogout() {
-    await authSession.logout();
-    router.replace("/");
-  }
 
   function openSensitiveToggle(target: MobileSensitiveSecurityToggleTarget, nextEnabled: boolean) {
     setSensitiveToggle({ target, nextEnabled });
@@ -353,54 +279,6 @@ export default function SecurityRoute() {
     }
   }
 
-  async function handleLoginApprovalsRefresh() {
-    setLoadingLoginApprovals(true);
-    setLoginApprovalError(null);
-    setLoginApprovalMessage(null);
-
-    const response = await fetchMobileLoginApprovals();
-
-    if (response.ok) {
-      setPendingLoginApprovals(response.data.approvals);
-    } else {
-      setPendingLoginApprovals([]);
-      setLoginApprovalError(response.error.message);
-    }
-
-    setLoadingLoginApprovals(false);
-  }
-
-  async function handleResolveLoginApproval(approvalId: string, action: "approve" | "deny") {
-    setResolvingApprovalId(approvalId);
-    setLoginApprovalError(null);
-    setLoginApprovalMessage(null);
-
-    try {
-      const response = action === "approve"
-        ? await approveMobileLoginApproval(approvalId)
-        : await denyMobileLoginApproval(approvalId);
-
-      if (!response.ok) {
-        setLoginApprovalError(response.error.message);
-        return;
-      }
-
-      setPendingLoginApprovals((current) => current.filter((approval) => approval.id !== response.data.approvalId));
-
-      if (response.data.status === "approved") {
-        await handleSessionRefresh();
-      }
-
-      setLoginApprovalMessage(
-        response.data.status === "approved"
-          ? "Giriş isteği onaylandı. Aktif cihazlar güncellendi."
-          : "Giriş isteği reddedildi."
-      );
-    } finally {
-      setResolvingApprovalId(null);
-    }
-  }
-
   async function handleSessionRefresh(options: { silent?: boolean } = {}) {
     const silent = options.silent ?? false;
 
@@ -420,7 +298,6 @@ export default function SecurityRoute() {
       setSensitiveToggle(null);
       setSensitiveTogglePassword("");
       setSensitiveToggleError(null);
-      setPendingLoginApprovals([]);
       setSessions([]);
       setCurrentSessionId(null);
       setSessionError(response.error.message);
@@ -454,33 +331,6 @@ export default function SecurityRoute() {
       setSessionMessage("Seçili oturum kapatıldı.");
     } finally {
       setRevokingSessionId(null);
-    }
-  }
-
-  async function handleRevokeAllSessions() {
-    setRevokingAllSessions(true);
-    setSessionMessage(null);
-    setSessionError(null);
-
-    try {
-      const response = await revokeAllMobileAuthSessions();
-
-      if (!response.ok) {
-        setSessionError(response.error.message);
-        return;
-      }
-
-      setMobileLoginApprovalEnabled(null);
-      setSensitiveToggle(null);
-      setSensitiveTogglePassword("");
-      setSensitiveToggleError(null);
-      setPendingLoginApprovals([]);
-      setSessions([]);
-      setCurrentSessionId(null);
-      await authSession.logout();
-      router.replace("/login");
-    } finally {
-      setRevokingAllSessions(false);
     }
   }
 
@@ -529,97 +379,33 @@ export default function SecurityRoute() {
         ))}
       </View>
 
-      <MobileCard style={styles.card}>
-        <View style={styles.approvalHeader}>
-          <View style={styles.approvalHeaderText}>
-            <Text style={styles.emptyTitle}>Bekleyen giriş istekleri</Text>
-            <Text style={styles.text}>{loginApprovalSummary.activeCountLabel}</Text>
-          </View>
-          <Pressable
-            disabled={loadingLoginApprovals}
-            onPress={() => void handleLoginApprovalsRefresh()}
-            style={({ pressed }) => [
-              styles.smallSecondaryButton,
-              pressed || loadingLoginApprovals ? styles.pressed : null
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>
-              {loadingLoginApprovals ? "Yenileniyor..." : "Yenile"}
-            </Text>
-          </Pressable>
-        </View>
-
-        {!loadingLoginApprovals && loginApprovalCards.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Bekleyen istek yok</Text>
-            <Text style={styles.text}>{loginApprovalSummary.emptyLabel}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.sessionList}>
-          {loginApprovalCards.map((approval) => (
-            <View key={approval.id} style={styles.sessionCard}>
-              <Text style={styles.sessionTitle}>{approval.title}</Text>
-              <Text style={styles.sessionSubtitle}>{approval.subtitle}</Text>
-              <Text style={styles.sessionMeta}>{approval.meta}</Text>
-              <View style={styles.approvalActions}>
-                <Pressable
-                  disabled={resolvingApprovalId === approval.id}
-                  onPress={() => void handleResolveLoginApproval(approval.id, "approve")}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    pressed || resolvingApprovalId === approval.id ? styles.pressed : null
-                  ]}
-                >
-                  <Text style={styles.secondaryButtonText}>
-                    {resolvingApprovalId === approval.id ? "İşleniyor..." : approval.approveLabel}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  disabled={resolvingApprovalId === approval.id}
-                  onPress={() => void handleResolveLoginApproval(approval.id, "deny")}
-                  style={({ pressed }) => [
-                    styles.dangerOutlineButton,
-                    pressed || resolvingApprovalId === approval.id ? styles.pressed : null
-                  ]}
-                >
-                  <Text style={styles.dangerOutlineButtonText}>{approval.denyLabel}</Text>
-                </Pressable>
-              </View>
+      {mfaMessage || loginApprovalMessage || mfaError || loginApprovalError ? (
+        <View style={styles.feedbackList}>
+          {loginApprovalMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>{loginApprovalMessage}</Text>
             </View>
-          ))}
+          ) : null}
+          {loginApprovalError ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{loginApprovalError}</Text>
+            </View>
+          ) : null}
+          {mfaMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>{mfaMessage}</Text>
+            </View>
+          ) : null}
+          {mfaError ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{mfaError}</Text>
+            </View>
+          ) : null}
         </View>
-
-        {loginApprovalMessage ? (
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>{loginApprovalMessage}</Text>
-          </View>
-        ) : null}
-        {loginApprovalError ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{loginApprovalError}</Text>
-          </View>
-        ) : null}
-        {mfaMessage ? (
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>{mfaMessage}</Text>
-          </View>
-        ) : null}
-        {mfaError ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{mfaError}</Text>
-          </View>
-        ) : null}
-      </MobileCard>
+      ) : null}
 
       <MobileCard style={styles.card}>
         <Text style={styles.title}>Aktif cihazlar</Text>
-        <Text style={styles.text}>
-          {sessionSummary.activeCountLabel} · {sessionSummary.currentDeviceLabel}
-        </Text>
-        <Text style={styles.meta}>
-          Oturum tokenları, refresh token hashleri ve şifre bilgileri bu ekranda gösterilmez.
-        </Text>
 
         {loadingSessions ? <Text style={styles.text}>Oturumlar yükleniyor...</Text> : null}
 
@@ -651,55 +437,26 @@ export default function SecurityRoute() {
                   <View style={styles.currentBadge}>
                     <Text style={styles.currentBadgeText}>Bu cihaz</Text>
                   </View>
-                ) : null}
+                ) : (
+                  <Pressable
+                    disabled={revokingSessionId === session.id}
+                    onPress={() => void handleRevokeSession(session.id)}
+                    style={({ pressed }) => [
+                      styles.compactActionButton,
+                      pressed || revokingSessionId === session.id ? styles.pressed : null
+                    ]}
+                  >
+                    <Text style={styles.compactActionButtonText}>
+                      {revokingSessionId === session.id ? "..." : session.actionLabel}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
-              <Text style={styles.sessionSubtitle}>{session.subtitle}</Text>
               <Text style={styles.sessionMeta}>{session.meta}</Text>
-              <Pressable
-                disabled={revokingSessionId === session.id || revokingAllSessions}
-                onPress={() => void handleRevokeSession(session.id)}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  pressed || revokingSessionId === session.id || revokingAllSessions ? styles.pressed : null
-                ]}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  {revokingSessionId === session.id ? "Kapatılıyor..." : session.actionLabel}
-                </Text>
-              </Pressable>
             </View>
           ))}
         </View>
 
-        <View style={styles.sessionActions}>
-          <Pressable
-            disabled={loadingSessions || revokingAllSessions}
-            onPress={() => void handleSessionRefresh()}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed || loadingSessions ? styles.pressed : null
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>Oturumları yenile</Text>
-          </Pressable>
-
-          <Pressable
-            disabled={revokingAllSessions || sessions.length === 0}
-            onPress={() => void handleRevokeAllSessions()}
-            style={({ pressed }) => [
-              styles.dangerButton,
-              pressed || revokingAllSessions || sessions.length === 0 ? styles.pressed : null
-            ]}
-          >
-            <Text style={styles.dangerButtonText}>
-              {revokingAllSessions ? "Çıkış yapılıyor..." : "Tüm cihazlardan çıkış yap"}
-            </Text>
-          </Pressable>
-
-          <MobileButton iconName="log-out-outline" onPress={() => void handleLogout()} variant="danger">
-            Bu cihazdan çıkış yap
-          </MobileButton>
-        </View>
       </MobileCard>
 
       <SensitiveSecurityToggleModal
@@ -858,26 +615,6 @@ function SecurityRow({
   );
 }
 
-function mergePendingLoginApprovals(
-  current: MobileLoginApprovalChallenge[],
-  approval: MobileLoginApprovalChallenge
-): MobileLoginApprovalChallenge[] {
-  const merged = [
-    approval,
-    ...current.filter((currentApproval) => currentApproval.id !== approval.id)
-  ];
-
-  return merged.sort((left, right) => {
-    return getDateTime(right.createdAt) - getDateTime(left.createdAt);
-  });
-}
-
-function getDateTime(value: string): number {
-  const time = new Date(value).getTime();
-
-  return Number.isNaN(time) ? 0 : time;
-}
-
 function getBadgeStyle(tone: MobileSecurityRowTone) {
   if (tone === "success") {
     return styles.badgeSuccess;
@@ -903,20 +640,6 @@ function getBadgeTextStyle(tone: MobileSecurityRowTone) {
 }
 
 const styles = StyleSheet.create({
-  toggleRow: {
-    alignItems: "center",
-    borderColor: "rgba(148, 163, 184, 0.28)",
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 14,
-    justifyContent: "space-between",
-    padding: 14
-  },
-  toggleText: {
-    flex: 1,
-    gap: 4
-  },
   modalBackdrop: {
     alignItems: "center",
     backgroundColor: "rgba(15, 23, 42, 0.48)",
@@ -1060,18 +783,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900"
   },
-  dangerButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.danger,
-    paddingHorizontal: 14,
-    paddingVertical: 13
-  },
-  dangerButtonText: {
-    color: colors.primaryForeground,
-    fontSize: 14,
-    fontWeight: "900"
-  },
   pressed: {
     opacity: 0.75
   },
@@ -1132,11 +843,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900"
   },
-  sessionSubtitle: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19
-  },
   sessionMeta: {
     color: colors.subtle,
     fontSize: 12,
@@ -1154,43 +860,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900"
   },
-  sessionActions: {
+  feedbackList: {
     gap: spacing.sm
   },
-  approvalHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "space-between"
-  },
-  approvalHeaderText: {
-    flex: 1,
-    gap: 2
-  },
-  approvalActions: {
-    gap: spacing.sm
-  },
-  smallSecondaryButton: {
-    alignItems: "center",
+  compactActionButton: {
     borderColor: colors.border,
     borderRadius: 999,
     borderWidth: 1,
-    backgroundColor: colors.surface,
     paddingHorizontal: 12,
-    paddingVertical: 9
+    paddingVertical: 7
   },
-  dangerOutlineButton: {
-    alignItems: "center",
-    borderColor: colors.danger,
-    borderRadius: 999,
-    borderWidth: 1,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 12
-  },
-  dangerOutlineButtonText: {
-    color: colors.danger,
-    fontSize: 14,
+  compactActionButtonText: {
+    color: colors.primaryDark,
+    fontSize: 12,
     fontWeight: "900"
   }
 });

@@ -1,11 +1,6 @@
-import { usePathname } from "expo-router";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
-import {
-  disconnectMobileRealtimeSocket,
-  subscribeMobileRealtime
-} from "../realtime/mobile-realtime";
+import { disconnectMobileRealtimeSocket } from "../realtime/mobile-realtime";
 import {
   fetchMobileCurrentUser,
   hydrateMobileAuthToken,
@@ -42,7 +37,6 @@ type AuthSessionContextValue = {
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
   const [status, setStatus] = useState<AuthSessionStatus>("checking");
   const [currentUser, setCurrentUser] = useState<MobileAuthMe | null>(null);
   const [mfaChallenge, setMfaChallenge] = useState<MobileMfaChallenge | null>(null);
@@ -92,40 +86,6 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (!currentUser || status !== "authenticated") {
-      return;
-    }
-
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    void subscribeMobileRealtime({
-      onLoginApprovalCreated: (payload) => {
-        if (!active || pathname.includes("/security")) {
-          return;
-        }
-
-        Alert.alert(
-          "Yeni giriş isteği",
-          `${payload.approval.deviceLabel} için mobil onay bekleniyor. Güvenlik ekranından onaylayabilir veya reddedebilirsin.`
-        );
-      }
-    }).then((subscription) => {
-      if (!active) {
-        subscription.unsubscribe();
-        return;
-      }
-
-      unsubscribe = subscription.unsubscribe;
-    });
-
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [currentUser, pathname, status]);
 
   const applyAuthenticatedPayload = useCallback(async (fallback: MobileAuthMe): Promise<void> => {
     const me = await fetchMobileCurrentUser();
