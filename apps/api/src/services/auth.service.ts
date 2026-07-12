@@ -176,6 +176,7 @@ export type AuthSessionsRevokeAllResponse = ApiResponse<{
 
 type AuthSessionCreation = {
   expiresAt: Date;
+  id: string;
   refreshToken: string;
 };
 
@@ -200,6 +201,7 @@ type RefreshAuthSessionResult =
       response: AuthSuccess;
       expiresAt: Date;
       refreshToken: string;
+      sessionId: string;
     }
   | {
       status: "invalid";
@@ -944,16 +946,23 @@ export async function createAuthSession(
   const refreshTokenHash = hashRefreshToken(refreshToken);
   const expiresAt = createRefreshTokenExpiresAt();
 
-  await app.db.insert(sessions).values({
+  const [session] = await app.db.insert(sessions).values({
     expiresAt,
     ipAddress: requestMeta.ipAddress,
     refreshTokenHash,
     userAgent: requestMeta.userAgent,
     userId
+  }).returning({
+    id: sessions.id
   });
+
+  if (!session) {
+    throw new Error("Auth session insert failed.");
+  }
 
   return {
     expiresAt,
+    id: session.id,
     refreshToken
   };
 }
@@ -1028,6 +1037,7 @@ export async function refreshAuthSession(
     status: "ok",
     expiresAt: nextExpiresAt,
     refreshToken: nextRefreshToken,
+    sessionId: updatedSession.id,
     response: buildAuthResponse({
       profile: {
         id: sessionRow.profileId,
@@ -1316,44 +1326,52 @@ function serializeAuthSession(
 }
 
 function buildDeviceLabel(userAgent: string | null): string {
-  if (!userAgent) {
+  const normalized = userAgent?.trim().toLowerCase() ?? "";
+
+  if (!normalized) {
     return "Bilinmeyen cihaz";
   }
 
-  const value = userAgent.toLowerCase();
-
-  if (value.includes("android")) {
+  if (
+    normalized.includes("okhttp") ||
+    normalized.includes("babyloopmobile") ||
+    normalized.includes("reactnative") ||
+    normalized.includes("expo")
+  ) {
     return "Android cihaz";
   }
 
-  if (value.includes("iphone") || value.includes("ipad") || value.includes("ios")) {
+  if (normalized.includes("iphone") || normalized.includes("ipad")) {
     return "iOS cihaz";
   }
 
-  if (value.includes("macintosh") || value.includes("mac os")) {
+  if (normalized.includes("macintosh") || normalized.includes("mac os")) {
     return "Mac tarayıcı";
   }
 
-  if (value.includes("windows")) {
+  if (normalized.includes("windows")) {
     return "Windows tarayıcı";
   }
 
-  if (value.includes("linux")) {
-    return "Linux tarayıcı";
+  if (normalized.includes("android")) {
+    return "Android tarayıcı";
   }
 
   return "Web oturumu";
 }
 
 function sanitizeSessionText(value: string | null, maxLength: number): string | null {
-  if (!value || value.trim().length === 0) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
     return null;
   }
 
-  return safePlainTextFallback(value, "Bilinmeyen", {
-    maxLength,
-    minLength: 1
-  });
+  return trimmed
+    .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken=[redacted]")
+    .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken=[redacted]")
+    .replace(/passwordHash["':=\s]+[A-Za-z0-9._-]+/giu, "passwordHash=[redacted]")
+    .slice(0, maxLength);
 }
 
 function isUuid(value: string): boolean {
@@ -1375,7 +1393,7 @@ export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   };
 }
 
-export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptions): AuthSuccess {
+export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptions, sessionId: string): AuthSuccess {
   return {
     ok: true,
     data: {
@@ -1383,7 +1401,8 @@ export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptio
       accessToken: signAccessToken(
         {
           userId: response.data.user.id,
-          profileId: response.data.profile.id
+          profileId: response.data.profile.id,
+          sessionId
         },
         {
           secret: options.authSecret,

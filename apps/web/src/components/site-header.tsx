@@ -13,7 +13,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
-  authFetch,
+  fetchCurrentUserWithoutRefresh,
   getAuthToken,
   logoutAndRedirectToHome,
   refreshSession,
@@ -78,7 +78,8 @@ export function SiteHeader() {
   useEffect(() => {
     let isActive = true;
 
-    async function loadCurrentAuth() {
+    async function loadCurrentAuth(options: { allowRefresh?: boolean } = {}) {
+      const allowRefresh = options.allowRefresh ?? true;
       if (pathname === "/auth/callback") {
         return;
       }
@@ -86,6 +87,11 @@ export function SiteHeader() {
       const token = getAuthToken();
 
       if (!token) {
+        if (!allowRefresh) {
+          setCurrentAuth(null);
+          return;
+        }
+
         const refreshed = await refreshSession(apiBaseUrl);
 
         if (!isActive) {
@@ -104,14 +110,13 @@ export function SiteHeader() {
       }
 
       try {
-        const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
-        const body = (await response.json()) as ApiResponse<AuthMe>;
+        const body = await fetchCurrentUserWithoutRefresh(apiBaseUrl);
 
         if (!isActive) {
           return;
         }
 
-        setCurrentAuth(response.ok && body.ok ? body.data : null);
+        setCurrentAuth(body.ok ? body.data : null);
       } catch {
         if (isActive) {
           setCurrentAuth(null);
@@ -119,12 +124,34 @@ export function SiteHeader() {
       }
     }
 
-    void loadCurrentAuth();
-    window.addEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
+    function loadWithRefresh() {
+      void loadCurrentAuth({ allowRefresh: true });
+    }
+
+    function checkWithoutRefresh() {
+      void loadCurrentAuth({ allowRefresh: false });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        checkWithoutRefresh();
+      }
+    }
+
+    loadWithRefresh();
+
+    const intervalId = window.setInterval(checkWithoutRefresh, 5000);
+
+    window.addEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+    window.addEventListener("focus", checkWithoutRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isActive = false;
-      window.removeEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
+      window.clearInterval(intervalId);
+      window.removeEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+      window.removeEventListener("focus", checkWithoutRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [apiBaseUrl, pathname]);
 

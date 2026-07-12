@@ -30,6 +30,9 @@ let authSessionVersion = 0;
 let memoryAuthToken: string | null = null;
 let cachedPublicCsrfToken: string | null = null;
 let manuallyLoggedOut = false;
+let lastRefreshFailureAt = 0;
+
+const REFRESH_FAILURE_COOLDOWN_MS = 15_000;
 
 export function getAuthToken(): string | null {
   return memoryAuthToken;
@@ -38,6 +41,7 @@ export function getAuthToken(): string | null {
 export function setAuthToken(token: string): void {
   memoryAuthToken = token;
   manuallyLoggedOut = false;
+  lastRefreshFailureAt = 0;
   authSessionVersion += 1;
 
   dispatchAuthEvent(AUTH_CHANGED_EVENT);
@@ -75,6 +79,14 @@ export async function refreshSession(
   options: { force?: boolean } = {}
 ): Promise<ApiResponse<AuthPayload>> {
   if (!options.force && isManuallyLoggedOut()) {
+    return unauthorizedResponse();
+  }
+
+  if (
+    !options.force &&
+    lastRefreshFailureAt > 0 &&
+    Date.now() - lastRefreshFailureAt < REFRESH_FAILURE_COOLDOWN_MS
+  ) {
     return unauthorizedResponse();
   }
 
@@ -118,13 +130,16 @@ async function doRefreshSession(
         return unauthorizedResponse();
       }
 
+      lastRefreshFailureAt = 0;
       setAuthToken(body.data.accessToken);
       return body;
     }
 
+    lastRefreshFailureAt = Date.now();
     clearAuthToken({ broadcast: true });
     return body.ok ? unauthorizedResponse() : body;
   } catch {
+    lastRefreshFailureAt = Date.now();
     clearAuthToken({ broadcast: true });
     return {
       ok: false,
@@ -185,6 +200,61 @@ export function logoutAndRedirectToHome(apiBaseUrl: string): void {
   }
 
   window.location.replace("/");
+}
+
+export async function validateCurrentAuthSession(apiBaseUrl: string): Promise<boolean> {
+  if (isManuallyLoggedOut()) {
+    clearAuthToken();
+    return false;
+  }
+
+  try {
+    const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
+
+    if (response.status === 401) {
+      clearAuthToken({ broadcast: true });
+      return false;
+    }
+
+    return response.ok;
+  } catch {
+    clearAuthToken({ broadcast: true });
+    return false;
+  }
+}
+
+export async function fetchCurrentUserWithoutRefresh(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
+  try {
+    const headers = new Headers();
+    const token = getAuthToken();
+
+    if (token) {
+      headers.set("authorization", `Bearer ${token}`);
+    }
+
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/me`, {
+      credentials: "include",
+      headers
+    });
+
+    const body = (await response.json()) as ApiResponse<AuthMe>;
+
+    if (response.status === 401) {
+      clearAuthToken({ broadcast: false });
+      return body.ok ? unauthorizedResponse<AuthMe>() : body;
+    }
+
+    return body;
+  } catch {
+    clearAuthToken({ broadcast: false });
+    return {
+      ok: false,
+      error: {
+        code: "API_UNAVAILABLE",
+        message: "BabyLoop API is unavailable."
+      }
+    };
+  }
 }
 
 export async function authFetch(
@@ -273,7 +343,7 @@ async function fetchPublicCsrfToken(apiBaseUrl: string): Promise<string | null> 
   }
 }
 
-function unauthorizedResponse(): ApiResponse<AuthPayload> {
+function unauthorizedResponse<T = AuthPayload>(): ApiResponse<T> {
   return {
     ok: false,
     error: {
@@ -285,6 +355,7 @@ function unauthorizedResponse(): ApiResponse<AuthPayload> {
 
 function markManuallyLoggedOut(): void {
   manuallyLoggedOut = true;
+  lastRefreshFailureAt = 0;
   authSessionVersion += 1;
   refreshSessionPromise = null;
   publicCsrfTokenPromise = null;

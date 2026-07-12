@@ -220,7 +220,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(409).send(result.response);
       }
 
-      const response = attachAccessToken(result.response, options);
+      const session = await createAuthSession(
+        app,
+        result.response.data.user.id,
+        buildAuthSessionRequestMeta(request)
+      );
+      const response = attachAccessToken(result.response, options, session.id);
       const responseWithDevVerificationToken =
         shouldExposeDevEmailVerificationToken() && result.devEmailVerificationToken
           ? {
@@ -231,11 +236,6 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
               }
             }
           : response;
-      const session = await createAuthSession(
-        app,
-        response.data.user.id,
-        buildAuthSessionRequestMeta(request)
-      );
 
       setPublicAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -290,12 +290,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(200).send(result.response);
       }
 
-      const response = attachAccessToken(result.response, options);
       const session = await createAuthSession(
         app,
-        response.data.user.id,
+        result.response.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
+      const response = attachAccessToken(result.response, options, session.id);
 
       setPublicAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -331,12 +331,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(200).send(result.response);
       }
 
-      const response = attachAccessToken(result.response, options);
       const session = await createAuthSession(
         app,
-        response.data.user.id,
+        result.response.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
+      const response = attachAccessToken(result.response, options, session.id);
 
       setPublicAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -368,12 +368,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(result.response);
       }
 
-      const response = attachAccessToken(result.response, options);
       const session = await createAuthSession(
         app,
-        response.data.user.id,
+        result.response.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
+      const response = attachAccessToken(result.response, options, session.id);
 
       setPublicAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -471,7 +471,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(401).send(result.response);
       }
 
-      const response = attachAccessToken(result.response, options);
+      const response = attachAccessToken(result.response, options, result.sessionId);
 
       setPublicAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -725,12 +725,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(403).send(adminForbidden());
       }
 
-      const response = attachAccessToken(result.response, options);
       const session = await createAuthSession(
         app,
-        response.data.user.id,
+        result.response.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
+      const response = attachAccessToken(result.response, options, session.id);
 
       setBackofficeAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -771,7 +771,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(403).send(adminForbidden());
       }
 
-      const response = attachAccessToken(result.response, options);
+      const response = attachAccessToken(result.response, options, result.sessionId);
 
       setBackofficeAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -1022,17 +1022,21 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       const result = await authenticateGoogleUser(app, googleProfile);
-      const response = attachAccessToken(result, options);
       const session = await createAuthSession(
         app,
-        response.data.user.id,
+        result.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
+      const response = attachAccessToken(result, options, session.id);
 
       reply.header("set-cookie", [
         serializeRefreshTokenCookie(session.refreshToken, {
           expiresAt: session.expiresAt
         }),
+        serializePublicAccessTokenCookie(response.data.accessToken, {
+          maxAgeSeconds: options.authTokenTtlSeconds
+        }),
+        serializePublicCsrfCookie(createPublicCsrfToken()),
         serializeExpiredGoogleOAuthStateCookie()
       ]);
 

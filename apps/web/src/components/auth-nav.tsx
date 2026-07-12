@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
-  authFetch,
+  fetchCurrentUserWithoutRefresh,
   getAuthToken,
   logoutAndRedirectToHome,
   refreshSession,
@@ -26,7 +26,8 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   useEffect(() => {
     let isActive = true;
 
-    async function loadCurrentAuth() {
+    async function loadCurrentAuth(options: { allowRefresh?: boolean } = {}) {
+      const allowRefresh = options.allowRefresh ?? true;
       if (pathname === "/auth/callback") {
         return;
       }
@@ -34,6 +35,11 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       const token = getAuthToken();
 
       if (!token) {
+        if (!allowRefresh) {
+          setCurrentAuth(null);
+          return;
+        }
+
         const refreshed = await refreshSession(apiBaseUrl);
 
         if (!isActive) {
@@ -53,14 +59,13 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       }
 
       try {
-        const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
-        const body = (await response.json()) as ApiResponse<AuthMe>;
+        const body = await fetchCurrentUserWithoutRefresh(apiBaseUrl);
 
         if (!isActive) {
           return;
         }
 
-        if (!response.ok || !body.ok) {
+        if (!body.ok) {
           setCurrentAuth(null);
           return;
         }
@@ -73,12 +78,34 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       }
     }
 
-    void loadCurrentAuth();
-    window.addEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
+    function loadWithRefresh() {
+      void loadCurrentAuth({ allowRefresh: true });
+    }
+
+    function checkWithoutRefresh() {
+      void loadCurrentAuth({ allowRefresh: false });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        checkWithoutRefresh();
+      }
+    }
+
+    loadWithRefresh();
+
+    const intervalId = window.setInterval(checkWithoutRefresh, 5000);
+
+    window.addEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+    window.addEventListener("focus", checkWithoutRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isActive = false;
-      window.removeEventListener(AUTH_CHANGED_EVENT, loadCurrentAuth);
+      window.clearInterval(intervalId);
+      window.removeEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+      window.removeEventListener("focus", checkWithoutRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [apiBaseUrl, pathname]);
 

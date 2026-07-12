@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, LoadingBlock } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
+import { clearAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import {
@@ -94,9 +95,11 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
       }
 
       if (body.data.currentSessionRevoked) {
+        clearAuthToken({ broadcast: true });
         setSessions([]);
         setCurrentSessionId(null);
-        setSuccessMessage("Bu oturum kapatıldı. Devam etmek için tekrar giriş yapman gerekebilir.");
+        setSuccessMessage("Bu oturum kapatıldı. Tekrar giriş yapman gerekiyor.");
+        window.location.replace("/login");
         return;
       }
 
@@ -126,9 +129,13 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
         return;
       }
 
+      clearAuthToken({ broadcast: true });
+      clearAuthToken({ broadcast: true });
       setSessions([]);
       setCurrentSessionId(null);
       setSuccessMessage(`${body.data.revokedCount} oturum kapatıldı. Tüm cihazlardan çıkış yapıldı.`);
+      window.location.replace("/login");
+      window.location.replace("/login");
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {

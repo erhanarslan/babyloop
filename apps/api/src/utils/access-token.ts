@@ -4,11 +4,13 @@ type AccessTokenPayload = {
   exp: number;
   iat: number;
   profileId: string;
+  sessionId: string;
   userId: string;
 };
 
 export type VerifiedAccessToken = {
   profileId: string;
+  sessionId: string;
   userId: string;
 };
 
@@ -24,6 +26,7 @@ export function signAccessToken(
     exp: issuedAt + options.ttlSeconds,
     iat: issuedAt,
     profileId: input.profileId,
+    sessionId: input.sessionId,
     userId: input.userId
   };
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -56,6 +59,7 @@ export function verifyAccessToken(
 
   return {
     profileId: payload.profileId,
+    sessionId: payload.sessionId,
     userId: payload.userId
   };
 }
@@ -91,10 +95,12 @@ function hasPayloadShape(value: object): value is AccessTokenPayload {
     "exp" in value &&
     "iat" in value &&
     "profileId" in value &&
+    "sessionId" in value &&
     "userId" in value &&
     typeof value.exp === "number" &&
     typeof value.iat === "number" &&
     typeof value.profileId === "string" &&
+    typeof value.sessionId === "string" &&
     typeof value.userId === "string"
   );
 }

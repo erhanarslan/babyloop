@@ -207,6 +207,20 @@ export default function SecurityRoute() {
       return;
     }
 
+    const sessionSyncIntervalId = setInterval(() => {
+      void handleSessionRefresh({ silent: true });
+    }, 4000);
+
+    return () => {
+      clearInterval(sessionSyncIntervalId);
+    };
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
     let active = true;
     let unsubscribe: (() => void) | null = null;
 
@@ -387,17 +401,21 @@ export default function SecurityRoute() {
     }
   }
 
-  async function handleSessionRefresh() {
-    setLoadingSessions(true);
-    setSessionError(null);
-    setSessionMessage(null);
+  async function handleSessionRefresh(options: { silent?: boolean } = {}) {
+    const silent = options.silent ?? false;
+
+    if (!silent) {
+      setLoadingSessions(true);
+      setSessionError(null);
+      setSessionMessage(null);
+    }
 
     const response = await fetchMobileAuthSessions();
 
     if (response.ok) {
       setSessions(response.data.sessions);
       setCurrentSessionId(response.data.currentSessionId);
-    } else {
+    } else if (!silent) {
       setMobileLoginApprovalEnabled(null);
       setSensitiveToggle(null);
       setSensitiveTogglePassword("");
@@ -408,7 +426,9 @@ export default function SecurityRoute() {
       setSessionError(response.error.message);
     }
 
-    setLoadingSessions(false);
+    if (!silent) {
+      setLoadingSessions(false);
+    }
   }
 
   async function handleRevokeSession(sessionId: string) {

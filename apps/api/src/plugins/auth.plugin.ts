@@ -18,6 +18,7 @@ export type CurrentUser = {
     locationCity: string | null;
   };
   role: string;
+  sessionId: string;
   userId: string;
 };
 
@@ -70,13 +71,14 @@ export async function authenticateAccessToken(
       profileId: profiles.id,
       displayName: profiles.displayName,
       locationCity: profiles.locationCity,
-      activeSessionId: sessions.id
+      sessionId: sessions.id
     })
     .from(users)
     .innerJoin(profiles, eq(profiles.userId, users.id))
     .innerJoin(
       sessions,
       and(
+        eq(sessions.id, verifiedToken.sessionId),
         eq(sessions.userId, users.id),
         isNull(sessions.revokedAt),
         gt(sessions.expiresAt, now)
@@ -85,7 +87,11 @@ export async function authenticateAccessToken(
     .where(eq(users.id, verifiedToken.userId))
     .limit(1);
 
-  if (!row || row.profileId !== verifiedToken.profileId || !row.activeSessionId) {
+  if (
+    !row ||
+    row.profileId !== verifiedToken.profileId ||
+    row.sessionId !== verifiedToken.sessionId
+  ) {
     return null;
   }
 
@@ -98,6 +104,7 @@ export async function authenticateAccessToken(
       locationCity: row.locationCity
     },
     role: row.role,
+    sessionId: row.sessionId,
     userId: row.userId
   };
 }
