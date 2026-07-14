@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "../../ui/screen";
 import {
@@ -27,6 +27,8 @@ import {
   getMobileListingDetailActionState,
   getMobileListingGalleryImageUrls
 } from "./listing-detail-model";
+import { fetchMobileListingShareLink } from "./listing-share-api";
+import { buildMobileListingShareMessage } from "./listing-share-model";
 import {
   fetchMobileListingDetail,
   type MobileListingDetail
@@ -35,6 +37,7 @@ import {
 type FavoriteStatus = "idle" | "checking" | "pending";
 type ConversationStatus = "idle" | "pending";
 type CartStatus = "idle" | "pending" | "added";
+type ShareStatus = "idle" | "pending";
 
 export function ListingDetailScreen() {
   const params = useLocalSearchParams<{
@@ -57,6 +60,8 @@ export function ListingDetailScreen() {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [cartStatus, setCartStatus] = useState<CartStatus>("idle");
   const [cartError, setCartError] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<ShareStatus>("idle");
+  const [shareError, setShareError] = useState<string | null>(null);
   const [handledPostLoginAction, setHandledPostLoginAction] = useState<string | null>(null);
 
   const isOwnListing = Boolean(
@@ -85,6 +90,7 @@ export function ListingDetailScreen() {
         setFavoriteError(null);
         setConversationError(null);
         setCartError(null);
+        setShareError(null);
 
         const nextListing = await fetchMobileListingDetail(listingId);
 
@@ -245,6 +251,37 @@ export function ListingDetailScreen() {
     }
   }
 
+
+  async function handleSharePress() {
+    if (!listing || shareStatus === "pending") {
+      return;
+    }
+
+    try {
+      setShareStatus("pending");
+      setShareError(null);
+
+      const shareLink = await fetchMobileListingShareLink(listing.id);
+      const message = buildMobileListingShareMessage({
+        title: listing.title,
+        priceText: listing.priceText,
+        url: shareLink.url
+      });
+
+      await Share.share({
+        message
+      });
+    } catch (shareActionError) {
+      setShareError(
+        shareActionError instanceof Error
+          ? shareActionError.message
+          : "Paylaşım açılamadı. Tekrar dene."
+      );
+    } finally {
+      setShareStatus("idle");
+    }
+  }
+
   useEffect(() => {
     const postLoginAction =
       typeof params.postLoginAction === "string" ? params.postLoginAction : null;
@@ -343,8 +380,23 @@ export function ListingDetailScreen() {
           </MobileCard>
 
           <View style={styles.priceBlock}>
-            <Text style={styles.price}>{listing.priceText}</Text>
-            <Text style={styles.location}>{listing.locationText}</Text>
+            <View style={styles.priceTextBlock}>
+              <Text style={styles.price}>{listing.priceText}</Text>
+              <Text style={styles.location}>{listing.locationText}</Text>
+            </View>
+
+            <Pressable
+              accessibilityLabel="İlanı paylaş"
+              accessibilityRole="button"
+              disabled={shareStatus === "pending"}
+              onPress={handleSharePress}
+              style={[
+                styles.shareIconButton,
+                shareStatus === "pending" ? styles.shareIconButtonDisabled : null
+              ]}
+            >
+              <Ionicons color={colors.primaryDark} name="share-outline" size={22} />
+            </Pressable>
           </View>
 
           <View style={styles.metaChips}>
@@ -372,6 +424,7 @@ export function ListingDetailScreen() {
               </Text>
             </View>
           </MobileCard>
+
 
           {!isOwnListing ? (
             <View style={styles.actionGrid}>
@@ -425,6 +478,7 @@ export function ListingDetailScreen() {
           {conversationError ? <Text style={styles.actionError}>{conversationError}</Text> : null}
           {favoriteError ? <Text style={styles.actionError}>{favoriteError}</Text> : null}
           {cartError ? <Text style={styles.actionError}>{cartError}</Text> : null}
+          {shareError ? <Text style={styles.actionError}>{shareError}</Text> : null}
 
           <MobileCard style={styles.descriptionCard}>
             <Text style={styles.descriptionTitle}>Açıklama</Text>
@@ -448,6 +502,7 @@ export function ListingDetailScreen() {
     </Screen>
   );
 }
+
 
 const styles = StyleSheet.create({
   heroCard: {
@@ -492,7 +547,28 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   priceBlock: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md
+  },
+  priceTextBlock: {
+    flex: 1,
+    minWidth: 0,
     gap: 4
+  },
+  shareIconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surface
+  },
+  shareIconButtonDisabled: {
+    opacity: 0.55
   },
   price: {
     color: colors.primaryDark,
@@ -606,5 +682,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 19
-  }
-});
+  }});

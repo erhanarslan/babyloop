@@ -1,4 +1,5 @@
 "use client";
+import { ListingShareButton } from "./listing-share-button";
 
 import { type KeyboardEvent, useEffect, useState } from "react";
 import Link from "next/link";
@@ -129,6 +130,14 @@ export function ListingDetailContent({
               {listing.seller.locationCity ?? dictionary.listings.locationNotProvided}
               {listing.favoriteCount > 0 ? ` · ${listing.favoriteCount} favori` : ""}
             </p>
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <ListingShareButton
+              apiBaseUrl={apiBaseUrl}
+              listingId={listing.id}
+              title={listing.title}
+            />
           </div>
 
           <p className="listing-detail-p0-description">

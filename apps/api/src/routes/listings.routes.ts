@@ -1,7 +1,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import { productCategories } from "@babyloop/database/schema";
 import { asc } from "drizzle-orm";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type {
   ListingDraftSuggestionImageInput,
   ListingDraftSuggestionOutput,
@@ -40,6 +40,12 @@ import type {
   ListingSummaryResponse
 } from "../services/listing-response.mapper.js";
 import { recordProductEvent } from "../services/product-events.service.js";
+import {
+  buildDirectListingShareLink,
+  getOrCreateListingShareLink,
+  isMissingShortLinksTableError,
+  type ShortLinkPublicResponse
+} from "../services/short-links.service.js";
 
 type ListingsResponse = ApiResponse<{
   listings: ListingSummaryResponse[];
@@ -83,6 +89,10 @@ type DeleteListingImageResponse = ApiResponse<{
   deleted: true;
 }>;
 
+type ListingShareLinkApiResponse = ApiResponse<{
+  shareLink: ShortLinkPublicResponse;
+}>;
+
 type ListingParams = {
   id: string;
 };
@@ -96,9 +106,74 @@ type ListingsQuery = Record<string, unknown>;
 type ListingRouteOptions = {
   listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   uploadRoot: string;
+  webAppUrl: string;
 };
 
 export function registerListingRoutes(app: FastifyInstance, options: ListingRouteOptions): void {
+  async function handleListingShareLinkRequest(
+    request: FastifyRequest<{ Params: ListingParams }>,
+    reply: FastifyReply
+  ) {
+    const parsedParams = listingParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: "INVALID_LISTING_ID",
+          message: "Listing id is invalid."
+        }
+      });
+    }
+
+    let result: Awaited<ReturnType<typeof getOrCreateListingShareLink>>;
+
+    try {
+      result = await getOrCreateListingShareLink(app.db, {
+        listingId: parsedParams.data.id,
+        webAppUrl: options.webAppUrl
+      });
+    } catch (shareLinkError) {
+      if (isMissingShortLinksTableError(shareLinkError)) {
+        return reply.send({
+          ok: true,
+          data: {
+            shareLink: buildDirectListingShareLink(parsedParams.data.id, options.webAppUrl)
+          }
+        });
+      }
+
+      throw shareLinkError;
+    }
+
+    if (result.status === "not_found") {
+      return reply.status(404).send({
+        ok: false,
+        error: {
+          code: "LISTING_NOT_FOUND",
+          message: "Listing was not found."
+        }
+      });
+    }
+
+    return reply.send({
+      ok: true,
+      data: {
+        shareLink: result.shareLink
+      }
+    });
+  }
+
+  app.get<{ Params: ListingParams; Reply: ListingShareLinkApiResponse }>(
+    "/listings/:id/share-link",
+    handleListingShareLinkRequest
+  );
+
+  app.post<{ Params: ListingParams; Reply: ListingShareLinkApiResponse }>(
+    "/listings/:id/share-link",
+    handleListingShareLinkRequest
+  );
+
   app.post<{ Body: unknown; Reply: CreateListingResponse }>("/listings", async (request, reply) => {
     const currentUser = await requireCurrentUser(app, request, reply);
 

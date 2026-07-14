@@ -36,6 +36,7 @@ import { registerSearchSuggestionRoutes } from "./routes/search-suggestions.rout
 import { registerSafetyRoutes } from "./routes/safety.routes.js";
 import { registerSavedSearchRoutes } from "./routes/saved-searches.routes.js";
 import { registerSellerDashboardRoutes } from "./routes/seller-dashboard.routes.js";
+import { registerShareLinkRoutes } from "./routes/share-links.routes.js";
 import { registerUploadRoutes } from "./routes/uploads.routes.js";
 import { registerRealtime } from "./realtime/socket.js";
 import {
@@ -321,7 +322,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerListingRoutes, {
       listingDraftSuggestionProvider,
       prefix: API_PREFIX,
-      uploadRoot: config.uploadRoot
+      uploadRoot: config.uploadRoot,
+      webAppUrl: config.webAppUrl
     });
     app.register(registerListingRecommendationRoutes, { prefix: API_PREFIX });
     app.register(registerMessagingRoutes, { prefix: API_PREFIX });
@@ -339,6 +341,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerProfileRoutes, { prefix: API_PREFIX });
     app.register(registerSavedSearchRoutes, { prefix: API_PREFIX });
     app.register(registerSellerDashboardRoutes, { prefix: API_PREFIX });
+    app.register(registerShareLinkRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAuditRoutes, { prefix: API_PREFIX });
     app.register(registerAdminAiOpsRoutes, { prefix: API_PREFIX });
     app.register(registerAdminConversationRoutes, { prefix: API_PREFIX });

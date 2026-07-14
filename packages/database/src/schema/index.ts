@@ -524,6 +524,37 @@ export const listings = pgTable(
   ]
 );
 
+export const shortLinks = pgTable(
+  "short_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 12 }).notNull(),
+    targetType: varchar("target_type", { length: 40 }).notNull(),
+    targetId: uuid("target_id").notNull(),
+    targetPath: text("target_path").notNull(),
+    createdByProfileId: uuid("created_by_profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    source: varchar("source", { length: 80 }).notNull().default("listing_share"),
+    clickCount: integer("click_count").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("short_links_code_unique").on(table.code),
+    uniqueIndex("short_links_active_target_source_unique")
+      .on(table.targetType, table.targetId, table.source)
+      .where(sql`${table.isActive} = true and ${table.expiresAt} is null`),
+    index("short_links_target_idx").on(table.targetType, table.targetId),
+    index("short_links_created_by_profile_id_idx").on(table.createdByProfileId),
+    index("short_links_active_code_idx").on(table.code, table.isActive),
+    check("short_links_code_check", sql`${table.code} ~ '^[0-9A-Za-z]{6,12}$'`),
+    check("short_links_target_type_check", sql`length(trim(${table.targetType})) > 0`),
+    check("short_links_target_path_check", sql`length(trim(${table.targetPath})) > 0 and left(${table.targetPath}, 1) = '/'`),
+    check("short_links_click_count_check", sql`${table.clickCount} >= 0`)
+  ]
+);
+
 export const listingImages = pgTable(
   "listing_images",
   {
