@@ -1,11 +1,17 @@
 import {
   appendMobileChildReminder,
   buildMobileChildNoteCreatePayload,
+  buildMobileChildNoteCreatePayloadFromState,
   buildMobileChildReminderCreatePayload,
+  buildMobileChildReminderCreatePayloadFromState,
   canRunMobileChildProfileAction,
+  createMobileChildNoteFormState,
+  createMobileChildReminderFormState,
+  createMobileChildReminderFormStateFromReminder,
   getMobileChildDeliveryBoundaryText,
   getMobileChildMutationMessage,
   getMobileChildProfileMetaLabel,
+  getMobileChildReminderScheduleLabel,
   getMobileChildRequiredTitleMessage,
   getPreferredMobileChildProfile,
   normalizeMobileChildEntryTitle,
@@ -88,7 +94,7 @@ describe("mobile child reminder screen-state model", () => {
     expect(canRunMobileChildProfileAction(null, false)).toBe(false);
   });
 
-  it("normalizes titles and builds note payloads without leaking secrets", () => {
+  it("normalizes titles and builds legacy note payloads without leaking secrets", () => {
     const payload = buildMobileChildNoteCreatePayload("  Bez stoğu azaldı accessToken=secret  ");
 
     expect(normalizeMobileChildEntryTitle("  Not  ")).toBe("Not");
@@ -98,6 +104,40 @@ describe("mobile child reminder screen-state model", () => {
       body: null
     });
     expect(JSON.stringify({ payload })).not.toMatch(/refreshToken|passwordHash|currentPassword|rawContact/iu);
+  });
+
+  it("builds rich note payloads from form state", () => {
+    expect(createMobileChildNoteFormState({
+      ...note,
+      body: "2 paket kaldı.",
+      noteType: "diaper"
+    })).toEqual({
+      body: "2 paket kaldı.",
+      noteType: "diaper",
+      title: "Bez"
+    });
+
+    expect(buildMobileChildNoteCreatePayloadFromState({
+      body: "  2 paket kaldı.  ",
+      noteType: "diaper",
+      title: "  Bez stoğu  "
+    })).toEqual({
+      ok: true,
+      payload: {
+        body: "2 paket kaldı.",
+        noteType: "diaper",
+        title: "Bez stoğu"
+      }
+    });
+
+    expect(buildMobileChildNoteCreatePayloadFromState({
+      body: "",
+      noteType: "general",
+      title: "  "
+    })).toEqual({
+      ok: false,
+      message: "Not başlığı gerekli."
+    });
   });
 
   it("builds in-app reminder payloads without claiming push, email, or n8n delivery", () => {
@@ -113,6 +153,94 @@ describe("mobile child reminder screen-state model", () => {
       channel: "in_app"
     });
     expect(JSON.stringify(payload)).not.toMatch(/sendPush|sendEmail|n8n|webhook|push gönderildi|email gönderildi/iu);
+  });
+
+  it("builds interval, weekly, and appointment reminder payloads from form state", () => {
+    expect(buildMobileChildReminderCreatePayloadFromState({
+      ...createMobileChildReminderFormState("feeding_interval"),
+      intervalMinutes: "120"
+    })).toEqual({
+      ok: true,
+      payload: expect.objectContaining({
+        channel: "in_app",
+        intervalMinutes: 120,
+        reminderType: "feeding",
+        scheduleKind: "interval",
+        title: "Beslenme zamanı"
+      })
+    });
+
+    expect(buildMobileChildReminderCreatePayloadFromState({
+      ...createMobileChildReminderFormState("activity_weekly"),
+      localTime: "10:30"
+    })).toEqual({
+      ok: true,
+      payload: expect.objectContaining({
+        channel: "in_app",
+        localTime: "10:30",
+        scheduleKind: "weekly"
+      })
+    });
+
+    const appointmentPayload = buildMobileChildReminderCreatePayloadFromState({
+      ...createMobileChildReminderFormState("appointment", new Date("2030-01-01T08:00:00.000Z")),
+      notifyBeforeMinutes: "1440"
+    });
+
+    expect(appointmentPayload).toEqual({
+      ok: true,
+      payload: expect.objectContaining({
+        channel: "in_app",
+        notifyBeforeMinutes: 1440,
+        reminderType: "appointment",
+        scheduleKind: "relative_before_event"
+      })
+    });
+    expect(JSON.stringify(appointmentPayload)).not.toMatch(/ilaç|tedavi|tanı|terapi|diyet reçetesi|push gönderildi|email gönderildi|n8n çalıştı/iu);
+  });
+
+  it("validates rich reminder form state", () => {
+    expect(buildMobileChildReminderCreatePayloadFromState({
+      ...createMobileChildReminderFormState("feeding_interval"),
+      intervalMinutes: "5"
+    })).toEqual({
+      ok: false,
+      message: "Tekrarlı hatırlatıcı için en az 15 dakika aralık yaz."
+    });
+
+    expect(buildMobileChildReminderCreatePayloadFromState({
+      ...createMobileChildReminderFormState("activity_weekly"),
+      localTime: "not-time"
+    })).toEqual({
+      ok: false,
+      message: "Günlük/haftalık hatırlatıcı için HH:mm formatında saat yaz."
+    });
+  });
+
+  it("creates reminder form state from existing reminders and labels schedules", () => {
+    expect(createMobileChildReminderFormStateFromReminder({
+      ...reminder,
+      intervalMinutes: 120,
+      scheduleKind: "interval"
+    })).toMatchObject({
+      intervalMinutes: "120",
+      reminderType: "shopping",
+      scheduleKind: "interval"
+    });
+
+    expect(getMobileChildReminderScheduleLabel({
+      intervalMinutes: 120,
+      localTime: null,
+      notifyBeforeMinutes: null,
+      scheduleKind: "interval"
+    })).toBe("120 dakikada bir");
+
+    expect(getMobileChildReminderScheduleLabel({
+      intervalMinutes: null,
+      localTime: "10:00",
+      notifyBeforeMinutes: null,
+      scheduleKind: "weekly"
+    })).toBe("Haftalık 10:00");
   });
 
   it("keeps copy and messages practical, non-medical, and no-real-delivery", () => {
