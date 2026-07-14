@@ -854,6 +854,99 @@ describe("listings API", () => {
     expect(ownedListingIds).not.toContain(otherListing.id);
   });
 
+  it("returns owner listing detail for inactive listings without exposing them publicly", async () => {
+    const seller = await createUser(app);
+    const otherUser = await createUser(app);
+    const archivedListing = await createListing(app, seller.accessToken, {
+      title: "Archived stroller"
+    });
+    const soldListing = await createListing(app, seller.accessToken, {
+      title: "Sold stroller"
+    });
+
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, archivedListing.id));
+    await app.db
+      .update(listings)
+      .set({ status: "sold" })
+      .where(eq(listings.id, soldListing.id));
+
+    await app.db.insert(listingImages).values({
+      contentHash: "a".repeat(64),
+      listingId: archivedListing.id,
+      reviewStatus: "needs_review",
+      sortOrder: 0,
+      url: "/api/v1/uploads/listings/owner-review.png"
+    });
+
+    const archivedOwnerDetail = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: `/api/v1/me/listings/${archivedListing.id}`
+    });
+    const soldOwnerDetail = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: `/api/v1/me/listings/${soldListing.id}`
+    });
+    const archivedPublicDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${archivedListing.id}`
+    });
+    const soldPublicDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${soldListing.id}`
+    });
+    const nonOwnerDetail = await app.inject({
+      headers: authHeader(otherUser.accessToken),
+      method: "GET",
+      url: `/api/v1/me/listings/${archivedListing.id}`
+    });
+    const unauthenticatedDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/me/listings/${archivedListing.id}`
+    });
+    const invalidIdDetail = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: "/api/v1/me/listings/not-a-uuid"
+    });
+
+    expect(archivedOwnerDetail.statusCode).toBe(200);
+    expect(archivedOwnerDetail.json()).toMatchObject({
+      ok: true,
+      data: {
+        listing: {
+          id: archivedListing.id,
+          status: "archived",
+          title: "Archived stroller",
+          images: [
+            {
+              reviewStatus: "needs_review",
+              sortOrder: 0,
+              url: "/api/v1/uploads/listings/owner-review.png"
+            }
+          ],
+          seller: {
+            id: seller.profile.id
+          }
+        }
+      }
+    });
+    expect(soldOwnerDetail.statusCode).toBe(200);
+    expect(soldOwnerDetail.json().data.listing).toMatchObject({
+      id: soldListing.id,
+      status: "sold"
+    });
+    expect(archivedPublicDetail.statusCode).toBe(404);
+    expect(soldPublicDetail.statusCode).toBe(404);
+    expect(nonOwnerDetail.statusCode).toBe(403);
+    expect(unauthenticatedDetail.statusCode).toBe(401);
+    expect(invalidIdDetail.statusCode).toBe(400);
+  });
+
   it("allows the owner to update editable listing fields", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
