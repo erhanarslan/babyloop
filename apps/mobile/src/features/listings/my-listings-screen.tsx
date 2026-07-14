@@ -1,12 +1,15 @@
-import { Link, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Paragraph, Screen } from "../../ui/screen";
+import { Screen } from "../../ui/screen";
 import {
   MobileButton,
+  MobileCard,
   MobileEmptyState,
-  MobileErrorState
+  MobileErrorState,
+  MobileSkeleton
 } from "../../ui/mobile-primitives";
 import {
   buildMobileListingChips,
@@ -20,22 +23,45 @@ import {
   type MobileListingStatus,
   type MobileMyListingSummary
 } from "./listings-api";
-import { getMobileListingStatusActions } from "./my-listings-model";
+import {
+  canSubmitMobileListingStatusAction,
+  filterMobileMyListings,
+  getMobileListingStatusActionMessage,
+  getMobileListingStatusActions,
+  getMobileMyListingStats,
+  getMobileMyListingStatusFilterLabel,
+  MOBILE_MY_LISTING_STATUS_FILTERS,
+  type MobileListingStatusAction,
+  type MobileMyListingStatusFilter
+} from "./my-listings-model";
 
-type LoadStatus = "loading" | "ready" | "error";
+type LoadStatus = "idle" | "loading" | "ready" | "guest" | "error";
 
 export function MyListingsScreen() {
   const router = useRouter();
   const authSession = useAuthSession();
   const [listings, setListings] = useState<MobileMyListingSummary[]>([]);
-  const [status, setStatus] = useState<LoadStatus>("loading");
+  const [status, setStatus] = useState<LoadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<MobileMyListingStatusFilter>("all");
   const [pendingListingId, setPendingListingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const stats = useMemo(() => getMobileMyListingStats(listings), [listings]);
+  const visibleListings = useMemo(
+    () => filterMobileMyListings(listings, selectedFilter),
+    [listings, selectedFilter]
+  );
 
   const loadListings = useCallback(async () => {
+    if (authSession.status === "checking") {
+      setStatus("loading");
+      return;
+    }
+
     if (!authSession.currentUser) {
       setListings([]);
-      setStatus("ready");
+      setStatus("guest");
       setError(null);
       return;
     }
@@ -43,6 +69,7 @@ export function MyListingsScreen() {
     try {
       setStatus("loading");
       setError(null);
+      setSuccessMessage(null);
 
       const nextListings = await fetchMobileMyListings();
 
@@ -52,28 +79,31 @@ export function MyListingsScreen() {
       setStatus("error");
       setError(loadError instanceof Error ? loadError.message : "İlanların yüklenemedi.");
     }
-  }, [authSession.currentUser]);
+  }, [authSession.currentUser, authSession.status]);
 
   useEffect(() => {
     void loadListings();
   }, [loadListings]);
 
-  async function handleStatusAction(listingId: string, nextStatus: MobileListingStatus) {
-    if (pendingListingId) {
+  async function handleStatusAction(
+    listingId: string,
+    nextStatus: MobileListingStatus
+  ) {
+    if (!canSubmitMobileListingStatusAction({ listingId, nextStatus, pendingListingId })) {
       return;
     }
 
     try {
       setPendingListingId(listingId);
       setError(null);
+      setSuccessMessage(null);
 
       const updatedListing = await updateMobileListingStatus(listingId, nextStatus);
 
       setListings((currentListings) =>
         currentListings.map((listing) => (listing.id === listingId ? updatedListing : listing))
       );
-
-      await loadListings();
+      setSuccessMessage(getMobileListingStatusActionMessage(nextStatus));
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "İlan durumu güncellenemedi.");
     } finally {
@@ -81,37 +111,54 @@ export function MyListingsScreen() {
     }
   }
 
-  if (!authSession.currentUser) {
+  if (status === "guest") {
     return (
-      <Screen title="İlanlarım">
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Hesap gerekli</Text>
-          <Text style={styles.stateText}>İlanlarını yönetmek için BabyLoop hesabına giriş yapmalısın.</Text>
-          <Link href="/login" asChild>
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Giriş yap</Text>
-            </Pressable>
-          </Link>
-        </View>
+      <Screen
+        eyebrow="Satıcı paneli"
+        title="İlanlarım"
+        subtitle="İlanlarını yönetmek için hesabına giriş yap."
+      >
+        <MobileEmptyState
+          actionLabel="Giriş yap"
+          message="Aktif, rezerve, satıldı ve arşivdeki ilanlarını buradan yönetebilirsin."
+          onAction={() => router.push("/login")}
+          title="Giriş gerekli"
+        />
       </Screen>
     );
   }
 
   return (
-    <Screen title="İlanlarım">
+    <Screen
+      eyebrow="Satıcı paneli"
+      title="İlanlarım"
+      subtitle="Yayındaki ve kapanan ilanlarını mobilde yönet."
+    >
       <View style={styles.headerActions}>
-        <Pressable onPress={() => router.replace("/account")} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Hesaba dön</Text>
+        <Pressable
+          accessibilityLabel="Hesaba dön"
+          accessibilityRole="button"
+          onPress={() => router.replace("/account")}
+          style={styles.backButton}
+        >
+          <Ionicons color={colors.primaryDark} name="chevron-back" size={18} />
+          <Text style={styles.backButtonText}>Hesap</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push("/sell")} style={styles.headerPrimaryButton}>
-          <Text style={styles.headerPrimaryButtonText}>Yeni ilan ver</Text>
+        <Pressable
+          accessibilityLabel="Yeni ilan ver"
+          accessibilityRole="button"
+          onPress={() => router.push("/sell")}
+          style={styles.primaryIconButton}
+        >
+          <Ionicons color={colors.primaryDark} name="add-circle-outline" size={18} />
+          <Text style={styles.primaryIconButtonText}>Yeni ilan</Text>
         </Pressable>
       </View>
 
-      {status === "loading" ? <Paragraph>İlanların yükleniyor...</Paragraph> : null}
+      {status === "loading" ? <MobileSkeleton label="İlanların yükleniyor..." /> : null}
 
-      {error ? (
+      {status === "error" ? (
         <MobileErrorState
           actionLabel="Tekrar dene"
           message={error}
@@ -120,27 +167,95 @@ export function MyListingsScreen() {
         />
       ) : null}
 
-      {status === "ready" && listings.length === 0 ? (
-        <MobileEmptyState
-          actionLabel="İlan ver"
-          message="İlk ilanını oluşturduğunda burada yönetebilirsin."
-          onAction={() => router.push("/sell")}
-          title="Henüz ilan yok"
-        />
-      ) : null}
+      {status === "ready" ? (
+        <>
+          <View style={styles.summaryGrid}>
+            <SummaryPill label="Toplam" value={stats.total} />
+            <SummaryPill label="Aktif" value={stats.active} />
+            <SummaryPill label="Rezerve" value={stats.reserved} />
+            <SummaryPill label="Satıldı" value={stats.sold} />
+            <SummaryPill label="Arşivde" value={stats.archived} />
+          </View>
 
-      <View style={styles.list}>
-        {listings.map((listing) => (
-          <MyListingCard
-            key={listing.id}
-            listing={listing}
-            onOpen={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
-            onStatusAction={(nextStatus) => void handleStatusAction(listing.id, nextStatus)}
-            pending={pendingListingId === listing.id}
-          />
-        ))}
-      </View>
+          <View accessibilityLabel="İlan durumu filtreleri" style={styles.filterRow}>
+            {MOBILE_MY_LISTING_STATUS_FILTERS.map((filter) => {
+              const selected = selectedFilter === filter;
+
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={filter}
+                  onPress={() => setSelectedFilter(filter)}
+                  style={[styles.filterChip, selected ? styles.filterChipSelected : null]}
+                >
+                  <Text style={[styles.filterChipText, selected ? styles.filterChipTextSelected : null]}>
+                    {getMobileMyListingStatusFilterLabel(filter)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {successMessage ? (
+            <MobileCard style={styles.successCard}>
+              <Text style={styles.successText}>{successMessage}</Text>
+            </MobileCard>
+          ) : null}
+
+          {error ? (
+            <MobileCard style={styles.inlineErrorCard}>
+              <Text style={styles.inlineErrorText}>{error}</Text>
+            </MobileCard>
+          ) : null}
+
+          {listings.length === 0 ? (
+            <MobileEmptyState
+              actionLabel="İlan ver"
+              message="İlk ilanını oluşturduğunda burada durumunu ve aksiyonlarını göreceksin."
+              onAction={() => router.push("/sell")}
+              title="Henüz ilanın yok"
+            />
+          ) : null}
+
+          {listings.length > 0 && visibleListings.length === 0 ? (
+            <MobileEmptyState
+              actionLabel="Tümünü göster"
+              message="Bu durumda ilan yok. Diğer durumları görmek için tüm ilanlara dönebilirsin."
+              onAction={() => setSelectedFilter("all")}
+              title="Bu filtre boş"
+            />
+          ) : null}
+
+          <View style={styles.list}>
+            {visibleListings.map((listing) => (
+              <MyListingCard
+                key={listing.id}
+                listing={listing}
+                onOpen={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
+                onStatusAction={(nextStatus) => void handleStatusAction(listing.id, nextStatus)}
+                pending={pendingListingId === listing.id}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
     </Screen>
+  );
+}
+
+function SummaryPill({
+  label,
+  value
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <MobileCard style={styles.summaryPill}>
+      <Text style={styles.summaryValue}>{value}</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+    </MobileCard>
   );
 }
 
@@ -158,141 +273,184 @@ function MyListingCard({
   const actions = getMobileListingStatusActions(listing.status);
 
   return (
-    <MobileListingCard
-      actions={
-        <View style={styles.actionRow}>
+    <View style={styles.cardShell}>
+      <MobileListingCard
+        accessibilityLabel={`İlanı aç: ${listing.title}`}
+        chips={buildMobileListingChips({
+          conditionText: listing.conditionText,
+          listingTypeText: listing.listingTypeText,
+          statusText: listing.statusText
+        })}
+        favoriteText={
+          typeof listing.favoriteCount === "number"
+            ? `${listing.favoriteCount} favori`
+            : null
+        }
+        footerText={listing.createdAt ? `Oluşturulma: ${formatDate(listing.createdAt)}` : null}
+        imageUrl={listing.imageUrl}
+        locationText={listing.locationText}
+        onPress={onOpen}
+        priceText={listing.priceText}
+        title={listing.title}
+      />
+
+      <View style={styles.cardActions}>
+        <MobileButton iconName="open-outline" onPress={onOpen} variant="secondary">
+          Detay
+        </MobileButton>
+
+        {actions.map((action) => (
           <MobileButton
             disabled={pending}
-            iconName="open-outline"
-            onPress={onOpen}
-            style={styles.actionButton}
-            variant="secondary"
+            iconName={getActionIconName(action)}
+            key={`${listing.id}-${action.status}`}
+            onPress={() => onStatusAction(action.status)}
+            variant={action.tone === "primary" ? undefined : action.tone}
           >
-            Detay
+            {pending ? "Güncelleniyor..." : action.label}
           </MobileButton>
-          {actions.map((action) => (
-            <MobileButton
-              disabled={pending}
-              key={`${listing.id}-${action.status}`}
-              onPress={() => onStatusAction(action.status)}
-              iconName={getActionIconName(action.label)}
-              style={styles.actionButton}
-              variant={action.tone}
-            >
-              {pending ? "Güncelleniyor..." : action.label}
-            </MobileButton>
-          ))}
-        </View>
-      }
-      chips={buildMobileListingChips({
-        conditionText: listing.conditionText,
-        listingTypeText: listing.listingTypeText,
-        statusText: listing.statusText
-      })}
-      favoriteText={`${listing.favoriteCount ?? 0} favori`}
-      imageUrl={listing.imageUrl}
-      locationText={listing.locationText}
-      onPress={onOpen}
-      priceText={listing.priceText}
-      title={listing.title}
-    />
+        ))}
+      </View>
+    </View>
   );
 }
 
-function getActionIconName(label: string): "archive-outline" | "cart-outline" | "refresh-outline" {
-  if (label === "Satıldı") {
-    return "cart-outline";
+function getActionIconName(
+  action: MobileListingStatusAction
+): "archive-outline" | "checkmark-done-outline" | "refresh-outline" {
+  if (action.status === "sold") {
+    return "checkmark-done-outline";
   }
 
-  if (label === "Yayından kaldır") {
-    return "archive-outline";
+  if (action.status === "active") {
+    return "refresh-outline";
   }
 
-  return "refresh-outline";
+  return "archive-outline";
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("tr-TR");
 }
 
 const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10
+    justifyContent: "space-between",
+    gap: spacing.sm
   },
   backButton: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
     borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 11
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10
   },
   backButtonText: {
     color: colors.primaryDark,
     fontSize: 13,
     fontWeight: "900"
   },
-  headerPrimaryButton: {
-    flex: 1,
+  primaryIconButton: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
     borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing.md,
     paddingVertical: 11
   },
-  headerPrimaryButtonText: {
-    color: colors.primaryForeground,
+  primaryIconButtonText: {
+    color: colors.primaryDark,
     fontSize: 13,
     fontWeight: "900"
   },
-  list: {
-    gap: spacing.md
-  },
-  actionRow: {
+  summaryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm
   },
-  actionButton: {
-    flex: 1
+  summaryPill: {
+    minWidth: 96,
+    flexGrow: 1,
+    gap: 3,
+    padding: spacing.sm
   },
-  stateCard: {
+  summaryValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm
+  },
+  filterChip: {
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    padding: 16,
-    gap: 10
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10
   },
-  stateTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "900"
+  filterChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surfaceSoft
   },
-  stateText: {
+  filterChipText: {
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
-  },
-  primaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingVertical: 13
-  },
-  primaryButtonText: {
-    color: colors.primaryForeground,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900"
   },
-  secondaryButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceSoft,
-    paddingVertical: 13
+  filterChipTextSelected: {
+    color: colors.primaryDark
   },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "900"
+  successCard: {
+    borderColor: "#bbf7d0",
+    backgroundColor: "#f0fdf4"
   },
+  successText: {
+    color: "#166534",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18
+  },
+  inlineErrorCard: {
+    borderColor: "#fecaca",
+    backgroundColor: "#fff1f2"
+  },
+  inlineErrorText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18
+  },
+  list: {
+    gap: spacing.md
+  },
+  cardShell: {
+    gap: spacing.sm
+  },
+  cardActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm
+  }
 });

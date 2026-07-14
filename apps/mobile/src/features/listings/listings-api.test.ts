@@ -1,120 +1,143 @@
-import { apiGet } from "../../api/client";
 import {
-  buildMobileListingsQuery,
-  fetchMobileListingDetail
+  fetchMobileMyListings,
+  updateMobileListingStatus
 } from "./listings-api";
+import { mobileAuthFetch } from "../auth/auth-api";
 
 jest.mock("../../api/client", () => ({
   apiGet: jest.fn(),
   isRecord: (value: unknown) => typeof value === "object" && value !== null,
-  resolveApiAssetUrl: (value: string | null) => value,
-  safeApiErrorMessage: (value: unknown) => (value instanceof Error ? value.message : "İşlem tamamlanamadı.")
+  resolveApiAssetUrl: (url: string | null | undefined) => url ?? null,
+  safeApiErrorMessage: (payload: unknown, fallback: string) => {
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      "error" in payload &&
+      typeof (payload as { error?: unknown }).error === "object" &&
+      (payload as { error?: unknown }).error !== null &&
+      "message" in ((payload as { error: { message?: unknown } }).error) &&
+      typeof (payload as { error: { message?: unknown } }).error.message === "string"
+    ) {
+      return (payload as { error: { message: string } }).error.message;
+    }
+
+    return fallback;
+  }
 }));
 
 jest.mock("../auth/auth-api", () => ({
   mobileAuthFetch: jest.fn()
 }));
 
-const apiGetMock = apiGet as jest.MockedFunction<typeof apiGet>;
+const mobileAuthFetchMock = mobileAuthFetch as jest.MockedFunction<typeof mobileAuthFetch>;
 
-describe("mobile listings API query builder", () => {
+describe("mobile listings API seller lifecycle", () => {
   beforeEach(() => {
-    apiGetMock.mockReset();
+    mobileAuthFetchMock.mockReset();
   });
 
-  it("serializes search and marketplace filters for the public listings endpoint", () => {
-    const query = buildMobileListingsQuery({
-      categoryId: "00000000-0000-4000-8000-000000000001",
-      city: "  İstanbul  ",
-      condition: "good",
-      createdSince: "last_7_days",
-      listingType: "sale",
-      priceMax: "4500",
-      priceMin: "100",
-      q: "  bebek arabası  "
-    });
-
-    expect(query.get("q")).toBe("bebek arabası");
-    expect(query.get("categoryId")).toBe("00000000-0000-4000-8000-000000000001");
-    expect(query.get("city")).toBe("İstanbul");
-    expect(query.get("condition")).toBe("good");
-    expect(query.get("createdSince")).toBe("last_7_days");
-    expect(query.get("listingType")).toBe("sale");
-    expect(query.get("priceMax")).toBe("4500");
-    expect(query.get("priceMin")).toBe("100");
-    expect(query.get("sort")).toBe("newest");
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  it("omits empty optional filters while keeping pagination defaults", () => {
-    const query = buildMobileListingsQuery({
-      categoryId: "",
-      city: " ",
-      priceMax: "",
-      q: ""
-    });
-
-    expect(query.get("categoryId")).toBeNull();
-    expect(query.get("city")).toBeNull();
-    expect(query.get("priceMax")).toBeNull();
-    expect(query.get("q")).toBeNull();
-    expect(query.get("limit")).toBe("20");
-    expect(query.get("offset")).toBe("0");
-  });
-
-  it("normalizes listing detail gallery and safe seller summary without private fields", async () => {
-    apiGetMock.mockResolvedValueOnce({
+  it("loads current user's listings through authenticated mobile fetch", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
       ok: true,
       data: {
-        ok: true,
-        data: {
-          listing: {
+        listings: [
+          {
             id: "listing-1",
-            title: "Bebek arabası",
-            priceAmount: 2500,
-            currency: "TRY",
+            title: "Temiz bebek arabası",
             status: "reserved",
             listingType: "sale",
             condition: "good",
-            locationCity: "İstanbul",
-            description: "Temiz kullanıldı.",
-            favoriteCount: 3,
-            seller: {
-              id: "seller-profile-1",
-              displayName: "Ayşe",
-              email: "private@example.test",
-              phone: "555"
+            priceAmount: "1250.00",
+            currency: "TRY",
+            createdAt: "2026-07-14T10:00:00.000Z",
+            favoriteCount: 2,
+            firstImage: {
+              url: "/api/v1/uploads/listings/one.png"
             },
-            images: [
-              { url: "/uploads/listing-1-a.jpg" },
-              { publicUrl: "/uploads/listing-1-b.jpg" },
-              { url: "/uploads/listing-1-a.jpg" }
-            ]
+            category: {
+              name: "Bebek Arabaları"
+            }
           }
+        ]
+      }
+    }));
+
+    await expect(fetchMobileMyListings()).resolves.toEqual([
+      expect.objectContaining({
+        id: "listing-1",
+        title: "Temiz bebek arabası",
+        status: "reserved",
+        statusText: "Rezerve",
+        listingTypeText: "Satılık",
+        conditionText: "İyi",
+        priceText: "1.250 TL",
+        createdAt: "2026-07-14T10:00:00.000Z",
+        favoriteCount: 2,
+        imageUrl: "/api/v1/uploads/listings/one.png"
+      })
+    ]);
+
+    expect(mobileAuthFetchMock).toHaveBeenCalledWith("/api/v1/me/listings");
+  });
+
+  it("updates listing lifecycle status and normalizes the response", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        listing: {
+          id: "listing-1",
+          title: "Temiz bebek arabası",
+          status: "sold",
+          listingType: "sale",
+          condition: "good",
+          priceAmount: "1250.00",
+          currency: "TRY"
         }
       }
-    });
+    }));
 
-    const detail = await fetchMobileListingDetail("listing-1");
+    await expect(updateMobileListingStatus("listing-1", "sold")).resolves.toEqual(
+      expect.objectContaining({
+        id: "listing-1",
+        status: "sold",
+        statusText: "Satıldı"
+      })
+    );
 
-    expect(detail).toMatchObject({
-      id: "listing-1",
-      title: "Bebek arabası",
-      priceText: "2.500 TL",
-      status: "reserved",
-      statusText: "Rezerve",
-      listingTypeText: "Satılık",
-      conditionText: "İyi",
-      locationText: "İstanbul",
-      description: "Temiz kullanıldı.",
-      sellerProfileId: "seller-profile-1",
-      sellerDisplayName: "Ayşe",
-      favoriteCount: 3,
-      imageUrl: "/uploads/listing-1-a.jpg",
-      imageUrls: [
-        "/uploads/listing-1-a.jpg",
-        "/uploads/listing-1-b.jpg"
-      ]
-    });
-    expect(JSON.stringify(detail)).not.toMatch(/private@example|555|accessToken|refreshToken|passwordHash/iu);
+    expect(mobileAuthFetchMock).toHaveBeenCalledWith(
+      "/api/v1/listings/listing-1/status",
+      expect.objectContaining({
+        body: JSON.stringify({ status: "sold" }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "PATCH"
+      })
+    );
+  });
+
+  it("throws a controlled error when listing status update fails", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: false,
+      error: {
+        message: "Invalid status transition."
+      }
+    }, 400));
+
+    await expect(updateMobileListingStatus("listing-1", "active")).rejects.toThrow(
+      "Invalid status transition."
+    );
   });
 });
+
+function apiResponse(body: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body
+  } as Response;
+}
