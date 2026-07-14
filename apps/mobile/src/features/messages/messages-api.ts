@@ -14,6 +14,7 @@ export type MobileConversationSummary = {
 export type MobileConversationDetail = MobileConversationSummary & {
   listingId: string | null;
   listingTitle: string | null;
+  listingStatus?: string | null;
   otherProfileDisplayName: string | null;
 };
 
@@ -208,6 +209,7 @@ function normalizeConversationDetail(value: unknown): MobileConversationDetail {
     ...summary,
     listingId: pickString(record, ["listingId"]) ?? pickString(listing ?? {}, ["id", "listingId"]),
     listingTitle: pickString(listing ?? {}, ["title", "name"]),
+    listingStatus: pickString(listing ?? {}, ["status"]),
     otherProfileDisplayName: pickString(otherProfile ?? {}, ["displayName", "name"])
   };
 }

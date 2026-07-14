@@ -33,6 +33,11 @@ import {
   appendRealtimeMessage,
   mergeRealtimeConversationDetail
 } from "./messages-realtime-model";
+import {
+  canSendMobileConversationMessage,
+  getMobileConversationListingContext,
+  getMobileConversationMessageCharacterCount
+} from "./conversation-detail-model";
 
 const COMPOSER_KEYBOARD_GAP = 52;
 const COMPOSER_TAB_GAP = 8;
@@ -81,6 +86,13 @@ export function ConversationDetailScreen() {
       : COMPOSER_KEYBOARD_GAP
     : MOBILE_TAB_BAR_HEIGHT + COMPOSER_TAB_GAP;
   const messageListBottomPadding = composerBottomOffset + COMPOSER_RESERVED_HEIGHT;
+  const listingContext = getMobileConversationListingContext(conversation);
+  const messageCharacterCount = getMobileConversationMessageCharacterCount(body);
+  const canSendMessage = canSendMobileConversationMessage({
+    body,
+    conversationId,
+    sending
+  });
 
   const scrollToBottom = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -303,7 +315,7 @@ export function ConversationDetailScreen() {
   async function handleSend() {
     const nextBody = body.trim();
 
-    if (!nextBody || sending || !conversationId) {
+    if (!canSendMobileConversationMessage({ body: nextBody, conversationId, sending })) {
       return;
     }
 
@@ -377,6 +389,37 @@ export function ConversationDetailScreen() {
           </View>
         </View>
 
+        {listingContext ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleOpenListing}
+            style={[
+              styles.listingContextCard,
+              listingContext.tone === "warning" ? styles.listingContextCardWarning : null
+            ]}
+          >
+            <View style={styles.listingContextHeader}>
+              <Text style={styles.listingContextEyebrow}>İlan bağlamı</Text>
+              {listingContext.statusText ? (
+                <Text
+                  style={[
+                    styles.listingContextStatus,
+                    listingContext.tone === "warning" ? styles.listingContextStatusWarning : null
+                  ]}
+                >
+                  {listingContext.statusText}
+                </Text>
+              ) : null}
+            </View>
+
+            <Text numberOfLines={1} style={styles.listingContextTitle}>
+              {listingContext.title}
+            </Text>
+            <Text style={styles.listingContextSubtitle}>{listingContext.subtitle}</Text>
+            <Text style={styles.listingContextAction}>{listingContext.actionLabel} →</Text>
+          </Pressable>
+        ) : null}
+
         {status === "loading" ? (
           <View style={styles.stateCard}>
             <Text style={styles.stateText}>Konuşma yükleniyor...</Text>
@@ -442,6 +485,15 @@ export function ConversationDetailScreen() {
         <View style={[styles.composer, { bottom: composerBottomOffset }]}>
           {error && status === "ready" ? <Text style={styles.inlineError}>{error}</Text> : null}
 
+          <View style={styles.composerMetaRow}>
+            <Text style={[
+              styles.characterCount,
+              messageCharacterCount.isOverLimit ? styles.characterCountDanger : null
+            ]}>
+              {messageCharacterCount.remaining} karakter
+            </Text>
+          </View>
+
           <View style={styles.composerRow}>
             <TextInput
               maxLength={500}
@@ -456,11 +508,11 @@ export function ConversationDetailScreen() {
               value={body}
             />
             <Pressable
-              disabled={sending || body.trim().length === 0}
+              disabled={!canSendMessage}
               onPress={() => void handleSend()}
               style={[
                 styles.sendButton,
-                sending || body.trim().length === 0 ? styles.sendButtonDisabled : null
+                !canSendMessage ? styles.sendButtonDisabled : null
               ]}
             >
               <Text style={styles.sendButtonText}>{sending ? "..." : "Gönder"}</Text>
@@ -547,6 +599,61 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.2
   },
+  listingContextCard: {
+    marginHorizontal: 14,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    gap: spacing.xs
+  },
+  listingContextCardWarning: {
+    borderColor: colors.warning,
+    backgroundColor: colors.warningSoft
+  },
+  listingContextHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm
+  },
+  listingContextEyebrow: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  listingContextStatus: {
+    overflow: "hidden",
+    borderRadius: 999,
+    backgroundColor: colors.successSoft,
+    color: colors.success,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  listingContextStatusWarning: {
+    backgroundColor: colors.warningSoft,
+    color: colors.warning
+  },
+  listingContextTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  listingContextSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
+  },
+  listingContextAction: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "900"
+  },
   listingPill: {
     alignSelf: "flex-start",
     maxWidth: "100%",
@@ -625,6 +732,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     ...shadows.card
+  },
+  composerMetaRow: {
+    alignItems: "flex-end"
+  },
+  characterCount: {
+    color: colors.subtle,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  characterCountDanger: {
+    color: colors.danger
   },
   composerRow: {
     flexDirection: "row",
