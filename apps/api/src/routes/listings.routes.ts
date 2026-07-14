@@ -28,6 +28,7 @@ import {
   createListing,
   deleteListingImage,
   getListingDetail,
+  getOwnerListingDetail,
   listActiveListingsPage,
   listListingsForCurrentUser,
   reorderListingImages,
@@ -391,6 +392,50 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
       }
     };
   });
+
+  app.get<{ Params: ListingParams; Reply: ListingDetailApiResponse }>(
+    "/me/listings/:id",
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedParams = listingParamsSchema.safeParse(request.params);
+
+      if (!parsedParams.success) {
+        return reply.status(400).send(invalidListingRequest("Listing id must be a valid UUID."));
+      }
+
+      const result = await getOwnerListingDetail(app, currentUser, parsedParams.data.id);
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(listingNotFound());
+      }
+
+      if (result.status === "forbidden") {
+        return reply.status(403).send(listingForbidden());
+      }
+
+      if (result.status !== "ok") {
+        return reply.status(500).send({
+          ok: false,
+          error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Internal server error"
+          }
+        });
+      }
+
+      return {
+        ok: true,
+        data: {
+          listing: result.listing
+        }
+      };
+    }
+  );
 
   app.get<{ Params: ListingParams; Reply: ListingDetailApiResponse }>(
     "/listings/:id",

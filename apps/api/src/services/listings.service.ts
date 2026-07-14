@@ -589,6 +589,61 @@ export async function listListingsForCurrentUser(
   return mapListingRows(app, rows);
 }
 
+export async function getOwnerListingDetail(
+  app: FastifyInstance,
+  currentUser: CurrentUser,
+  listingId: string
+): Promise<
+  | { status: "ok"; listing: ListingDetailResponse }
+  | { status: "not_found" | "forbidden" }
+> {
+  const row = await selectListingOwnerRow(app, listingId);
+
+  if (!row) {
+    return { status: "not_found" };
+  }
+
+  if (row.sellerProfileId !== currentUser.profile.id) {
+    return { status: "forbidden" };
+  }
+
+  const [images, favoriteCounts] = await Promise.all([
+    getOwnerListingImages(app, row.id),
+    getFavoriteCounts(app, [row.id])
+  ]);
+
+  const profile = currentUser.profile as {
+    displayName?: string | null;
+    locationCity?: string | null;
+  };
+
+  return {
+    status: "ok",
+    listing: {
+      ...mapListingSummary({
+        ...row,
+        category: {
+          id: row.categoryId,
+          name: row.categoryName,
+          slug: row.categorySlug
+        },
+        favoriteCount: favoriteCounts.get(row.id) ?? 0,
+        firstImage: images[0] ?? null,
+        images
+      }),
+      description: row.description,
+      images,
+      seller: {
+        id: currentUser.profile.id,
+        displayName: profile.displayName ?? "BabyLoop kullanıcısı",
+        avatarUrl: null,
+        locationCity: profile.locationCity ?? null
+      },
+      updatedAt: row.updatedAt.toISOString()
+    }
+  };
+}
+
 async function mapListingRows(
   app: FastifyInstance,
   rows: Array<{

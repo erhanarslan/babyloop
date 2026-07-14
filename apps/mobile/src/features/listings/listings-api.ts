@@ -358,3 +358,315 @@ function pickNumber(record: Record<string, unknown>, keys: string[]): number | n
 
   return null;
 }
+
+
+export type MobileListingImageReviewStatus =
+  | "pending"
+  | "approved"
+  | "needs_review"
+  | "rejected";
+
+export type MobileEditableListingImage = {
+  id: string;
+  reviewStatus: MobileListingImageReviewStatus | null;
+  reviewStatusText: string;
+  sortOrder: number;
+  url: string;
+};
+
+export type MobileEditableListingDetail = MobileListingDetail & {
+  categoryId: string | null;
+  condition: string | null;
+  description: string;
+  editableImages: MobileEditableListingImage[];
+  listingType: string | null;
+  priceAmount: string;
+};
+
+export type MobileListingUpdatePayload = {
+  categoryId?: string;
+  condition?: string;
+  currency?: string;
+  description?: string;
+  listingType?: string;
+  priceAmount?: string | null;
+  title?: string;
+};
+
+export type MobileListingEditUploadFile = {
+  name: string;
+  type: "image/jpeg" | "image/png" | "image/webp";
+  uri: string;
+};
+
+export async function fetchMobileEditableListingDetail(
+  listingId: string
+): Promise<MobileEditableListingDetail> {
+  const response = await mobileAuthFetch(`/api/v1/me/listings/${encodeURIComponent(listingId)}`);
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      safeApiErrorMessage(payload, "İlan düzenleme bilgileri şu an yüklenemedi.")
+    );
+  }
+
+  const listing = extractMobileEditListingObject(payload);
+  const detail = normalizeListingDetail(listing);
+
+  return {
+    ...detail,
+    categoryId: pickMobileEditString(listing, ["categoryId"]) ?? pickMobileEditNestedString(listing, ["category", "id"]),
+    condition: pickMobileEditString(listing, ["condition"]),
+    description: pickMobileEditString(listing, ["description"]) ?? "",
+    editableImages: normalizeMobileEditableListingImages(listing),
+    listingType: pickMobileEditString(listing, ["listingType"]),
+    priceAmount: pickMobileEditNestedString(listing, ["price", "amount"]) ?? ""
+  };
+}
+
+export async function updateMobileListing(
+  listingId: string,
+  payload: MobileListingUpdatePayload
+): Promise<MobileListingSummary> {
+  const response = await mobileAuthFetch(`/api/v1/listings/${encodeURIComponent(listingId)}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const responsePayload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      safeApiErrorMessage(responsePayload, "İlan bilgileri şu an güncellenemedi.")
+    );
+  }
+
+  return normalizeListingSummary(extractListingObject(responsePayload));
+}
+
+export async function uploadMobileListingEditImage(
+  listingId: string,
+  image: MobileListingEditUploadFile
+): Promise<MobileEditableListingImage> {
+  const formData = new FormData();
+
+  formData.append("image", {
+    uri: image.uri,
+    name: image.name,
+    type: image.type
+  } as unknown as Blob);
+
+  const response = await mobileAuthFetch(
+    `/api/v1/listings/${encodeURIComponent(listingId)}/images`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(safeApiErrorMessage(payload, "Görsel şu an yüklenemedi."));
+  }
+
+  const imagePayload = extractMobileEditImageObject(payload);
+
+  return normalizeMobileEditableListingImage(imagePayload);
+}
+
+export async function deleteMobileListingImage(
+  listingId: string,
+  imageId: string
+): Promise<void> {
+  const response = await mobileAuthFetch(
+    `/api/v1/listings/${encodeURIComponent(listingId)}/images/${encodeURIComponent(imageId)}`,
+    {
+      method: "DELETE"
+    }
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(safeApiErrorMessage(payload, "Görsel şu an silinemedi."));
+  }
+}
+
+export async function reorderMobileListingImages(
+  listingId: string,
+  imageIds: string[]
+): Promise<MobileEditableListingImage[]> {
+  const response = await mobileAuthFetch(
+    `/api/v1/listings/${encodeURIComponent(listingId)}/images/reorder`,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ imageIds })
+    }
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(safeApiErrorMessage(payload, "Görsel sırası şu an güncellenemedi."));
+  }
+
+  const images = extractMobileEditImagesArray(payload);
+
+  return images.map(normalizeMobileEditableListingImage);
+}
+
+function extractMobileEditListingObject(payload: unknown): Record<string, unknown> {
+  if (isRecord(payload) && isRecord(payload.data) && isRecord(payload.data.listing)) {
+    return payload.data.listing;
+  }
+
+  if (isRecord(payload) && isRecord(payload.listing)) {
+    return payload.listing;
+  }
+
+  if (isRecord(payload)) {
+    return payload;
+  }
+
+  throw new Error("İlan düzenleme yanıtı okunamadı.");
+}
+
+function extractMobileEditImageObject(payload: unknown): Record<string, unknown> {
+  if (isRecord(payload) && isRecord(payload.data) && isRecord(payload.data.image)) {
+    return payload.data.image;
+  }
+
+  if (isRecord(payload) && isRecord(payload.image)) {
+    return payload.image;
+  }
+
+  if (isRecord(payload)) {
+    return payload;
+  }
+
+  throw new Error("Görsel yanıtı okunamadı.");
+}
+
+function extractMobileEditImagesArray(payload: unknown): Record<string, unknown>[] {
+  const rawImages = isRecord(payload) && isRecord(payload.data) && Array.isArray(payload.data.images)
+    ? payload.data.images
+    : isRecord(payload) && Array.isArray(payload.images)
+      ? payload.images
+      : [];
+
+  return rawImages.filter(isRecord);
+}
+
+function normalizeMobileEditableListingImages(
+  listing: Record<string, unknown>
+): MobileEditableListingImage[] {
+  const images = Array.isArray(listing.images) ? listing.images : [];
+
+  return images.filter(isRecord).map(normalizeMobileEditableListingImage);
+}
+
+function normalizeMobileEditableListingImage(
+  image: Record<string, unknown>
+): MobileEditableListingImage {
+  const id = pickMobileEditString(image, ["id"]);
+  const url = resolveApiAssetUrl(pickMobileEditString(image, ["url", "imageUrl", "publicUrl"]));
+  const reviewStatus = normalizeMobileImageReviewStatus(
+    pickMobileEditString(image, ["reviewStatus", "status"])
+  );
+  const sortOrder = pickMobileEditNumber(image, ["sortOrder", "order"]) ?? 0;
+
+  if (!id || !url) {
+    throw new Error("Görsel yanıtı eksik döndü.");
+  }
+
+  return {
+    id,
+    reviewStatus,
+    reviewStatusText: formatMobileImageReviewStatus(reviewStatus),
+    sortOrder,
+    url
+  };
+}
+
+function normalizeMobileImageReviewStatus(
+  value: string | null
+): MobileListingImageReviewStatus | null {
+  if (
+    value === "pending" ||
+    value === "approved" ||
+    value === "needs_review" ||
+    value === "rejected"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+export function formatMobileImageReviewStatus(
+  value: MobileListingImageReviewStatus | null
+): string {
+  switch (value) {
+    case "approved":
+      return "Onaylandı";
+    case "needs_review":
+      return "İncelemede";
+    case "rejected":
+      return "Reddedildi";
+    case "pending":
+      return "Bekliyor";
+    default:
+      return "Durum yok";
+  }
+}
+
+function pickMobileEditString(
+  record: Record<string, unknown>,
+  keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function pickMobileEditNumber(
+  record: Record<string, unknown>,
+  keys: string[]
+): number | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim().length > 0 && Number.isFinite(Number(value))) {
+      return Number(value);
+    }
+  }
+
+  return null;
+}
+
+function pickMobileEditNestedString(
+  record: Record<string, unknown>,
+  path: [string, string]
+): string | null {
+  const parent = record[path[0]];
+
+  if (!isRecord(parent)) {
+    return null;
+  }
+
+  return pickMobileEditString(parent, [path[1]]);
+}

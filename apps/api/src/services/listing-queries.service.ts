@@ -165,6 +165,12 @@ export async function selectListingOwnerRow(app: FastifyInstance, id: string) {
       status: listings.status,
       title: listings.title,
       description: listings.description,
+      priceAmount: listings.priceAmount,
+      currency: listings.currency,
+      listingType: listings.listingType,
+      condition: listings.condition,
+      createdAt: listings.createdAt,
+      updatedAt: listings.updatedAt,
       categoryId: productCategories.id,
       categoryName: productCategories.name,
       categorySlug: productCategories.slug

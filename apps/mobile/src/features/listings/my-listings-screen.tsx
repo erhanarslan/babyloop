@@ -232,6 +232,7 @@ export function MyListingsScreen() {
               <MyListingCard
                 key={listing.id}
                 listing={listing}
+                onEdit={() => router.push(`/edit-listing/${encodeURIComponent(listing.id)}`)}
                 onOpen={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
                 onStatusAction={(nextStatus) => void handleStatusAction(listing.id, nextStatus)}
                 pending={pendingListingId === listing.id}
@@ -261,11 +262,13 @@ function SummaryPill({
 
 function MyListingCard({
   listing,
+  onEdit,
   onOpen,
   onStatusAction,
   pending
 }: {
   listing: MobileMyListingSummary;
+  onEdit: () => void;
   onOpen: () => void;
   onStatusAction: (status: MobileListingStatus) => void;
   pending: boolean;
@@ -297,6 +300,14 @@ function MyListingCard({
       <View style={styles.cardActions}>
         <MobileButton iconName="open-outline" onPress={onOpen} variant="secondary">
           Detay
+        </MobileButton>
+
+        <MobileButton
+          iconName="create-outline"
+          onPress={onEdit}
+          variant="secondary"
+        >
+          Düzenle
         </MobileButton>
 
         {actions.map((action) => (

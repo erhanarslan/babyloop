@@ -227,6 +227,14 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="edit-listing/[listingId]"
+        options={{
+          href: null,
+          title: "İlanı düzenle"
+        }}
+      />
+
+      <Tabs.Screen
         name="conversation/[conversationId]"
         options={{
           href: null,
