@@ -98,7 +98,8 @@
     "security:notification-marketplace-core": "node scripts/check-notification-marketplace-core-boundary.mjs",
     "security:marketplace-web-mobile-completion": "node scripts/check-marketplace-web-mobile-completion-boundary.mjs",
     "security:mobile-copy-encoding": "node scripts/check-mobile-copy-encoding-boundary.mjs",
-    "security:payment-simulation": "node scripts/check-payment-simulation-boundary.mjs"
+    "security:payment-simulation": "node scripts/check-payment-simulation-boundary.mjs",
+    "security:rag-research-corpus": "node scripts/check-rag-research-corpus-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
