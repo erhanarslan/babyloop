@@ -96,7 +96,8 @@
     "security:p0-release-surface-smoke-inventory": "node scripts/check-p0-release-surface-smoke-inventory-boundary.mjs",
     "security:core-safety-child-foundation": "node scripts/check-core-safety-child-foundation-boundary.mjs",
     "security:notification-marketplace-core": "node scripts/check-notification-marketplace-core-boundary.mjs",
-    "security:marketplace-web-mobile-completion": "node scripts/check-marketplace-web-mobile-completion-boundary.mjs"
+    "security:marketplace-web-mobile-completion": "node scripts/check-marketplace-web-mobile-completion-boundary.mjs",
+    "security:mobile-copy-encoding": "node scripts/check-mobile-copy-encoding-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
