@@ -65,7 +65,7 @@ Participant rule:
 | `id` | UUID primary key. |
 | `conversation_id` | Required FK to `conversations.id`. |
 | `sender_profile_id` | Derived from token. Must be a participant. |
-| `body` | Plain text, trimmed, non-empty, max 5000 characters. |
+| `body` | Plain text, trimmed, non-empty, max 500 characters. |
 | `created_at` | Timestamp. |
 | `deleted_at` | Nullable future soft-delete timestamp. |
 

@@ -130,7 +130,7 @@ function checkMessageSchemaAndServiceDtoBoundary() {
   for (const token of [
     "validatePlainText(value",
     "allowMultiline: true",
-    "maxLength: 5000",
+    "maxLength: 500",
     "minLength: 1",
     ".strict()"
   ]) {

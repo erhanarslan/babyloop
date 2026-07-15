@@ -104,7 +104,7 @@ Important rules:
 
 - messages belong to conversations
 - `sender_profile_id` is restricted by profile foreign key
-- body must be non-blank and no longer than 5000 characters
+- body must be non-blank and no longer than 500 characters
 - sending a message updates `conversations.last_message_at` and `conversations.updated_at`
 
 ## 3. Old Model vs New Model

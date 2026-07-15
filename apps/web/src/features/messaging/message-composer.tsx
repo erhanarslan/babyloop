@@ -58,7 +58,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
     <form className="message-composer-p0" onSubmit={handleSubmit}>
       <Textarea
         label="Mesaj"
-        maxLength={5000}
+        maxLength={500}
         rows={2}
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -74,9 +74,7 @@ export function MessageComposer({ apiBaseUrl, conversationId, onSent }: MessageC
       <div className="message-composer-p0-footer">
         {errorMessage ? (
           <Alert title="Mesaj gönderilemedi" message={errorMessage} />
-        ) : (
-          <span>{body.length}/5000</span>
-        )}
+        ) : null}
         <Button disabled={isPending || body.trim().length === 0} type="submit">
           {isPending ? "Gönderiliyor" : "Gönder"}
         </Button>
@@ -110,7 +108,7 @@ function buildComposerGuidance(value: string): { tone: "info" | "warning"; messa
     };
   }
 
-  if (normalized.length > 1200) {
+  if (normalized.length > 400) {
     return {
       tone: "warning",
       message: "Mesaj uzuyor. Kısa ve net sorulara daha hızlı yanıt gelir."

@@ -18,7 +18,7 @@ export const sendMessageBodySchema = z
       .transform((value, context) => {
         const result = validatePlainText(value, {
           allowMultiline: true,
-          maxLength: 5000,
+          maxLength: 500,
           minLength: 1
         });
 

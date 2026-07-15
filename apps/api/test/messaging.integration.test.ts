@@ -673,7 +673,7 @@ describe("messaging API", () => {
       method: "POST",
       url: `/api/v1/conversations/${conversation.id}/messages`,
       payload: {
-        body: "a".repeat(5001)
+        body: "a".repeat(501)
       }
     });
 

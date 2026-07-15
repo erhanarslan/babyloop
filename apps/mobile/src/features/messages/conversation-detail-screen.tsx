@@ -43,8 +43,7 @@ import {
 } from "./messages-realtime-model";
 import {
   canSendMobileConversationMessage,
-  getMobileConversationListingContext,
-  getMobileConversationMessageCharacterCount
+  getMobileConversationListingContext
 } from "./conversation-detail-model";
 
 export function ConversationDetailScreen() {
@@ -90,7 +89,6 @@ export function ConversationDetailScreen() {
   });
   const messageListBottomPadding = getMobileConversationMessageListBottomPadding(composerBottomOffset);
   const listingContext = getMobileConversationListingContext(conversation);
-  const messageCharacterCount = getMobileConversationMessageCharacterCount(body);
   const canSendMessage = canSendMobileConversationMessage({
     body,
     conversationId,
@@ -487,15 +485,6 @@ export function ConversationDetailScreen() {
 
         <View style={[styles.composer, { bottom: composerBottomOffset }]}>
           {error && status === "ready" ? <Text style={styles.inlineError}>{error}</Text> : null}
-
-          <View style={styles.composerMetaRow}>
-            <Text style={[
-              styles.characterCount,
-              messageCharacterCount.isOverLimit ? styles.characterCountDanger : null
-            ]}>
-              {messageCharacterCount.remaining} karakter
-            </Text>
-          </View>
 
           <View style={styles.composerRow}>
             <TextInput

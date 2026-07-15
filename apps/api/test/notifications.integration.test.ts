@@ -439,7 +439,7 @@ describe("notifications API", () => {
         condition: "good",
         listingType: "sale",
         priceMin: "1000",
-        priceMax: "5000",
+        priceMax: "500",
         notificationsEnabled: true
       }
     });

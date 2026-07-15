@@ -32,6 +32,10 @@ import {
 } from "./child-reminders-api";
 import { getDefaultMobileChildProfilePayload } from "./child-reminders-model";
 import {
+  MobileChildDateTimeField,
+  MobileChildLocalTimeField
+} from "./child-reminder-date-time-fields";
+import {
   appendMobileChildReminder,
   buildMobileChildNoteCreatePayloadFromState,
   buildMobileChildNoteUpdatePayloadFromState,
@@ -47,15 +51,14 @@ import {
   getMobileChildReminderScheduleLabel,
   getPreferredMobileChildProfile,
   mobileChildNoteTypeOptions,
-  mobileChildReminderQuickOptions,
+  mobileChildReminderTypeOptions,
   prependMobileChildNote,
   removeMobileChildNote,
   removeMobileChildReminder,
   replaceMobileChildNote,
   replaceMobileChildReminder,
   type MobileChildNoteFormState,
-  type MobileChildReminderFormState,
-  type MobileChildReminderQuickKind
+  type MobileChildReminderFormState
 } from "./child-reminder-screen-state-model";
 
 type ScreenStatus = "loading" | "ready" | "error";
@@ -75,6 +78,8 @@ export function ChildProfileScreen() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ChildTab>("notes");
+  const [noteTypePickerOpen, setNoteTypePickerOpen] = useState(false);
+  const [reminderTypePickerOpen, setReminderTypePickerOpen] = useState(false);
   const [status, setStatus] = useState<ScreenStatus>("loading");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -328,12 +333,6 @@ export function ChildProfileScreen() {
     setMessage(null);
   }
 
-  function applyReminderPreset(kind: MobileChildReminderQuickKind): void {
-    setReminderForm(createMobileChildReminderFormState(kind));
-    setEditingReminderId(null);
-    setActiveTab("reminders");
-  }
-
   if (!currentUser) {
     return (
       <Screen eyebrow="Çocuğum" title="Giriş gerekli" subtitle="Notlar ve hatırlatıcılar hesabına bağlıdır.">
@@ -363,18 +362,6 @@ export function ChildProfileScreen() {
       }
     >
       <MobileCard style={styles.heroCard}>
-        <View style={styles.heroTop}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👶</Text>
-          </View>
-          <View style={styles.heroText}>
-            <Text style={styles.heroTitle}>{childProfile?.label ?? "Çocuğum"}</Text>
-            <Text style={styles.heroDescription}>
-              {getMobileChildProfileMetaLabel(status === "loading")}
-            </Text>
-          </View>
-        </View>
-
         <View style={styles.statsGrid}>
           <StatChip label="Not" value={notes.length.toString()} />
           <StatChip label="Hatırlatıcı" value={reminders.length.toString()} />
@@ -424,16 +411,20 @@ export function ChildProfileScreen() {
               value={noteForm.body}
             />
 
-            <View style={styles.optionGrid}>
-              {mobileChildNoteTypeOptions.map((option) => (
-                <OptionPill
-                  active={noteForm.noteType === option.value}
-                  key={option.value}
-                  label={option.label}
-                  onPress={() => setNoteForm((current) => ({ ...current, noteType: option.value }))}
-                />
-              ))}
-            </View>
+            <DropdownSelect
+              isOpen={noteTypePickerOpen}
+              label="Not tipi"
+              onSelect={(noteType) => {
+                setNoteForm((current) => ({ ...current, noteType: noteType as MobileChildNote["noteType"] }));
+                setNoteTypePickerOpen(false);
+              }}
+              onToggle={() => {
+                setReminderTypePickerOpen(false);
+                setNoteTypePickerOpen((current) => !current);
+              }}
+              options={mobileChildNoteTypeOptions}
+              selectedValue={noteForm.noteType}
+            />
 
             <View style={styles.formActions}>
               <MobileButton disabled={isSubmitting} onPress={() => void handleSubmitNote()}>
@@ -497,20 +488,6 @@ export function ChildProfileScreen() {
               title={editingReminderId ? "Hatırlatıcıyı düzenle" : "Yeni hatırlatıcı"}
             />
 
-            <View style={styles.quickGrid}>
-              {mobileChildReminderQuickOptions.map((option) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={option.kind}
-                  onPress={() => applyReminderPreset(option.kind)}
-                  style={styles.quickCard}
-                >
-                  <Text style={styles.quickTitle}>{option.title}</Text>
-                  <Text style={styles.quickText}>{option.description}</Text>
-                </Pressable>
-              ))}
-            </View>
-
             <TextInput
               onChangeText={(title) => setReminderForm((current) => ({ ...current, title }))}
               placeholder="Örn. Hafta sonu bez al"
@@ -525,6 +502,24 @@ export function ChildProfileScreen() {
               style={[styles.input, styles.textAreaSmall]}
               textAlignVertical="top"
               value={reminderForm.description}
+            />
+
+            <DropdownSelect
+              isOpen={reminderTypePickerOpen}
+              label="Hatırlatıcı tipi"
+              onSelect={(reminderType) => {
+                setReminderForm((current) => ({
+                  ...current,
+                  reminderType: reminderType as MobileChildReminder["reminderType"]
+                }));
+                setReminderTypePickerOpen(false);
+              }}
+              onToggle={() => {
+                setNoteTypePickerOpen(false);
+                setReminderTypePickerOpen((current) => !current);
+              }}
+              options={mobileChildReminderTypeOptions}
+              selectedValue={reminderForm.reminderType}
             />
 
             <View style={styles.optionGrid}>
@@ -544,14 +539,12 @@ export function ChildProfileScreen() {
             </View>
 
             {reminderForm.scheduleKind === "one_time" ? (
-              <Field label="Hatırlatma zamanı">
-                <TextInput
-                  onChangeText={(dueAt) => setReminderForm((current) => ({ ...current, dueAt }))}
-                  placeholder="2030-01-02T10:00:00.000Z"
-                  style={styles.input}
-                  value={reminderForm.dueAt}
-                />
-              </Field>
+              <MobileChildDateTimeField
+                fallbackKind="due"
+                label="Hatırlatma zamanı"
+                onChange={(dueAt) => setReminderForm((current) => ({ ...current, dueAt }))}
+                value={reminderForm.dueAt}
+              />
             ) : null}
 
             {reminderForm.scheduleKind === "interval" ? (
@@ -567,26 +560,21 @@ export function ChildProfileScreen() {
             ) : null}
 
             {reminderForm.scheduleKind === "daily" || reminderForm.scheduleKind === "weekly" ? (
-              <Field label="Saat">
-                <TextInput
-                  onChangeText={(localTime) => setReminderForm((current) => ({ ...current, localTime }))}
-                  placeholder="10:00"
-                  style={styles.input}
-                  value={reminderForm.localTime}
-                />
-              </Field>
+              <MobileChildLocalTimeField
+                label="Saat"
+                onChange={(localTime) => setReminderForm((current) => ({ ...current, localTime }))}
+                value={reminderForm.localTime}
+              />
             ) : null}
 
             {reminderForm.scheduleKind === "relative_before_event" ? (
               <View style={styles.twoColumn}>
-                <Field label="Etkinlik tarihi">
-                  <TextInput
-                    onChangeText={(eventAt) => setReminderForm((current) => ({ ...current, eventAt }))}
-                    placeholder="2030-01-08T10:00:00.000Z"
-                    style={styles.input}
-                    value={reminderForm.eventAt}
-                  />
-                </Field>
+                <MobileChildDateTimeField
+                  fallbackKind="event"
+                  label="Etkinlik zamanı"
+                  onChange={(eventAt) => setReminderForm((current) => ({ ...current, eventAt }))}
+                  value={reminderForm.eventAt}
+                />
                 <Field label="Kaç dk önce?">
                   <TextInput
                     keyboardType="number-pad"
@@ -662,6 +650,60 @@ export function ChildProfileScreen() {
         </>
       ) : null}
     </Screen>
+  );
+}
+
+function DropdownSelect({
+  isOpen,
+  label,
+  onSelect,
+  onToggle,
+  options,
+  selectedValue
+}: {
+  isOpen: boolean;
+  label: string;
+  onSelect: (value: string) => void;
+  onToggle: () => void;
+  options: ReadonlyArray<{ label: string; value: string }>;
+  selectedValue: string;
+}) {
+  const selectedLabel = options.find((option) => option.value === selectedValue)?.label ?? "Seç";
+
+  return (
+    <View style={styles.dropdown}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable accessibilityRole="button" onPress={onToggle} style={styles.dropdownButton}>
+        <Text style={styles.dropdownButtonText}>{selectedLabel}</Text>
+        <Text style={styles.dropdownChevron}>{isOpen ? "▲" : "▼"}</Text>
+      </Pressable>
+
+      {isOpen ? (
+        <View style={styles.dropdownMenu}>
+          {options.map((option) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: option.value === selectedValue }}
+              key={option.value}
+              onPress={() => onSelect(option.value)}
+              style={[
+                styles.dropdownOption,
+                option.value === selectedValue ? styles.dropdownOptionSelected : null
+              ]}
+            >
+              <Text
+                style={[
+                  styles.dropdownOptionText,
+                  option.value === selectedValue ? styles.dropdownOptionTextSelected : null
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -961,6 +1003,57 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18
+  },
+  dropdown: {
+    gap: spacing.xs
+  },
+  dropdownButton: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm
+  },
+  dropdownButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  dropdownChevron: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  dropdownMenu: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    overflow: "hidden"
+  },
+  dropdownOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  dropdownOptionSelected: {
+    backgroundColor: colors.surfaceSoft
+  },
+  dropdownOptionText: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  dropdownOptionTextSelected: {
+    color: colors.primaryDark,
+    fontWeight: "900"
   },
   field: {
     gap: spacing.xs

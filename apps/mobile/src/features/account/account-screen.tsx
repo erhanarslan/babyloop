@@ -48,7 +48,7 @@ const accountShortcuts = [
   {
     href: "/notification-preferences",
     icon: "notifications-outline",
-    title: "Hatırlatıcılar",
+    title: "Bildirim tercihleri",
     description: "Bildirim ve takip ayarları."
   },
   {

@@ -72,6 +72,19 @@ export const mobileChildNoteTypeOptions: ReadonlyArray<{
   { label: "Gelişim notu", value: "milestone" }
 ];
 
+export const mobileChildReminderTypeOptions: ReadonlyArray<{
+  label: string;
+  value: MobileChildReminder["reminderType"];
+}> = [
+  { label: "Genel", value: "general" },
+  { label: "Beslenme", value: "feeding" },
+  { label: "Bez", value: "diaper" },
+  { label: "Uyku", value: "sleep" },
+  { label: "Etkinlik", value: "activity" },
+  { label: "Alışveriş", value: "shopping" },
+  { label: "Randevu", value: "appointment" }
+];
+
 export const mobileChildReminderQuickOptions: ReadonlyArray<{
   description: string;
   kind: MobileChildReminderQuickKind;
@@ -495,6 +508,163 @@ export function removeMobileChildReminder(
   reminderId: string
 ): MobileChildReminder[] {
   return reminders.filter((reminder) => reminder.id !== reminderId);
+}
+
+
+export type MobileChildDateTimePickerMode = "date" | "time";
+export type MobileChildDateTimeFallbackKind = "due" | "event";
+
+export function getMobileChildFallbackDateTime(
+  kind: MobileChildDateTimeFallbackKind,
+  now = new Date()
+): Date {
+  const next = new Date(now);
+
+  if (kind === "event") {
+    next.setDate(next.getDate() + 7);
+  } else {
+    next.setDate(next.getDate() + 1);
+  }
+
+  next.setHours(10, 0, 0, 0);
+
+  return next;
+}
+
+export function getMobileChildDateTimePickerDate(
+  value: string,
+  kind: MobileChildDateTimeFallbackKind,
+  now = new Date()
+): Date {
+  const parsed = new Date(value);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return getMobileChildFallbackDateTime(kind, now);
+}
+
+export function mergeMobileChildDateTimePickerValue(input: {
+  currentValue: string;
+  fallbackKind: MobileChildDateTimeFallbackKind;
+  mode: MobileChildDateTimePickerMode;
+  selectedDate: Date;
+  now?: Date;
+}): string {
+  const base = getMobileChildDateTimePickerDate(input.currentValue, input.fallbackKind, input.now);
+
+  if (input.mode === "date") {
+    base.setFullYear(
+      input.selectedDate.getFullYear(),
+      input.selectedDate.getMonth(),
+      input.selectedDate.getDate()
+    );
+  } else {
+    base.setHours(
+      input.selectedDate.getHours(),
+      input.selectedDate.getMinutes(),
+      0,
+      0
+    );
+  }
+
+  return base.toISOString();
+}
+
+export function formatMobileChildFriendlyDateTimeInput(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+export function parseMobileChildFriendlyDateTimeInput(value: string): string | null {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const friendlyMatch = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/.exec(normalized);
+
+  if (friendlyMatch) {
+    const [, year, month, day, hour, minute] = friendlyMatch;
+    const date = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      0,
+      0
+    );
+
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+
+  const parsed = new Date(normalized);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+
+  return null;
+}
+
+export function formatMobileChildDateLabel(
+  value: string,
+  kind: MobileChildDateTimeFallbackKind
+): string {
+  const date = getMobileChildDateTimePickerDate(value, kind);
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(date);
+}
+
+export function formatMobileChildTimeLabel(
+  value: string,
+  kind: MobileChildDateTimeFallbackKind
+): string {
+  const date = getMobileChildDateTimePickerDate(value, kind);
+
+  return formatMobileChildLocalTimeFromDate(date);
+}
+
+export function getMobileChildLocalTimePickerDate(
+  localTime: string,
+  now = new Date()
+): Date {
+  const date = new Date(now);
+  const match = /^(\d{2}):(\d{2})$/.exec(localTime.trim());
+
+  if (match) {
+    date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  } else {
+    date.setHours(10, 0, 0, 0);
+  }
+
+  return date;
+}
+
+export function formatMobileChildLocalTimeFromDate(date: Date): string {
+  return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+export function isMobileChildLocalTimeInput(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
+}
+
+function padDatePart(value: number): string {
+  return value.toString().padStart(2, "0");
 }
 
 function normalizeOptionalChildText(value: string): string | null {
