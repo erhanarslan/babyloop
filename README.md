@@ -2,7 +2,7 @@
 
 BabyLoop is a safe, intelligent, family-focused second-hand marketplace for baby/child products.
 
-This repository currently contains a verified local MVP foundation:
+This repository currently contains a verified local/product foundation moving toward full production readiness:
 
 - pnpm workspaces
 - Turborepo
