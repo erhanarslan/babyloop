@@ -17,7 +17,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radius, shadows, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
-import { MOBILE_TAB_BAR_HEIGHT } from "../../ui/mobile-layout";
+import {
+  MOBILE_CONVERSATION_KEYBOARD_STABLE_OFFSET_DELAY_MS,
+  getMobileConversationComposerBottomOffset,
+  getMobileConversationMessageListBottomPadding,
+  getMobileConversationRawAndroidKeyboardBottomOffset,
+  getMobileConversationStableAndroidKeyboardBottomOffset,
+  getMobileConversationViewportKeyboardOverlap,
+  isMobileConversationKeyboardVisible
+} from "./conversation-keyboard-model";
 import {
   MOBILE_REALTIME_EVENTS,
   subscribeMobileRealtime
@@ -38,12 +46,6 @@ import {
   getMobileConversationListingContext,
   getMobileConversationMessageCharacterCount
 } from "./conversation-detail-model";
-
-const COMPOSER_KEYBOARD_GAP = 52;
-const COMPOSER_TAB_GAP = 8;
-const COMPOSER_RESERVED_HEIGHT = 86;
-const KEYBOARD_OFFSET_JUMP_TOLERANCE = 16;
-const KEYBOARD_STABLE_OFFSET_DELAY_MS = 220;
 
 export function ConversationDetailScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
@@ -66,26 +68,27 @@ export function ConversationDetailScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [rootLayoutHeight, setRootLayoutHeight] = useState(0);
   const [sending, setSending] = useState(false);
-  const keyboardVisible = keyboardHeight > 0;
-  const viewportKeyboardOverlap =
-    Platform.OS === "android" && keyboardVisible
-      ? Math.max(0, rootLayoutHeightRef.current - rootLayoutHeight)
-      : 0;
-  const rawAndroidKeyboardBottomOffset = Math.max(0, keyboardHeight - viewportKeyboardOverlap);
-  const stableAndroidKeyboardBottomOffset = stableAndroidKeyboardBottomOffsetRef.current;
-  const androidKeyboardBottomOffset =
-    Platform.OS === "android" &&
-    keyboardVisible &&
-    stableAndroidKeyboardBottomOffset !== null &&
-    rawAndroidKeyboardBottomOffset > stableAndroidKeyboardBottomOffset + KEYBOARD_OFFSET_JUMP_TOLERANCE
-      ? stableAndroidKeyboardBottomOffset
-      : rawAndroidKeyboardBottomOffset;
-  const composerBottomOffset = keyboardVisible
-    ? Platform.OS === "android"
-      ? androidKeyboardBottomOffset + COMPOSER_KEYBOARD_GAP
-      : COMPOSER_KEYBOARD_GAP
-    : MOBILE_TAB_BAR_HEIGHT + COMPOSER_TAB_GAP;
-  const messageListBottomPadding = composerBottomOffset + COMPOSER_RESERVED_HEIGHT;
+  const keyboardVisible = isMobileConversationKeyboardVisible(keyboardHeight);
+  const viewportKeyboardOverlap = getMobileConversationViewportKeyboardOverlap({
+    keyboardHeight,
+    platformOS: Platform.OS,
+    rootLayoutBaselineHeight: rootLayoutHeightRef.current,
+    rootLayoutCurrentHeight: rootLayoutHeight
+  });
+  const rawAndroidKeyboardBottomOffset = getMobileConversationRawAndroidKeyboardBottomOffset({
+    keyboardHeight,
+    viewportKeyboardOverlap
+  });
+  const androidKeyboardBottomOffset = getMobileConversationStableAndroidKeyboardBottomOffset({
+    rawAndroidKeyboardBottomOffset,
+    stableAndroidKeyboardBottomOffset: stableAndroidKeyboardBottomOffsetRef.current
+  });
+  const composerBottomOffset = getMobileConversationComposerBottomOffset({
+    androidKeyboardBottomOffset,
+    keyboardVisible,
+    platformOS: Platform.OS
+  });
+  const messageListBottomPadding = getMobileConversationMessageListBottomPadding(composerBottomOffset);
   const listingContext = getMobileConversationListingContext(conversation);
   const messageCharacterCount = getMobileConversationMessageCharacterCount(body);
   const canSendMessage = canSendMobileConversationMessage({
@@ -250,7 +253,7 @@ export function ConversationDetailScreen() {
 
     const timeoutId = setTimeout(() => {
       stableAndroidKeyboardBottomOffsetRef.current = rawAndroidKeyboardBottomOffset;
-    }, KEYBOARD_STABLE_OFFSET_DELAY_MS);
+    }, MOBILE_CONVERSATION_KEYBOARD_STABLE_OFFSET_DELAY_MS);
 
     return () => {
       clearTimeout(timeoutId);
