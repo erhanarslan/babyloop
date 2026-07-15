@@ -64,6 +64,8 @@ export function BrowseScreen() {
   const [appliedFilters, setAppliedFilters] = useState<HomeListingFilters>(emptyHomeListingFilters);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const activeFilterCount = getActiveFilterCount(appliedFilters);
+  const hasSearchOrFilters = appliedQuery.length > 0 || activeFilterCount > 0;
 
   const loadListings = useCallback(async (query: string, filters: HomeListingFilters) => {
     try {
@@ -128,6 +130,7 @@ export function BrowseScreen() {
   function handleClearSearch() {
     setDraftQuery("");
     setAppliedQuery("");
+    setSearchOpen(false);
   }
 
   function handleApplyFilters() {
@@ -138,6 +141,16 @@ export function BrowseScreen() {
   function handleClearFilters() {
     setDraftFilters(emptyHomeListingFilters);
     setAppliedFilters(emptyHomeListingFilters);
+    setFilterOpen(false);
+  }
+
+  function handleClearDiscovery() {
+    setDraftQuery("");
+    setAppliedQuery("");
+    setDraftFilters(emptyHomeListingFilters);
+    setAppliedFilters(emptyHomeListingFilters);
+    setSearchOpen(false);
+    setFilterOpen(false);
   }
 
   return (
@@ -155,7 +168,7 @@ export function BrowseScreen() {
           <Pressable
             accessibilityLabel="İlan filtrelerini aç"
             onPress={() => setFilterOpen(true)}
-            style={[styles.searchIconButton, hasActiveFilters(appliedFilters) ? styles.searchIconButtonActive : null]}
+            style={[styles.searchIconButton, activeFilterCount > 0 ? styles.searchIconButtonActive : null]}
           >
             <Ionicons color={colors.primaryDark} name="options-outline" size={21} />
           </Pressable>
@@ -187,7 +200,26 @@ export function BrowseScreen() {
         visible={filterOpen}
       />
 
-      <MobileSectionHeader title={appliedQuery ? `"${appliedQuery}" için sonuçlar` : "Son eklenenler"} />
+      <MobileSectionHeader
+        description={getBrowseSectionDescription(appliedQuery, activeFilterCount)}
+        title={appliedQuery ? `"${appliedQuery}" için sonuçlar` : "Son eklenenler"}
+      />
+
+      {hasSearchOrFilters ? (
+        <View style={styles.activeDiscoveryBar}>
+          <Text style={styles.activeDiscoveryText}>
+            {appliedQuery ? `Arama: ${appliedQuery}` : "Tüm aramalar"}
+            {activeFilterCount > 0 ? ` · ${activeFilterCount} filtre aktif` : ""}
+          </Text>
+          <Pressable
+            accessibilityLabel="Arama ve filtreleri temizle"
+            onPress={handleClearDiscovery}
+            style={styles.activeDiscoveryClearButton}
+          >
+            <Text style={styles.activeDiscoveryClearText}>Temizle</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {status === "loading" ? <MobileSkeleton label="İlanlar yükleniyor..." /> : null}
 
@@ -202,7 +234,13 @@ export function BrowseScreen() {
 
       {status === "empty" ? (
         <MobileEmptyState
-          message="Farklı bir arama dene ya da daha sonra tekrar bak."
+          actionLabel={hasSearchOrFilters ? "Arama ve filtreleri temizle" : "Tekrar dene"}
+          message={
+            hasSearchOrFilters
+              ? "Arama veya filtreler çok dar olabilir. Hepsini temizleyip son ilanlara dönebilirsin."
+              : "Şu an gösterilecek ilan yok. Biraz sonra tekrar dene."
+          }
+          onAction={hasSearchOrFilters ? handleClearDiscovery : () => void loadListings(appliedQuery, appliedFilters)}
           title="Eşleşen ilan yok"
         />
       ) : null}
@@ -523,6 +561,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.34)"
   },
+  activeDiscoveryBar: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  activeDiscoveryText: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18
+  },
+  activeDiscoveryClearButton: {
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7
+  },
+  activeDiscoveryClearText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "900"
+  },
   searchSheet: {
     position: "absolute",
     right: 14,
@@ -670,5 +739,25 @@ function toListingQueryFilters(filters: HomeListingFilters): FetchMobileListings
 }
 
 function hasActiveFilters(filters: HomeListingFilters): boolean {
-  return Object.values(filters).some((value) => value.trim().length > 0);
+  return getActiveFilterCount(filters) > 0;
+}
+
+function getActiveFilterCount(filters: HomeListingFilters): number {
+  return Object.values(filters).filter((value) => value.trim().length > 0).length;
+}
+
+function getBrowseSectionDescription(query: string, activeFilterCount: number): string {
+  if (query && activeFilterCount > 0) {
+    return "Arama ve filtrelere göre listeleniyor.";
+  }
+
+  if (query) {
+    return "Başlığa göre arama sonuçları.";
+  }
+
+  if (activeFilterCount > 0) {
+    return "Seçtiğin filtrelere göre listeleniyor.";
+  }
+
+  return "En yeni aktif ve rezerve ilanlar.";
 }

@@ -50,6 +50,8 @@ describe("favorites api", () => {
         title: "Bebek arabası",
         imageUrl: null,
         conditionText: null,
+        listingTypeText: null,
+        statusText: null,
         favoritedAt: null,
         locationText: "Konum belirtilmemiş",
         priceText: "Fiyat belirtilmemiş",
@@ -74,6 +76,42 @@ describe("favorites api", () => {
     expect(calls[1]?.url).toBe("http://localhost:4000/api/v1/favorites");
     expect(calls[1]?.init?.method).toBe("DELETE");
     expect(calls[1]?.init?.body).toBe(JSON.stringify({ listingId: "listing-1" }));
+  });
+
+  it("normalizes favorite listing status and type chips from safe listing fields", async () => {
+    globalThis.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        data: {
+          favorites: [
+            {
+              listing: {
+                id: "listing-2",
+                title: "Mama sandalyesi",
+                status: "reserved",
+                listingType: "sale",
+                condition: "good",
+                favoritedAt: "2030-01-02T10:00:00.000Z"
+              }
+            }
+          ]
+        }
+      })
+    }) as Response);
+
+    const favorites = await fetchMobileFavorites({
+      apiBaseUrl: "http://localhost:4000",
+      accessToken: "test-token"
+    });
+
+    expect(favorites[0]).toMatchObject({
+      conditionText: "İyi",
+      listingTypeText: "Satılık",
+      statusText: "Rezerve"
+    });
+    expect(JSON.stringify(favorites)).not.toMatch(/email|phone|accessToken|password/iu);
   });
 
   it("saves favorites through the authenticated mobile favorites endpoint", async () => {

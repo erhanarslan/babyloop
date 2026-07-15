@@ -1,4 +1,4 @@
-
+import { formatMobileListingStatus, formatMobileListingType } from "../listings/listing-labels";
 export type MobileFavoriteListing = {
   id: string;
   title: string;
@@ -7,6 +7,8 @@ export type MobileFavoriteListing = {
   currency?: string | null;
   imageUrl: string | null;
   conditionText: string | null;
+  listingTypeText: string | null;
+  statusText: string | null;
   favoritedAt: string | null;
   locationText: string;
   priceText: string;
@@ -35,6 +37,10 @@ type RawMobileFavoriteListing = {
   images?: unknown;
   condition?: unknown;
   conditionText?: unknown;
+  listingType?: unknown;
+  listingTypeText?: unknown;
+  status?: unknown;
+  statusText?: unknown;
   favoritedAt?: unknown;
   locationText?: unknown;
   priceText?: unknown;
@@ -209,6 +215,40 @@ function normalizeConditionText(listing: RawMobileFavoriteListing): string | nul
   return stringOrNull(listing.conditionText) ?? conditionLabels[stringOrNull(listing.condition) ?? ""] ?? null;
 }
 
+function normalizeListingTypeText(listing: RawMobileFavoriteListing): string | null {
+  const direct = stringOrNull(listing.listingTypeText);
+
+  if (direct) {
+    return direct;
+  }
+
+  const listingType = stringOrNull(listing.listingType);
+
+  if (!listingType) {
+    return null;
+  }
+
+  const formatted = formatMobileListingType(listingType);
+  return formatted === "İlan tipi belirtilmedi" ? null : formatted;
+}
+
+function normalizeStatusText(listing: RawMobileFavoriteListing): string | null {
+  const direct = stringOrNull(listing.statusText);
+
+  if (direct) {
+    return direct;
+  }
+
+  const status = stringOrNull(listing.status);
+
+  if (!status) {
+    return null;
+  }
+
+  const formatted = formatMobileListingStatus(status);
+  return formatted === "Durum bilinmiyor" ? null : formatted;
+}
+
 function unwrapFavoriteListing(value: unknown): RawMobileFavoriteListing | null {
   if (!isRecord(value)) {
     return null;
@@ -245,6 +285,8 @@ function normalizeFavoriteListing(value: unknown): MobileFavoriteListing | null 
     title,
     imageUrl: normalizeImageUrl(listing),
     conditionText: normalizeConditionText(listing),
+    listingTypeText: normalizeListingTypeText(listing),
+    statusText: normalizeStatusText(listing),
     favoritedAt: stringOrNull(listing.favoritedAt),
     locationText: normalizeLocationText(listing, seller),
     priceText: normalizePriceText(listing),

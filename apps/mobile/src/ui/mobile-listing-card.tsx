@@ -222,7 +222,9 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   actions: {
+    alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm
   }
 });
