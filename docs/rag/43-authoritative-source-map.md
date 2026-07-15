@@ -248,3 +248,12 @@ Her canonical answer doc şunu belirtir:
 - Hangi doküman bu cevabın owner'ıdır?
 
 Cevaplar kısa ve pratik olmalı; RAG içeriği gereksiz klinik detayla şişirilmemelidir.
+
+## Türkiye public-health authority note
+
+Türkiye HSGM, BabyLoop RAG kaynak haritasında Türkiye bağlamı için resmi/otoriter halk sağlığı kaynağı olarak değerlendirilir. Bu kaynak sınıfı; forum, influencer, reklam, satıcı ilanı veya blog içerikleriyle eşdeğer kabul edilemez.
+
+Kullanım kuralı:
+- Türkiye HSGM yalnızca resmi halk sağlığı bilgilendirmesi için authority-first kaynak sınıfına girer.
+- Kaynak metinde açık destek yoksa BabyLoop cevap üretmez; `insufficient_sources` veya güvenlik sınırı gerekiyorsa `blocked_safety` döner.
+- Bu kaynak sınıfı tanı, tedavi, ilaç/doz, acil durum yönlendirmesi veya kişiye özel tıbbi karar üretmek için kullanılmaz.

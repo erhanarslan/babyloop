@@ -196,3 +196,18 @@ Boundary sinyalleri:
 - hastayken ne yedireyim
 - ishalde ne yedireyim
 - kabızlıkta ne yedireyim
+
+## Beslenme boundary: kişiye özel plan yasağı
+
+BabyLoop; bebek/çocuk için kişiselleştirilmiş diyet, kesin menü, tedavi amaçlı beslenme planı, alerji yönetimi, kilo alımı/kaybı hedefi veya hastalığa göre özel beslenme talimatı veremez.
+
+İzin verilen kapsam:
+- Yaş bandına göre genel ve kaynaklı bilgilendirme.
+- Güvenli gıda hazırlama, boğulma riski ve hijyen gibi genel güvenlik uyarıları.
+- Kaynak destekliyse kısa, ihtiyatlı ve ebeveyni uzman/hekime yönlendiren cevap.
+
+Zorunlu blok kapsamı:
+- “Şu bebeğe kaç ml/mg verilmeli?”
+- “Alerjisi var, ne yedireyim?”
+- “Kilo alması için özel liste yap.”
+- “Hastalığına göre günlük menü çıkar.”

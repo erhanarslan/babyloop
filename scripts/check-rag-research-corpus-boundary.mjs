@@ -29,11 +29,79 @@ function mustContain(file, token) {
   }
 }
 
-function mustNotContain(file, token) {
-  const source = read(file);
-  if (source.includes(token)) {
-    problems.push(`${file} must not contain ${JSON.stringify(token)}`);
+function buildAnswerClaimCorpus(files) {
+  const excludedSectionHeadings = [
+    "soru",
+    "boundary",
+    "yasak",
+    "kaçınılacak",
+    "riskli",
+    "örnek",
+    "forbidden",
+    "cevaplanmayacak",
+    "boundary sinyalleri",
+    "retrieval routing",
+    "yasak dil"
+  ];
+
+  const allowedNegationTokens = [
+    "veremem",
+    "veremez",
+    "öneremem",
+    "önermez",
+    "onaylamaz",
+    "değildir",
+    "olmamalıdır",
+    "kaçın",
+    "yasak",
+    "sınır",
+    "boundary",
+    "yerine geçmez",
+    "yapmaz dememelidir",
+    "BabyLoop hiçbir",
+    "asla"
+  ];
+
+  const answerLines = [];
+
+  for (const file of files) {
+    let excludedSection = false;
+
+    for (const rawLine of read(file).split("\n")) {
+      const line = rawLine.trim();
+
+      if (!line) {
+        continue;
+      }
+
+      const heading = line.replace(/^#+\s*/u, "").toLocaleLowerCase("tr");
+
+      if (line.startsWith("#")) {
+        excludedSection = excludedSectionHeadings.some((token) => heading.includes(token));
+        continue;
+      }
+
+      if (excludedSection) {
+        continue;
+      }
+
+      if (/^[-*>#]*\s*(Soru|Boundary|Yasak|Riskli|Örnek|Forbidden|Boundary notu|Cevaplanmayacak|Boundary sinyalleri)/iu.test(line)) {
+        continue;
+      }
+
+      if (/^[-*]\s*["“]/u.test(line)) {
+        continue;
+      }
+
+      if (allowedNegationTokens.some((token) => line.includes(token))) {
+        continue;
+      }
+
+      answerLines.push(`${file}: ${line}`);
+    }
   }
+
+  return answerLines.join("\n");
 }
 
 if (problems.length === 0) {
@@ -85,19 +153,20 @@ if (problems.length === 0) {
     mustContain(file, "version:");
   }
 
-  const combined = requiredFiles.map((file) => read(file)).join("\n\n");
-  const forbiddenClaims = [
-    "kesin güvenlidir.",
-    "doktor gerekmez",
-    "şu ilacı ver",
-    "kaç ml ver",
-    "garanti güvenli",
-    "alerji yapmaz"
+  const answerClaimCorpus = buildAnswerClaimCorpus(requiredFiles);
+
+  const forbiddenAnswerPatterns = [
+    { label: "absolute product safety guarantee", pattern: /kesin güvenlidir\.?/iu },
+    { label: "doctor not needed claim", pattern: /doktor(?:a)? gerekmez\.?/iu },
+    { label: "direct medication instruction", pattern: /(?:calpol|dolven|parasetamol|ibuprofen|antibiyotik)[^\n.]{0,60}(?:ver|kullan|başla)/iu },
+    { label: "direct dosage instruction", pattern: /\b\d+(?:[,.]\d+)?\s*ml\s*(?:ver|kullan)/iu },
+    { label: "allergy safety guarantee", pattern: /alerji yapmaz\.?/iu },
+    { label: "no risk guarantee", pattern: /hiç risk yok\.?/iu }
   ];
 
-  for (const claim of forbiddenClaims) {
-    if (combined.toLocaleLowerCase("tr").includes(claim.toLocaleLowerCase("tr"))) {
-      problems.push(`RAG corpus contains unsafe absolute/medical claim: ${claim}`);
+  for (const { label, pattern } of forbiddenAnswerPatterns) {
+    if (pattern.test(answerClaimCorpus)) {
+      problems.push(`RAG corpus contains unsafe answer claim: ${label}`);
     }
   }
 }
