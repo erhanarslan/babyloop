@@ -16,6 +16,13 @@ import {
   type MobileCartItem,
   type MobileMockCheckout
 } from "./basket-api";
+import {
+  canCheckoutMobileCart,
+  getMobileBasketCheckoutState,
+  getMobileBasketCheckoutSuccessCopy,
+  getMobileBasketDemoPaymentCopy,
+  getMobileBasketUnavailableItemsCopy
+} from "./basket-model";
 
 export function BasketScreen() {
   const router = useRouter();
@@ -25,6 +32,8 @@ export function BasketScreen() {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [actionStatus, setActionStatus] = useState<"idle" | "pending">("idle");
   const [error, setError] = useState<string | null>(null);
+  const checkoutState = getMobileBasketCheckoutState(cart, actionStatus);
+  const checkoutSuccessCopy = checkout ? getMobileBasketCheckoutSuccessCopy(checkout) : null;
 
   const loadCart = useCallback(async () => {
     if (authSession.status !== "authenticated") {
@@ -74,6 +83,11 @@ export function BasketScreen() {
   }
 
   async function handleCheckout() {
+    if (!canCheckoutMobileCart(cart)) {
+      setError(checkoutState.reason ?? "Checkout için sepeti kontrol et.");
+      return;
+    }
+
     try {
       setActionStatus("pending");
       setError(null);
@@ -81,7 +95,7 @@ export function BasketScreen() {
       setCheckout(nextCheckout);
       setCart(await fetchMobileCart());
     } catch (checkoutError) {
-      setError(checkoutError instanceof Error ? checkoutError.message : "Mock iyzico ödeme tamamlanamadı.");
+      setError(checkoutError instanceof Error ? checkoutError.message : "Demo checkout tamamlanamadı. Sepet değişmedi.");
     } finally {
       setActionStatus("idle");
     }
@@ -109,17 +123,47 @@ export function BasketScreen() {
         />
       ) : null}
 
-      {authSession.status === "authenticated" && status === "ready" && cart && cart.items.length === 0 ? (
+      {authSession.status === "authenticated" && status === "ready" && cart && cart.items.length === 0 && cart.unavailableItems.length === 0 ? (
         <MobileEmptyState
           actionLabel="Keşfe dön"
+          message="Satılık aktif bir ilanı sepete ekleyerek demo checkout akışını deneyebilirsin."
           onAction={() => router.push("/")}
           title="Sepetin boş"
         />
       ) : null}
 
-      {authSession.status === "authenticated" && cart && cart.items.length > 0 ? (
+      {authSession.status === "authenticated" && cart && (cart.items.length > 0 || cart.unavailableItems.length > 0) ? (
         <>
-          <MobileSectionHeader title="Sepetteki ilanlar" />
+          <MobileCard style={styles.boundaryCard}>
+            <Text style={styles.boundaryTitle}>Demo ödeme modu</Text>
+            <Text style={styles.boundaryText}>{getMobileBasketDemoPaymentCopy()}</Text>
+          </MobileCard>
+
+          {cart.unavailableItems.length > 0 ? (
+            <>
+              <MobileCard style={styles.unavailableCard}>
+                <Text style={styles.unavailableTitle}>Sepette uygun olmayan ilan var</Text>
+                <Text style={styles.unavailableText}>
+                  {getMobileBasketUnavailableItemsCopy(cart.unavailableItems.length)}
+                </Text>
+              </MobileCard>
+
+              <View style={styles.list}>
+                {cart.unavailableItems.map((item) => (
+                  <CartItemCard
+                    disabled={actionStatus === "pending"}
+                    item={item}
+                    key={item.id}
+                    onOpen={() => router.push(`/listing/${encodeURIComponent(item.listingId)}`)}
+                    onRemove={() => void handleRemove(item)}
+                    unavailable
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {cart.items.length > 0 ? <MobileSectionHeader title="Sepetteki aktif ilanlar" /> : null}
           <View style={styles.list}>
             {cart.items.map((item) => (
               <CartItemCard
@@ -138,13 +182,15 @@ export function BasketScreen() {
               <Text style={styles.summaryValue}>{cart.subtotalText}</Text>
             </View>
 
+            {checkoutState.reason ? <Text style={styles.summaryHint}>{checkoutState.reason}</Text> : null}
+
             <MobileButton
-              accessibilityLabel="Sepet işlemine devam et"
-              disabled={actionStatus === "pending"}
+              accessibilityLabel="Demo checkout işlemini tamamla"
+              disabled={checkoutState.disabled}
               iconName="card-outline"
               onPress={() => void handleCheckout()}
             >
-              {actionStatus === "pending" ? "İşleniyor..." : "Devam et"}
+              {checkoutState.label}
             </MobileButton>
             <MobileButton
               accessibilityLabel="Sepeti temizle"
@@ -159,10 +205,11 @@ export function BasketScreen() {
         </>
       ) : null}
 
-      {checkout ? (
-        <MobileCard accessible accessibilityLabel="İşlem tamamlandı" style={styles.successCard}>
-          <Text style={styles.successTitle}>İşlem tamamlandı</Text>
-                              <Text style={styles.successText}>Tutar: {checkout.paidAmountText}</Text>
+      {checkoutSuccessCopy ? (
+        <MobileCard accessible accessibilityLabel="Demo checkout tamamlandı" style={styles.successCard}>
+          <Text style={styles.successTitle}>{checkoutSuccessCopy.title}</Text>
+          <Text style={styles.successText}>{checkoutSuccessCopy.body}</Text>
+          <Text style={styles.successText}>{checkoutSuccessCopy.detail}</Text>
         </MobileCard>
       ) : null}
 
@@ -175,27 +222,31 @@ function CartItemCard({
   disabled,
   item,
   onOpen,
-  onRemove
+  onRemove,
+  unavailable = false
 }: {
   disabled: boolean;
   item: MobileCartItem;
   onOpen: () => void;
   onRemove: () => void;
+  unavailable?: boolean;
 }) {
   return (
     <MobileListingCard
       accessibilityLabel={`Sepet ilanını aç: ${item.title}`}
       actions={
         <>
-          <MobileButton
-            accessibilityLabel={`Sepet ilan detayı: ${item.title}`}
-            disabled={disabled}
-            iconName="open-outline"
-            onPress={onOpen}
-            variant="secondary"
-          >
-            Detay
-          </MobileButton>
+          {!unavailable ? (
+            <MobileButton
+              accessibilityLabel={`Sepet ilan detayı: ${item.title}`}
+              disabled={disabled}
+              iconName="open-outline"
+              onPress={onOpen}
+              variant="secondary"
+            >
+              Detay
+            </MobileButton>
+          ) : null}
           <MobileButton
             accessibilityLabel={`Sepetten kaldır: ${item.title}`}
             disabled={disabled}
@@ -213,7 +264,7 @@ function CartItemCard({
         statusText: item.statusText
       })}
       imageUrl={item.imageUrl}
-      locationText="Sepet"
+      locationText={unavailable ? "Artık uygun değil" : "Sepet"}
       priceText={item.priceText}
       title={item.title}
     />
@@ -223,6 +274,36 @@ function CartItemCard({
 const styles = StyleSheet.create({
   list: {
     gap: spacing.md
+  },
+  boundaryCard: {
+    gap: spacing.xs,
+    borderColor: colors.border
+  },
+  boundaryTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  boundaryText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
+  },
+  unavailableCard: {
+    gap: spacing.xs,
+    borderColor: "#f6dfb8"
+  },
+  unavailableTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  unavailableText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
   },
   summaryCard: {
     gap: spacing.md

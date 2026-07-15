@@ -74,7 +74,7 @@ export async function checkoutMobileMockIyzico(): Promise<MobileMockCheckout> {
   const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(safeApiErrorMessage(payload, "Mock iyzico ödeme tamamlanamadı."));
+    throw new Error(safeApiErrorMessage(payload, "Demo checkout tamamlanamadı. Sepet değişmedi."));
   }
 
   return normalizeCheckout(payload);

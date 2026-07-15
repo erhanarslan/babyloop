@@ -30,6 +30,80 @@ export type MobileMockCheckout = {
   itemCount: number;
 };
 
+export type MobileBasketCheckoutState = {
+  disabled: boolean;
+  label: string;
+  reason: string | null;
+};
+
+export function canCheckoutMobileCart(
+  cart: Pick<MobileCart, "items" | "unavailableItems"> | null
+): boolean {
+  return Boolean(cart && cart.items.length > 0 && cart.unavailableItems.length === 0);
+}
+
+export function getMobileBasketCheckoutState(
+  cart: Pick<MobileCart, "items" | "unavailableItems"> | null,
+  actionStatus: "idle" | "pending"
+): MobileBasketCheckoutState {
+  if (actionStatus === "pending") {
+    return {
+      disabled: true,
+      label: "Ödeme simüle ediliyor...",
+      reason: "Demo checkout işlemi devam ediyor."
+    };
+  }
+
+  if (!cart || cart.items.length === 0) {
+    return {
+      disabled: true,
+      label: "Sepet boş",
+      reason: "Checkout için sepete aktif bir satılık ilan eklemelisin."
+    };
+  }
+
+  if (cart.unavailableItems.length > 0) {
+    return {
+      disabled: true,
+      label: "Önce uygun olmayanları kaldır",
+      reason: "Satılmış veya yayından kalkmış ilanlar sepetteyken checkout başlatılamaz."
+    };
+  }
+
+  return {
+    disabled: false,
+    label: "Demo checkout’u tamamla",
+    reason: "Gerçek ödeme alınmaz; bu akış sipariş ve ödeme durumlarını simüle eder."
+  };
+}
+
+export function getMobileBasketDemoPaymentCopy(): string {
+  return "Bu ekrandaki checkout demo/simülasyon akışıdır. Gerçek kart bilgisi alınmaz, gerçek ödeme tahsil edilmez.";
+}
+
+export function getMobileBasketUnavailableItemsCopy(count: number): string {
+  if (count <= 0) {
+    return "";
+  }
+
+  return `${count} ilan artık satın alınamaz durumda. Checkout’a devam etmek için bu ilanları sepetten kaldır.`;
+}
+
+export function getMobileBasketCheckoutSuccessCopy(
+  checkout: Pick<MobileMockCheckout, "itemCount" | "orderId" | "paidAmountText">
+): {
+  title: string;
+  body: string;
+  detail: string;
+} {
+  return {
+    title: "Demo checkout tamamlandı",
+    body: `${checkout.itemCount} ilan için ödeme simülasyonu tamamlandı. Gerçek para tahsil edilmedi.`,
+    detail: `Sipariş: ${checkout.orderId} · Tutar: ${checkout.paidAmountText}`
+  };
+}
+
+
 export function normalizeCart(
   payload: unknown,
   resolveImageUrl: (url: string | null | undefined) => string | null = defaultResolveImageUrl
