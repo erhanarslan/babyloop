@@ -281,6 +281,15 @@ describe("cart and mock iyzico checkout API", () => {
     });
     expect(checkoutResponse.json().data.checkout.orderId).toEqual(expect.any(String));
     expect(checkoutResponse.json().data.checkout.mockIyzicoPaymentId).toMatch(/^mock-iyzico-/u);
+    expect(checkoutResponse.json().data.checkout.paymentAttempt).toMatchObject({
+      provider: "mock_iyzico",
+      providerMode: "simulation",
+      status: "succeeded",
+      livePayment: false,
+      realMoneyMovement: false,
+      capturedAmount: "1250.00"
+    });
+    expect(JSON.stringify(checkoutResponse.json())).not.toMatch(/cardNumber|cvv|apiKey|secret|authorization|cookie/iu);
     expect(listingRow?.status).toBe("sold");
     expect(cartResponse.json().data.cart.items).toHaveLength(0);
 
@@ -364,8 +373,11 @@ describe("cart and mock iyzico checkout API", () => {
       eventType: "product_mock_checkout_failed"
     });
     expect(checkoutFailedEvent?.metadata).toEqual({
+      checkoutMode: "simulation",
+      commissionAmount: "116.00",
       itemCount: 1,
       paymentProvider: "mock_iyzico",
+      realMoneyMovement: "false",
       reason: "mock_failure",
       source: "server_checkout",
       totalAmount: "5800.00"

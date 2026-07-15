@@ -175,7 +175,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
           ok: false,
           error: {
             code: "CHECKOUT_DONATION_LISTINGS_NOT_SUPPORTED",
-            message: "Mock iyzico checkout cannot be used for donation listings."
+            message: "Demo checkout cannot be used for donation listings."
           }
         });
       }
@@ -185,7 +185,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
           ok: false,
           error: {
             code: "MOCK_IYZICO_PAYMENT_FAILED",
-            message: "Mock iyzico payment failed. Your cart was not changed."
+            message: "Demo checkout failed. Your cart was not changed."
           }
         });
       }

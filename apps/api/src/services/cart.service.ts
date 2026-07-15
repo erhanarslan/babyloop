@@ -9,9 +9,15 @@ import {
 } from "@babyloop/database/schema";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { randomUUID } from "node:crypto";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type { ListingImageResponse, PriceResponse } from "./listing-response.mapper.js";
+import {
+  buildMockIyzicoPaymentSimulation,
+  type BabyLoopCommission,
+  type PaymentAttemptSimulation,
+  type PaymentSimulationBoundary,
+  type SellerPayout
+} from "./payment-simulation.service.js";
 
 export type CartListingSummary = {
   id: string;
@@ -59,6 +65,14 @@ export type MockCheckoutResponse = {
   status: "paid";
   paidAmount: string;
   currency: "TRY";
+  paymentProvider: "mock_iyzico";
+  providerMode: "simulation";
+  livePayment: false;
+  realMoneyMovement: false;
+  paymentAttempt: PaymentAttemptSimulation;
+  commission: BabyLoopCommission;
+  sellerPayout: SellerPayout;
+  boundary: PaymentSimulationBoundary;
   items: MockCheckoutItemResponse[];
 };
 
@@ -241,6 +255,11 @@ export async function checkoutCartWithMockIyzico(
   }
 
   if (scenario === "failure") {
+    const failedPaymentSimulation = buildMockIyzicoPaymentSimulation({
+      amount: formatMoney(rows.reduce((sum, row) => sum + parseMoney(row.priceAmount), 0)),
+      status: "failed"
+    });
+
     await recordCartProductEvent(app, {
       actorProfileId: currentUser.profile.id,
       entityId: currentUser.profile.id,
@@ -248,10 +267,13 @@ export async function checkoutCartWithMockIyzico(
       eventType: "product_mock_checkout_failed",
       metadata: {
         itemCount: rows.length,
+        checkoutMode: failedPaymentSimulation.provider.mode,
+        commissionAmount: failedPaymentSimulation.commission.amount,
         paymentProvider: "mock_iyzico",
+        realMoneyMovement: "false",
         reason: "mock_failure",
         source: "server_checkout",
-        totalAmount: formatMoney(rows.reduce((sum, row) => sum + parseMoney(row.priceAmount), 0))
+        totalAmount: failedPaymentSimulation.paymentAttempt.capturedAmount
       }
     });
 
@@ -265,7 +287,10 @@ export async function checkoutCartWithMockIyzico(
     const listingIds = rows.map((row) => row.listingId);
     const now = new Date();
     const totalAmount = formatMoney(rows.reduce((sum, row) => sum + parseMoney(row.priceAmount), 0));
-    const providerPaymentId = `mock-iyzico-${randomUUID()}`;
+    const paymentSimulation = buildMockIyzicoPaymentSimulation({
+      amount: totalAmount
+    });
+    const providerPaymentId = paymentSimulation.paymentAttempt.id;
 
     const soldRows = await tx
       .update(listings)
@@ -322,11 +347,15 @@ export async function checkoutCartWithMockIyzico(
         entityType: "listing",
         entityId: row.listingId,
         metadata: {
+          checkoutMode: paymentSimulation.provider.mode,
+          commissionAmount: paymentSimulation.commission.amount,
           itemCount: rows.length,
           listingId: row.listingId,
           orderId: order.id,
           paidAmount: totalAmount,
           paymentProvider: "mock_iyzico",
+          realMoneyMovement: "false",
+          sellerPayoutAmount: paymentSimulation.sellerPayout.amount,
           source: "server_checkout"
         }
       }))
@@ -341,6 +370,14 @@ export async function checkoutCartWithMockIyzico(
         status: "paid" as const,
         paidAmount: totalAmount,
         currency: "TRY" as const,
+        paymentProvider: "mock_iyzico" as const,
+        providerMode: "simulation" as const,
+        livePayment: false as const,
+        realMoneyMovement: false as const,
+        paymentAttempt: paymentSimulation.paymentAttempt,
+        commission: paymentSimulation.commission,
+        sellerPayout: paymentSimulation.sellerPayout,
+        boundary: paymentSimulation.boundary,
         items: rows.map((row) => ({
           listingId: row.listingId,
           title: row.title,
