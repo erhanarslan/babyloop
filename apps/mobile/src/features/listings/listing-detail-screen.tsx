@@ -80,6 +80,19 @@ export function ListingDetailScreen() {
   );
   const activeImageUrl = selectedImageUrl ?? galleryImageUrls[0] ?? null;
 
+  function handleBackPress() {
+    const routerWithHistory = router as unknown as {
+      canGoBack?: () => boolean;
+    };
+
+    if (routerWithHistory.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  }
+
   useEffect(() => {
     let active = true;
 
@@ -332,6 +345,16 @@ export function ListingDetailScreen() {
       title={listing?.title ?? "İlan detayı"}
       subtitle={listing ? `${listing.priceText} · ${listing.locationText}` : undefined}
     >
+      <Pressable
+        accessibilityLabel="Geri dön"
+        accessibilityRole="button"
+        onPress={handleBackPress}
+        style={styles.listingDetailBackButton}
+      >
+        <Ionicons color={colors.primaryDark} name="chevron-back" size={20} />
+        <Text style={styles.listingDetailBackButtonText}>Geri</Text>
+      </Pressable>
+
       {status === "loading" ? <MobileSkeleton label="İlan detayı yükleniyor..." /> : null}
 
       {status === "error" ? (
@@ -505,6 +528,25 @@ export function ListingDetailScreen() {
 
 
 const styles = StyleSheet.create({
+  listingDetailBackButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    ...shadows.card
+  },
+  listingDetailBackButtonText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900"
+  },
   heroCard: {
     padding: 0,
     overflow: "hidden"

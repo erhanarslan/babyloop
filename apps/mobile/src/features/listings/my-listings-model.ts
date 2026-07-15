@@ -31,9 +31,14 @@ export function getMobileListingStatusActions(
     case "active":
       return [
         {
-          label: "Satıldı",
+          label: "Rezerve et",
+          status: "reserved",
+          tone: "secondary"
+        },
+        {
+          label: "Satıldı olarak işaretle",
           status: "sold",
-          tone: "primary"
+          tone: "danger"
         },
         {
           label: "Yayından kaldır",
@@ -50,9 +55,9 @@ export function getMobileListingStatusActions(
           tone: "secondary"
         },
         {
-          label: "Satıldı",
+          label: "Satıldı olarak işaretle",
           status: "sold",
-          tone: "primary"
+          tone: "danger"
         },
         {
           label: "Yayından kaldır",
@@ -64,7 +69,7 @@ export function getMobileListingStatusActions(
     case "sold":
       return [
         {
-          label: "Yayından kaldır",
+          label: "Arşive taşı",
           status: "archived",
           tone: "secondary"
         }
@@ -73,7 +78,7 @@ export function getMobileListingStatusActions(
     case "archived":
       return [
         {
-          label: "Yayına al",
+          label: "Yeniden yayına al",
           status: "active",
           tone: "primary"
         }
@@ -156,9 +161,9 @@ export function getMobileListingStatusActionMessage(
     case "reserved":
       return "İlan rezerve olarak işaretlendi.";
     case "sold":
-      return "İlan satıldı olarak işaretlendi.";
+      return "İlan satıldı olarak işaretlendi ve alıcı aksiyonlarına kapatıldı.";
     case "archived":
-      return "İlan yayından kaldırıldı.";
+      return "İlan arşive taşındı.";
   }
 }
 

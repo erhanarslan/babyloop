@@ -10,9 +10,14 @@ describe("mobile my listings model", () => {
   it("returns release-critical seller actions by listing status", () => {
     expect(getMobileListingStatusActions("active")).toEqual([
       {
-        label: "Satıldı",
+        label: "Rezerve et",
+        status: "reserved",
+        tone: "secondary"
+      },
+      {
+        label: "Satıldı olarak işaretle",
         status: "sold",
-        tone: "primary"
+        tone: "danger"
       },
       {
         label: "Yayından kaldır",
@@ -23,16 +28,16 @@ describe("mobile my listings model", () => {
 
     expect(getMobileListingStatusActions("reserved").map((action) => action.label)).toEqual([
       "Yayına al",
-      "Satıldı",
+      "Satıldı olarak işaretle",
       "Yayından kaldır"
     ]);
 
     expect(getMobileListingStatusActions("sold").map((action) => action.label)).toEqual([
-      "Yayından kaldır"
+      "Arşive taşı"
     ]);
 
     expect(getMobileListingStatusActions("archived").map((action) => action.label)).toEqual([
-      "Yayına al"
+      "Yeniden yayına al"
     ]);
 
     expect(getMobileListingStatusActions("unknown")).toEqual([]);
@@ -83,6 +88,6 @@ describe("mobile my listings model", () => {
     expect(getMobileMyListingStatusFilterLabel("all")).toBe("Tümü");
     expect(getMobileMyListingStatusFilterLabel("reserved")).toBe("Rezerve");
     expect(getMobileListingStatusActionMessage("active")).toBe("İlan yeniden yayına alındı.");
-    expect(getMobileListingStatusActionMessage("sold")).toBe("İlan satıldı olarak işaretlendi.");
+    expect(getMobileListingStatusActionMessage("sold")).toBe("İlan satıldı olarak işaretlendi ve alıcı aksiyonlarına kapatıldı.");
   });
 });

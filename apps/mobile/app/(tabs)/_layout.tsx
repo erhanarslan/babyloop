@@ -14,6 +14,18 @@ import {
   MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
   MOBILE_TAB_BAR_RADIUS
 } from "../../src/ui/mobile-layout";
+import { useAuthSession } from "../../src/features/auth/auth-session";
+import {
+  fetchMobileConversations,
+  type MobileConversationSummary
+} from "../../src/features/messages/messages-api";
+import {
+  mergeRealtimeConversationSummary
+} from "../../src/features/messages/messages-realtime-model";
+import {
+  getMobileMessagesTabBadgeLabel
+} from "../../src/features/messages/messages-tab-badge-model";
+import { subscribeMobileRealtime } from "../../src/features/realtime/mobile-realtime";
 import { colors } from "../../src/ui/theme";
 
 const tabColors = {
@@ -23,6 +35,8 @@ const tabColors = {
   surface: colors.surface,
   shadow: colors.primary
 } as const;
+
+const MESSAGE_TAB_BADGE_POLL_INTERVAL_MS = 4000;
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
 
@@ -51,6 +65,85 @@ export default function TabLayout() {
   const navigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
   const [keyboardInsetLocked, setKeyboardInsetLocked] = useState(false);
   const keyboardInsetLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const authSession = useAuthSession();
+  const currentProfileId = authSession.currentUser?.profile.id ?? null;
+  const [messageConversations, setMessageConversations] = useState<MobileConversationSummary[]>([]);
+  const messagesTabBadge = getMobileMessagesTabBadgeLabel(messageConversations);
+
+  useEffect(() => {
+    if (!currentProfileId) {
+      setMessageConversations([]);
+      return;
+    }
+
+    let active = true;
+
+    async function loadMessageConversations() {
+      try {
+        const nextConversations = await fetchMobileConversations();
+
+        if (active) {
+          setMessageConversations(nextConversations);
+        }
+      } catch {
+        if (active) {
+          setMessageConversations([]);
+        }
+      }
+    }
+
+    void loadMessageConversations();
+
+    return () => {
+      active = false;
+    };
+  }, [currentProfileId]);
+
+  useEffect(() => {
+    if (!currentProfileId) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void fetchMobileConversations()
+        .then(setMessageConversations)
+        .catch(() => undefined);
+    }, MESSAGE_TAB_BADGE_POLL_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [currentProfileId]);
+
+  useEffect(() => {
+    if (!currentProfileId) {
+      return;
+    }
+
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    void subscribeMobileRealtime({
+      onConversationUpdated: (payload) => {
+        setMessageConversations((currentConversations) =>
+          mergeRealtimeConversationSummary(currentConversations, payload.conversation)
+        );
+      }
+    }).then((subscription) => {
+      if (!active) {
+        subscription.unsubscribe();
+        return;
+      }
+
+      unsubscribe = subscription.unsubscribe;
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [currentProfileId]);
 
   useEffect(() => {
     if (Platform.OS !== "android" || navigationVisibility !== "visible") {
@@ -190,6 +283,13 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: "Mesajlar",
+          tabBarBadge: messagesTabBadge,
+          tabBarBadgeStyle: {
+            backgroundColor: "#ef4444",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: "900"
+          },
           tabBarIcon: ({ color, focused }) => (
             <TabIcon color={color} focused={focused} name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"} />
           )

@@ -32,6 +32,7 @@ type NotificationsLike = {
   AndroidImportance?: {
     DEFAULT?: number;
     HIGH?: number;
+    MAX?: number;
   };
   getPermissionsAsync: () => Promise<PermissionResponse>;
   requestPermissionsAsync: () => Promise<PermissionResponse>;
@@ -43,8 +44,18 @@ type NotificationsLike = {
       importance?: number;
       vibrationPattern?: number[];
       lightColor?: string;
+      sound?: string;
     }
   ) => Promise<unknown>;
+  setNotificationHandler?: (handler: {
+    handleNotification: () => Promise<{
+      shouldPlaySound: boolean;
+      shouldSetBadge: boolean;
+      shouldShowAlert: boolean;
+      shouldShowBanner: boolean;
+      shouldShowList: boolean;
+    }>;
+  }) => void;
 };
 
 type ConstantsLike = {
@@ -88,6 +99,7 @@ export async function registerMobileDeviceForPushNotifications(
       return { status: "unavailable", reason: "physical_device_required" };
     }
 
+    configureForegroundNotificationSound(deps.notifications);
     await configureAndroidNotificationChannel(deps);
 
     const permission = await getGrantedPushPermission(deps.notifications);
@@ -197,9 +209,25 @@ async function configureAndroidNotificationChannel(deps: MobilePushRegistrationD
 
   await deps.notifications.setNotificationChannelAsync("default", {
     name: "BabyLoop",
-    importance: deps.notifications.AndroidImportance?.DEFAULT ?? deps.notifications.AndroidImportance?.HIGH,
+    importance:
+      deps.notifications.AndroidImportance?.HIGH ??
+      deps.notifications.AndroidImportance?.MAX ??
+      deps.notifications.AndroidImportance?.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: "#7c3aed"
+    lightColor: "#7c3aed",
+    sound: "default"
+  });
+}
+
+function configureForegroundNotificationSound(notifications: NotificationsLike): void {
+  notifications.setNotificationHandler?.({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true
+    })
   });
 }
 

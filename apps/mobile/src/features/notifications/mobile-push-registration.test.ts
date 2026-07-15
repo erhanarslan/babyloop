@@ -5,6 +5,7 @@ function createNotificationsMock(overrides: Partial<{
   requestPermissionsAsync: jest.Mock;
   getExpoPushTokenAsync: jest.Mock;
   setNotificationChannelAsync: jest.Mock;
+  setNotificationHandler: jest.Mock;
 }> = {}) {
   return {
     AndroidImportance: {
@@ -14,7 +15,8 @@ function createNotificationsMock(overrides: Partial<{
     getPermissionsAsync: overrides.getPermissionsAsync ?? jest.fn().mockResolvedValue({ granted: true, status: "granted" }),
     requestPermissionsAsync: overrides.requestPermissionsAsync ?? jest.fn().mockResolvedValue({ granted: true, status: "granted" }),
     getExpoPushTokenAsync: overrides.getExpoPushTokenAsync ?? jest.fn().mockResolvedValue({ data: "ExponentPushToken[raw-device-token]" }),
-    setNotificationChannelAsync: overrides.setNotificationChannelAsync ?? jest.fn().mockResolvedValue(undefined)
+    setNotificationChannelAsync: overrides.setNotificationChannelAsync ?? jest.fn().mockResolvedValue(undefined),
+    setNotificationHandler: overrides.setNotificationHandler ?? jest.fn()
   };
 }
 
@@ -50,10 +52,13 @@ describe("mobile push registration", () => {
       status: "registered",
       tokenHashPrefix: "abcdef123456"
     });
+    expect(notifications.setNotificationHandler).toHaveBeenCalled();
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
       "default",
       expect.objectContaining({
-        name: "BabyLoop"
+        importance: 4,
+        name: "BabyLoop",
+        sound: "default"
       })
     );
     expect(notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: "project-id" });
