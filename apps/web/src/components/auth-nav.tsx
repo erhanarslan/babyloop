@@ -3,9 +3,10 @@
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
+  AUTH_SESSION_ENDED_EVENT,
   fetchCurrentUserWithoutRefresh,
   getAuthToken,
   logoutAndRedirectToHome,
@@ -21,7 +22,12 @@ type AuthNavProps = {
 export function AuthNav({ apiBaseUrl }: AuthNavProps) {
   const { dictionary } = useI18n();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
+  const currentAuthRef = useRef<AuthMe | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    currentAuthRef.current = currentAuth;
+  }, [currentAuth]);
 
   useEffect(() => {
     let isActive = true;
@@ -54,7 +60,9 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
           return;
         }
 
-        setCurrentAuth(null);
+        if (refreshed.error.code !== "API_UNAVAILABLE") {
+          setCurrentAuth(null);
+        }
         return;
       }
 
@@ -66,15 +74,17 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
         }
 
         if (!body.ok) {
+          if (body.error.code === "API_UNAVAILABLE") {
+            return;
+          }
+
           setCurrentAuth(null);
           return;
         }
 
         setCurrentAuth(body.data);
       } catch {
-        if (isActive) {
-          setCurrentAuth(null);
-        }
+        return;
       }
     }
 
@@ -86,25 +96,34 @@ export function AuthNav({ apiBaseUrl }: AuthNavProps) {
       void loadCurrentAuth({ allowRefresh: false });
     }
 
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
+    function checkOnFocus() {
+      if (getAuthToken() || currentAuthRef.current) {
         checkWithoutRefresh();
       }
     }
 
-    checkWithoutRefresh();
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        checkOnFocus();
+      }
+    }
 
-    const intervalId = window.setInterval(checkWithoutRefresh, 5000);
+    function handleSessionEnded() {
+      setCurrentAuth(null);
+    }
+
+    loadWithRefresh();
 
     window.addEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
-    window.addEventListener("focus", checkWithoutRefresh);
+    window.addEventListener(AUTH_SESSION_ENDED_EVENT, handleSessionEnded);
+    window.addEventListener("focus", checkOnFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isActive = false;
-      window.clearInterval(intervalId);
       window.removeEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
-      window.removeEventListener("focus", checkWithoutRefresh);
+      window.removeEventListener(AUTH_SESSION_ENDED_EVENT, handleSessionEnded);
+      window.removeEventListener("focus", checkOnFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [apiBaseUrl, pathname]);

@@ -287,28 +287,31 @@ function SecuritySection({ dictionary, title }: { dictionary: Dictionary; title:
       <div className="grid gap-3">
         <Link
           className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/password"
+          href="/account/password#password"
         >
           <span className="text-base font-black text-foreground">{dictionary.accountProfile.securityAndPassword}</span>
           <span className="text-sm font-semibold leading-6 text-muted-foreground">
             {dictionary.accountProfile.securityPasswordDescription}
           </span>
         </Link>
-        <DisabledToggleRow
-          description={dictionary.accountProfile.otpDescription}
-          dictionary={dictionary}
-          label="OTP / MFA"
-        />
-        <DisabledToggleRow
-          description={dictionary.accountProfile.mobileApprovalDescription}
-          dictionary={dictionary}
-          label="Mobil onay"
-        />
-        <DisabledToggleRow
-          description={dictionary.accountProfile.trustedDevicesDescription}
-          dictionary={dictionary}
-          label="Güvenilir cihazlar"
-        />
+        <Link
+          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
+          href="/account/password#mfa"
+        >
+          <span className="text-base font-black text-foreground">OTP / MFA</span>
+          <span className="text-sm font-semibold leading-6 text-muted-foreground">
+            {dictionary.accountProfile.otpDescription}
+          </span>
+        </Link>
+        <Link
+          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
+          href="/account/password#sessions"
+        >
+          <span className="text-base font-black text-foreground">Aktif cihazlar</span>
+          <span className="text-sm font-semibold leading-6 text-muted-foreground">
+            Açık web ve mobil oturumlarını gerçek session panelinde yönet.
+          </span>
+        </Link>
       </div>
     </div>
   );
@@ -356,40 +359,6 @@ function SectionHeading({
       <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-muted-foreground">
         {description}
       </p>
-    </div>
-  );
-}
-
-function DisabledToggleRow({
-  description,
-  dictionary,
-  label
-}: {
-  description: string;
-  dictionary: Dictionary;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-base font-black text-foreground">{label}</strong>
-          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-black text-muted-foreground">
-            {dictionary.accountProfile.comingSoon}
-          </span>
-        </div>
-        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      <button
-        aria-label={dictionary.accountProfile.comingSoonAria.replace("{label}", label)}
-        className="relative h-7 w-12 shrink-0 rounded-full border border-border bg-muted opacity-70"
-        disabled
-        type="button"
-      >
-        <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-background shadow-sm" />
-      </button>
     </div>
   );
 }

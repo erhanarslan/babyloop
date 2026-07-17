@@ -78,6 +78,10 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
   }, [loadSessions]);
 
   async function handleRevokeSession(sessionId: string) {
+    if (pendingSessionId || isRevokingAll) {
+      return;
+    }
+
     if (!(await requireAuth())) {
       return;
     }
@@ -113,6 +117,10 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
   }
 
   async function handleRevokeAllSessions() {
+    if (isRevokingAll || pendingSessionId) {
+      return;
+    }
+
     if (!(await requireAuth())) {
       return;
     }
@@ -130,11 +138,9 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
       }
 
       clearAuthToken({ broadcast: true });
-      clearAuthToken({ broadcast: true });
       setSessions([]);
       setCurrentSessionId(null);
       setSuccessMessage(`${body.data.revokedCount} oturum kapatıldı. Tüm cihazlardan çıkış yapıldı.`);
-      window.location.replace("/login");
       window.location.replace("/login");
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);

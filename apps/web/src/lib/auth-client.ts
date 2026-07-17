@@ -25,6 +25,7 @@ export type AuthPayload = AuthMe & {
 };
 
 let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;
+let fetchCurrentUserWithoutRefreshPromise: Promise<ApiResponse<AuthMe>> | null = null;
 let publicCsrfTokenPromise: Promise<string | null> | null = null;
 let authSessionVersion = 0;
 let memoryAuthToken: string | null = null;
@@ -42,6 +43,7 @@ export function setAuthToken(token: string): void {
   memoryAuthToken = token;
   manuallyLoggedOut = false;
   lastRefreshFailureAt = 0;
+  fetchCurrentUserWithoutRefreshPromise = null;
   authSessionVersion += 1;
 
   dispatchAuthEvent(AUTH_CHANGED_EVENT);
@@ -53,6 +55,7 @@ export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
 
   memoryAuthToken = null;
   cachedPublicCsrfToken = null;
+  fetchCurrentUserWithoutRefreshPromise = null;
   publicCsrfTokenPromise = null;
 
   if (hadToken || shouldBroadcast) {
@@ -120,7 +123,7 @@ async function doRefreshSession(
       method: "POST",
       credentials: "include"
     });
-    const body = (await response.json()) as ApiResponse<AuthPayload>;
+    const body = await readApiResponse<AuthPayload>(response);
 
     if (response.ok && body.ok) {
       if (
@@ -135,19 +138,19 @@ async function doRefreshSession(
       return body;
     }
 
-    lastRefreshFailureAt = Date.now();
-    clearAuthToken({ broadcast: true });
-    return body.ok ? unauthorizedResponse() : body;
+    if (isSessionRejectionStatus(response.status)) {
+      lastRefreshFailureAt = Date.now();
+      clearAuthToken({ broadcast: true });
+      return body.ok ? unauthorizedResponse() : body;
+    }
+
+    if (!response.ok || body.ok || body.error.code === "API_UNAVAILABLE") {
+      return apiUnavailableResponse();
+    }
+
+    return body;
   } catch {
-    lastRefreshFailureAt = Date.now();
-    clearAuthToken({ broadcast: true });
-    return {
-      ok: false,
-      error: {
-        code: "API_UNAVAILABLE",
-        message: "BabyLoop API is unavailable."
-      }
-    };
+    return apiUnavailableResponse();
   }
 }
 
@@ -211,19 +214,30 @@ export async function validateCurrentAuthSession(apiBaseUrl: string): Promise<bo
   try {
     const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
 
-    if (response.status === 401) {
+    if (isSessionRejectionStatus(response.status)) {
       clearAuthToken({ broadcast: true });
       return false;
     }
 
     return response.ok;
   } catch {
-    clearAuthToken({ broadcast: true });
     return false;
   }
 }
 
 export async function fetchCurrentUserWithoutRefresh(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
+  if (fetchCurrentUserWithoutRefreshPromise) {
+    return fetchCurrentUserWithoutRefreshPromise;
+  }
+
+  fetchCurrentUserWithoutRefreshPromise = fetchCurrentUserWithoutRefreshOnce(apiBaseUrl).finally(() => {
+    fetchCurrentUserWithoutRefreshPromise = null;
+  });
+
+  return fetchCurrentUserWithoutRefreshPromise;
+}
+
+async function fetchCurrentUserWithoutRefreshOnce(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
   try {
     const headers = new Headers();
     const token = getAuthToken();
@@ -237,23 +251,20 @@ export async function fetchCurrentUserWithoutRefresh(apiBaseUrl: string): Promis
       headers
     });
 
-    const body = (await response.json()) as ApiResponse<AuthMe>;
+    const body = await readApiResponse<AuthMe>(response);
 
-    if (response.status === 401) {
+    if (isSessionRejectionStatus(response.status)) {
       clearAuthToken({ broadcast: false });
       return body.ok ? unauthorizedResponse<AuthMe>() : body;
     }
 
+    if (!response.ok) {
+      return body.ok ? apiUnavailableResponse<AuthMe>() : body;
+    }
+
     return body;
   } catch {
-    clearAuthToken({ broadcast: false });
-    return {
-      ok: false,
-      error: {
-        code: "API_UNAVAILABLE",
-        message: "BabyLoop API is unavailable."
-      }
-    };
+    return apiUnavailableResponse<AuthMe>();
   }
 }
 
@@ -328,7 +339,7 @@ async function fetchPublicCsrfToken(apiBaseUrl: string): Promise<string | null> 
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/csrf`, {
       credentials: "include"
     });
-    const body = (await response.json()) as ApiResponse<{ csrfToken: string }>;
+    const body = await readApiResponse<{ csrfToken: string }>(response);
 
     if (!response.ok || !body.ok) {
       cachedPublicCsrfToken = null;
@@ -353,11 +364,57 @@ function unauthorizedResponse<T = AuthPayload>(): ApiResponse<T> {
   };
 }
 
+function apiUnavailableResponse<T = AuthPayload>(): ApiResponse<T> {
+  return {
+    ok: false,
+    error: {
+      code: "API_UNAVAILABLE",
+      message: "BabyLoop API is unavailable."
+    }
+  };
+}
+
+async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  try {
+    const body: unknown = await response.json();
+
+    if (isApiResponse<T>(body)) {
+      return body;
+    }
+  } catch {
+    return apiUnavailableResponse<T>();
+  }
+
+  return apiUnavailableResponse<T>();
+}
+
+function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
+  if (typeof value !== "object" || value === null || !("ok" in value)) {
+    return false;
+  }
+
+  if ((value as { ok?: unknown }).ok === true) {
+    return "data" in value;
+  }
+
+  const error = (value as { error?: unknown }).error;
+
+  return typeof error === "object" &&
+    error !== null &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    typeof (error as { message?: unknown }).message === "string";
+}
+
+function isSessionRejectionStatus(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 function markManuallyLoggedOut(): void {
   manuallyLoggedOut = true;
   lastRefreshFailureAt = 0;
   authSessionVersion += 1;
   refreshSessionPromise = null;
+  fetchCurrentUserWithoutRefreshPromise = null;
   publicCsrfTokenPromise = null;
   cachedPublicCsrfToken = null;
 }

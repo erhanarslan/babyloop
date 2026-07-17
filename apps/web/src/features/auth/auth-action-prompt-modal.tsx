@@ -12,9 +12,17 @@ import {
   isLoginApprovalCompletePendingPayload,
   startGoogleLogin,
   submitAuthRequest,
+  verifyMfaLogin,
   type AuthMode,
-  type LoginApprovalRequiredPayload
+  type LoginApprovalRequiredPayload,
+  type MfaRequiredPayload
 } from "./api";
+import {
+  canSubmitWebOtpCode,
+  normalizeWebOtpCode,
+  transitionWebLoginFlowFromMfaVerify,
+  transitionWebLoginFlowFromSubmit
+} from "./web-login-flow-model";
 
 type AuthActionPromptModalProps = {
   apiBaseUrl: string;
@@ -46,6 +54,8 @@ export function AuthActionPromptModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [loginApproval, setLoginApproval] = useState<LoginApprovalRequiredPayload | null>(null);
+  const [mfaChallenge, setMfaChallenge] = useState<MfaRequiredPayload | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -133,6 +143,11 @@ export function AuthActionPromptModal({
     setErrorMessage(null);
     setLoginApproval(null);
 
+    if (mfaChallenge) {
+      await handleVerifyMfa();
+      return;
+    }
+
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedDisplayName = displayName.trim();
@@ -158,16 +173,83 @@ export function AuthActionPromptModal({
         return;
       }
 
-      if ("loginApprovalRequired" in body.data) {
-        setLoginApproval(body.data);
+      const stage = transitionWebLoginFlowFromSubmit(body.data, { isRegister });
+
+      if (stage.type === "error") {
+        setErrorMessage(stage.message);
+        return;
+      }
+
+      if (stage.type === "mfa") {
+        setPassword("");
+        setMfaChallenge({
+          challengeId: stage.challengeId,
+          mfaRequired: true
+        });
+        setOtpCode("");
+        return;
+      }
+
+      if (stage.type === "mobile_approval") {
+        setLoginApproval(stage.approval);
         setErrorMessage("Mobil onay bekleniyor. Telefonundaki bildirimi onayladığında giriş tamamlanacak.");
         return;
       }
 
-      setAuthToken(body.data.accessToken);
-      onAuthenticated?.(body.data);
+      if (stage.type !== "authenticated") {
+        setErrorMessage("Giriş tamamlanamadı. Lütfen tekrar deneyin.");
+        return;
+      }
+
+      setAuthToken(stage.auth.accessToken);
+      onAuthenticated?.(stage.auth);
       onClose();
       router.refresh();
+    } catch {
+      setErrorMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleVerifyMfa() {
+    if (!mfaChallenge) {
+      return;
+    }
+
+    if (!canSubmitWebOtpCode(otpCode)) {
+      setErrorMessage("E-postana gönderilen 6 haneli kodu gir.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const body = await verifyMfaLogin(apiBaseUrl, mfaChallenge.challengeId, otpCode);
+
+      if (!body.ok) {
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
+        return;
+      }
+
+      const stage = transitionWebLoginFlowFromMfaVerify(body.data);
+
+      if (stage.type === "mobile_approval") {
+        setMfaChallenge(null);
+        setOtpCode("");
+        setLoginApproval(stage.approval);
+        setErrorMessage("Mobil onay bekleniyor. Telefonundaki bildirimi onayladığında giriş tamamlanacak.");
+        return;
+      }
+
+      if (stage.type === "authenticated") {
+        setAuthToken(stage.auth.accessToken);
+        setMfaChallenge(null);
+        setOtpCode("");
+        onAuthenticated?.(stage.auth);
+        onClose();
+        router.refresh();
+      }
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
@@ -229,6 +311,8 @@ export function AuthActionPromptModal({
             onClick={() => {
               setMode("login");
               setErrorMessage(null);
+              setMfaChallenge(null);
+              setOtpCode("");
             }}
           >
             {dictionary.common.login}
@@ -240,6 +324,8 @@ export function AuthActionPromptModal({
             onClick={() => {
               setMode("register");
               setErrorMessage(null);
+              setMfaChallenge(null);
+              setOtpCode("");
             }}
           >
             {dictionary.common.register}
@@ -261,7 +347,39 @@ export function AuthActionPromptModal({
         </div>
 
         <form className="market-auth-modal-form" onSubmit={handleSubmit}>
-          {isRegister ? (
+          {mfaChallenge ? (
+            <>
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <h3 className="text-base font-black text-foreground">OTP doğrulaması</h3>
+                <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                  E-postana gönderilen 6 haneli kodu gir.
+                </p>
+              </div>
+              <label>
+                <span>OTP kodu</span>
+                <input
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  name="otpCode"
+                  pattern="[0-9]{6}"
+                  value={otpCode}
+                  onChange={(event) => setOtpCode(normalizeWebOtpCode(event.target.value))}
+                />
+              </label>
+              <button
+                className="market-auth-link-button"
+                type="button"
+                onClick={() => {
+                  setMfaChallenge(null);
+                  setOtpCode("");
+                  setErrorMessage(null);
+                }}
+              >
+                Girişe geri dön
+              </button>
+            </>
+          ) : isRegister ? (
             <>
               <label>
                 <span>{dictionary.auth.fullName}</span>
@@ -314,8 +432,20 @@ export function AuthActionPromptModal({
             </p>
           ) : null}
 
-          <button className="market-sell-cta market-auth-submit-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? dictionary.auth.submitting : isRegister ? dictionary.common.register : dictionary.common.login}
+          <button
+            className="market-sell-cta market-auth-submit-button"
+            type="submit"
+            disabled={isSubmitting || Boolean(loginApproval) || (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))}
+          >
+            {mfaChallenge
+              ? isSubmitting
+                ? "OTP doğrulanıyor..."
+                : "OTP kodunu doğrula"
+              : isSubmitting
+                ? dictionary.auth.submitting
+                : isRegister
+                  ? dictionary.common.register
+                  : dictionary.common.login}
           </button>
         </form>
       </section>

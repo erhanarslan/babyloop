@@ -18,9 +18,17 @@ import {
   isLoginApprovalCompletePendingPayload,
   startGoogleLogin,
   submitAuthRequest,
+  verifyMfaLogin,
   type AuthMode,
-  type LoginApprovalRequiredPayload
+  type LoginApprovalRequiredPayload,
+  type MfaRequiredPayload
 } from "./api";
+import {
+  canSubmitWebOtpCode,
+  normalizeWebOtpCode,
+  transitionWebLoginFlowFromMfaVerify,
+  transitionWebLoginFlowFromSubmit
+} from "./web-login-flow-model";
 
 type AuthFormProps = {
   apiBaseUrl: string;
@@ -36,6 +44,8 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginApproval, setLoginApproval] = useState<LoginApprovalRequiredPayload | null>(null);
+  const [mfaChallenge, setMfaChallenge] = useState<MfaRequiredPayload | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   const [approvalSecondsLeft, setApprovalSecondsLeft] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registrationComplete, setRegistrationComplete] = useState(false);
@@ -128,6 +138,11 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     setSuccessMessage(null);
     setRegistrationComplete(false);
 
+    if (mfaChallenge) {
+      await handleVerifyMfa();
+      return;
+    }
+
     const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister);
 
     if (!payload) {
@@ -145,21 +160,38 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         return;
       }
 
-      if (isLoginApprovalRequired(body.data)) {
-        if (isRegister) {
-          setErrorMessage("Kayıt sırasında mobil onay beklenmiyordu. Lütfen tekrar deneyin.");
-          return;
-        }
+      const stage = transitionWebLoginFlowFromSubmit(body.data, { isRegister });
 
-        setLoginApproval(body.data);
-        setApprovalSecondsLeft(secondsUntil(body.data.expiresAt));
+      if (stage.type === "error") {
+        setErrorMessage(stage.message);
         return;
       }
 
-      setAuthToken(body.data.accessToken);
+      if (stage.type === "mfa") {
+        event.currentTarget.reset();
+        setMfaChallenge({
+          challengeId: stage.challengeId,
+          mfaRequired: true
+        });
+        setOtpCode("");
+        return;
+      }
+
+      if (stage.type === "mobile_approval") {
+        setLoginApproval(stage.approval);
+        setApprovalSecondsLeft(secondsUntil(stage.approval.expiresAt));
+        return;
+      }
+
+      if (stage.type !== "authenticated") {
+        setErrorMessage("Giriş tamamlanamadı. Lütfen tekrar deneyin.");
+        return;
+      }
+
+      setAuthToken(stage.auth.accessToken);
 
       if (isRegister) {
-        setDevEmailVerificationToken(body.data.devEmailVerificationToken ?? null);
+        setDevEmailVerificationToken(stage.auth.devEmailVerificationToken ?? null);
         setRegistrationComplete(true);
         router.refresh();
         return;
@@ -176,8 +208,61 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     }
   }
 
+  async function handleVerifyMfa() {
+    if (!mfaChallenge) {
+      return;
+    }
+
+    if (!canSubmitWebOtpCode(otpCode)) {
+      setErrorMessage("E-postana gönderilen 6 haneli kodu gir.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const body = await verifyMfaLogin(apiBaseUrl, mfaChallenge.challengeId, otpCode);
+
+      if (!body.ok) {
+        setErrorMessage(getApiErrorMessage(body.error, dictionary));
+        return;
+      }
+
+      const stage = transitionWebLoginFlowFromMfaVerify(body.data);
+
+      if (stage.type === "mobile_approval") {
+        setMfaChallenge(null);
+        setOtpCode("");
+        setLoginApproval(stage.approval);
+        setApprovalSecondsLeft(secondsUntil(stage.approval.expiresAt));
+        return;
+      }
+
+      if (stage.type === "authenticated") {
+        setAuthToken(stage.auth.accessToken);
+        setMfaChallenge(null);
+        setOtpCode("");
+        const returnTo = getStoredAuthReturnTo("/browse");
+        clearStoredAuthReturnTo();
+        router.push(returnTo);
+        router.refresh();
+      }
+    } catch {
+      setErrorMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   function handleCancelApproval() {
     setLoginApproval(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  }
+
+  function handleCancelMfa() {
+    setMfaChallenge(null);
+    setOtpCode("");
     setErrorMessage(null);
     setSuccessMessage(null);
   }
@@ -230,7 +315,33 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <span>{dictionary.auth.divider}</span>
       </div>
 
-      <AuthFields mode={mode} />
+      {mfaChallenge ? (
+        <div className="grid gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+          <div>
+            <h3 className="text-base font-black text-foreground">OTP doğrulaması</h3>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">
+              E-postana gönderilen 6 haneli kodu gir.
+            </p>
+          </div>
+          <label className="grid gap-1 text-sm font-bold text-foreground">
+            <span>OTP kodu</span>
+            <input
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              maxLength={6}
+              name="otpCode"
+              pattern="[0-9]{6}"
+              value={otpCode}
+              onChange={(event) => setOtpCode(normalizeWebOtpCode(event.target.value))}
+            />
+          </label>
+          <Button type="button" variant="secondary" onClick={handleCancelMfa}>
+            Girişe geri dön
+          </Button>
+        </div>
+      ) : (
+        <AuthFields mode={mode} />
+      )}
 
       <div className="auth-security-summary" aria-label="Auth security summary">
         <div>
@@ -290,26 +401,29 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <p className="form-note">
           {isRegister ? dictionary.auth.registerNote : dictionary.auth.loginNote}
         </p>
-        <Button type="submit" disabled={!isHydrated || isSubmitting || Boolean(loginApproval)}>
+        <Button
+          type="submit"
+          disabled={
+            !isHydrated ||
+            isSubmitting ||
+            Boolean(loginApproval) ||
+            (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))
+          }
+        >
           {loginApproval
             ? "Mobil onay bekleniyor"
-            : isSubmitting
-              ? dictionary.auth.submitting
-              : isRegister
-                ? dictionary.auth.submitRegister
-                : dictionary.auth.submitLogin}
+            : mfaChallenge
+              ? isSubmitting
+                ? "OTP doğrulanıyor..."
+                : "OTP kodunu doğrula"
+              : isSubmitting
+                ? dictionary.auth.submitting
+                : isRegister
+                  ? dictionary.auth.submitRegister
+                  : dictionary.auth.submitLogin}
         </Button>
       </div>
     </form>
-  );
-}
-
-function isLoginApprovalRequired(value: unknown): value is LoginApprovalRequiredPayload {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "loginApprovalRequired" in value &&
-    (value as { loginApprovalRequired?: unknown }).loginApprovalRequired === true
   );
 }
 

@@ -78,6 +78,12 @@ export type LoginApprovalRequiredPayload = {
   loginApprovalRequired: true;
 };
 
+export type MfaRequiredPayload = {
+  challengeId: string;
+  devOtpCode?: string;
+  mfaRequired: true;
+};
+
 export type LoginApprovalCompletePendingPayload = {
   loginApprovalPending: true;
   status: "pending";
@@ -92,7 +98,7 @@ export function isLoginApprovalCompletePendingPayload(
   return "loginApprovalPending" in payload;
 }
 
-export type AuthSubmitPayload = AuthPayload | LoginApprovalRequiredPayload;
+export type AuthSubmitPayload = AuthPayload | LoginApprovalRequiredPayload | MfaRequiredPayload;
 
 export async function submitAuthRequest(
   apiBaseUrl: string,
@@ -109,6 +115,23 @@ export async function submitAuthRequest(
   });
 
   return response.json() as Promise<ApiResponse<AuthSubmitPayload>>;
+}
+
+export async function verifyMfaLogin(
+  apiBaseUrl: string,
+  challengeId: string,
+  code: string
+): Promise<ApiResponse<AuthPayload | LoginApprovalRequiredPayload>> {
+  const response = await fetch(`${apiBaseUrl}/api/v1/auth/mfa/verify`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ challengeId, code })
+  });
+
+  return response.json() as Promise<ApiResponse<AuthPayload | LoginApprovalRequiredPayload>>;
 }
 
 export async function completeLoginApproval(
