@@ -14,6 +14,17 @@ import {
   type MobileCategory
 } from "./sell-api";
 import {
+  fetchMobileAiListingDraftSuggestion
+} from "./ai-listing-draft-api";
+import {
+  applyMobileAiListingDraftToEmptyFields,
+  formatMobileAiListingDraftPriceRange,
+  getMobileAiListingDraftCategoryLabel,
+  getMobileAiListingDraftConfidenceLabel,
+  type MobileAiListingDraftStatus,
+  type MobileAiListingDraftSuggestion
+} from "./ai-listing-draft-model";
+import {
   MOBILE_LISTING_IMAGE_LIMIT,
   buildMobileListingImageUploadFile,
   getRemainingMobileListingImageSlots,
@@ -49,6 +60,9 @@ export function SellScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [createdListingTitle, setCreatedListingTitle] = useState<string | null>(null);
   const [createdListingId, setCreatedListingId] = useState<string | null>(null);
+  const [aiDraftStatus, setAiDraftStatus] = useState<MobileAiListingDraftStatus>("idle");
+  const [aiDraftSuggestion, setAiDraftSuggestion] = useState<MobileAiListingDraftSuggestion | null>(null);
+  const [aiDraftMessage, setAiDraftMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -178,6 +192,8 @@ export function SellScreen() {
       });
     }
 
+    const nextImageCount = Math.min(selectedImages.length + nextImages.length, MOBILE_LISTING_IMAGE_LIMIT);
+    markAiDraftStaleIfImagesChanged(selectedImages.length, nextImageCount);
     setSelectedImages((currentImages) => [...currentImages, ...nextImages].slice(0, MOBILE_LISTING_IMAGE_LIMIT));
 
     if (pickedMoreThanRemaining || selectedImages.length + nextImages.length >= MOBILE_LISTING_IMAGE_LIMIT) {
@@ -186,8 +202,55 @@ export function SellScreen() {
   }
 
   function handleRemoveImage(index: number) {
+    markAiDraftStaleIfImagesChanged(selectedImages.length, Math.max(0, selectedImages.length - 1));
     setSelectedImages((currentImages) => currentImages.filter((_, currentIndex) => currentIndex !== index));
     setMessage(null);
+  }
+
+  function markAiDraftStaleIfImagesChanged(previousImageCount: number, nextImageCount: number) {
+    if (previousImageCount !== nextImageCount) {
+      setAiDraftStatus((currentStatus) => currentStatus === "success" ? "stale" : currentStatus);
+    }
+  }
+
+  async function handleCreateAiDraft() {
+    if (aiDraftStatus === "pending") {
+      return;
+    }
+
+    try {
+      setAiDraftStatus("pending");
+      setAiDraftMessage(null);
+      const suggestion = await fetchMobileAiListingDraftSuggestion({
+        city: authSession.currentUser?.profile.locationCity ?? null,
+        formState,
+        selectedImages
+      });
+      setAiDraftSuggestion(suggestion);
+      setAiDraftStatus("success");
+    } catch (draftError) {
+      setAiDraftMessage(
+        draftError instanceof Error
+          ? draftError.message
+          : "AI taslağı şu an hazırlanamadı. Bilgileri manuel girebilirsin."
+      );
+      setAiDraftStatus("error");
+    }
+  }
+
+  function handleApplyAiDraft() {
+    if (!aiDraftSuggestion) {
+      return;
+    }
+
+    setFormState((currentState) => applyMobileAiListingDraftToEmptyFields(currentState, aiDraftSuggestion));
+    setAiDraftMessage("Boş alanlara öneriler uygulandı. Yayınlamadan önce kontrol et.");
+  }
+
+  function handleDismissAiDraft() {
+    setAiDraftStatus("idle");
+    setAiDraftSuggestion(null);
+    setAiDraftMessage(null);
   }
 
   async function handleSubmit() {
@@ -364,6 +427,16 @@ export function SellScreen() {
         )}
       </View>
 
+      <AiListingDraftCard
+        categories={categories}
+        onApply={handleApplyAiDraft}
+        onDismiss={handleDismissAiDraft}
+        onRequestDraft={() => void handleCreateAiDraft()}
+        suggestion={aiDraftSuggestion}
+        message={aiDraftMessage}
+        status={aiDraftStatus}
+      />
+
       <View style={styles.formCard}>
         <Text style={styles.label}>Başlık</Text>
         <TextInput
@@ -499,6 +572,123 @@ function SelectButton({
   );
 }
 
+function AiListingDraftCard({
+  categories,
+  message,
+  onApply,
+  onDismiss,
+  onRequestDraft,
+  status,
+  suggestion
+}: {
+  categories: MobileCategory[];
+  message: string | null;
+  onApply: () => void;
+  onDismiss: () => void;
+  onRequestDraft: () => void;
+  status: MobileAiListingDraftStatus;
+  suggestion: MobileAiListingDraftSuggestion | null;
+}) {
+  const categoryLabel = getMobileAiListingDraftCategoryLabel(suggestion?.categoryId, categories);
+  const priceRange = suggestion ? formatMobileAiListingDraftPriceRange(suggestion) : null;
+  const conditionLabel = suggestion?.condition
+    ? mobileListingConditionOptions.find((option) => option.value === suggestion.condition)?.label
+    : null;
+
+  return (
+    <View style={styles.aiCard}>
+      <View style={styles.aiHeaderRow}>
+        <View style={styles.aiHeaderText}>
+          <Text style={styles.label}>Görsellerden ilan taslağı</Text>
+          <Text style={styles.helperText}>
+            Fotoğraflar ve yazdığın bilgilerden öneri üretir. Sonucu sen kontrol et; AI güvenlik,
+            kaza geçmişi, sertifika, marka/model veya ürün uygunluğu garantisi vermez.
+          </Text>
+        </View>
+        {status === "success" || status === "stale" ? (
+          <Pressable accessibilityRole="button" onPress={onDismiss} style={styles.aiDismissButton}>
+            <Text style={styles.aiDismissText}>Kapat</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {message ? <Text style={status === "error" ? styles.aiErrorText : styles.aiMessageText}>{message}</Text> : null}
+      {status === "stale" ? (
+        <Text style={styles.aiMessageText}>Fotoğraflar değişti. Güncel öneri için yeniden analiz et.</Text>
+      ) : null}
+
+      {suggestion ? (
+        <View style={styles.aiSuggestionBlock}>
+          <Text style={styles.aiMetaText}>{getMobileAiListingDraftConfidenceLabel(suggestion.confidence)}</Text>
+          {suggestion.title ? <Text style={styles.aiSuggestionText}>Başlık: {suggestion.title}</Text> : null}
+          {suggestion.description ? <Text style={styles.aiSuggestionText}>Açıklama: {suggestion.description}</Text> : null}
+          {categoryLabel ? <Text style={styles.aiSuggestionText}>Kategori: {categoryLabel}</Text> : null}
+          {conditionLabel ? <Text style={styles.aiSuggestionText}>Durum önerisi: {conditionLabel}</Text> : null}
+          {priceRange && suggestion.priceSuggestion ? (
+            <Text style={styles.aiSuggestionText}>
+              Fiyat aralığı: {priceRange} · {suggestion.priceSuggestion.reason}
+            </Text>
+          ) : null}
+
+          {suggestion.missingDetails.length > 0 ? (
+            <View style={styles.aiListBlock}>
+              <Text style={styles.aiMetaText}>Eksik bilgiler</Text>
+              {suggestion.missingDetails.map((item) => (
+                <Text key={item} style={styles.aiListItem}>• {item}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          {suggestion.warnings.length > 0 ? (
+            <View style={styles.aiListBlock}>
+              <Text style={styles.aiMetaText}>Uyarılar</Text>
+              {suggestion.warnings.map((item) => (
+                <Text key={item} style={styles.aiListItem}>• {item}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          {suggestion.imageFeedback.length > 0 ? (
+            <View style={styles.aiListBlock}>
+              <Text style={styles.aiMetaText}>Fotoğraf geri bildirimi</Text>
+              {suggestion.imageFeedback.map((item, index) => (
+                <Text key={`${item.status}-${index}`} style={styles.aiListItem}>• {item.message}</Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.aiActionRow}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={status === "pending"}
+          onPress={onRequestDraft}
+          style={[styles.secondaryButton, status === "pending" ? styles.disabledButton : null]}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {status === "pending"
+              ? "Görseller inceleniyor..."
+              : suggestion
+                ? "Yeniden analiz et"
+                : "AI taslağı oluştur"}
+          </Text>
+        </Pressable>
+
+        {suggestion ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onApply}
+            style={styles.aiApplyButton}
+          >
+            <Text style={styles.aiApplyButtonText}>Boş alanlara uygula</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function SelectRow({
   label,
   onPress,
@@ -609,6 +799,88 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: 14,
     gap: 12
+  },
+  aiCard: {
+    ...shadows.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 12
+  },
+  aiHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  aiHeaderText: {
+    flex: 1,
+    gap: 6
+  },
+  aiDismissButton: {
+    borderRadius: 999,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 11,
+    paddingVertical: 7
+  },
+  aiDismissText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  aiSuggestionBlock: {
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 10
+  },
+  aiMetaText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  aiSuggestionText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18
+  },
+  aiListBlock: {
+    gap: 4
+  },
+  aiListItem: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17
+  },
+  aiMessageText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17
+  },
+  aiErrorText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17
+  },
+  aiActionRow: {
+    gap: 9
+  },
+  aiApplyButton: {
+    width: "100%",
+    alignItems: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingVertical: 12
+  },
+  aiApplyButtonText: {
+    color: colors.primaryForeground,
+    fontSize: 14,
+    fontWeight: "900"
   },
   previewGrid: {
     flexDirection: "row",
