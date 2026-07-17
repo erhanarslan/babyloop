@@ -183,11 +183,30 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] `ai_model_runs` success log inserted when database logging is available
 - [ ] AI suggestion response still works if logging fails or is unavailable
 - [ ] mobile assistant uses `/api/v1/assistant/messages` and displays `mode`, `grounded`, safe source titles/sections, tool previews, and safe internal suggested actions
+- [ ] web assistant uses `/api/v1/assistant/messages`, displays normalized mode/grounded/source cards, and rejects unsafe `http:`, `https:`, `javascript:`, `data:`, and protocol-relative suggested-action hrefs
 - [ ] assistant boundary/no-source answers are not presented as grounded RAG answers
+- [ ] web assistant does not display raw `sourcePath`, provider/model/prompt metadata, JWT-like strings, tokens, cookies, authorization headers, or raw tool payload JSON
 - [ ] mobile AI listing draft uses `/api/v1/listings/ai-draft-suggestions`
+- [ ] web AI listing draft uses `/api/v1/listings/ai-draft-suggestions`
 - [ ] AI listing draft suggestions are applied only after a user action and only to empty title/description/category fields
 - [ ] AI listing draft does not auto-submit or publish a listing, does not overwrite user price/condition/listing type, and does not block manual listing creation on failure
 - [ ] AI listing draft and assistant UI do not expose raw base64, source paths, provider/model/prompt metadata, API keys, tokens, cookies, authorization headers, or raw provider output
+
+### Web auth/session/MFA P0
+
+- [ ] `pnpm security:web-p0-feature-completion` passes.
+- [ ] Web auth-client treats network/JSON/5xx failures as API unavailable, not as authenticated session rejection.
+- [ ] Real 401/403 refresh failures can clear session state and use a short unauthenticated cooldown.
+- [ ] AuthNav initial mount restores cookie sessions through the shared refresh path and does not use 5-second polling.
+- [ ] AuthNav focus/visibility checks do not create refresh storms.
+- [ ] MFA-required login clears password form state, opens a six-digit OTP stage, and never renders challenge tokens or dev OTP helpers.
+- [ ] Revoke-all/current-session flows clear auth and redirect only once even on double click.
+
+### Web child notebook/reminder P0
+
+- [ ] Web child notebook renders a real empty state when there are no notes or reminders; fake feeding/diaper preview records are not shown.
+- [ ] Web reminder creation supports `one_time`, `daily`, `weekly`, `interval`, and `relative_before_event` with API-compatible payload fields.
+- [ ] Date/time conversion tests cover `00:00`, `09:05`, `12:00`, and `23:59` without local/UTC day drift.
 
 ### Mobile child reminder date/time
 

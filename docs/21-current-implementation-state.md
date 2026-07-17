@@ -69,6 +69,15 @@ The following remain active and required:
 - Final web/mobile UI/UX polish after features are complete.
 - Production DevOps/deployment/observability/backup/alerting package near the end.
 
+## Web P0 completion foundation
+
+- Web auth/session runtime now treats network/API-unavailable failures separately from real 401/403 session rejection, and AuthNav restores cookie sessions without a polling storm.
+- Web login can enter the real MFA OTP challenge stage and then continue to authenticated or mobile-approval-required states.
+- Web Assistant consumes `/api/v1/assistant/messages` with normalized `mode`, grounding, source cards, tool previews, and safe internal suggested actions.
+- Web AI listing draft consumes `/api/v1/listings/ai-draft-suggestions`; suggestions are advisory, user-applied, and preserve existing user-entered listing fields.
+- Web child notebook/reminder surfaces now show real note/reminder data only; empty children get an explicit empty state instead of fake preview reminders.
+- Browser/manual QA and `pnpm release:web:p0` remain required before claiming web release readiness.
+
 ## Removed from near-term roadmap
 
 The following are intentionally out of near-term scope:

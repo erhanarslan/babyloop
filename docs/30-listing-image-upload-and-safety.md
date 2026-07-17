@@ -274,3 +274,14 @@ The image upload/review storage boundary checks that seller upload responses, ad
 This does not enable S3/R2 rollout, signed upload, bucket mutation, CDN purge, or queue workers.
 
 Image upload/review storage boundary does not expose objectKey, does not expose filePath, and does not expose contentHash in public or admin API responses.
+
+## Web AI draft safety
+
+The web sell flow uses the same `/api/v1/listings/ai-draft-suggestions` endpoint as mobile. The AI draft result is advisory and must not publish a listing or overwrite seller-entered data by itself.
+
+- Suggestions require an explicit `Boş alanlara uygula` action.
+- Only empty title, description, and category fields may be filled.
+- Price, condition, listing type, city/location, and existing title/description/category remain seller-controlled.
+- Drafts become stale when meaningful form fields or images change.
+- Provider/model/prompt metadata, raw image URLs, data URLs, base64, raw provider output, tokens, cookies, authorization headers, e-mail, and phone values must not be shown in the seller UI.
+- Manual listing creation remains available when AI is unavailable or returns a controlled error.

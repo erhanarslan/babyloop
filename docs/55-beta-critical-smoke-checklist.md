@@ -479,3 +479,15 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] AI draft UI shows warnings, missing details, and image feedback, but not provider/model/prompt metadata.
 - [ ] Backoffice guest auth bootstrap has bounded `/me` and `/refresh` attempts and does not request `/csrf` after refresh 401.
 - [ ] Physical Galaxy S22 QA remains separate; this smoke checklist does not claim device QA completion.
+
+## Web P0 feature completion boundary
+
+- [ ] `pnpm security:web-p0-feature-completion` passes.
+- [ ] `pnpm release:web:p0` passes before web P0 completion is claimed.
+- [ ] Web auth restores cookie sessions without a 5-second polling loop and does not cache network errors as unauthenticated.
+- [ ] Web MFA login uses a six-digit OTP challenge stage and does not expose challenge tokens or dev OTP helpers.
+- [ ] Web Assistant renders grounded, boundary, and no-source responses distinctly from `/api/v1/assistant/messages`.
+- [ ] Web Assistant suggested actions are limited to safe internal routes.
+- [ ] Web AI listing draft uses `/api/v1/listings/ai-draft-suggestions`, requires explicit apply, and preserves seller-entered title, description, category, price, condition, listing type, and location.
+- [ ] Web child notebook/reminder shows real data only and no fake feeding/diaper preview records.
+- [ ] Manual browser QA remains separate from automated web P0 gates.

@@ -481,3 +481,17 @@ This boundary covers:
 - user-approved, non-blocking AI draft merge that preserves existing title, description, category, price, condition, and listing type unless the relevant field is empty.
 
 This boundary does not claim physical Galaxy S22 QA, does not auto-publish listings, does not guarantee product safety, does not expose raw source paths/base64/provider output/prompts/API keys/tokens/cookies/authorization, and does not soften medical/therapy/diagnosis/drug/diet refusal rules.
+
+## Web P0 feature completion boundary
+
+Production/beta readiness for the web P0 surfaces requires `pnpm security:web-p0-feature-completion`, targeted web tests, web typecheck, and manual browser QA before claiming completion.
+
+This boundary covers:
+
+- cookie session restore without refresh storms;
+- MFA OTP challenge continuation through the real auth API;
+- Assistant source/mode/grounding display with unsafe suggested-action href rejection;
+- visual listing draft suggestions through `/api/v1/listings/ai-draft-suggestions` with user-approved empty-field merge only;
+- child notebook/reminder real-data rendering and API-compatible schedule forms.
+
+This boundary does not claim trusted-device management if no backend feature exists, does not guarantee AI product identification or product safety, does not auto-publish listings, does not soften medical/therapy/diagnosis/drug/diet boundaries, and does not replace manual browser QA.

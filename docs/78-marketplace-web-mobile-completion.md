@@ -56,6 +56,18 @@ This document is the central release inventory for the marketplace, web function
 | #234 User menu/profile/settings IA cleanup | Close candidate after validation | Account/profile/security/notification/child links are visible through existing IA. |
 | #235 “Ebeveyn yorumları” yerine child notebook/reminder nav | Close candidate after validation | Child profile notebook/reminder surfaces are the child-data navigation target. |
 | #236 Assistant/RAG entry point UX | Close candidate after validation | Assistant entry remains safe-scope and provider-disabled; no medical/therapy/diagnosis/drug/diet advice. |
+
+### Web P0 feature completion
+
+- Web auth now separates real 401/403 session rejection from network/API-unavailable failures; network errors must not silently log the user out.
+- Web auth navigation performs initial cookie-session restore without 5-second polling and relies on shared refresh/current-user in-flight requests.
+- Web login supports the real MFA challenge flow with a six-digit OTP stage before authenticated state or mobile approval continuation.
+- Web Assistant uses `/api/v1/assistant/messages` and renders normalized `mode`, `grounded`, safe sources, tool previews, and allowlisted internal suggested actions.
+- Boundary and no-source assistant responses are not displayed as sourced RAG answers, and raw source paths/provider metadata stay out of the UI.
+- Web visual listing draft uses `/api/v1/listings/ai-draft-suggestions`; suggestions are non-blocking, require explicit user apply, and only fill empty title/description/category fields.
+- Web child notebook/reminder UI renders only real notes/reminders; fake preview rows such as demo feeding/diaper reminders are not production data.
+- Web child reminders use the same schedule kinds as the API: `one_time`, `daily`, `weekly`, `interval`, and `relative_before_event`.
+- `pnpm security:web-p0-feature-completion`, targeted web tests, and manual browser QA must pass before claiming browser release readiness.
 | #237 Empty/error/loading skeleton consistency | Close candidate after validation | Saved searches, seller dashboard, favorites, browse, assistant, and account pages expose loading/error/empty surfaces. |
 | #238 A11y/keyboard/focus visible pass | Partial/inventory | Accessible menu/input/button inventory exists; manual keyboard/focus QA remains recommended. |
 
