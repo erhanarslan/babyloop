@@ -30,7 +30,7 @@ The project is **demo/beta-foundation ready**, but **not production-ready** yet.
 | API | Auth, listings, favorites, messaging, notifications, reports/blocking, child profiles, saved searches, cart/mock checkout, RAG/assistant, backoffice/admin APIs. |
 | Web | Home, browse, listing detail, sell, favorites, my listings, account/security, messages, notifications, child/profile surfaces, assistant, cart/checkout, SEO foundations. |
 | Backoffice | Dedicated admin app with auth, dashboard, moderation cases, sensitive access, audit browser, listing review, image review, profiles, conversations, email/notification/storage/RAG/AI ops surfaces. |
-| Mobile | Expo app with login/register, secure token storage, browse/detail, favorites, messages/realtime foundation, security/MFA/session controls, child notes/reminders, notifications, sell/image model, basket/mock checkout, assistant entry. |
+| Mobile | Expo app with login/register, secure token storage, browse/detail, favorites, messages/realtime foundation, security/MFA/session controls, child notes/reminders with native date/time picker binding, notifications, sell/image model, user-approved AI listing draft helper, basket/mock checkout, assistant entry with RAG mode/source visibility. |
 | Auth | Register/login/logout/refresh/me, password reset, email verification, Google OAuth foundation, MFA email OTP foundation, mobile client channel enforcement, mobile security toggles, mobile approval for web login. |
 | Listings | Create/list/detail/my listings, status lifecycle, local image upload/review, privacy-safe seller DTOs, favorite counts, search/filter foundation. |
 | Images | Local upload/safety/reorder/delete/review foundation. S3/R2 connection has been tested and must be wired into production storage mode. |
@@ -38,7 +38,7 @@ The project is **demo/beta-foundation ready**, but **not production-ready** yet.
 | Trust & Safety | Reports, blocking, moderation cases/actions/timeline, redaction, sensitive access, audit, profile/listing/message admin review foundations. |
 | Notifications | In-app persistent notifications, unread/read flows, preferences, draft/delivery foundations, realtime notification foundation. |
 | Child profiles | Child profiles, notes, reminders, lifecycle recommendation foundation, mobile child surfaces. |
-| RAG/AI | Assistant/RAG services, safety boundaries, curated RAG docs, eval/ops foundations, mock/provider abstraction foundations. |
+| RAG/AI | Assistant/RAG services, safety boundaries, curated RAG docs, eval/ops foundations, mock/provider abstraction foundations, mobile RAG response mode/grounding/source display, and mobile visual-to-listing draft helper. AI draft suggestions are non-blocking and require user review before any listing submission. |
 | Payment | Cart/order/mock checkout foundation; real payment collection intentionally disabled until company/legal setup exists. |
 | Tests | API integration tests, web/backoffice unit and E2E smoke foundations, mobile Jest/P0 tests, shared tests, release smoke scripts. |
 

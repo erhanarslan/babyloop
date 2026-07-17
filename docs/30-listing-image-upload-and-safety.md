@@ -86,6 +86,19 @@ GET /api/v1/uploads/listings/:listingId/:filename
 - sets `X-Content-Type-Options: nosniff`
 - returns `404` for missing or invalid paths
 
+AI listing draft:
+
+```http
+POST /api/v1/listings/ai-draft-suggestions
+```
+
+- auth required
+- multipart/form-data
+- image field name: `images` or `image`
+- accepts at most 5 JPEG/PNG/WEBP images plus safe text fields such as title, description, categoryId, listingType, condition, priceAmount, city, and locale
+- returns a suggestion object only; it never creates, updates, submits, or publishes a listing
+- unavailable providers return a controlled 503 so manual listing creation can continue
+
 ## Safety Rules
 
 Allowed:
@@ -163,10 +176,25 @@ Required production boundaries:
 - No SVG support.
 - No raw user filename trust.
 - No raw image bytes/base64 in PostgreSQL.
+- No raw image base64, raw provider output, prompt, provider/model metadata, API key, token, cookie, authorization header, e-mail, or phone value is returned to mobile AI listing draft UI.
 - No arbitrary filesystem serving.
 - Magic bytes are checked in addition to MIME and extension.
 - API image responses set `nosniff`.
 - Dedicated per-profile/per-IP upload frequency quotas and broader image moderation remain future work.
+
+## Mobile AI draft safety
+
+The mobile sell screen can request a visual listing draft from the existing listings endpoint. The result is advisory and non-blocking:
+
+- the user must tap `Boş alanlara uygula` before any suggestion is copied into the form;
+- only empty title, description, and category fields are filled;
+- user-entered title, description, category, listing type, condition, and price are preserved;
+- price suggestions are displayed as an information range and are not auto-applied;
+- condition suggestions are displayed as information and are not auto-applied;
+- warnings, missing details, and image feedback remain visible before the user submits;
+- the normal manual listing flow continues even if AI is unavailable.
+
+Provider prompts must not invent unreadable brand/model/measurement data, unseen accessories, accident/repair/history claims, safety certifications, or safety guarantees. For car seats, cribs, bassinets, bouncers, carriers, and similar safety-sensitive products, AI copy must not claim `güvenli`, `kazasız`, `sertifikalı`, `sorunsuz`, or guaranteed suitability unless the seller explicitly provides verifiable evidence outside the AI inference.
 
 ## Duplicate Image Detection
 

@@ -466,3 +466,16 @@ Run pnpm security:mobile-auth-otp-session-regression before claiming mobile auth
 This audit covers mfa_required, OTP, refresh, logout, SecureStore, mobile P0 release gate, and API/mobile session regression expectations.
 
 Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
+
+## Mobile AI/RAG/listing boundary
+
+- [ ] `pnpm security:mobile-ai-rag-listing` passes.
+- [ ] `pnpm release:mobile:p0` includes `pnpm security:mobile-ai-rag-listing`.
+- [ ] Mobile child reminders open the native date/time picker; cancel/dismiss does not mutate state.
+- [ ] Mobile assistant renders `mode`, grounded state, source cards, tool previews, and safe internal suggested actions from `/api/v1/assistant/messages`.
+- [ ] Boundary and no-source assistant answers are not labeled as sourced RAG answers.
+- [ ] Mobile visual listing draft uses `/api/v1/listings/ai-draft-suggestions`, sends multipart images without raw base64 UI/log exposure, and keeps manual listing creation usable if AI fails.
+- [ ] AI draft suggestions require explicit user apply action and fill only empty title/description/category fields.
+- [ ] AI draft UI shows warnings, missing details, and image feedback, but not provider/model/prompt metadata.
+- [ ] Backoffice guest auth bootstrap has bounded `/me` and `/refresh` attempts and does not request `/csrf` after refresh 401.
+- [ ] Physical Galaxy S22 QA remains separate; this smoke checklist does not claim device QA completion.

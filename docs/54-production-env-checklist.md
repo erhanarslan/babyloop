@@ -467,3 +467,17 @@ This audit covers httpOnly cookies, CSRF, public access cookie migration, refres
 Auth/session/realtime/read-state surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
 
 Mobile messaging/realtime parity pending remains an explicit P0 gap until the mobile realtime implementation is completed.
+
+## Mobile AI/RAG/listing boundary
+
+Production/beta readiness requires `pnpm security:mobile-ai-rag-listing`, targeted mobile Jest tests, targeted assistant/listing draft API tests, and `pnpm release:mobile:p0` to pass before claiming the mobile assistant or visual listing draft flow complete.
+
+This boundary covers:
+
+- backoffice auth bootstrap request dedupe without weakening 401/403 auth protection;
+- native child reminder date/time picker binding through `@react-native-community/datetimepicker`;
+- mobile assistant parsing of `mode`, `grounded`, safe sources, tool previews, and safe internal suggested actions from `/api/v1/assistant/messages`;
+- mobile visual listing draft generation through `/api/v1/listings/ai-draft-suggestions`;
+- user-approved, non-blocking AI draft merge that preserves existing title, description, category, price, condition, and listing type unless the relevant field is empty.
+
+This boundary does not claim physical Galaxy S22 QA, does not auto-publish listings, does not guarantee product safety, does not expose raw source paths/base64/provider output/prompts/API keys/tokens/cookies/authorization, and does not soften medical/therapy/diagnosis/drug/diet refusal rules.

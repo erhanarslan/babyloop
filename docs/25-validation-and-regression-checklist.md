@@ -182,6 +182,31 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] mock suggestion response works
 - [ ] `ai_model_runs` success log inserted when database logging is available
 - [ ] AI suggestion response still works if logging fails or is unavailable
+- [ ] mobile assistant uses `/api/v1/assistant/messages` and displays `mode`, `grounded`, safe source titles/sections, tool previews, and safe internal suggested actions
+- [ ] assistant boundary/no-source answers are not presented as grounded RAG answers
+- [ ] mobile AI listing draft uses `/api/v1/listings/ai-draft-suggestions`
+- [ ] AI listing draft suggestions are applied only after a user action and only to empty title/description/category fields
+- [ ] AI listing draft does not auto-submit or publish a listing, does not overwrite user price/condition/listing type, and does not block manual listing creation on failure
+- [ ] AI listing draft and assistant UI do not expose raw base64, source paths, provider/model/prompt metadata, API keys, tokens, cookies, authorization headers, or raw provider output
+
+### Mobile child reminder date/time
+
+- [ ] native `@react-native-community/datetimepicker` opens on Android through `DateTimePickerAndroid.open`
+- [ ] iOS renders the controlled `DateTimePicker` component
+- [ ] dismissed picker events do not mutate reminder state
+- [ ] one-time reminders combine local date and time into one ISO value
+- [ ] daily/weekly reminders store `localTime` as `HH:mm`
+- [ ] relative-before-event reminders keep `eventAt` and `notifyBeforeMinutes`
+- [ ] past one-time/event reminder dates are rejected before API submission
+
+### Backoffice auth bootstrap
+
+- [ ] concurrent protected shell auth checks share a single `/auth/backoffice/me` in-flight request
+- [ ] refresh attempts are shared and do not recursively retry after a second 401
+- [ ] `/auth/backoffice/csrf` is fetched only after successful login/refresh or before authenticated unsafe mutations
+- [ ] refresh 401 does not trigger a CSRF request
+- [ ] short unauthenticated cooldown is used only for real 401/403, not for network errors
+- [ ] guest protected shell renders Sign in required and never renders protected route content
 
 ## Web Manual Regression Checklist
 

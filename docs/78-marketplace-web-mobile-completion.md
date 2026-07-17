@@ -78,6 +78,16 @@ This document is the central release inventory for the marketplace, web function
 | #251 Mobile release build profile review | Partial/inventory | Mobile README/runbook and P0 gate inventory exist; real store build remains later. |
 | #252 Mobile README/runbook finalization | Close candidate after validation | Mobile README documents start commands, P0 gates, and real-device limitations. |
 
+### Mobile assistant, reminder picker, and AI listing draft completion
+
+- Mobile RAG assistant now uses `/api/v1/assistant/messages` response fields for `mode`, `grounded`, sources, tool previews, and safe internal suggested actions.
+- Boundary and no-source assistant responses stay visually distinct from sourced RAG answers.
+- Mobile child reminders use the native `@react-native-community/datetimepicker` path instead of the incorrect `NativeModules.RNCDatePicker` check.
+- Mobile visual listing draft uses `/api/v1/listings/ai-draft-suggestions` and remains non-blocking: AI failure does not block manual listing creation.
+- AI listing draft suggestions require an explicit user apply action and only fill empty title/description/category fields.
+- AI does not auto-apply price, condition, listing type, or publish a listing.
+- Real-device Galaxy S22 QA is still deferred until manual device evidence exists.
+
 ## SEO-Lite
 
 | Item | Status after this sprint | Evidence |
@@ -111,6 +121,7 @@ This document is the central release inventory for the marketplace, web function
 
 ```bash
 pnpm security:marketplace-web-mobile-completion
+pnpm security:mobile-ai-rag-listing
 pnpm release:mobile:p0
 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test pnpm test:api:security
 pnpm beta:critical-smoke
