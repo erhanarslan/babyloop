@@ -1106,6 +1106,174 @@ export const events = pgTable(
   ]
 );
 
+export const analyticsEvents = pgTable(
+  "analytics_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: varchar("event_id", { length: 120 }).notNull(),
+    eventName: varchar("event_name", { length: 120 }).notNull(),
+    eventVersion: integer("event_version").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    sessionId: varchar("session_id", { length: 160 }).notNull(),
+    anonymousIdHash: varchar("anonymous_id_hash", { length: 128 }).notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    pagePath: varchar("page_path", { length: 320 }),
+    routeTemplate: varchar("route_template", { length: 240 }),
+    screenName: varchar("screen_name", { length: 120 }),
+    listingId: uuid("listing_id").references(() => listings.id, { onDelete: "set null" }),
+    categoryId: uuid("category_id").references(() => productCategories.id, { onDelete: "set null" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    authProvider: varchar("auth_provider", { length: 40 }),
+    engagementMs: integer("engagement_ms"),
+    appVersion: varchar("app_version", { length: 80 }),
+    properties: jsonb("properties")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    source: varchar("source", { length: 20 }).notNull().default("client"),
+    environment: varchar("environment", { length: 40 }).notNull().default("development")
+  },
+  (table) => [
+    uniqueIndex("analytics_events_event_id_unique").on(table.eventId),
+    index("analytics_events_occurred_at_idx").on(table.occurredAt),
+    index("analytics_events_name_occurred_at_idx").on(table.eventName, table.occurredAt),
+    index("analytics_events_user_occurred_at_idx").on(table.userId, table.occurredAt),
+    index("analytics_events_session_id_idx").on(table.sessionId),
+    index("analytics_events_platform_occurred_at_idx").on(table.platform, table.occurredAt),
+    index("analytics_events_category_occurred_at_idx").on(table.categoryId, table.occurredAt),
+    index("analytics_events_listing_occurred_at_idx").on(table.listingId, table.occurredAt),
+    index("analytics_events_conversation_occurred_at_idx").on(table.conversationId, table.occurredAt)
+  ]
+);
+
+export const analyticsSessions = pgTable(
+  "analytics_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: varchar("session_id", { length: 160 }).notNull(),
+    anonymousIdHash: varchar("anonymous_id_hash", { length: 128 }).notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    appVersion: varchar("app_version", { length: 80 }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    activeEngagementMs: integer("active_engagement_ms").notNull().default(0),
+    pageViewCount: integer("page_view_count").notNull().default(0),
+    screenViewCount: integer("screen_view_count").notNull().default(0),
+    listingViewCount: integer("listing_view_count").notNull().default(0),
+    messageCount: integer("message_count").notNull().default(0),
+    entrySurface: varchar("entry_surface", { length: 120 }),
+    exitSurface: varchar("exit_surface", { length: 120 }),
+    environment: varchar("environment", { length: 40 }).notNull().default("development")
+  },
+  (table) => [
+    uniqueIndex("analytics_sessions_session_id_unique").on(table.sessionId),
+    index("analytics_sessions_user_last_seen_idx").on(table.userId, table.lastSeenAt),
+    index("analytics_sessions_platform_started_idx").on(table.platform, table.startedAt)
+  ]
+);
+
+export const analyticsDailyOverview = pgTable(
+  "analytics_daily_overview",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: varchar("date", { length: 10 }).notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    totalUsers: integer("total_users").notNull().default(0),
+    newUsers: integer("new_users").notNull().default(0),
+    activeUsers: integer("active_users").notNull().default(0),
+    sessions: integer("sessions").notNull().default(0),
+    engagedMs: integer("engaged_ms").notNull().default(0),
+    pageViews: integer("page_views").notNull().default(0),
+    screenViews: integer("screen_views").notNull().default(0),
+    listingViews: integer("listing_views").notNull().default(0),
+    uniqueListingViewers: integer("unique_listing_viewers").notNull().default(0),
+    favorites: integer("favorites").notNull().default(0),
+    conversationsStarted: integer("conversations_started").notNull().default(0),
+    messageSenders: integer("message_senders").notNull().default(0),
+    messagesSent: integer("messages_sent").notNull().default(0),
+    assistantUsers: integer("assistant_users").notNull().default(0),
+    assistantQuestions: integer("assistant_questions").notNull().default(0),
+    checkoutStarted: integer("checkout_started").notNull().default(0),
+    checkoutCompleted: integer("checkout_completed").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("analytics_daily_overview_date_platform_unique").on(table.date, table.platform),
+    index("analytics_daily_overview_date_idx").on(table.date)
+  ]
+);
+
+export const analyticsDailyPages = pgTable(
+  "analytics_daily_pages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: varchar("date", { length: 10 }).notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    surface: varchar("surface", { length: 240 }).notNull(),
+    views: integer("views").notNull().default(0),
+    uniqueUsers: integer("unique_users").notNull().default(0),
+    uniqueSessions: integer("unique_sessions").notNull().default(0),
+    totalEngagedMs: integer("total_engaged_ms").notNull().default(0),
+    averageEngagedMs: integer("average_engaged_ms").notNull().default(0),
+    p50EngagedMs: integer("p50_engaged_ms").notNull().default(0),
+    p90EngagedMs: integer("p90_engaged_ms").notNull().default(0),
+    exits: integer("exits").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("analytics_daily_pages_date_platform_surface_unique").on(table.date, table.platform, table.surface),
+    index("analytics_daily_pages_date_idx").on(table.date)
+  ]
+);
+
+export const analyticsDailyCategories = pgTable(
+  "analytics_daily_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: varchar("date", { length: 10 }).notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    categoryId: uuid("category_id").references(() => productCategories.id, { onDelete: "set null" }),
+    impressions: integer("impressions").notNull().default(0),
+    listingViews: integer("listing_views").notNull().default(0),
+    uniqueViewers: integer("unique_viewers").notNull().default(0),
+    favorites: integer("favorites").notNull().default(0),
+    conversationsStarted: integer("conversations_started").notNull().default(0),
+    cartAdds: integer("cart_adds").notNull().default(0),
+    checkoutCompleted: integer("checkout_completed").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("analytics_daily_categories_date_platform_category_unique").on(table.date, table.platform, table.categoryId),
+    index("analytics_daily_categories_date_idx").on(table.date)
+  ]
+);
+
+export const analyticsDailyAuth = pgTable(
+  "analytics_daily_auth",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: varchar("date", { length: 10 }).notNull(),
+    platform: varchar("platform", { length: 20 }).notNull(),
+    authProvider: varchar("auth_provider", { length: 40 }).notNull(),
+    registrations: integer("registrations").notNull().default(0),
+    successfulLogins: integer("successful_logins").notNull().default(0),
+    failedLogins: integer("failed_logins").notNull().default(0),
+    emailVerifications: integer("email_verifications").notNull().default(0),
+    mfaCompletions: integer("mfa_completions").notNull().default(0),
+    approvalCompletions: integer("approval_completions").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("analytics_daily_auth_date_platform_provider_unique").on(table.date, table.platform, table.authProvider),
+    index("analytics_daily_auth_date_idx").on(table.date)
+  ]
+);
+
 export const aiModelRuns = pgTable(
   "ai_model_runs",
   {

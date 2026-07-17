@@ -42,3 +42,15 @@ export {
   type RealtimeServerToClientEvents
 } from "./realtime.js";
 export type { LoginApprovalCreatedPayload, RealtimeLoginApprovalChallenge } from "./realtime.js";
+
+export {
+  analyticsEventNameValues,
+  analyticsEventPropertyAllowlist,
+  analyticsPlatformValues,
+  analyticsSensitivePropertyKeys,
+  getAllowedAnalyticsProperties,
+  type AnalyticsEventEnvelope,
+  type AnalyticsEventName,
+  type AnalyticsPlatform,
+  type AnalyticsProperty
+} from "./analytics-events.js";
