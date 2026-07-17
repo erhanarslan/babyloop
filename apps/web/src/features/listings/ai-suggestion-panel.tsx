@@ -94,11 +94,6 @@ export function AiSuggestionPanel({ suggestion, onApplySuggestion }: AiSuggestio
           Apply AI draft to form
         </Button>
       </div>
-
-      <p className="ai-debug">
-        {suggestion.providerName} · {suggestion.promptVersion} · {dictionary.listings.confidence}{" "}
-        {suggestion.confidenceScore}
-      </p>
     </section>
   );
 }

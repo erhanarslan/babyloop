@@ -13,7 +13,6 @@ import {
   createListingRequest,
   requestListingDraftSuggestion,
   uploadListingImageRequest,
-  type AiListingDraftSuggestion,
   type CreateListingRequest
 } from "./api";
 import {
@@ -21,6 +20,13 @@ import {
   formatListingCondition
 } from "./listing-display";
 import type { ListingCondition, ListingType } from "./listing-form-options";
+import {
+  buildWebAiListingDraftApplyPatch,
+  normalizeWebAiListingDraftSuggestion,
+  shouldMarkWebAiListingDraftStale,
+  type WebAiListingDraftFormSnapshot,
+  type WebAiListingDraftSuggestion
+} from "./web-ai-listing-draft-model";
 import styles from "./sell-listing-form.module.css";
 import { SellListingFields } from "./sell-listing-fields";
 
@@ -44,7 +50,10 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const formRef = useRef<HTMLFormElement | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
-  const [draftSuggestion, setDraftSuggestion] = useState<AiListingDraftSuggestion | null>(null);
+  const [draftSuggestion, setDraftSuggestion] = useState<WebAiListingDraftSuggestion | null>(null);
+  const [draftSuggestionStale, setDraftSuggestionStale] = useState(false);
+  const draftSnapshotRef = useRef<WebAiListingDraftFormSnapshot | null>(null);
+  const applyingSuggestionRef = useRef(false);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,10 +68,21 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     setErrorMessage(null);
     setAiErrorMessage(null);
     setDraftSuggestion(null);
+    setDraftSuggestionStale(false);
+    draftSnapshotRef.current = null;
     clearSelectedImages();
     setIsSuggesting(false);
     setIsSubmitting(false);
   }, [clearSelectedImages]);
+  const markDraftSuggestionStaleIfFormChanged = useCallback(() => {
+    if (!draftSuggestion || applyingSuggestionRef.current || !formRef.current || !draftSnapshotRef.current) {
+      return;
+    }
+
+    if (shouldMarkWebAiListingDraftStale(draftSnapshotRef.current, buildWebAiListingDraftFormSnapshot(formRef.current))) {
+      setDraftSuggestionStale(true);
+    }
+  }, [draftSuggestion]);
   const { isCheckingAuth, isAuthenticated, requireAuth } = useProtectedRoute({
     apiBaseUrl,
     onUnauthenticated: clearProtectedState,
@@ -161,7 +181,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
     setErrorMessage(null);
     setAiErrorMessage(null);
-    setDraftSuggestion(null);
+    setDraftSuggestionStale(Boolean(draftSuggestion));
     setSelectedImages((currentImages) => [
       ...currentImages,
       ...files.map((file) => ({
@@ -182,7 +202,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
       return currentImages.filter((currentImage) => currentImage.id !== id);
     });
-    setDraftSuggestion(null);
+    setDraftSuggestionStale(Boolean(draftSuggestion));
   }
 
   async function handleGenerateDraftSuggestion(form: HTMLFormElement | null) {
@@ -221,7 +241,16 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         return;
       }
 
-      setDraftSuggestion(body.data.suggestion);
+      const suggestion = normalizeWebAiListingDraftSuggestion(body.data.suggestion);
+
+      if (!suggestion) {
+        setAiErrorMessage("AI önerisi yanıtı okunamadı. Bilgileri manuel girebilirsin.");
+        return;
+      }
+
+      setDraftSuggestion(suggestion);
+      setDraftSuggestionStale(false);
+      draftSnapshotRef.current = buildWebAiListingDraftFormSnapshot(form);
     } catch {
       setAiErrorMessage("AI önerisi şu an kullanılamıyor. Bilgileri manuel girebilirsin.");
     } finally {
@@ -234,7 +263,13 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   }
 
   return (
-    <form className={styles.workspace} ref={formRef} onSubmit={handleSubmit}>
+    <form
+      className={styles.workspace}
+      ref={formRef}
+      onChange={markDraftSuggestionStaleIfFormChanged}
+      onInput={markDraftSuggestionStaleIfFormChanged}
+      onSubmit={handleSubmit}
+    >
       <section className={styles.fields} aria-label="İlan bilgileri">
         {!hasCategories ? (
           <Alert
@@ -313,8 +348,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <section className={styles.aiPanel} aria-label="AI önerileri">
           <div className={styles.sectionHeading}>
-            <h2>AI önerileri</h2>
-            <p>Görselleri ve mevcut alanları inceler; önerileri sen onaylamadan forma yazmaz.</p>
+            <h2>Görsellerden ilan taslağı</h2>
+            <p>
+              Fotoğraflar ve yazdığın bilgilerden öneri üretir. Sonucu kontrol et; AI güvenlik,
+              kaza geçmişi, sertifika, marka/model veya ürün uygunluğu garantisi vermez.
+            </p>
           </div>
 
           <Button
@@ -325,7 +363,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
               void handleGenerateDraftSuggestion(formRef.current);
             }}
           >
-            {isSuggesting ? "AI inceliyor..." : "AI ile düzenle"}
+            {isSuggesting ? "Görseller inceleniyor..." : draftSuggestion ? "Yeniden analiz et" : "AI taslağı oluştur"}
           </Button>
 
           {aiErrorMessage ? (
@@ -336,15 +374,26 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
             <AiDraftSuggestionReview
               categories={categories}
               suggestion={draftSuggestion}
+              stale={draftSuggestionStale}
               onApplySuggestion={() => {
                 if (formRef.current) {
-                  applyDraftSuggestion(formRef.current, draftSuggestion);
+                  applyingSuggestionRef.current = true;
+                  applyDraftSuggestion(formRef.current, draftSuggestion, draftSuggestionStale);
+                  draftSnapshotRef.current = buildWebAiListingDraftFormSnapshot(formRef.current);
+                  setDraftSuggestionStale(false);
+                  window.setTimeout(() => {
+                    applyingSuggestionRef.current = false;
+                  }, 0);
                 }
               }}
-              onDismiss={() => setDraftSuggestion(null)}
+              onDismiss={() => {
+                setDraftSuggestion(null);
+                setDraftSuggestionStale(false);
+                draftSnapshotRef.current = null;
+              }}
             />
           ) : (
-            <p className="muted">AI önerisi başlık, açıklama, kategori, durum ve görsel kontrol notlarını önerebilir.</p>
+            <p className="muted">AI taslağı manuel ilan oluşturmayı engellemez ve sen onaylamadan yayın yapmaz.</p>
           )}
         </section>
       </aside>
@@ -355,11 +404,13 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 function AiDraftSuggestionReview({
   categories,
   suggestion,
+  stale,
   onApplySuggestion,
   onDismiss
 }: {
   categories: Category[];
-  suggestion: AiListingDraftSuggestion;
+  suggestion: WebAiListingDraftSuggestion;
+  stale: boolean;
   onApplySuggestion: () => void;
   onDismiss: () => void;
 }) {
@@ -372,6 +423,7 @@ function AiDraftSuggestionReview({
     <div className={styles.suggestionReview}>
       <div className={styles.suggestionHeader}>
         <strong>Öneri güveni: {formatConfidence(suggestion.confidence)}</strong>
+        {stale ? <span>Taslak eski olabilir; yeniden analiz önerilir.</span> : null}
       </div>
 
       <dl>
@@ -419,7 +471,7 @@ function AiDraftSuggestionReview({
           <strong>Görsel notları</strong>
           <ul>
             {suggestion.imageFeedback.map((item, index) => (
-              <li key={`${item.imageIdOrUrl}-${index}`}>
+              <li key={`${item.status}-${index}`}>
                 {item.message}
               </li>
             ))}
@@ -450,11 +502,11 @@ function AiDraftSuggestionReview({
       ) : null}
 
       <div className="form-button-row">
-        <Button type="button" onClick={onApplySuggestion}>
-          Önerileri uygula
+        <Button type="button" disabled={stale} onClick={onApplySuggestion}>
+          Boş alanlara uygula
         </Button>
         <Button variant="ghost" type="button" onClick={onDismiss}>
-          Vazgeç
+          Taslağı kapat
         </Button>
       </div>
     </div>
@@ -534,21 +586,36 @@ function getString(formData: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function applyDraftSuggestion(form: HTMLFormElement, suggestion: AiListingDraftSuggestion): void {
-  if (suggestion.title) {
-    setTextInputValue(form, "title", suggestion.title);
+function buildWebAiListingDraftFormSnapshot(form: HTMLFormElement): WebAiListingDraftFormSnapshot {
+  const formData = new FormData(form);
+
+  return {
+    categoryId: getString(formData, "categoryId"),
+    condition: getString(formData, "condition") as ListingCondition,
+    description: getString(formData, "description"),
+    listingType: getString(formData, "listingType") as ListingType,
+    priceAmount: getString(formData, "priceAmount"),
+    title: getString(formData, "title")
+  };
+}
+
+function applyDraftSuggestion(
+  form: HTMLFormElement,
+  suggestion: WebAiListingDraftSuggestion,
+  stale: boolean
+): void {
+  const patch = buildWebAiListingDraftApplyPatch(buildWebAiListingDraftFormSnapshot(form), suggestion, { stale });
+
+  if (patch.title) {
+    setTextInputValue(form, "title", patch.title);
   }
 
-  if (suggestion.description) {
-    setTextareaValue(form, "description", suggestion.description);
+  if (patch.description) {
+    setTextareaValue(form, "description", patch.description);
   }
 
-  if (suggestion.categoryId) {
-    setSelectValue(form, "categoryId", suggestion.categoryId);
-  }
-
-  if (suggestion.condition) {
-    setSelectValue(form, "condition", suggestion.condition);
+  if (patch.categoryId) {
+    setSelectValue(form, "categoryId", patch.categoryId);
   }
 }
 
@@ -579,8 +646,8 @@ function setSelectValue(form: HTMLFormElement, key: string, value: string): void
   }
 }
 
-function formatConfidence(confidence: AiListingDraftSuggestion["confidence"]): string {
-  const labels: Record<AiListingDraftSuggestion["confidence"], string> = {
+function formatConfidence(confidence: WebAiListingDraftSuggestion["confidence"]): string {
+  const labels: Record<WebAiListingDraftSuggestion["confidence"], string> = {
     low: "düşük",
     medium: "orta",
     high: "yüksek"

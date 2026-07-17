@@ -60,11 +60,6 @@ export function AiPriceSuggestionPanel({
           </Button>
         </div>
       ) : null}
-
-      <p className="ai-debug">
-        {suggestion.providerName} · {suggestion.promptVersion} · confidence{" "}
-        {suggestion.confidenceScore}
-      </p>
     </section>
   );
 }
