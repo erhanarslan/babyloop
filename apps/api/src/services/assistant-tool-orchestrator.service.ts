@@ -4,6 +4,9 @@ import {
   type AssistantToolName
 } from "./assistant-tool-registry.service.js";
 import type { AssistantIntent } from "./assistant-intent-router.service.js";
+import { getRagAnswerOwnerPolicy, isToolAllowedByPolicy } from "./rag-answer-owner-registry.js";
+import { createRagDomainDecisionFromDomain, routeRagDomain, type RagDomainDecision } from "./rag-domain-router.service.js";
+import { policyFromAnswerOwner } from "./rag-search.service.js";
 import type { AssistantToolContext, AssistantToolResult } from "./assistant-tools.types.js";
 import type { RagAnswer } from "./rag.types.js";
 
@@ -37,10 +40,25 @@ export class AssistantToolOrchestrator {
 
   async orchestrate(input: {
     context: AssistantToolContext;
+    domainDecision?: RagDomainDecision;
     intent: AssistantIntent;
     message: string;
   }): Promise<AssistantToolOrchestrationResult> {
-    const plan = this.plan(input.intent, input.message).slice(0, this.maxToolCalls);
+    const domainDecision = domainDecisionForIntent(input.intent, input.domainDecision ?? routeRagDomain(input.message));
+    const plan = this.plan(input.intent, input.message, domainDecision).slice(0, this.maxToolCalls);
+
+    if (plan.some((step) => !isToolAllowedByPolicy(getRagAnswerOwnerPolicy(domainDecision.domain), step.tool))) {
+      return {
+        handled: true,
+        answer: {
+          answer: "Bu soru için güvenilir BabyLoop kaynaklarıyla yanıt veremiyorum. İlgili canonical kaynak bulunursa kaynaklı yanıt verebilirim.",
+          sources: [],
+          grounded: false,
+          mode: "no_sources",
+          toolsUsed: []
+        }
+      };
+    }
 
     if (plan.length === 0) {
       return { handled: false };
@@ -59,16 +77,17 @@ export class AssistantToolOrchestrator {
     return this.compose(input.intent, input.message, results);
   }
 
-  private plan(intent: AssistantIntent, message: string): Array<{ tool: AssistantToolName; input: unknown }> {
+  private plan(intent: AssistantIntent, message: string, domainDecision?: RagDomainDecision): Array<{ tool: AssistantToolName; input: unknown }> {
     const analysis = buildRetrievalQuery(message);
     const primaryProduct = analysis.productTerms[0] ?? extractLooseProduct(message) ?? "ürün";
     const city = analysis.locationSignals[0];
     const listingId = extractListingId(message);
+    const ragPolicyInput = domainDecision ? buildRagToolPolicyInput(domainDecision) : {};
 
     if (intent === "listing_search") {
       return [
         { tool: "listing_search", input: { query: primaryProduct, ...(city ? { city } : {}), limit: 5 } },
-        { tool: "rag_search", input: { query: `${primaryProduct} alırken nelere dikkat edilmeli?`, limit: 3 } }
+        { tool: "rag_search", input: { query: `${primaryProduct} alırken nelere dikkat edilmeli?`, limit: 3, ...ragPolicyInput } }
       ];
     }
 
@@ -76,26 +95,26 @@ export class AssistantToolOrchestrator {
       return listingId
         ? [
             { tool: "listing_detail", input: { listingId } },
-            { tool: "rag_search", input: { query: `${primaryProduct} güvenli alışveriş kontrol`, limit: 3 } }
+            { tool: "rag_search", input: { query: `${primaryProduct} güvenli alışveriş kontrol`, limit: 3, ...ragPolicyInput } }
           ]
-        : [{ tool: "rag_search", input: { query: message, limit: 3 } }];
+        : [{ tool: "rag_search", input: { query: message, limit: 3, ...ragPolicyInput } }];
     }
 
     if (intent === "buyer_questions") {
       return [
         { tool: "buyer_question_templates", input: { productType: primaryProduct } },
-        { tool: "rag_search", input: { query: `${primaryProduct} satıcıya sorulacak sorular`, limit: 3 } }
+        { tool: "rag_search", input: { query: `${primaryProduct} satıcıya sorulacak sorular`, limit: 3, ...ragPolicyInput } }
       ];
     }
 
     if (intent === "listing_help") {
       return [
         { tool: "listing_draft_helper", input: { productType: primaryProduct, notes: message } },
-        { tool: "rag_search", input: { query: `${primaryProduct} ilan yazımı fotoğraf kalitesi`, limit: 3 } }
+        { tool: "rag_search", input: { query: `${primaryProduct} ilan yazımı fotoğraf kalitesi`, limit: 3, ...ragPolicyInput } }
       ];
     }
 
-    if (intent === "child_needs" && !isInformationalChildKnowledgeQuestion(message)) {
+    if (intent === "child_needs" && domainDecision?.domain === "child_product_needs" && !isInformationalChildKnowledgeQuestion(message)) {
       return [
         {
           tool: "child_needs_recommendations",
@@ -115,7 +134,7 @@ export class AssistantToolOrchestrator {
             ...(analysis.productTerms.length > 0 ? { productTerms: analysis.productTerms } : {})
           }
         },
-        { tool: "rag_search", input: { query: `${message} yaşa göre ürün ihtiyaçları mevsimsel ihtiyaçlar`, limit: 3 } }
+        { tool: "rag_search", input: { query: `${message} yaşa göre ürün ihtiyaçları mevsimsel ihtiyaçlar`, limit: 3, ...ragPolicyInput } }
       ];
     }
 
@@ -141,9 +160,9 @@ export class AssistantToolOrchestrator {
       return listingId
         ? [
             { tool: "seller_public_summary", input: { listingId } },
-            { tool: "rag_search", input: { query: "güvenli alışveriş satıcı değerlendirme", limit: 3 } }
+            { tool: "rag_search", input: { query: "güvenli alışveriş satıcı değerlendirme", limit: 3, ...ragPolicyInput } }
           ]
-        : [{ tool: "rag_search", input: { query: "güvenli alışveriş satıcı değerlendirme", limit: 3 } }];
+        : [{ tool: "rag_search", input: { query: "güvenli alışveriş satıcı değerlendirme", limit: 3, ...ragPolicyInput } }];
     }
 
     return [];
@@ -360,6 +379,26 @@ export class AssistantToolOrchestrator {
   }
 }
 
+function domainDecisionForIntent(intent: AssistantIntent, decision: RagDomainDecision): RagDomainDecision {
+  if (intent === "listing_search" || intent === "listing_detail" || intent === "category_lookup" || intent === "seller_summary" || intent === "saved_search_suggestion") {
+    return createRagDomainDecisionFromDomain("marketplace", "high", ["explicit_marketplace_tool_intent"]);
+  }
+
+  if (intent === "listing_help") {
+    return createRagDomainDecisionFromDomain("listing_help", "high", ["explicit_listing_help_intent"]);
+  }
+
+  if (intent === "buyer_questions") {
+    return createRagDomainDecisionFromDomain("buyer_questions", "high", ["explicit_buyer_questions_intent"]);
+  }
+
+  if (intent === "child_needs" && decision.domain !== "feeding") {
+    return createRagDomainDecisionFromDomain("child_product_needs", "high", ["explicit_child_product_need_intent"]);
+  }
+
+  return decision;
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | {
   ok: false;
   code: "TOOL_UNAVAILABLE";
@@ -526,4 +565,22 @@ function extractLooseProduct(message: string): string | null {
   }
 
   return null;
+}
+
+function buildRagToolPolicyInput(domainDecision: RagDomainDecision): Record<string, unknown> {
+  const searchPolicy = policyFromAnswerOwner(getRagAnswerOwnerPolicy(domainDecision.domain));
+
+  return {
+    ...(searchPolicy.allowedSourcePaths?.length ? { allowedSourcePaths: searchPolicy.allowedSourcePaths } : {}),
+    ...(searchPolicy.allowedTopics?.length ? { allowedTopics: searchPolicy.allowedTopics } : {}),
+    ...(searchPolicy.forbiddenSourcePaths?.length ? { forbiddenSourcePaths: searchPolicy.forbiddenSourcePaths } : {}),
+    ...(searchPolicy.forbiddenTopics?.length ? { forbiddenTopics: searchPolicy.forbiddenTopics } : {}),
+    ...(searchPolicy.minimumReliability ? { minimumReliability: searchPolicy.minimumReliability } : {}),
+    ...(searchPolicy.requiredOwner ? { requiredOwner: searchPolicy.requiredOwner } : {}),
+    ...(searchPolicy.requireCanonicalOwner !== undefined ? { requireCanonicalOwner: searchPolicy.requireCanonicalOwner } : {}),
+    ...(searchPolicy.minSourceCoverage ? { minSourceCoverage: searchPolicy.minSourceCoverage } : {}),
+    ...(searchPolicy.minFinalScore !== undefined ? { minFinalScore: searchPolicy.minFinalScore } : {}),
+    ...(searchPolicy.minScoreMargin !== undefined ? { minScoreMargin: searchPolicy.minScoreMargin } : {}),
+    ...(searchPolicy.maxChunksPerDocument ? { maxChunksPerDocument: searchPolicy.maxChunksPerDocument } : {})
+  };
 }

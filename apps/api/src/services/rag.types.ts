@@ -18,6 +18,13 @@ export type RagDocumentMetadata = {
   sourceReliability: RagSourceReliability | string;
   version: string;
   sourcePath: string;
+  answerOwner?: string | undefined;
+  allowedDomains?: string[] | undefined;
+  forbiddenDomains?: string[] | undefined;
+  questionFamilies?: string[] | undefined;
+  ageBands?: string[] | undefined;
+  sectionKind?: "answer" | "boundary" | "source_note" | "routing" | "policy" | undefined;
+  riskLevel?: "low" | "medium" | "high" | undefined;
 };
 
 export type RagDocument = {
@@ -90,15 +97,23 @@ export type RagIndexedDocumentSnapshot = {
 export type RagCitation = {
   title: string;
   sourcePath: string;
-  section?: string;
-  topic?: string;
-  sourceReliability?: string;
+  section?: string | undefined;
+  topic?: string | undefined;
+  sourceReliability?: string | undefined;
+  answerOwner?: string | undefined;
+  sectionKind?: string | undefined;
 };
 
 export type RagSearchResult = {
   score: number;
   text: string;
   citation: RagCitation;
+  diagnostics?: {
+    lexicalScore?: number | undefined;
+    vectorScore?: number | undefined;
+    finalScore?: number | undefined;
+    rejectReason?: string | undefined;
+  };
 };
 
 export type RagAnswer = {
@@ -106,20 +121,33 @@ export type RagAnswer = {
   sources: RagCitation[];
   mode: "rag" | "boundary" | "no_sources";
   grounded: boolean;
-  cacheHit?: boolean;
-  intent?: AssistantIntent;
-  toolsUsed?: string[];
+  cacheHit?: boolean | undefined;
+  intent?: AssistantIntent | undefined;
+  domain?: string | undefined;
+  routeConfidence?: "low" | "medium" | "high" | undefined;
+  groundingStatus?: "grounded" | "insufficient_sources" | "blocked_safety" | "owner_missing" | "cross_domain_contamination" | "low_confidence" | "unsupported_claims" | undefined;
+  blockedReason?: string | undefined;
+  sourceOwner?: string | undefined;
+  sourceReliability?: string | undefined;
+  citationCoverage?: number | undefined;
+  retrievalDiagnosticsSummary?: {
+    canonicalOwnerFound?: boolean | undefined;
+    crossDomainContamination?: boolean | undefined;
+    rejectedReasons?: string[] | undefined;
+    selectedSourceTopics?: string[] | undefined;
+  };
+  toolsUsed?: string[] | undefined;
   toolResultsPreview?: Array<{
     tool: string;
     title: string;
     summary: string;
-  }>;
+  }> | undefined;
   suggestedActions?: Array<{
     type: "open_listing" | "open_search" | "copy_questions" | "review_saved_search_draft" | "review_listing_draft" | "review_child_recommendations";
     label: string;
-    href?: string;
-    payload?: Record<string, unknown>;
-  }>;
+    href?: string | undefined;
+    payload?: Record<string, unknown> | undefined;
+  }> | undefined;
 };
 
 export type RagSafetyDecision = {
@@ -149,10 +177,20 @@ export type RagVectorStore = {
   ensureCollection(): Promise<void>;
   upsertChunks(chunks: Array<RagChunk & { embedding: number[] }>): Promise<void>;
   search(options: {
+  filter?: RagVectorSearchFilter | undefined;
     queryEmbedding: number[];
     limit: number;
     minScore: number;
   }): Promise<RagSearchResult[]>;
+};
+
+export type RagVectorSearchFilter = {
+  allowedSourcePaths?: string[] | undefined;
+  allowedTopics?: string[] | undefined;
+  forbiddenSourcePaths?: string[] | undefined;
+  forbiddenTopics?: string[] | undefined;
+  minimumReliability?: string | undefined;
+  requiredOwner?: string | undefined;
 };
 
 export type RagCollectionInfo = {

@@ -1,4 +1,5 @@
 import type { EmbeddingProvider } from "@babyloop/ai-core";
+import type { RagAnswerOwnerPolicy } from "./rag-answer-owner-registry.js";
 import { buildRetrievalQuery } from "./rag-query-normalizer.service.js";
 import {
   applyHybridRerank,
@@ -7,6 +8,22 @@ import {
   type RagRetrievalQualityConfig
 } from "./rag-retrieval-quality.service.js";
 import type { RagSearchResult, RagVectorStore } from "./rag.types.js";
+
+export type RagSearchOptions = {
+  allowedSafetyScopes?: string[] | undefined;
+  allowedSourcePaths?: string[] | undefined;
+  allowedTopics?: string[] | undefined;
+  candidateLimit?: number | undefined;
+  forbiddenSourcePaths?: string[] | undefined;
+  forbiddenTopics?: string[] | undefined;
+  maxChunksPerDocument?: number | undefined;
+  minFinalScore?: number | undefined;
+  minScoreMargin?: number | undefined;
+  minSourceCoverage?: number | undefined;
+  minimumReliability?: string | undefined;
+  requireCanonicalOwner?: boolean | undefined;
+  requiredOwner?: string | undefined;
+};
 
 export type RagSearchServiceOptions = {
   duplicatePenalty?: number;
@@ -57,7 +74,7 @@ export class RagSearchService {
     this.vectorStore = options.vectorStore;
   }
 
-  async search(query: string, limit?: number): Promise<RagSearchResult[]> {
+  async search(query: string, limit?: number, options: RagSearchOptions = {}): Promise<RagSearchResult[]> {
     const queryAnalysis = buildRetrievalQuery(query);
     const normalizedQuery = queryAnalysis.normalizedQuery;
 
@@ -76,24 +93,96 @@ export class RagSearchService {
     }
 
     const safeLimit = Math.min(Math.max(limit ?? this.maxChunks, 1), this.maxChunks);
+    const maxChunksPerDocument = options.maxChunksPerDocument ?? this.maxSourcesPerDocument;
+    const candidateLimit = options.candidateLimit ?? safeLimit * maxChunksPerDocument * 4;
     const rawResults = await this.vectorStore.search({
       queryEmbedding: embedding.embedding,
-      limit: Math.min(Math.max(safeLimit * this.maxSourcesPerDocument * 2, 1), this.maxChunks * this.maxSourcesPerDocument * 2),
-      minScore: this.minScore
+      limit: Math.min(Math.max(candidateLimit, 1), this.maxChunks * this.maxSourcesPerDocument * 4),
+      minScore: this.minScore,
+      filter: buildVectorFilter(options)
     });
 
-    const rankedResults = applyHybridRerank(rawResults, queryAnalysis, this.qualityConfig);
+    const hardFilteredResults = applyRagSearchPolicy(rawResults, options);
+    const rankedResults = applyHybridRerank(hardFilteredResults, queryAnalysis, {
+      ...this.qualityConfig,
+      minSourceCoverage: options.minSourceCoverage ?? this.qualityConfig.minSourceCoverage,
+      noSourceMinScore: options.minFinalScore ?? this.qualityConfig.noSourceMinScore
+    });
     const collapsedResults = collapseDuplicateSources(rankedResults, {
       limit: safeLimit,
-      maxSourcesPerDocument: this.maxSourcesPerDocument
+      maxSourcesPerDocument: maxChunksPerDocument
     });
 
-    if (shouldFallbackNoSource(collapsedResults, queryAnalysis, this.qualityConfig)) {
+    if (failsCanonicalOwnerCoverage(collapsedResults, options)) {
+      return [];
+    }
+
+    if (failsScoreMargin(collapsedResults, options)) {
+      return [];
+    }
+
+    if (shouldFallbackNoSource(collapsedResults, queryAnalysis, {
+      ...this.qualityConfig,
+      minSourceCoverage: options.minSourceCoverage ?? this.qualityConfig.minSourceCoverage,
+      noSourceMinScore: options.minFinalScore ?? this.qualityConfig.noSourceMinScore
+    })) {
       return [];
     }
 
     return collapsedResults;
   }
+}
+
+export function policyFromAnswerOwner(policy: RagAnswerOwnerPolicy): RagSearchOptions {
+  return {
+    allowedSafetyScopes: policy.allowedSafetyScopes,
+    allowedSourcePaths: policy.allowedSourcePaths,
+    allowedTopics: policy.allowedTopics,
+    forbiddenSourcePaths: policy.forbiddenSourcePaths,
+    forbiddenTopics: policy.forbiddenTopics,
+    maxChunksPerDocument: 2,
+    minFinalScore: policy.requireCanonicalOwner ? 0.78 : 0.68,
+    minScoreMargin: policy.requireCanonicalOwner ? 0.02 : 0,
+    minSourceCoverage: policy.minimumSourceCount,
+    minimumReliability: policy.minimumReliability === "any" ? undefined : policy.minimumReliability,
+    requireCanonicalOwner: policy.requireCanonicalOwner,
+    ...(policy.owner ? { requiredOwner: policy.owner } : {})
+  };
+}
+
+export function applyRagSearchPolicy(results: RagSearchResult[], options: RagSearchOptions): RagSearchResult[] {
+  return results.filter((result) => getRagSearchPolicyRejectReason(result, options) === null);
+}
+
+export function getRagSearchPolicyRejectReason(result: RagSearchResult, options: RagSearchOptions): string | null {
+  const citation = result.citation;
+  const answerOwner = citation.answerOwner ?? inferAnswerOwnerFromCitation(result);
+
+  if (options.forbiddenTopics?.includes(citation.topic ?? "")) {
+    return "forbidden_topic";
+  }
+
+  if (options.forbiddenSourcePaths?.includes(citation.sourcePath)) {
+    return "forbidden_source_path";
+  }
+
+  if (options.allowedTopics && options.allowedTopics.length > 0 && !options.allowedTopics.includes(citation.topic ?? "")) {
+    return "topic_not_allowed";
+  }
+
+  if (options.allowedSourcePaths && options.allowedSourcePaths.length > 0 && !options.allowedSourcePaths.includes(citation.sourcePath)) {
+    return "source_path_not_allowed";
+  }
+
+  if (options.minimumReliability && citation.sourceReliability && compareReliability(citation.sourceReliability, options.minimumReliability) < 0) {
+    return "source_reliability_too_low";
+  }
+
+  if (options.requiredOwner && answerOwner && answerOwner !== options.requiredOwner && options.requireCanonicalOwner) {
+    return "owner_mismatch";
+  }
+
+  return null;
 }
 
 export function rankSearchResults(
@@ -119,4 +208,88 @@ export function dedupeSearchResults(
   options: { limit: number; maxSourcesPerDocument: number }
 ): RagSearchResult[] {
   return collapseDuplicateSources(results, options);
+}
+
+function buildVectorFilter(options: RagSearchOptions) {
+  if (
+    !options.allowedTopics?.length &&
+    !options.allowedSourcePaths?.length &&
+    !options.forbiddenTopics?.length &&
+    !options.forbiddenSourcePaths?.length &&
+    !options.requiredOwner
+  ) {
+    return undefined;
+  }
+
+  return {
+    allowedSourcePaths: options.allowedSourcePaths,
+    allowedTopics: options.allowedTopics,
+    forbiddenSourcePaths: options.forbiddenSourcePaths,
+    forbiddenTopics: options.forbiddenTopics,
+    requiredOwner: options.requiredOwner
+  };
+}
+
+function failsCanonicalOwnerCoverage(results: RagSearchResult[], options: RagSearchOptions): boolean {
+  if (!options.requireCanonicalOwner || !options.requiredOwner) {
+    return false;
+  }
+
+  return !results.some((result) => (result.citation.answerOwner ?? inferAnswerOwnerFromCitation(result)) === options.requiredOwner);
+}
+
+function failsScoreMargin(results: RagSearchResult[], options: RagSearchOptions): boolean {
+  if (!options.minScoreMargin || results.length < 2) {
+    return false;
+  }
+
+  const [first, second] = results;
+
+  if (!first || !second) {
+    return false;
+  }
+
+  return first.score - second.score < options.minScoreMargin && (first.citation.topic ?? "") !== (second.citation.topic ?? "");
+}
+
+function inferAnswerOwnerFromCitation(result: RagSearchResult): string | null {
+  const path = result.citation.sourcePath;
+
+  if (path.endsWith("44-feeding-and-food-safety-canon.md")) {
+    return "feeding-and-food-safety-canon";
+  }
+
+  if (path.endsWith("46-illness-red-flags-boundary-canon.md")) {
+    return "illness-red-flags-boundary-canon";
+  }
+
+  if (path.endsWith("45-safe-sleep-and-product-boundary-canon.md")) {
+    return "safe-sleep-and-product-boundary-canon";
+  }
+
+  if (path.endsWith("47-second-hand-product-safety-canon.md")) {
+    return "second-hand-product-safety-canon";
+  }
+
+  if (path.endsWith("08-car-seat-second-hand-checklist.md")) {
+    return "car-seat-second-hand-checklist";
+  }
+
+  if (path.endsWith("01-babyloop-marketplace-guide.md")) {
+    return "babyloop-marketplace-guide";
+  }
+
+  return result.citation.answerOwner ?? null;
+}
+
+function compareReliability(actual: string, minimum: string): number {
+  const order = ["internal", "editorial", "internal-policy", "official-source-note", "official-referenced"];
+  const actualIndex = order.indexOf(actual);
+  const minimumIndex = order.indexOf(minimum);
+
+  if (actualIndex === -1 || minimumIndex === -1) {
+    return actual === minimum ? 0 : -1;
+  }
+
+  return actualIndex - minimumIndex;
 }

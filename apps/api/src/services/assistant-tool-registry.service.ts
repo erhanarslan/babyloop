@@ -19,7 +19,18 @@ const categoryLookupInputSchema = z
 const ragSearchInputSchema = z
   .object({
     query: z.string().trim().min(1).max(1000),
-    limit: z.number().int().min(1).max(10).optional()
+    limit: z.number().int().min(1).max(10).optional(),
+    allowedSourcePaths: z.array(z.string().trim().min(1).max(240)).max(20).optional(),
+    allowedTopics: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+    forbiddenSourcePaths: z.array(z.string().trim().min(1).max(240)).max(20).optional(),
+    forbiddenTopics: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+    minimumReliability: z.string().trim().min(1).max(80).optional(),
+    requiredOwner: z.string().trim().min(1).max(120).optional(),
+    requireCanonicalOwner: z.boolean().optional(),
+    minSourceCoverage: z.number().int().min(1).max(5).optional(),
+    minFinalScore: z.number().min(0).max(1).optional(),
+    minScoreMargin: z.number().min(0).max(1).optional(),
+    maxChunksPerDocument: z.number().int().min(1).max(5).optional()
   })
   .strict();
 
@@ -192,7 +203,19 @@ function createRagSearchTool(): AssistantToolDefinition<z.infer<typeof ragSearch
         return [];
       }
 
-      return context.ragSearch(input.query, input.limit);
+      return context.ragSearch(input.query, input.limit, {
+        ...(input.allowedSourcePaths ? { allowedSourcePaths: input.allowedSourcePaths } : {}),
+        ...(input.allowedTopics ? { allowedTopics: input.allowedTopics } : {}),
+        ...(input.forbiddenSourcePaths ? { forbiddenSourcePaths: input.forbiddenSourcePaths } : {}),
+        ...(input.forbiddenTopics ? { forbiddenTopics: input.forbiddenTopics } : {}),
+        ...(input.minimumReliability ? { minimumReliability: input.minimumReliability } : {}),
+        ...(input.requiredOwner ? { requiredOwner: input.requiredOwner } : {}),
+        ...(input.requireCanonicalOwner !== undefined ? { requireCanonicalOwner: input.requireCanonicalOwner } : {}),
+        ...(input.minSourceCoverage ? { minSourceCoverage: input.minSourceCoverage } : {}),
+        ...(input.minFinalScore !== undefined ? { minFinalScore: input.minFinalScore } : {}),
+        ...(input.minScoreMargin !== undefined ? { minScoreMargin: input.minScoreMargin } : {}),
+        ...(input.maxChunksPerDocument ? { maxChunksPerDocument: input.maxChunksPerDocument } : {})
+      });
     }
   };
 }

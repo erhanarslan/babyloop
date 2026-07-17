@@ -1,10 +1,11 @@
 import type { z } from "zod";
+import type { RagSearchOptions } from "./rag-search.service.js";
 import type { RagSearchResult } from "./rag.types.js";
 import type { AssistantChildPersonalizationContext } from "./assistant-child-personalization.service.js";
 
 export type AssistantToolContext = {
   childPersonalization?: AssistantChildPersonalizationContext | null;
-  ragSearch?: (query: string, limit?: number) => Promise<RagSearchResult[]>;
+  ragSearch?: (query: string, limit?: number, options?: RagSearchOptions) => Promise<RagSearchResult[]>;
   listingSearch?: (input: {
     categoryId?: string;
     city?: string;

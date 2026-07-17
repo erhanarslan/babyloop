@@ -91,6 +91,7 @@ const TOPIC_HINT_PATTERNS: Array<{ topic: string; patterns: RegExp[] }> = [
   { topic: "diarrhea-vomiting-care", patterns: [/ishal/iu, /kus(?:tu|uyor|ma|ması|masi)/iu, /s[ıi]v[ıi]\s+kayb[ıi]/iu] },
   { topic: "cold-cough-care", patterns: [/so[ğg]uk\s+alg[ıi]nl[ıi][ğg][ıi]/iu, /nezle/iu, /[öo]ks[üu]r[üu]k/iu] },
   { topic: "teething-care", patterns: [/di[şs]\s+[çc][ıi]kar/iu, /di[şs]\s+ka[şs][ıi]y[ıi]c[ıi]/iu] },
+  { topic: "feeding-food-safety", patterns: [/ek\s*g[ıi]da/iu, /tamamlay[ıi]c[ıi]\s+beslenme/iu, /ne\s+yer\b/iu, /ne\s+yedirilir\b/iu, /ne\s+yedireyim\b/iu, /\bbal\b/iu, /\btuz\b/iu, /\b[şs]eker\b/iu, /parmak\s+g[ıi]da/iu, /p[üu]re/iu, /p[üu]t[üu]rl[üu]/iu] },
   { topic: "medicine-boundary", patterns: [/ila[cç]/iu, /doz/iu, /calpol/iu, /dolven/iu, /parasetamol/iu, /ibuprofen/iu, /antibiyotik/iu] },
   { topic: "recall-safety", patterns: [/geri\s+[çc]a[ğg][ıi]rma/iu, /seri\s+numaras[ıi]/iu, /uyar[ıi]/iu] },
   { topic: "second-hand-risk", patterns: [/ikinci\s+el/iu, /kesin\s+güvenli/iu, /kaza/iu, /[çc]arp[ıi][şs]ma/iu] },
@@ -193,7 +194,7 @@ export function extractIntentTopicHints(query: string): string[] {
     hints.push("textile-hygiene");
   }
 
-  if (ageSignals.length > 0) {
+  if (ageSignals.length > 0 && !hints.includes("feeding-food-safety")) {
     hints.push("age-based-needs");
   }
 
@@ -220,7 +221,8 @@ export function buildRetrievalQuery(originalQuery: string): RagQueryAnalysis {
     normalizedQuery,
     ...productTerms,
     ...ageSignals,
-    ...topicHints
+    ...topicHints,
+    ...(topicHints.includes("feeding-food-safety") ? ["ek gıda", "tamamlayıcı beslenme", "gıda güvenliği"] : [])
   ].filter(Boolean)).join(" ");
 
   return {

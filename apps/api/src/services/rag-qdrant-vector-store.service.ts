@@ -3,6 +3,7 @@ import type {
   RagChunkMetadata,
   RagCollectionInfo,
   RagIndexedDocumentSnapshot,
+  RagVectorSearchFilter,
   RagSearchResult,
   RagVectorStore
 } from "./rag.types.js";
@@ -103,6 +104,13 @@ export class QdrantVectorStore implements RagVectorStore {
               topic: chunk.metadata.topic,
               safetyScope: chunk.metadata.safetyScope,
               sourceReliability: chunk.metadata.sourceReliability,
+              answerOwner: chunk.metadata.answerOwner ?? chunk.metadata.id,
+              allowedDomains: chunk.metadata.allowedDomains,
+              forbiddenDomains: chunk.metadata.forbiddenDomains,
+              questionFamilies: chunk.metadata.questionFamilies,
+              ageBands: chunk.metadata.ageBands,
+              sectionKind: chunk.metadata.sectionKind,
+              riskLevel: chunk.metadata.riskLevel,
               version: chunk.metadata.version,
               checksum: chunk.metadata.checksum,
               checksumShort: chunk.metadata.checksumShort,
@@ -123,6 +131,7 @@ export class QdrantVectorStore implements RagVectorStore {
   }
 
   async search(options: {
+    filter?: RagVectorSearchFilter;
     queryEmbedding: number[];
     limit: number;
     minScore: number;
@@ -141,7 +150,8 @@ export class QdrantVectorStore implements RagVectorStore {
           vector: options.queryEmbedding,
           limit: options.limit,
           score_threshold: options.minScore,
-          with_payload: true
+          with_payload: true,
+          ...(options.filter ? { filter: toQdrantFilter(options.filter) } : {})
         })
       }
     );
@@ -309,10 +319,52 @@ function toSearchResult(point: unknown): RagSearchResult[] {
         sourcePath: metadata.sourcePath,
         ...(metadata.section ? { section: metadata.section } : {}),
         ...(metadata.topic ? { topic: metadata.topic } : {}),
-        ...(metadata.sourceReliability ? { sourceReliability: metadata.sourceReliability } : {})
+        ...(metadata.sourceReliability ? { sourceReliability: metadata.sourceReliability } : {}),
+        ...(metadata.answerOwner ? { answerOwner: metadata.answerOwner } : {}),
+        ...(metadata.sectionKind ? { sectionKind: metadata.sectionKind } : {})
       }
     }
   ];
+}
+
+function toQdrantFilter(filter: RagVectorSearchFilter): Record<string, unknown> {
+  const must: Array<Record<string, unknown>> = [];
+  const mustNot: Array<Record<string, unknown>> = [];
+
+  addAnyMatch(must, "topic", filter.allowedTopics);
+  addAnyMatch(must, "sourcePath", filter.allowedSourcePaths);
+
+  if (filter.requiredOwner) {
+    must.push({
+      key: "answerOwner",
+      match: {
+        value: filter.requiredOwner
+      }
+    });
+  }
+
+  addAnyMatch(mustNot, "topic", filter.forbiddenTopics);
+  addAnyMatch(mustNot, "sourcePath", filter.forbiddenSourcePaths);
+
+  return {
+    ...(must.length > 0 ? { must } : {}),
+    ...(mustNot.length > 0 ? { must_not: mustNot } : {})
+  };
+}
+
+function addAnyMatch(target: Array<Record<string, unknown>>, key: string, values: string[] | undefined): void {
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  target.push({
+    should: values.map((value) => ({
+      key,
+      match: {
+        value
+      }
+    }))
+  });
 }
 
 function numberOrZero(value: unknown): number {

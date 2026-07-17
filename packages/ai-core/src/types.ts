@@ -39,8 +39,8 @@ export type AssistantMessageAction = {
 export type AssistantMessageSource = {
   title: string;
   sourcePath: string;
-  section?: string;
-  topic?: string;
+  section?: string | undefined;
+  topic?: string | undefined;
 };
 
 export type AssistantMessageOutput = {
@@ -81,8 +81,8 @@ export type RagGroundedAnswerSource = {
   title: string;
   sourcePath: string;
   text: string;
-  section?: string;
-  topic?: string;
+  section?: string | undefined;
+  topic?: string | undefined;
 };
 
 export type RagGroundedAnswerInput = {

@@ -1,3 +1,5 @@
+import { routeRagDomain } from "./rag-domain-router.service.js";
+
 export type AssistantIntent =
   | "unsafe_medical"
   | "prompt_injection"
@@ -23,6 +25,7 @@ const PROMPT_INJECTION_PATTERNS = [
   /(?:system|sistem)\s+prompt(?:u|unu)?/iu,
   /developer\s+message/iu,
   /kaynaklar[ıi]\s+yok\s+say/iu,
+  /kaynaklar[ıi]\s+bo[şs]\s+ver/iu,
   /rag\s+kurallar[ıi]n[ıi]\s+bypass/iu,
   /talimatlar[ıi]\s+yok\s+say/iu,
   /talimatlar[ıi]n[ıi]\s+unut/iu
@@ -39,6 +42,8 @@ const UNSAFE_MEDICAL_PATTERNS = [
   /\btedavi\b/iu,
   /\bterapi\b/iu,
   /\bdiyet\s+plan[ıi]\b/iu,
+  /\b\d{1,2}\s*(?:ayl[ıi]k|aylik|ay)\b.*men[üu]\s+yaz/iu,
+  /bebek.*men[üu]\s+yaz/iu,
   /kanl[ıi]\s+ishal/iu,
   /nefes\s+(?:alam[ıi]yor|darl[ıi][ğg][ıi]|zorlan)/iu,
   /\bmorarma\b/iu,
@@ -110,6 +115,7 @@ const RAG_KNOWLEDGE_PATTERNS = [
 
 export function routeAssistantIntent(message: string): AssistantIntentDecision {
   const normalized = message.trim().toLocaleLowerCase("tr");
+  const domainDecision = routeRagDomain(message);
 
   if (matchesAny(normalized, PROMPT_INJECTION_PATTERNS)) {
     return { intent: "prompt_injection", confidence: "high" };
@@ -119,8 +125,8 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
     return { intent: "unsafe_medical", confidence: "high" };
   }
 
-  if (matchesAny(normalized, EVERYDAY_CARE_PATTERNS) || matchesAny(normalized, PRECONCEPTION_PREGNANCY_PATTERNS)) {
-    return { intent: "rag_knowledge", confidence: "high" };
+  if (domainDecision.domain === "medicine") {
+    return { intent: "unsafe_medical", confidence: "high" };
   }
 
   if (matchesAny(normalized, LISTING_SEARCH_PATTERNS)) {
@@ -135,7 +141,7 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
     return { intent: "buyer_questions", confidence: "high" };
   }
 
-  if (matchesAny(normalized, CHILD_NEEDS_PATTERNS)) {
+  if ((domainDecision.domain === "child_product_needs" || isExplicitChildProductNeed(normalized)) && matchesAny(normalized, CHILD_NEEDS_PATTERNS)) {
     return { intent: "child_needs", confidence: "high" };
   }
 
@@ -155,6 +161,14 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
     return { intent: "listing_help", confidence: "medium" };
   }
 
+  if (["feeding", "illness", "safe_sleep", "product_safety", "product_recall", "car_seat", "pregnancy"].includes(domainDecision.domain)) {
+    return { intent: "rag_knowledge", confidence: domainDecision.confidence };
+  }
+
+  if (matchesAny(normalized, EVERYDAY_CARE_PATTERNS) || matchesAny(normalized, PRECONCEPTION_PREGNANCY_PATTERNS)) {
+    return { intent: "rag_knowledge", confidence: "high" };
+  }
+
   if (matchesAny(normalized, BABYLOOP_USAGE_PATTERNS)) {
     return { intent: "babyloop_usage", confidence: "medium" };
   }
@@ -168,4 +182,16 @@ export function routeAssistantIntent(message: string): AssistantIntentDecision {
 
 function matchesAny(value: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(value));
+}
+
+function isExplicitChildProductNeed(value: string): boolean {
+  return [
+    /[üu]r[üu]n(?:ler|leri)?/iu,
+    /\boyuncak\b/iu,
+    /\bmontessori\b/iu,
+    /\bihtiya[çc]\b/iu,
+    /ne\s+almal[ıi]y[ıi]m/iu,
+    /\bk[ıi][şs]l[ıi]k\b/iu,
+    /takip\s+etmek/iu
+  ].some((pattern) => pattern.test(value));
 }
