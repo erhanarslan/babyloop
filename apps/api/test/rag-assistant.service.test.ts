@@ -154,6 +154,80 @@ describe("rag assistant service", () => {
     expect(answer.sources).toHaveLength(1);
     expect(answer.answer).toContain("Bebek arabasında");
   });
+
+  it("answers the critical complementary feeding query from the feeding owner without product tools", async () => {
+    const answerProvider = createAnswerProvider();
+    const answerSpy = vi.spyOn(answerProvider, "answerWithSources");
+    const searchService = {
+      search: vi.fn().mockResolvedValue([
+        {
+          score: 0.91,
+          text: "6 aylık bebek için ek gıda tamamlayıcı beslenme ve gıda güvenliği çerçevesinde ele alınır.",
+          citation: {
+            title: "Feeding and Food Safety Canon",
+            sourcePath: "docs/rag/44-feeding-and-food-safety-canon.md",
+            section: "6 aylık bebek ne yer?",
+            topic: "feeding-food-safety",
+            sourceReliability: "official-referenced",
+            answerOwner: "feeding-and-food-safety-canon"
+          }
+        }
+      ])
+    } as unknown as RagSearchService;
+    const listingSearch = vi.fn();
+    const service = new RagAssistantService({
+      answerProvider,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage(
+      {
+        message: "6 aylık erkek bebeğe ek gıda ne yedirilir?",
+        locale: "tr"
+      },
+      { listingSearch }
+    );
+
+    expect(answer.intent).toBe("rag_knowledge");
+    expect(answer.domain).toBe("feeding");
+    expect(answer.sourceOwner).toBe("feeding-and-food-safety-canon");
+    expect(answer.groundingStatus).toBe("grounded");
+    expect(answer.mode).toBe("rag");
+    expect(answer.sources[0]?.topic).toBe("feeding-food-safety");
+    expect(answer.toolsUsed ?? []).not.toContain("child_needs_recommendations");
+    expect(answer.toolsUsed ?? []).not.toContain("category_lookup");
+    expect(listingSearch).not.toHaveBeenCalled();
+    expect(answerSpy).not.toHaveBeenCalled();
+    expect(answer.answer).not.toMatch(/Montessori|oyuncak|ilan|kategori|satın al/iu);
+    expect(answer.answer).not.toMatch(/haftal[ıi]k\s+men[üu]|gram|doz|ml/iu);
+  });
+
+  it("fails closed for feeding when only cross-domain product sources are available", async () => {
+    const answerProvider = createAnswerProvider();
+    const answerSpy = vi.spyOn(answerProvider, "answerWithSources");
+    const searchService = {
+      search: vi.fn().mockResolvedValue([])
+    } as unknown as RagSearchService;
+    const service = new RagAssistantService({
+      answerProvider,
+      maxContextChars: 8000,
+      requireSources: true,
+      searchService
+    });
+
+    const answer = await service.answerMessage({
+      message: "6 aylık bebeğe ne yedireyim?",
+      locale: "tr"
+    });
+
+    expect(answer.mode).toBe("no_sources");
+    expect(answer.domain).toBe("feeding");
+    expect(answer.groundingStatus).toBe("owner_missing");
+    expect(answer.answer).not.toMatch(/Montessori|oyuncak|kategori|ilan/iu);
+    expect(answerSpy).not.toHaveBeenCalled();
+  });
   it("does not read or write cache for tool-handled answers", async () => {
     const cacheService = {
       buildKey: vi.fn(() => "assistant-cache-key"),

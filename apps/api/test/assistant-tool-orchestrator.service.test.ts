@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AssistantToolOrchestrator } from "../src/services/assistant-tool-orchestrator.service.js";
+import { routeRagDomain } from "../src/services/rag-domain-router.service.js";
 
 describe("assistant tool orchestrator", () => {
   it("uses listing search and RAG tools for marketplace search questions", async () => {
@@ -140,6 +141,24 @@ describe("assistant tool orchestrator", () => {
     expect(result.answer?.toolsUsed).toContain("saved_search_suggest_draft");
     expect(result.answer?.suggestedActions?.map((action) => action.type)).toContain("review_child_recommendations");
     expect(result.answer?.answer).toContain("Kızım");
+  });
+
+  it("fail-closes when a feeding domain would invoke child product tools", async () => {
+    const orchestrator = new AssistantToolOrchestrator();
+    const ragSearch = vi.fn();
+
+    const result = await orchestrator.orchestrate({
+      context: {
+        childPersonalization: null,
+        ragSearch
+      },
+      domainDecision: routeRagDomain("6 aylık erkek bebeğe ek gıda ne yedirilir?"),
+      intent: "child_needs",
+      message: "6 aylık erkek bebeğe ek gıda ne yedirilir?"
+    });
+
+    expect(result.handled).toBe(false);
+    expect(ragSearch).not.toHaveBeenCalled();
   });
 
 });

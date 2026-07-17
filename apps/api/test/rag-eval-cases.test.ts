@@ -6,6 +6,7 @@ import type { RagSearchService } from "../src/services/rag-search.service.js";
 import type { RagSearchResult } from "../src/services/rag.types.js";
 
 const topicMatchers: Array<{ pattern: RegExp; topic: string; title: string; sourcePath: string }> = [
+  { pattern: /ek\s*g[ıi]da|ne\s+yedireyim|ne\s+yer|bal|tuz|şeker|parmak\s+g[ıi]da|p[üu]re|p[üu]t[üu]rl[üu]/iu, topic: "feeding-food-safety", title: "Feeding and Food Safety Canon", sourcePath: "docs/rag/44-feeding-and-food-safety-canon.md" },
   { pattern: /bebek arabas[ıi]/iu, topic: "stroller-safety", title: "Bebek arabası ikinci el kontrol listesi", sourcePath: "docs/rag/07-stroller-buying-checklist.md" },
   { pattern: /oto koltu|çarpışma/iu, topic: "car-seat-safety", title: "Oto koltuğu ikinci el kontrol listesi", sourcePath: "docs/rag/08-car-seat-second-hand-checklist.md" },
   { pattern: /oyuncak|küçük parça/iu, topic: "toy-safety", title: "Oyuncak güvenliği kontrol listesi", sourcePath: "docs/rag/09-toy-safety-checklist.md" },
@@ -18,7 +19,7 @@ const topicMatchers: Array<{ pattern: RegExp; topic: string; title: string; sour
   { pattern: /kayıtlı arama|favoriler|BabyLoop nasıl/iu, topic: "marketplace-usage", title: "BabyLoop pazar yeri kullanım rehberi", sourcePath: "docs/rag/01-babyloop-marketplace-guide.md" },
   { pattern: /mesajlaşma/iu, topic: "messaging-privacy", title: "Mesajlaşma ve gizlilik rehberi", sourcePath: "docs/rag/06-messaging-and-privacy.md" },
   { pattern: /geri çağırma/iu, topic: "product-recall", title: "Geri çağırma ve ürün uyarısı kontrol rehberi", sourcePath: "docs/rag/12-recall-and-product-warning-guide.md" },
-  { pattern: /beşik|uyku/iu, topic: "sleep-product-safety", title: "Beşik ve uyku ürünü sınırları", sourcePath: "docs/rag/11-crib-and-sleep-product-boundaries.md" },
+  { pattern: /beşik|uyku|ana kuca|park yatak|yastık|battaniye/iu, topic: "sleep-product-safety", title: "Safe Sleep and Sleep Product Boundary Canon", sourcePath: "docs/rag/45-safe-sleep-and-product-boundary-canon.md" },
   { pattern: /fotoğraf/iu, topic: "listing-photos", title: "Satıcı fotoğraf kalitesi rehberi", sourcePath: "docs/rag/13-seller-photo-quality-guide.md" },
   { pattern: /hangi\s+sorular|soruları|alıcı.*sor|satıcı.*sor|buyer-questions|question-templates/iu, topic: "buyer-questions", title: "Alıcı soru şablonları", sourcePath: "docs/rag/14-buyer-question-templates.md" }
 ];
@@ -47,12 +48,12 @@ const fallbackTopicMetadata: Record<string, { title: string; sourcePath: string 
     sourcePath: "docs/rag/32-pregnancy-trimester-week-by-week-preparation.md"
   },
   "fever-care": {
-    title: "Çocukta ateş için destekleyici bakım ve kırmızı bayraklar",
-    sourcePath: "docs/rag/35-fever-everyday-care-and-red-flags.md"
+    title: "Illness Red Flags and Everyday Care Boundary Canon",
+    sourcePath: "docs/rag/46-illness-red-flags-boundary-canon.md"
   },
   "diarrhea-vomiting-care": {
-    title: "İshal ve kusmada sıvı desteği, sade beslenme ve kırmızı bayraklar",
-    sourcePath: "docs/rag/36-diarrhea-vomiting-hydration-and-food-guide.md"
+    title: "Illness Red Flags and Everyday Care Boundary Canon",
+    sourcePath: "docs/rag/46-illness-red-flags-boundary-canon.md"
   }
 };
 
@@ -77,8 +78,19 @@ function createFallbackTopicMatcher(topic: string): (typeof topicMatchers)[numbe
 }
 
 describe("rag eval cases", () => {
-  it("covers at least 30 assistant quality cases", () => {
-    expect(ragEvalCases.length).toBeGreaterThanOrEqual(30);
+  it("covers at least 150 assistant quality cases", () => {
+    expect(ragEvalCases.length).toBeGreaterThanOrEqual(150);
+  });
+
+  it("keeps the critical feeding regression in the eval set", () => {
+    const criticalCase = ragEvalCases.find((testCase) => testCase.id === "critical-feeding-six-month-boy");
+
+    expect(criticalCase).toMatchObject({
+      query: "6 aylık erkek bebeğe ek gıda ne yedirilir?",
+      expectedMode: "rag",
+      requiredSourceTopics: ["feeding-food-safety"]
+    });
+    expect(criticalCase?.forbiddenPhrases).toContain("Montessori");
   });
 
   it.each(ragEvalCases)("$id", async (testCase) => {
@@ -98,10 +110,7 @@ describe("rag eval cases", () => {
 
       const queryMatches = topicMatchers.filter((matcher) => matcher.pattern.test(normalizedQuery));
       const requiredTopicMatches = requestedTopics.map(createFallbackTopicMatcher);
-      const fallbackMatches = [
-        ...queryMatches,
-        ...requiredTopicMatches.filter((required) => !queryMatches.some((matcher) => matcher.topic === required.topic))
-      ];
+      const fallbackMatches = requiredTopicMatches.length > 0 ? requiredTopicMatches : queryMatches;
       const matchedTopics = fallbackMatches.length > 0 ? fallbackMatches : fixtureMatches;
 
       if (matchedTopics.length === 0) {
@@ -123,7 +132,8 @@ describe("rag eval cases", () => {
       answerProvider,
       maxContextChars: 8000,
       requireSources: true,
-      searchService: { search } as unknown as RagSearchService
+      searchService: { search } as unknown as RagSearchService,
+      toolsEnabled: false
     });
 
     const answer = await service.answerMessage({

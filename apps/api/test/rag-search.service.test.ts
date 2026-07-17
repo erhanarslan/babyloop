@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { EmbeddingProvider } from "@babyloop/ai-core";
 import {
   dedupeSearchResults,
+  policyFromAnswerOwner,
   RagSearchService,
   rankSearchResults
 } from "../src/services/rag-search.service.js";
+import { getRagAnswerOwnerPolicy } from "../src/services/rag-answer-owner-registry.js";
 import type { RagVectorStore } from "../src/services/rag.types.js";
 
 const embeddingProvider: EmbeddingProvider = {
@@ -208,6 +210,98 @@ describe("rag search service", () => {
     );
 
     expect(ranked[0]?.citation.topic).toBe("car-seat-safety");
+  });
+
+  it("hard rejects high-vector cross-domain candidates for feeding policy", async () => {
+    const vectorStore: RagVectorStore = {
+      async ensureCollection() {},
+      async upsertChunks() {},
+      async search(options) {
+        expect(options.filter).toMatchObject({
+          requiredOwner: "feeding-and-food-safety-canon"
+        });
+
+        return [
+          {
+            score: 0.96,
+            text: "Montessori oyuncak ve yaşa göre ürün ihtiyaçları.",
+            citation: {
+              title: "Yaş dönemine göre genel ürün ihtiyaçları",
+              sourcePath: "docs/rag/05-age-based-product-needs.md",
+              section: "6 ay",
+              topic: "toy-safety",
+              sourceReliability: "editorial"
+            }
+          },
+          {
+            score: 0.82,
+            text: "6 aylık bebek için ek gıda tamamlayıcı beslenme ve gıda güvenliği çerçevesinde ele alınır.",
+            citation: {
+              title: "Feeding and Food Safety Canon",
+              sourcePath: "docs/rag/44-feeding-and-food-safety-canon.md",
+              section: "6 aylık bebek ne yer?",
+              topic: "feeding-food-safety",
+              sourceReliability: "official-referenced",
+              answerOwner: "feeding-and-food-safety-canon"
+            }
+          }
+        ];
+      }
+    };
+    const service = new RagSearchService({
+      embeddingProvider,
+      maxChunks: 5,
+      maxSourcesPerDocument: 2,
+      minScore: 0.7,
+      vectorSize: 3,
+      vectorStore
+    });
+
+    const results = await service.search(
+      "6 aylık erkek bebeğe ek gıda ne yedirilir?",
+      3,
+      policyFromAnswerOwner(getRagAnswerOwnerPolicy("feeding"))
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.citation.topic).toBe("feeding-food-safety");
+    expect(results[0]?.text).not.toContain("Montessori");
+  });
+
+  it("returns no sources when feeding canonical owner is missing even with high-score toy results", async () => {
+    const vectorStore: RagVectorStore = {
+      async ensureCollection() {},
+      async upsertChunks() {},
+      async search() {
+        return [
+          {
+            score: 0.97,
+            text: "Montessori oyuncak yaş dönemi ürünü.",
+            citation: {
+              title: "Yaş dönemine göre genel ürün ihtiyaçları",
+              sourcePath: "docs/rag/05-age-based-product-needs.md",
+              section: "6 ay",
+              topic: "age-based-needs",
+              sourceReliability: "editorial"
+            }
+          }
+        ];
+      }
+    };
+    const service = new RagSearchService({
+      embeddingProvider,
+      maxChunks: 5,
+      maxSourcesPerDocument: 2,
+      minScore: 0.7,
+      vectorSize: 3,
+      vectorStore
+    });
+
+    await expect(service.search(
+      "6 aylık bebek ne yer?",
+      3,
+      policyFromAnswerOwner(getRagAnswerOwnerPolicy("feeding"))
+    )).resolves.toEqual([]);
   });
 });
 
