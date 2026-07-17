@@ -5,6 +5,7 @@ import { Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileLoginApprovalPrompt } from "../src/features/auth/mobile-login-approval-prompt";
 import { AuthSessionProvider } from "../src/features/auth/auth-session";
+import { MobileAnalyticsProvider } from "../src/features/analytics/analytics-provider";
 import { MobilePushRegistrationBootstrap } from "../src/features/notifications/mobile-push-registration-bootstrap";
 import { hideAndroidNavigationBar } from "../src/lib/android-navigation-bar";
 
@@ -30,17 +31,19 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthSessionProvider>
-        <MobilePushRegistrationBootstrap />
-        <MobileLoginApprovalPrompt />
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: {
-              backgroundColor: "#fff7f2"
-            }
-          }}
-        />
+        <MobileAnalyticsProvider>
+          <MobilePushRegistrationBootstrap />
+          <MobileLoginApprovalPrompt />
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: {
+                backgroundColor: "#fff7f2"
+              }
+            }}
+          />
+        </MobileAnalyticsProvider>
       </AuthSessionProvider>
     </SafeAreaProvider>
   );
