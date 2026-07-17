@@ -1,6 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@babyloop/shared";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
@@ -76,6 +77,14 @@ export function AnalyticsDashboard() {
 
       {overview ? (
         <>
+          <nav className="module-grid" aria-label="Analytics sections">
+            {analyticsSectionLinks.map(({ href, label }) => (
+              <Link className="module-card dashboard-module-card" href={href} key={href}>
+                <h3>{label}</h3>
+              </Link>
+            ))}
+          </nav>
+
           <section className="summary-grid dashboard-summary-grid" aria-label="Analytics overview">
             {buildAnalyticsOverviewKpis(overview).map((card) => (
               <div className="summary-card" key={card.label}>
@@ -128,6 +137,18 @@ export function AnalyticsDashboard() {
     </section>
   );
 }
+
+const analyticsSectionLinks: Array<{ href: string; label: string }> = [
+  { href: "/analytics/users", label: "Kullanıcılar" },
+  { href: "/analytics/auth", label: "Auth & Doğrulama" },
+  { href: "/analytics/engagement", label: "Etkileşim" },
+  { href: "/analytics/marketplace", label: "Marketplace" },
+  { href: "/analytics/messaging", label: "Mesajlaşma" },
+  { href: "/analytics/assistant", label: "Assistant & RAG" },
+  { href: "/analytics/child", label: "Çocuk & Hatırlatıcılar" },
+  { href: "/analytics/funnels", label: "Dönüşüm Hunileri" },
+  { href: "/analytics/data-quality", label: "Veri Kalitesi" }
+];
 
 function getApiErrorMessage(
   response: ApiResponse<unknown>,
