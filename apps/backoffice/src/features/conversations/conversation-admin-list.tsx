@@ -52,7 +52,7 @@ export function ConversationAdminList() {
 
       if (!response.ok) {
         setConversations([]);
-        setErrorMessage(getApiErrorMessage(response, "Could not load conversations."));
+        setErrorMessage(getApiErrorMessage(response, "Konuşmalar yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -85,11 +85,11 @@ export function ConversationAdminList() {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Trust & Safety</p>
-          <h2>Messages</h2>
+          <p className="eyebrow">Güven ve güvenlik</p>
+          <h2>Mesaj incelemeleri</h2>
           <p>
-            Review conversation safety signals with redacted message previews. Raw message bodies,
-            reporter identity, email, and contact data stay out of this admin view.
+            Redacted mesaj önizlemeleriyle konuşma güvenlik sinyallerini incele. Ham mesaj gövdesi,
+            raporlayan kimliği, e-posta ve iletişim verileri bu admin görünümünde yer almaz.
           </p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export function ConversationAdminList() {
       <form className="filter-panel" onSubmit={handleSubmit}>
         <div className="filter-grid">
           <label className="form-field">
-            <span>Search</span>
+            <span>Arama</span>
             <input
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -105,14 +105,14 @@ export function ConversationAdminList() {
                   q: event.target.value,
                 }))
               }
-              placeholder="Participant name, profile id, or conversation id"
+              placeholder="Katılımcı adı, profil ID veya konuşma ID"
               type="search"
               value={draftFilters.q}
             />
           </label>
 
           <label className="form-field">
-            <span>Sort</span>
+            <span>Sıralama</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -152,7 +152,7 @@ export function ConversationAdminList() {
 
         <div className="filter-actions">
           <button className="primary-action" disabled={isLoading} type="submit">
-            Apply filters
+            Filtrele
           </button>
           <button
             className="secondary-action"
@@ -160,12 +160,12 @@ export function ConversationAdminList() {
             onClick={resetFilters}
             type="button"
           >
-            Reset
+            Sıfırla
           </button>
         </div>
       </form>
 
-      {isLoading ? <div className="state-panel">Loading conversations...</div> : null}
+      {isLoading ? <div className="state-panel">Konuşmalar yükleniyor...</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -174,7 +174,7 @@ export function ConversationAdminList() {
       ) : null}
 
       {!isLoading && !errorMessage && conversations.length === 0 ? (
-        <div className="state-panel">No conversations match these filters.</div>
+        <div className="state-panel">Bu filtrelerle eşleşen konuşma yok.</div>
       ) : null}
 
       {conversations.length > 0 ? (
@@ -184,7 +184,7 @@ export function ConversationAdminList() {
               <div className="profile-admin-card-header">
                 <div>
                   <strong>{conversation.participants.map((item) => item.displayName).join(" ↔ ")}</strong>
-                  <p>Conversation {conversation.conversationId}</p>
+                  <p>Konuşma {conversation.conversationId}</p>
                 </div>
                 <span className={`status-badge ${conversation.status}`}>
                   {formatStatus(conversation.status)}
@@ -192,33 +192,33 @@ export function ConversationAdminList() {
               </div>
 
               <div className="profile-snapshot-summary">
-                <strong>Latest redacted message</strong>
-                <p>{conversation.latestMessage?.bodyPreview ?? "No messages yet."}</p>
+                <strong>Son redacted mesaj</strong>
+                <p>{conversation.latestMessage?.bodyPreview ?? "Henüz mesaj yok."}</p>
               </div>
 
               <dl className="compact-details">
                 <div>
-                  <dt>Messages</dt>
+                  <dt>Mesaj</dt>
                   <dd>{conversation.messageCount}</dd>
                 </div>
                 <div>
-                  <dt>Reported messages</dt>
+                  <dt>Raporlanan</dt>
                   <dd>{conversation.reportedMessageCount}</dd>
                 </div>
                 <div>
-                  <dt>Open cases</dt>
+                  <dt>Açık vaka</dt>
                   <dd>{conversation.openCaseCount}</dd>
                 </div>
                 <div>
-                  <dt>Enforcements</dt>
+                  <dt>Yaptırım</dt>
                   <dd>{conversation.enforcementCount}</dd>
                 </div>
                 <div>
-                  <dt>Listing context</dt>
-                  <dd>{conversation.contextListing?.title ?? "None"}</dd>
+                  <dt>İlan bağlamı</dt>
+                  <dd>{conversation.contextListing?.title ?? "Yok"}</dd>
                 </div>
                 <div>
-                  <dt>Last message</dt>
+                  <dt>Son mesaj</dt>
                   <dd>{formatDate(conversation.lastMessageAt)}</dd>
                 </div>
               </dl>
@@ -227,7 +227,7 @@ export function ConversationAdminList() {
                 className="secondary-action profile-detail-link"
                 href={`/conversations/${conversation.conversationId}`}
               >
-                Review conversation
+                Konuşmayı incele
               </Link>
             </article>
           ))}
@@ -244,19 +244,19 @@ function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): s
 function formatSort(sort: AdminConversationSort): string {
   switch (sort) {
     case "latest_asc":
-      return "Latest message asc";
+      return "Son mesaj artan";
     case "newest":
-      return "Newest conversations";
+      return "Yeni konuşmalar";
     case "oldest":
-      return "Oldest conversations";
+      return "Eski konuşmalar";
     case "latest_desc":
     default:
-      return "Latest message desc";
+      return "Son mesaj azalan";
   }
 }
 
 function formatStatus(status: string): string {
-  return status.replaceAll("_", " ");
+  return status === "active" ? "Aktif" : status.replaceAll("_", " ");
 }
 
 function formatDate(value: string | null): string {

@@ -3,7 +3,7 @@
 import { ProtectedActionLink as Link } from "../../features/auth/protected-action-link";
 import { useEffect, useState } from "react";
 import type { AuthMe } from "../../lib/auth-client";
-import type { Dictionary, Locale } from "../../lib/i18n/dictionaries";
+import type { Dictionary } from "../../lib/i18n/dictionaries";
 import {
   accountLinks,
   babyCategoryGroups
@@ -15,12 +15,10 @@ type MobileNavigationDrawerProps = {
   currentAuth: AuthMe | null;
   dictionary: Dictionary;
   isOpen: boolean;
-  locale: Locale;
   onClose: () => void;
   onLogin: () => void;
   onLogout: () => void;
   selectedCity: string;
-  setLocale: (locale: Locale) => void;
   theme: string;
   toggleTheme: () => void;
 };
@@ -30,12 +28,10 @@ export function MobileNavigationDrawer({
   currentAuth,
   dictionary,
   isOpen,
-  locale,
   onClose,
   onLogin,
   onLogout,
   selectedCity,
-  setLocale,
   theme,
   toggleTheme
 }: MobileNavigationDrawerProps) {
@@ -178,13 +174,6 @@ export function MobileNavigationDrawer({
         <section className="mobile-market-section">
           <h2>{dictionary.common.theme}</h2>
           <div className="mobile-market-preferences">
-            <button
-              aria-pressed={locale === "tr"}
-              type="button"
-              onClick={() => setLocale(locale === "tr" ? "en" : "tr")}
-            >
-              {locale === "tr" ? "TR" : "EN"}
-            </button>
             <button type="button" onClick={toggleTheme}>
               {theme === "dark" ? dictionary.common.light : dictionary.common.dark}
             </button>

@@ -133,6 +133,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         return;
       }
 
+      if (selectedImages.length === 0) {
+        setErrorMessage("İlanı yayınlamak için ürünü net gösteren en az bir gerçek fotoğraf ekle.");
+        return;
+      }
+
       const body = await createListingRequest(apiBaseUrl, payload);
 
       if (!body.ok) {
@@ -289,9 +294,12 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         ) : null}
 
         <div className="form-actions form-actions-product">
-          <p className="form-note">Telefon, e-posta veya açık adres yazmana gerek yok.</p>
+          <p className="form-note">
+            Yayına alınacak ilanlarda en az bir onaylı ürün görseli gerekir; telefon, e-posta
+            veya açık adres yazmana gerek yok.
+          </p>
           <div className="form-button-row">
-            <Button type="submit" disabled={isSubmitting || !hasCategories}>
+            <Button type="submit" disabled={isSubmitting || !hasCategories || selectedImages.length === 0}>
               {isSubmitting ? "Kaydediliyor..." : "İlanı oluştur"}
             </Button>
           </div>

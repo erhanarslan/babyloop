@@ -287,29 +287,11 @@ function SecuritySection({ dictionary, title }: { dictionary: Dictionary; title:
       <div className="grid gap-3">
         <Link
           className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/password#password"
+          href="/account/password"
         >
-          <span className="text-base font-black text-foreground">{dictionary.accountProfile.securityAndPassword}</span>
+          <span className="text-base font-black text-foreground">Şifre değiştir</span>
           <span className="text-sm font-semibold leading-6 text-muted-foreground">
-            {dictionary.accountProfile.securityPasswordDescription}
-          </span>
-        </Link>
-        <Link
-          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/password#mfa"
-        >
-          <span className="text-base font-black text-foreground">OTP / MFA</span>
-          <span className="text-sm font-semibold leading-6 text-muted-foreground">
-            {dictionary.accountProfile.otpDescription}
-          </span>
-        </Link>
-        <Link
-          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/password#sessions"
-        >
-          <span className="text-base font-black text-foreground">Aktif cihazlar</span>
-          <span className="text-sm font-semibold leading-6 text-muted-foreground">
-            Açık web ve mobil oturumlarını gerçek session panelinde yönet.
+            Mevcut şifrenle yeni şifreni güvenli şekilde güncelle.
           </span>
         </Link>
       </div>

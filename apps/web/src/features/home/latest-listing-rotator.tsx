@@ -57,7 +57,7 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
       setHasError(false);
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/listings?limit=3&sort=newest`, {
+        const response = await fetch(`${apiBaseUrl}/api/v1/listings?limit=3&sort=newest&hasImages=true`, {
           cache: "no-store"
         });
         const body = (await response.json()) as { ok: boolean; data?: ListingsPayload };

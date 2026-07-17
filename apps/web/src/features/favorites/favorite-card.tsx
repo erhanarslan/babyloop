@@ -29,11 +29,11 @@ export function FavoriteCard({
   const { dictionary, locale } = useI18n();
   const categoryName = formatCategoryName(favorite.category, dictionary);
   const savedDate = `${formatDate(favorite.favoritedAt, locale)} tarihinde kaydedildi`;
-  const isPublic = favorite.status === "active" || favorite.status === "reserved";
   const imageUrl = getSafeFavoriteImageUrl(
     favorite.firstImage?.url ?? favorite.images?.[0]?.url ?? null,
     apiBaseUrl
   );
+  const isPublic = (favorite.status === "active" || favorite.status === "reserved") && Boolean(imageUrl);
 
   return (
     <article className="listing-card overflow-hidden">

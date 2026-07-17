@@ -773,31 +773,6 @@
     color: hsl(var(--primary));
   }
 
-  .market-language-switcher {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid hsl(var(--border));
-    border-radius: 999px;
-    background: hsl(var(--muted) / 0.55);
-    padding: 0.18rem;
-  }
-
-  .market-language-switcher button {
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: hsl(var(--muted-foreground));
-    font-size: 0.78rem;
-    font-weight: 900;
-    padding: 0.5rem 0.58rem;
-  }
-
-  .market-language-switcher button[aria-pressed="true"] {
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    box-shadow: 0 5px 14px rgba(56, 38, 24, 0.08);
-  }
-
   .market-icon-button {
     justify-content: center;
     width: 2.72rem;
@@ -1228,7 +1203,7 @@
 
   .mobile-market-preferences {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 0.55rem;
     padding-bottom: 1.25rem;
   }
@@ -1801,7 +1776,6 @@
     .market-header-search,
     .market-header-bottom,
     .market-location,
-    .market-language-switcher,
     .market-icon-button,
     .market-account,
     .market-header-actions .market-login-button {

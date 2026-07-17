@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 type BackofficeShellProps = {
@@ -6,92 +9,173 @@ type BackofficeShellProps = {
 };
 
 type NavigationItem =
-  | {
-      description: string;
-      href: string;
-      label: string;
-      status: "active";
-    }
-  | {
-      description: string;
-      label: string;
-      status: "planned";
-    };
+  {
+    description: string;
+    href: string;
+    label: string;
+  };
 
-const navigationItems: NavigationItem[] = [
+type NavigationGroup = {
+  items: NavigationItem[];
+  label: string;
+};
+
+const navigationGroups: NavigationGroup[] = [
   {
-    label: "Dashboard",
-    href: "/",
-    description: "Operational overview",
-    status: "active",
+    label: "Genel Bakış",
+    items: [
+      {
+        label: "Genel Bakış",
+        href: "/",
+        description: "Operasyon özeti"
+      }
+    ]
   },
   {
-    label: "Moderation",
-    href: "/moderation",
-    description: "Cases and reports",
-    status: "active",
+    label: "Pazaryeri",
+    items: [
+      {
+        label: "İlanlar",
+        href: "/listings",
+        description: "İlan ve görsel inceleme"
+      }
+    ]
   },
   {
-    label: "Listings",
-    href: "/listings",
-    description: "Listing operations",
-    status: "active",
+    label: "Moderasyon ve Güvenlik",
+    items: [
+      {
+        label: "Moderasyon Vakaları",
+        href: "/moderation",
+        description: "Vaka ve yaptırım akışı"
+      },
+      {
+        label: "Mesaj İncelemeleri",
+        href: "/conversations",
+        description: "Konuşma güvenliği"
+      },
+      {
+        label: "Audit Logları",
+        href: "/audit",
+        description: "Admin işlem geçmişi"
+      }
+    ]
   },
   {
-    label: "Analytics",
-    href: "/analytics",
-    description: "Product and engagement insights",
-    status: "active",
+    label: "Kullanıcılar",
+    items: [
+      {
+        label: "Profiller",
+        href: "/profiles",
+        description: "Profil risk dizini"
+      }
+    ]
   },
   {
-    label: "Profiles",
-    href: "/profiles",
-    description: "Profile risk directory",
-    status: "active",
+    label: "İletişim",
+    items: [
+      {
+        label: "Bildirim Operasyonları",
+        href: "/notifications",
+        description: "Push, in-app ve readiness"
+      },
+      {
+        label: "Email Operasyonları",
+        href: "/email",
+        description: "Provider ve test gönderimi"
+      }
+    ]
   },
   {
-    label: "Messages",
-    href: "/conversations",
-    description: "Conversation safety",
-    status: "active",
+    label: "Analitik",
+    items: [
+      {
+        label: "Genel Bakış",
+        href: "/analytics",
+        description: "Ürün ve etkileşim özeti"
+      },
+      {
+        label: "Kullanıcılar",
+        href: "/analytics/users",
+        description: "Aktif ve yeni kullanıcılar"
+      },
+      {
+        label: "Auth",
+        href: "/analytics/auth",
+        description: "Doğrulama ve giriş metrikleri"
+      },
+      {
+        label: "Etkileşim",
+        href: "/analytics/engagement",
+        description: "Sayfa ve ekran süreleri"
+      },
+      {
+        label: "Pazaryeri",
+        href: "/analytics/marketplace",
+        description: "İlan ve kategori dönüşümü"
+      },
+      {
+        label: "Mesajlaşma",
+        href: "/analytics/messaging",
+        description: "Sohbet kullanımı"
+      },
+      {
+        label: "Asistan",
+        href: "/analytics/assistant",
+        description: "RAG ve aksiyon metrikleri"
+      },
+      {
+        label: "Çocuk Özellikleri",
+        href: "/analytics/child",
+        description: "Profil ve hatırlatıcı kullanımı"
+      },
+      {
+        label: "Huniler",
+        href: "/analytics/funnels",
+        description: "Dönüşüm adımları"
+      },
+      {
+        label: "Veri Kalitesi",
+        href: "/analytics/data-quality",
+        description: "Event ve rollup sağlığı"
+      },
+      {
+        label: "Ürün Olayları",
+        href: "/product-analytics",
+        description: "Aggregate product event görünümü"
+      }
+    ]
   },
   {
-    label: "Reports",
-    description: "Report triage",
-    status: "planned",
+    label: "AI ve RAG",
+    items: [
+      {
+        label: "AI Operasyonları",
+        href: "/ai-ops",
+        description: "Provider ve run sağlığı"
+      },
+      {
+        label: "RAG Yönetimi",
+        href: "/rag",
+        description: "Retrieval ve index görünürlüğü"
+      }
+    ]
   },
   {
-    label: "Safety Events",
-    description: "Trust & safety signals",
-    status: "planned",
-  },
-  {
-    label: "Audit Logs",
-    href: "/audit",
-    description: "Admin action history",
-    status: "active",
-  },
-  {
-    label: "AI Tools",
-    href: "/ai-ops",
-    description: "AI-assisted operations",
-    status: "active",
-  },
-  {
-    label: "RAG",
-    href: "/rag",
-    description: "Knowledge base ops",
-    status: "active",
-  },
-  {
-    label: "Email Ops",
-    href: "/email",
-    description: "Provider, SMTP, test send",
-    status: "active",
-  },
+    label: "Sistem",
+    items: [
+      {
+        label: "Storage",
+        href: "/storage",
+        description: "DB, R2, Qdrant ve cache"
+      }
+    ]
+  }
 ];
 
 export function BackofficeShell({ children }: BackofficeShellProps) {
+  const pathname = usePathname();
+
   return (
     <div className="backoffice-shell">
       <aside className="backoffice-sidebar" aria-label="Backoffice navigation">
@@ -101,25 +185,28 @@ export function BackofficeShell({ children }: BackofficeShellProps) {
         </div>
 
         <nav className="sidebar-nav">
-          {navigationItems.map((item) => (
-            item.status === "active" ? (
-              <Link className="sidebar-link" href={item.href} key={item.label}>
-                <span>{item.label}</span>
-                <small>{item.description}</small>
-              </Link>
-            ) : (
-              <div
-                aria-disabled="true"
-                className="sidebar-link sidebar-link-disabled"
-                key={item.label}
-              >
-                <span>
-                  {item.label}
-                  <em>Planned</em>
-                </span>
-                <small>{item.description}</small>
-              </div>
-            )
+          {navigationGroups.map((group) => (
+            <section className="sidebar-nav-group" key={group.label}>
+              <p>{group.label}</p>
+              {group.items.map((item) => {
+                const isActive = item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                return (
+                  <Link
+                    aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
+                    className={isActive ? "sidebar-link sidebar-link-active" : "sidebar-link"}
+                    href={item.href}
+                    key={item.href}
+                  >
+                    <span>{item.label}</span>
+                    <small>{item.description}</small>
+                  </Link>
+                );
+              })}
+            </section>
           ))}
         </nav>
       </aside>
@@ -127,12 +214,12 @@ export function BackofficeShell({ children }: BackofficeShellProps) {
       <div className="backoffice-main-column">
         <header className="backoffice-topbar">
           <div>
-            <p className="topbar-eyebrow">Operations Console</p>
-            <strong>Moderation, trust & safety, support, audit, and AI tools</strong>
+            <p className="topbar-eyebrow">Operasyon Konsolu</p>
+            <strong>Pazaryeri, güvenlik, analitik, AI ve sistem operasyonları</strong>
           </div>
 
           <div className="topbar-status" aria-label="Backoffice status">
-            Foundation ready
+            Hazır
           </div>
         </header>
 

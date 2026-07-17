@@ -20,7 +20,6 @@ import {
   type AuthMe
 } from "../lib/auth-client";
 import { getApiBaseUrl } from "../lib/api";
-import { type Locale, locales } from "../lib/i18n/dictionaries";
 import { useI18n } from "../lib/i18n/i18n-provider";
 import { getRealtimeSocket } from "../lib/realtime-client";
 import { useTheme } from "../lib/theme/theme-provider";
@@ -57,7 +56,7 @@ export function SiteHeader() {
   const apiBaseUrl = getApiBaseUrl();
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement | null>(null);
-  const { dictionary, locale, setLocale } = useI18n();
+  const { dictionary } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const [currentAuth, setCurrentAuth] = useState<AuthMe | null>(null);
   const [headerNotifications, setHeaderNotifications] = useState<Notification[]>([]);
@@ -436,7 +435,6 @@ export function SiteHeader() {
             selectedCity={selectedCity}
             setSelectedCity={setSelectedCity}
           />
-          <LanguageSwitcher locale={locale} setLocale={setLocale} />
           <button className="market-icon-button" type="button" aria-label={dictionary.common.theme} onClick={toggleTheme}>
             {theme === "dark" ? "☀" : "◐"}
           </button>
@@ -509,7 +507,6 @@ export function SiteHeader() {
         currentAuth={currentAuth}
         dictionary={dictionary}
         isOpen={isDrawerOpen}
-        locale={locale}
         onClose={() => setIsDrawerOpen(false)}
         onLogin={() => {
           setIsDrawerOpen(false);
@@ -517,7 +514,6 @@ export function SiteHeader() {
         }}
         onLogout={handleLogout}
         selectedCity={selectedCity}
-        setLocale={setLocale}
         theme={theme}
         toggleTheme={toggleTheme}
       />
@@ -698,30 +694,6 @@ function HeaderNotificationsPopover({
       >
         {isMarkingAllRead ? dictionary.notifications.markingAllRead : dictionary.notifications.markAllRead}
       </button>
-    </div>
-  );
-}
-
-
-function LanguageSwitcher({
-  locale,
-  setLocale
-}: {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-}) {
-  return (
-    <div className="market-language-switcher" aria-label="Language">
-      {locales.map((item) => (
-        <button
-          aria-pressed={locale === item}
-          key={item}
-          type="button"
-          onClick={() => setLocale(item)}
-        >
-          {item.toUpperCase()}
-        </button>
-      ))}
     </div>
   );
 }

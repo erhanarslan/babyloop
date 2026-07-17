@@ -18,7 +18,7 @@ export function resolveBrowseFilters(
     listingType: readParam(searchParams?.listingType),
     priceMin: readParam(searchParams?.priceMin),
     priceMax: readParam(searchParams?.priceMax),
-    hasImages: readBooleanParam(searchParams?.hasImages),
+    hasImages: readBooleanParam(searchParams?.hasImages, "true"),
     sort: readParam(searchParams?.sort) || "newest",
     limit: Math.min(Math.max(limit, 1), 50),
     offset: Math.min(Math.max(offset, 0), 10000),
@@ -49,10 +49,18 @@ export function appendIfPresent(params: URLSearchParams, key: string, value: str
   }
 }
 
-function readBooleanParam(value: string | string[] | undefined): string {
+function readBooleanParam(value: string | string[] | undefined, fallback = ""): string {
   const normalized = readParam(value);
 
-  return normalized === "true" ? "true" : "";
+  if (normalized === "true") {
+    return "true";
+  }
+
+  if (normalized === "false") {
+    return "";
+  }
+
+  return fallback;
 }
 
 function readParam(value: string | string[] | undefined): string {

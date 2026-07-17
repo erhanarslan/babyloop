@@ -411,6 +411,7 @@ async function searchPublicListingsForAssistant(
     q: input.query,
     ...(input.categoryId ? { categoryId: input.categoryId } : {}),
     ...(condition ? { condition } : {}),
+    hasImages: true,
     limit: Math.min(Math.max(input.limit ?? 5, 1), 5),
     offset: 0,
     sort: "newest"

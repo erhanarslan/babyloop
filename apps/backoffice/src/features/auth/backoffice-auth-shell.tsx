@@ -87,9 +87,9 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
     return (
       <BackofficeShell>
         <section className="auth-state-card" aria-busy="true" aria-live="polite">
-          <p className="eyebrow">Backoffice access</p>
-          <h2>Checking access</h2>
-          <p>Validating your backoffice session and permissions.</p>
+          <p className="eyebrow">Backoffice erişimi</p>
+          <h2>Erişim kontrol ediliyor</h2>
+          <p>Backoffice oturumun ve yetkilerin doğrulanıyor.</p>
         </section>
       </BackofficeShell>
     );
@@ -99,11 +99,11 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
     return (
       <BackofficeShell>
         <section className="auth-state-card" role="status">
-          <p className="eyebrow">Backoffice access required</p>
-          <h2>Sign in required</h2>
-          <p>You need to sign in before accessing BabyLoop Backoffice.</p>
+          <p className="eyebrow">Backoffice erişimi gerekli</p>
+          <h2>Giriş gerekli</h2>
+          <p>BabyLoop Backoffice’e erişmeden önce giriş yapmalısın.</p>
           <Link className="primary-action" href="/login">
-            Sign in
+            Giriş yap
           </Link>
         </section>
       </BackofficeShell>
@@ -114,14 +114,14 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
     return (
       <BackofficeShell>
         <section className="auth-state-card" role="status">
-          <p className="eyebrow">Access denied</p>
-          <h2>You do not have backoffice access</h2>
+          <p className="eyebrow">Erişim reddedildi</p>
+          <h2>Backoffice erişimin yok</h2>
           <p>
-            Current role: <strong>{authState.auth.user.role}</strong>
+            Mevcut rol: <strong>{authState.auth.user.role}</strong>
           </p>
           <p>
-            Backoffice access is restricted to admin/backoffice roles. Backend
-            authorization remains the security boundary.
+            Backoffice erişimi yalnız admin/backoffice rolleriyle sınırlıdır.
+            Güvenlik sınırı backend yetkilendirmesidir.
           </p>
         </section>
       </BackofficeShell>
@@ -132,15 +132,15 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
     return (
       <BackofficeShell>
         <section className="auth-state-card" role="alert">
-          <p className="eyebrow">Backoffice access</p>
-          <h2>Access check failed</h2>
-          <p>Could not verify your backoffice session. Try again.</p>
+          <p className="eyebrow">Backoffice erişimi</p>
+          <h2>Erişim kontrolü başarısız</h2>
+          <p>Backoffice oturumun doğrulanamadı. Tekrar dene.</p>
           <button
             className="primary-action"
             type="button"
             onClick={() => void checkAccess()}
           >
-            Retry
+            Tekrar dene
           </button>
         </section>
       </BackofficeShell>

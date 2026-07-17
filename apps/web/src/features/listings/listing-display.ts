@@ -39,7 +39,25 @@ export function formatListingPrice(price: ListingPrice, dictionary: Dictionary):
     return dictionary.common.priceOnRequest;
   }
 
-  return `${price.amount} ${price.currency}`;
+  const amount = Number(price.amount);
+
+  if (!Number.isFinite(amount)) {
+    return `${price.amount} ${price.currency}`.trim();
+  }
+
+  try {
+    return new Intl.NumberFormat("tr-TR", {
+      currency: price.currency || "TRY",
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+      minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+      style: "currency"
+    }).format(amount);
+  } catch {
+    return `${new Intl.NumberFormat("tr-TR", {
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+      minimumFractionDigits: amount % 1 === 0 ? 0 : 2
+    }).format(amount)} ${price.currency}`.trim();
+  }
 }
 
 export function formatDateTime(value: string, locale: Locale): string {

@@ -33,7 +33,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
 
       if (!response.ok) {
         setConversation(null);
-        setErrorMessage(getApiErrorMessage(response, "Could not load conversation."));
+        setErrorMessage(getApiErrorMessage(response, "Konuşma yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -50,7 +50,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
   }, [conversationId]);
 
   if (isLoading) {
-    return <div className="state-panel">Loading conversation...</div>;
+    return <div className="state-panel">Konuşma yükleniyor...</div>;
   }
 
   if (errorMessage) {
@@ -62,58 +62,58 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
   }
 
   if (!conversation) {
-    return <div className="state-panel">Conversation was not found.</div>;
+    return <div className="state-panel">Konuşma bulunamadı.</div>;
   }
 
   return (
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Message Review</p>
+          <p className="eyebrow">Mesaj inceleme</p>
           <h2>{conversation.participants.map((item) => item.displayName).join(" ↔ ")}</h2>
           <p>
-            Redacted conversation review. Raw message body, reporter identity, email, and contact
-            data are intentionally excluded from this view.
+            Redacted konuşma incelemesi. Ham mesaj gövdesi, raporlayan kimliği, e-posta ve iletişim
+            verileri bu görünümde özellikle yer almaz.
           </p>
         </div>
         <Link className="secondary-action" href="/conversations">
-          Back to messages
+          Mesajlara dön
         </Link>
       </div>
 
       <div className="profile-detail-layout">
         <article className="profile-detail-card">
-          <h3>Conversation summary</h3>
+          <h3>Konuşma özeti</h3>
           <dl className="details-grid">
             <div>
-              <dt>Conversation id</dt>
+              <dt>Konuşma ID</dt>
               <dd>{conversation.conversationId}</dd>
             </div>
             <div>
-              <dt>Status</dt>
+              <dt>Durum</dt>
               <dd>{conversation.status}</dd>
             </div>
             <div>
-              <dt>Message count</dt>
+              <dt>Mesaj sayısı</dt>
               <dd>{conversation.messageCount}</dd>
             </div>
             <div>
-              <dt>Reported messages</dt>
+              <dt>Raporlanan mesaj</dt>
               <dd>{conversation.reportedMessageCount}</dd>
             </div>
             <div>
-              <dt>Open cases</dt>
+              <dt>Açık vaka</dt>
               <dd>{conversation.openCaseCount}</dd>
             </div>
             <div>
-              <dt>Enforcements</dt>
+              <dt>Yaptırım</dt>
               <dd>{conversation.enforcementCount}</dd>
             </div>
           </dl>
         </article>
 
         <article className="profile-detail-card">
-          <h3>Participants</h3>
+          <h3>Katılımcılar</h3>
           <div className="table-list">
             {conversation.participants.map((participant) => (
               <div className="table-list-row" key={participant.profileId}>
@@ -130,31 +130,31 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
         </article>
 
         <article className="profile-detail-card">
-          <h3>Listing context</h3>
+          <h3>İlan bağlamı</h3>
           {conversation.contextListing ? (
             <dl className="details-grid">
               <div>
-                <dt>Listing</dt>
+                <dt>İlan</dt>
                 <dd>{conversation.contextListing.title}</dd>
               </div>
               <div>
-                <dt>Status</dt>
+                <dt>Durum</dt>
                 <dd>{conversation.contextListing.status}</dd>
               </div>
               <div>
-                <dt>Listing id</dt>
+                <dt>İlan ID</dt>
                 <dd>{conversation.contextListing.listingId}</dd>
               </div>
             </dl>
           ) : (
-            <p className="muted">No listing context is attached.</p>
+            <p className="muted">Bu konuşmaya bağlı ilan bağlamı yok.</p>
           )}
         </article>
 
         <article className="profile-detail-card wide">
-          <h3>Redacted messages</h3>
+          <h3>Redacted mesajlar</h3>
           {conversation.messages.length === 0 ? (
-            <div className="state-panel">No messages found.</div>
+            <div className="state-panel">Mesaj bulunamadı.</div>
           ) : (
             <div className="table-list">
               {conversation.messages.map((message) => (
@@ -168,10 +168,10 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                   </div>
                   <div className="side-stack">
                     <span className={`status-badge ${message.isHidden ? "archived" : "active"}`}>
-                      {message.isHidden ? "hidden" : "visible"}
+                      {message.isHidden ? "Gizli" : "Görünür"}
                     </span>
                     <small className="muted">
-                      reports {message.reportCount} · open {message.openCaseCount} · actions {message.enforcementCount}
+                      rapor {message.reportCount} · açık vaka {message.openCaseCount} · işlem {message.enforcementCount}
                     </small>
                   </div>
                 </div>
@@ -181,9 +181,9 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
         </article>
 
         <article className="profile-detail-card wide">
-          <h3>Related moderation cases</h3>
+          <h3>İlişkili moderasyon vakaları</h3>
           {conversation.relatedModerationCases.length === 0 ? (
-            <div className="state-panel">No message cases are linked to this conversation.</div>
+            <div className="state-panel">Bu konuşmaya bağlı mesaj vakası yok.</div>
           ) : (
             <div className="table-list">
               {conversation.relatedModerationCases.map((item) => (
@@ -191,7 +191,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                   <div>
                     <Link href={`/moderation/${item.caseId}`}>{item.caseId}</Link>
                     <p className="muted">
-                      {item.reason ?? "No reason"} · message {item.targetId}
+                      {item.reason ?? "Gerekçe yok"} · mesaj {item.targetId}
                     </p>
                   </div>
                   <span className={`status-badge ${item.status}`}>{item.status}</span>
@@ -202,9 +202,9 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
         </article>
 
         <article className="profile-detail-card wide">
-          <h3>Message enforcement history</h3>
+          <h3>Mesaj yaptırım geçmişi</h3>
           {conversation.enforcementHistory.length === 0 ? (
-            <div className="state-panel">No message enforcement actions are linked yet.</div>
+            <div className="state-panel">Henüz bağlı mesaj yaptırımı yok.</div>
           ) : (
             <div className="table-list">
               {conversation.enforcementHistory.map((item) => (
@@ -212,10 +212,10 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                   <div>
                     <strong>{item.actionType}</strong>
                     <p className="muted">
-                      {item.messageId ?? "unknown message"} · {formatDate(item.createdAt)}
+                      {item.messageId ?? "bilinmeyen mesaj"} · {formatDate(item.createdAt)}
                     </p>
                   </div>
-                  {item.caseId ? <Link href={`/moderation/${item.caseId}`}>Open case</Link> : null}
+                  {item.caseId ? <Link href={`/moderation/${item.caseId}`}>Vakayı aç</Link> : null}
                 </div>
               ))}
             </div>

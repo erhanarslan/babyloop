@@ -1,3 +1,4 @@
+import { BackofficeAuthShell } from "../../features/auth/backoffice-auth-shell";
 import { StorageOpsPage } from "../../features/storage/storage-ops-page";
 
 export const metadata = {
@@ -7,5 +8,9 @@ export const metadata = {
 export default function StoragePage() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
-  return <StorageOpsPage apiBaseUrl={apiBaseUrl} />;
+  return (
+    <BackofficeAuthShell>
+      <StorageOpsPage apiBaseUrl={apiBaseUrl} />
+    </BackofficeAuthShell>
+  );
 }

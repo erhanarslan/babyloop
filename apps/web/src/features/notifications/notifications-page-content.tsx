@@ -41,6 +41,8 @@ type NotificationsPageContentProps = {
   apiBaseUrl: string;
 };
 
+const NOTIFICATION_PAGE_SIZE = 5;
+
 export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageContentProps) {
   const { dictionary, locale } = useI18n();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -49,12 +51,14 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [visibleNotificationCount, setVisibleNotificationCount] = useState(NOTIFICATION_PAGE_SIZE);
   const clearProtectedState = useCallback(() => {
     setNotifications([]);
     setUnreadCount(0);
     setMessage(null);
     setActionMessage(null);
     setIsLoading(false);
+    setVisibleNotificationCount(NOTIFICATION_PAGE_SIZE);
   }, []);
   const { isCheckingAuth, requireAuth } = useProtectedRoute({
     apiBaseUrl,
@@ -78,6 +82,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
       const nextUnreadCount = nextNotifications.filter((notification) => !notification.readAt).length;
 
       setNotifications(nextNotifications);
+      setVisibleNotificationCount(NOTIFICATION_PAGE_SIZE);
       setUnreadCount(nextUnreadCount);
       dispatchNotificationUnreadCountUpdated(nextUnreadCount);
       setMessage(null);
@@ -112,6 +117,7 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
           ...currentNotifications.filter((notification) => notification.id !== payload.notification.id)
         ])
       );
+      setVisibleNotificationCount((currentCount) => Math.max(currentCount, NOTIFICATION_PAGE_SIZE));
       setUnreadCount(payload.unreadCount);
       dispatchNotificationUnreadCountUpdated(payload.unreadCount);
     }
@@ -160,7 +166,10 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
   }, [apiBaseUrl, isCheckingAuth, isLoading, loadNotifications, message]);
 
   const summary = useMemo(() => buildNotificationSummary(notifications), [notifications]);
-  const recentNotifications = useMemo(() => notifications.slice(0, 20), [notifications]);
+  const recentNotifications = useMemo(
+    () => notifications.slice(0, visibleNotificationCount),
+    [notifications, visibleNotificationCount]
+  );
   const favoriteTotal = summary.favoriteAggregates.reduce(
     (total, item) => total + item.totalCount,
     0
@@ -263,18 +272,33 @@ export function NotificationsPageContent({ apiBaseUrl }: NotificationsPageConten
           <section className={styles.recentList} aria-label={dictionary.notificationsArchive.recentLabel}>
             <h2>{dictionary.notificationsArchive.recentTitle}</h2>
             {recentNotifications.length > 0 ? (
-              <ol>
-                {recentNotifications.map((notification) => (
-                  <NotificationArchiveItem
-                    key={notification.id}
-                    locale={locale}
-                    notification={notification}
-                    readLabel={dictionary.notifications.read}
-                    unreadLabel={dictionary.notificationsArchive.unread}
-                    openLabel={dictionary.notificationsArchive.open}
-                  />
-                ))}
-              </ol>
+              <>
+                <ol>
+                  {recentNotifications.map((notification) => (
+                    <NotificationArchiveItem
+                      key={notification.id}
+                      locale={locale}
+                      notification={notification}
+                      readLabel={dictionary.notifications.read}
+                      unreadLabel={dictionary.notificationsArchive.unread}
+                      openLabel={dictionary.notificationsArchive.open}
+                    />
+                  ))}
+                </ol>
+                {visibleNotificationCount < notifications.length ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setVisibleNotificationCount((currentCount) =>
+                        Math.min(currentCount + NOTIFICATION_PAGE_SIZE, notifications.length)
+                      )
+                    }
+                  >
+                    Daha fazlasını göster
+                  </Button>
+                ) : null}
+              </>
             ) : (
               <EmptyState
                 title={dictionary.notificationsArchive.noNotificationsTitle}

@@ -49,12 +49,10 @@ function renderDrawer({
       currentAuth={currentAuth}
       dictionary={dictionary}
       isOpen={isOpen}
-      locale="tr"
       onClose={onClose}
       onLogin={onLogin}
       onLogout={onLogout}
       selectedCity="istanbul"
-      setLocale={vi.fn()}
       theme="light"
       toggleTheme={vi.fn()}
     />
@@ -72,6 +70,8 @@ describe("MobileNavigationDrawer", () => {
     renderDrawer();
 
     expect(screen.getAllByText(dictionary.common.login).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "TR" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "EN" })).not.toBeInTheDocument();
     expect(screen.queryByText(dictionary.publicShell.accountMenu.logout)).not.toBeInTheDocument();
   });
 

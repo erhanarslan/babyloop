@@ -37,7 +37,7 @@ export function AnalyticsDashboard() {
       if (!overviewResponse.ok) {
         setOverview(null);
         setPages([]);
-        setErrorMessage(getApiErrorMessage(overviewResponse, "Could not load analytics."));
+        setErrorMessage(getApiErrorMessage(overviewResponse, "Analytics verisi yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -58,16 +58,16 @@ export function AnalyticsDashboard() {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Analytics</p>
+          <p className="eyebrow">Analitik</p>
           <h2>Genel Bakış</h2>
           <p>
-            Aggregate first-party product analytics. Raw messages, assistant prompts, child note
-            text, tokens, cookies, exact IP and raw query strings are not shown.
+            First-party product analytics yalnızca aggregate görünürlük sağlar. Mesaj metni,
+            asistan prompt’u, çocuk notu, token, cookie, exact IP ve raw query string gösterilmez.
           </p>
         </div>
       </div>
 
-      {isLoading ? <div className="state-panel">Loading analytics...</div> : null}
+      {isLoading ? <div className="state-panel">Analytics verisi yükleniyor...</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -77,7 +77,7 @@ export function AnalyticsDashboard() {
 
       {overview ? (
         <>
-          <nav className="module-grid" aria-label="Analytics sections">
+          <nav className="module-grid" aria-label="Analytics bölümleri">
             {analyticsSectionLinks.map(({ href, label }) => (
               <Link className="module-card dashboard-module-card" href={href} key={href}>
                 <h3>{label}</h3>
@@ -85,7 +85,7 @@ export function AnalyticsDashboard() {
             ))}
           </nav>
 
-          <section className="summary-grid dashboard-summary-grid" aria-label="Analytics overview">
+          <section className="summary-grid dashboard-summary-grid" aria-label="Analytics genel bakış">
             {buildAnalyticsOverviewKpis(overview).map((card) => (
               <div className="summary-card" key={card.label}>
                 <span>{card.label}</span>
@@ -94,37 +94,37 @@ export function AnalyticsDashboard() {
             ))}
           </section>
 
-          <section className="module-grid" aria-label="Analytics breakdowns">
+          <section className="module-grid" aria-label="Analytics kırılımları">
             <article className="module-card dashboard-module-card">
-              <h3>Data freshness</h3>
+              <h3>Veri tazeliği</h3>
               <dl className="compact-details">
                 <div>
-                  <dt>Last rollup</dt>
-                  <dd>{overview.lastRollupAt ? new Date(overview.lastRollupAt).toLocaleString("tr-TR") : "Not available"}</dd>
+                  <dt>Son rollup</dt>
+                  <dd>{overview.lastRollupAt ? new Date(overview.lastRollupAt).toLocaleString("tr-TR") : "Henüz yok"}</dd>
                 </div>
                 <div>
-                  <dt>Timezone</dt>
-                  <dd>Europe/Istanbul display, UTC storage</dd>
+                  <dt>Zaman dilimi</dt>
+                  <dd>Europe/Istanbul gösterim, UTC saklama</dd>
                 </div>
               </dl>
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Pages and screens</h3>
+              <h3>Sayfalar ve ekranlar</h3>
               <div className="table-list">
                 {pages.length === 0 ? (
-                  <div className="state-panel">No page or screen aggregate data yet.</div>
+                  <div className="state-panel">Henüz sayfa veya ekran aggregate verisi yok.</div>
                 ) : (
                   pages.map((page) => (
                     <div className="table-list-row" key={`${page.platform}-${page.surface}`}>
                       <div>
                         <strong>{page.surface}</strong>
                         <p className="muted">
-                          {page.platform} · {page.views} views · {page.uniqueUsers} users
+                          {page.platform} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı
                         </p>
                       </div>
                       <small className="muted">
-                        avg {formatDuration(page.averageEngagementMs)} · p90 {formatDuration(page.p90EngagementMs)}
+                        ort. {formatDuration(page.averageEngagementMs)} · p90 {formatDuration(page.p90EngagementMs)}
                       </small>
                     </div>
                   ))
@@ -142,9 +142,9 @@ const analyticsSectionLinks: Array<{ href: string; label: string }> = [
   { href: "/analytics/users", label: "Kullanıcılar" },
   { href: "/analytics/auth", label: "Auth & Doğrulama" },
   { href: "/analytics/engagement", label: "Etkileşim" },
-  { href: "/analytics/marketplace", label: "Marketplace" },
+  { href: "/analytics/marketplace", label: "Pazaryeri" },
   { href: "/analytics/messaging", label: "Mesajlaşma" },
-  { href: "/analytics/assistant", label: "Assistant & RAG" },
+  { href: "/analytics/assistant", label: "Asistan & RAG" },
   { href: "/analytics/child", label: "Çocuk & Hatırlatıcılar" },
   { href: "/analytics/funnels", label: "Dönüşüm Hunileri" },
   { href: "/analytics/data-quality", label: "Veri Kalitesi" }

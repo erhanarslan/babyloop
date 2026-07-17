@@ -20,14 +20,11 @@ type SellerDashboardPageContentProps = {
   apiBaseUrl: string;
 };
 
-type SellerSection = "summary" | "performance" | "messages" | "favorites" | "settings";
+type SellerSection = "summary" | "performance";
 
 const sellerSections: Array<{ id: SellerSection; label: string }> = [
   { id: "summary", label: "Özet" },
-  { id: "performance", label: "İlan performansı" },
-  { id: "messages", label: "Mesajlar" },
-  { id: "favorites", label: "Favoriler" },
-  { id: "settings", label: "Ayarlar" }
+  { id: "performance", label: "İlan performansı" }
 ];
 
 export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageContentProps) {
@@ -131,9 +128,6 @@ export function SellerDashboardPageContent({ apiBaseUrl }: SellerDashboardPageCo
           {summary && activeSection === "performance" ? (
             <PerformancePanel listings={sortedListings} />
           ) : null}
-          {summary && activeSection === "messages" ? <SimpleLinkPanel href="/conversations" title="Mesajlar" body="Alıcı sorularını mesajlar sayfasında takip et." action="Mesajlara git" /> : null}
-          {summary && activeSection === "favorites" ? <FavoritesPanel summary={summary} /> : null}
-          {summary && activeSection === "settings" ? <SimpleLinkPanel href="/my-listings" title="Ayarlar" body="İlan durumu ve görünürlüğünü İlanlarım sayfasından yönet." action="İlanlarımı aç" /> : null}
         </div>
       </section>
     </PageContainer>
@@ -144,7 +138,7 @@ function SummaryPanel({ summary }: { summary: SellerDashboardSummary }) {
   return (
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Satıcı özeti">
       <MetricCard label="Aktif ilan" value={summary.totals.activeListings} />
-      <MetricCard label="Gelen mesaj" value={summary.totals.contactSellerIntents} />
+      <MetricCard label="İletişim talebi" value={summary.totals.contactSellerIntents} />
       <MetricCard label="Toplam favori" value={summary.totals.totalFavorites} />
       <MetricCard label="Satıldı / rezerve" value={summary.totals.soldListings + summary.totals.reservedListings} />
     </section>
@@ -184,7 +178,7 @@ function PerformancePanel({
             <MetricFact label="Favori" value={listing.favoriteCount} />
             <MetricFact label="Detay görüntüleme" value={listing.detailViews} />
             <MetricFact label="Tıklama" value={listing.listingClicks} />
-            <MetricFact label="Mesaj niyeti" value={listing.contactSellerIntents} />
+            <MetricFact label="İletişim talebi" value={listing.contactSellerIntents} />
           </dl>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link className="inline-flex rounded-full border border-border px-3 py-1.5 text-sm font-black text-foreground" href="/my-listings">
@@ -196,39 +190,6 @@ function PerformancePanel({
           </div>
         </article>
       ))}
-    </section>
-  );
-}
-
-function FavoritesPanel({ summary }: { summary: SellerDashboardSummary }) {
-  return (
-    <SimpleLinkPanel
-      action="Favorileri aç"
-      body={`İlanların toplam ${summary.totals.totalFavorites} kez favorilere eklendi.`}
-      href="/favorites"
-      title="Favoriler"
-    />
-  );
-}
-
-function SimpleLinkPanel({
-  action,
-  body,
-  href,
-  title
-}: {
-  action: string;
-  body: string;
-  href: string;
-  title: string;
-}) {
-  return (
-    <section className="rounded-[1.25rem] border border-border/70 bg-background p-4">
-      <h2 className="text-xl font-black text-foreground">{title}</h2>
-      <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">{body}</p>
-      <Link className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-black text-primary-foreground" href={href}>
-        {action}
-      </Link>
     </section>
   );
 }

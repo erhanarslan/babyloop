@@ -85,7 +85,7 @@ describe("SearchOverlay", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        "http://api.test/api/v1/listings?limit=5&offset=0&sort=newest&q=puset",
+        "http://api.test/api/v1/listings?limit=5&offset=0&sort=newest&q=puset&hasImages=true",
         expect.objectContaining({ cache: "no-store" })
       );
     });

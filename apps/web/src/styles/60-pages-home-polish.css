@@ -611,7 +611,7 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background-color: #fffaf4;
-  background-image: url("/brand/home/babyloop-bg-organic-light.png");
+  background-image: url("/brand/babyloop-bg-page-light.png");
   background-repeat: repeat;
   background-size: 836px 93px;
   background-position: top center;
@@ -640,7 +640,7 @@ body::after {
 
 .dark body::before {
   background-color: #1e1712;
-  background-image: url("/brand/home/babyloop-bg-organic-dark.png");
+  background-image: url("/brand/babyloop-bg-page-dark.png");
   background-repeat: repeat;
   background-size: 836px 93px;
   background-position: top center;
@@ -689,7 +689,7 @@ body::after {
   background-color: #fffaf4;
   background-image:
     linear-gradient(180deg, rgba(255, 250, 244, 0.18), rgba(255, 250, 244, 0.34)),
-    url("/brand/home/babyloop-bg-organic-light.png");
+    url("/brand/babyloop-bg-page-light.png");
   background-repeat: repeat;
   background-size: auto, 836px 93px;
   background-position: center top;
@@ -699,7 +699,7 @@ body::after {
   background-color: #1e1712;
   background-image:
     linear-gradient(180deg, rgba(30, 23, 18, 0.30), rgba(30, 23, 18, 0.50)),
-    url("/brand/home/babyloop-bg-organic-dark.png");
+    url("/brand/babyloop-bg-page-dark.png");
   background-repeat: repeat;
   background-size: auto, 836px 93px;
   background-position: center top;
@@ -751,7 +751,7 @@ body::after {
   background-color: #fffaf4 !important;
   background-image:
     linear-gradient(180deg, rgba(255, 250, 244, 0.06), rgba(255, 250, 244, 0.14)),
-    url("/brand/home/babyloop-bg-organic-light.png") !important;
+    url("/brand/babyloop-bg-page-light.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 836px 93px !important;
   background-position: top center !important;
@@ -762,7 +762,7 @@ body::after {
   background-color: #1e1712 !important;
   background-image:
     linear-gradient(180deg, rgba(30, 23, 18, 0.18), rgba(30, 23, 18, 0.30)),
-    url("/brand/home/babyloop-bg-organic-dark.png") !important;
+    url("/brand/babyloop-bg-page-dark.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 836px 93px !important;
   background-position: top center !important;
@@ -825,7 +825,7 @@ body::after {
   background-color: #fffaf4 !important;
   background-image:
     linear-gradient(180deg, rgba(255, 250, 244, 0.04), rgba(255, 250, 244, 0.12)),
-    url("/brand/home/babyloop-bg-organic-light.png") !important;
+    url("/brand/babyloop-bg-page-light.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 1320px 990px !important;
   background-position: top center !important;
@@ -836,7 +836,7 @@ body::after {
   background-color: #1e1712 !important;
   background-image:
     linear-gradient(180deg, rgba(30, 23, 18, 0.16), rgba(30, 23, 18, 0.26)),
-    url("/brand/home/babyloop-bg-organic-dark.png") !important;
+    url("/brand/babyloop-bg-page-dark.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 1320px 990px !important;
   background-position: top center !important;
@@ -1084,7 +1084,7 @@ body::after {
   background-color: #fbf6ef !important;
   background-image:
     linear-gradient(180deg, rgba(255, 250, 244, 0.345), rgba(255, 250, 244, 0.085)),
-    url("/brand/home/babyloop-bg-organic-light.png") !important;
+    url("/brand/babyloop-bg-page-light.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 1480px 1110px !important;
   background-position: center top !important;
@@ -1095,7 +1095,7 @@ body::after {
   background-color: #1f1814 !important;
   background-image:
     linear-gradient(180deg, rgba(31, 24, 20, 0.08), rgba(31, 24, 20, 0.16)),
-    url("/brand/home/babyloop-bg-organic-dark.png") !important;
+    url("/brand/babyloop-bg-page-dark.png") !important;
   background-repeat: repeat !important;
   background-size: auto, 1480px 1110px !important;
   background-position: center top !important;
@@ -1241,8 +1241,8 @@ body::after {
 .app-shell {
   background-color: #fbf2e6 !important;
   background-image:
-    url("/brand/home/babyloop-bg-organic-light.png"),
-    url("/brand/home/babyloop-bg-organic-light.png") !important;
+    url("/brand/babyloop-bg-page-light.png"),
+    url("/brand/babyloop-bg-page-light.png") !important;
   background-repeat: repeat, repeat !important;
   background-size: 1180px 885px, 1180px 885px !important;
   background-position:
@@ -1255,8 +1255,8 @@ body::after {
 .dark .app-shell {
   background-color: #1f1814 !important;
   background-image:
-    url("/brand/home/babyloop-bg-organic-dark.png"),
-    url("/brand/home/babyloop-bg-organic-dark.png") !important;
+    url("/brand/babyloop-bg-page-dark.png"),
+    url("/brand/babyloop-bg-page-dark.png") !important;
   background-repeat: repeat, repeat !important;
   background-size: 1180px 885px, 1180px 885px !important;
   background-position:

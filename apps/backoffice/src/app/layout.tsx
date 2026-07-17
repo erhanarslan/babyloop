@@ -10,7 +10,7 @@ import "../styles/40-admin-pages.css";
 
 export const metadata: Metadata = {
   title: "BabyLoop Backoffice",
-  description: "Dedicated BabyLoop backoffice application.",
+  description: "BabyLoop operasyon ve yönetim konsolu.",
 };
 
 type RootLayoutProps = Readonly<{
@@ -19,7 +19,7 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <body>{children}</body>
     </html>
   );

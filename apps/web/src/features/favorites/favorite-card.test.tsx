@@ -64,8 +64,18 @@ function createFavorite(overrides: Partial<FavoriteListing> = {}): FavoriteListi
       name: "Bebek Arabası",
       slug: "bebek-arabasi"
     },
-    firstImage: null,
-    images: [],
+    firstImage: {
+      id: "40000000-0000-4000-8000-000000000001",
+      url: "/uploads/listings/stroller.jpg",
+      sortOrder: 0
+    },
+    images: [
+      {
+        id: "40000000-0000-4000-8000-000000000001",
+        url: "/uploads/listings/stroller.jpg",
+        sortOrder: 0
+      }
+    ],
     favoritedAt: "2026-06-25T12:00:00.000Z",
     ...overrides
   };
@@ -143,11 +153,13 @@ describe("FavoriteCard", () => {
   });
 
   it("renders the category placeholder when the favorite has no image", () => {
-    const { container } = renderFavoriteCard(createFavorite());
+    const { container } = renderFavoriteCard(createFavorite({ firstImage: null, images: [] }));
 
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText("B")).toBeInTheDocument();
     expect(screen.getByText("Travel sistem bebek arabası")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Detayı görüntüle" })).not.toBeInTheDocument();
+    expect(screen.getByText("Yayında değil")).toBeInTheDocument();
   });
 
   it("ignores unsafe non-url image values and falls back to the placeholder", () => {

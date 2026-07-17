@@ -5,13 +5,15 @@ describe("admin email schemas", () => {
   it("normalizes valid admin test-send body", () => {
     const parsed = adminEmailTestSendBodySchema.parse({
       to: "  ADMIN@EXAMPLE.TEST ",
-      note: " SMTP smoke test "
+      note: " SMTP smoke test ",
+      confirmation: "SEND_TEST_EMAIL"
     });
 
     expect(parsed).toEqual({
       to: "admin@example.test",
       intent: "security_alert",
-      note: "SMTP smoke test"
+      note: "SMTP smoke test",
+      confirmation: "SEND_TEST_EMAIL"
     });
   });
 
@@ -19,9 +21,19 @@ describe("admin email schemas", () => {
     expect(
       adminEmailTestSendBodySchema.parse({
         to: "admin@example.test",
-        intent: "password_reset"
+        intent: "password_reset",
+        confirmation: "SEND_TEST_EMAIL"
       }).intent
     ).toBe("password_reset");
+  });
+
+  it("requires explicit confirmation for test-send", () => {
+    expect(() =>
+      adminEmailTestSendBodySchema.parse({
+        to: "admin@example.test",
+        intent: "security_alert"
+      })
+    ).toThrow();
   });
 
   it("rejects invalid test-send body", () => {

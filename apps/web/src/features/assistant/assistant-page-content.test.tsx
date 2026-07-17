@@ -23,4 +23,10 @@ describe("AssistantPageContent", () => {
     expect(source).toContain("requestIdRef");
     expect(source).toContain("if (requestId !== requestIdRef.current)");
   });
+
+  it("does not show the internal abuse limit as a visible character counter", () => {
+    expect(source).not.toContain("inputValue.length");
+    expect(source).not.toContain("/1000");
+    expect(source).not.toContain("maxLength={1000}");
+  });
 });

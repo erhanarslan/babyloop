@@ -10,6 +10,7 @@ describe("browse routing", () => {
   it("uses safe defaults for empty params", () => {
     expect(resolveBrowseFilters(undefined)).toMatchObject({
       q: "",
+      hasImages: "true",
       sort: "newest",
       limit: DEFAULT_LISTINGS_LIMIT,
       offset: 0
@@ -54,6 +55,7 @@ describe("browse routing", () => {
     const path = buildListingsPath(filters);
 
     expect(path).toContain("q=oto+koltu%C4%9Fu");
+    expect(path).toContain("hasImages=true");
     expect(path).toContain("sort=newest");
     expect(path).not.toContain("internalUserId");
     expect(path).not.toContain("user-secret");

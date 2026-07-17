@@ -89,7 +89,8 @@ describe("admin email ops service", () => {
       {
         to: "admin@example.test",
         intent: "security_alert",
-        note: "  smoke   test \n note  "
+        note: "  smoke   test \n note  ",
+        confirmation: "SEND_TEST_EMAIL"
       },
       {
         sendDraft: async (draft) => {
@@ -133,7 +134,8 @@ describe("admin email ops service", () => {
       app,
       {
         to: "admin@example.test",
-        intent: "email_verification"
+        intent: "email_verification",
+        confirmation: "SEND_TEST_EMAIL"
       },
       {
         sendDraft: async () => ({

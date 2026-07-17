@@ -160,7 +160,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         setData(payload.data);
       } catch {
         if (isMounted) {
-          setErrorMessage("Notification ops preview yüklenemedi.");
+          setErrorMessage("Bildirim operasyon durumu yüklenemedi.");
           setData(null);
         }
       } finally {
@@ -178,14 +178,14 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   }, [apiBaseUrl]);
 
   if (isLoading) {
-    return <main className="mx-auto max-w-6xl p-8">Notification ops preview yükleniyor...</main>;
+    return <div className="dashboard-page"><div className="state-panel">Bildirim operasyon durumu yükleniyor...</div></div>;
   }
 
   if (errorMessage) {
     return (
-      <main className="mx-auto max-w-6xl p-8">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">{errorMessage}</div>
-      </main>
+      <div className="dashboard-page">
+        <div className="state-panel danger">{errorMessage}</div>
+      </div>
     );
   }
 
@@ -196,33 +196,33 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const deliveryLogPreview = data.deliveryLogPreview;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-8">
+    <div className="dashboard-page">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Notification operations</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-950">Notification Ops Preview</h1>
+        <p className="eyebrow">Bildirim Operasyonları</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-950">Bildirim gönderim sağlığı</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
           {data.warning} Delivery log önizlemesi aggregate ve redacted çalışır; gerçek provider gönderimleri ayrı processor ve env gate’leri üzerinden yürütülür.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <PolicyPill label="Status" value={data.summary.draftOnly ? "Draft-only" : data.summary.status} />
-          <PolicyPill label="Send enabled" value={data.deliveryPolicy.sendEnabled ? "Açık" : "Kapalı"} />
-          <PolicyPill label="Dedup required" value={data.deliveryPolicy.dedupRequired ? "Gerekli" : "Kapalı"} />
+          <PolicyPill label="Durum" value={data.summary.draftOnly ? "Taslak mod" : data.summary.status} />
+          <PolicyPill label="Gönderim" value={data.deliveryPolicy.sendEnabled ? "Açık" : "Kapalı"} />
+          <PolicyPill label="Dedup" value={data.deliveryPolicy.dedupRequired ? "Gerekli" : "Kapalı"} />
           <PolicyPill
-            label="Frequency limit"
+            label="Frekans limiti"
             value={data.deliveryPolicy.frequencyLimitRequired ? "Gerekli" : "Kapalı"}
           />
           {data.preferenceSummary ? (
             <>
-              <PolicyPill label="Preference sources" value={String(data.preferenceSummary.supportedSources.length)} />
-              <PolicyPill label="Draft-only channels" value={data.preferenceSummary.draftOnlyChannels.join(", ")} />
+              <PolicyPill label="Preference kaynağı" value={String(data.preferenceSummary.supportedSources.length)} />
+              <PolicyPill label="Taslak kanallar" value={data.preferenceSummary.draftOnlyChannels.join(", ")} />
             </>
           ) : null}
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Delivery transitions</p>
-        <h2 className="text-2xl font-black text-slate-950">Transition model</h2>
+        <p className="eyebrow">Delivery geçişleri</p>
+        <h2 className="text-2xl font-black text-slate-950">Geçiş modeli</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Manuel ops geçişleri candidate/block/skip gibi güvenli durumlarla sınırlıdır; sent/failed durumları gerçek provider processor sonucunda oluşur.
           Örnek güvenli geçiş: candidate → skipped.
@@ -230,7 +230,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <p className="mt-1 text-xs text-slate-500">{data.transitionPreview.privacyNote}</p>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Allowed draft-only transitions</h3>
+            <h3 className="text-sm font-black text-slate-950">İzinli taslak geçişleri</h3>
             <div className="mt-3 space-y-2 text-sm text-slate-600">
               {data.transitionPreview.allowedDraftOnlyTransitions.map((transition) => (
                 <div key={`${transition.from}-${transition.to}`}>
@@ -240,12 +240,12 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             </div>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Future sender transitions</h3>
+            <h3 className="text-sm font-black text-slate-950">Gelecek provider geçişleri</h3>
             <div className="mt-3 space-y-3 text-sm text-slate-600">
               {data.transitionPreview.futureSenderTransitions.map((transition) => (
                 <div key={`${transition.from}-${transition.to}`}>
                   <strong className="text-slate-950">{transition.from} → {transition.to}</strong>
-                  <p className="mt-1">Blocked until: {transition.blockedUntil.join(", ")}</p>
+                  <p className="mt-1">Şunlar tamamlanana kadar kapalı: {transition.blockedUntil.join(", ")}</p>
                 </div>
               ))}
             </div>
@@ -254,8 +254,8 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Mobile notifications</p>
-        <h2 className="text-2xl font-black text-slate-950">Native push readiness</h2>
+        <p className="eyebrow">Mobil bildirimler</p>
+        <h2 className="text-2xl font-black text-slate-950">Native push hazırlığı</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Push sender kapalı ise Expo/Firebase/APNs çağrısı yok. Push sender durumu env, token registry ve provider readiness değerlerine bağlıdır; gerçek Expo gönderimleri notification processor üzerinden yapılır.
         </p>
@@ -263,12 +263,12 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard label="Push sender" value={data.pushReadinessPreview.pushSenderEnabled ? 1 : 0} />
           <SummaryCard label="Provider" value={data.pushReadinessPreview.providerConfigured ? 1 : 0} />
-          <SummaryCard label="Token registry" value={data.pushReadinessPreview.tokenRegistryEnabled ? 1 : 0} />
-          <SummaryCard label="Token collection" value={data.pushReadinessPreview.tokenCollectionAllowed ? 1 : 0} />
+          <SummaryCard label="Token kayıtları" value={data.pushReadinessPreview.tokenRegistryEnabled ? 1 : 0} />
+          <SummaryCard label="Token toplama" value={data.pushReadinessPreview.tokenCollectionAllowed ? 1 : 0} />
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Required before push sender</h3>
+            <h3 className="text-sm font-black text-slate-950">Push sender öncesi gerekenler</h3>
             <div className="mt-3 space-y-2 text-sm text-slate-600">
               {data.pushReadinessPreview.requirements.map((requirement) => (
                 <div className="flex justify-between gap-3" key={requirement.key}>
@@ -279,7 +279,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             </div>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Rollout stages</h3>
+            <h3 className="text-sm font-black text-slate-950">Rollout aşamaları</h3>
             <div className="mt-3 space-y-3 text-sm text-slate-600">
               {data.pushReadinessPreview.rolloutStages.map((stage) => (
                 <div key={stage.stage}>
@@ -293,8 +293,8 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Automation readiness</p>
-        <h2 className="text-2xl font-black text-slate-950">n8n workflow readiness</h2>
+        <p className="eyebrow">Otomasyon hazırlığı</p>
+        <h2 className="text-2xl font-black text-slate-950">n8n workflow hazırlığı</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           n8n webhook ve worker durumu readiness değerlerine bağlıdır; gerçek tetikleme yalnızca provider env gate’leri açıkken processor üzerinden yapılır.
         </p>
@@ -307,7 +307,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Workflow candidates</h3>
+            <h3 className="text-sm font-black text-slate-950">Workflow adayları</h3>
             <div className="mt-3 space-y-3 text-sm text-slate-600">
               {data.n8nReadinessPreview.workflowCandidates.map((candidate) => (
                 <div key={candidate.key}>
@@ -318,7 +318,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             </div>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-black text-slate-950">Required before webhook</h3>
+            <h3 className="text-sm font-black text-slate-950">Webhook öncesi gerekenler</h3>
             <div className="mt-3 space-y-2 text-sm text-slate-600">
               {data.n8nReadinessPreview.requirements.map((requirement) => (
                 <div className="flex justify-between gap-3" key={requirement.key}>
@@ -335,18 +335,18 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Delivery log</p>
-              <h2 className="text-2xl font-black text-slate-950">Delivery log preview</h2>
+              <p className="eyebrow">Delivery log</p>
+              <h2 className="text-2xl font-black text-slate-950">Delivery log önizlemesi</h2>
               <p className="mt-2 text-sm text-slate-600">{deliveryLogPreview.privacyNote}</p>
               <p className="mt-1 text-xs text-slate-500">{DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE}</p>
             </div>
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
-              Draft-only
+              Taslak mod
             </span>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            <SummaryCard label="Total" value={deliveryLogPreview.totals.all} />
+            <SummaryCard label="Toplam" value={deliveryLogPreview.totals.all} />
             <SummaryCard label="Candidate" value={deliveryLogPreview.totals.candidate} />
             <SummaryCard label="Blocked" value={deliveryLogPreview.totals.blocked} />
             <SummaryCard label="Sent" value={deliveryLogPreview.totals.sent} />
@@ -355,23 +355,23 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <Breakdown title="By kind" items={deliveryLogPreview.byKind} labelKey="kind" />
-            <Breakdown title="By channel" items={deliveryLogPreview.byChannel} labelKey="channel" />
-            <Breakdown title="By status" items={deliveryLogPreview.byStatus} labelKey="status" />
+            <Breakdown title="Türe göre" items={deliveryLogPreview.byKind} labelKey="kind" />
+            <Breakdown title="Kanala göre" items={deliveryLogPreview.byChannel} labelKey="channel" />
+            <Breakdown title="Duruma göre" items={deliveryLogPreview.byStatus} labelKey="status" />
           </div>
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Kind</th>
-                  <th className="px-4 py-3">Source</th>
-                  <th className="px-4 py-3">Channel</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Tür</th>
+                  <th className="px-4 py-3">Kaynak</th>
+                  <th className="px-4 py-3">Kanal</th>
+                  <th className="px-4 py-3">Durum</th>
                   <th className="px-4 py-3">Provider</th>
-                  <th className="px-4 py-3">Attempts</th>
-                  <th className="px-4 py-3">Last error</th>
-                  <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3">Deneme</th>
+                  <th className="px-4 py-3">Son hata</th>
+                  <th className="px-4 py-3">Oluşturma</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -416,7 +416,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             <div className="flex items-center justify-between gap-3">
               <strong className="text-base font-black text-slate-950">{channel.label}</strong>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {channel.status === "draft_only" ? "Draft-only" : "Future"}
+                {channel.status === "draft_only" ? "Taslak mod" : "Planlı"}
               </span>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{channel.note}</p>
@@ -432,7 +432,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }
 

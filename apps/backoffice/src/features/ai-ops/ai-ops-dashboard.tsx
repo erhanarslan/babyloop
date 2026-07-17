@@ -82,7 +82,7 @@ export function AiOpsDashboard() {
       if (!summaryResponse.ok) {
         setSummary(null);
         setRuns([]);
-        setErrorMessage(getApiErrorMessage(summaryResponse, "Could not load AI ops summary."));
+        setErrorMessage(getApiErrorMessage(summaryResponse, "AI operasyon özeti yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -90,7 +90,7 @@ export function AiOpsDashboard() {
       if (!runsResponse.ok) {
         setSummary(summaryResponse.data.summary);
         setRuns([]);
-        setErrorMessage(getApiErrorMessage(runsResponse, "Could not load AI runs."));
+        setErrorMessage(getApiErrorMessage(runsResponse, "AI çalıştırmaları yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -124,19 +124,19 @@ export function AiOpsDashboard() {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">AI Operations</p>
-          <h2>AI operations health</h2>
+          <p className="eyebrow">AI Operasyonları</p>
+          <h2>AI çalışma sağlığı</h2>
           <p>
-            Monitor provider/model usage, failures, and recent safe AI runs without
-            exposing raw prompts, raw outputs, image payloads, message bodies, reporter identity, email, or phone data.
+            Provider/model kullanımını, hataları ve son güvenli AI çalıştırmalarını raw prompt,
+            raw çıktı, görsel payload, mesaj gövdesi, raporlayan kimliği, email veya telefon göstermeden izle.
           </p>
         </div>
         <Link className="secondary-action" href="/moderation">
-          Open moderation
+          Moderasyona git
         </Link>
       </div>
 
-      {isLoading ? <div className="state-panel">Loading AI ops...</div> : null}
+      {isLoading ? <div className="state-panel">AI operasyon verisi yükleniyor...</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -146,21 +146,21 @@ export function AiOpsDashboard() {
 
       {summary ? (
         <>
-          <section className="summary-grid dashboard-summary-grid" aria-label="AI ops summary">
-            <SummaryCard label="Runs 24h" value={summary.totals.runsLast24Hours} />
-            <SummaryCard label="Runs 7d" value={summary.totals.runsLast7Days} />
-            <SummaryCard label="Success 7d" value={summary.totals.successRunsLast7Days} />
-            <SummaryCard label="Failures 7d" value={summary.totals.failedRunsLast7Days} />
-            <SummaryCard label="Provider failures" value={summary.totals.providerFailuresLast7Days} />
-            <SummaryCard label="Validation failures" value={summary.totals.validationFailuresLast7Days} />
-            <SummaryCard label="Skipped 7d" value={summary.totals.skippedRunsLast7Days} />
-            <SummaryCard label="All runs" value={summary.totals.totalRuns} />
+          <section className="summary-grid dashboard-summary-grid" aria-label="AI operasyon özeti">
+            <SummaryCard label="Çalıştırma 24s" value={summary.totals.runsLast24Hours} />
+            <SummaryCard label="Çalıştırma 7g" value={summary.totals.runsLast7Days} />
+            <SummaryCard label="Başarılı 7g" value={summary.totals.successRunsLast7Days} />
+            <SummaryCard label="Hata 7g" value={summary.totals.failedRunsLast7Days} />
+            <SummaryCard label="Provider hatası" value={summary.totals.providerFailuresLast7Days} />
+            <SummaryCard label="Validation hatası" value={summary.totals.validationFailuresLast7Days} />
+            <SummaryCard label="Atlanan 7g" value={summary.totals.skippedRunsLast7Days} />
+            <SummaryCard label="Toplam çalışma" value={summary.totals.totalRuns} />
           </section>
 
-          <section className="module-grid" aria-label="AI ops breakdowns">
+          <section className="module-grid" aria-label="AI operasyon kırılımları">
             <article className="module-card dashboard-module-card">
-              <h3>Status breakdown</h3>
-              <p>All-time run count by status.</p>
+              <h3>Durum kırılımı</h3>
+              <p>Tüm zamanlarda duruma göre çalışma sayısı.</p>
               <dl className="compact-details">
                 {summary.statusCounts.map((item) => (
                   <div key={item.status}>
@@ -172,11 +172,11 @@ export function AiOpsDashboard() {
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Provider / model breakdown</h3>
-              <p>Top provider and model combinations by run count.</p>
+              <h3>Provider / model kırılımı</h3>
+              <p>Çalıştırma sayısına göre provider ve model kombinasyonları.</p>
               <div className="table-list">
                 {summary.providerModelCounts.length === 0 ? (
-                  <div className="state-panel">No AI model runs recorded yet.</div>
+                  <div className="state-panel">Henüz AI model çalıştırması yok.</div>
                 ) : (
                   summary.providerModelCounts.map((item) => (
                     <div
@@ -185,10 +185,10 @@ export function AiOpsDashboard() {
                     >
                       <div>
                         <strong>{item.providerName}</strong>
-                        <p className="muted">{item.modelName ?? "Unknown model"}</p>
+                        <p className="muted">{item.modelName ?? "Bilinmeyen model"}</p>
                       </div>
                       <small className="muted">
-                        total {item.totalRuns} · success {item.successRuns} · failed {item.failedRuns}
+                        toplam {item.totalRuns} · başarılı {item.successRuns} · hatalı {item.failedRuns}
                       </small>
                     </div>
                   ))
@@ -202,7 +202,7 @@ export function AiOpsDashboard() {
       <form className="filter-panel" onSubmit={handleSubmit}>
         <div className="filter-grid">
             <label className="form-field">
-              <span>Feature</span>
+              <span>Özellik</span>
               <select
                 onChange={(event) =>
                   setDraftFilters((current) => ({
@@ -221,19 +221,19 @@ export function AiOpsDashboard() {
             </label>
 
           <label className="form-field">
-            <span>Search</span>
+            <span>Arama</span>
             <input
               onChange={(event) =>
                 setDraftFilters((current) => ({ ...current, q: event.target.value }))
               }
-              placeholder="Run id, case id, listing id, provider, model, or prompt version"
+              placeholder="Run id, case id, listing id, provider, model veya prompt version"
               type="search"
               value={draftFilters.q}
             />
           </label>
 
           <label className="form-field">
-            <span>Status</span>
+            <span>Durum</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -245,14 +245,14 @@ export function AiOpsDashboard() {
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {status === "all" ? "All statuses" : formatStatus(status)}
+                  {status === "all" ? "Tüm durumlar" : formatStatus(status)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="form-field">
-            <span>Sort</span>
+            <span>Sıralama</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -262,8 +262,8 @@ export function AiOpsDashboard() {
               }
               value={draftFilters.sort}
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
+              <option value="newest">En yeni</option>
+              <option value="oldest">En eski</option>
             </select>
           </label>
 
@@ -289,7 +289,7 @@ export function AiOpsDashboard() {
 
         <div className="filter-actions">
           <button className="primary-action" disabled={isLoading} type="submit">
-            Apply filters
+            Filtrele
           </button>
           <button
             className="secondary-action"
@@ -297,15 +297,15 @@ export function AiOpsDashboard() {
             onClick={resetFilters}
             type="button"
           >
-            Reset
+            Sıfırla
           </button>
         </div>
       </form>
 
       <section className="profile-detail-card wide">
-        <h3>Recent safe AI runs</h3>
+        <h3>Son güvenli AI çalıştırmaları</h3>
         {runs.length === 0 && !isLoading ? (
-          <div className="state-panel">No AI runs match these filters.</div>
+          <div className="state-panel">Bu filtrelerle eşleşen AI çalıştırması yok.</div>
         ) : null}
         {runs.length > 0 ? (
           <div className="table-list">
@@ -314,20 +314,20 @@ export function AiOpsDashboard() {
                 <div>
                   <strong>{run.providerName}</strong>
                   <p className="muted">
-                    {run.modelName ?? "Unknown model"} · {run.promptVersion}
+                    {run.modelName ?? "Bilinmeyen model"} · {run.promptVersion}
                   </p>
                   <p className="muted">
-                    Run {run.id} · {formatDate(run.createdAt)}
+                    Çalıştırma {run.id} · {formatDate(run.createdAt)}
                   </p>
                   {run.caseId ? (
-                    <Link href={`/moderation/${run.caseId}`}>Open related case</Link>
+                    <Link href={`/moderation/${run.caseId}`}>İlgili vakaya git</Link>
                   ) : null}
                   {run.errorSummary ? <p>{run.errorSummary}</p> : null}
                 </div>
                 <div className="side-stack">
                   <span className={`status-badge ${run.status}`}>{formatStatus(run.status)}</span>
                   <small className="muted">
-                    confidence {formatScore(run.confidenceScore)} · risk {formatScore(run.riskScore)}
+                    güven {formatScore(run.confidenceScore)} · risk {formatScore(run.riskScore)}
                   </small>
                 </div>
               </div>
@@ -353,22 +353,30 @@ function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): s
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("tr-TR");
 }
 
 function formatScore(value: number | null): string {
-  return value === null ? "n/a" : String(value);
+  return value === null ? "yok" : String(value);
 }
 
 function formatStatus(status: string): string {
-  return status.replaceAll("_", " ");
+  const labels: Record<string, string> = {
+    error: "Hata",
+    provider_failed: "Provider hatası",
+    skipped: "Atlandı",
+    success: "Başarılı",
+    validation_failed: "Validation hatası"
+  };
+
+  return labels[status] ?? status.replaceAll("_", " ");
 }
 
 function formatFeature(feature: AdminAiOpsFeature): string {
   switch (feature) {
     case "moderation_summary":
-      return "Moderation summary";
+      return "Moderasyon özeti";
     case "listing_image_authenticity":
-      return "Listing image authenticity";
+      return "İlan görsel gerçekliği";
   }
 }

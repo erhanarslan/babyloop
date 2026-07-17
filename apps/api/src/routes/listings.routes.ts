@@ -626,6 +626,16 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         });
       }
 
+      if (result.status === "approved_image_required") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "LISTING_APPROVED_IMAGE_REQUIRED",
+            message: "Listing must have at least one approved image before it can be activated."
+          }
+        });
+      }
+
       if (result.status !== "updated") {
         return reply.status(500).send({
           ok: false,

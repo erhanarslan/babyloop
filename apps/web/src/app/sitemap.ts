@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const [categoriesResult, listingsResult] = await Promise.all([
     fetchApi<CategoriesPayload>("/api/v1/categories"),
-    fetchApi<ListingsPayload>("/api/v1/listings?limit=50&sort=newest")
+    fetchApi<ListingsPayload>("/api/v1/listings?limit=50&sort=newest&hasImages=true")
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [

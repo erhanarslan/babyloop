@@ -196,14 +196,12 @@ async function listMatchingListingsForSavedSearch(
     filters.push(sql`${listings.priceAmount} is not null and ${listings.priceAmount} <= ${savedSearch.priceMax}`);
   }
 
-  if (savedSearch.hasImages) {
-    filters.push(sql`exists (
-      select 1
-      from ${listingImages}
-      where ${listingImages.listingId} = ${listings.id}
-        and ${listingImages.reviewStatus} = 'approved'
-    )`);
-  }
+  filters.push(sql`exists (
+    select 1
+    from ${listingImages}
+    where ${listingImages.listingId} = ${listings.id}
+      and ${listingImages.reviewStatus} = 'approved'
+  )`);
 
   return app.db
     .select({

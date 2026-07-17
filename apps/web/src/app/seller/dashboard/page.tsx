@@ -1,5 +1,5 @@
-import { SellerDashboardPageContent } from "../../../features/seller/seller-dashboard-page-content";
+import { redirect } from "next/navigation";
 
 export default function SellerDashboardPage() {
-  return <SellerDashboardPageContent />;
+  redirect("/account/seller");
 }

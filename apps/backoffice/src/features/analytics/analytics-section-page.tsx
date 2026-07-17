@@ -75,13 +75,13 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Analytics</p>
+          <p className="eyebrow">Analitik</p>
           <h2>{title}</h2>
-          <p>Aggregate metrics only. Sensitive event properties and free-text user content are not rendered.</p>
+          <p>Yalnız aggregate metrikler gösterilir. Hassas event property’leri ve serbest kullanıcı metni render edilmez.</p>
         </div>
       </div>
 
-      {loading ? <div className="state-panel">Loading analytics...</div> : null}
+      {loading ? <div className="state-panel">Analytics verisi yükleniyor...</div> : null}
       {error ? <div className="state-panel danger" role="alert">{error}</div> : null}
 
       {section ? (
@@ -97,14 +97,14 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
 
       {pages.length > 0 ? (
         <article className="module-card dashboard-module-card">
-          <h3>Pages and screens</h3>
+          <h3>Sayfalar ve ekranlar</h3>
           {pages.map((page) => (
             <div className="table-list-row" key={`${page.platform}-${page.surface}`}>
               <div>
                 <strong>{page.surface}</strong>
-                <p className="muted">{page.platform} · {page.views} views · {page.uniqueUsers} users</p>
+                <p className="muted">{page.platform} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı</p>
               </div>
-              <small className="muted">avg {formatDuration(page.averageEngagementMs)} · p90 {formatDuration(page.p90EngagementMs)}</small>
+              <small className="muted">ort. {formatDuration(page.averageEngagementMs)} · p90 {formatDuration(page.p90EngagementMs)}</small>
             </div>
           ))}
         </article>
@@ -112,14 +112,14 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
 
       {categories.length > 0 ? (
         <article className="module-card dashboard-module-card">
-          <h3>Categories</h3>
+          <h3>Kategoriler</h3>
           {categories.map((category) => (
             <div className="table-list-row" key={`${category.platform}-${category.categoryId}`}>
               <div>
                 <strong>{category.categoryName}</strong>
-                <p className="muted">{category.platform} · {category.listingViews} listing views · {category.favorites} favorites</p>
+                <p className="muted">{category.platform} · {category.listingViews} ilan görüntüleme · {category.favorites} favori</p>
               </div>
-              <small className="muted">{category.conversationsStarted} chats · {category.checkoutCompleted} checkouts</small>
+              <small className="muted">{category.conversationsStarted} sohbet · {category.checkoutCompleted} checkout</small>
             </div>
           ))}
         </article>
@@ -127,7 +127,7 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
 
       {funnels.length > 0 ? (
         <article className="module-card dashboard-module-card">
-          <h3>Funnels</h3>
+          <h3>Dönüşüm hunileri</h3>
           {funnels.map((funnel) => (
             <div className="table-list-row" key={funnel.name}>
               <div>
@@ -229,11 +229,11 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
       section: {
         title: "Veri Kalitesi",
         metrics: [
-          { label: "Raw events", value: response.data.dataQuality.rawEventsLast7Days },
-          { label: "Duplicate", value: response.data.dataQuality.duplicateEventsLast7Days },
-          { label: "Rejected", value: response.data.dataQuality.rejectedEventsLast7Days },
-          { label: "Missing session", value: response.data.dataQuality.missingSessionIdsLast7Days },
-          { label: "Unknown version", value: response.data.dataQuality.unknownEventVersionsLast7Days }
+          { label: "Raw event", value: response.data.dataQuality.rawEventsLast7Days },
+          { label: "Tekrarlı event", value: response.data.dataQuality.duplicateEventsLast7Days },
+          { label: "Reddedilen", value: response.data.dataQuality.rejectedEventsLast7Days },
+          { label: "Session eksik", value: response.data.dataQuality.missingSessionIdsLast7Days },
+          { label: "Bilinmeyen versiyon", value: response.data.dataQuality.unknownEventVersionsLast7Days }
         ]
       }
     };

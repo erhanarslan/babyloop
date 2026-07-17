@@ -67,7 +67,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   const fetchListingBatch = useCallback(
     async (limit: number, offset: number): Promise<HomeListing[]> => {
       const response = await fetch(
-        `${apiBaseUrl}/api/v1/listings?limit=${limit}&offset=${offset}&sort=newest`,
+        `${apiBaseUrl}/api/v1/listings?limit=${limit}&offset=${offset}&sort=newest&hasImages=true`,
         { cache: "no-store" }
       );
       const body = (await response.json()) as { ok: boolean; data?: ListingsPayload };

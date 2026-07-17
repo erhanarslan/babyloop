@@ -202,6 +202,11 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       return;
     }
 
+    if (!formState.label.trim()) {
+      setMessage({ tone: "error", text: "Çocuk profili için isim veya etiket ekle." });
+      return;
+    }
+
     const payload = buildChildProfilePayload(formState);
 
     if (!payload) {
@@ -233,20 +238,13 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     setIsSubmitting(false);
   }
 
-  async function handleToggleActive(childProfile: ChildProfile) {
-    const response = await updateChildProfile(apiBaseUrl, childProfile.id, {
-      isActive: !childProfile.isActive
-    });
+  async function handleDelete(childProfile: ChildProfile) {
+    const confirmed = window.confirm("Bu çocuk profilini silmek istediğine emin misin?");
 
-    if (!response.ok) {
-      setMessage({ tone: "error", text: "İşlem tamamlanamadı." });
+    if (!confirmed) {
       return;
     }
 
-    await loadChildProfiles();
-  }
-
-  async function handleDelete(childProfile: ChildProfile) {
     const response = await deleteChildProfile(apiBaseUrl, childProfile.id);
 
     if (!response.ok) {
@@ -458,7 +456,6 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
               onEdit={() => startEditProfile(selectedChildProfile)}
               onPauseReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "paused")}
               onResumeReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "scheduled")}
-              onToggleActive={() => void handleToggleActive(selectedChildProfile)}
             />
           ) : (
             <EmptyState
@@ -500,7 +497,7 @@ function ChildProfileForm({
         label="İsim veya etiket"
         maxLength={80}
         onChange={(event) => onChange({ ...formState, label: event.target.value })}
-        placeholder="Çocuğum"
+        placeholder="İsim ekle"
         value={formState.label}
       />
 
@@ -617,7 +614,6 @@ function ChildProfileSummary({
   onEdit,
   onPauseReminder,
   onResumeReminder,
-  onToggleActive
 }: {
   childProfile: ChildProfile;
   recommendationGroup: LifecycleRecommendationGroup | null;
@@ -632,7 +628,6 @@ function ChildProfileSummary({
   onEdit: () => void;
   onPauseReminder: (reminderId: string) => void;
   onResumeReminder: (reminderId: string) => void;
-  onToggleActive: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -670,9 +665,6 @@ function ChildProfileSummary({
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={onEdit}>
           Düzenle
-        </Button>
-        <Button type="button" variant="secondary" onClick={onToggleActive}>
-          {childProfile.isActive ? "Pasifleştir" : "Aktifleştir"}
         </Button>
         <Button type="button" variant="secondary" onClick={onDelete}>
           Sil
@@ -947,6 +939,18 @@ function ChildLifecycleRecommendations({
         </span>
       </summary>
 
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-muted/20 p-3">
+        <p className="text-sm font-semibold text-muted-foreground">
+          Bu öneriler yaş bandına göre güvenli kategori gezinmesi için hazırlanır; ürün seçimi ilan verisine göre yapılır.
+        </p>
+        <Link
+          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground"
+          href={buildAssistantPromptHref(childProfile)}
+        >
+          Asistana sor
+        </Link>
+      </div>
+
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {recommendations.slice(0, 4).map((recommendation) => (
           <article
@@ -954,18 +958,15 @@ function ChildLifecycleRecommendations({
             key={`${recommendation.categoryId}-${recommendation.reasonCode}`}
           >
             <strong className="block text-sm font-black text-foreground">{recommendation.categoryName}</strong>
+            <span className="mt-1 block text-xs font-semibold text-muted-foreground">
+              {recommendation.whyNow || recommendation.reasonLabel}
+            </span>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 className="rounded-full bg-foreground px-3 py-1.5 text-xs font-black text-background"
                 href={buildRecommendationBrowseHref(recommendation)}
               >
                 İlanlar
-              </Link>
-              <Link
-                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground"
-                href={buildAssistantPromptHref(childProfile, recommendation)}
-              >
-                Asistan
               </Link>
             </div>
           </article>
@@ -993,8 +994,12 @@ function buildChildProfilePayload(formState: ChildProfileFormState): {
   label: string;
   notificationCadence: ChildProfileNotificationCadence;
 } | null {
-  const label = formState.label.trim() || "Çocuğum";
+  const label = formState.label.trim();
   const gender = formState.gender;
+
+  if (!label) {
+    return null;
+  }
 
   if (formState.ageInputMode === "months") {
     const ageMonths = Number.parseInt(formState.ageMonths, 10);
@@ -1046,7 +1051,7 @@ function buildFormStateFromProfile(childProfile: ChildProfile): ChildProfileForm
       birthMonth: String(childProfile.birthMonth),
       birthYear: String(childProfile.birthYear),
       gender: childProfile.gender ?? "prefer_not_to_say",
-      label: formatChildLabel(childProfile.label),
+      label: getEditableChildLabel(childProfile.label),
       notificationCadence: childProfile.notificationCadence
     };
   }
@@ -1057,7 +1062,7 @@ function buildFormStateFromProfile(childProfile: ChildProfile): ChildProfileForm
     birthMonth: DEFAULT_FORM_STATE.birthMonth,
     birthYear: DEFAULT_FORM_STATE.birthYear,
     gender: childProfile.gender ?? "prefer_not_to_say",
-    label: formatChildLabel(childProfile.label),
+    label: getEditableChildLabel(childProfile.label),
     notificationCadence: childProfile.notificationCadence
   };
 }
@@ -1215,7 +1220,13 @@ function formatReminderSchedule(reminder: ChildProfileReminder): string {
 }
 
 function formatChildLabel(label: string): string {
-  return label.trim() || "Çocuğum";
+  return getEditableChildLabel(label) || "İsim ekle";
+}
+
+function getEditableChildLabel(label: string): string {
+  const trimmed = label.trim();
+
+  return trimmed === "Çocuğum" ? "" : trimmed;
 }
 
 function buildModeButtonClass(isActive: boolean): string {
@@ -1232,17 +1243,18 @@ function buildRecommendationBrowseHref(
 ): string {
   const params = new URLSearchParams({
     categoryId: recommendation.categoryId,
-    sort: "newest"
+    sort: "newest",
+    hasImages: "true"
   });
 
   return `/browse?${params.toString()}`;
 }
 
 function buildAssistantPromptHref(
-  childProfile: ChildProfile,
-  recommendation: LifecycleRecommendationGroup["recommendations"][number]
+  childProfile: ChildProfile
 ): string {
-  const prompt = `${formatChildLabel(childProfile.label)} için ${formatAgeBand(childProfile.ageBand)} döneminde ${recommendation.categoryName} alırken nelere dikkat etmeliyim?`;
+  const childLabel = getEditableChildLabel(childProfile.label);
+  const prompt = `${childLabel ? `${childLabel} için` : "Çocuğum için"} ${formatAgeBand(childProfile.ageBand)} döneminde ürün seçerken nelere dikkat etmeliyim?`;
 
   return `/assistant?${new URLSearchParams({ prompt }).toString()}`;
 }

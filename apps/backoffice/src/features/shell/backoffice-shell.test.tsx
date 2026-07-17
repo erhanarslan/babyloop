@@ -19,8 +19,12 @@ vi.mock("next/link", () => ({
   )
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/rag"
+}));
+
 describe("BackofficeShell", () => {
-  it("renders active and planned navigation without exposing secrets", () => {
+  it("renders grouped active navigation without exposing secrets", () => {
     render(
       <BackofficeShell>
         <h2>Email Ops</h2>
@@ -29,13 +33,22 @@ describe("BackofficeShell", () => {
 
     const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
 
-    expect(within(navigation).getByRole("link", { name: /Email Ops/i })).toHaveAttribute(
+    expect(within(navigation).getByRole("link", { name: "Email Operasyonları" })).toHaveAttribute(
       "href",
       "/email"
     );
-    expect(within(navigation).getByRole("link", { name: /RAG/i })).toHaveAttribute("href", "/rag");
-    expect(screen.getByText("Reports").closest("[aria-disabled='true']")).toBeInTheDocument();
-    expect(screen.getByText("Safety Events").closest("[aria-disabled='true']")).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("link", { name: "RAG Yönetimi" })
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(navigation).getByRole("link", { name: "Storage" })
+    ).toHaveAttribute("href", "/storage");
+    expect(within(navigation).getByRole("link", { name: "Veri Kalitesi" })).toHaveAttribute(
+      "href",
+      "/analytics/data-quality"
+    );
+    expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+    expect(screen.queryByText("Safety Events")).not.toBeInTheDocument();
     expect(screen.queryByText(/RESEND_API_KEY/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/SMTP_PASS/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/password/i)).not.toBeInTheDocument();

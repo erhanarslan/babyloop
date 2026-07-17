@@ -101,7 +101,7 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
       await loadCart();
     } catch {
       setCheckoutStatus("error");
-      setCheckoutError("Mock iyzico ödeme akışı tamamlanamadı.");
+      setCheckoutError("Güvenli ödeme provası tamamlanamadı.");
     }
   }
 
@@ -109,8 +109,8 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
     <PageContainer className="grid gap-5 pb-12 pt-5">
       <PageHeading
         eyebrow="Sepetim"
-        title="Mock iyzico checkout"
-        description="Bu demo akış gerçek kart bilgisi toplamaz; başarılı olduğunda ilan satıldı durumuna alınır."
+        title="Güvenli ödeme provası"
+        description="Bu aşamada gerçek kart bilgisi alınmaz; başarılı olduğunda ilan satıldı durumuna alınır."
       />
 
       {state.status === "checking" || state.status === "loading" ? (
@@ -120,7 +120,7 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
       {state.status === "guest" ? (
         <EmptyState
           title="Sepetini görmek için giriş yap"
-          message="Sepete eklediğin ilanlar ve mock checkout akışı burada görünür."
+          message="Sepete eklediğin ilanlar ve ödeme provası burada görünür."
           actionHref="/login"
           actionLabel="Giriş yap"
         />
@@ -178,7 +178,7 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
 
               <div className="mt-5 grid gap-3">
                 <Button disabled={checkoutStatus === "pending"} onClick={() => void handleCheckout()}>
-                  {checkoutStatus === "pending" ? "Ödeme simüle ediliyor..." : "Mock iyzico ile öde"}
+                  {checkoutStatus === "pending" ? "Ödeme provası hazırlanıyor..." : "Ödeme provasını tamamla"}
                 </Button>
                 <Button variant="secondary" onClick={() => void handleClearCart()}>
                   Sepeti temizle
@@ -194,12 +194,25 @@ export function CartPageContent({ apiBaseUrl }: CartPageContentProps) {
       ) : null}
 
       {checkoutStatus === "success" && checkoutResult ? (
-        <div data-testid="cart-success-card">
+        <div className="grid gap-3" data-testid="cart-success-card">
           <Alert
             tone="info"
-            title="Mock ödeme başarılı"
-            message={`Order ID: ${checkoutResult.orderId} · Payment ID: ${checkoutResult.mockIyzicoPaymentId} · Ödenen tutar: ${checkoutResult.paidAmount} ${checkoutResult.currency}`}
+            title="Ödeme provası başarılı"
+            message={`İlan satıldı durumuna alındı. Ödenen tutar: ${checkoutResult.paidAmount} ${checkoutResult.currency}.`}
           />
+          <details className="rounded-2xl border border-border bg-surface-soft px-4 py-3 text-sm text-muted-foreground">
+            <summary className="cursor-pointer font-bold text-foreground">İşlem ayrıntıları</summary>
+            <dl className="mt-3 grid gap-2">
+              <div className="flex flex-wrap justify-between gap-2">
+                <dt>Sipariş referansı</dt>
+                <dd className="font-mono text-xs">{checkoutResult.orderId}</dd>
+              </div>
+              <div className="flex flex-wrap justify-between gap-2">
+                <dt>Ödeme provası referansı</dt>
+                <dd className="font-mono text-xs">{checkoutResult.mockIyzicoPaymentId}</dd>
+              </div>
+            </dl>
+          </details>
         </div>
       ) : null}
     </PageContainer>

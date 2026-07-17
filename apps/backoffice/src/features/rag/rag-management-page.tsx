@@ -272,6 +272,15 @@ export function RagManagementPage() {
         </div>
       </div>
 
+      <nav className="admin-secondary-nav" aria-label="RAG bölümleri">
+        <a href="#rag-overview">Genel durum</a>
+        <a href="#rag-retrieval">Retrieval testi</a>
+        <a href="#rag-documents">Dokümanlar</a>
+        <a href="#rag-cache-limits">Cache ve limitler</a>
+        <a href="#rag-index">Index / reindex</a>
+        <a href="#rag-technical">Teknik konfigürasyon</a>
+      </nav>
+
       {isLoading ? <div className="state-panel">RAG bilgileri yükleniyor...</div> : null}
 
       {errorMessage ? (
@@ -282,7 +291,7 @@ export function RagManagementPage() {
 
       {state.health ? (
         <>
-          <section className="summary-grid dashboard-summary-grid" aria-label="RAG durumu">
+          <section id="rag-overview" className="summary-grid dashboard-summary-grid" aria-label="RAG durumu">
             <SummaryCard label="RAG" value={state.health.enabled ? "Açık" : "Kapalı"} />
             <SummaryCard label="Qdrant" value={state.health.qdrant.status} />
             <SummaryCard label="Koleksiyon" value={state.health.collection ?? "-"} />
@@ -298,7 +307,7 @@ export function RagManagementPage() {
           </section>
 
           <section className="module-grid" aria-label="RAG konfigürasyonu">
-            <article className="module-card dashboard-module-card">
+            <article id="rag-technical" className="module-card dashboard-module-card">
               <h3>Konfigürasyon</h3>
               <dl className="compact-details">
                 <DetailRow label="Embedding" value={`${state.health.config.embeddingProvider} · ${state.health.config.embeddingModel}`} />
@@ -312,7 +321,7 @@ export function RagManagementPage() {
               </dl>
             </article>
 
-            <article className="module-card dashboard-module-card">
+            <article id="rag-cache-limits" className="module-card dashboard-module-card">
               <h3>Cache</h3>
               <dl className="compact-details">
                 <DetailRow label="Kayıt" value={state.cache?.entries ?? 0} />
@@ -372,7 +381,7 @@ export function RagManagementPage() {
         </>
       ) : null}
 
-      <section className="module-card dashboard-module-card">
+      <section id="rag-retrieval" className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
             <h3>RAG Playground</h3>
@@ -498,7 +507,7 @@ export function RagManagementPage() {
         ) : null}
       </section>
 
-      <section className="module-card dashboard-module-card">
+      <section id="rag-index" className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
             <h3>Reindex workflow</h3>
@@ -554,7 +563,7 @@ export function RagManagementPage() {
         </div>
       </section>
 
-      <section className="module-card dashboard-module-card">
+      <section id="rag-documents" className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
             <h3>Dokümanlar</h3>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { childProfiles, listings, notifications, productCategories } from "@babyloop/database/schema";
+import { childProfiles, listingImages, listings, notifications, productCategories } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import {
   emitUnreadNotificationCountUpdated,
@@ -412,6 +412,15 @@ describe("notifications API", () => {
       priceAmount: "2500.00",
       title: "Temiz puset travel sistem"
     });
+    await addApprovedListingImage(matchingListing.id);
+
+    const noImageMatchingListing = await createListing(app, seller.accessToken, {
+      categoryId: category!.id,
+      condition: "good",
+      listingType: "sale",
+      priceAmount: "2200.00",
+      title: "Görselsiz puset travel sistem"
+    });
 
     await createListing(app, seller.accessToken, {
       condition: "good",
@@ -439,7 +448,7 @@ describe("notifications API", () => {
         condition: "good",
         listingType: "sale",
         priceMin: "1000",
-        priceMax: "500",
+        priceMax: "5000",
         notificationsEnabled: true
       }
     });
@@ -501,6 +510,7 @@ describe("notifications API", () => {
       listingId: matchingListing.id
     });
     expect(JSON.stringify(generatedNotifications)).not.toContain(ownListing.id);
+    expect(JSON.stringify(generatedNotifications)).not.toContain(noImageMatchingListing.id);
     expect(JSON.stringify(generatedNotifications)).not.toContain("Kapalı puset alarmı");
     expect(JSON.stringify(generatedNotifications)).not.toMatch(/saved-search-seller@babyloop\.test|saved-search-watcher@babyloop\.test|passwordHash|accessToken|refreshToken/i);
   });
@@ -628,3 +638,12 @@ describe("notifications API", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+async function addApprovedListingImage(listingId: string): Promise<void> {
+  await app.db.insert(listingImages).values({
+    listingId,
+    reviewStatus: "approved",
+    sortOrder: 0,
+    url: `/api/v1/uploads/listings/${listingId}/approved.png`
+  });
+}

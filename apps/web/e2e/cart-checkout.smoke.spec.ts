@@ -103,7 +103,7 @@ test.describe("cart checkout flow", () => {
       });
 
       await page.goto("/cart", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: "Mock iyzico checkout", exact: true })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Güvenli ödeme provası", exact: true })).toBeVisible({
         timeout: 15_000
       });
 
@@ -117,7 +117,7 @@ test.describe("cart checkout flow", () => {
         return response.url().includes("/api/v1/checkout/mock-iyzico") && response.request().method() === "POST";
       });
 
-      await page.getByRole("button", { name: "Mock iyzico ile öde", exact: true }).click();
+      await page.getByRole("button", { name: "Ödeme provasını tamamla", exact: true }).click();
 
       const checkoutResponse = await checkoutResponsePromise;
       expect(checkoutResponse.ok(), await safeResponseText(checkoutResponse)).toBe(true);
@@ -125,9 +125,10 @@ test.describe("cart checkout flow", () => {
       const successCard = page.getByTestId("cart-success-card");
 
       await expect(successCard).toBeVisible({ timeout: 15_000 });
-      await expect(successCard).toContainText("Mock ödeme başarılı");
-      await expect(successCard).toContainText("Order ID:");
-      await expect(successCard).toContainText("Payment ID:");
+      await expect(successCard).toContainText("Ödeme provası başarılı");
+      await successCard.getByText("İşlem ayrıntıları", { exact: true }).click();
+      await expect(successCard).toContainText("Sipariş referansı");
+      await expect(successCard).toContainText("Ödeme provası referansı");
 
       await expectMyListingStatus(sellerApi, {
         accessToken: seller.accessToken,
@@ -136,11 +137,11 @@ test.describe("cart checkout flow", () => {
       });
 
       await page.goto("/cart", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: "Mock iyzico checkout", exact: true })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Güvenli ödeme provası", exact: true })).toBeVisible({
         timeout: 15_000
       });
       await expect(page.locator(`article[data-cart-listing-id="${listing.id}"]`)).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Mock iyzico ile öde", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Ödeme provasını tamamla", exact: true })).toHaveCount(0);
 
       const csrfToken = await fetchPublicCsrfToken(buyerApi);
       const secondAddResponse = await buyerApi.post("/api/v1/cart/items", {

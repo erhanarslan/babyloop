@@ -1074,6 +1074,7 @@ describe("listings API", () => {
   it("allows the owner to archive and reactivate a listing", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
+    await addApprovedListingImage(listing.id);
     const archived = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "PATCH",
@@ -1107,6 +1108,34 @@ describe("listings API", () => {
     expect(reactivated.statusCode).toBe(200);
     expect(reactivated.json().data.listing.status).toBe("active");
     expect(visibleIds).toContain(listing.id);
+  });
+
+  it("rejects reactivating a listing without an approved image", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    const archived = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "archived"
+      }
+    });
+    const reactivated = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "PATCH",
+      url: `/api/v1/listings/${listing.id}/status`,
+      payload: {
+        status: "active"
+      }
+    });
+
+    expect(archived.statusCode).toBe(200);
+    expect(reactivated.statusCode).toBe(400);
+    expect(reactivated.json().error).toMatchObject({
+      code: "LISTING_APPROVED_IMAGE_REQUIRED"
+    });
+    expect(await readListingStatus(listing.id)).toBe("archived");
   });
 
   it("allows reserved listings to remain public and messageable", async () => {
@@ -1214,6 +1243,10 @@ describe("listings API", () => {
 
       await setListingStatusDirect(listing.id, transition.from);
 
+      if (transition.to === "active") {
+        await addApprovedListingImage(listing.id);
+      }
+
       const beforeCount = await countListingStatusChangeEvents(listing.id);
       const response = await app.inject({
         headers: authHeader(seller.accessToken),
@@ -1224,7 +1257,10 @@ describe("listings API", () => {
         }
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(
+        response.statusCode,
+        `${transition.from} -> ${transition.to}: ${response.body}`
+      ).toBe(200);
       expect(response.json()).toMatchObject({
         ok: true,
         data: {
@@ -1728,7 +1764,7 @@ describe("listings API", () => {
     });
     const publicListAfterReject = await app.inject({
       method: "GET",
-      url: `/api/v1/listings?q=Image%20review`
+      url: `/api/v1/listings?q=Image%20review&hasImages=true`
     });
     const adminDetailAfterReject = await app.inject({
       headers: authHeader(admin.accessToken),
@@ -1774,7 +1810,7 @@ describe("listings API", () => {
     expect(publicDetailAfterReject.statusCode).toBe(200);
     expect(publicDetailAfterReject.json().data.listing.images).toEqual([]);
     expect(publicListAfterReject.statusCode).toBe(200);
-    expect(publicListAfterReject.json().data.listings[0].firstImage).toBeNull();
+    expect(publicListAfterReject.json().data.listings.map((item: { id: string }) => item.id)).not.toContain(listing.id);
     expect(adminDetailAfterReject.statusCode).toBe(200);
     expect(adminDetailAfterReject.json().data.listing.images).toEqual([
       expect.objectContaining({
@@ -2064,6 +2100,15 @@ async function setListingStatusDirect(listingId: string, status: "active" | "res
       updatedAt: new Date()
     })
     .where(eq(listings.id, listingId));
+}
+
+async function addApprovedListingImage(listingId: string): Promise<void> {
+  await app.db.insert(listingImages).values({
+    listingId,
+    reviewStatus: "approved",
+    sortOrder: 0,
+    url: `/api/v1/uploads/listings/${listingId}/approved.png`
+  });
 }
 
 async function readListingStatus(listingId: string): Promise<string | null> {

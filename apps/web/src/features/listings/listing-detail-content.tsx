@@ -244,6 +244,7 @@ function ListingDetailGallery({
 }) {
   const galleryImages = listing.images;
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedImageFailed, setSelectedImageFailed] = useState(false);
 
   useEffect(() => {
     setSelectedImageIndex(0);
@@ -252,6 +253,11 @@ function ListingDetailGallery({
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0] ?? null;
   const selectedImageUrl = getSafeImageUrl(selectedImage?.url ?? null, apiBaseUrl);
   const hasMultipleImages = galleryImages.length > 1;
+  const visibleSelectedImageUrl = selectedImageFailed ? null : selectedImageUrl;
+
+  useEffect(() => {
+    setSelectedImageFailed(false);
+  }, [listing.id, selectedImageUrl]);
 
   function showPreviousImage() {
     if (!hasMultipleImages) {
@@ -295,16 +301,24 @@ function ListingDetailGallery({
       tabIndex={hasMultipleImages ? 0 : undefined}
     >
       <div className="listing-detail-main-image relative overflow-hidden rounded-[1.35rem] border border-border/70 bg-muted/20">
-        {selectedImageUrl ? (
+        {visibleSelectedImageUrl ? (
           <img
             alt={`Ürün görseli: ${listing.title}`}
             className="block h-full w-full object-cover"
             decoding="async"
             loading="eager"
-            src={selectedImageUrl}
+            onError={() => setSelectedImageFailed(true)}
+            src={visibleSelectedImageUrl}
           />
         ) : (
-          <span className="text-sm font-black text-muted-foreground">Ürün görseli yok</span>
+          <div
+            className="listing-detail-image-fallback"
+            role="img"
+            aria-label="Ürün görseli yok"
+          >
+            <span>Ürün görseli yok</span>
+            <small>Satıcı görseli kaldırmış veya görsel henüz yüklenemiyor.</small>
+          </div>
         )}
 
         {hasMultipleImages ? (
@@ -353,23 +367,36 @@ function ListingDetailGallery({
                 aria-pressed={isSelected}
                 onClick={() => setSelectedImageIndex(index)}
               >
-                {imageUrl ? (
-                  <img
-                    alt=""
-                    className="block h-full w-full object-cover"
-                    decoding="async"
-                    loading="lazy"
-                    src={imageUrl}
-                  />
-                ) : (
-                  <span className="text-xs font-bold text-muted-foreground">Görsel yok</span>
-                )}
+                <ListingDetailThumbnail imageUrl={imageUrl} />
               </button>
             );
           })}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ListingDetailThumbnail({ imageUrl }: { imageUrl: string | null }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
+
+  if (!imageUrl || imageFailed) {
+    return <span className="listing-detail-thumbnail-fallback">Görsel yok</span>;
+  }
+
+  return (
+    <img
+      alt=""
+      className="block h-full w-full object-cover"
+      decoding="async"
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+      src={imageUrl}
+    />
   );
 }
 

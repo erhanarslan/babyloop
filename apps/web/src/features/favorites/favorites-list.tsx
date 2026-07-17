@@ -268,7 +268,11 @@ function getFavoritePriority(favorite: FavoriteListing): number {
 }
 
 function isPublicFavorite(favorite: FavoriteListing): boolean {
-  return favorite.status === "active" || favorite.status === "reserved";
+  return (favorite.status === "active" || favorite.status === "reserved") && hasFavoriteImage(favorite);
+}
+
+function hasFavoriteImage(favorite: FavoriteListing): boolean {
+  return Boolean(favorite.firstImage?.url ?? favorite.images?.[0]?.url);
 }
 
 function getFilterLabel(status: FavoriteStatusFilter): string {

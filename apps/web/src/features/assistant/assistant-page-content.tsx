@@ -41,7 +41,7 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
     const prompt = params.get("prompt")?.trim();
 
     if (prompt) {
-      setInputValue(prompt.slice(0, 1000));
+      setInputValue(prompt);
     }
   }, []);
 
@@ -122,7 +122,6 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
         <form className={styles.composer} onSubmit={handleSubmit}>
           <Textarea
             label="Sorunu yaz"
-            maxLength={1000}
             onChange={(event) => setInputValue(event.target.value)}
             placeholder="Örn. 12 aylık bebeğim için dışarı çıkarken nelere dikkat etmeliyim?"
             rows={4}
@@ -130,7 +129,6 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
             wide
           />
           <div className={styles.actions}>
-            <span>{inputValue.length}/1000</span>
             <Button type="submit" disabled={isPending || inputValue.trim().length === 0}>
               {isPending ? "Yanıt hazırlanıyor..." : "Sor"}
             </Button>

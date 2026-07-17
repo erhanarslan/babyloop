@@ -59,7 +59,7 @@ export function SearchOverlay({
         const response = await fetch(
           `${apiBaseUrl}/api/v1/listings?limit=5&offset=0&sort=newest&q=${encodeURIComponent(
             sanitizedQuery
-          )}`,
+          )}&hasImages=true`,
           {
             cache: "no-store",
             signal: controller.signal

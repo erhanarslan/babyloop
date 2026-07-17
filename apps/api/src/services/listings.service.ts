@@ -237,7 +237,7 @@ export async function updateListingStatus(
   nextStatus: ListingStatusValue
 ): Promise<
   | { status: "updated"; listing: ListingSummaryResponse }
-  | { status: "not_found" | "forbidden" | "invalid_transition" }
+  | { status: "not_found" | "forbidden" | "invalid_transition" | "approved_image_required" }
 > {
   const listing = await selectListingOwnerRow(app, listingId);
 
@@ -251,6 +251,14 @@ export async function updateListingStatus(
 
   if (!isAllowedStatusTransition(listing.status, nextStatus)) {
     return { status: "invalid_transition" };
+  }
+
+  if (nextStatus === "active" && listing.status !== "active") {
+    const approvedImageCount = await countApprovedListingImages(app, listingId);
+
+    if (approvedImageCount === 0) {
+      return { status: "approved_image_required" };
+    }
   }
 
   await app.db.transaction(async (tx) => {
@@ -577,6 +585,20 @@ async function countAllListingImages(
     })
     .from(listingImages)
     .where(eq(listingImages.listingId, listingId));
+
+  return row?.imageCount ?? 0;
+}
+
+async function countApprovedListingImages(
+  app: FastifyInstance,
+  listingId: string
+): Promise<number> {
+  const [row] = await app.db
+    .select({
+      imageCount: sql<number>`count(${listingImages.id})::int`
+    })
+    .from(listingImages)
+    .where(and(eq(listingImages.listingId, listingId), eq(listingImages.reviewStatus, "approved")));
 
   return row?.imageCount ?? 0;
 }

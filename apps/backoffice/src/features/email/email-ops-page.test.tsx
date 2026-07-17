@@ -45,10 +45,10 @@ describe("EmailOpsPage", () => {
 
     render(<EmailOpsPage apiBaseUrl={apiBaseUrl} />);
 
-    expect(screen.getByText("Email ops preview yükleniyor...")).toBeInTheDocument();
+    expect(screen.getByText("Email operasyon durumu yükleniyor...")).toBeInTheDocument();
 
-    expect(await screen.findByText("Email delivery operasyonları")).toBeInTheDocument();
-    expect(screen.getByText("SMTP")).toBeInTheDocument();
+    expect(await screen.findByText("Email gönderim sağlığı")).toBeInTheDocument();
+    expect(screen.getAllByText("SMTP")).toHaveLength(2);
     expect(screen.getByText("SMTP_HOST")).toBeInTheDocument();
     expect(screen.getByText("SMTP_PORT")).toBeInTheDocument();
     expect(screen.getByText("Email provider sandbox modundadır.")).toBeInTheDocument();
@@ -84,23 +84,24 @@ describe("EmailOpsPage", () => {
 
     render(<EmailOpsPage apiBaseUrl={apiBaseUrl} />);
 
-    await screen.findByText("Admin test email");
+    await screen.findByText("Kontrollü test emaili");
 
-    fireEvent.change(screen.getByLabelText("To"), {
+    fireEvent.change(screen.getByLabelText("Alıcı"), {
       target: {
         value: "ops@example.test"
       }
     });
-    fireEvent.change(screen.getByLabelText("Intent"), {
+    fireEvent.change(screen.getByLabelText("Senaryo"), {
       target: {
         value: "password_reset"
       }
     });
-    fireEvent.change(screen.getByLabelText("Note"), {
+    fireEvent.change(screen.getByLabelText("Operasyon notu"), {
       target: {
         value: " SMTP smoke test "
       }
     });
+    fireEvent.click(screen.getByLabelText(/Kontrollü test gönderimini onaylıyorum/u));
     fireEvent.click(screen.getByRole("button", { name: "Test email gönder" }));
 
     await waitFor(() => {
@@ -118,12 +119,13 @@ describe("EmailOpsPage", () => {
         body: JSON.stringify({
           to: "ops@example.test",
           intent: "password_reset",
+          confirmation: "SEND_TEST_EMAIL",
           note: "SMTP smoke test"
         })
       }
     );
 
-    expect(await screen.findByText("email_delivery_disabled")).toBeInTheDocument();
+    expect(await screen.findByText("Email gönderimi kapalı")).toBeInTheDocument();
     expect(screen.getByText("Admin test email sandbox/disabled modda kaldı; gerçek mail gönderilmedi.")).toBeInTheDocument();
   });
 

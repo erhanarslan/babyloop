@@ -50,13 +50,14 @@ type EmailOpsPageProps = {
 };
 
 const intentLabels: Record<EmailIntent, string> = {
-  email_verification: "Email verification",
-  password_reset: "Password reset",
-  notification_digest: "Notification digest",
-  security_alert: "Security alert"
+  email_verification: "Email doğrulama",
+  password_reset: "Şifre sıfırlama",
+  notification_digest: "Bildirim özeti",
+  security_alert: "Güvenlik uyarısı"
 };
 
 const defaultIntent: EmailIntent = "security_alert";
+const testSendConfirmation = "SEND_TEST_EMAIL";
 
 export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
   const [preview, setPreview] = useState<AdminEmailOpsPreview | null>(null);
@@ -66,6 +67,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
   const [to, setTo] = useState("");
   const [intent, setIntent] = useState<EmailIntent>(defaultIntent);
   const [note, setNote] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<AdminEmailTestSendResult | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -129,6 +131,11 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
       return;
     }
 
+    if (!confirmed) {
+      setSendError("Kontrollü test gönderimi için onayı işaretle.");
+      return;
+    }
+
     setIsSending(true);
     setSendError(null);
     setSendResult(null);
@@ -143,6 +150,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
         body: JSON.stringify({
           to: normalizedTo,
           intent,
+          confirmation: testSendConfirmation,
           ...(note.trim() ? { note: note.trim() } : {})
         })
       });
@@ -165,33 +173,33 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
     <div className="dashboard-page">
       <section className="page-hero">
         <div>
-          <p className="eyebrow">Email Ops</p>
-          <h2>Email delivery operasyonları</h2>
+          <p className="eyebrow">Email Operasyonları</p>
+          <h2>Email gönderim sağlığı</h2>
           <p>
-            Provider durumunu, email kill-switch bilgisini ve kontrollü test email akışını
-            secretsız şekilde izle. Bu ekran SMTP şifresi, API key, verification/reset token,
-            OTP veya session datası göstermez.
+            Provider durumunu, kill-switch bilgisini ve kontrollü test email akışını secret
+            göstermeden izle. SMTP şifresi, API key, doğrulama/sıfırlama tokenı, OTP veya
+            session verisi bu ekranda gösterilmez.
           </p>
         </div>
       </section>
 
-      {isLoadingPreview ? <div className="state-panel">Email ops preview yükleniyor...</div> : null}
-      {previewError ? <div className="state-panel state-panel-error">{previewError}</div> : null}
+      {isLoadingPreview ? <div className="state-panel">Email operasyon durumu yükleniyor...</div> : null}
+      {previewError ? <div className="state-panel danger">{previewError}</div> : null}
 
       {preview ? (
         <>
-          <section className="summary-grid dashboard-summary-grid" aria-label="Email provider summary">
+          <section className="summary-grid dashboard-summary-grid" aria-label="Email provider özeti">
             <SummaryCard
-              label="Driver"
-              value={preview.emailProvider.driver.toUpperCase()}
+              label="Provider"
+              value={formatDriver(preview.emailProvider.driver)}
               description={getDriverDescription(preview.emailProvider.driver)}
             />
             <SummaryCard
-              label="Send enabled"
+              label="Gerçek gönderim"
               value={preview.emailProvider.sendEnabled ? "Açık" : "Kapalı"}
               description={
                 preview.emailProvider.sendEnabled
-                  ? "Gerçek email provider gönderim modu aktif."
+                  ? "Provider gerçek email kabul edecek şekilde açık."
                   : "Gerçek email gönderimi kapalı."
               }
             />
@@ -205,8 +213,8 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
               }
             />
             <SummaryCard
-              label="Configured"
-              value={preview.emailProvider.providerConfigured ? "Evet" : "Hayır"}
+              label="Kurulum"
+              value={preview.emailProvider.providerConfigured ? "Tamam" : "Eksik"}
               description={
                 preview.emailProvider.providerConfigured
                   ? "Provider için gerekli env alanları tamam."
@@ -215,29 +223,29 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
             />
           </section>
 
-          <section className="module-grid" aria-label="Email ops details">
+          <section className="module-grid" aria-label="Email operasyon detayları">
             <article className="module-card">
               <div>
                 <p className="eyebrow">Provider</p>
-                <h3>Delivery configuration</h3>
+                <h3>Gönderim konfigürasyonu</h3>
                 <p>{preview.warning}</p>
               </div>
 
               <dl className="detail-list">
-                <PolicyItem label="Driver" value={preview.emailProvider.driver} />
-                <PolicyItem label="Send enabled" value={preview.emailProvider.sendEnabled ? "enabled" : "disabled"} />
-                <PolicyItem label="Sandbox only" value={preview.emailProvider.sandboxOnly ? "true" : "false"} />
-                <PolicyItem label="From configured" value={preview.emailProvider.fromConfigured ? "true" : "false"} />
-                <PolicyItem label="Provider configured" value={preview.emailProvider.providerConfigured ? "true" : "false"} />
+                <PolicyItem label="Provider" value={formatDriver(preview.emailProvider.driver)} />
+                <PolicyItem label="Gerçek gönderim" value={preview.emailProvider.sendEnabled ? "Açık" : "Kapalı"} />
+                <PolicyItem label="Sandbox modu" value={preview.emailProvider.sandboxOnly ? "Sadece test" : "Gerçek gönderime açık"} />
+                <PolicyItem label="From adresi" value={preview.emailProvider.fromConfigured ? "Tanımlı" : "Eksik"} />
+                <PolicyItem label="Provider env" value={preview.emailProvider.providerConfigured ? "Tamam" : "Eksik"} />
               </dl>
 
               <div className="info-panel">
-                <strong>Provider warning</strong>
+                <strong>Provider uyarısı</strong>
                 <p>{preview.emailProvider.warning}</p>
               </div>
 
               <div className="info-panel">
-                <strong>Missing env</strong>
+                <strong>Eksik env alanları</strong>
                 {preview.emailProvider.missing.length > 0 ? (
                   <ul className="compact-list">
                     {preview.emailProvider.missing.map((item) => (
@@ -253,16 +261,16 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
             <article className="module-card">
               <div>
                 <p className="eyebrow">Smoke test</p>
-                <h3>Admin test email</h3>
+                <h3>Kontrollü test emaili</h3>
                 <p>
-                  Kontrollü test email draft’ı gönder. Gerçek mail yalnızca backend tarafında
-                  EMAIL_DELIVERY_MODE=provider, EMAIL_PROVIDER=smtp|resend ve EMAIL_SEND_ENABLED=true ise gider.
+                  Test draft’ı backend üzerinden gönderilir. Gerçek email yalnızca provider kurulumu
+                  tamam, gönderim kill-switch’i açık ve sandbox modu kapalıysa çıkar.
                 </p>
               </div>
 
               <form className="stacked-form" onSubmit={handleSubmit}>
                 <label>
-                  <span>To</span>
+                  <span>Alıcı</span>
                   <input
                     type="email"
                     value={to}
@@ -274,7 +282,7 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
                 </label>
 
                 <label>
-                  <span>Intent</span>
+                  <span>Senaryo</span>
                   <select value={intent} onChange={(event) => setIntent(event.target.value as EmailIntent)}>
                     {supportedIntents.map((item) => (
                       <option key={item} value={item}>
@@ -285,14 +293,26 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
                 </label>
 
                 <label>
-                  <span>Note</span>
+                  <span>Operasyon notu</span>
                   <textarea
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
-                    placeholder="SMTP smoke test"
+                    placeholder="SMTP smoke testi"
                     maxLength={240}
                     rows={4}
                   />
+                </label>
+
+                <label className="checkbox-option">
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(event) => setConfirmed(event.target.checked)}
+                  />
+                  <span>
+                    <strong>Kontrollü test gönderimini onaylıyorum.</strong>
+                    <small>Bu işlem gerçek kullanıcı tokenı, OTP veya secret içermeyen admin test emaili oluşturur.</small>
+                  </span>
                 </label>
 
                 <button className="primary-action" type="submit" disabled={isSending}>
@@ -300,20 +320,20 @@ export function EmailOpsPage({ apiBaseUrl }: EmailOpsPageProps) {
                 </button>
               </form>
 
-              {sendError ? <div className="state-panel state-panel-error">{sendError}</div> : null}
+              {sendError ? <div className="state-panel danger">{sendError}</div> : null}
 
               {sendResult ? (
                 <div className="info-panel">
-                  <strong>Test result</strong>
+                  <strong>Test sonucu</strong>
                   <dl className="detail-list">
-                    <PolicyItem label="Intent" value={sendResult.intent} />
-                    <PolicyItem label="Sent" value={sendResult.result.sent ? "true" : "false"} />
-                    <PolicyItem label="Provider" value={sendResult.result.provider} />
-                    <PolicyItem label="Sandbox only" value={sendResult.result.sandboxOnly ? "true" : "false"} />
+                    <PolicyItem label="Senaryo" value={intentLabels[sendResult.intent]} />
+                    <PolicyItem label="Sonuç" value={sendResult.result.sent ? "Provider kabul etti" : "Gerçek mail çıkmadı"} />
+                    <PolicyItem label="Provider" value={formatDriver(sendResult.result.provider)} />
+                    <PolicyItem label="Sandbox" value={sendResult.result.sandboxOnly ? "Sadece test" : "Kapalı"} />
                     {"reason" in sendResult.result ? (
-                      <PolicyItem label="Reason" value={sendResult.result.reason} />
+                      <PolicyItem label="Neden" value={formatSendReason(sendResult.result.reason)} />
                     ) : (
-                      <PolicyItem label="Message ID" value={sendResult.result.messageId ?? "accepted"} />
+                      <PolicyItem label="Message ID" value={sendResult.result.messageId ?? "Provider kabul etti"} />
                     )}
                   </dl>
                   <p>{sendResult.warning}</p>
@@ -364,4 +384,24 @@ function getDriverDescription(driver: EmailProviderDriver): string {
   }
 
   return "Mock provider seçili.";
+}
+
+function formatDriver(driver: EmailProviderDriver): string {
+  if (driver === "smtp") {
+    return "SMTP";
+  }
+
+  if (driver === "resend") {
+    return "Resend";
+  }
+
+  return "Mock";
+}
+
+function formatSendReason(reason: "email_delivery_disabled"): string {
+  if (reason === "email_delivery_disabled") {
+    return "Email gönderimi kapalı";
+  }
+
+  return "Gönderim engellendi";
 }

@@ -75,7 +75,8 @@ describe("admin email routes", () => {
       payload: {
         to: "ADMIN@EXAMPLE.TEST",
         intent: "security_alert",
-        note: "SMTP smoke test"
+        note: "SMTP smoke test",
+        confirmation: "SEND_TEST_EMAIL"
       }
     });
 
