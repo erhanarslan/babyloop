@@ -41,6 +41,7 @@ import type {
   ListingSummaryResponse
 } from "../services/listing-response.mapper.js";
 import { recordProductEvent } from "../services/product-events.service.js";
+import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 import {
   buildDirectListingShareLink,
   getOrCreateListingShareLink,
@@ -235,6 +236,19 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         }
       });
     }
+    void trackServerAnalyticsEvent(app, {
+      eventName: "listing_created",
+      platform: "web",
+      profileId: currentUser.profile.id,
+      properties: {
+        categoryId: result.listing.category.id,
+        listingId: result.listing.id,
+        listingStatus: result.listing.status,
+        listingType: result.listing.listingType
+      },
+      sessionId: currentUser.sessionId,
+      userId: currentUser.userId
+    });
 
     return reply.status(201).send({
       ok: true,
@@ -539,6 +553,18 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         listingId: parsedParams.data.id,
         source: "seller_dashboard"
       }).catch(() => undefined);
+      void trackServerAnalyticsEvent(app, {
+        eventName: "listing_updated",
+        platform: "web",
+        profileId: currentUser.profile.id,
+        properties: {
+          categoryId: result.listing.category.id,
+          listingId: result.listing.id,
+          listingStatus: result.listing.status
+        },
+        sessionId: currentUser.sessionId,
+        userId: currentUser.userId
+      });
 
       return {
         ok: true,
@@ -609,6 +635,18 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
           }
         });
       }
+      void trackServerAnalyticsEvent(app, {
+        eventName: "listing_status_changed",
+        platform: "web",
+        profileId: currentUser.profile.id,
+        properties: {
+          categoryId: result.listing.category.id,
+          listingId: result.listing.id,
+          listingStatus: result.listing.status
+        },
+        sessionId: currentUser.sessionId,
+        userId: currentUser.userId
+      });
 
       return {
         ok: true,

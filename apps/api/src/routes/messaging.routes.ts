@@ -33,6 +33,7 @@ import {
   markMessageNotificationsReadForConversation
 } from "../services/notifications.service.js";
 import { recordProductEvent } from "../services/product-events.service.js";
+import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 import { safePlainTextFallback } from "../services/text-safety.service.js";
 
 type ConversationResponse = ApiResponse<{
@@ -114,6 +115,20 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
             code: "INTERNAL_SERVER_ERROR",
             message: "Internal server error"
           }
+        });
+      }
+      if (result.status === "created") {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "conversation_started",
+          platform: "web",
+          profileId: currentUser.profile.id,
+          properties: {
+            conversationId: result.conversation.id,
+            listingId: parsedBody.data.listingId,
+            sourceSurface: "listing_detail"
+          },
+          sessionId: currentUser.sessionId,
+          userId: currentUser.userId
         });
       }
 
@@ -302,6 +317,19 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         conversationId: parsedParams.data.id,
         source: "conversation"
       }).catch(() => undefined);
+      void trackServerAnalyticsEvent(app, {
+        eventName: "message_sent",
+        platform: "web",
+        profileId: currentUser.profile.id,
+        properties: {
+          bodyLengthBucket: bucketMessageLength(parsedBody.data.body.length),
+          conversationId: parsedParams.data.id,
+          moderationOutcome: "allowed",
+          sourceSurface: "conversation"
+        },
+        sessionId: currentUser.sessionId,
+        userId: currentUser.userId
+      });
 
       return reply.status(201).send({
         ok: true,
@@ -417,6 +445,18 @@ async function createMessageReceivedNotifications(
 
 function truncateNotificationText(input: string): string {
   return input.length > 120 ? `${input.slice(0, 117)}...` : input;
+}
+
+function bucketMessageLength(length: number): string {
+  if (length <= 50) {
+    return "1-50";
+  }
+
+  if (length <= 200) {
+    return "51-200";
+  }
+
+  return "201+";
 }
 
 function invalidMessageBodyRequest(): ApiResponse<never> {

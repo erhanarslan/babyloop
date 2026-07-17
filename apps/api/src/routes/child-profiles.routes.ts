@@ -35,6 +35,7 @@ import {
   type LifecycleRecommendationResponse,
   updateChildProfile
 } from "../services/child-profiles.service.js";
+import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 
 type ChildProfilesResponse = ApiResponse<{
   childProfiles: ChildProfileResponse[];
@@ -107,10 +108,22 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
         return reply.status(400).send(invalidChildProfileRequest());
       }
 
+      const childProfile = await createChildProfile(app, currentUser.profile.id, parsedBody.data);
+      void trackServerAnalyticsEvent(app, {
+        eventName: "child_profile_created",
+        platform: "web",
+        profileId: currentUser.profile.id,
+        properties: {
+          ageBand: "unknown"
+        },
+        sessionId: currentUser.sessionId,
+        userId: currentUser.userId
+      });
+
       return reply.status(201).send({
         ok: true,
         data: {
-          childProfile: await createChildProfile(app, currentUser.profile.id, parsedBody.data)
+          childProfile
         }
       });
     }
@@ -196,6 +209,16 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
     if (result.status === "not_found") {
       return reply.status(404).send(childProfileNotFound());
     }
+    void trackServerAnalyticsEvent(app, {
+      eventName: "child_note_created",
+      platform: "web",
+      profileId: currentUser.profile.id,
+      properties: {
+        noteCategory: "general"
+      },
+      sessionId: currentUser.sessionId,
+      userId: currentUser.userId
+    });
 
     return reply.status(201).send({
       ok: true,
@@ -340,6 +363,18 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
     if (result.status === "not_found") {
       return reply.status(404).send(childProfileNotFound());
     }
+    void trackServerAnalyticsEvent(app, {
+      eventName: "child_reminder_created",
+      platform: "web",
+      profileId: currentUser.profile.id,
+      properties: {
+        hasPreNotification: result.reminder.notifyBeforeMinutes !== null,
+        reminderCategory: result.reminder.reminderType,
+        scheduleKind: result.reminder.scheduleKind
+      },
+      sessionId: currentUser.sessionId,
+      userId: currentUser.userId
+    });
 
     return reply.status(201).send({
       ok: true,
@@ -378,6 +413,18 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
     if (result.status === "not_found") {
       return reply.status(404).send(childProfileNotFound());
     }
+    void trackServerAnalyticsEvent(app, {
+      eventName: "child_reminder_updated",
+      platform: "web",
+      profileId: currentUser.profile.id,
+      properties: {
+        active: result.reminder.status === "scheduled",
+        reminderCategory: result.reminder.reminderType,
+        scheduleKind: result.reminder.scheduleKind
+      },
+      sessionId: currentUser.sessionId,
+      userId: currentUser.userId
+    });
 
     return {
       ok: true,
@@ -413,6 +460,16 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
     if (result === "not_found") {
       return reply.status(404).send(childProfileNotFound());
     }
+    void trackServerAnalyticsEvent(app, {
+      eventName: "child_reminder_deleted",
+      platform: "web",
+      profileId: currentUser.profile.id,
+      properties: {
+        scheduleKind: "unknown"
+      },
+      sessionId: currentUser.sessionId,
+      userId: currentUser.userId
+    });
 
     return {
       ok: true,

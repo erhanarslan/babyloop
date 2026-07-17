@@ -111,6 +111,7 @@ import {
   serializeBackofficeCsrfCookie,
   serializeExpiredBackofficeCsrfCookie
 } from "../utils/backoffice-csrf.js";
+import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
@@ -150,6 +151,10 @@ function resolveAuthClientType(
 
 function shouldRequireMobileLoginApproval(clientType: AuthClientType): boolean {
   return clientType === "web";
+}
+
+function resolveAnalyticsPlatform(clientType: AuthClientType): "web" | "mobile" {
+  return clientType === "mobile" ? "mobile" : "web";
 }
 
 
@@ -243,6 +248,17 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         refreshToken: session.refreshToken,
         refreshTokenExpiresAt: session.expiresAt
       });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "registration_completed",
+        platform: resolveAnalyticsPlatform(resolveAuthClientType(request)),
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password",
+          newSession: true
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
+      });
 
       return reply.status(201).send(responseWithDevVerificationToken);
     }
@@ -268,10 +284,25 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       });
 
       if (result.status === "invalid") {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "login_failed",
+          platform: resolveAnalyticsPlatform(clientType),
+          properties: {
+            authProvider: "password",
+            reasonBucket: "invalid_credentials"
+          }
+        });
         return reply.status(401).send(result.response);
       }
 
       if (result.status === "mfa_required") {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "mfa_challenge_started",
+          platform: resolveAnalyticsPlatform(clientType),
+          properties: {
+            authProvider: "password"
+          }
+        });
         const response =
           shouldExposeDevOtpCode() && result.devOtpCode
             ? {
@@ -287,6 +318,13 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       if (result.status === "approval_required") {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "login_approval_started",
+          platform: resolveAnalyticsPlatform(clientType),
+          properties: {
+            authProvider: "password"
+          }
+        });
         return reply.status(200).send(result.response);
       }
 
@@ -302,6 +340,19 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
         refreshToken: session.refreshToken,
         refreshTokenExpiresAt: session.expiresAt
+      });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "login_completed",
+        platform: resolveAnalyticsPlatform(clientType),
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password",
+          mfaUsed: false,
+          mobileApprovalUsed: false,
+          newSession: true
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
       });
 
       return reply.status(200).send(response);
@@ -328,6 +379,13 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       if (result.status === "approval_required") {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "login_approval_started",
+          platform: resolveAnalyticsPlatform(resolveAuthClientType(request, "web")),
+          properties: {
+            authProvider: "password"
+          }
+        });
         return reply.status(200).send(result.response);
       }
 
@@ -343,6 +401,29 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
         refreshToken: session.refreshToken,
         refreshTokenExpiresAt: session.expiresAt
+      });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "mfa_completed",
+        platform: resolveAnalyticsPlatform(resolveAuthClientType(request, "web")),
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password"
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
+      });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "login_completed",
+        platform: resolveAnalyticsPlatform(resolveAuthClientType(request, "web")),
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password",
+          mfaUsed: true,
+          mobileApprovalUsed: false,
+          newSession: true
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
       });
 
       return reply.status(200).send(response);
@@ -380,6 +461,30 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
         refreshToken: session.refreshToken,
         refreshTokenExpiresAt: session.expiresAt
+      });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "login_approval_completed",
+        platform: "web",
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password",
+          decision: "approved"
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
+      });
+      void trackServerAnalyticsEvent(app, {
+        eventName: "login_completed",
+        platform: "web",
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "password",
+          mfaUsed: false,
+          mobileApprovalUsed: true,
+          newSession: true
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
       });
 
       return reply.status(200).send(response);
@@ -610,12 +715,23 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
   app.post<{ Reply: LogoutAuthResponse }>("/auth/logout", async (request, reply) => {
     const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+    const currentUser = typeof app.authenticate === "function" ? await app.authenticate(request) : null;
 
     if (refreshToken) {
       await revokeAuthSession(app, refreshToken);
     }
 
     clearPublicAuthCookies(reply);
+    void trackServerAnalyticsEvent(app, {
+      eventName: "logout_completed",
+      platform: "web",
+      profileId: currentUser?.profile.id ?? null,
+      properties: {
+        sourceSurface: "account"
+      },
+      userId: currentUser?.userId ?? null,
+      ...(currentUser ? { sessionId: currentUser.sessionId } : {})
+    });
 
     return reply.status(200).send(buildLogoutAuthResponse());
   });
@@ -1206,5 +1322,3 @@ function googleOAuthUnavailableResponse() {
     }
   };
 }
-
-
