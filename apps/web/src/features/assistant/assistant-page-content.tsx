@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -9,20 +9,19 @@ import {
   Textarea
 } from "../../components/ui";
 import {
-  requestAssistantMessage,
-  type AssistantMessageAction,
-  type AssistantMessageSource,
-  type AssistantSuggestedAction
+  requestAssistantMessage
 } from "./api";
+import {
+  normalizeWebAssistantResponse,
+  type WebAssistantResponse
+} from "./assistant-response-model";
 import styles from "./assistant-page-content.module.css";
 
 type AssistantMessage = {
   id: string;
   role: "assistant" | "user";
   content: string;
-  actions?: AssistantMessageAction[];
-  sources?: AssistantMessageSource[];
-  suggestedActions?: AssistantSuggestedAction[];
+  response?: WebAssistantResponse;
 };
 
 type AssistantPageContentProps = {
@@ -34,6 +33,8 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -47,7 +48,11 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const normalizedInput = inputValue.trim();
+    await submitPrompt(inputValue);
+  }
+
+  async function submitPrompt(value: string) {
+    const normalizedInput = value.trim();
 
     if (!normalizedInput || isPending) {
       return;
@@ -63,29 +68,46 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
     setInputValue("");
     setIsPending(true);
     setErrorMessage(null);
+    setLastFailedPrompt(null);
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
 
     const response = await requestAssistantMessage(apiBaseUrl, {
       locale: "tr",
       message: normalizedInput
     });
 
+    if (requestId !== requestIdRef.current) {
+      return;
+    }
+
     if (response.ok) {
+      let normalizedResponse: WebAssistantResponse;
+
+      try {
+        normalizedResponse = normalizeWebAssistantResponse(response.data);
+      } catch {
+        setLastFailedPrompt(normalizedInput);
+        setErrorMessage("Asistan yanıtı okunamadı. Tekrar deneyebilirsin.");
+        setIsPending(false);
+        return;
+      }
+
       setMessages((currentMessages) => [
         ...currentMessages,
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          content: response.data.answer,
-          actions: response.data.actions ?? [],
-          sources: response.data.sources ?? [],
-          suggestedActions: response.data.suggestedActions ?? []
+          content: normalizedResponse.answer,
+          response: normalizedResponse
         }
       ]);
       setIsPending(false);
       return;
     }
 
-    setErrorMessage("Asistan şu an yapılandırılmadı. Daha sonra tekrar deneyebilirsin.");
+    setLastFailedPrompt(normalizedInput);
+    setErrorMessage(getAssistantErrorMessage(response.error.code));
     setIsPending(false);
   }
 
@@ -116,7 +138,14 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
         </form>
 
         {errorMessage ? (
-          <Alert title="Asistan kullanılamıyor" message={errorMessage} />
+          <div className={styles.retryBlock}>
+            <Alert title="Asistan kullanılamıyor" message={errorMessage} />
+            {lastFailedPrompt ? (
+              <Button type="button" variant="secondary" disabled={isPending} onClick={() => void submitPrompt(lastFailedPrompt)}>
+                Tekrar dene
+              </Button>
+            ) : null}
+          </div>
         ) : null}
 
         <div className={styles.answerArea} aria-live="polite">
@@ -149,26 +178,49 @@ function AssistantMessageCard({ message }: { message: AssistantMessage }) {
       <strong>{message.role === "assistant" ? "Yanıt" : "Sen"}</strong>
       <p>{message.content}</p>
 
-      <AssistantSuggestedActions actions={message.suggestedActions} />
+      {message.response ? (
+        <div className={styles.modeRow}>
+          <span>{message.response.modeLabel}</span>
+          {message.response.showGrounded ? (
+            <span>{message.response.grounded ? "Kaynaklarla destekli" : "Genel yönlendirme"}</span>
+          ) : null}
+        </div>
+      ) : null}
 
-      {message.actions && message.actions.length > 0 ? (
-        <div className={styles.actionRow}>
-          {message.actions.map((action) => (
-            <Link href={action.href} key={`${action.href}-${action.label}`}>
-              {localizeActionLabel(action.label, action.href)}
-            </Link>
+      {message.response?.toolPreviewCards.length ? (
+        <div className={styles.toolPreview} aria-label="Araç sonuçları">
+          {message.response.toolPreviewCards.map((preview) => (
+            <div key={preview.id}>
+              <strong>{preview.title}</strong>
+              <span>{preview.summary}</span>
+            </div>
           ))}
         </div>
       ) : null}
 
-      {message.sources && message.sources.length > 0 ? (
+      {message.response?.actionCards.length ? (
+        <div className={styles.actionRow}>
+          {message.response.actionCards.map((action) => (
+            action.href ? (
+              <Link href={action.href} key={action.id}>
+                {localizeActionLabel(action.label, action.href)}
+              </Link>
+            ) : (
+              <span key={action.id}>{action.label}</span>
+            )
+          ))}
+        </div>
+      ) : null}
+
+      {message.response?.sourceCards.length ? (
         <div className={styles.sources} aria-label="Kaynaklar">
           <span>Kaynaklar</span>
           <ul>
-            {message.sources.map((source) => (
-              <li key={`${source.sourcePath}-${source.section ?? source.title}`}>
-                {source.title}
-                {source.section ? ` · ${source.section}` : ""}
+            {message.response.sourceCards.map((source) => (
+              <li key={source.id}>
+                {source.label}
+                {source.topic ? ` · ${source.topic}` : ""}
+                {source.reliability ? ` · ${source.reliability}` : ""}
               </li>
             ))}
           </ul>
@@ -212,143 +264,18 @@ function normalizeText(value: string): string {
 }
 
 
-function AssistantSuggestedActions({ actions }: { actions: AssistantSuggestedAction[] | undefined }) {
-  if (!actions?.length) {
-    return null;
+function getAssistantErrorMessage(code: string): string {
+  if (code === "RAG_USAGE_LIMIT_EXCEEDED") {
+    return "Asistan kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyebilirsin.";
   }
 
-  return (
-    <div className={styles["assistant-suggested-actions"]} aria-label="Önerilen aksiyonlar">
-      {actions.map((action, index) => (
-        <AssistantSuggestedActionCard action={action} key={`${action.type}-${action.label}-${index}`} />
-      ))}
-    </div>
-  );
-}
-
-function AssistantSuggestedActionCard({ action }: { action: AssistantSuggestedAction }) {
-  if (action.href) {
-    return (
-      <a className={styles["assistant-suggested-action-card"]} href={action.href}>
-        <strong>{action.label}</strong>
-        <span>{describeSuggestedAction(action)}</span>
-      </a>
-    );
+  if (code === "ASSISTANT_UNAVAILABLE" || code === "API_UNAVAILABLE") {
+    return "Asistan şu an hazırlanamadı. Daha sonra tekrar deneyebilirsin.";
   }
 
-  if (action.type === "copy_questions") {
-    const questions = extractStringArray(action.payload, "questions");
-
-    return (
-      <button
-        className={styles["assistant-suggested-action-card"]}
-        type="button"
-        onClick={() => {
-          if (questions.length > 0) {
-            void navigator.clipboard?.writeText(questions.join("\n"));
-          }
-        }}
-      >
-        <strong>{action.label}</strong>
-        <span>{questions.length > 0 ? `${questions.length} soru kopyalanabilir.` : describeSuggestedAction(action)}</span>
-      </button>
-    );
+  if (code === "UNAUTHORIZED") {
+    return "Asistanı kullanmak için giriş yapman gerekiyor.";
   }
 
-  return (
-    <div className={styles["assistant-suggested-action-card"]}>
-      <strong>{action.label}</strong>
-      <span>{describeSuggestedAction(action)}</span>
-      <SuggestedActionPayloadPreview action={action} />
-    </div>
-  );
-}
-
-function SuggestedActionPayloadPreview({ action }: { action: AssistantSuggestedAction }) {
-  if (action.type === "review_child_recommendations") {
-    const recommendations = extractArrayOfRecords(action.payload, "childRecommendations");
-
-    if (recommendations.length === 0) {
-      return null;
-    }
-
-    return (
-      <ul className={styles["assistant-suggested-action-list"]}>
-        {recommendations.slice(0, 4).map((item, index) => (
-          <li key={index}>
-            <strong>{formatUnknownRecordValue(item.label) || formatUnknownRecordValue(item.query) || "Öneri"}</strong>
-            <span>{formatUnknownRecordValue(item.reason)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  if (action.type === "review_saved_search_draft") {
-    const savedSearches = extractArrayOfRecords(action.payload, "suggestedSearches");
-
-    if (savedSearches.length === 0) {
-      return null;
-    }
-
-    return (
-      <ul className={styles["assistant-suggested-action-list"]}>
-        {savedSearches.slice(0, 4).map((item, index) => (
-          <li key={index}>
-            <strong>{formatUnknownRecordValue(item.label) || "Kayıtlı arama taslağı"}</strong>
-            <span>{formatUnknownRecordValue(item.query)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  if (action.type === "review_listing_draft") {
-    return <span className={styles["assistant-suggested-action-note"]}>Bu yalnızca taslaktır; ilan kullanıcı onayı olmadan oluşturulmaz.</span>;
-  }
-
-  return null;
-}
-
-function describeSuggestedAction(action: AssistantSuggestedAction): string {
-  switch (action.type) {
-    case "open_listing":
-      return "İlan detayını açar.";
-    case "open_search":
-      return "Arama sonuçlarını açar.";
-    case "copy_questions":
-      return "Satıcıya sorulacak güvenli soruları kopyalar.";
-    case "review_saved_search_draft":
-      return "Kayıtlı arama taslağını gösterir; otomatik kaydetmez.";
-    case "review_listing_draft":
-      return "İlan taslağını gösterir; otomatik ilan oluşturmaz.";
-    case "review_child_recommendations":
-      return "Yaş ve mevsime göre çocuk önerilerini gösterir; otomatik bildirim oluşturmaz.";
-    default:
-      return "Önerilen güvenli aksiyon.";
-  }
-}
-
-function extractStringArray(payload: Record<string, unknown> | undefined, key: string): string[] {
-  const value = payload?.[key];
-
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-}
-
-function extractArrayOfRecords(payload: Record<string, unknown> | undefined, key: string): Array<Record<string, unknown>> {
-  const value = payload?.[key];
-
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
-}
-
-function formatUnknownRecordValue(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  return "Asistan yanıtı alınamadı. Tekrar deneyebilirsin.";
 }

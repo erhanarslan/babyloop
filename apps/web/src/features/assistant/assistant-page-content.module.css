@@ -57,6 +57,11 @@
   gap: 0.75rem;
 }
 
+.retryBlock {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .empty,
 .message {
   border: 1px solid rgba(107, 86, 73, 0.12);
@@ -101,6 +106,46 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.2rem;
+}
+
+.actionRow span,
+.modeRow span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid rgba(107, 86, 73, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 0.35rem 0.65rem;
+  color: var(--color-text-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.modeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.toolPreview {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.toolPreview div {
+  display: grid;
+  gap: 0.15rem;
+  border: 1px solid rgba(107, 86, 73, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.56);
+  padding: 0.65rem;
+}
+
+.toolPreview span {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .actionRow a {
