@@ -335,6 +335,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     app.register(registerNotificationRoutes, { prefix: API_PREFIX });
     app.register(registerProductEventRoutes, { prefix: API_PREFIX });
     app.register(registerRagRoutes, {
+      ...(config.rag.enabled ? { cacheVersion: config.rag.indexVersion } : {}),
       ragCacheService: ragServices?.cacheService ?? null,
       ragMetricsService: ragServices?.metricsService ?? null,
       ragSearchService: ragServices?.searchService ?? null,
@@ -379,6 +380,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       prefix: API_PREFIX
     });
     app.register(registerRagRoutes, {
+      ...(config.rag.enabled ? { cacheVersion: config.rag.indexVersion } : {}),
       ragCacheService: ragServices?.cacheService ?? null,
       ragMetricsService: ragServices?.metricsService ?? null,
       ragSearchService: ragServices?.searchService ?? null,

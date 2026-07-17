@@ -13,6 +13,7 @@ type RagSearchResponse = ApiResponse<{
 }>;
 
 type RagRouteOptions = {
+  cacheVersion?: string;
   ragCacheService?: RagCacheService | null;
   ragMetricsService?: RagMetricsService | null;
   ragSearchService?: RagSearchService | null;
@@ -74,7 +75,8 @@ export function registerRagRoutes(app: FastifyInstance, options: RagRouteOptions
           kind: "search",
           intent: "search",
           locale: "tr",
-          message: `${parsedBody.data.query}:limit:${parsedBody.data.limit ?? 5}`
+          message: `${parsedBody.data.query}:limit:${parsedBody.data.limit ?? 5}`,
+          version: options.cacheVersion ?? "rag-search-unversioned"
         });
         const cachedResults = cacheKey ? await options.ragCacheService?.getSearch(cacheKey) : null;
 

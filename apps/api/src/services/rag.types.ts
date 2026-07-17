@@ -39,6 +39,8 @@ export type RagChunkMetadata = RagDocumentMetadata & {
   contentLength?: number;
   documentId: string;
   documentTitle?: string;
+  embeddingModel?: string;
+  indexVersion?: string;
   indexedAt?: string;
   section: string;
   chunkIndex: number;

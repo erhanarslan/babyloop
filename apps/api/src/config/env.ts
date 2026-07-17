@@ -71,6 +71,7 @@ export type RagRuntimeConfig =
       qdrantVectorSize: number;
       embeddingProvider: "gemini";
       embeddingModel: string;
+      indexVersion: string;
       chatProvider: "gemini";
       chatModel: string;
       minScore: number;
@@ -407,6 +408,7 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     qdrantVectorSize: readPositiveInteger(env.RAG_QDRANT_VECTOR_SIZE, 3072),
     embeddingProvider: "gemini",
     embeddingModel: env.RAG_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+    indexVersion: env.RAG_INDEX_VERSION?.trim() || env.RAG_QDRANT_COLLECTION?.trim() || "babyloop_rag",
     chatProvider: "gemini",
     chatModel: env.RAG_CHAT_MODEL?.trim() || "gemini-2.5-flash",
     minScore: readNumberInRange(env.RAG_MIN_SCORE, 0.72, 0, 1),

@@ -27,6 +27,11 @@ type QdrantScrollPoint = {
   payload?: unknown;
 };
 
+export type QdrantAliasSummary = {
+  aliasName: string;
+  collectionName: string;
+};
+
 export class QdrantVectorStore implements RagVectorStore {
   private readonly apiKey?: string;
   private readonly collectionName: string;
@@ -73,6 +78,148 @@ export class QdrantVectorStore implements RagVectorStore {
     }
   }
 
+  async collectionExists(collectionName: string): Promise<boolean> {
+    const response = await this.request(`/collections/${encodeURIComponent(collectionName)}`, {
+      method: "GET"
+    });
+
+    if (response.ok) {
+      return true;
+    }
+
+    if (response.status === 404) {
+      return false;
+    }
+
+    throw new Error(`Qdrant collection existence check failed with status ${response.status}.`);
+  }
+
+  async createNamedCollection(collectionName: string): Promise<void> {
+    const created = await this.request(`/collections/${encodeURIComponent(collectionName)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        vectors: {
+          size: this.vectorSize,
+          distance: "Cosine"
+        }
+      })
+    });
+
+    if (!created.ok) {
+      throw new Error(`Qdrant collection create failed with status ${created.status}.`);
+    }
+  }
+
+  async listCollections(): Promise<string[]> {
+    const response = await this.request("/collections", {
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qdrant collection list failed with status ${response.status}.`);
+    }
+
+    const payload = await response.json() as { result?: unknown };
+    const result = typeof payload.result === "object" && payload.result !== null
+      ? payload.result as Record<string, unknown>
+      : {};
+    const collections = Array.isArray(result.collections) ? result.collections : [];
+
+    return collections.flatMap((collection) => {
+      if (typeof collection !== "object" || collection === null) {
+        return [];
+      }
+
+      const name = (collection as Record<string, unknown>).name;
+      return typeof name === "string" ? [name] : [];
+    });
+  }
+
+  async listAliases(): Promise<QdrantAliasSummary[]> {
+    const response = await this.request("/aliases", {
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qdrant alias list failed with status ${response.status}.`);
+    }
+
+    const payload = await response.json() as { result?: unknown };
+    const result = typeof payload.result === "object" && payload.result !== null
+      ? payload.result as Record<string, unknown>
+      : {};
+    const aliases = Array.isArray(result.aliases) ? result.aliases : [];
+
+    return aliases.flatMap((alias) => {
+      if (typeof alias !== "object" || alias === null) {
+        return [];
+      }
+
+      const record = alias as Record<string, unknown>;
+      const aliasName = typeof record.alias_name === "string" ? record.alias_name : null;
+      const collectionName = typeof record.collection_name === "string" ? record.collection_name : null;
+
+      return aliasName && collectionName ? [{ aliasName, collectionName }] : [];
+    });
+  }
+
+  async getAliasTarget(aliasName: string): Promise<string | null> {
+    const aliases = await this.listAliases();
+    return aliases.find((alias) => alias.aliasName === aliasName)?.collectionName ?? null;
+  }
+
+  async switchAliasAtomically(aliasName: string, targetCollection: string): Promise<void> {
+    const currentTarget = await this.getAliasTarget(aliasName);
+    const actions: Array<Record<string, unknown>> = [];
+
+    if (currentTarget) {
+      actions.push({
+        delete_alias: {
+          alias_name: aliasName
+        }
+      });
+    }
+
+    actions.push({
+      create_alias: {
+        alias_name: aliasName,
+        collection_name: targetCollection
+      }
+    });
+
+    const response = await this.request("/collections/aliases", {
+      method: "POST",
+      body: JSON.stringify({ actions })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qdrant alias switch failed with status ${response.status}.`);
+    }
+  }
+
+  async deleteAlias(aliasName: string): Promise<void> {
+    const response = await this.request("/collections/aliases", {
+      method: "POST",
+      body: JSON.stringify({
+        actions: [
+          {
+            delete_alias: {
+              alias_name: aliasName
+            }
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qdrant alias delete failed with status ${response.status}.`);
+    }
+  }
+
+  async countNamedCollectionPoints(collectionName: string): Promise<number> {
+    return (await this.getNamedCollectionInfo(collectionName)).pointsCount;
+  }
+
   async upsertChunks(chunks: Array<RagChunk & { embedding: number[] }>): Promise<void> {
     if (chunks.length === 0) {
       return;
@@ -116,6 +263,8 @@ export class QdrantVectorStore implements RagVectorStore {
               checksumShort: chunk.metadata.checksumShort,
               chunkId: chunk.metadata.chunkId ?? chunk.id,
               chunkIndex: chunk.metadata.chunkIndex,
+              indexVersion: chunk.metadata.indexVersion,
+              embeddingModel: chunk.metadata.embeddingModel,
               indexedAt: chunk.metadata.indexedAt,
               contentLength: chunk.metadata.contentLength ?? chunk.text.length,
               locale: chunk.metadata.locale
@@ -178,7 +327,11 @@ export class QdrantVectorStore implements RagVectorStore {
   }
 
   async getCollectionInfo(): Promise<RagCollectionInfo> {
-    const response = await this.request(`/collections/${encodeURIComponent(this.collectionName)}`, {
+    return this.getNamedCollectionInfo(this.collectionName);
+  }
+
+  async getNamedCollectionInfo(collectionName: string): Promise<RagCollectionInfo> {
+    const response = await this.request(`/collections/${encodeURIComponent(collectionName)}`, {
       method: "GET"
     });
 
@@ -214,6 +367,52 @@ export class QdrantVectorStore implements RagVectorStore {
       vectorSize: numberOrDefault(vectors.size, this.vectorSize),
       indexedVectorsCount: numberOrZero(result.indexed_vectors_count)
     };
+  }
+
+  async scrollNamedCollectionPayloads(collectionName: string, options: { limit?: number } = {}): Promise<Array<Record<string, unknown>>> {
+    const payloads: Array<Record<string, unknown>> = [];
+    let offset: unknown = null;
+    const limit = Math.min(Math.max(options.limit ?? 256, 1), 256);
+
+    do {
+      const response = await this.request(
+        `/collections/${encodeURIComponent(collectionName)}/points/scroll`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            limit,
+            with_payload: true,
+            with_vector: false,
+            ...(offset ? { offset } : {})
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Qdrant collection scroll failed with status ${response.status}.`);
+      }
+
+      const payload = await response.json() as { result?: unknown };
+      const result = typeof payload.result === "object" && payload.result !== null
+        ? payload.result as Record<string, unknown>
+        : {};
+      const batch = Array.isArray(result.points) ? result.points : [];
+
+      for (const point of batch) {
+        if (typeof point !== "object" || point === null) {
+          continue;
+        }
+
+        const pointPayload = (point as QdrantScrollPoint).payload;
+        if (typeof pointPayload === "object" && pointPayload !== null) {
+          payloads.push(pointPayload as Record<string, unknown>);
+        }
+      }
+
+      offset = result.next_page_offset ?? null;
+    } while (offset);
+
+    return payloads;
   }
 
   private request(path: string, init: { body?: string; method: "GET" | "POST" | "PUT" }): Promise<Response> {

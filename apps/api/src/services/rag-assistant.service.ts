@@ -18,6 +18,7 @@ import { validateRagAnswerGrounding } from "./rag-answer-grounding-validator.ser
 export type RagAssistantServiceOptions = {
   answerProvider: RagGroundedAnswerProvider;
   cacheService?: RagCacheService;
+  cacheVersion?: string;
   maxContextChars: number;
   requireSources: boolean;
   searchService: RagSearchService;
@@ -47,6 +48,7 @@ function shouldBypassAssistantAnswerCache(intent: AssistantIntent, toolsEnabled:
 export class RagAssistantService {
   private readonly answerProvider: RagGroundedAnswerProvider;
   private readonly cacheService: RagCacheService | undefined;
+  private readonly cacheVersion: string;
   private readonly maxContextChars: number;
   private readonly requireSources: boolean;
   private readonly searchService: RagSearchService;
@@ -56,6 +58,7 @@ export class RagAssistantService {
   constructor(options: RagAssistantServiceOptions) {
     this.answerProvider = options.answerProvider;
     this.cacheService = options.cacheService;
+    this.cacheVersion = options.cacheVersion ?? "rag-index-unversioned";
     this.maxContextChars = options.maxContextChars;
     this.requireSources = options.requireSources;
     this.searchService = options.searchService;
@@ -78,7 +81,7 @@ export class RagAssistantService {
           intent: intentDecision.intent,
           locale: input.locale ?? "tr",
           message: redacted.redactedText,
-          version: `${RAG_DOMAIN_ROUTER_VERSION}:${RAG_OWNER_REGISTRY_VERSION}:${domainDecision.domain}:${domainDecision.canonicalOwner ?? "none"}`
+          version: `${this.cacheVersion}:${RAG_DOMAIN_ROUTER_VERSION}:${RAG_OWNER_REGISTRY_VERSION}:${domainDecision.domain}:${domainDecision.canonicalOwner ?? "none"}`
         });
     const cached = cacheKey ? await this.cacheService?.get(cacheKey) : null;
 
