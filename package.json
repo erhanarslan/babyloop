@@ -16,6 +16,8 @@
     "preflight": "node scripts/check-tooling.mjs",
     "test": "turbo run test",
     "test:api": "pnpm --filter @babyloop/api test",
+    "test:rag:retrieval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-domain-router.service.test.ts test/rag-answer-owner-registry.test.ts test/rag-answer-grounding-validator.service.test.ts test/assistant-intent-router.service.test.ts test/assistant-tool-orchestrator.service.test.ts test/rag-search.service.test.ts test/rag-assistant.service.test.ts --reporter=verbose",
+    "test:rag:eval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-eval-cases.test.ts test/rag-eval-runner.service.test.ts --reporter=verbose",
     "test:web": "pnpm --filter @babyloop/web test",
     "test:web:p0": "pnpm --filter @babyloop/web exec vitest run src/lib/auth-client.test.ts src/components/auth-nav.test.tsx src/features/auth/web-login-flow-model.test.ts src/features/auth/session-management-panel.test.tsx src/features/auth/mfa-settings-panel.test.tsx src/features/assistant/assistant-response-model.test.ts src/features/assistant/assistant-page-content.test.tsx src/features/listings/web-ai-listing-draft-model.test.ts src/features/listings/sell-listing-form.test.tsx src/features/child-profiles/child-reminder-form-model.test.ts src/features/child-profiles/child-profiles-page-content.test.tsx --reporter=verbose",
     "test:backoffice": "pnpm --filter @babyloop/backoffice test",
@@ -103,7 +105,10 @@
     "security:marketplace-web-mobile-completion": "node scripts/check-marketplace-web-mobile-completion-boundary.mjs",
     "security:mobile-copy-encoding": "node scripts/check-mobile-copy-encoding-boundary.mjs",
     "security:payment-simulation": "node scripts/check-payment-simulation-boundary.mjs",
-    "security:rag-research-corpus": "node scripts/check-rag-research-corpus-boundary.mjs"
+    "security:rag-research-corpus": "node scripts/check-rag-research-corpus-boundary.mjs",
+    "security:rag-retrieval-grounding": "node scripts/check-rag-retrieval-grounding-hardening-boundary.mjs",
+    "smoke:rag:qdrant": "node scripts/smoke-rag-qdrant.mjs",
+    "release:rag": "pnpm security:rag-research-corpus && pnpm security:assistant-safety-guard && pnpm security:rag-retrieval-grounding && pnpm test:rag:retrieval && pnpm test:rag:eval && pnpm --filter @babyloop/ai-core typecheck && pnpm --filter @babyloop/api typecheck && git diff --check"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
