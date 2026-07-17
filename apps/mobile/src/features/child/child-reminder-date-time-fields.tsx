@@ -1,7 +1,9 @@
-import { useState, type ComponentType } from "react";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  type DateTimePickerEvent
+} from "@react-native-community/datetimepicker";
+import { useState } from "react";
 import {
-  Alert,
-  NativeModules,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,35 +18,11 @@ import {
   formatMobileChildTimeLabel,
   getMobileChildDateTimePickerDate,
   getMobileChildLocalTimePickerDate,
-  mergeMobileChildDateTimePickerValue,
+  mergeMobileChildDateTimePickerEventValue,
+  mergeMobileChildLocalTimePickerEventValue,
   type MobileChildDateTimeFallbackKind,
   type MobileChildDateTimePickerMode
 } from "./child-reminder-screen-state-model";
-
-declare const require: (moduleName: string) => unknown;
-
-type NativePickerEvent = {
-  type?: "set" | "dismissed" | "neutralButtonPressed";
-};
-
-type NativePickerDisplay = "default" | "spinner" | "calendar" | "clock";
-
-type NativeDateTimePickerProps = {
-  display?: NativePickerDisplay;
-  is24Hour?: boolean;
-  mode: "date" | "time";
-  onChange: (event: NativePickerEvent, selectedDate?: Date) => void;
-  value: Date;
-};
-
-type NativeDateTimePickerAndroidApi = {
-  open: (params: NativeDateTimePickerProps) => void;
-};
-
-type NativeDateTimePickerModule = {
-  default?: ComponentType<NativeDateTimePickerProps>;
-  DateTimePickerAndroid?: NativeDateTimePickerAndroidApi;
-};
 
 type MobileChildDateTimeFieldProps = {
   fallbackKind: MobileChildDateTimeFallbackKind;
@@ -59,10 +37,6 @@ type MobileChildLocalTimeFieldProps = {
   value: string;
 };
 
-const nativePickerModule = getOptionalNativeDateTimePickerModule();
-const NativeDateTimePicker = nativePickerModule?.default ?? null;
-const DateTimePickerAndroid = nativePickerModule?.DateTimePickerAndroid ?? null;
-
 export function MobileChildDateTimeField({
   fallbackKind,
   label,
@@ -73,40 +47,24 @@ export function MobileChildDateTimeField({
 
   function handlePickerChange(
     mode: MobileChildDateTimePickerMode,
-    event: NativePickerEvent,
+    event: DateTimePickerEvent,
     selectedDate?: Date
   ): void {
-    if (event.type === "dismissed") {
-      setIosPickerMode(null);
-      return;
-    }
-
-    if (!selectedDate) {
-      setIosPickerMode(null);
-      return;
-    }
-
-    onChange(
-      mergeMobileChildDateTimePickerValue({
-        currentValue: value,
-        fallbackKind,
-        mode,
-        selectedDate
-      })
-    );
-
+    const nextValue = mergeMobileChildDateTimePickerEventValue({
+      currentValue: value,
+      eventType: event.type,
+      fallbackKind,
+      mode,
+      selectedDate
+    });
+    onChange(nextValue);
     setIosPickerMode(null);
   }
 
   function openPicker(mode: MobileChildDateTimePickerMode): void {
-    if (!nativePickerModule) {
-      showNativePickerBuildRequiredAlert();
-      return;
-    }
-
     const pickerDate = getMobileChildDateTimePickerDate(value, fallbackKind);
 
-    if (Platform.OS === "android" && DateTimePickerAndroid) {
+    if (Platform.OS === "android") {
       DateTimePickerAndroid.open({
         display: "default",
         is24Hour: true,
@@ -146,14 +104,8 @@ export function MobileChildDateTimeField({
         </Pressable>
       </View>
 
-      {!nativePickerModule ? (
-        <Text style={styles.nativeBuildWarning}>
-          Native tarih/saat seçici yeni Android development build sonrası aktif olur.
-        </Text>
-      ) : null}
-
-      {NativeDateTimePicker && Platform.OS !== "android" && iosPickerMode ? (
-        <NativeDateTimePicker
+      {Platform.OS !== "android" && iosPickerMode ? (
+        <DateTimePicker
           display="spinner"
           is24Hour
           mode={iosPickerMode}
@@ -172,28 +124,21 @@ export function MobileChildLocalTimeField({
 }: MobileChildLocalTimeFieldProps) {
   const [iosPickerOpen, setIosPickerOpen] = useState(false);
 
-  function handlePickerChange(event: NativePickerEvent, selectedDate?: Date): void {
-    if (event.type === "dismissed") {
-      setIosPickerOpen(false);
-      return;
-    }
-
-    if (selectedDate) {
-      onChange(formatMobileChildLocalTimeFromDate(selectedDate));
-    }
-
+  function handlePickerChange(event: DateTimePickerEvent, selectedDate?: Date): void {
+    onChange(
+      mergeMobileChildLocalTimePickerEventValue({
+        currentValue: value,
+        eventType: event.type,
+        selectedDate
+      })
+    );
     setIosPickerOpen(false);
   }
 
   function openPicker(): void {
-    if (!nativePickerModule) {
-      showNativePickerBuildRequiredAlert();
-      return;
-    }
-
     const pickerDate = getMobileChildLocalTimePickerDate(value);
 
-    if (Platform.OS === "android" && DateTimePickerAndroid) {
+    if (Platform.OS === "android") {
       DateTimePickerAndroid.open({
         display: "default",
         is24Hour: true,
@@ -224,14 +169,8 @@ export function MobileChildLocalTimeField({
         </View>
       </Pressable>
 
-      {!nativePickerModule ? (
-        <Text style={styles.nativeBuildWarning}>
-          Native saat seçici yeni Android development build sonrası aktif olur.
-        </Text>
-      ) : null}
-
-      {NativeDateTimePicker && Platform.OS !== "android" && iosPickerOpen ? (
-        <NativeDateTimePicker
+      {Platform.OS !== "android" && iosPickerOpen ? (
+        <DateTimePicker
           display="spinner"
           is24Hour
           mode="time"
@@ -240,25 +179,6 @@ export function MobileChildLocalTimeField({
         />
       ) : null}
     </View>
-  );
-}
-
-function getOptionalNativeDateTimePickerModule(): NativeDateTimePickerModule | null {
-  try {
-    if (!NativeModules.RNCDatePicker) {
-      return null;
-    }
-
-    return require("@react-native-community/datetimepicker") as NativeDateTimePickerModule;
-  } catch {
-    return null;
-  }
-}
-
-function showNativePickerBuildRequiredAlert(): void {
-  Alert.alert(
-    "Yeni build gerekli",
-    "Native tarih/saat seçici için Android development build yeniden kurulmalı."
   );
 }
 
@@ -301,10 +221,5 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     backgroundColor: colors.border,
     width: 1
-  },
-  nativeBuildWarning: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: "800"
   }
 });

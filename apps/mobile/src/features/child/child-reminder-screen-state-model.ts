@@ -405,6 +405,13 @@ export function buildMobileChildReminderCreatePayloadFromState(
       };
     }
 
+    if (isPastIsoDate(eventAt)) {
+      return {
+        ok: false,
+        message: "Etkinlik tarihi geçmiş olamaz."
+      };
+    }
+
     return {
       ok: true,
       payload: {
@@ -416,6 +423,13 @@ export function buildMobileChildReminderCreatePayloadFromState(
   }
 
   const dueAt = normalizeIsoDateInput(state.dueAt) ?? getNextMobileReminderDateIso();
+
+  if (isPastIsoDate(dueAt)) {
+    return {
+      ok: false,
+      message: "Hatırlatıcı zamanı geçmiş olamaz."
+    };
+  }
 
   return {
     ok: true,
@@ -572,6 +586,25 @@ export function mergeMobileChildDateTimePickerValue(input: {
   return base.toISOString();
 }
 
+export function mergeMobileChildDateTimePickerEventValue(input: {
+  currentValue: string;
+  eventType?: "set" | "dismissed" | "neutralButtonPressed";
+  fallbackKind: MobileChildDateTimeFallbackKind;
+  mode: MobileChildDateTimePickerMode;
+  selectedDate?: Date;
+}): string {
+  if (input.eventType === "dismissed" || !input.selectedDate) {
+    return input.currentValue;
+  }
+
+  return mergeMobileChildDateTimePickerValue({
+    currentValue: input.currentValue,
+    fallbackKind: input.fallbackKind,
+    mode: input.mode,
+    selectedDate: input.selectedDate
+  });
+}
+
 export function formatMobileChildFriendlyDateTimeInput(value: string): string {
   const date = new Date(value);
 
@@ -659,6 +692,18 @@ export function formatMobileChildLocalTimeFromDate(date: Date): string {
   return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
 }
 
+export function mergeMobileChildLocalTimePickerEventValue(input: {
+  currentValue: string;
+  eventType?: "set" | "dismissed" | "neutralButtonPressed";
+  selectedDate?: Date;
+}): string {
+  if (input.eventType === "dismissed" || !input.selectedDate) {
+    return input.currentValue;
+  }
+
+  return formatMobileChildLocalTimeFromDate(input.selectedDate);
+}
+
 export function isMobileChildLocalTimeInput(value: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim());
 }
@@ -693,6 +738,12 @@ function normalizeIsoDateInput(value: string): string | null {
   }
 
   return date.toISOString();
+}
+
+function isPastIsoDate(value: string, now = new Date()): boolean {
+  const date = new Date(value);
+
+  return !Number.isNaN(date.getTime()) && date.getTime() < now.getTime();
 }
 
 function normalizeLocalTime(value: string): string | null {
