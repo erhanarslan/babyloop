@@ -39,8 +39,8 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: "Analytics",
-    href: "/product-analytics",
-    description: "Product discovery signals",
+    href: "/analytics",
+    description: "Product and engagement insights",
     status: "active",
   },
   {
