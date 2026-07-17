@@ -161,7 +161,7 @@ const POLICIES: Record<RagAnswerOwnerDomain, RagAnswerOwnerPolicy> = {
     allowedSourcePaths: ["docs/rag/08-car-seat-second-hand-checklist.md", "docs/rag/47-second-hand-product-safety-canon.md"],
     allowedTopics: ["car-seat-safety", "second-hand-risk"],
     forbiddenTopics: ["feeding-food-safety"],
-    minimumReliability: "official-source-note",
+    minimumReliability: "editorial",
     requireCanonicalOwner: false
   },
   pregnancy: {
