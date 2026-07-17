@@ -508,3 +508,14 @@ Production readiness for assistant retrieval requires:
 - `pnpm release:rag`
 
 The retrieval boundary verifies domain routing, canonical answer ownership, metadata-constrained retrieval, cross-domain contamination rejection, grounding validation, cache versioning and 150+ eval cases. It does not claim live provider quality unless `RAG_LIVE_EVAL_ENABLED=true` is explicitly run, and it does not mutate production Qdrant collections.
+
+## Product analytics privacy boundary
+
+Production/beta readiness for first-party product analytics requires:
+
+- `pnpm security:product-analytics-privacy`
+- `pnpm release:analytics`
+
+Product analytics is first-party usage measurement only. It must stay separate from admin/security audit logs and operational observability. Analytics tables must not contain passwords, tokens, cookies, authorization headers, exact IP addresses, raw query strings, message bodies, child note/reminder bodies, assistant prompts, listing descriptions, image base64, signed URLs, raw RAG source text, or provider raw output.
+
+Backoffice analytics should read aggregate metrics by default. Current-state metrics such as verified users and Google-linked users must come from database state (`emailVerifiedAt` and provider/account relations), not only from client-side event counts. Raw events and aggregate retention must remain configurable, and analytics failures must not block user-facing business flows.

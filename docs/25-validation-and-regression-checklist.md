@@ -36,6 +36,8 @@ Known failure mode: Node `v20.11.0` is too old for the current Vitest/Rolldown t
 | RAG retrieval hardening | `pnpm test:rag:retrieval` | Domain router, owner registry, tool gate, retrieval filter, grounding validator and critical feeding regression. |
 | RAG eval gate | `pnpm test:rag:eval` | 150+ eval cases including feeding, medical boundary, safe sleep, product safety, marketplace and adversarial queries. |
 | RAG release gate | `pnpm release:rag` | RAG corpus guard, assistant safety guard, retrieval grounding guard, targeted tests and API/AI typechecks. |
+| Product analytics privacy gate | `pnpm security:product-analytics-privacy` | Ensures analytics does not collect message bodies, assistant prompts, child note/reminder text, tokens, cookies, exact IP, raw query strings, or client-supplied user identity. |
+| Product analytics release gate | `pnpm release:analytics` | Runs analytics privacy guard, workspace typechecks, targeted API/web/mobile/backoffice analytics tests, and `git diff --check`. |
 | Web typecheck | `pnpm --filter @babyloop/web typecheck` | Verifies Next.js app TypeScript. |
 | Web build | `pnpm --filter @babyloop/web build` | Verifies Next.js production build. |
 | Database typecheck | `pnpm --filter @babyloop/database typecheck` | Verifies Drizzle schema TypeScript. |
@@ -192,6 +194,25 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] canonical owner missing returns no-source instead of generic LLM fallback.
 - [ ] cache key includes router/owner policy version.
 - [ ] answer validator blocks unsupported/cross-domain vocabulary.
+
+### Product analytics / engagement
+
+- [ ] `pnpm security:product-analytics-privacy` passes.
+- [ ] `pnpm release:analytics` passes before claiming analytics release readiness.
+- [ ] Product analytics, admin/security audit, and operational observability remain separate storage and UI concerns.
+- [ ] Analytics events use semantic names from the shared taxonomy; arbitrary DOM clicks and free-form JSON dumps are not accepted.
+- [ ] Batch ingest deduplicates by `eventId`, caps batch/property size, validates timestamps, and supports partial accepted/duplicated/rejected results.
+- [ ] Authenticated `userId` and `profileId` are derived from server auth context, not trusted from client payloads.
+- [ ] `message body`, child note/reminder title/body, assistant prompt/query, listing description, raw RAG source text, image base64, signed URLs, exact IP, cookies, CSRF, authorization, access tokens, refresh tokens, MFA/challenge/approval tokens, and passwords are not analytics properties.
+- [ ] Web page events send route templates without raw query strings.
+- [ ] Web engagement counts visible/focused heartbeat deltas only and caps long gaps.
+- [ ] Mobile engagement counts foreground AppState heartbeat deltas only and caps long gaps.
+- [ ] Analytics endpoint failure does not break login, listing, message, reminder, assistant, or checkout flows.
+- [ ] Rollup is idempotent and can recompute late events for the target day.
+- [ ] Retention separates raw events, sessions, and daily aggregates.
+- [ ] Backoffice analytics endpoints are admin-only and expose aggregates by default.
+- [ ] Current verified-user and provider-linked-user metrics come from database state, not only event counts.
+- [ ] Aggregate CSV/export, if enabled, does not include raw event properties or sensitive content.
 
 - [ ] mock suggestion response works
 - [ ] `ai_model_runs` success log inserted when database logging is available

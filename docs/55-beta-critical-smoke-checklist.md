@@ -503,3 +503,17 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Child-needs/category/listing/saved-search tools are not invoked for feeding.
 - [ ] Montessori, product, listing and marketplace sources are rejected from feeding context.
 - [ ] Local Qdrant smoke is run when local Qdrant env is available; skipped smoke is not production index validation.
+
+## Product analytics privacy and dashboard boundary
+
+- [ ] `pnpm security:product-analytics-privacy` passes.
+- [ ] `pnpm release:analytics` passes before analytics is claimed beta-ready.
+- [ ] Browse/listing/favorite/message/assistant/child/reminder flows can emit semantic analytics events without blocking the user flow if analytics fails.
+- [ ] Web page views use route templates and do not include raw query strings or token-like URL values.
+- [ ] Web engagement excludes hidden/unfocused time.
+- [ ] Mobile screen engagement excludes background AppState time.
+- [ ] Analytics events do not contain message bodies, child note/reminder bodies, assistant prompts, listing descriptions, raw RAG source text, image base64, signed URLs, exact IP, cookies, CSRF, authorization, access tokens, refresh tokens, MFA/challenge/approval tokens, or passwords.
+- [ ] Backoffice Analytics is admin-only and shows aggregate KPIs/tables by default.
+- [ ] Verified-user and Google-linked-user counts are checked against database state, not inferred only from event trends.
+- [ ] Analytics retention and rollup commands are dry-run/idempotent where applicable.
+- [ ] No session replay, keyboard capture, DOM click stream, or third-party cross-site tracking is introduced.

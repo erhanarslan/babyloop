@@ -39,6 +39,7 @@ The project is **demo/beta-foundation ready**, but **not production-ready** yet.
 | Notifications | In-app persistent notifications, unread/read flows, preferences, draft/delivery foundations, realtime notification foundation. |
 | Child profiles | Child profiles, notes, reminders, lifecycle recommendation foundation, mobile child surfaces. |
 | RAG/AI | Assistant/RAG services, safety boundaries, curated RAG docs, eval/ops foundations, mock/provider abstraction foundations, mobile RAG response mode/grounding/source display, and mobile visual-to-listing draft helper. AI draft suggestions are non-blocking and require user review before any listing submission. |
+| Product analytics | First-party analytics foundation with shared web/mobile taxonomy, separate analytics storage, privacy-filtered batch ingestion, rollup/retention services, and aggregate backoffice dashboard foundation. Product analytics remains separate from admin/security audit and operational observability. |
 | Payment | Cart/order/mock checkout foundation; real payment collection intentionally disabled until company/legal setup exists. |
 | Tests | API integration tests, web/backoffice unit and E2E smoke foundations, mobile Jest/P0 tests, shared tests, release smoke scripts. |
 
@@ -88,6 +89,16 @@ The following remain active and required:
 - Grounding validation blocks wrong-domain vocabulary and owner-missing answers; canonical owner missing returns no-source instead of generic model fallback.
 - The eval set now covers 150+ deterministic cases, including the critical “6 aylık erkek bebeğe ek gıda ne yedirilir?” regression.
 - This does not claim live Gemini eval, production Qdrant reindex, or physical/browser QA unless those commands are run separately.
+
+## Product analytics foundation
+
+- Product analytics now has a shared typed event taxonomy for web and mobile semantic events.
+- Raw analytics events, sessions, daily overview/page/category/auth aggregates live in dedicated analytics tables, not in the admin audit log table.
+- The batch ingest API validates event names and event-specific property allowlists, deduplicates by `eventId`, strips raw query strings, hashes anonymous identifiers, and derives authenticated user/profile identity from server auth context.
+- Server-authoritative business events can be emitted best-effort without breaking the main auth/listing/message/reminder/checkout flow if analytics storage is unavailable.
+- Rollup and retention services provide idempotent aggregate computation and configurable raw/session expiry.
+- Backoffice analytics reads aggregate/admin-safe metrics and uses database snapshots for current-state verified users and provider-linked users instead of deriving those values only from client events.
+- Web and mobile analytics model tests cover route/screen event building, sensitive property filtering, session timeout, engagement heartbeat caps, and queue limits. Runtime device/browser QA remains required before claiming full analytics release readiness.
 
 ## Removed from near-term roadmap
 
