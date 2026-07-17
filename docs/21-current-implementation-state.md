@@ -78,6 +78,17 @@ The following remain active and required:
 - Web child notebook/reminder surfaces now show real note/reminder data only; empty children get an explicit empty state instead of fake preview reminders.
 - Browser/manual QA and `pnpm release:web:p0` remain required before claiming web release readiness.
 
+## RAG retrieval and grounding hardening
+
+- Assistant routing is now domain-aware before retrieval; dense vector search is not used as the domain router.
+- Feeding/ek gıda questions route to `feeding` with canonical owner `feeding-and-food-safety-canon`.
+- Age or gender signals alone do not trigger child product recommendations.
+- Feeding, illness, medicine and safe-sleep routes forbid child-needs, category, listing and marketplace tools unless the query has explicit product/listing intent.
+- RAG search supports owner/topic/source-path/reliability filters and rejects cross-domain high-vector candidates before answer generation.
+- Grounding validation blocks wrong-domain vocabulary and owner-missing answers; canonical owner missing returns no-source instead of generic model fallback.
+- The eval set now covers 150+ deterministic cases, including the critical “6 aylık erkek bebeğe ek gıda ne yedirilir?” regression.
+- This does not claim live Gemini eval, production Qdrant reindex, or physical/browser QA unless those commands are run separately.
+
 ## Removed from near-term roadmap
 
 The following are intentionally out of near-term scope:

@@ -137,6 +137,8 @@ Backoffice RAG health içinde `redis.enabled=true` ama `backendEffective=memory`
 
 Sorgu bilgi tabanı kapsamı dışında olabilir ya da `RAG_MIN_SCORE` yüksek kalmış olabilir. Kaynak yoksa asistan cevap uydurmaz.
 
+Critical domainlerde `No sources found` ayrıca canonical owner eksikliği anlamına gelebilir. Örneğin feeding route'unda `feeding-and-food-safety-canon` bulunamazsa sistem ürün, oyuncak veya marketplace kaynağına düşmez.
+
 Yeni retrieval kalite katmanı ayrıca final score ve source coverage kontrolü yapar. Ayarlanabilecek env’ler:
 
 ```env
@@ -153,6 +155,41 @@ RAG_MIN_SOURCE_COVERAGE=1
 ```
 
 `RAG_NO_SOURCE_MIN_SCORE` yükselirse asistan daha temkinli olur ama bazı doğru kaynakları kaçırabilir. Düşerse daha fazla kaynak döner ama alakasız cevap riski artar.
+
+## Retrieval hardening smoke
+
+Targeted retrieval/eval gate:
+
+```bash
+pnpm test:rag:retrieval
+pnpm test:rag:eval
+pnpm security:rag-retrieval-grounding
+```
+
+Optional local Qdrant smoke:
+
+```bash
+pnpm smoke:rag:qdrant
+```
+
+`RAG_QDRANT_URL`/`QDRANT_URL` ve collection env yoksa bu smoke dürüstçe skipped döner. Production collection üzerinde destructive işlem yapmaz.
+
+## Critical regression query
+
+Şu sorgu her release öncesi kontrol edilmelidir:
+
+```text
+6 aylık erkek bebeğe ek gıda ne yedirilir?
+```
+
+Beklenen diagnostic:
+
+- domain: `feeding`
+- canonical owner: `feeding-and-food-safety-canon`
+- topic: `feeding-food-safety`
+- forbidden tools: child needs, category, listing, saved search draft
+- forbidden source topics: toy/product/marketplace/listing
+- fallback: canonical owner yoksa no-source, ürün/oyuncak cevabı yok
 
 ### Typo normalization kontrolü
 

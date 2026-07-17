@@ -19,6 +19,8 @@ BabyLoop RAG cevapları şu hiyerarşiye göre kaynak kullanır:
 3. BabyLoop internal policy ve marketplace dokümanları.
 4. Editorial checklistler.
 
+Runtime retrieval önce domain ve canonical answer owner seçer, sonra bu haritadaki güvenilirlik sınıfını metadata filtresi ve rerank sinyali olarak uygular. Kritik feeding, illness, medicine ve safe-sleep sorularında yüksek vektör benzerliği tek başına yeterli değildir; owner/topic/reliability eşleşmesi yoksa cevap `insufficient_sources` olarak fail-closed döner.
+
 ## Kaynak güvenilirliği sınıfları
 
 ### official-referenced

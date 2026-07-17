@@ -6,6 +6,8 @@ Bu doküman Tool-Augmented Assistant paketindeki araçları ve güvenlik sınır
 
 - Aktif araçlar read-only veya draft-only çalışır.
 - Kullanıcı adına write action yoktur.
+- Araç seçimi RAG domain router ve answer owner policy'den sonra yapılır.
+- Feeding, illness, medicine ve safe-sleep gibi health-like route'larda marketplace/listing/category/child-needs araçları çalıştırılmaz.
 - Kayıtlı arama oluşturma, mesaj gönderme, favori ekleme ve ilan güncelleme yapılmaz.
 - Seller email, telefon, private user/profile id veya açık adres döndürülmez.
 - Hidden, blocked veya unsafe listing sonuçları public-safe query katmanından geçmeden gösterilmez.
@@ -137,6 +139,8 @@ Bu paket write action çalıştırmaz.
 ## child_needs_recommendations
 
 `child_needs_recommendations` tool'u aktif çocuk profili, ageBand ve mevsim bilgisiyle ürün takip ve kayıtlı arama taslakları üretir. Tool read-only/draft-only çalışır. Çocuk adı/label yalnızca oturumdaki kullanıcıya cevap üretmek için kısa ve sanitize edilmiş şekilde kullanılır; seller/public DTO'lara taşınmaz. Otomatik kayıtlı arama, bildirim veya mesaj oluşturmaz.
+
+Bu tool yalnız explicit çocuk ürün ihtiyacı intent'inde kullanılabilir. `6 aylık bebeğe ek gıda ne yedirilir?` gibi feeding sorularında age signal olsa bile çalıştırılamaz.
 
 ## Public suggested actions
 

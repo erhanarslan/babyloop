@@ -14,6 +14,10 @@ Bu doküman BabyLoop asistanının ek gıda, tamamlayıcı beslenme ve bebek gı
 
 Bu doküman tıbbi beslenme planı, alerji yönetimi, kilo yönetimi, hastalıkta beslenme veya diyet reçetesi vermez.
 
+## Retrieval ownership note
+
+Bu doküman feeding domain için primary answer owner'dır. `6 aylık erkek bebeğe ek gıda ne yedirilir?` gibi yaş/cinsiyet içeren ek gıda sorularında yaş sinyali ürün önerisi sebebi değildir. Bu sorgular oyuncak, Montessori, listing, kategori veya marketplace kaynaklarına yönlendirilmemelidir.
+
 ## Cevaplanacak soru aileleri
 
 - Ek gıdaya ne zaman başlanır?

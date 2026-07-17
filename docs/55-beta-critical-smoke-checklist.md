@@ -491,3 +491,15 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Web AI listing draft uses `/api/v1/listings/ai-draft-suggestions`, requires explicit apply, and preserves seller-entered title, description, category, price, condition, listing type, and location.
 - [ ] Web child notebook/reminder shows real data only and no fake feeding/diaper preview records.
 - [ ] Manual browser QA remains separate from automated web P0 gates.
+
+## RAG retrieval and grounding boundary
+
+- [ ] `pnpm security:rag-retrieval-grounding` passes.
+- [ ] `pnpm test:rag:retrieval` passes.
+- [ ] `pnpm test:rag:eval` passes with at least 150 cases.
+- [ ] `pnpm release:rag` passes.
+- [ ] Critical query `6 aylık erkek bebeğe ek gıda ne yedirilir?` routes to `feeding`.
+- [ ] Critical query uses owner `feeding-and-food-safety-canon` and topic `feeding-food-safety`.
+- [ ] Child-needs/category/listing/saved-search tools are not invoked for feeding.
+- [ ] Montessori, product, listing and marketplace sources are rejected from feeding context.
+- [ ] Local Qdrant smoke is run when local Qdrant env is available; skipped smoke is not production index validation.

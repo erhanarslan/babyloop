@@ -33,6 +33,9 @@ Known failure mode: Node `v20.11.0` is too old for the current Vitest/Rolldown t
 | Root test | `pnpm test` | Runs configured workspace tests. Currently API tests are the main automated suite. |
 | API typecheck | `pnpm --filter @babyloop/api typecheck` | Verifies Fastify API and internal package imports. |
 | API test | `pnpm --filter @babyloop/api test` | Requires `TEST_DATABASE_URL`; uses Vitest and `fastify.inject`. |
+| RAG retrieval hardening | `pnpm test:rag:retrieval` | Domain router, owner registry, tool gate, retrieval filter, grounding validator and critical feeding regression. |
+| RAG eval gate | `pnpm test:rag:eval` | 150+ eval cases including feeding, medical boundary, safe sleep, product safety, marketplace and adversarial queries. |
+| RAG release gate | `pnpm release:rag` | RAG corpus guard, assistant safety guard, retrieval grounding guard, targeted tests and API/AI typechecks. |
 | Web typecheck | `pnpm --filter @babyloop/web typecheck` | Verifies Next.js app TypeScript. |
 | Web build | `pnpm --filter @babyloop/web build` | Verifies Next.js production build. |
 | Database typecheck | `pnpm --filter @babyloop/database typecheck` | Verifies Drizzle schema TypeScript. |
@@ -178,6 +181,17 @@ These behaviors should stay covered by API tests or explicit manual API verifica
 - [ ] dashboard summary does not expose seller/reporter/message/private user data or raw event metadata
 
 ### AI
+
+### RAG Retrieval / Grounding
+
+- [ ] `6 aylık erkek bebeğe ek gıda ne yedirilir?` routes to `feeding`.
+- [ ] canonical owner is `feeding-and-food-safety-canon`.
+- [ ] `child_needs_recommendations`, listing, category and saved-search draft tools are not invoked for feeding/health-like routes.
+- [ ] toy/product/marketplace/listing topics are hard rejected from feeding context.
+- [ ] high-vector wrong-domain candidate cannot outrank canonical owner.
+- [ ] canonical owner missing returns no-source instead of generic LLM fallback.
+- [ ] cache key includes router/owner policy version.
+- [ ] answer validator blocks unsupported/cross-domain vocabulary.
 
 - [ ] mock suggestion response works
 - [ ] `ai_model_runs` success log inserted when database logging is available

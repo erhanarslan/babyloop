@@ -21,6 +21,10 @@ Her canonical soru ailesinin yalnızca bir primary answer owner dokümanı vard�
 - aynı cevabı kopyalamaz
 - farklı sonuç doğuracak yeni tavsiye vermez
 
+Runtime policy `apps/api/src/services/rag-answer-owner-registry.ts` içinde typed registry olarak uygulanır. Bu doküman policy'nin insan tarafından okunabilir açıklamasıdır; runtime source of truth registry'dir.
+
+Critical domainlerde owner bulunmazsa sistem başka domain kaynağına veya genel model bilgisine düşmez; no-source döner.
+
 ## Owner öncelik sırası
 
 1. `46-illness-red-flags-boundary-canon.md`

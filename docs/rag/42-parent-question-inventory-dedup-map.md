@@ -31,6 +31,8 @@ Bir soru aşağıdaki sinyallerden en az ikisini paylaşıyorsa aynı canonical 
 - aynı cevap owner dokümanı
 - aynı boundary seviyesi
 
+Runtime routing bu envanteri yalnız açıklayıcı doküman olarak değil, owner-first retrieval sinyali olarak kullanır. Yaş veya cinsiyet sinyali tek başına "yaşa göre ürün ihtiyacı" ailesine taşımaz; örneğin "6 aylık erkek bebeğe ek gıda ne yedirilir?" sorusu feeding owner'a gider ve oyuncak/ürün ailesi adayları hard-filter ile düşürülür.
+
 Örnek:
 
 - "6 aylık bebek ne yer?"

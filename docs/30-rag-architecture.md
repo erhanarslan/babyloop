@@ -138,6 +138,56 @@ Yanıt:
 
 RAG kapalıysa endpoint kontrollü `RAG_UNAVAILABLE` döner.
 
+## Domain-aware retrieval and grounding hardening
+
+Dense vector search BabyLoop'ta domain router değildir. Yeni assistant akışı şu sırayı izler:
+
+1. Safety/boundary classification
+2. Domain ve intent routing
+3. Canonical answer owner resolution
+4. Metadata-constrained candidate retrieval
+5. Hybrid scoring/reranking
+6. Cross-domain contamination rejection
+7. Grounding sufficiency decision
+8. Answer generation veya deterministic canonical composer
+9. Claim/answer validation
+10. Grounded answer veya fail-closed fallback
+
+`apps/api/src/services/rag-domain-router.service.ts` yaş/cinsiyet sinyalini tek başına ürün ihtiyacı olarak yorumlamaz. Örneğin `6 aylık erkek bebeğe ek gıda ne yedirilir?` domain olarak `feeding`, owner olarak `feeding-and-food-safety-canon` seçer. Bu route altında `child_needs_recommendations`, kategori, listing ve marketplace araçları yasaktır.
+
+`apps/api/src/services/rag-answer-owner-registry.ts` canonical owner policy için runtime source of truth'tur. Feeding gibi critical domainlerde canonical owner bulunmazsa sistem başka yakın-vector sonucu ile cevap üretmez; `insufficient_sources`/`owner_missing` döner.
+
+`RagSearchService` vector adaylarını yalnız candidate generation olarak kullanır. `allowedTopics`, `forbiddenTopics`, `allowedSourcePaths`, `requiredOwner`, `minimumReliability`, `minFinalScore`, `minScoreMargin` ve per-document cap seçenekleri hard filter ve reranking aşamasına taşınır. Qdrant payload yeni indexlerde `answerOwner`, `sectionKind`, `allowedDomains`, `questionFamilies`, `ageBands` ve risk metadata'sını taşıyabilir.
+
+Feeding route için forbidden final context örnekleri:
+
+- `toy-safety`
+- `product-buying`
+- `seasonal-needs`
+- `age-based-needs`
+- `listing-writing`
+- marketplace kullanım kaynakları
+
+Bu yüzden yüksek vector skorlu Montessori/oyuncak chunk'ı, düşük skorlu canonical feeding chunk'ından önce gelse bile final context'e giremez.
+
+## Cache versioning
+
+Assistant cache key artık domain router version, owner registry version, domain ve canonical owner imzasını içerir. Yanlış route ile önceden cache'lenmiş bir cevap yeni router/policy sürümünde tekrar kullanılmaz.
+
+## Blue-green reindex guidance
+
+Production collection üzerinde kör drop yapılmamalıdır. Güvenli reindex akışı:
+
+1. Mevcut collection info al.
+2. Versioned yeni collection oluştur.
+3. Yeni metadata/chunking ile ingest et.
+4. Topic/owner/reliability dağılımını ve chunk count'u doğrula.
+5. Golden retrieval smoke çalıştır.
+6. Alias/config switch yap.
+7. Eski collection'ı rollback için hemen silme.
+
+Bu patch destructive reindex çalıştırmaz; runtime policy, metadata payload ve test/guard sözleşmesini hazırlar.
+
 ## Operations endpoints
 
 Admin korumalı RAG operasyon endpointleri `/api/v1/admin/rag/*` altında bulunur. Bu endpointler `ai_ops_view` yetkisi ister ve secret, API key, raw prompt, system prompt veya full vector döndürmez.

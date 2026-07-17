@@ -495,3 +495,16 @@ This boundary covers:
 - child notebook/reminder real-data rendering and API-compatible schedule forms.
 
 This boundary does not claim trusted-device management if no backend feature exists, does not guarantee AI product identification or product safety, does not auto-publish listings, does not soften medical/therapy/diagnosis/drug/diet boundaries, and does not replace manual browser QA.
+
+## RAG retrieval and grounding boundary
+
+Production readiness for assistant retrieval requires:
+
+- `pnpm security:rag-research-corpus`
+- `pnpm security:assistant-safety-guard`
+- `pnpm security:rag-retrieval-grounding`
+- `pnpm test:rag:retrieval`
+- `pnpm test:rag:eval`
+- `pnpm release:rag`
+
+The retrieval boundary verifies domain routing, canonical answer ownership, metadata-constrained retrieval, cross-domain contamination rejection, grounding validation, cache versioning and 150+ eval cases. It does not claim live provider quality unless `RAG_LIVE_EVAL_ENABLED=true` is explicitly run, and it does not mutate production Qdrant collections.

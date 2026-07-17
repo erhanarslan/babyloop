@@ -8,6 +8,19 @@ sourceReliability: internal-policy
 version: 2026-06-21
 ---
 
+## Runtime owner-first retrieval rule
+
+Vector similarity is candidate generation only. BabyLoop Assistant must first classify safety/domain, resolve the canonical answer owner, then retrieve with owner/topic/source-path constraints.
+
+Critical health-like domains fail closed:
+
+- canonical owner missing => no-source
+- forbidden topic candidate => reject
+- cross-domain high-vector candidate => reject
+- no generic LLM fallback
+
+For feeding queries, `feeding-and-food-safety-canon` is required and product, toy, listing, seasonal-needs and marketplace usage sources are not valid evidence.
+
 # BabyLoop RAG kaynak politikası
 
 BabyLoop RAG kaynakları asistanın yalnızca güvenli alışveriş, ilan hazırlama, ürün kontrol listeleri, yaş dönemine göre genel ihtiyaçlar ve BabyLoop kullanımı hakkında kısa yanıt üretmesi için kullanılır. Kaynak yoksa asistan cevap uydurmaz.
