@@ -18,6 +18,10 @@
     "test:api": "pnpm --filter @babyloop/api test",
     "test:rag:retrieval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-domain-router.service.test.ts test/rag-answer-owner-registry.test.ts test/rag-answer-grounding-validator.service.test.ts test/assistant-intent-router.service.test.ts test/assistant-tool-orchestrator.service.test.ts test/rag-search.service.test.ts test/rag-assistant.service.test.ts --reporter=verbose",
     "test:rag:eval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-eval-cases.test.ts test/rag-eval-runner.service.test.ts --reporter=verbose",
+    "test:analytics:api": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/analytics.schemas.test.ts test/analytics.routes.test.ts test/product-analytics.service.test.ts test/admin-analytics.routes.test.ts --reporter=verbose",
+    "test:analytics:web": "pnpm --filter @babyloop/web exec vitest run src/features/analytics/analytics-event-model.test.ts src/features/analytics/analytics-session-model.test.ts --reporter=verbose",
+    "test:analytics:mobile": "pnpm --filter @babyloop/mobile exec jest --runInBand --runTestsByPath src/features/analytics/analytics-event-model.test.ts src/features/analytics/analytics-session-model.test.ts",
+    "test:analytics:backoffice": "pnpm --filter @babyloop/backoffice exec vitest run src/features/analytics/analytics-dashboard-model.test.ts src/features/analytics/analytics-api.test.ts --reporter=verbose",
     "test:web": "pnpm --filter @babyloop/web test",
     "test:web:p0": "pnpm --filter @babyloop/web exec vitest run src/lib/auth-client.test.ts src/components/auth-nav.test.tsx src/features/auth/web-login-flow-model.test.ts src/features/auth/session-management-panel.test.tsx src/features/auth/mfa-settings-panel.test.tsx src/features/assistant/assistant-response-model.test.ts src/features/assistant/assistant-page-content.test.tsx src/features/listings/web-ai-listing-draft-model.test.ts src/features/listings/sell-listing-form.test.tsx src/features/child-profiles/child-reminder-form-model.test.ts src/features/child-profiles/child-profiles-page-content.test.tsx --reporter=verbose",
     "test:backoffice": "pnpm --filter @babyloop/backoffice test",
@@ -43,6 +47,9 @@
     "smoke:release": "bash scripts/release-smoke.sh",
     "db:seed": "pnpm --filter @babyloop/database db:seed",
     "demo:seed": "pnpm --filter @babyloop/database db:seed",
+    "analytics:rollup": "pnpm --filter @babyloop/api exec tsx src/scripts/analytics-rollup.ts",
+    "analytics:retention": "pnpm --filter @babyloop/api exec tsx src/scripts/analytics-retention.ts",
+    "analytics:backfill": "ANALYTICS_ROLLUP_PLATFORM=all pnpm analytics:rollup",
     "demo:seed:keep-e2e": "BABYLOOP_SEED_KEEP_E2E_LISTINGS=1 pnpm --filter @babyloop/database db:seed",
     "test:e2e:web:release": "node scripts/run-e2e-test-bundle.mjs web release",
     "test:api:release": "node scripts/run-api-test-bundle.mjs release",
@@ -108,7 +115,9 @@
     "security:rag-research-corpus": "node scripts/check-rag-research-corpus-boundary.mjs",
     "security:rag-retrieval-grounding": "node scripts/check-rag-retrieval-grounding-hardening-boundary.mjs",
     "smoke:rag:qdrant": "node scripts/smoke-rag-qdrant.mjs",
-    "release:rag": "pnpm security:rag-research-corpus && pnpm security:assistant-safety-guard && pnpm security:rag-retrieval-grounding && pnpm test:rag:retrieval && pnpm test:rag:eval && pnpm --filter @babyloop/ai-core typecheck && pnpm --filter @babyloop/api typecheck && git diff --check"
+    "security:product-analytics-privacy": "node scripts/check-product-analytics-privacy-boundary.mjs",
+    "release:rag": "pnpm security:rag-research-corpus && pnpm security:assistant-safety-guard && pnpm security:rag-retrieval-grounding && pnpm test:rag:retrieval && pnpm test:rag:eval && pnpm --filter @babyloop/ai-core typecheck && pnpm --filter @babyloop/api typecheck && git diff --check",
+    "release:analytics": "pnpm security:product-analytics-privacy && pnpm --filter @babyloop/shared typecheck && pnpm --filter @babyloop/database typecheck && pnpm --filter @babyloop/api typecheck && pnpm --filter @babyloop/web typecheck && pnpm --filter @babyloop/mobile typecheck && pnpm --filter @babyloop/backoffice typecheck && pnpm test:analytics:api && pnpm test:analytics:web && pnpm test:analytics:mobile && pnpm test:analytics:backoffice && git diff --check"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

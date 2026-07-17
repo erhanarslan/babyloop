@@ -15,6 +15,7 @@
     "test:e2e": "maestro test .maestro"
   },
   "dependencies": {
+    "@babyloop/shared": "workspace:*",
     "@expo/metro-runtime": "^6.1.2",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-community/datetimepicker": "8.4.4",
