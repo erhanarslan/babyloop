@@ -4,9 +4,14 @@ export const BACKOFFICE_AUTH_CHANGED_EVENT = "babyloop-backoffice-auth-changed";
 
 const BACKOFFICE_CSRF_COOKIE_NAME = "babyloop_backoffice_csrf_token";
 const BACKOFFICE_CSRF_HEADER_NAME = "x-babyloop-csrf-token";
+const BACKOFFICE_UNAUTHENTICATED_COOLDOWN_MS = 3000;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 let cachedBackofficeCsrfToken: string | null = null;
+let backofficeCsrfTokenPromise: Promise<string | null> | null = null;
+let backofficeMePromise: Promise<BackofficeAuthMe | null> | null = null;
+let refreshSessionPromise: Promise<boolean> | null = null;
+let unauthenticatedCooldownUntil = 0;
 
 export type BackofficeAuthUser = {
   id: string;
@@ -64,6 +69,7 @@ export async function loginBackoffice(
       };
     }
 
+    clearBackofficeUnauthenticatedCooldown();
     await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
     dispatchAuthChanged();
 
@@ -88,7 +94,8 @@ export async function logoutBackoffice(apiBaseUrl: string): Promise<void> {
       }),
     );
   } finally {
-    clearBackofficeCsrfToken();
+    clearBackofficeAuthRequestState();
+    markBackofficeUnauthenticated();
     dispatchAuthChanged();
   }
 }
@@ -121,18 +128,52 @@ export async function authFetch(
 export async function fetchBackofficeMe(
   apiBaseUrl: string,
 ): Promise<BackofficeAuthMe | null> {
+  if (isBackofficeUnauthenticatedCooldownActive()) {
+    return null;
+  }
+
+  if (backofficeMePromise) {
+    return backofficeMePromise;
+  }
+
+  backofficeMePromise = fetchBackofficeMeOnce(apiBaseUrl).finally(() => {
+    backofficeMePromise = null;
+  });
+
+  return backofficeMePromise;
+}
+
+async function fetchBackofficeMeOnce(apiBaseUrl: string): Promise<BackofficeAuthMe | null> {
   const response = await authFetch(apiBaseUrl, "/api/v1/auth/backoffice/me");
 
   if (response.status === 401 || response.status === 403) {
+    markBackofficeUnauthenticated();
     return null;
   }
 
   const body = (await response.json()) as ApiResponse<BackofficeAuthMe>;
 
-  return response.ok && body.ok ? body.data : null;
+  if (!response.ok || !body.ok) {
+    return null;
+  }
+
+  clearBackofficeUnauthenticatedCooldown();
+  return body.data;
 }
 
 async function refreshSession(apiBaseUrl: string): Promise<boolean> {
+  if (refreshSessionPromise) {
+    return refreshSessionPromise;
+  }
+
+  refreshSessionPromise = refreshSessionOnce(apiBaseUrl).finally(() => {
+    refreshSessionPromise = null;
+  });
+
+  return refreshSessionPromise;
+}
+
+async function refreshSessionOnce(apiBaseUrl: string): Promise<boolean> {
   try {
     clearBackofficeCsrfToken();
 
@@ -144,9 +185,14 @@ async function refreshSession(apiBaseUrl: string): Promise<boolean> {
     const body = (await response.json()) as ApiResponse<BackofficeAuthMe>;
 
     if (!response.ok || !body.ok) {
+      if (response.status === 401 || response.status === 403) {
+        markBackofficeUnauthenticated();
+      }
+
       return false;
     }
 
+    clearBackofficeUnauthenticatedCooldown();
     await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
 
     return true;
@@ -184,6 +230,10 @@ async function ensureBackofficeCsrfToken(
     return cachedBackofficeCsrfToken;
   }
 
+  if (!options.forceRefresh && backofficeCsrfTokenPromise) {
+    return backofficeCsrfTokenPromise;
+  }
+
   if (!options.forceRefresh) {
     const cookieToken = readCsrfTokenFromDocumentCookie();
 
@@ -193,6 +243,14 @@ async function ensureBackofficeCsrfToken(
     }
   }
 
+  backofficeCsrfTokenPromise = fetchBackofficeCsrfToken(apiBaseUrl).finally(() => {
+    backofficeCsrfTokenPromise = null;
+  });
+
+  return backofficeCsrfTokenPromise;
+}
+
+async function fetchBackofficeCsrfToken(apiBaseUrl: string): Promise<string | null> {
   try {
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/backoffice/csrf`, {
       method: "GET",
@@ -250,6 +308,30 @@ function readCsrfTokenFromDocumentCookie(): string | null {
 
 function clearBackofficeCsrfToken(): void {
   cachedBackofficeCsrfToken = null;
+  backofficeCsrfTokenPromise = null;
+}
+
+function clearBackofficeAuthRequestState(): void {
+  clearBackofficeCsrfToken();
+  backofficeMePromise = null;
+  refreshSessionPromise = null;
+  clearBackofficeUnauthenticatedCooldown();
+}
+
+function markBackofficeUnauthenticated(): void {
+  unauthenticatedCooldownUntil = Date.now() + BACKOFFICE_UNAUTHENTICATED_COOLDOWN_MS;
+}
+
+function clearBackofficeUnauthenticatedCooldown(): void {
+  unauthenticatedCooldownUntil = 0;
+}
+
+function isBackofficeUnauthenticatedCooldownActive(): boolean {
+  return Date.now() < unauthenticatedCooldownUntil;
+}
+
+export function resetBackofficeAuthClientForTests(): void {
+  clearBackofficeAuthRequestState();
 }
 
 function getApiErrorMessage(body: ApiResponse<unknown>, fallback: string): string {

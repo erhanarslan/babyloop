@@ -137,7 +137,7 @@ const RAW_MESSAGE_SENTINEL = "RAW_BACKOFFICE_NEGATIVE_UI_MESSAGE_BODY";
 
 test.describe("backoffice protected auth shell", () => {
   test("guest sees sign-in required state on protected backoffice routes", async ({ page }) => {
-    await installBackofficeAuthMocks(page, null);
+    const authRequests = await installBackofficeAuthMocks(page, null);
 
     for (const route of protectedRoutes) {
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
@@ -156,6 +156,10 @@ test.describe("backoffice protected auth shell", () => {
 
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toHaveCount(0);
     }
+
+    expect(authRequests.csrf).toBe(0);
+    expect(authRequests.me).toBeGreaterThan(0);
+    expect(authRequests.refresh).toBeLessThanOrEqual(authRequests.me);
   });
 
   test("non-admin user sees forbidden state on protected backoffice routes", async ({ page }) => {
@@ -278,8 +282,19 @@ async function expectBackofficeShell(page: Page): Promise<void> {
   );
 }
 
-async function installBackofficeAuthMocks(page: Page, auth: BackofficeAuth | null): Promise<void> {
+async function installBackofficeAuthMocks(
+  page: Page,
+  auth: BackofficeAuth | null,
+): Promise<{ csrf: number; me: number; refresh: number }> {
+  const requests = {
+    csrf: 0,
+    me: 0,
+    refresh: 0,
+  };
+
   await page.route("**/auth/backoffice/me**", async (route) => {
+    requests.me += 1;
+
     if (!auth) {
       await fulfillJson(
         route,
@@ -302,6 +317,8 @@ async function installBackofficeAuthMocks(page: Page, auth: BackofficeAuth | nul
   });
 
   await page.route("**/auth/backoffice/refresh**", async (route) => {
+    requests.refresh += 1;
+
     if (!auth) {
       await fulfillJson(
         route,
@@ -323,7 +340,9 @@ async function installBackofficeAuthMocks(page: Page, auth: BackofficeAuth | nul
     });
   });
 
-  await installBackofficeCsrfMock(page);
+  await installBackofficeCsrfMock(page, requests);
+
+  return requests;
 }
 
 async function installBackofficeAuthRetryMocks(page: Page): Promise<void> {
@@ -353,8 +372,15 @@ async function installBackofficeAuthRetryMocks(page: Page): Promise<void> {
   await installBackofficeCsrfMock(page);
 }
 
-async function installBackofficeCsrfMock(page: Page): Promise<void> {
+async function installBackofficeCsrfMock(
+  page: Page,
+  requests?: { csrf: number },
+): Promise<void> {
   await page.route("**/auth/backoffice/csrf**", async (route) => {
+    if (requests) {
+      requests.csrf += 1;
+    }
+
     await fulfillJson(route, {
       ok: true,
       data: {
