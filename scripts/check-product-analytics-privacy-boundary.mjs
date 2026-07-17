@@ -33,8 +33,16 @@ const ingestSchema = "apps/api/src/schemas/analytics.schemas.ts";
 const ingestService = "apps/api/src/services/product-analytics.service.ts";
 const adminService = "apps/api/src/services/admin-analytics.service.ts";
 const webModel = "apps/web/src/features/analytics/analytics-event-model.ts";
+const webProvider = "apps/web/src/features/analytics/analytics-provider.tsx";
+const webRootProvider = "apps/web/src/app/providers.tsx";
 const mobileModel = "apps/mobile/src/features/analytics/analytics-event-model.ts";
+const mobileProvider = "apps/mobile/src/features/analytics/analytics-provider.tsx";
+const mobileRootLayout = "apps/mobile/app/_layout.tsx";
+const mobileJestConfig = "apps/mobile/jest.config.js";
 const backofficeDashboard = "apps/backoffice/src/features/analytics/analytics-dashboard.tsx";
+const backofficeSectionPage = "apps/backoffice/src/features/analytics/analytics-section-page.tsx";
+const demoSeed = "apps/api/src/scripts/demo-analytics-seed.ts";
+const dbSmoke = "apps/api/src/scripts/analytics-db-smoke.ts";
 const packageJson = "package.json";
 
 mustContain(taxonomy, "analyticsEventPropertyAllowlist");
@@ -58,11 +66,41 @@ mustContain(adminService, "authAccounts.provider");
 mustContain(adminService, "analyticsDailyOverview");
 mustContain(webModel, "stripUrlDetails");
 mustContain(webModel, "clampEngagementDelta");
+mustContain(webProvider, "AnalyticsProvider");
+mustContain(webProvider, "visibilitychange");
+mustContain(webProvider, "trackEngagement");
+mustContain(webProvider, "AUTH_SESSION_ENDED_EVENT");
+mustContain(webRootProvider, "AnalyticsProvider");
 mustContain(mobileModel, "MOBILE_ANALYTICS_QUEUE_LIMIT");
 mustContain(mobileModel, "takeMobileAnalyticsBatch");
+mustContain(mobileProvider, "MobileAnalyticsProvider");
+mustContain(mobileProvider, "AppState");
+mustContain(mobileProvider, "trackEngagement");
+mustContain(mobileRootLayout, "MobileAnalyticsProvider");
+mustContain(mobileJestConfig, "<rootDir>/../../packages/shared/src/index.ts");
+mustNotContain(mobileJestConfig, '"^@babyloop/shared$": "<rootDir>/../../packages/shared/src/analytics-events.ts"');
 mustContain(backofficeDashboard, "Raw messages");
+mustContain(backofficeSectionPage, "Veri Kalitesi");
+mustContain("apps/backoffice/src/app/analytics/users/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/auth/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/engagement/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/marketplace/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/messaging/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/assistant/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/child/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/funnels/page.tsx", "AnalyticsSectionPage");
+mustContain("apps/backoffice/src/app/analytics/data-quality/page.tsx", "AnalyticsSectionPage");
+mustContain(demoSeed, "BABYLOOP_DEMO_SEED_ENABLED");
+mustContain(demoSeed, "rollupAnalyticsDay");
+mustContain(demoSeed, "trackServerAnalyticsEvent");
+mustContain(demoSeed, "onConflictDoNothing");
+mustContain(dbSmoke, "getAdminAnalyticsOverview");
+mustContain(dbSmoke, "applyAnalyticsRetention");
 mustContain(packageJson, "security:product-analytics-privacy");
 mustContain(packageJson, "release:analytics");
+mustContain(packageJson, "release:analytics:runtime");
+mustContain(packageJson, "demo:seed:analytics");
+mustContain(packageJson, "smoke:analytics:db");
 
 for (const file of [
   "apps/api/test/analytics.schemas.test.ts",
@@ -71,8 +109,10 @@ for (const file of [
   "apps/api/test/admin-analytics.routes.test.ts",
   "apps/web/src/features/analytics/analytics-event-model.test.ts",
   "apps/web/src/features/analytics/analytics-session-model.test.ts",
+  "apps/web/src/features/analytics/analytics-client.test.ts",
   "apps/mobile/src/features/analytics/analytics-event-model.test.ts",
   "apps/mobile/src/features/analytics/analytics-session-model.test.ts",
+  "apps/mobile/src/features/analytics/analytics-client.test.ts",
   "apps/backoffice/src/features/analytics/analytics-dashboard-model.test.ts",
   "apps/backoffice/src/features/analytics/analytics-api.test.ts"
 ]) {
@@ -84,9 +124,11 @@ for (const file of [
 mustContain("apps/api/test/analytics.routes.test.ts", "999999999999");
 mustContain("apps/api/test/analytics.schemas.test.ts", "messageBody");
 mustContain("apps/web/src/features/analytics/analytics-event-model.test.ts", "token=secret");
+mustContain("apps/web/src/features/analytics/analytics-client.test.ts", "does not drop queued events");
 mustContain("apps/mobile/src/features/analytics/analytics-event-model.test.ts", "private prompt");
+mustContain("apps/mobile/src/features/analytics/analytics-client.test.ts", "keeps queued events");
 
-for (const file of [ingestService, adminService, webModel, mobileModel, backofficeDashboard]) {
+for (const file of [ingestService, adminService, webModel, webProvider, mobileModel, mobileProvider, backofficeDashboard, backofficeSectionPage, demoSeed]) {
   mustNotContain(file, "document.cookie");
   mustNotContain(file, "localStorage.accessToken");
   mustNotContain(file, "sessionStorage.accessToken");
