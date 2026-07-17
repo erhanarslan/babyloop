@@ -16,6 +16,10 @@ export const LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION = "listing_draft_sug
 
 export const LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION = "listing_draft_suggestion.gemini.v1" as const;
 
+export const LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION_V2 = "listing_draft_suggestion.openai.v2" as const;
+
+export const LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION_V2 = "listing_draft_suggestion.gemini.v2" as const;
+
 export const PRICE_SUGGESTION_PROMPT_VERSION = "price_suggestion.mock.v1" as const;
 
 export const MODERATION_SUMMARY_PROMPT_VERSION = "moderation_summary.mock.v1" as const;

@@ -3,7 +3,7 @@ import {
   generateGeminiJson,
   type GeminiPart
 } from "./gemini-api.js";
-import { LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION } from "./prompt-versions.js";
+import { LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION_V2 } from "./prompt-versions.js";
 import type {
   ListingDraftSuggestionCondition,
   ListingDraftSuggestionConfidence,
@@ -62,7 +62,7 @@ export class GeminiListingDraftSuggestionProvider implements ListingDraftSuggest
     return {
       ...parsed,
       providerName: this.providerName,
-      promptVersion: LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION,
+      promptVersion: LISTING_DRAFT_SUGGESTION_GEMINI_PROMPT_VERSION_V2,
       modelName: this.modelName
     };
   }
@@ -109,6 +109,13 @@ function buildSystemPrompt(): string {
     "Sen BabyLoop için Türkçe ilan taslağı asistanısın. Bebek/çocuk ikinci el marketplace ilanlarını iyileştirirsin.",
     "Yalnızca verilen taslak alanlarını, kategori adaylarını ve yüklenen görselleri kullan.",
     "Görsel belirsizse veya güven düşükse bunu açıkça belirt; başlık/kategori önerisini zorlamadan düşük güven ver.",
+    "Etikette net okunmayan marka, model, ölçü veya yaş aralığını uydurma; emin değilsen missingDetails alanına soru ekle.",
+    "Görselde görünmeyen aksesuarı, eksik parçayı veya kutu içeriğini var sayma.",
+    "Kaza geçmişi, tamir geçmişi ve kullanım geçmişi çıkarımı yapma.",
+    "Oto koltuğu, beşik, ana kucağı ve güvenlik hassas ürünlerde güvenli, kazasız, sertifikalı, sorunsuz veya kesin uygun gibi garanti ifadeleri üretme.",
+    "Yalnız görünür kondisyon belirtilerini nazik ve doğrulanabilir şekilde belirt.",
+    "Kullanıcının iletişim bilgilerini, çocuk veya özel bilgilerini tahmin etme; açıklamaya telefon, e-posta, açık adres veya özel veri ekleme.",
+    "Fiyat önerisini kesin piyasa gerçeği gibi sunma; düşük güven durumunda daha fazla soru ve eksik bilgi üret.",
     "Güvenlik sertifikası, tıbbi garanti, özel çocuk bilgisi, satıcı kimliği, telefon, e-posta veya açık adres çıkarımı yapma.",
     "Öneriler pratik ve yayınlamadan önce satıcının kontrol edebileceği şekilde olsun.",
     "Sadece JSON döndür."

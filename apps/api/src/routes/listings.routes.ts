@@ -883,7 +883,7 @@ async function collectListingDraftMultipart(
     for await (const part of request.parts({
       limits: {
         fileSize: MAX_LISTING_IMAGE_BYTES,
-        files: MAX_LISTING_IMAGES
+        files: MAX_LISTING_IMAGES + 1
       }
     })) {
       if (part.type === "file") {

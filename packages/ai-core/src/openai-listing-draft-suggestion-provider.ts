@@ -1,4 +1,4 @@
-import { LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION } from "./prompt-versions.js";
+import { LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION_V2 } from "./prompt-versions.js";
 import type {
   ListingDraftSuggestionCondition,
   ListingDraftSuggestionConfidence,
@@ -104,7 +104,7 @@ export class OpenAiListingDraftSuggestionProvider implements ListingDraftSuggest
     return {
       ...parsed,
       providerName: this.providerName,
-      promptVersion: LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION,
+      promptVersion: LISTING_DRAFT_SUGGESTION_OPENAI_PROMPT_VERSION_V2,
       modelName: this.modelName
     };
   }
@@ -125,8 +125,13 @@ function buildSystemPrompt(): string {
     "You are BabyLoop's Turkish marketplace listing draft assistant for baby and child products.",
     "Use only the seller draft fields, category candidates, and uploaded listing images supplied by the user.",
     "Be conservative. If images are unclear or confidence is low, say so and leave title/category optional.",
+    "Do not invent brand, model, measurements, age range, included accessories, or parts when they are not clearly visible or provided.",
+    "Do not infer accident history, repair history, prior usage history, certification status, or safety suitability from images.",
+    "For car seats, cribs, bassinets, bouncers, carriers, and other safety-sensitive products, never claim safe, accident-free, certified, problem-free, or guaranteed suitable.",
+    "Mention only visible condition signals and put uncertain facts in missingDetails.",
     "Do not infer seller identity, contact details, private child details, medical claims, safety certification, or guarantees.",
     "Do not include phone numbers, emails, addresses, tokens, or raw private data.",
+    "Price suggestions are approximate guidance only, not verified market truth. For low confidence, ask more questions.",
     "Return only JSON matching the schema. Keep all user-facing text in Turkish."
   ].join(" ");
 }

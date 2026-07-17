@@ -22,6 +22,7 @@ export const TEST_GOOGLE_OAUTH_CONFIG: GoogleOAuthConfig = {
 type TestAppOptions = Partial<{
   authRateLimitMax: number;
   authRateLimitWindowSeconds: number;
+  aiListingDraftProvider: "mock" | "unavailable";
   emailDelivery: EmailDeliveryService;
   googleOAuth: GoogleOAuthConfig;
   googleOAuthClient: GoogleOAuthClient;
@@ -38,7 +39,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const app = createApp({
     config: {
-      aiListingDraft: { provider: "mock" },
+      aiListingDraft: { provider: options.aiListingDraftProvider ?? "mock" },
       aiModerationSummary: { provider: "mock" },
       assistant: { provider: "mock" },
       allowAuthUnavailable: false,
