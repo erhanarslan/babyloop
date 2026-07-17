@@ -9,9 +9,15 @@ import {
   LoadingBlock,
   PageContainer,
   Select,
+  Textarea,
   TextInput
 } from "../../components/ui";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import {
+  buildDefaultWebChildReminderFormState,
+  buildWebChildReminderCreatePayloadFromState,
+  type WebChildReminderFormState
+} from "./child-reminder-form-model";
 import {
   archiveChildProfileNote,
   cancelChildProfileReminder,
@@ -293,24 +299,15 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     setMessage({ tone: "info", text: "Not arşivlendi." });
   }
 
-  async function handleCreateReminder(childProfile: ChildProfile, title: string) {
-    const trimmedTitle = title.trim();
+  async function handleCreateReminder(childProfile: ChildProfile, formState: WebChildReminderFormState) {
+    const result = buildWebChildReminderCreatePayloadFromState(formState);
 
-    if (!trimmedTitle) {
-      setMessage({ tone: "error", text: "Hatırlatıcı başlığı gerekli." });
+    if (!result.ok) {
+      setMessage({ tone: "error", text: result.message });
       return;
     }
 
-    const dueAt = buildTomorrowAtTenIso();
-    const response = await createChildProfileReminder(apiBaseUrl, childProfile.id, {
-      title: trimmedTitle,
-      reminderType: "shopping",
-      scheduleKind: "one_time",
-      dueAt,
-      remindAt: dueAt,
-      timezone: "Europe/Istanbul",
-      channel: "in_app"
-    });
+    const response = await createChildProfileReminder(apiBaseUrl, childProfile.id, result.payload);
 
     if (!response.ok) {
       setMessage({ tone: "error", text: "Hatırlatıcı eklenemedi." });
@@ -456,7 +453,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
               onCancelReminder={(reminderId) => void handleCancelReminder(selectedChildProfile, reminderId)}
               onCompleteReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "completed")}
               onCreateNote={(title) => void handleCreateNote(selectedChildProfile, title)}
-              onCreateReminder={(title) => void handleCreateReminder(selectedChildProfile, title)}
+              onCreateReminder={(formState) => void handleCreateReminder(selectedChildProfile, formState)}
               onDelete={() => void handleDelete(selectedChildProfile)}
               onEdit={() => startEditProfile(selectedChildProfile)}
               onPauseReminder={(reminderId) => void handleUpdateReminderStatus(selectedChildProfile, reminderId, "paused")}
@@ -630,7 +627,7 @@ function ChildProfileSummary({
   onCancelReminder: (reminderId: string) => void;
   onCompleteReminder: (reminderId: string) => void;
   onCreateNote: (title: string) => void;
-  onCreateReminder: (title: string) => void;
+  onCreateReminder: (formState: WebChildReminderFormState) => void;
   onDelete: () => void;
   onEdit: () => void;
   onPauseReminder: (reminderId: string) => void;
@@ -654,7 +651,6 @@ function ChildProfileSummary({
       </dl>
 
       <ChildNotebookPanel
-        childProfile={childProfile}
         notes={notes}
         reminders={reminders}
         onArchiveNote={onArchiveNote}
@@ -687,7 +683,6 @@ function ChildProfileSummary({
 }
 
 function ChildNotebookPanel({
-  childProfile,
   notes,
   reminders,
   onArchiveNote,
@@ -698,30 +693,21 @@ function ChildNotebookPanel({
   onPauseReminder,
   onResumeReminder
 }: {
-  childProfile: ChildProfile;
   notes: ChildProfileNote[];
   reminders: ChildProfileReminder[];
   onArchiveNote: (noteId: string) => void;
   onCancelReminder: (reminderId: string) => void;
   onCompleteReminder: (reminderId: string) => void;
   onCreateNote: (title: string) => void;
-  onCreateReminder: (title: string) => void;
+  onCreateReminder: (formState: WebChildReminderFormState) => void;
   onPauseReminder: (reminderId: string) => void;
   onResumeReminder: (reminderId: string) => void;
 }) {
   const [noteTitle, setNoteTitle] = useState("");
-  const [reminderTitle, setReminderTitle] = useState("");
-  const items = notes.length > 0
-    ? notes.slice(0, 4).map((note) => ({
-        id: note.id,
-        title: note.title,
-        meta: note.body ?? formatNoteType(note.noteType),
-        kind: "note" as const
-      }))
-    : buildNotebookPreviewItems(childProfile).map((item) => ({
-        ...item,
-        kind: "placeholder" as const
-      }));
+  const [reminderForm, setReminderForm] = useState<WebChildReminderFormState>(
+    () => buildDefaultWebChildReminderFormState()
+  );
+  const hasNotebookItems = notes.length > 0 || reminders.length > 0;
 
   return (
     <section className="rounded-[1.25rem] border border-border bg-muted/20 p-4">
@@ -759,49 +745,160 @@ function ChildNotebookPanel({
           className="rounded-2xl border border-border bg-background/80 p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            onCreateReminder(reminderTitle);
-            setReminderTitle("");
+            onCreateReminder(reminderForm);
+            setReminderForm(buildDefaultWebChildReminderFormState());
           }}
         >
           <TextInput
             label="Yeni hatırlatıcı"
             maxLength={120}
-            onChange={(event) => setReminderTitle(event.target.value)}
+            onChange={(event) => setReminderForm((current) => ({ ...current, title: event.target.value }))}
             placeholder="Örn. Hafta sonu bez al"
-            value={reminderTitle}
+            value={reminderForm.title}
           />
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <Select
+              label="Tür"
+              onChange={(event) =>
+                setReminderForm((current) => ({
+                  ...current,
+                  reminderType: event.target.value as ChildProfileReminder["reminderType"]
+                }))
+              }
+              value={reminderForm.reminderType}
+            >
+              <option value="shopping">Alışveriş</option>
+              <option value="feeding">Beslenme</option>
+              <option value="diaper">Bez</option>
+              <option value="sleep">Uyku</option>
+              <option value="activity">Aktivite</option>
+              <option value="appointment">Randevu</option>
+              <option value="general">Genel</option>
+            </Select>
+            <Select
+              label="Zamanlama"
+              onChange={(event) =>
+                setReminderForm((current) => ({
+                  ...current,
+                  scheduleKind: event.target.value as ChildProfileReminder["scheduleKind"]
+                }))
+              }
+              value={reminderForm.scheduleKind}
+            >
+              <option value="one_time">Tek seferlik</option>
+              <option value="daily">Günlük</option>
+              <option value="weekly">Haftalık</option>
+              <option value="interval">Aralıklı</option>
+              <option value="relative_before_event">Randevudan önce</option>
+            </Select>
+          </div>
+          {reminderForm.scheduleKind === "one_time" ? (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <TextInput
+                label="Tarih"
+                onChange={(event) => setReminderForm((current) => ({ ...current, oneTimeDate: event.target.value }))}
+                type="date"
+                value={reminderForm.oneTimeDate}
+              />
+              <TextInput
+                label="Saat"
+                onChange={(event) => setReminderForm((current) => ({ ...current, oneTimeTime: event.target.value }))}
+                type="time"
+                value={reminderForm.oneTimeTime}
+              />
+            </div>
+          ) : null}
+          {reminderForm.scheduleKind === "daily" || reminderForm.scheduleKind === "weekly" ? (
+            <div className="mt-2">
+              <TextInput
+                label="Saat"
+                onChange={(event) => setReminderForm((current) => ({ ...current, localTime: event.target.value }))}
+                type="time"
+                value={reminderForm.localTime}
+              />
+            </div>
+          ) : null}
+          {reminderForm.scheduleKind === "interval" ? (
+            <div className="mt-2">
+              <TextInput
+                label="Kaç dakikada bir"
+                min={15}
+                onChange={(event) => setReminderForm((current) => ({ ...current, intervalMinutes: event.target.value }))}
+                type="number"
+                value={reminderForm.intervalMinutes}
+              />
+            </div>
+          ) : null}
+          {reminderForm.scheduleKind === "relative_before_event" ? (
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <TextInput
+                label="Etkinlik tarihi"
+                onChange={(event) => setReminderForm((current) => ({ ...current, eventDate: event.target.value }))}
+                type="date"
+                value={reminderForm.eventDate}
+              />
+              <TextInput
+                label="Etkinlik saati"
+                onChange={(event) => setReminderForm((current) => ({ ...current, eventTime: event.target.value }))}
+                type="time"
+                value={reminderForm.eventTime}
+              />
+              <TextInput
+                label="Kaç dakika önce"
+                min={1}
+                onChange={(event) =>
+                  setReminderForm((current) => ({ ...current, notifyBeforeMinutes: event.target.value }))
+                }
+                type="number"
+                value={reminderForm.notifyBeforeMinutes}
+              />
+            </div>
+          ) : null}
+          <div className="mt-2">
+            <Textarea
+              label="Not"
+              maxLength={500}
+              onChange={(event) => setReminderForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="İsteğe bağlı kısa açıklama"
+              value={reminderForm.description}
+            />
+          </div>
           <Button className="mt-2" type="submit" variant="secondary">
-            Yarın 10:00'a ekle
+            Hatırlatıcı oluştur
           </Button>
         </form>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {items.map((item) => (
-          <article className="rounded-2xl border border-border bg-background/80 p-3" key={item.title}>
-            <strong className="block text-sm font-black text-foreground">{item.title}</strong>
-            <span className="mt-1 block text-xs font-bold text-muted-foreground">{item.meta}</span>
-            {item.kind === "note" ? (
-              <Button className="mt-2" type="button" variant="secondary" onClick={() => onArchiveNote(item.id)}>
+      {!hasNotebookItems ? (
+        <p className="mt-3 rounded-2xl border border-dashed border-border bg-background/70 p-3 text-sm font-semibold text-muted-foreground">
+          Henüz not veya hatırlatıcı yok. İlk notu ekle ya da hatırlatıcı oluştur.
+        </p>
+      ) : null}
+
+      {notes.length > 0 ? (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {notes.slice(0, 4).map((note) => (
+            <article className="rounded-2xl border border-border bg-background/80 p-3" key={note.id}>
+              <strong className="block text-sm font-black text-foreground">{note.title}</strong>
+              <span className="mt-1 block text-xs font-bold text-muted-foreground">
+                {note.body ?? formatNoteType(note.noteType)}
+              </span>
+              <Button className="mt-2" type="button" variant="secondary" onClick={() => onArchiveNote(note.id)}>
                 Arşivle
               </Button>
-            ) : null}
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-3 space-y-2">
-        {reminders.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border bg-background/70 p-3 text-sm font-semibold text-muted-foreground">
-            Henüz gerçek hatırlatıcı yok.
-          </p>
-        ) : reminders.slice(0, 5).map((reminder) => (
+        {reminders.slice(0, 5).map((reminder) => (
           <article className="rounded-2xl border border-border bg-background/80 p-3" key={reminder.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <strong className="block text-sm font-black text-foreground">{reminder.title}</strong>
                 <span className="mt-1 block text-xs font-bold text-muted-foreground">
-                  {formatReminderDate(reminder.nextRunAt ?? reminder.remindAt)} · {formatReminderStatus(reminder.status)}
+                  {formatReminderSchedule(reminder)} · {formatReminderStatus(reminder.status)}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -827,17 +924,6 @@ function ChildNotebookPanel({
       </div>
     </section>
   );
-}
-
-function buildNotebookPreviewItems(childProfile: ChildProfile): Array<{ title: string; meta: string }> {
-  const childLabel = formatChildLabel(childProfile.label);
-
-  return [
-    { title: "Beslenme", meta: "2 saatte bir" },
-    { title: "Bez", meta: "Günlük takip" },
-    { title: "Etkinlik", meta: "Randevu" },
-    { title: "Genel not", meta: childLabel }
-  ];
 }
 function ChildLifecycleRecommendations({
   childProfile,
@@ -1104,13 +1190,28 @@ function formatReminderDate(value: string): string {
   }).format(date);
 }
 
-function buildTomorrowAtTenIso(): string {
-  const date = new Date();
+function formatReminderSchedule(reminder: ChildProfileReminder): string {
+  if (reminder.scheduleKind === "interval" && reminder.intervalMinutes) {
+    return `${reminder.intervalMinutes} dakikada bir`;
+  }
 
-  date.setDate(date.getDate() + 1);
-  date.setHours(10, 0, 0, 0);
+  if (reminder.scheduleKind === "daily" && reminder.localTime) {
+    return `Her gün ${reminder.localTime}`;
+  }
 
-  return date.toISOString();
+  if (reminder.scheduleKind === "weekly" && reminder.localTime) {
+    return `Haftalık ${reminder.localTime}`;
+  }
+
+  if (reminder.scheduleKind === "relative_before_event" && reminder.eventAt) {
+    const notifyLabel = reminder.notifyBeforeMinutes
+      ? `${reminder.notifyBeforeMinutes} dakika önce`
+      : "Randevudan önce";
+
+    return `${formatReminderDate(reminder.eventAt)} · ${notifyLabel}`;
+  }
+
+  return formatReminderDate(reminder.nextRunAt ?? reminder.remindAt);
 }
 
 function formatChildLabel(label: string): string {
