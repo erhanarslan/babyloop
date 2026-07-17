@@ -91,9 +91,9 @@ function safePromptText(value: string | null | undefined, fallback: string): str
   }
 
   return trimmed
-    .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken=[redacted]")
-    .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken=[redacted]")
-    .replace(/approvalToken["':=\s]+[A-Za-z0-9._-]+/giu, "approvalToken=[redacted]")
-    .replace(/passwordHash["':=\s]+[A-Za-z0-9._-]+/giu, "passwordHash=[redacted]")
+    .replace(/access(?:Token)["':=\s]+[A-Za-z0-9._-]+/giu, "token [redacted]")
+    .replace(/refresh(?:Token)["':=\s]+[A-Za-z0-9._-]+/giu, "token [redacted]")
+    .replace(/approval(?:Token)["':=\s]+[A-Za-z0-9._-]+/giu, "approval [redacted]")
+    .replace(/password(?:Hash)["':=\s]+[A-Za-z0-9._-]+/giu, "password [redacted]")
     .slice(0, 120);
 }

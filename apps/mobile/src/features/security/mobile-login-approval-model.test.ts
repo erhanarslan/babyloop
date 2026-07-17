@@ -47,6 +47,16 @@ const approvals: MobileLoginApprovalChallenge[] = [
     createdAt: "2026-07-04T01:02:00.000Z",
     expiresAt: "2026-07-04T01:12:00.000Z",
     resolvedAt: "2026-07-04T01:06:00.000Z"
+  },
+  {
+    id: "approval-expired",
+    status: "expired",
+    deviceLabel: "Süresi dolan tarayıcı",
+    requestUserAgent: "Expired Browser",
+    requestIpAddress: "10.0.0.12",
+    createdAt: "2026-07-04T01:03:00.000Z",
+    expiresAt: "2026-07-04T01:13:00.000Z",
+    resolvedAt: null
   }
 ];
 

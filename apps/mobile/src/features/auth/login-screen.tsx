@@ -87,6 +87,11 @@ export function LoginScreen() {
   }
 
   async function handleVerifyMfa() {
+    if (otpCode.length !== 6) {
+      setActionMessage("E-postana gönderilen 6 haneli kodu gir.");
+      return;
+    }
+
     setSubmitting(true);
     setActionMessage(null);
 
@@ -151,7 +156,7 @@ export function LoginScreen() {
   const subtitle = pendingLoginIntent
     ? getIntentSubtitle(pendingLoginIntent.action)
     : isMfaRequired
-      ? "Hesabın için e-posta OTP doğrulaması gerekiyor."
+      ? "E-postana gönderilen 6 haneli kodu gir."
       : "Favoriler, mesajlar ve ilan yönetimi için BabyLoop hesabını kullan.";
 
   return (
@@ -163,7 +168,8 @@ export function LoginScreen() {
             <TextInput
               autoCapitalize="none"
               keyboardType="number-pad"
-              onChangeText={setOtpCode}
+              maxLength={6}
+              onChangeText={(value) => setOtpCode(value.replace(/\D/gu, "").slice(0, 6))}
               placeholder="6 haneli kod"
               placeholderTextColor={colors.subtle}
               style={styles.input}
@@ -171,7 +177,7 @@ export function LoginScreen() {
             />
 
             <Pressable
-              disabled={submitting}
+              disabled={submitting || otpCode.length !== 6}
               onPress={() => void handleVerifyMfa()}
               style={({ pressed }) => [
                 styles.primaryButton,
@@ -179,7 +185,7 @@ export function LoginScreen() {
               ]}
             >
               <Text style={styles.primaryButtonText}>
-                {submitting ? "Doğrulanıyor..." : "Devam et"}
+                {submitting ? "Doğrulanıyor..." : "OTP kodunu doğrula"}
               </Text>
             </Pressable>
 

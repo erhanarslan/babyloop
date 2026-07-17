@@ -6,6 +6,7 @@ const requiredFiles = [
   "apps/mobile/src/features/auth/auth-api.test.ts",
   "apps/mobile/src/features/auth/auth-session.tsx",
   "apps/mobile/src/features/auth/login-screen.tsx",
+  "apps/mobile/src/features/auth/mobile-login-approval-prompt.tsx",
   "apps/mobile/src/features/security/security-model.ts",
   "apps/mobile/src/features/security/security-model.test.ts",
   "apps/mobile/src/features/security/mobile-session-model.ts",
@@ -190,7 +191,6 @@ function checkMobileAuthSessionBoundary() {
     "refreshMobileSession",
     "logoutMobileSession",
     "disconnectMobileRealtimeSocket",
-    "subscribeMobileRealtime",
     "handleUnexpectedMobileApprovalRequired"
   ]) {
     mustContain(source, file, token);
@@ -267,8 +267,6 @@ function checkMobileSessionPrivacyBoundary() {
   for (const token of [
     "safeSessionText",
     "buildMobileSessionCards",
-    "getMobileSessionSummary",
-    "currentDeviceLabel",
     "isCurrentSession"
   ]) {
     mustContain(model, modelFile, token);
@@ -276,8 +274,9 @@ function checkMobileSessionPrivacyBoundary() {
 
   for (const token of [
     "accessToken=secret-token",
-    "not.toMatch(/secret-token|refreshToken|passwordHash/iu",
-    "Bu cihaz eşleşmedi"
+    "not.toMatch(/127\\.0\\.0\\.1|Bitiş|expiresAt|secret-token|refreshToken|passwordHash/iu",
+    "Kapat",
+    "Son etkinlik:"
   ]) {
     mustContain(tests, testFile, token);
   }
@@ -294,16 +293,39 @@ function checkMobileSessionPrivacyBoundary() {
 function checkMobileLoginApprovalBoundary() {
   const modelFile = "apps/mobile/src/features/security/mobile-login-approval-model.ts";
   const testFile = "apps/mobile/src/features/security/mobile-login-approval-model.test.ts";
+  const promptFile = "apps/mobile/src/features/auth/mobile-login-approval-prompt.tsx";
 
   const model = read(modelFile);
   const tests = read(testFile);
+  const prompt = read(promptFile);
 
   for (const token of [
-    "buildMobileLoginApprovalCards",
-    "getMobileLoginApprovalSummary",
+    "buildMobileLoginApprovalPrompt",
+    "normalizeMobileLoginApprovalQueue",
+    "mergeMobileLoginApprovalQueue",
+    "removeMobileLoginApprovalFromQueue",
+    "getCurrentMobileLoginApproval",
     "pending",
   ]) {
     mustContain(model, modelFile, token);
+  }
+
+  for (const token of [
+    "MobileLoginApprovalPrompt",
+    "fetchMobileLoginApprovals",
+    "subscribeMobileRealtime",
+    "onLoginApprovalCreated",
+    "approveMobileLoginApproval",
+    "denyMobileLoginApproval",
+    "requestMobileAuthSessionsRefresh",
+    "buildMobileLoginApprovalPrompt",
+    "mergeMobileLoginApprovalQueue",
+    "removeMobileLoginApprovalFromQueue",
+    "prompt.title",
+    "prompt.approveLabel",
+    "prompt.denyLabel"
+  ]) {
+    mustContain(prompt, promptFile, token);
   }
 
   for (const token of [
