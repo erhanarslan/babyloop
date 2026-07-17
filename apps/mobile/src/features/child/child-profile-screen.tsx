@@ -824,8 +824,8 @@ function formatScheduleKindLabel(value: MobileChildReminder["scheduleKind"]): st
 function redactMobileChildMessage(value: string): string {
   return value
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/giu, "Bearer [redacted]")
-    .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken=[redacted]")
-    .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken=[redacted]")
+    .replace(/accessToken["':=\s]+[A-Za-z0-9._-]+/giu, "accessToken [redacted]")
+    .replace(/refreshToken["':=\s]+[A-Za-z0-9._-]+/giu, "refreshToken [redacted]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "[redacted-email]");
 }
 

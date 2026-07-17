@@ -9,6 +9,7 @@ const requiredFiles = [
   "apps/mobile/src/features/child/child-reminders-model.ts",
   "apps/mobile/src/features/child/child-reminders-api.test.ts",
   "apps/mobile/src/features/child/child-reminders-api.ts",
+  "apps/mobile/src/features/child/child-profile-screen.tsx",
   "apps/mobile/src/features/child/child-reminder-screen-state-model.test.ts",
   "apps/mobile/src/features/child/child-reminder-screen-state-model.ts",
   "apps/mobile/app/(tabs)/child-profile.tsx",
@@ -126,12 +127,13 @@ function checkServiceAndTests() {
 
 function checkMobileChildNotebookScreenState() {
   const routeFile = "apps/mobile/app/(tabs)/child-profile.tsx";
+  const screenFile = "apps/mobile/src/features/child/child-profile-screen.tsx";
   const modelFile = "apps/mobile/src/features/child/child-reminder-screen-state-model.ts";
   const testFile = "apps/mobile/src/features/child/child-reminder-screen-state-model.test.ts";
   const apiTestFile = "apps/mobile/src/features/child/child-reminders-api.test.ts";
   const modelTestFile = "apps/mobile/src/features/child/child-reminders-model.test.ts";
 
-  const route = read(routeFile);
+  const route = `${read(routeFile)}\n${read(screenFile)}`;
   const model = read(modelFile);
   const tests = read(testFile);
   const apiTests = read(apiTestFile);
