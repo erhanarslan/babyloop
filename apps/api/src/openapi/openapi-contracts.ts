@@ -1,0 +1,1973 @@
+type JsonSchema = Record<string, unknown>;
+
+type RouteContract = {
+  body?: JsonSchema;
+  consumes?: string[];
+  params?: JsonSchema;
+  querystring?: JsonSchema;
+  response?: Record<string, JsonSchema>;
+};
+
+type ApplyOpenApiRouteContractInput = {
+  method: unknown;
+  schema: unknown;
+  url: string;
+};
+
+const UUID_EXAMPLE = "11111111-1111-4111-8111-111111111111";
+const SECOND_UUID_EXAMPLE = "22222222-2222-4222-8222-222222222222";
+
+const listingTypeValues = ["sale", "swap", "donation"] as const;
+const listingConditionValues = [
+  "new",
+  "like_new",
+  "good",
+  "fair",
+  "needs_repair"
+] as const;
+const listingStatusValues = ["active", "reserved", "sold", "archived"] as const;
+
+const childAgeBandValues = [
+  "expecting",
+  "newborn_0_3",
+  "infant_3_6",
+  "infant_6_12",
+  "toddler_12_24",
+  "preschool_24_36",
+  "child_3_plus"
+] as const;
+
+const childNoteTypeValues = [
+  "general",
+  "feeding",
+  "diaper",
+  "sleep",
+  "activity",
+  "shopping",
+  "health_note",
+  "size",
+  "preference",
+  "daycare",
+  "milestone"
+] as const;
+
+const childReminderTypeValues = [
+  "feeding",
+  "diaper",
+  "sleep",
+  "activity",
+  "shopping",
+  "appointment",
+  "general"
+] as const;
+
+const childReminderScheduleValues = [
+  "one_time",
+  "interval",
+  "daily",
+  "weekly",
+  "relative_before_event"
+] as const;
+
+const notificationSourceValues = [
+  "child_reminder",
+  "child_note",
+  "saved_search",
+  "child_lifecycle",
+  "marketplace",
+  "messages",
+  "message",
+  "listing",
+  "security",
+  "marketing",
+  "trust_safety"
+] as const;
+
+const notificationChannelValues = [
+  "in_app",
+  "email",
+  "push",
+  "n8n",
+  "sms"
+] as const;
+
+const BODY_CONTRACTS: Record<string, JsonSchema> = {};
+const QUERY_CONTRACTS: Record<string, JsonSchema> = {};
+const ROUTE_CONTRACTS: Record<string, RouteContract> = {};
+
+registerCoreBodyContracts();
+registerMarketplaceBodyContracts();
+registerChildAndNotificationBodyContracts();
+registerAdminBodyContracts();
+registerQueryContracts();
+registerSpecialContracts();
+
+export function applyOpenApiRouteContract(
+  input: ApplyOpenApiRouteContractInput
+): JsonSchema {
+  const method = normalizeMethod(input.method);
+  const path = normalizeRoutePath(input.url);
+  const key = `${method} ${path}`;
+
+  const existing = isRecord(input.schema) ? input.schema : {};
+  const routeContract = ROUTE_CONTRACTS[key] ?? {};
+  const documentedBody = BODY_CONTRACTS[key] ?? routeContract.body;
+  const documentedQuery = QUERY_CONTRACTS[key] ?? routeContract.querystring;
+  const inferredParams = createPathParamsSchema(path);
+
+  const params = mergeObjectSchemas(
+    inferredParams,
+    routeContract.params,
+    existing.params
+  );
+  const querystring = mergeObjectSchemas(
+    documentedQuery,
+    routeContract.querystring,
+    existing.querystring
+  );
+
+  const body = existing.body ?? documentedBody;
+  const response = mergeResponses(
+    defaultResponses(path),
+    routeContract.response,
+    existing.response
+  );
+
+  return removeUndefinedValues({
+    ...routeContract,
+    ...existing,
+    ...(params ? { params } : {}),
+    ...(querystring ? { querystring } : {}),
+    ...(body ? { body } : {}),
+    response
+  });
+}
+
+function registerCoreBodyContracts(): void {
+  addBody(
+    "POST",
+    "/auth/register",
+    objectSchema(
+      {
+        email: emailSchema("erhan@example.test"),
+        password: stringSchema({
+          description: "En az 8 karakterlik kullanıcı parolası.",
+          example: "BabyLoop123!",
+          maxLength: 128,
+          minLength: 8
+        }),
+        displayName: stringSchema({
+          example: "Erhan",
+          maxLength: 120,
+          minLength: 2
+        }),
+        locationCity: stringSchema({
+          example: "İstanbul",
+          maxLength: 120,
+          nullable: true
+        })
+      },
+      ["email", "password", "displayName"],
+      {
+        description: "Yeni BabyLoop kullanıcı hesabı oluşturur."
+      }
+    )
+  );
+
+  const publicLoginBody = objectSchema(
+    {
+      email: emailSchema("erhan@example.test"),
+      password: stringSchema({
+        example: "BabyLoop123!",
+        maxLength: 128,
+        minLength: 1
+      }),
+      clientType: {
+          ...enumSchema(["web", "mobile", "backoffice"], {
+            example: "mobile"
+          }),
+          description:
+            "Swagger testi için mobile seçildiğinde web login approval beklenmeden normal kullanıcı oturumu açılır. Alan gönderilmezse API varsayılan olarak web kabul eder."
+        }
+    },
+    ["email", "password"],
+    {
+      description:
+        "Kullanıcı girişi yapar. Web girişleri mobil onay akışına yönlenebilir."
+    }
+  );
+
+  addBody("POST", "/auth/login", publicLoginBody);
+  addBody(
+    "POST",
+    "/auth/backoffice/login",
+    objectSchema(
+      {
+        email: emailSchema("admin@example.test"),
+        password: stringSchema({
+          example: "BabyLoop123!",
+          maxLength: 128,
+          minLength: 1
+        })
+      },
+      ["email", "password"],
+      {
+        description:
+          "Yalnız admin veya yetkili backoffice rolü için cookie tabanlı oturum açar."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/mfa/verify",
+    objectSchema(
+      {
+        challengeId: uuidSchema("MFA challenge kimliği"),
+        code: stringSchema({
+          description: "Altı haneli tek kullanımlık kod.",
+          example: "123456",
+          maxLength: 6,
+          minLength: 6,
+          pattern: "^\\d{6}$"
+        })
+      },
+      ["challengeId", "code"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/login-approval/complete",
+    objectSchema(
+      {
+        approvalToken: stringSchema({
+          description: "Onaylanan web girişine ait tek kullanımlık token.",
+          example: "approval-token-value-with-at-least-32-characters",
+          maxLength: 512,
+          minLength: 32
+        })
+      },
+      ["approvalToken"]
+    )
+  );
+
+  const passwordPreferenceBody = objectSchema(
+    {
+      currentPassword: stringSchema({
+        example: "BabyLoop123!",
+        maxLength: 128,
+        minLength: 1
+      })
+    },
+    ["currentPassword"]
+  );
+
+  for (const path of [
+    "/auth/mfa/enable",
+    "/auth/mfa/disable",
+    "/auth/login-approval/enable",
+    "/auth/login-approval/disable"
+  ]) {
+    addBody("POST", path, passwordPreferenceBody);
+  }
+
+  addBody(
+    "POST",
+    "/auth/password-reset/request",
+    objectSchema(
+      {
+        email: emailSchema("erhan@example.test")
+      },
+      ["email"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/password-reset/confirm",
+    objectSchema(
+      {
+        token: stringSchema({
+          example: "password-reset-token",
+          maxLength: 512,
+          minLength: 16
+        }),
+        password: stringSchema({
+          example: "YeniBabyLoop123!",
+          maxLength: 128,
+          minLength: 8
+        })
+      },
+      ["token", "password"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/password/change",
+    objectSchema(
+      {
+        currentPassword: stringSchema({
+          example: "BabyLoop123!",
+          maxLength: 128,
+          minLength: 1
+        }),
+        newPassword: stringSchema({
+          example: "YeniBabyLoop123!",
+          maxLength: 128,
+          minLength: 8
+        })
+      },
+      ["currentPassword", "newPassword"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/email-verification/request",
+    objectSchema(
+      {
+        email: emailSchema("erhan@example.test")
+      },
+      ["email"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/email-verification/confirm",
+    objectSchema(
+      {
+        token: stringSchema({
+          example: "email-verification-token",
+          maxLength: 512,
+          minLength: 16
+        })
+      },
+      ["token"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/assistant/messages",
+    objectSchema(
+      {
+        message: stringSchema({
+          description: "BabyLoop Assistant'a gönderilecek mesaj.",
+          example: "24-36 ay için ikinci el oyuncak seçerken nelere bakmalıyım?",
+          maxLength: 1000,
+          minLength: 1
+        }),
+        locale: enumSchema(["tr", "en"], {
+          defaultValue: "tr",
+          example: "tr"
+        })
+      },
+      ["message"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/assistant/chat",
+    objectSchema(
+      {
+        mode: enumSchema(
+          [
+            "find_products",
+            "sell_help",
+            "age_needs",
+            "safe_buying",
+            "platform_help"
+          ],
+          {
+            example: "find_products"
+          }
+        ),
+        content: stringSchema({
+          example: "İstanbul'da 2 yaş için uygun oyuncak ilanlarını bul.",
+          maxLength: 1000,
+          minLength: 1
+        })
+      },
+      ["mode", "content"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/rag/search",
+    objectSchema(
+      {
+        query: stringSchema({
+          example: "İkinci el bebek arabası alırken nelere dikkat etmeliyim?",
+          maxLength: 1000,
+          minLength: 1
+        }),
+        limit: integerSchema({
+          defaultValue: 5,
+          example: 5,
+          maximum: 10,
+          minimum: 1
+        })
+      },
+      ["query"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/analytics/events/batch",
+    objectSchema(
+      {
+        events: {
+          type: "array",
+          minItems: 1,
+          maxItems: 100,
+          items: objectSchema(
+            {
+              eventName: stringSchema({
+                example: "listing_detail_viewed",
+                maxLength: 120,
+                minLength: 1
+              }),
+              occurredAt: dateTimeSchema("2030-01-01T10:00:00.000Z"),
+              sessionId: stringSchema({
+                example: "session-example",
+                maxLength: 160,
+                minLength: 1
+              }),
+              platform: enumSchema(["web", "mobile"], {
+                example: "web"
+              }),
+              properties: {
+                type: "object",
+                additionalProperties: true
+              }
+            },
+            ["eventName", "occurredAt", "sessionId", "platform"]
+          )
+        }
+      },
+      ["events"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/product-events",
+    objectSchema(
+      {
+        eventType: stringSchema({
+          example: "listing_detail_viewed",
+          maxLength: 120,
+          minLength: 1
+        }),
+        listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
+        categoryId: uuidSchema("İlgili kategori kimliği", SECOND_UUID_EXAMPLE),
+        source: stringSchema({
+          example: "listing_detail",
+          maxLength: 120,
+          minLength: 1
+        })
+      },
+      ["eventType"],
+      {
+        description:
+          "Event tipine göre listingId, categoryId, source ve diğer allowlist alanları gönderilir."
+      }
+    )
+  );
+}
+
+function registerMarketplaceBodyContracts(): void {
+  const listingCreateBody = objectSchema(
+    {
+      categoryId: uuidSchema("Ürün kategorisi", UUID_EXAMPLE),
+      title: stringSchema({
+        example: "Temiz kullanılmış bebek arabası",
+        maxLength: 160,
+        minLength: 4
+      }),
+      description: stringSchema({
+        example:
+          "Ürün temiz durumdadır. Katlanma mekanizması ve frenleri çalışmaktadır.",
+        maxLength: 2000,
+        nullable: true
+      }),
+      priceAmount: stringSchema({
+        example: "6500",
+        maxLength: 13,
+        minLength: 1,
+        pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
+      }),
+      currency: enumSchema(["TRY"], {
+        defaultValue: "TRY",
+        example: "TRY"
+      }),
+      listingType: enumSchema(listingTypeValues, {
+        example: "sale"
+      }),
+      condition: enumSchema(listingConditionValues, {
+        example: "good"
+      }),
+      city: stringSchema({
+        example: "İstanbul",
+        maxLength: 120,
+        nullable: true
+      })
+    },
+    [
+      "categoryId",
+      "title",
+      "priceAmount",
+      "currency",
+      "listingType",
+      "condition"
+    ]
+  );
+
+  addBody("POST", "/listings", listingCreateBody);
+
+  addBody(
+    "PATCH",
+    "/listings/:id",
+    objectSchema(
+      {
+        categoryId: uuidSchema("Yeni kategori kimliği"),
+        title: stringSchema({
+          example: "Güncellenmiş ilan başlığı",
+          maxLength: 160,
+          minLength: 4
+        }),
+        description: stringSchema({
+          example: "Güncellenmiş ilan açıklaması.",
+          maxLength: 2000,
+          nullable: true
+        }),
+        priceAmount: stringSchema({
+          example: "6000",
+          maxLength: 13,
+          pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
+        }),
+        listingType: enumSchema(listingTypeValues),
+        condition: enumSchema(listingConditionValues),
+        city: stringSchema({
+          example: "İstanbul",
+          maxLength: 120,
+          nullable: true
+        })
+      },
+      [],
+      {
+        description: "Gönderilen alanlar güncellenir."
+      }
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/listings/:id/status",
+    objectSchema(
+      {
+        status: enumSchema(listingStatusValues, {
+          example: "sold"
+        })
+      },
+      ["status"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/listings/:id/images/reorder",
+    objectSchema(
+      {
+        imageIds: {
+          type: "array",
+          maxItems: 5,
+          items: uuidSchema("İlan görseli kimliği"),
+          example: [UUID_EXAMPLE, SECOND_UUID_EXAMPLE]
+        }
+      },
+      ["imageIds"]
+    )
+  );
+
+  const favoriteBody = objectSchema(
+    {
+      listingId: uuidSchema("Favoriye eklenecek ilan", UUID_EXAMPLE)
+    },
+    ["listingId"]
+  );
+
+  addBody("POST", "/favorites", favoriteBody);
+  addBody("DELETE", "/favorites", favoriteBody);
+
+  addBody(
+    "POST",
+    "/conversations",
+    objectSchema(
+      {
+        listingId: uuidSchema("Mesajlaşmanın başlatılacağı ilan", UUID_EXAMPLE)
+      },
+      ["listingId"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/conversations/:id/messages",
+    objectSchema(
+      {
+        body: stringSchema({
+          example:
+            "Merhaba, ürün hâlâ satılık mı? Eksik parçası veya hasarı bulunuyor mu?",
+          maxLength: 5000,
+          minLength: 1
+        })
+      },
+      ["body"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/cart/items",
+    objectSchema(
+      {
+        listingId: uuidSchema("Sepete eklenecek ilan", UUID_EXAMPLE)
+      },
+      ["listingId"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/checkout/mock-iyzico",
+    objectSchema(
+      {
+        buyerNote: stringSchema({
+          example: "Teslimat için satıcıyla mesajlaşacağım.",
+          maxLength: 500,
+          nullable: true
+        })
+      },
+      [],
+      {
+        description:
+          "Gerçek tahsilat yapmayan BabyLoop mock iyzico checkout akışı."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
+    "/ai/listing-suggestions",
+    objectSchema(
+      {
+        title: stringSchema({
+          example: "Bebek arabası",
+          maxLength: 160
+        }),
+        description: stringSchema({
+          example: "Temiz ve çalışır durumda.",
+          maxLength: 2000
+        }),
+        categoryName: stringSchema({
+          example: "Bebek Arabaları",
+          maxLength: 120
+        }),
+        condition: stringSchema({
+          example: "good",
+          maxLength: 80
+        })
+      },
+      [],
+      {
+        description:
+          "İlanı otomatik yayımlamaz; yalnızca kullanıcı tarafından incelenecek taslak önerisi üretir."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
+    "/ai/price-suggestions",
+    objectSchema(
+      {
+        categoryId: uuidSchema("Kategori kimliği", UUID_EXAMPLE),
+        title: stringSchema({
+          example: "Bebek arabası",
+          maxLength: 160
+        }),
+        condition: enumSchema(listingConditionValues, {
+          example: "good"
+        }),
+        city: stringSchema({
+          example: "İstanbul",
+          maxLength: 120
+        })
+      },
+      ["categoryId", "condition"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/saved-searches",
+    objectSchema(
+      {
+        name: stringSchema({
+          example: "İstanbul bebek arabaları",
+          maxLength: 120,
+          minLength: 1
+        }),
+        q: stringSchema({
+          example: "bebek arabası",
+          maxLength: 160
+        }),
+        categoryId: uuidSchema("Kategori filtresi"),
+        listingType: enumSchema(listingTypeValues),
+        condition: enumSchema(listingConditionValues),
+        priceMin: decimalStringSchema("1000"),
+        priceMax: decimalStringSchema("7000"),
+        hasImages: booleanSchema(true),
+        sort: enumSchema(
+          ["newest", "oldest", "price_asc", "price_desc"],
+          { example: "newest" }
+        ),
+        notificationsEnabled: booleanSchema(false)
+      },
+      ["name"]
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/saved-searches/:savedSearchId/notifications",
+    objectSchema(
+      {
+        notificationsEnabled: booleanSchema(true)
+      },
+      ["notificationsEnabled"]
+    )
+  );
+
+  const reportBody = objectSchema(
+    {
+      reason: enumSchema(
+        [
+          "safety",
+          "fraud",
+          "harassment",
+          "inappropriate",
+          "counterfeit",
+          "prohibited_item",
+          "other"
+        ],
+        {
+          example: "inappropriate"
+        }
+      ),
+      details: stringSchema({
+        example: "İlan açıklamasının incelenmesi gerekiyor.",
+        maxLength: 1000,
+        nullable: true
+      })
+    },
+    ["reason"]
+  );
+
+  addBody("POST", "/reports/listings/:listingId", reportBody);
+  addBody("POST", "/reports/profiles/:profileId", reportBody);
+  addBody("POST", "/reports/messages/:messageId", reportBody);
+}
+
+function registerChildAndNotificationBodyContracts(): void {
+  addBody(
+    "POST",
+    "/child-profiles",
+    objectSchema(
+      {
+        label: stringSchema({
+          defaultValue: "Çocuğum",
+          example: "Ada",
+          maxLength: 80,
+          minLength: 1
+        }),
+        ageBand: enumSchema(childAgeBandValues, {
+          example: "preschool_24_36"
+        }),
+        ageMonths: integerSchema({
+          example: 30,
+          maximum: 96,
+          minimum: 0,
+          nullable: true
+        }),
+        birthMonth: integerSchema({
+          example: 1,
+          maximum: 12,
+          minimum: 1,
+          nullable: true
+        }),
+        birthYear: integerSchema({
+          example: 2024,
+          maximum: 2035,
+          minimum: 2016,
+          nullable: true
+        }),
+        gender: enumSchema(["female", "male", "prefer_not_to_say"], {
+          example: "female",
+          nullable: true
+        }),
+        notificationCadence: enumSchema(
+          ["off", "weekly", "monthly", "yearly"],
+          {
+            defaultValue: "off",
+            example: "weekly"
+          }
+        ),
+        isActive: booleanSchema(true)
+      },
+      ["ageBand"]
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/child-profiles/:childProfileId",
+    objectSchema(
+      {
+        label: stringSchema({
+          example: "Ada",
+          maxLength: 80,
+          minLength: 1
+        }),
+        ageBand: enumSchema(childAgeBandValues),
+        ageMonths: integerSchema({
+          example: 30,
+          maximum: 96,
+          minimum: 0,
+          nullable: true
+        }),
+        birthMonth: integerSchema({
+          maximum: 12,
+          minimum: 1,
+          nullable: true
+        }),
+        birthYear: integerSchema({
+          maximum: 2035,
+          minimum: 2016,
+          nullable: true
+        }),
+        gender: enumSchema(["female", "male", "prefer_not_to_say"], {
+          nullable: true
+        }),
+        notificationCadence: enumSchema([
+          "off",
+          "weekly",
+          "monthly",
+          "yearly"
+        ]),
+        isActive: booleanSchema(true)
+      },
+      [],
+      {
+        description: "En az bir alan gönderilmelidir."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
+    "/child-profiles/:childProfileId/notes",
+    objectSchema(
+      {
+        noteType: enumSchema(childNoteTypeValues, {
+          defaultValue: "general",
+          example: "shopping"
+        }),
+        title: stringSchema({
+          example: "Hafta sonu bez al",
+          maxLength: 100,
+          minLength: 1
+        }),
+        body: stringSchema({
+          example: "3 numara bez stoğu azaldı.",
+          maxLength: 2000,
+          nullable: true
+        }),
+        isPinned: booleanSchema(false)
+      },
+      ["title"]
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/child-profiles/:childProfileId/notes/:noteId",
+    objectSchema(
+      {
+        noteType: enumSchema(childNoteTypeValues),
+        title: stringSchema({
+          example: "Güncellenmiş not",
+          maxLength: 100,
+          minLength: 1
+        }),
+        body: stringSchema({
+          maxLength: 2000,
+          nullable: true
+        }),
+        isPinned: booleanSchema(true),
+        isArchived: booleanSchema(false)
+      },
+      [],
+      {
+        description: "En az bir alan gönderilmelidir."
+      }
+    )
+  );
+
+  const reminderBody = objectSchema(
+    {
+      title: stringSchema({
+        example: "Cumartesi bez al",
+        maxLength: 120,
+        minLength: 1
+      }),
+      description: stringSchema({
+        example: "Market alışverişine ekle.",
+        maxLength: 1000,
+        nullable: true
+      }),
+      reminderType: enumSchema(childReminderTypeValues, {
+        defaultValue: "general",
+        example: "shopping"
+      }),
+      scheduleKind: enumSchema(childReminderScheduleValues, {
+        defaultValue: "one_time",
+        example: "one_time"
+      }),
+      intervalMinutes: integerSchema({
+        example: 120,
+        maximum: 43200,
+        minimum: 15,
+        nullable: true
+      }),
+      remindAt: dateTimeSchema("2030-01-02T07:00:00.000Z", true),
+      dueAt: dateTimeSchema("2030-01-02T07:00:00.000Z", true),
+      eventAt: dateTimeSchema("2030-01-10T10:00:00.000Z", true),
+      notifyBeforeMinutes: integerSchema({
+        example: 1440,
+        maximum: 43200,
+        minimum: 1,
+        nullable: true
+      }),
+      localTime: stringSchema({
+        example: "10:00",
+        nullable: true,
+        pattern: "^[0-2][0-9]:[0-5][0-9]$"
+      }),
+      timezone: stringSchema({
+        defaultValue: "Europe/Istanbul",
+        example: "Europe/Istanbul",
+        maxLength: 80,
+        minLength: 3
+      }),
+      channel: enumSchema(["in_app", "email_draft"], {
+        defaultValue: "in_app",
+        example: "in_app"
+      })
+    },
+    ["title"]
+  );
+
+  addBody(
+    "POST",
+    "/child-profiles/:childProfileId/reminders",
+    reminderBody
+  );
+
+  addBody(
+    "PATCH",
+    "/child-profiles/:childProfileId/reminders/:reminderId",
+    objectSchema(
+      {
+        ...readProperties(reminderBody),
+        status: enumSchema(["scheduled", "completed", "cancelled"], {
+          example: "completed"
+        })
+      },
+      [],
+      {
+        description:
+          "Gönderilen hatırlatıcı alanları güncellenir. En az bir alan gerekir."
+      }
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/notification-preferences",
+    objectSchema(
+      {
+        source: enumSchema(notificationSourceValues, {
+          example: "child_reminder"
+        }),
+        channel: enumSchema(notificationChannelValues, {
+          example: "push"
+        }),
+        enabled: booleanSchema(true),
+        mutedUntil: dateTimeSchema("2030-01-03T10:00:00.000Z", true),
+        quietHoursStart: stringSchema({
+          example: "22:00",
+          nullable: true,
+          pattern: "^[0-2][0-9]:[0-5][0-9]$"
+        }),
+        quietHoursEnd: stringSchema({
+          example: "08:00",
+          nullable: true,
+          pattern: "^[0-2][0-9]:[0-5][0-9]$"
+        }),
+        timezone: stringSchema({
+          defaultValue: "Europe/Istanbul",
+          example: "Europe/Istanbul",
+          maxLength: 80
+        }),
+        digest: enumSchema(["immediate", "daily", "weekly"], {
+          defaultValue: "immediate",
+          example: "immediate"
+        })
+      },
+      ["source", "channel", "enabled"]
+    )
+  );
+
+  const pushTokenBody = objectSchema(
+    {
+      token: stringSchema({
+        description: "Expo push token. Response içinde ham token dönmez.",
+        example: "ExponentPushToken[example-device-token]",
+        maxLength: 512,
+        minLength: 10
+      }),
+      platform: enumSchema(["expo"], {
+        example: "expo"
+      }),
+      deviceLabel: stringSchema({
+        example: "Galaxy S22",
+        maxLength: 120,
+        nullable: true
+      })
+    },
+    ["token", "platform"]
+  );
+
+  addBody("POST", "/notifications/push-tokens", pushTokenBody);
+  addBody("DELETE", "/notifications/push-tokens", pushTokenBody);
+}
+
+function registerAdminBodyContracts(): void {
+  addBody(
+    "POST",
+    "/admin/email/test-send",
+    objectSchema(
+      {
+        to: emailSchema("test@example.test"),
+        intent: enumSchema(
+          [
+            "email_verification",
+            "password_reset",
+            "notification_digest",
+            "security_alert"
+          ],
+          {
+            defaultValue: "security_alert",
+            example: "security_alert"
+          }
+        ),
+        note: stringSchema({
+          example: "Backoffice provider bağlantı testi.",
+          maxLength: 240,
+          nullable: true
+        })
+      },
+      ["to"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/listings/:listingId/actions",
+    objectSchema(
+      {
+        action: enumSchema(["archive", "restore"], {
+          example: "archive"
+        }),
+        reason: stringSchema({
+          example: "İlan içerik politikası incelemesi nedeniyle arşivleniyor.",
+          maxLength: 1000,
+          minLength: 10
+        })
+      },
+      ["action", "reason"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/listings/:listingId/images/:imageId/actions",
+    objectSchema(
+      {
+        action: enumSchema(["approve", "reject"], {
+          example: "approve"
+        }),
+        reason: stringSchema({
+          example: "Görsel gerçek ürünü açık biçimde gösteriyor.",
+          maxLength: 1000,
+          minLength: 10
+        })
+      },
+      ["action", "reason"]
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/admin/moderation/cases/:caseId/status",
+    objectSchema(
+      {
+        status: enumSchema(
+          ["pending", "in_review", "resolved", "dismissed"],
+          {
+            example: "in_review"
+          }
+        ),
+        note: stringSchema({
+          example: "İnceleme başlatıldı.",
+          maxLength: 1000,
+          nullable: true
+        })
+      },
+      ["status"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/moderation/cases/:caseId/actions",
+    objectSchema(
+      {
+        actionType: enumSchema(
+          ["note", "review_started", "dismissed", "resolved", "action_taken"],
+          {
+            example: "review_started"
+          }
+        ),
+        note: stringSchema({
+          example: "İlan ve profil geçmişi incelenecek.",
+          maxLength: 1000,
+          nullable: true
+        })
+      },
+      ["actionType"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/moderation/cases/:caseId/sensitive-access",
+    objectSchema(
+      {
+        reason: stringSchema({
+          example:
+            "Raporun doğrulanması için kontrollü mesaj önizlemesi gerekiyor.",
+          maxLength: 1000,
+          minLength: 10
+        }),
+        fields: {
+          type: "array",
+          minItems: 1,
+          uniqueItems: true,
+          items: enumSchema(["reporter", "message"]),
+          example: ["message"]
+        }
+      },
+      ["reason", "fields"]
+    )
+  );
+
+  const moderationReasonBody = objectSchema(
+    {
+      reason: stringSchema({
+        example: "Moderasyon kararı için vaka özeti gerekiyor.",
+        maxLength: 1000,
+        minLength: 10
+      })
+    },
+    ["reason"]
+  );
+
+  addBody(
+    "POST",
+    "/admin/moderation/cases/:caseId/ai-summary",
+    moderationReasonBody
+  );
+
+  addBody(
+    "POST",
+    "/admin/moderation/cases/:caseId/enforcement",
+    objectSchema(
+      {
+        action: enumSchema(
+          [
+            "listing_hide",
+            "listing_restore",
+            "message_hide",
+            "message_mark_reviewed",
+            "profile_warn",
+            "profile_restrict",
+            "profile_suspend",
+            "profile_restore"
+          ],
+          {
+            example: "listing_hide"
+          }
+        ),
+        reason: stringSchema({
+          example:
+            "İlan doğrulanabilir güvenlik politikası ihlali nedeniyle gizleniyor.",
+          maxLength: 1000,
+          minLength: 10
+        })
+      },
+      ["action", "reason"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/profiles/:profileId/enforcement",
+    objectSchema(
+      {
+        action: enumSchema(
+          ["warn", "restrict", "suspend", "restore"],
+          {
+            example: "restrict"
+          }
+        ),
+        reason: stringSchema({
+          example:
+            "Tekrarlanan güvenlik ihlalleri nedeniyle profil kısıtlanıyor.",
+          maxLength: 1000,
+          minLength: 10
+        })
+      },
+      ["action", "reason"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/rag/playground/query",
+    objectSchema(
+      {
+        query: stringSchema({
+          example: "Bebek arabası alırken hangi kontroller yapılmalı?",
+          maxLength: 1000,
+          minLength: 2
+        }),
+        mode: enumSchema(["search", "answer"], {
+          defaultValue: "search",
+          example: "search"
+        }),
+        limit: integerSchema({
+          defaultValue: 5,
+          example: 5,
+          maximum: 10,
+          minimum: 1
+        }),
+        debug: booleanSchema(false)
+      },
+      ["query"]
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/rag/reindex/run",
+    objectSchema(
+      {
+        mode: enumSchema(["check", "full"], {
+          defaultValue: "check",
+          example: "check"
+        }),
+        confirm: stringSchema({
+          description:
+            "mode=full olduğunda tam olarak REINDEX_RAG gönderilmelidir.",
+          example: "REINDEX_RAG",
+          nullable: true
+        })
+      },
+      []
+    )
+  );
+
+  addBody(
+    "POST",
+    "/admin/rag/eval/run",
+    objectSchema(
+      {
+        mode: enumSchema(["mock", "live"], {
+          defaultValue: "mock",
+          example: "mock"
+        }),
+        limit: integerSchema({
+          defaultValue: 20,
+          example: 20,
+          maximum: 50,
+          minimum: 1
+        })
+      },
+      []
+    )
+  );
+}
+
+function registerQueryContracts(): void {
+  addQuery(
+    "GET",
+    "/listings",
+    objectSchema({
+      q: stringSchema({
+        example: "bebek arabası",
+        maxLength: 160
+      }),
+      categoryId: uuidSchema("Kategori filtresi"),
+      listingType: enumSchema(listingTypeValues),
+      condition: enumSchema(listingConditionValues),
+      city: stringSchema({
+        example: "İstanbul",
+        maxLength: 120
+      }),
+      priceMin: decimalStringSchema("1000"),
+      priceMax: decimalStringSchema("7000"),
+      hasImages: booleanSchema(true),
+      createdSince: enumSchema(["today", "last_7_days"]),
+      sort: enumSchema(["newest", "oldest", "price_asc", "price_desc"], {
+        defaultValue: "newest",
+        example: "newest"
+      }),
+      limit: integerSchema({
+        defaultValue: 20,
+        example: 20,
+        maximum: 100,
+        minimum: 1
+      }),
+      offset: integerSchema({
+        defaultValue: 0,
+        example: 0,
+        maximum: 10000,
+        minimum: 0
+      })
+    })
+  );
+
+  addQuery(
+    "GET",
+    "/listings/:listingId/recommendations",
+    objectSchema({
+      limit: integerSchema({
+        defaultValue: 6,
+        example: 6,
+        maximum: 20,
+        minimum: 1
+      })
+    })
+  );
+
+  const searchSuggestionsQuery = objectSchema(
+    {
+      q: stringSchema({
+        example: "bebek ara",
+        maxLength: 120,
+        minLength: 1
+      }),
+      limit: integerSchema({
+        defaultValue: 8,
+        example: 8,
+        maximum: 20,
+        minimum: 1
+      })
+    },
+    ["q"]
+  );
+
+  addQuery("GET", "/search/suggestions", searchSuggestionsQuery);
+  addQuery("GET", "/search-suggestions", searchSuggestionsQuery);
+
+  addQuery(
+    "GET",
+    "/admin/listings",
+    objectSchema({
+      status: enumSchema([
+        "draft",
+        "active",
+        "reserved",
+        "sold",
+        "archived"
+      ]),
+      imageReviewStatus: enumSchema([
+        "pending",
+        "approved",
+        "needs_review",
+        "rejected"
+      ]),
+      q: stringSchema({
+        example: "bebek arabası",
+        maxLength: 120,
+        minLength: 1
+      }),
+      categoryId: uuidSchema("Kategori filtresi"),
+      sort: enumSchema([
+        "newest",
+        "oldest",
+        "updated_desc",
+        "updated_asc"
+      ]),
+      limit: integerSchema({
+        defaultValue: 50,
+        example: 50,
+        maximum: 100,
+        minimum: 1
+      })
+    })
+  );
+
+  const moderationQuery = objectSchema({
+    status: enumSchema([
+      "pending",
+      "in_review",
+      "resolved",
+      "dismissed"
+    ]),
+    targetType: enumSchema(["listing", "profile", "message"]),
+    q: stringSchema({
+      example: "inceleme",
+      maxLength: 120,
+      minLength: 1
+    }),
+    sort: enumSchema([
+      "newest",
+      "oldest",
+      "updated_desc",
+      "updated_asc"
+    ]),
+    limit: integerSchema({
+      defaultValue: 50,
+      example: 50,
+      maximum: 100,
+      minimum: 1
+    })
+  });
+
+  addQuery("GET", "/admin/moderation/cases", moderationQuery);
+
+  addQuery(
+    "GET",
+    "/admin/moderation/cases/:caseId/ai-summaries",
+    objectSchema({
+      limit: integerSchema({
+        defaultValue: 10,
+        example: 10,
+        maximum: 20,
+        minimum: 1
+      })
+    })
+  );
+
+  addQuery(
+    "GET",
+    "/admin/profiles",
+    objectSchema({
+      safetyStatus: enumSchema(["active", "restricted", "suspended"]),
+      riskLevel: enumSchema(["low", "medium", "high", "critical"]),
+      q: stringSchema({
+        example: "profil",
+        maxLength: 120,
+        minLength: 1
+      }),
+      limit: integerSchema({
+        defaultValue: 50,
+        example: 50,
+        maximum: 100,
+        minimum: 1
+      })
+    })
+  );
+
+  addQuery(
+    "GET",
+    "/admin/conversations",
+    objectSchema({
+      q: stringSchema({
+        example: "ilan",
+        maxLength: 120,
+        minLength: 1
+      }),
+      status: enumSchema(["active"]),
+      limit: integerSchema({
+        defaultValue: 50,
+        example: 50,
+        maximum: 100,
+        minimum: 1
+      })
+    })
+  );
+
+  addQuery(
+    "GET",
+    "/admin/ai-ops/runs",
+    objectSchema({
+      status: enumSchema([
+        "success",
+        "error",
+        "validation_failed",
+        "provider_failed",
+        "skipped"
+      ]),
+      providerName: stringSchema({
+        example: "gemini",
+        maxLength: 120
+      }),
+      feature: stringSchema({
+        example: "assistant_message",
+        maxLength: 120
+      }),
+      limit: integerSchema({
+        defaultValue: 50,
+        example: 50,
+        maximum: 100,
+        minimum: 1
+      })
+    })
+  );
+
+  addQuery(
+    "GET",
+    "/admin/audit/events",
+    objectSchema({
+      eventType: stringSchema({
+        example: "admin_listing_action_applied",
+        maxLength: 120
+      }),
+      actorProfileId: uuidSchema("Admin profil kimliği"),
+      targetType: stringSchema({
+        example: "listing",
+        maxLength: 80
+      }),
+      targetId: stringSchema({
+        example: UUID_EXAMPLE,
+        maxLength: 160
+      }),
+      limit: integerSchema({
+        defaultValue: 50,
+        example: 50,
+        maximum: 100,
+        minimum: 1
+      })
+    })
+  );
+}
+
+function registerSpecialContracts(): void {
+  ROUTE_CONTRACTS["POST /listings/:id/images"] = {
+    consumes: ["multipart/form-data"],
+    body: objectSchema(
+      {
+        file: {
+          type: "string",
+          format: "binary",
+          description:
+            "JPEG, PNG veya WebP gerçek ürün görseli. En fazla 5 görsel."
+        }
+      },
+      ["file"]
+    )
+  };
+
+  ROUTE_CONTRACTS["POST /listings/ai-draft-suggestions"] = {
+    consumes: ["multipart/form-data"],
+    body: objectSchema({
+      categoryId: uuidSchema("Kategori kimliği"),
+      listingType: enumSchema(listingTypeValues),
+      title: stringSchema({
+        maxLength: 160
+      }),
+      description: stringSchema({
+        maxLength: 2000
+      }),
+      condition: enumSchema(listingConditionValues),
+      priceAmount: decimalStringSchema("6500"),
+      currency: enumSchema(["TRY"], {
+        defaultValue: "TRY"
+      }),
+      city: stringSchema({
+        maxLength: 120
+      }),
+      locale: enumSchema(["tr"], {
+        defaultValue: "tr"
+      }),
+      images: {
+        type: "array",
+        maxItems: 5,
+        items: {
+          type: "string",
+          format: "binary"
+        }
+      }
+    })
+  };
+
+  ROUTE_CONTRACTS["GET /uploads/listings/:listingId/:filename"] = {
+    response: {
+      "200": {
+        description: "İlan görseli binary içeriği.",
+        type: "string",
+        format: "binary"
+      },
+      "404": errorEnvelopeSchema("Görsel bulunamadı.")
+    }
+  };
+}
+
+function addBody(method: string, path: string, schema: JsonSchema): void {
+  BODY_CONTRACTS[`${method.toUpperCase()} ${path}`] = schema;
+}
+
+function addQuery(method: string, path: string, schema: JsonSchema): void {
+  QUERY_CONTRACTS[`${method.toUpperCase()} ${path}`] = schema;
+}
+
+function defaultResponses(path: string): Record<string, JsonSchema> {
+  if (path.startsWith("/uploads/")) {
+    return {
+      "404": errorEnvelopeSchema("Kaynak bulunamadı.")
+    };
+  }
+
+  return {
+    "200": successEnvelopeSchema("İstek başarıyla tamamlandı."),
+    "201": successEnvelopeSchema("Kaynak başarıyla oluşturuldu."),
+    "400": errorEnvelopeSchema("İstek doğrulaması başarısız."),
+    "401": errorEnvelopeSchema("Kimlik doğrulaması gerekli."),
+    "403": errorEnvelopeSchema("Bu işlem için yetki yok."),
+    "404": errorEnvelopeSchema("Kaynak bulunamadı."),
+    "409": errorEnvelopeSchema("İstek mevcut durumla çakışıyor."),
+    "429": errorEnvelopeSchema("İstek sınırı aşıldı."),
+    "503": errorEnvelopeSchema("Bağımlı servis şu anda kullanılamıyor.")
+  };
+}
+
+function successEnvelopeSchema(description: string): JsonSchema {
+  return {
+    description,
+    type: "object",
+    additionalProperties: false,
+    required: ["ok", "data"],
+    properties: {
+      ok: {
+        type: "boolean",
+        enum: [true],
+        example: true
+      },
+      data: {
+        type: "object",
+        additionalProperties: true,
+        description: "Endpoint'e özgü güvenli response verisi."
+      }
+    }
+  };
+}
+
+function errorEnvelopeSchema(description: string): JsonSchema {
+  return {
+    description,
+    type: "object",
+    additionalProperties: false,
+    required: ["ok", "error"],
+    properties: {
+      ok: {
+        type: "boolean",
+        enum: [false],
+        example: false
+      },
+      error: {
+        type: "object",
+        additionalProperties: false,
+        required: ["code", "message"],
+        properties: {
+          code: {
+            type: "string",
+            example: "INVALID_REQUEST"
+          },
+          message: {
+            type: "string",
+            example: description
+          }
+        }
+      }
+    }
+  };
+}
+
+function createPathParamsSchema(path: string): JsonSchema | undefined {
+  const names = Array.from(
+    path.matchAll(/:([A-Za-z0-9_]+)/gu),
+    (match) => match[1]
+  ).filter((name): name is string => Boolean(name));
+
+  if (names.length === 0) {
+    return undefined;
+  }
+
+  const properties: Record<string, JsonSchema> = {};
+
+  for (const name of names) {
+    const isUuid =
+      name === "id" ||
+      name.endsWith("Id") ||
+      name.endsWith("_id");
+
+    properties[name] = isUuid
+      ? uuidSchema(`${name} path parametresi`)
+      : stringSchema({
+          description: `${name} path parametresi`,
+          example: name === "filename" ? "listing-image.webp" : "example"
+        });
+  }
+
+  return objectSchema(properties, names);
+}
+
+function mergeObjectSchemas(...values: unknown[]): JsonSchema | undefined {
+  const schemas = values.filter(isRecord);
+
+  if (schemas.length === 0) {
+    return undefined;
+  }
+
+  const merged = Object.assign({}, ...schemas);
+  const properties = Object.assign(
+    {},
+    ...schemas.map((schema) =>
+      isRecord(schema.properties) ? schema.properties : {}
+    )
+  );
+
+  const required = Array.from(
+    new Set(
+      schemas.flatMap((schema) =>
+        Array.isArray(schema.required)
+          ? schema.required.filter(
+              (value): value is string => typeof value === "string"
+            )
+          : []
+      )
+    )
+  );
+
+  return removeUndefinedValues({
+    ...merged,
+    type: "object",
+    properties,
+    ...(required.length > 0 ? { required } : {})
+  });
+}
+
+function mergeResponses(
+  ...values: unknown[]
+): Record<string, JsonSchema> {
+  const result: Record<string, JsonSchema> = {};
+
+  for (const value of values) {
+    if (!isRecord(value)) {
+      continue;
+    }
+
+    for (const [status, schema] of Object.entries(value)) {
+      if (isRecord(schema)) {
+        result[status] = schema;
+      }
+    }
+  }
+
+  return result;
+}
+
+function objectSchema(
+  properties: Record<string, JsonSchema>,
+  required: string[] = [],
+  extra: JsonSchema = {}
+): JsonSchema {
+  return removeUndefinedValues({
+    type: "object",
+    additionalProperties: false,
+    properties,
+    ...(required.length > 0 ? { required } : {}),
+    ...extra
+  });
+}
+
+function stringSchema(options: {
+  defaultValue?: string;
+  description?: string;
+  example?: string;
+  format?: string;
+  maxLength?: number;
+  minLength?: number;
+  nullable?: boolean;
+  pattern?: string;
+} = {}): JsonSchema {
+  return removeUndefinedValues({
+    type: "string",
+    description: options.description,
+    example: options.example,
+    format: options.format,
+    maxLength: options.maxLength,
+    minLength: options.minLength,
+    nullable: options.nullable,
+    pattern: options.pattern,
+    default: options.defaultValue
+  });
+}
+
+function emailSchema(example: string): JsonSchema {
+  return stringSchema({
+    example,
+    format: "email",
+    maxLength: 320,
+    minLength: 3
+  });
+}
+
+function uuidSchema(
+  description = "UUID",
+  example = UUID_EXAMPLE
+): JsonSchema {
+  return stringSchema({
+    description,
+    example,
+    format: "uuid"
+  });
+}
+
+function decimalStringSchema(example: string): JsonSchema {
+  return stringSchema({
+    example,
+    pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
+  });
+}
+
+function enumSchema(
+  values: readonly string[],
+  options: {
+    defaultValue?: string;
+    example?: string;
+    nullable?: boolean;
+  } = {}
+): JsonSchema {
+  return removeUndefinedValues({
+    type: "string",
+    enum: [...values],
+    default: options.defaultValue,
+    example: options.example,
+    nullable: options.nullable
+  });
+}
+
+function integerSchema(options: {
+  defaultValue?: number;
+  example?: number;
+  maximum?: number;
+  minimum?: number;
+  nullable?: boolean;
+} = {}): JsonSchema {
+  return removeUndefinedValues({
+    type: "integer",
+    default: options.defaultValue,
+    example: options.example,
+    maximum: options.maximum,
+    minimum: options.minimum,
+    nullable: options.nullable
+  });
+}
+
+function booleanSchema(example: boolean): JsonSchema {
+  return {
+    type: "boolean",
+    example
+  };
+}
+
+function dateTimeSchema(
+  example: string,
+  nullable = false
+): JsonSchema {
+  return stringSchema({
+    example,
+    format: "date-time",
+    nullable
+  });
+}
+
+function readProperties(schema: JsonSchema): Record<string, JsonSchema> {
+  return isRecord(schema.properties)
+    ? schema.properties as Record<string, JsonSchema>
+    : {};
+}
+
+function normalizeMethod(method: unknown): string {
+  if (Array.isArray(method)) {
+    return String(method[0] ?? "GET").toUpperCase();
+  }
+
+  return String(method ?? "GET").toUpperCase();
+}
+
+function normalizeRoutePath(url: string): string {
+  let path = url.split("?")[0] ?? url;
+
+  path = path.replace(/\{([A-Za-z0-9_]+)\}/gu, ":$1");
+
+  if (path === "/api/v1") {
+    return "/";
+  }
+
+  if (path.startsWith("/api/v1/")) {
+    path = path.slice("/api/v1".length);
+  }
+
+  if (path.length > 1) {
+    path = path.replace(/\/+$/u, "");
+  }
+
+  return path || "/";
+}
+
+function removeUndefinedValues<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined)
+  ) as T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}

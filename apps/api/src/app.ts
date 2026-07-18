@@ -4,6 +4,11 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { readApiRuntimeConfig, type ApiRuntimeConfig } from "./config/env.js";
+import {
+  readOpenApiRuntimeConfig,
+  registerOpenApiPlugins,
+  type OpenApiRuntimeConfig
+} from "./plugins/openapi.plugin.js";
 import { registerAuthPlugin } from "./plugins/auth.plugin.js";
 import {
   isBackofficeCsrfRequestValid,
@@ -27,6 +32,7 @@ import { registerChildProfileRoutes } from "./routes/child-profiles.routes.js";
 import { registerDatabaseUnavailableRoutes } from "./routes/database-unavailable.routes.js";
 import { registerFavoriteRoutes } from "./routes/favorites.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
+import { registerMetaRoutes } from "./routes/meta.routes.js";
 import { registerListingRoutes } from "./routes/listings.routes.js";
 import { registerListingRecommendationRoutes } from "./routes/listing-recommendations.routes.js";
 import { registerMessagingRoutes } from "./routes/messaging.routes.js";
@@ -105,12 +111,14 @@ type CreateAppOptions = {
   googleOAuthClient?: GoogleOAuthClient;
   listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   moderationSummaryProvider?: ModerationSummaryProvider;
+  openApi?: OpenApiRuntimeConfig;
   ragServices?: RagRuntimeServices | null;
 };
 
 export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const startedAt = new Date();
   const config = options.config ?? readApiRuntimeConfig();
+  const openApi = options.openApi ?? readOpenApiRuntimeConfig();
 
   assertAuthConfig(config);
 
@@ -139,6 +147,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: true
   });
+
+  registerOpenApiPlugins(app, openApi);
 
   const requestTimingStarts = new WeakMap<FastifyRequest, bigint>();
 
@@ -177,7 +187,12 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("X-Frame-Options", "DENY");
     reply.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
-    reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    if (!request.url.startsWith("/docs")) {
+      reply.header(
+        "Content-Security-Policy",
+        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+      );
+    }
   });
 
   app.addHook("onSend", async (request, reply, payload) => {
@@ -265,9 +280,17 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     });
   });
 
-  registerHealthRoutes(app, {
+  app.register(async (healthApp) => {
+    registerHealthRoutes(healthApp, {
+      config,
+      startedAt
+    });
+  });
+
+  app.register(registerMetaRoutes, {
     config,
-    startedAt
+    openApi,
+    prefix: API_PREFIX
   });
 
   if (config.databaseUrl) {

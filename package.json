@@ -16,6 +16,7 @@
     "preflight": "node scripts/check-tooling.mjs",
     "test": "turbo run test",
     "test:api": "pnpm --filter @babyloop/api test",
+    "test:api:docs": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/openapi.routes.test.ts test/openapi-contracts.test.ts test/openapi-ui-assets.test.ts --reporter=verbose",
     "test:rag:retrieval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-domain-router.service.test.ts test/rag-answer-owner-registry.test.ts test/rag-answer-grounding-validator.service.test.ts test/assistant-intent-router.service.test.ts test/assistant-tool-orchestrator.service.test.ts test/rag-search.service.test.ts test/rag-assistant.service.test.ts --reporter=verbose",
     "test:rag:eval": "pnpm --filter @babyloop/api exec vitest run --config vitest.config.ts test/rag-eval-cases.test.ts test/rag-eval-runner.service.test.ts --reporter=verbose",
     "rag:index:build": "pnpm --filter @babyloop/api exec tsx src/scripts/rag-index-build.ts",
