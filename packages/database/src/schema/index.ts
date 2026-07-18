@@ -667,6 +667,48 @@ export const listingImages = pgTable(
   ]
 );
 
+export const accountDeletionStorageCleanupJobs = pgTable(
+  "account_deletion_storage_cleanup_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    batchId: uuid("batch_id").notNull(),
+    profileId: uuid("profile_id").references(() => profiles.id, {
+      onDelete: "set null"
+    }),
+    listingId: uuid("listing_id").references(() => listings.id, {
+      onDelete: "set null"
+    }),
+    url: text("url").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    lastErrorCode: varchar("last_error_code", { length: 80 }),
+    lastErrorMessageRedacted: varchar("last_error_message_redacted", { length: 240 }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("account_deletion_storage_cleanup_batch_url_unique").on(
+      table.batchId,
+      table.url
+    ),
+    index("account_deletion_storage_cleanup_status_created_idx").on(
+      table.status,
+      table.createdAt
+    ),
+    index("account_deletion_storage_cleanup_batch_id_idx").on(table.batchId),
+    index("account_deletion_storage_cleanup_profile_id_idx").on(table.profileId),
+    check(
+      "account_deletion_storage_cleanup_status_check",
+      sql`${table.status} in ('pending', 'processing', 'completed', 'failed')`
+    ),
+    check(
+      "account_deletion_storage_cleanup_attempt_count_check",
+      sql`${table.attemptCount} >= 0`
+    )
+  ]
+);
+
 export const favorites = pgTable(
   "favorites",
   {
@@ -1378,6 +1420,7 @@ export const aiModelRuns = pgTable(
 );
 
 export const schema = {
+  accountDeletionStorageCleanupJobs,
   aiModelRuns,
   authAccounts,
   blockedProfiles,

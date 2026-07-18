@@ -78,6 +78,20 @@ export const loginApprovalCompleteSchema = z
   })
   .strict();
 
+export const accountDeletionRequestSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128).optional()
+  })
+  .strict();
+
+export const accountDeletionConfirmSchema = z
+  .object({
+    challengeId: z.string().uuid(),
+    code: z.string().trim().regex(/^\d{6}$/),
+    confirmation: z.literal("HESABIMI SİL")
+  })
+  .strict();
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type PasswordResetRequestBody = z.infer<typeof passwordResetRequestSchema>;
@@ -89,6 +103,8 @@ export type MfaVerifyBody = z.infer<typeof mfaVerifySchema>;
 export type MfaPreferenceBody = z.infer<typeof mfaPreferenceSchema>;
 export type LoginApprovalPreferenceBody = z.infer<typeof loginApprovalPreferenceSchema>;
 export type LoginApprovalCompleteBody = z.infer<typeof loginApprovalCompleteSchema>;
+export type AccountDeletionRequestBody = z.infer<typeof accountDeletionRequestSchema>;
+export type AccountDeletionConfirmBody = z.infer<typeof accountDeletionConfirmSchema>;
 
 function plainTextField(options: {
   maxLength: number;

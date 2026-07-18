@@ -4,7 +4,10 @@ import type {
   FastifyRequest,
   RouteShorthandOptions
 } from "fastify";
+import type { ApiFailure } from "@babyloop/shared";
 import {
+  accountDeletionConfirmSchema,
+  accountDeletionRequestSchema,
   emailVerificationConfirmSchema,
   emailVerificationRequestSchema,
   loginBodySchema,
@@ -62,6 +65,12 @@ import {
   type SafeAuthUser
 } from "../services/auth.service.js";
 import {
+  confirmAccountDeletion,
+  requestAccountDeletion,
+  type AccountDeletionConfirmResponse,
+  type AccountDeletionRequestResponse
+} from "../services/account-deletion.service.js";
+import {
   approveLoginApprovalChallenge,
   completeApprovedLoginApprovalChallenge,
   denyLoginApprovalChallenge,
@@ -117,6 +126,7 @@ type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
   googleOAuth?: GoogleOAuthConfig;
   googleOAuthClient?: GoogleOAuthClient;
+  uploadRoot: string;
   webAppUrl: string;
 };
 
@@ -204,6 +214,14 @@ type LoginApprovalCompleteRouteResponse =
 type EmailVerificationRequestRouteResponse =
   | EmailVerificationRequestResponse
   | ReturnType<typeof invalidAuthRequest>;
+
+type AccountDeletionRequestRouteResponse =
+  | AccountDeletionRequestResponse
+  | ApiFailure;
+
+type AccountDeletionConfirmRouteResponse =
+  | AccountDeletionConfirmResponse
+  | ApiFailure;
 
 export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptions): void {
   app.post<{ Body: unknown; Reply: AuthResponse }>(
@@ -794,6 +812,107 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: AccountDeletionRequestRouteResponse }>(
+    "/auth/account-deletion/request",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = accountDeletionRequestSchema.safeParse(
+        request.body ?? {}
+      );
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await requestAccountDeletion(
+        app,
+        currentUser,
+        parsedBody.data,
+        {
+          emailDelivery: options.emailDelivery
+        }
+      );
+
+      if (result.status === "forbidden") {
+        return reply.status(403).send(result.response);
+      }
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(result.response);
+      }
+
+      if (result.status === "password_required") {
+        return reply.status(400).send(result.response);
+      }
+
+      if (result.status === "invalid_password") {
+        return reply.status(401).send(result.response);
+      }
+
+      const response =
+        shouldExposeDevOtpCode()
+          ? {
+              ok: true as const,
+              data: {
+                ...result.response.data,
+                devOtpCode: result.devOtpCode
+              }
+            }
+          : result.response;
+
+      return reply.status(200).send(response);
+    }
+  );
+
+  app.post<{ Body: unknown; Reply: AccountDeletionConfirmRouteResponse }>(
+    "/auth/account-deletion/confirm",
+    authRateLimitOptions(options),
+    async (request, reply) => {
+      const currentUser = await requireCurrentUser(app, request, reply);
+
+      if (!currentUser) {
+        return reply;
+      }
+
+      const parsedBody = accountDeletionConfirmSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await confirmAccountDeletion(
+        app,
+        currentUser,
+        parsedBody.data,
+        {
+          uploadRoot: options.uploadRoot
+        }
+      );
+
+      if (result.status === "forbidden") {
+        return reply.status(403).send(result.response);
+      }
+
+      if (result.status === "not_found") {
+        return reply.status(404).send(result.response);
+      }
+
+      if (result.status === "invalid_challenge") {
+        return reply.status(400).send(result.response);
+      }
+
+      clearPublicAuthCookies(reply);
+
+      return reply.status(200).send(result.response);
     }
   );
 

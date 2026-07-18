@@ -383,6 +383,10 @@ export async function sendMessage(
     return { status: "forbidden" };
   }
 
+  if (!(await isProfileLinkedToActiveAccount(app, otherProfileId))) {
+    return { status: "profile_not_allowed" };
+  }
+
   if (await isProfilePairBlocked(app, currentUser.profile.id, otherProfileId)) {
     return { status: "profile_blocked" };
   }
@@ -658,6 +662,19 @@ async function getOtherConversationParticipantProfileId(
   }
 
   return null;
+}
+
+async function isProfileLinkedToActiveAccount(
+  app: FastifyInstance,
+  profileId: string
+): Promise<boolean> {
+  const [profile] = await app.db
+    .select({ userId: profiles.userId })
+    .from(profiles)
+    .where(eq(profiles.id, profileId))
+    .limit(1);
+
+  return Boolean(profile?.userId);
 }
 
 export async function getUnreadConversationCountForProfile(

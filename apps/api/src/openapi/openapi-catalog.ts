@@ -143,6 +143,7 @@ const publicProtectedPrefixes = [
 ];
 
 const protectedAuthPrefixes = [
+  "/auth/account-deletion",
   "/auth/me",
   "/auth/logout",
   "/auth/refresh",

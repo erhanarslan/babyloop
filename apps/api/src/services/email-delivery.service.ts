@@ -34,7 +34,15 @@ export type SendMfaOtpEmailParams = {
   expiresInSeconds?: number;
 };
 
+export type SendAccountDeletionOtpEmailParams = {
+  recipientEmail: string;
+  code: string;
+  displayName?: string;
+  expiresInSeconds?: number;
+};
+
 export type EmailDeliveryService = {
+  sendAccountDeletionOtpEmail(params: SendAccountDeletionOtpEmailParams): Promise<void>;
   sendEmailVerificationEmail(params: SendEmailVerificationEmailParams): Promise<void>;
   sendMfaOtpEmail(params: SendMfaOtpEmailParams): Promise<void>;
   sendPasswordResetEmail(params: SendPasswordResetEmailParams): Promise<void>;
@@ -52,6 +60,9 @@ export function createEmailDeliveryService(config: EmailDeliveryConfig): EmailDe
   }
 
   return {
+    async sendAccountDeletionOtpEmail(params) {
+      await deliver(buildAccountDeletionOtpDraft(params));
+    },
     async sendEmailVerificationEmail(params) {
       await deliver(buildEmailVerificationDraft(params));
     },
@@ -116,6 +127,30 @@ function buildPasswordResetDraft(params: SendPasswordResetEmailParams): EmailDra
       "",
       expiryText ? `Bu bağlantı ${expiryText} geçerlidir.` : "Bu bağlantı sınırlı süre geçerlidir.",
       "Bu isteği sen başlatmadıysan şifren değişmez; bu mesajı yok sayabilirsin.",
+      "",
+      "BabyLoop"
+    ].join("\n")
+  };
+}
+
+function buildAccountDeletionOtpDraft(
+  params: SendAccountDeletionOtpEmailParams
+): EmailDraft {
+  const displayName = normalizeDisplayName(params.displayName);
+  const expiryText = formatExpiry(params.expiresInSeconds);
+
+  return {
+    intent: "security_alert",
+    to: params.recipientEmail,
+    subject: "BabyLoop hesap silme güvenlik kodu",
+    text: [
+      `Merhaba ${displayName},`,
+      "",
+      "BabyLoop hesabını kalıcı olarak silme isteğini doğrulamak için güvenlik kodun:",
+      params.code,
+      "",
+      expiryText ? `Bu kod ${expiryText} geçerlidir.` : "Bu kod kısa süre geçerlidir.",
+      "Bu isteği sen başlatmadıysan kodu paylaşma ve hesabının güvenlik ayarlarını kontrol et.",
       "",
       "BabyLoop"
     ].join("\n")

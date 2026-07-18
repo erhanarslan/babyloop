@@ -20,6 +20,7 @@ import {
 } from "./utils/public-csrf.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
 import { registerListingPublicationWorker } from "./services/listing-publication.service.js";
+import { registerAccountDeletionStorageCleanupWorker } from "./services/account-deletion.service.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerAiPriceSuggestionRoutes } from "./routes/ai-price-suggestions.routes.js";
 import { registerAnalyticsRoutes } from "./routes/analytics.routes.js";
@@ -300,6 +301,9 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     });
 
     registerListingPublicationWorker(app);
+    registerAccountDeletionStorageCleanupWorker(app, {
+      uploadRoot: config.uploadRoot
+    });
 
     if (config.authSecret) {
       registerAuthPlugin(app, {
@@ -318,6 +322,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
         authTokenTtlSeconds: config.authTokenTtlSeconds,
         emailDelivery,
         prefix: API_PREFIX,
+        uploadRoot: config.uploadRoot,
         webAppUrl: config.webAppUrl
       };
 

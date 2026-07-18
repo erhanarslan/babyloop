@@ -19,6 +19,20 @@ export function registerAuthUnavailableRoutes(app: FastifyInstance): void {
     return reply.status(503).send(authUnavailableResponse);
   });
 
+  app.post<{ Reply: ApiFailure }>(
+    "/auth/account-deletion/request",
+    async (_request, reply) => {
+      return reply.status(503).send(authUnavailableResponse);
+    }
+  );
+
+  app.post<{ Reply: ApiFailure }>(
+    "/auth/account-deletion/confirm",
+    async (_request, reply) => {
+      return reply.status(503).send(authUnavailableResponse);
+    }
+  );
+
   app.get<{ Reply: ApiFailure }>("/auth/me", async (_request, reply) => {
     return reply.status(503).send(authUnavailableResponse);
   });

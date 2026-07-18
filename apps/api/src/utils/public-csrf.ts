@@ -10,6 +10,7 @@ export const PUBLIC_CSRF_MAX_AGE_SECONDS = 8 * 60 * 60;
 const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const PUBLIC_CSRF_PROTECTED_PATHS = [
+  "/auth/account-deletion",
   "/auth/password/change",
   "/child-profiles",
   "/conversations",

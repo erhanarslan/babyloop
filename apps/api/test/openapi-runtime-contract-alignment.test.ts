@@ -31,6 +31,55 @@ function propertiesOf(schema: SchemaRecord): SchemaRecord {
 }
 
 describe("OpenAPI runtime contract alignment", () => {
+  it("documents the two-step account deletion contract", () => {
+    const requestBody = record(
+      contract(
+        "POST",
+        "/api/v1/auth/account-deletion/request"
+      ).body
+    );
+    const requestProperties = propertiesOf(requestBody);
+
+    expect(Object.keys(requestProperties)).toEqual([
+      "currentPassword"
+    ]);
+    expect(requestBody.required).toBeUndefined();
+
+    const confirmBody = record(
+      contract(
+        "POST",
+        "/api/v1/auth/account-deletion/confirm"
+      ).body
+    );
+    const confirmProperties = propertiesOf(confirmBody);
+
+    expect(confirmBody.required).toEqual([
+      "challengeId",
+      "code",
+      "confirmation"
+    ]);
+    expect(record(confirmProperties.code).pattern).toBe(
+      "^\\d{6}$"
+    );
+    expect(record(confirmProperties.confirmation).enum).toEqual([
+      "HESABIMI SİL"
+    ]);
+
+    const response = record(
+      record(
+        contract(
+          "POST",
+          "/api/v1/auth/account-deletion/confirm"
+        ).response
+      )["200"]
+    );
+    const responseProperties = propertiesOf(response);
+    const data = record(responseProperties.data);
+    const dataProperties = propertiesOf(data);
+
+    expect(dataProperties).toHaveProperty("storageCleanup");
+  });
+
   it("matches listing create and update Zod inputs", () => {
     const createBody = record(contract("POST", "/api/v1/listings").body);
     const createProperties = propertiesOf(createBody);
@@ -310,7 +359,7 @@ describe("OpenAPI runtime contract alignment", () => {
           ).response
         )
       ).sort()
-    ).toEqual(["201", "400", "401", "404", "503"]);
+    ).toEqual(["201", "400", "401", "403", "404", "503"]);
   });
 
   it("publishes exact auth and redirect response contracts", () => {

@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const bundles = {
   security: [
+    "test/account-deletion.integration.test.ts",
     "test/auth.integration.test.ts",
     "test/auth-config.test.ts",
     "test/backoffice-access-token-cookie.test.ts",
@@ -45,6 +46,7 @@ const bundles = {
   ],
   release: [
     "test/health.integration.test.ts",
+    "test/account-deletion.integration.test.ts",
     "test/auth.integration.test.ts",
     "test/auth-config.test.ts",
     "test/backoffice-access-token-cookie.test.ts",

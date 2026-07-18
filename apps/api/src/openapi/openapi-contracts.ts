@@ -331,6 +331,52 @@ function registerCoreBodyContracts(): void {
 
   addBody(
     "POST",
+    "/auth/account-deletion/request",
+    objectSchema(
+      {
+        currentPassword: stringSchema({
+          description:
+            "Parola sağlayıcısı bağlı hesaplarda zorunludur. Google-only hesaplarda gönderilmez.",
+          example: "BabyLoop123!",
+          maxLength: 128,
+          minLength: 1
+        })
+      },
+      [],
+      {
+        description:
+          "Kalıcı hesap silme işleminden önce e-posta güvenlik kodu üretir. Aynı kullanıcıya ait önceki kullanılmamış hesap silme kodları geçersiz olur."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
+    "/auth/account-deletion/confirm",
+    objectSchema(
+      {
+        challengeId: uuidSchema("Hesap silme güvenlik kodu challenge kimliği"),
+        code: stringSchema({
+          description: "E-posta ile gönderilen altı haneli tek kullanımlık kod.",
+          example: "123456",
+          maxLength: 6,
+          minLength: 6,
+          pattern: "^\\d{6}$"
+        }),
+        confirmation: enumSchema(["HESABIMI SİL"], {
+          example: "HESABIMI SİL"
+        })
+      },
+      ["challengeId", "code", "confirmation"],
+      {
+        description:
+          "Hesabı siler, oturumları iptal eder, özel kullanıcı verilerini temizler, pazaryeri geçmişini anonim profil ile korur ve görsel storage temizliğini dayanıklı iş kuyruğuna yazar."
+      }
+    )
+  );
+
+  addBody(
+    "POST",
     "/auth/email-verification/request",
     objectSchema(
       {
@@ -1944,6 +1990,16 @@ function registerExactResponseContracts(): void {
   setExactResponses("POST", "/product-events", ["200", "400", "503"]);
   setExactResponses("POST", "/rag/search", ["200", "400", "429", "503"]);
 
+  setExactResponses(
+    "POST",
+    "/auth/account-deletion/request",
+    ["200", "400", "401", "403", "404", "429", "503"]
+  );
+  setExactResponses(
+    "POST",
+    "/auth/account-deletion/confirm",
+    ["200", "400", "401", "403", "404", "429", "503"]
+  );
   setExactResponses("POST", "/auth/register", ["201", "400", "409", "429", "503"]);
   setExactResponses("POST", "/auth/login", ["200", "400", "401", "429", "503"]);
   setExactResponses("POST", "/auth/mfa/verify", ["200", "400", "429", "503"]);
@@ -2138,6 +2194,56 @@ function registerExactResponseContracts(): void {
 }
 
 function registerCriticalResponseBodyContracts(): void {
+  setExactResponseSchema(
+    "POST",
+    "/auth/account-deletion/request",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Hesap silme güvenlik kodu oluşturuldu.",
+      objectSchema(
+        {
+          challengeId: uuidSchema("Hesap silme challenge kimliği"),
+          expiresAt: dateTimeSchema("2030-01-01T10:05:00.000Z"),
+          passwordRequired: booleanSchema(true),
+          requested: literalBooleanSchema(true),
+          devOtpCode: stringSchema({
+            description:
+              "Yalnız test veya açıkça etkinleştirilmiş lokal geliştirme ortamında döner.",
+            example: "123456",
+            maxLength: 6,
+            minLength: 6,
+            pattern: "^\\d{6}$"
+          })
+        },
+        ["challengeId", "expiresAt", "passwordRequired", "requested"]
+      )
+    )
+  );
+
+  setExactResponseSchema(
+    "POST",
+    "/auth/account-deletion/confirm",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Hesap silindi ve oturumlar geçersiz hale getirildi.",
+      objectSchema(
+        {
+          accountDeleted: literalBooleanSchema(true),
+          profileId: uuidSchema("Anonim tombstone profil kimliği"),
+          storageCleanup: objectSchema(
+            {
+              completedCount: integerSchema({ example: 2, minimum: 0 }),
+              failedCount: integerSchema({ example: 0, minimum: 0 }),
+              pendingCount: integerSchema({ example: 0, minimum: 0 })
+            },
+            ["completedCount", "failedCount", "pendingCount"]
+          )
+        },
+        ["accountDeleted", "profileId", "storageCleanup"]
+      )
+    )
+  );
+
   const shareLink = objectSchema(
     {
       code: stringSchema({ example: "aB3kLm9Q", minLength: 1 }),

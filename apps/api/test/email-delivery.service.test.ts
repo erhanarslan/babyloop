@@ -104,6 +104,32 @@ describe("email delivery service", () => {
     expect(recorder.drafts[0]!.text).toContain("30 dakika");
   });
 
+  it("sends account deletion OTP as a security alert without putting the code in the subject", async () => {
+    const recorder = createRecordingDraftSender();
+    const service = createEmailDeliveryService({
+      mode: "provider",
+      webAppUrl: "https://babyloop.test",
+      sendDraft: recorder.sendDraft
+    });
+
+    await service.sendAccountDeletionOtpEmail({
+      recipientEmail: "parent@example.test",
+      code: "654321",
+      expiresInSeconds: 300
+    });
+
+    expect(recorder.drafts).toHaveLength(1);
+    expect(recorder.drafts[0]).toMatchObject({
+      intent: "security_alert",
+      to: "parent@example.test",
+      subject: "BabyLoop hesap silme güvenlik kodu"
+    });
+    expect(recorder.drafts[0]!.subject).not.toContain("654321");
+    expect(recorder.drafts[0]!.text).toContain("654321");
+    expect(recorder.drafts[0]!.text).toContain("kalıcı olarak silme");
+    expect(recorder.drafts[0]!.text).toContain("5 dakika");
+  });
+
   it("sends MFA OTP as a security alert draft without putting the code in the subject", async () => {
     const recorder = createRecordingDraftSender();
     const service = createEmailDeliveryService({
