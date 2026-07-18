@@ -14,7 +14,7 @@ export function ListingImageFrame({
   alt,
   apiBaseUrl,
   className = "",
-  fallbackLabel = "No image",
+  fallbackLabel = "Görsel yok",
   url
 }: ListingImageFrameProps) {
   const [hasError, setHasError] = useState(false);

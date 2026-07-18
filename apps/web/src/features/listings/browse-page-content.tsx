@@ -142,18 +142,15 @@ export function BrowsePageContent({
           ) : null}
 
           {!error ? (
-            <div className={styles.resultsSummary}>
+            <div className={`${styles.resultsSummary} browse-results-summary`}>
               <div>
+                <p className="eyebrow">İlanları keşfet</p>
                 <h1 className="text-2xl font-black tracking-tight text-foreground">
-                  {pagination.total} ilan
+                  {title}
                 </h1>
                 <p className={styles.resultsHelper}>
-                  {filters.sort === "newest" ? "En yeni ilanlar listeleniyor." : title}
+                  {pagination.total} ilan · {filters.sort === "newest" ? "En yeni ilanlar önce" : "Seçili sıralama uygulanıyor"}
                 </p>
-              </div>
-              <div className={styles.resultsActions} aria-label="Browse next steps">
-                <Link href="/account/saved-searches">Kayıtlı aramalar</Link>
-                <Link href={browseAssistantHref}>Asistana sor</Link>
               </div>
             </div>
           ) : null}
@@ -420,7 +417,7 @@ function CategoryLandingHero({
   const activeFilterCount = countActiveBrowseFilters(filters);
 
   return (
-    <Card as="section" className="category-landing-hero" aria-label={`${categoryName} category landing`}>
+    <Card as="section" className="category-landing-hero" aria-label={`${categoryName} kategori özeti`}>
       <div>
         <p className="eyebrow">{dictionary.publicPages.browse.category}</p>
         <h2>{categoryName}</h2>
@@ -432,9 +429,9 @@ function CategoryLandingHero({
         </div>
       </div>
 
-      <aside className="category-landing-metric-grid" aria-label="Category marketplace summary">
+      <aside className="category-landing-metric-grid" aria-label="Kategori pazar özeti">
         <div className="category-landing-metric">
-          <span>Matching listings</span>
+          <span>Eşleşen ilan</span>
           <strong>{pagination.total}</strong>
         </div>
         <div className="category-landing-metric">
@@ -482,7 +479,7 @@ function BrowseNoResultsPanel({
         <Link href="/sell">İlan ver</Link>
       </div>
 
-      <ul className={styles.noResultsTips} aria-label="Ways to continue browsing">
+      <ul className={styles.noResultsTips} aria-label="Aramaya devam etme önerileri">
         <li>Fiyat aralığını genişletmeyi dene.</li>
         <li>Sadece görselli filtreliyse bu seçimi kaldır.</li>
         <li>Benzer ihtiyaçlar için aramayı kaydet.</li>
@@ -659,7 +656,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         categoryId: ""
       }),
-      label: `Category: ${formatCategoryName(selectedCategory, dictionary)}`
+      label: `Kategori: ${formatCategoryName(selectedCategory, dictionary)}`
     });
   }
 
@@ -668,7 +665,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         q: ""
       }),
-      label: `Search: ${filters.q.trim()}`
+      label: `Arama: ${filters.q.trim()}`
     });
   }
 
@@ -677,7 +674,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         listingType: ""
       }),
-      label: `Type: ${formatListingType(filters.listingType, dictionary)}`
+      label: `İlan tipi: ${formatListingType(filters.listingType, dictionary)}`
     });
   }
 
@@ -686,7 +683,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         condition: ""
       }),
-      label: `Condition: ${formatListingCondition(filters.condition, dictionary)}`
+      label: `Durum: ${formatListingCondition(filters.condition, dictionary)}`
     });
   }
 
@@ -695,7 +692,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         priceMin: ""
       }),
-      label: `Min: ${filters.priceMin}`
+      label: `En az: ${filters.priceMin}`
     });
   }
 
@@ -704,7 +701,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         priceMax: ""
       }),
-      label: `Max: ${filters.priceMax}`
+      label: `En çok: ${filters.priceMax}`
     });
   }
 
@@ -713,7 +710,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         hasImages: ""
       }),
-      label: "Images only"
+      label: "Sadece görselli"
     });
   }
 
@@ -725,7 +722,7 @@ function buildActiveFilterChips({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         sort: "newest"
       }),
-      label: `Sort: ${sortLabel}`
+      label: `Sıralama: ${sortLabel}`
     });
   }
 

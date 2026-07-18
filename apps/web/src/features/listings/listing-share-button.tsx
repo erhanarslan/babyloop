@@ -36,6 +36,7 @@ export function ListingShareButton({
 
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         await navigator.share({
+          title,
           url: shareLink.url
         });
 
@@ -52,7 +53,12 @@ export function ListingShareButton({
 
       window.prompt("İlan bağlantısı", shareLink.url);
       setStatus("idle");
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setStatus("idle");
+        return;
+      }
+
       setStatus("error");
       window.setTimeout(() => setStatus("idle"), 1800);
     }
@@ -61,7 +67,8 @@ export function ListingShareButton({
   return (
     <button
       aria-label={status === "copied" ? "Bağlantı kopyalandı" : "İlanı paylaş"}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition hover:border-rose-200 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+      className={`listing-share-button is-${status}`}
+      data-status={status}
       disabled={status === "pending"}
       onClick={handleShareClick}
       title={status === "copied" ? "Kopyalandı" : "Paylaş"}
@@ -69,7 +76,14 @@ export function ListingShareButton({
     >
       <ShareIcon />
       <span className="sr-only">
-        {status === "copied" ? "Bağlantı kopyalandı" : "İlanı paylaş"}
+        {status === "copied"
+          ? "Bağlantı kopyalandı"
+          : status === "error"
+            ? "Bağlantı paylaşılamadı"
+            : "İlanı paylaş"}
+      </span>
+      <span aria-live="polite" className="listing-share-status">
+        {status === "copied" ? "Kopyalandı" : status === "error" ? "Tekrar dene" : ""}
       </span>
     </button>
   );

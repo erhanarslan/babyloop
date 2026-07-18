@@ -75,6 +75,11 @@ export function SiteHeader() {
   }, []);
 
   useEffect(() => {
+    setOpenMenu(null);
+    setIsDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     let isActive = true;
 
     async function loadCurrentAuth(options: { allowRefresh?: boolean } = {}) {
@@ -421,7 +426,7 @@ export function SiteHeader() {
         </Link>
 
         <SearchOverlay
-            apiBaseUrl={apiBaseUrl}
+          apiBaseUrl={apiBaseUrl}
           className="market-header-search"
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
@@ -450,6 +455,7 @@ export function SiteHeader() {
             currentAuth={currentAuth}
             cartItemCount={cartItemCount}
             dictionary={dictionary}
+            pathname={pathname}
             headerNotifications={headerNotifications}
             isMarkingNotificationsRead={isMarkingNotificationsRead}
             isNotificationsLoading={isNotificationsLoading}
@@ -467,7 +473,7 @@ export function SiteHeader() {
 
       <div className="market-mobile-search-row">
         <SearchOverlay
-            apiBaseUrl={apiBaseUrl}
+          apiBaseUrl={apiBaseUrl}
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
           selectedCity={selectedCity}
@@ -536,6 +542,7 @@ function HeaderAccount({
   onOpenAccount,
   onOpenNotifications,
   openMenu,
+  pathname,
   unreadNotificationCount
 }: {
   currentAuth: AuthMe | null;
@@ -551,6 +558,7 @@ function HeaderAccount({
   onOpenAccount: () => void;
   onOpenNotifications: () => void;
   openMenu: HeaderMenu;
+  pathname: string;
   unreadNotificationCount: number;
 }) {
   if (!currentAuth) {
@@ -567,30 +575,53 @@ function HeaderAccount({
 
   return (
     <div className="market-account">
-      <Link className="market-activity-link" href="/cart">
-        Sepet{cartItemCount > 0 ? ` (${formatBadgeCount(cartItemCount)})` : ""}
+      <Link
+        aria-label={`Sepet${cartItemCount > 0 ? `, ${formatBadgeCount(cartItemCount)} ürün` : ""}`}
+        className={`market-activity-link${isHeaderPathActive(pathname, "/cart") ? " is-active" : ""}`}
+        href="/cart"
+        title="Sepet"
+      >
+        <HeaderActionIcon kind="cart" />
+        {cartItemCount > 0 ? (
+          <span className="market-activity-badge">{formatBadgeCount(cartItemCount)}</span>
+        ) : null}
       </Link>
-      <Link className="market-activity-link" href="/conversations">
-        {dictionary.publicShell.header.messages}
+      <Link
+        aria-label={dictionary.publicShell.header.messages}
+        className={`market-activity-link${isHeaderPathActive(pathname, "/conversations") ? " is-active" : ""}`}
+        href="/conversations"
+        title={dictionary.publicShell.header.messages}
+      >
+        <HeaderActionIcon kind="messages" />
       </Link>
       <button
         aria-controls={notificationPopoverId}
         aria-expanded={openMenu === "notifications"}
-        className="market-activity-link market-notifications-trigger"
+        aria-label={dictionary.publicShell.header.notifications}
+        className={`market-activity-link market-notifications-trigger${
+          isHeaderPathActive(pathname, "/notifications") || openMenu === "notifications"
+            ? " is-active"
+            : ""
+        }`}
+        title={dictionary.publicShell.header.notifications}
         type="button"
         onClick={onOpenNotifications}
       >
-        {dictionary.publicShell.header.notifications}
-        {unreadNotificationCount > 0 ? <span>{formatBadgeCount(unreadNotificationCount)}</span> : null}
+        <HeaderActionIcon kind="notifications" />
+        {unreadNotificationCount > 0 ? (
+          <span className="market-activity-badge">{formatBadgeCount(unreadNotificationCount)}</span>
+        ) : null}
       </button>
       <button
         aria-expanded={openMenu === "account"}
-        className="market-account-trigger"
+        aria-label={`${displayName} hesabı`}
+        className={`market-account-trigger${openMenu === "account" ? " is-active" : ""}`}
         type="button"
         onClick={onOpenAccount}
       >
         <span aria-hidden="true">{initial}</span>
         <strong>{displayName}</strong>
+        <HeaderActionIcon kind="chevron" />
       </button>
 
       {openMenu === "account" ? (
@@ -696,6 +727,48 @@ function HeaderNotificationsPopover({
       </button>
     </div>
   );
+}
+
+type HeaderActionIconKind = "cart" | "chevron" | "messages" | "notifications";
+
+function HeaderActionIcon({ kind }: { kind: HeaderActionIconKind }) {
+  if (kind === "cart") {
+    return (
+      <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.9" viewBox="0 0 24 24">
+        <path d="M3 4h2l1.7 9.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 7H6" />
+        <circle cx="9" cy="19" r="1.4" />
+        <circle cx="17" cy="19" r="1.4" />
+      </svg>
+    );
+  }
+
+  if (kind === "messages") {
+    return (
+      <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.9" viewBox="0 0 24 24">
+        <path d="M5 5.5h14v10H9l-4 3v-13Z" />
+        <path d="M8.5 9h7M8.5 12h4.5" />
+      </svg>
+    );
+  }
+
+  if (kind === "notifications") {
+    return (
+      <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.9" viewBox="0 0 24 24">
+        <path d="M6.5 17h11l-1.2-1.7V10a4.3 4.3 0 0 0-8.6 0v5.3L6.5 17Z" />
+        <path d="M10 19.2a2.2 2.2 0 0 0 4 0" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="m8 10 4 4 4-4" />
+    </svg>
+  );
+}
+
+function isHeaderPathActive(pathname: string, targetPath: string): boolean {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 }
 
 function formatBadgeCount(count: number): string {

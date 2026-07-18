@@ -17,6 +17,7 @@ import "../styles/30-pages-discovery.css";
 import "../styles/40-pages-auth-account.css";
 import "../styles/50-components-public.css";
 import "../styles/60-pages-home-polish.css";
+import "../styles/70-web-ui-ux-closure.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),

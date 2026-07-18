@@ -1,5 +1,4 @@
 "use client";
-import { ListingShareButton } from "./listing-share-button";
 
 import { type KeyboardEvent, useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,6 +15,7 @@ import { getApiErrorMessage, type ApiError } from "../../lib/api-error-message";
 import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
+import { ListingShareButton } from "./listing-share-button";
 import {
   formatCategoryName,
   formatListingCondition,
@@ -102,6 +102,11 @@ export function ListingDetailContent({
     <PageContainer className="listing-detail-p0-shell pb-12 pt-5" ariaLabel="İlan detayları">
       {!isOwner && currentUser.status !== "checking" ? <RecentlyViewedTracker listing={listing} /> : null}
 
+      <Link className="listing-detail-back-link" href="/browse">
+        <BackArrowIcon />
+        <span>İlanlara dön</span>
+      </Link>
+
       <ImageReviewNotice
         title={dictionary.listings.imageNeedsReviewTitle}
         message={dictionary.listings.imageNeedsReviewBody}
@@ -124,20 +129,19 @@ export function ListingDetailContent({
           </div>
 
           <div className="listing-detail-p0-title">
-            <h1>{listing.title}</h1>
+            <div className="listing-detail-p0-title-head">
+              <h1>{listing.title}</h1>
+              <ListingShareButton
+                apiBaseUrl={apiBaseUrl}
+                listingId={listing.id}
+                title={listing.title}
+              />
+            </div>
             <strong>{formatListingPrice(listing.price, dictionary)}</strong>
             <p>
               {listing.seller.locationCity ?? dictionary.listings.locationNotProvided}
               {listing.favoriteCount > 0 ? ` · ${listing.favoriteCount} favori` : ""}
             </p>
-          </div>
-
-          <div className="mt-3 flex justify-end">
-            <ListingShareButton
-              apiBaseUrl={apiBaseUrl}
-              listingId={listing.id}
-              title={listing.title}
-            />
           </div>
 
           <p className="listing-detail-p0-description">
@@ -177,26 +181,28 @@ export function ListingDetailContent({
 
           {canShowBuyerActions ? (
             <div className="listing-detail-p0-actions">
-              <MessageSellerButton
-                apiBaseUrl={apiBaseUrl}
-                categoryId={listing.category.id}
-                listingId={listing.id}
-                sellerProfileId={listing.seller.id}
-              />
-
-              {canAddToCart ? (
-                <AddToCartButton
+              <div className="listing-detail-p0-primary-actions">
+                <MessageSellerButton
                   apiBaseUrl={apiBaseUrl}
-                  isAuthenticated={currentUser.status === "known"}
+                  categoryId={listing.category.id}
+                  listingId={listing.id}
+                  sellerProfileId={listing.seller.id}
+                />
+
+                {canAddToCart ? (
+                  <AddToCartButton
+                    apiBaseUrl={apiBaseUrl}
+                    isAuthenticated={currentUser.status === "known"}
+                    listingId={listing.id}
+                  />
+                ) : null}
+
+                <FavoriteButton
+                  apiBaseUrl={apiBaseUrl}
+                  initiallyFavorited={false}
                   listingId={listing.id}
                 />
-              ) : null}
-
-              <FavoriteButton
-                apiBaseUrl={apiBaseUrl}
-                initiallyFavorited={false}
-                listingId={listing.id}
-              />
+              </div>
 
               <SellerCard listing={listing} />
 
@@ -446,6 +452,23 @@ function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
         </p>
       </div>
     </section>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m15 18-6-6 6-6" />
+      <path d="M9 12h10" />
+    </svg>
   );
 }
 

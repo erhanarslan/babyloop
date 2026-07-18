@@ -26,6 +26,7 @@ const showcaseSlides = [
 
 export function HomeFeaturedShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isRotationPaused, setIsRotationPaused] = useState(false);
 
   function scrollToLatestListings() {
     document.getElementById("latest-listings")?.scrollIntoView({
@@ -35,17 +36,28 @@ export function HomeFeaturedShowcase() {
   }
 
   useEffect(() => {
+    if (isRotationPaused) {
+      return;
+    }
+
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % showcaseSlides.length);
     }, ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [isRotationPaused]);
 
   const activeSlide = showcaseSlides[activeIndex] ?? showcaseSlides[0];
 
   return (
-    <section className="home-featured-showcase" aria-label="Öne çıkan ikinci el bebek ürünleri">
+    <section
+      className="home-featured-showcase"
+      aria-label="Öne çıkan ikinci el bebek ürünleri"
+      onBlurCapture={() => setIsRotationPaused(false)}
+      onFocusCapture={() => setIsRotationPaused(true)}
+      onMouseEnter={() => setIsRotationPaused(true)}
+      onMouseLeave={() => setIsRotationPaused(false)}
+    >
       <div className="home-featured-showcase-image">
         <img src={activeSlide.src} alt={activeSlide.alt} />
       </div>
