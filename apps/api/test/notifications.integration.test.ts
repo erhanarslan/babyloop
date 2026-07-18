@@ -419,7 +419,8 @@ describe("notifications API", () => {
       condition: "good",
       listingType: "sale",
       priceAmount: "2200.00",
-      title: "Görselsiz puset travel sistem"
+      title: "Görselsiz puset travel sistem",
+      withApprovedImage: false
     });
 
     await createListing(app, seller.accessToken, {
