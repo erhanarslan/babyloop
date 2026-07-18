@@ -222,9 +222,9 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="eyebrow">Delivery geçişleri</p>
-        <h2 className="text-2xl font-black text-slate-950">Geçiş modeli</h2>
+        <h2 className="text-2xl font-black text-slate-950">Transition model</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Manuel ops geçişleri candidate/block/skip gibi güvenli durumlarla sınırlıdır; sent/failed durumları gerçek provider processor sonucunda oluşur.
+          Manuel ops geçişleri candidate/block/skip gibi güvenli durumlarla sınırlıdır; sent/failed future sender gerektirir.
           Örnek güvenli geçiş: candidate → skipped.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.transitionPreview.privacyNote}</p>
@@ -255,9 +255,9 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="eyebrow">Mobil bildirimler</p>
-        <h2 className="text-2xl font-black text-slate-950">Native push hazırlığı</h2>
+        <h2 className="text-2xl font-black text-slate-950">Native push readiness</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Push sender kapalı ise Expo/Firebase/APNs çağrısı yok. Push sender durumu env, token registry ve provider readiness değerlerine bağlıdır; gerçek Expo gönderimleri notification processor üzerinden yapılır.
+          Push sender kapalı ise Expo/Firebase/APNs çağrısı yok. Token registry durumu, provider yapılandırması ve env gate değerleriyle birlikte değerlendirilir; gerçek Expo gönderimleri notification processor üzerinden yapılır.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.pushReadinessPreview.warning}</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -294,9 +294,9 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="eyebrow">Otomasyon hazırlığı</p>
-        <h2 className="text-2xl font-black text-slate-950">n8n workflow hazırlığı</h2>
+        <h2 className="text-2xl font-black text-slate-950">n8n workflow readiness</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          n8n webhook ve worker durumu readiness değerlerine bağlıdır; gerçek tetikleme yalnızca provider env gate’leri açıkken processor üzerinden yapılır.
+          Webhook kapalı. Queue/worker kapalı. Gerçek n8n workflow tetiklemesi yok. n8n webhook ve worker durumu readiness değerlerine bağlıdır; gerçek tetikleme yalnızca provider env gate’leri açıkken processor üzerinden yapılır.
         </p>
         <p className="mt-1 text-xs text-slate-500">{data.n8nReadinessPreview.warning}</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -336,7 +336,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="eyebrow">Delivery log</p>
-              <h2 className="text-2xl font-black text-slate-950">Delivery log önizlemesi</h2>
+              <h2 className="text-2xl font-black text-slate-950">Delivery log preview</h2>
               <p className="mt-2 text-sm text-slate-600">{deliveryLogPreview.privacyNote}</p>
               <p className="mt-1 text-xs text-slate-500">{DELIVERY_LOG_PRIVACY_BOUNDARY_NOTE}</p>
             </div>

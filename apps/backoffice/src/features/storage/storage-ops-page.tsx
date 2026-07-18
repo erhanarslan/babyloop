@@ -53,9 +53,13 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         if (mounted) {
           setData(payload.data);
         }
-      } catch {
+      } catch (caughtError) {
         if (mounted) {
-          setError("Storage operasyon durumu yüklenemedi. Yetkiyi, API erişimini ve storage ops endpoint’ini kontrol et.");
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Storage operasyon durumu yüklenemedi. Yetkiyi, API erişimini ve storage ops endpoint’ini kontrol et."
+          );
           setData(null);
         }
       } finally {
@@ -77,10 +81,10 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
       <section className="page-hero">
         <div>
           <p className="eyebrow">Storage Operasyonları</p>
-          <h2>Güvenli dosya ve medya görünürlüğü</h2>
+          <h2>Storage Ops Preview</h2>
           <p>
-            Aktif image storage driver’ını, upload route davranışını ve dış storage readiness durumunu
-            secret, signed URL, object key veya raw upload gövdesi göstermeden izle.
+            External storage provider disabled. S3/R2, signed upload, bucket delete ve dış storage
+            readiness durumunu secret, signed URL, object key veya raw upload gövdesi göstermeden izle.
           </p>
         </div>
       </section>
@@ -145,7 +149,7 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             <article className="module-card">
               <div>
                 <p className="eyebrow">Güvenlik sınırı</p>
-                <h3>Gösterilmeyen alanlar</h3>
+                <h3>Privacy and blocked operations</h3>
                 <p>
                   Bu ekran bucket credential, access key, signed URL, object key, cookie, token, raw upload body
                   veya kullanıcıya ait görsel içeriği render etmez.
@@ -161,7 +165,7 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             <article className="module-card">
               <div>
                 <p className="eyebrow">Operasyon</p>
-                <h3>Kontrollü davranış</h3>
+                <h3>Required before external storage</h3>
                 <p>
                   Bu sayfa yalnızca görünürlük sağlar. Bucket delete, object copy, CDN purge, full Redis flush veya
                   production migration aksiyonu başlatmaz.
@@ -169,7 +173,11 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
               </div>
               <div className="info-panel">
                 <strong>Dış storage geçişi</strong>
-                <p>Provider config hazır olmadan dış storage’a geçiş yapılmaz; migration ve rollback CLI/ops planı gerektirir.</p>
+                <p>
+                  Provider config hazır olmadan dış storage’a geçiş yapılmaz. Gerekli kapılar:
+                  provider_selection, private_bucket_policy, signed_upload_contract,
+                  object_lifecycle_cleanup, migration_replay_plan ve queue_worker.
+                </p>
               </div>
             </article>
           </section>

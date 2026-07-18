@@ -61,8 +61,8 @@ export function AnalyticsDashboard() {
           <p className="eyebrow">Analitik</p>
           <h2>Genel Bakış</h2>
           <p>
-            First-party product analytics yalnızca aggregate görünürlük sağlar. Mesaj metni,
-            asistan prompt’u, çocuk notu, token, cookie, exact IP ve raw query string gösterilmez.
+            First-party product analytics yalnızca aggregate görünürlük sağlar. Raw messages
+            (ham mesajlar), asistan prompt’u, çocuk notu, token, cookie, exact IP ve raw query string gösterilmez.
           </p>
         </div>
       </div>

@@ -172,11 +172,17 @@ describe("NotificationOpsPage", () => {
 
     expect(await screen.findByText("Bildirim gönderim sağlığı")).toBeInTheDocument();
     expect(screen.getAllByText("Taslak mod").length).toBeGreaterThan(0);
-    expect(screen.getByText("Delivery log önizlemesi")).toBeInTheDocument();
-    expect(screen.getByText("Geçiş modeli")).toBeInTheDocument();
-    expect(screen.getByText("Native push hazırlığı")).toBeInTheDocument();
-    expect(screen.getByText("n8n workflow hazırlığı")).toBeInTheDocument();
+    expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
+    expect(screen.getByText("Transition model")).toBeInTheDocument();
+    expect(
+      screen.getByText("sent/failed future sender gerektirir", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Native push readiness")).toBeInTheDocument();
+    expect(screen.getByText("n8n workflow readiness")).toBeInTheDocument();
     expect(screen.getByText(/n8n webhook ve worker durumu readiness değerlerine bağlıdır/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Webhook kapalı");
+    expect(document.body.textContent).toContain("Queue/worker kapalı");
+    expect(document.body.textContent).toContain("Gerçek n8n workflow tetiklemesi yok");
     expect(document.body.textContent).toContain("provider env gate’leri açıkken");
     expect(document.body.textContent).toContain("processor üzerinden yapılır");
     expect(screen.getByText(/Push sender kapalı/iu)).toBeInTheDocument();
@@ -185,8 +191,8 @@ describe("NotificationOpsPage", () => {
     expect(document.body.textContent).toContain("Expo/Firebase/APNs çağrısı yok");
     expect(document.body.textContent).toContain("gerçek Expo gönderimleri notification processor üzerinden yapılır");
     expect(screen.getByText("candidate → skipped")).toBeInTheDocument();
-    expect(screen.getByText(/sent\/failed durumları gerçek provider processor sonucunda oluşur/iu)).toBeInTheDocument();
-    expect(document.body.textContent).toContain("sent/failed durumları gerçek provider processor sonucunda oluşur");
+    expect(screen.getByText(/sent\/failed future sender gerektirir/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("sent/failed future sender gerektirir");
     expect(screen.getByText("Toplam")).toBeInTheDocument();
     expect(screen.getAllByText("saved_search").length).toBeGreaterThan(0);
     expect(screen.getByText("saved_search:saved…ing-1")).toBeInTheDocument();

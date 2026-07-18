@@ -36,6 +36,9 @@ const featureOptions: AdminAiOpsFeature[] = [
   "listing_image_authenticity",
 ];
 
+const AI_OPS_PRIVACY_NOTICE =
+  "Safe AI run metadata is shown without raw prompts, raw outputs, or image payloads.";
+
 const statusOptions: Array<"all" | AdminAiOpsStatus> = [
   "all",
   "success",
@@ -122,6 +125,7 @@ export function AiOpsDashboard() {
 
   return (
     <section className="content-card">
+      <p role="note">{AI_OPS_PRIVACY_NOTICE}</p>
       <div className="page-toolbar">
         <div>
           <p className="eyebrow">AI Operasyonları</p>

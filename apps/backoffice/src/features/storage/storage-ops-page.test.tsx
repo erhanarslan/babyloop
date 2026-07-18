@@ -11,7 +11,7 @@ describe("StorageOpsPage", () => {
     fetchMock.mockReset();
   });
 
-  it("renders secret-safe storage ops preview without enabling destructive operations", async () => {
+  it("renders local-only storage ops preview without enabling external storage", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -36,12 +36,15 @@ describe("StorageOpsPage", () => {
 
     render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
 
-    expect(await screen.findByText("Güvenli dosya ve medya görünürlüğü")).toBeInTheDocument();
+    expect(await screen.findByText("Storage Ops Preview")).toBeInTheDocument();
+    expect(document.body.textContent).toContain("External storage provider disabled");
+    expect(document.body.textContent).toContain("S3/R2, signed upload, bucket delete");
     expect(screen.getAllByText("Local").length).toBeGreaterThan(0);
     expect(screen.getByText("Dış bucket/provider alanları eksik veya kapalı.")).toBeInTheDocument();
     expect(screen.getByText("/api/v1/uploads/listings")).toBeInTheDocument();
     expect(screen.getAllByText("Bu endpoint’te gösterilmez")).toHaveLength(2);
     expect(screen.getByText(/Bucket delete, object copy, CDN purge/iu)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("queue_worker");
     expect(document.body.textContent).not.toMatch(/AWS_SECRET_ACCESS_KEY_VALUE|S3_BUCKET_NAME_SECRET|R2_ACCESS_KEY_SECRET|signed-url-secret-value|presigned-post-secret-value|raw-upload-body-secret-value|gps-location-secret-value/iu);
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/v1/admin/storage/ops-preview", {
@@ -62,7 +65,7 @@ describe("StorageOpsPage", () => {
     render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Storage operasyon durumu yüklenemedi/iu)).toBeInTheDocument();
+      expect(screen.getByText("Storage ops preview failed: 403")).toBeInTheDocument();
     });
   });
 });
