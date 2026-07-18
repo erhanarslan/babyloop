@@ -312,4 +312,105 @@ describe("OpenAPI runtime contract alignment", () => {
       ).sort()
     ).toEqual(["201", "400", "401", "404", "503"]);
   });
+
+  it("publishes exact auth and redirect response contracts", () => {
+    expect(
+      Object.keys(record(contract("POST", "/api/v1/auth/register").response)).sort()
+    ).toEqual(["201", "400", "409", "429", "503"]);
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/auth/login-approval/complete").response)
+      ).sort()
+    ).toEqual(["200", "202", "400", "503"]);
+    expect(
+      Object.keys(record(contract("GET", "/api/v1/auth/google/start").response)).sort()
+    ).toEqual(["302", "503"]);
+  });
+
+  it("documents the listing image multipart field used by runtime", () => {
+    const body = record(
+      contract("POST", "/api/v1/listings/:id/images").body
+    );
+    const properties = propertiesOf(body);
+
+    expect(Object.keys(properties)).toEqual(["image"]);
+    expect(body.required).toEqual(["image"]);
+  });
+
+  it("publishes exact marketplace and messaging status contracts", () => {
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/listings/:id/images").response)
+      ).sort()
+    ).toEqual(["201", "400", "401", "403", "404", "409", "413", "500", "503"]);
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/checkout/mock-iyzico").response)
+      ).sort()
+    ).toEqual(["200", "400", "401", "402", "403", "409", "500", "503"]);
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/conversations").response)
+      ).sort()
+    ).toEqual(["200", "201", "400", "401", "403", "500", "503"]);
+  });
+
+  it("keeps public share-link POST unauthenticated in the contract", () => {
+    expect(
+      contract("POST", "/api/v1/listings/:id/share-link").security
+    ).toEqual([]);
+  });
+
+  it("publishes exact child notification and admin status contracts", () => {
+    expect(
+      Object.keys(
+        record(
+          contract(
+            "DELETE",
+            "/api/v1/child-profiles/:childProfileId/reminders/:reminderId"
+          ).response
+        )
+      ).sort()
+    ).toEqual(["200", "400", "401", "403", "404", "503"]);
+    expect(
+      Object.keys(
+        record(contract("DELETE", "/api/v1/notifications/push-tokens").response)
+      ).sort()
+    ).toEqual(["200", "400", "401", "403", "404", "503"]);
+    expect(
+      Object.keys(
+        record(
+          contract(
+            "POST",
+            "/api/v1/admin/moderation/cases/:caseId/ai-summary"
+          ).response
+        )
+      ).sort()
+    ).toEqual(["200", "400", "401", "403", "404", "429", "503"]);
+  });
+
+  it("documents critical simple response payloads", () => {
+    const shareResponse = record(
+      record(contract("GET", "/api/v1/share-links/:code/resolve").response)["200"]
+    );
+    const shareData = propertiesOf(shareResponse);
+    const sharePayload = propertiesOf(record(shareData.data));
+
+    expect(record(sharePayload.targetPath).type).toBe("string");
+
+    const logoutResponse = record(
+      record(contract("POST", "/api/v1/auth/logout").response)["200"]
+    );
+    const logoutPayload = propertiesOf(record(propertiesOf(logoutResponse).data));
+
+    expect(record(logoutPayload.loggedOut).enum).toEqual([true]);
+
+    const unreadResponse = record(
+      record(contract("GET", "/api/v1/notifications/unread-count").response)["200"]
+    );
+    const unreadPayload = propertiesOf(record(propertiesOf(unreadResponse).data));
+
+    expect(record(unreadPayload.count).minimum).toBe(0);
+  });
+
 });

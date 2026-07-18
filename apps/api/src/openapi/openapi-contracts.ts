@@ -7,6 +7,7 @@ type RouteContract = {
   querystring?: JsonSchema;
   replaceDefaultResponses?: boolean;
   response?: Record<string, JsonSchema>;
+  security?: Array<Record<string, string[]>>;
 };
 
 type ApplyOpenApiRouteContractInput = {
@@ -1692,21 +1693,23 @@ function registerSpecialContracts(): void {
   };
 
   ROUTE_CONTRACTS["POST /listings/:id/images"] = {
+    ...ROUTE_CONTRACTS["POST /listings/:id/images"],
     consumes: ["multipart/form-data"],
     body: objectSchema(
       {
-        file: {
+        image: {
           type: "string",
           format: "binary",
           description:
             "JPEG, PNG veya WebP gerçek ürün görseli. En fazla 5 görsel."
         }
       },
-      ["file"]
+      ["image"]
     )
   };
 
   ROUTE_CONTRACTS["POST /listings/ai-draft-suggestions"] = {
+    ...ROUTE_CONTRACTS["POST /listings/ai-draft-suggestions"],
     consumes: ["multipart/form-data"],
     body: objectSchema({
       categoryId: uuidSchema("Kategori kimliği"),
@@ -1740,6 +1743,8 @@ function registerSpecialContracts(): void {
   };
 
   ROUTE_CONTRACTS["GET /uploads/listings/:listingId/:filename"] = {
+    ...ROUTE_CONTRACTS["GET /uploads/listings/:listingId/:filename"],
+    replaceDefaultResponses: true,
     response: {
       "200": {
         description: "İlan görseli binary içeriği.",
@@ -1749,6 +1754,13 @@ function registerSpecialContracts(): void {
       "404": errorEnvelopeSchema("Görsel bulunamadı.")
     }
   };
+
+  ROUTE_CONTRACTS["POST /listings/:id/share-link"] = {
+    ...ROUTE_CONTRACTS["POST /listings/:id/share-link"],
+    security: []
+  };
+
+  registerCriticalResponseBodyContracts();
 }
 
 function productEventBodyContract(): JsonSchema {
@@ -1932,37 +1944,359 @@ function registerExactResponseContracts(): void {
   setExactResponses("POST", "/product-events", ["200", "400", "503"]);
   setExactResponses("POST", "/rag/search", ["200", "400", "429", "503"]);
 
-  setExactResponses(
-    "POST",
-    "/child-profiles",
-    ["201", "400", "401", "503"]
-  );
+  setExactResponses("POST", "/auth/register", ["201", "400", "409", "429", "503"]);
+  setExactResponses("POST", "/auth/login", ["200", "400", "401", "429", "503"]);
+  setExactResponses("POST", "/auth/mfa/verify", ["200", "400", "429", "503"]);
+  setExactResponses("POST", "/auth/login-approval/complete", ["200", "202", "400", "503"]);
+  setExactResponsesForPaths("GET", [
+    "/auth/mfa/status",
+    "/auth/login-approval/status",
+    "/auth/login-approvals",
+    "/auth/sessions",
+    "/auth/me"
+  ], ["200", "401", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/auth/mfa/enable",
+    "/auth/mfa/disable"
+  ], ["200", "400", "401", "403", "429", "503"]);
+  setExactResponses("POST", "/auth/refresh", ["200", "401", "429", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/auth/login-approval/enable",
+    "/auth/login-approval/disable"
+  ], ["200", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/auth/login-approvals/:approvalId/approve",
+    "/auth/login-approvals/:approvalId/deny",
+    "/auth/sessions/:sessionId/revoke"
+  ], ["200", "401", "403", "404", "503"]);
+  setExactResponses("POST", "/auth/logout", ["200", "403", "503"]);
+  setExactResponses("POST", "/auth/sessions/revoke-all", ["200", "401", "403", "503"]);
+  setExactResponses("POST", "/auth/backoffice/login", ["200", "400", "401", "403", "429", "503"]);
+  setExactResponses("POST", "/auth/backoffice/refresh", ["200", "401", "403", "429", "503"]);
+  setExactResponses("POST", "/auth/backoffice/logout", ["200", "403", "503"]);
+  setExactResponsesForPaths("GET", [
+    "/auth/backoffice/me",
+    "/auth/backoffice/csrf"
+  ], ["200", "401", "403", "503"]);
+  setExactResponses("GET", "/auth/csrf", ["200", "401", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/auth/password-reset/request",
+    "/auth/password-reset/confirm",
+    "/auth/email-verification/request",
+    "/auth/email-verification/confirm"
+  ], ["200", "400", "429", "503"]);
+  setExactResponses("POST", "/auth/password/change", ["200", "400", "401", "403", "503"]);
+  setExactResponseSchemas("GET", "/auth/google/start", {
+    "302": redirectResponseSchema("Google OAuth yetkilendirme sayfasına yönlendirir."),
+    "503": errorEnvelopeSchema("Google OAuth yapılandırılmamış.")
+  });
+  setExactResponseSchemas("GET", "/auth/google/callback", {
+    "302": redirectResponseSchema("Başarılı veya hatalı OAuth sonucunu web uygulamasına yönlendirir.")
+  });
 
-  for (const path of [
+  setExactResponses("GET", "/listings/:id/share-link", ["200", "400", "404", "503"]);
+  setExactResponses("GET", "/share-links/:code/resolve", ["200", "404", "503"]);
+  setExactResponses("POST", "/listings/:id/share-link", ["200", "400", "404", "503"]);
+  setExactResponses("POST", "/listings", ["201", "400", "401", "403", "500", "503"]);
+  setExactResponses("GET", "/listings", ["200", "400", "503"]);
+  setExactResponses("POST", "/listings/ai-draft-suggestions", ["200", "400", "401", "403", "413", "503"]);
+  setExactResponses("GET", "/me/listings", ["200", "401", "503"]);
+  setExactResponses("GET", "/me/listings/:id", ["200", "400", "401", "403", "404", "500", "503"]);
+  setExactResponses("GET", "/listings/:id", ["200", "400", "404", "503"]);
+  setExactResponsesForPaths("PATCH", [
+    "/listings/:id",
+    "/listings/:id/status",
+    "/listings/:id/images/reorder"
+  ], ["200", "400", "401", "403", "404", "500", "503"]);
+  setExactResponses("POST", "/listings/:id/images", ["201", "400", "401", "403", "404", "409", "413", "500", "503"]);
+  setExactResponses("DELETE", "/listings/:id/images/:imageId", ["200", "400", "401", "403", "404", "503"]);
+
+  setExactResponses("POST", "/favorites", ["200", "400", "401", "403", "503"]);
+  setExactResponses("POST", "/cart/items", ["200", "400", "401", "403", "404", "409", "500", "503"]);
+  setExactResponses("DELETE", "/favorites", ["200", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("GET", ["/favorites", "/cart"], ["200", "401", "503"]);
+  setExactResponses("GET", "/profiles/:profileId/favorites", ["200", "400", "401", "403", "503"]);
+  setExactResponses("DELETE", "/cart/items/:listingId", ["200", "400", "401", "403", "503"]);
+  setExactResponses("DELETE", "/cart", ["200", "401", "403", "503"]);
+  setExactResponses("POST", "/checkout/mock-iyzico", ["200", "400", "401", "402", "403", "409", "500", "503"]);
+
+  setExactResponses("POST", "/conversations", ["200", "201", "400", "401", "403", "500", "503"]);
+  setExactResponses("GET", "/conversations", ["200", "401", "503"]);
+  setExactResponsesForPaths("GET", [
+    "/conversations/:id",
+    "/conversations/:id/messages"
+  ], ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("PATCH", "/conversations/:id/read", ["200", "400", "401", "403", "404", "500", "503"]);
+  setExactResponses("POST", "/conversations/:id/messages", ["201", "400", "401", "403", "404", "503"]);
+
+  setExactResponsesForPaths("GET", [
+    "/child-profiles",
+    "/child-profiles/lifecycle-recommendations"
+  ], ["200", "401", "503"]);
+  setExactResponses("POST", "/child-profiles", ["201", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("GET", [
     "/child-profiles/:childProfileId/notes",
     "/child-profiles/:childProfileId/reminders"
-  ]) {
-    setExactResponses("POST", path, ["201", "400", "401", "404", "503"]);
-  }
+  ], ["200", "400", "401", "404", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/child-profiles/:childProfileId/notes",
+    "/child-profiles/:childProfileId/reminders"
+  ], ["201", "400", "401", "403", "404", "503"]);
+  setExactResponsesForPaths("PATCH", [
+    "/child-profiles/:childProfileId",
+    "/child-profiles/:childProfileId/notes/:noteId",
+    "/child-profiles/:childProfileId/reminders/:reminderId"
+  ], ["200", "400", "401", "403", "404", "503"]);
+  setExactResponsesForPaths("DELETE", [
+    "/child-profiles/:childProfileId",
+    "/child-profiles/:childProfileId/notes/:noteId",
+    "/child-profiles/:childProfileId/reminders/:reminderId"
+  ], ["200", "400", "401", "403", "404", "503"]);
 
-  for (const path of [
+  setExactResponsesForPaths("GET", [
+    "/notification-preferences",
+    "/notifications/delivery-drafts",
+    "/notifications/push-tokens",
+    "/notifications",
+    "/notifications/unread-count"
+  ], ["200", "401", "503"]);
+  setExactResponses("PATCH", "/notification-preferences", ["200", "400", "401", "403", "503"]);
+  setExactResponses("POST", "/notifications/push-tokens", ["200", "400", "401", "403", "503"]);
+  setExactResponses("DELETE", "/notifications/push-tokens", ["200", "400", "401", "403", "404", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/notifications/child-lifecycle/generate",
+    "/notifications/saved-searches/generate"
+  ], ["200", "401", "403", "503"]);
+  setExactResponses("PATCH", "/notifications/:id/read", ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("PATCH", "/notifications/read-all", ["200", "401", "403", "503"]);
+
+  setExactResponsesForPaths("GET", [
+    "/admin/dashboard/summary",
+    "/admin/product-analytics/summary",
+    "/admin/ai-ops/summary",
+    "/admin/analytics/data-quality",
+    "/admin/listings/publication-settings",
+    "/admin/email/ops-preview",
+    "/admin/notifications/ops-preview",
+    "/admin/storage/ops-preview",
+    "/admin/rag/health",
+    "/admin/rag/documents",
+    "/admin/rag/reindex/check",
+    "/admin/rag/eval/cases",
+    "/admin/rag/eval/history",
+    "/admin/rag/cache/stats",
+    "/admin/rag/metrics",
+    "/admin/rag/usage"
+  ], ["200", "401", "403", "503"]);
+  setExactResponsesForPaths("GET", [
+    "/admin/analytics/overview",
+    "/admin/analytics/auth",
+    "/admin/analytics/users",
+    "/admin/analytics/engagement",
+    "/admin/analytics/marketplace",
+    "/admin/analytics/messaging",
+    "/admin/analytics/assistant",
+    "/admin/analytics/child",
+    "/admin/analytics/funnels",
+    "/admin/analytics/pages",
+    "/admin/analytics/categories",
+    "/admin/ai-ops/runs",
+    "/admin/audit/events",
+    "/admin/conversations",
+    "/admin/listings",
+    "/admin/moderation/cases",
+    "/admin/profiles"
+  ], ["200", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("GET", [
+    "/admin/conversations/:conversationId",
+    "/admin/listings/:listingId",
+    "/admin/moderation/cases/:caseId",
+    "/admin/moderation/cases/:caseId/insights",
+    "/admin/moderation/cases/:caseId/ai-summaries",
+    "/admin/profiles/:profileId",
+    "/admin/rag/documents/:documentId/chunks",
+    "/admin/rag/eval/history/:runId"
+  ], ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("PATCH", "/admin/listings/publication-settings", ["200", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("POST", [
+    "/admin/listings/:listingId/actions",
+    "/admin/listings/:listingId/images/:imageId/actions",
+    "/admin/profiles/:profileId/enforcement"
+  ], ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("PATCH", "/admin/moderation/cases/:caseId/status", ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("POST", "/admin/moderation/cases/:caseId/sensitive-access", ["200", "400", "401", "403", "404", "503"]);
+  setExactResponses("POST", "/admin/moderation/cases/:caseId/ai-summary", ["200", "400", "401", "403", "404", "429", "503"]);
+  setExactResponses("POST", "/admin/moderation/cases/:caseId/enforcement", ["200", "400", "401", "403", "404", "500", "503"]);
+  setExactResponses("POST", "/admin/moderation/cases/:caseId/actions", ["201", "400", "401", "403", "404", "503"]);
+  setExactResponses("POST", "/admin/email/test-send", ["200", "400", "401", "403", "503"]);
+  setExactResponsesForPaths("POST", [
     "/admin/rag/playground/query",
     "/admin/rag/reindex/run",
     "/admin/rag/eval/run"
-  ]) {
-    setExactResponses("POST", path, ["200", "400", "401", "403", "503"]);
+  ], ["200", "400", "401", "403", "503"]);
+  setExactResponses("POST", "/admin/rag/cache/clear", ["200", "401", "403", "503"]);
+}
+
+function registerCriticalResponseBodyContracts(): void {
+  const shareLink = objectSchema(
+    {
+      code: stringSchema({ example: "aB3kLm9Q", minLength: 1 }),
+      url: stringSchema({ example: "https://babyloop.example/s/aB3kLm9Q", format: "uri" }),
+      targetPath: stringSchema({ example: `/listings/${UUID_EXAMPLE}`, minLength: 1 })
+    },
+    ["code", "url", "targetPath"]
+  );
+
+  for (const method of ["GET", "POST"] as const) {
+    setExactResponseSchema(
+      method,
+      "/listings/:id/share-link",
+      "200",
+      successEnvelopeWithDataSchema(
+        "İlan için kalıcı kısa paylaşım linki döner.",
+        objectSchema({ shareLink }, ["shareLink"])
+      )
+    );
   }
 
-  setExactResponses(
+  setExactResponseSchema(
     "GET",
-    "/admin/rag/documents/:documentId/chunks",
-    ["200", "400", "401", "403", "404", "503"]
+    "/share-links/:code/resolve",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Kısa link hedefini döner.",
+      objectSchema(
+        { targetPath: stringSchema({ example: `/listings/${UUID_EXAMPLE}`, minLength: 1 }) },
+        ["targetPath"]
+      )
+    )
   );
-  setExactResponses(
+
+  for (const path of ["/auth/logout", "/auth/backoffice/logout"]) {
+    setExactResponseSchema(
+      "POST",
+      path,
+      "200",
+      successEnvelopeWithDataSchema(
+        "Oturum cookie'leri temizlenir.",
+        objectSchema({ loggedOut: literalBooleanSchema(true) }, ["loggedOut"])
+      )
+    );
+  }
+
+  setExactResponseSchema(
+    "DELETE",
+    "/listings/:id/images/:imageId",
+    "200",
+    successEnvelopeWithDataSchema(
+      "İlan görseli silindi.",
+      objectSchema({ deleted: literalBooleanSchema(true) }, ["deleted"])
+    )
+  );
+  setExactResponseSchema(
+    "DELETE",
+    "/child-profiles/:childProfileId",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Çocuk profili silindi.",
+      objectSchema({ deleted: literalBooleanSchema(true) }, ["deleted"])
+    )
+  );
+  setExactResponseSchema(
+    "DELETE",
+    "/child-profiles/:childProfileId/notes/:noteId",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Not arşivlendi.",
+      objectSchema({ archived: literalBooleanSchema(true) }, ["archived"])
+    )
+  );
+  setExactResponseSchema(
+    "DELETE",
+    "/child-profiles/:childProfileId/reminders/:reminderId",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Hatırlatıcı iptal edildi.",
+      objectSchema({ cancelled: literalBooleanSchema(true) }, ["cancelled"])
+    )
+  );
+  setExactResponseSchema(
+    "DELETE",
+    "/notifications/push-tokens",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Push token iptal edildi.",
+      objectSchema({ revoked: literalBooleanSchema(true) }, ["revoked"])
+    )
+  );
+  setExactResponseSchema(
     "GET",
-    "/admin/rag/eval/history/:runId",
-    ["200", "400", "401", "403", "404", "503"]
+    "/notifications/unread-count",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Okunmamış bildirim sayısını döner.",
+      objectSchema(
+        { count: integerSchema({ example: 3, minimum: 0 }) },
+        ["count"]
+      )
+    )
   );
+  setExactResponseSchema(
+    "PATCH",
+    "/notifications/read-all",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Tüm bildirimleri okundu olarak işaretler.",
+      objectSchema(
+        { updatedCount: integerSchema({ example: 3, minimum: 0 }) },
+        ["updatedCount"]
+      )
+    )
+  );
+}
+
+function setExactResponsesForPaths(
+  method: string,
+  paths: string[],
+  statuses: string[]
+): void {
+  for (const path of paths) {
+    setExactResponses(method, path, statuses);
+  }
+}
+
+function setExactResponseSchemas(
+  method: string,
+  path: string,
+  response: Record<string, JsonSchema>
+): void {
+  const key = `${method.toUpperCase()} ${path}`;
+  const existing = ROUTE_CONTRACTS[key] ?? {};
+
+  ROUTE_CONTRACTS[key] = {
+    ...existing,
+    replaceDefaultResponses: true,
+    response
+  };
+}
+
+function setExactResponseSchema(
+  method: string,
+  path: string,
+  status: string,
+  schema: JsonSchema
+): void {
+  const key = `${method.toUpperCase()} ${path}`;
+  const existing = ROUTE_CONTRACTS[key] ?? {};
+
+  ROUTE_CONTRACTS[key] = {
+    ...existing,
+    replaceDefaultResponses: true,
+    response: {
+      ...(existing.response ?? {}),
+      [status]: schema
+    }
+  };
 }
 
 function setExactResponses(
@@ -1988,15 +2322,23 @@ function setExactResponses(
 }
 
 function successStatusDescription(status: string): string {
-  return status === "201"
-    ? "Kaynak başarıyla oluşturuldu."
-    : "İstek başarıyla tamamlandı.";
+  if (status === "201") {
+    return "Kaynak başarıyla oluşturuldu.";
+  }
+
+  if (status === "202") {
+    return "İstek kabul edildi ve işlem sonucu bekleniyor.";
+  }
+
+  return "İstek başarıyla tamamlandı.";
 }
 
 function errorStatusDescription(status: string): string {
   switch (status) {
     case "400":
       return "İstek doğrulaması başarısız.";
+    case "402":
+      return "Mock ödeme senaryosu başarısız oldu.";
     case "401":
       return "Kimlik doğrulaması gerekli.";
     case "403":
@@ -2005,8 +2347,12 @@ function errorStatusDescription(status: string): string {
       return "Kaynak bulunamadı.";
     case "409":
       return "İstek mevcut durumla çakışıyor.";
+    case "413":
+      return "İstek gövdesi veya yüklenen dosya çok büyük.";
     case "429":
       return "İstek sınırı aşıldı.";
+    case "500":
+      return "Beklenmeyen sunucu hatası.";
     default:
       return "Bağımlı servis şu anda kullanılamıyor.";
   }
@@ -2037,6 +2383,40 @@ function defaultResponses(path: string): Record<string, JsonSchema> {
     "409": errorEnvelopeSchema("İstek mevcut durumla çakışıyor."),
     "429": errorEnvelopeSchema("İstek sınırı aşıldı."),
     "503": errorEnvelopeSchema("Bağımlı servis şu anda kullanılamıyor.")
+  };
+}
+
+function successEnvelopeWithDataSchema(
+  description: string,
+  data: JsonSchema
+): JsonSchema {
+  return {
+    description,
+    type: "object",
+    additionalProperties: false,
+    required: ["ok", "data"],
+    properties: {
+      ok: {
+        type: "boolean",
+        enum: [true],
+        example: true
+      },
+      data
+    }
+  };
+}
+
+function literalBooleanSchema(value: boolean): JsonSchema {
+  return {
+    type: "boolean",
+    enum: [value],
+    example: value
+  };
+}
+
+function redirectResponseSchema(description: string): JsonSchema {
+  return {
+    description
   };
 }
 
