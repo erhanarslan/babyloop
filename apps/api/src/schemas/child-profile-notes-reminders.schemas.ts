@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { normalizePlainText, validatePlainText } from "../services/text-safety.service.js";
 
+const dateInputSchema = z
+  .union([z.string(), z.number(), z.date()])
+  .pipe(z.coerce.date());
+
 const disallowedMedicalReminderCopyPattern =
   /(ilaç|ilac|ilacı|ilaci|ilaçı|ılaç|ılac|ılacı|ılaci|ılaçı|doz|dozu|dozaj|antibiyotik|antibiotic|paracetamol|parasetamol|calpol|aferin|ateş düşürücü|ates dusurucu|tedavi|treatment|medicine|medication|drug|dose|dosage|vitamin|vitamini|supplement|takviye|şurup|surup|damla|drop|drops|aşı|asi|vaccine|serum|antihistamin|antihistamine|kortizon|cortisone|ibuprofen|mg|ml)/iu;
 
@@ -112,9 +116,9 @@ export const createChildProfileReminderBodySchema = z
     reminderType: childProfileReminderTypeSchema.optional().default("general"),
     scheduleKind: childProfileReminderScheduleKindSchema.optional().default("one_time"),
     intervalMinutes: z.number().int().min(15).max(43_200).optional(),
-    remindAt: z.coerce.date().optional(),
-    dueAt: z.coerce.date().optional(),
-    eventAt: z.coerce.date().optional(),
+    remindAt: dateInputSchema.optional(),
+    dueAt: dateInputSchema.optional(),
+    eventAt: dateInputSchema.optional(),
     notifyBeforeMinutes: z.number().int().min(1).max(43_200).optional(),
     localTime: localTimeSchema().optional(),
     timezone: timezoneSchema().optional().default("Europe/Istanbul"),
@@ -132,9 +136,9 @@ export const updateChildProfileReminderBodySchema = z
     reminderType: childProfileReminderTypeSchema.optional(),
     scheduleKind: childProfileReminderScheduleKindSchema.optional(),
     intervalMinutes: z.number().int().min(15).max(43_200).nullable().optional(),
-    remindAt: z.coerce.date().optional(),
-    dueAt: z.coerce.date().nullable().optional(),
-    eventAt: z.coerce.date().nullable().optional(),
+    remindAt: dateInputSchema.optional(),
+    dueAt: dateInputSchema.nullable().optional(),
+    eventAt: dateInputSchema.nullable().optional(),
     notifyBeforeMinutes: z.number().int().min(1).max(43_200).nullable().optional(),
     localTime: localTimeSchema().nullable().optional(),
     timezone: timezoneSchema().optional(),

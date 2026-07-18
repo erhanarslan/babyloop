@@ -5,6 +5,7 @@ type RouteContract = {
   consumes?: string[];
   params?: JsonSchema;
   querystring?: JsonSchema;
+  replaceDefaultResponses?: boolean;
   response?: Record<string, JsonSchema>;
 };
 
@@ -111,6 +112,10 @@ export function applyOpenApiRouteContract(
 
   const existing = isRecord(input.schema) ? input.schema : {};
   const routeContract = ROUTE_CONTRACTS[key] ?? {};
+  const {
+    replaceDefaultResponses = false,
+    ...documentedRouteContract
+  } = routeContract;
   const documentedBody = BODY_CONTRACTS[key] ?? routeContract.body;
   const documentedQuery = QUERY_CONTRACTS[key] ?? routeContract.querystring;
   const inferredParams = createPathParamsSchema(path);
@@ -128,13 +133,13 @@ export function applyOpenApiRouteContract(
 
   const body = existing.body ?? documentedBody;
   const response = mergeResponses(
-    defaultResponses(path),
+    replaceDefaultResponses ? undefined : defaultResponses(path),
     routeContract.response,
     existing.response
   );
 
   return removeUndefinedValues({
-    ...routeContract,
+    ...documentedRouteContract,
     ...existing,
     ...(params ? { params } : {}),
     ...(querystring ? { querystring } : {}),
@@ -458,27 +463,7 @@ function registerCoreBodyContracts(): void {
   addBody(
     "POST",
     "/product-events",
-    objectSchema(
-      {
-        eventType: stringSchema({
-          example: "listing_detail_viewed",
-          maxLength: 120,
-          minLength: 1
-        }),
-        listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
-        categoryId: uuidSchema("İlgili kategori kimliği", SECOND_UUID_EXAMPLE),
-        source: stringSchema({
-          example: "listing_detail",
-          maxLength: 120,
-          minLength: 1
-        })
-      },
-      ["eventType"],
-      {
-        description:
-          "Event tipine göre listingId, categoryId, source ve diğer allowlist alanları gönderilir."
-      }
-    )
+    productEventBodyContract()
   );
 }
 
@@ -912,7 +897,7 @@ function registerChildAndNotificationBodyContracts(): void {
     )
   );
 
-  const reminderBody = objectSchema(
+  const createReminderBody = objectSchema(
     {
       title: stringSchema({
         example: "Cumartesi bez al",
@@ -935,10 +920,51 @@ function registerChildAndNotificationBodyContracts(): void {
       intervalMinutes: integerSchema({
         example: 120,
         maximum: 43200,
+        minimum: 15
+      }),
+      remindAt: dateTimeSchema("2030-01-02T07:00:00.000Z"),
+      dueAt: dateTimeSchema("2030-01-02T07:00:00.000Z"),
+      eventAt: dateTimeSchema("2030-01-10T10:00:00.000Z"),
+      notifyBeforeMinutes: integerSchema({
+        example: 1440,
+        maximum: 43200,
+        minimum: 1
+      }),
+      localTime: localTimeContract(false),
+      timezone: timezoneContract(),
+      channel: enumSchema(["in_app", "email_draft"], {
+        defaultValue: "in_app",
+        example: "in_app"
+      })
+    },
+    ["title"],
+    {
+      description:
+        "scheduleKind koşulları: interval için intervalMinutes; one_time için dueAt veya remindAt; relative_before_event için eventAt ve notifyBeforeMinutes; daily/weekly için localTime, dueAt veya remindAt gerekir. Sağlık, ilaç, tedavi, tanı, terapi ve diyet talimatları kabul edilmez."
+    }
+  );
+
+  const updateReminderBody = objectSchema(
+    {
+      title: stringSchema({
+        example: "Cumartesi bez al",
+        maxLength: 120,
+        minLength: 1
+      }),
+      description: stringSchema({
+        example: "Market alışverişine ekle.",
+        maxLength: 1000,
+        nullable: true
+      }),
+      reminderType: enumSchema(childReminderTypeValues),
+      scheduleKind: enumSchema(childReminderScheduleValues),
+      intervalMinutes: integerSchema({
+        example: 120,
+        maximum: 43200,
         minimum: 15,
         nullable: true
       }),
-      remindAt: dateTimeSchema("2030-01-02T07:00:00.000Z", true),
+      remindAt: dateTimeSchema("2030-01-02T07:00:00.000Z"),
       dueAt: dateTimeSchema("2030-01-02T07:00:00.000Z", true),
       eventAt: dateTimeSchema("2030-01-10T10:00:00.000Z", true),
       notifyBeforeMinutes: integerSchema({
@@ -947,47 +973,30 @@ function registerChildAndNotificationBodyContracts(): void {
         minimum: 1,
         nullable: true
       }),
-      localTime: stringSchema({
-        example: "10:00",
-        nullable: true,
-        pattern: "^[0-2][0-9]:[0-5][0-9]$"
-      }),
-      timezone: stringSchema({
-        defaultValue: "Europe/Istanbul",
-        example: "Europe/Istanbul",
-        maxLength: 80,
-        minLength: 3
-      }),
-      channel: enumSchema(["in_app", "email_draft"], {
-        defaultValue: "in_app",
-        example: "in_app"
+      localTime: localTimeContract(true),
+      timezone: timezoneContract(),
+      channel: enumSchema(["in_app", "email_draft"]),
+      status: enumSchema(["scheduled", "completed", "cancelled"], {
+        example: "completed"
       })
     },
-    ["title"]
+    [],
+    {
+      description:
+        "Gönderilen hatırlatıcı alanları güncellenir ve en az bir alan gerekir. remindAt null kabul etmez; temizlenebilen alanlar dueAt, eventAt, intervalMinutes, notifyBeforeMinutes ve localTime ile sınırlıdır. scheduleKind bağımlılıkları create sözleşmesiyle aynıdır."
+    }
   );
 
   addBody(
     "POST",
     "/child-profiles/:childProfileId/reminders",
-    reminderBody
+    createReminderBody
   );
 
   addBody(
     "PATCH",
     "/child-profiles/:childProfileId/reminders/:reminderId",
-    objectSchema(
-      {
-        ...readProperties(reminderBody),
-        status: enumSchema(["scheduled", "completed", "cancelled"], {
-          example: "completed"
-        })
-      },
-      [],
-      {
-        description:
-          "Gönderilen hatırlatıcı alanları güncellenir. En az bir alan gerekir."
-      }
-    )
+    updateReminderBody
   );
 
   addBody(
@@ -1329,8 +1338,7 @@ function registerAdminBodyContracts(): void {
         confirm: stringSchema({
           description:
             "mode=full olduğunda tam olarak REINDEX_RAG gönderilmelidir.",
-          example: "REINDEX_RAG",
-          nullable: true
+          example: "REINDEX_RAG"
         })
       },
       []
@@ -1434,6 +1442,37 @@ function registerQueryContracts(): void {
 
   addQuery("GET", "/search/suggestions", searchSuggestionsQuery);
   addQuery("GET", "/search-suggestions", searchSuggestionsQuery);
+
+  const adminAnalyticsQuery = objectSchema(
+    {
+      from: dateOnlySchema("2030-01-01"),
+      to: dateOnlySchema("2030-01-31"),
+      platform: enumSchema(["web", "mobile"], {
+        example: "web"
+      })
+    },
+    [],
+    {
+      description:
+        "from ve to YYYY-MM-DD biçimindedir. from, to değerinden sonra olamaz ve tarih aralığı 370 günü aşamaz."
+    }
+  );
+
+  for (const path of [
+    "/admin/analytics/overview",
+    "/admin/analytics/auth",
+    "/admin/analytics/users",
+    "/admin/analytics/engagement",
+    "/admin/analytics/marketplace",
+    "/admin/analytics/messaging",
+    "/admin/analytics/assistant",
+    "/admin/analytics/child",
+    "/admin/analytics/funnels",
+    "/admin/analytics/pages",
+    "/admin/analytics/categories"
+  ]) {
+    addQuery("GET", path, adminAnalyticsQuery);
+  }
 
   addQuery(
     "GET",
@@ -1618,6 +1657,40 @@ function registerQueryContracts(): void {
 }
 
 function registerSpecialContracts(): void {
+  registerExactResponseContracts();
+
+  ROUTE_CONTRACTS["GET /admin/rag/documents/:documentId/chunks"] = {
+    ...ROUTE_CONTRACTS["GET /admin/rag/documents/:documentId/chunks"],
+    params: objectSchema(
+      {
+        documentId: stringSchema({
+          description: "RAG doküman kimliği; UUID değildir.",
+          example: "feeding-and-food-safety-canon",
+          maxLength: 121,
+          minLength: 2,
+          pattern: "^[a-z0-9][a-z0-9_-]{1,120}$"
+        })
+      },
+      ["documentId"]
+    )
+  };
+
+  ROUTE_CONTRACTS["GET /admin/rag/eval/history/:runId"] = {
+    ...ROUTE_CONTRACTS["GET /admin/rag/eval/history/:runId"],
+    params: objectSchema(
+      {
+        runId: stringSchema({
+          description: "RAG eval çalıştırma kimliği; UUID değildir.",
+          example: "rag-eval-20300101",
+          maxLength: 81,
+          minLength: 8,
+          pattern: "^[a-z0-9][a-z0-9-]{7,80}$"
+        })
+      },
+      ["runId"]
+    )
+  };
+
   ROUTE_CONTRACTS["POST /listings/:id/images"] = {
     consumes: ["multipart/form-data"],
     body: objectSchema(
@@ -1676,6 +1749,267 @@ function registerSpecialContracts(): void {
       "404": errorEnvelopeSchema("Görsel bulunamadı.")
     }
   };
+}
+
+function productEventBodyContract(): JsonSchema {
+  const source = enumSchema(
+    [
+      "listing_detail",
+      "listing_card",
+      "listing_recommendations",
+      "recently_viewed",
+      "favorites",
+      "category_grid",
+      "search_results",
+      "account_saved_searches",
+      "seller_dashboard",
+      "browse_filters",
+      "conversation"
+    ],
+    { example: "listing_detail" }
+  );
+
+  const listingEvent = objectSchema(
+    {
+      eventType: enumSchema([
+        "listing_detail_viewed",
+        "listing_card_clicked",
+        "listing_recommendation_impression",
+        "contact_seller_intent",
+        "recently_viewed_listing_clicked"
+      ]),
+      listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
+      source
+    },
+    ["eventType", "listingId"]
+  );
+
+  const listingUpdated = objectSchema(
+    {
+      eventType: enumSchema(["listing_updated"]),
+      listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
+      source
+    },
+    ["eventType", "listingId"]
+  );
+
+  const categoryViewed = objectSchema(
+    {
+      eventType: enumSchema(["category_viewed"]),
+      categoryId: uuidSchema("İlgili kategori kimliği", SECOND_UUID_EXAMPLE),
+      source
+    },
+    ["eventType", "categoryId"]
+  );
+
+  const searchPerformed = objectSchema(
+    {
+      eventType: enumSchema(["search_performed"]),
+      queryLength: integerSchema({
+        example: 14,
+        maximum: 200,
+        minimum: 1
+      }),
+      resultCount: integerSchema({
+        example: 24,
+        maximum: 10000,
+        minimum: 0
+      }),
+      source
+    },
+    ["eventType", "queryLength"]
+  );
+
+  const savedSearch = objectSchema(
+    {
+      eventType: enumSchema([
+        "saved_search_created",
+        "saved_search_deleted"
+      ]),
+      savedSearchId: uuidSchema("Kayıtlı arama kimliği"),
+      categoryId: uuidSchema("İlgili kategori kimliği"),
+      city: stringSchema({
+        example: "İstanbul",
+        maxLength: 120,
+        minLength: 1
+      }),
+      sort: enumSchema([
+        "newest",
+        "oldest",
+        "price_asc",
+        "price_desc",
+        "relevance"
+      ]),
+      source
+    },
+    ["eventType", "savedSearchId"]
+  );
+
+  const favorite = objectSchema(
+    {
+      eventType: enumSchema(["favorite_added", "favorite_removed"]),
+      listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
+      categoryId: uuidSchema("İlgili kategori kimliği"),
+      source
+    },
+    ["eventType", "listingId"]
+  );
+
+  const listingStatus = objectSchema(
+    {
+      eventType: enumSchema(["listing_status_changed"]),
+      listingId: uuidSchema("İlgili ilan kimliği", UUID_EXAMPLE),
+      status: enumSchema(["active", "reserved", "sold", "archived"]),
+      source
+    },
+    ["eventType", "listingId", "status"]
+  );
+
+  const browseFilter = objectSchema(
+    {
+      eventType: enumSchema(["browse_filter_applied"]),
+      categoryId: uuidSchema("İlgili kategori kimliği"),
+      city: stringSchema({
+        example: "İstanbul",
+        maxLength: 120,
+        minLength: 1
+      }),
+      listingType: enumSchema(listingTypeValues),
+      condition: enumSchema(listingConditionValues),
+      sort: enumSchema([
+        "newest",
+        "oldest",
+        "price_asc",
+        "price_desc",
+        "relevance"
+      ]),
+      limit: integerSchema({
+        example: 20,
+        maximum: 80,
+        minimum: 1
+      }),
+      offset: integerSchema({
+        example: 0,
+        maximum: 10000,
+        minimum: 0
+      }),
+      source
+    },
+    ["eventType"]
+  );
+
+  const messageSent = objectSchema(
+    {
+      eventType: enumSchema(["message_sent"]),
+      conversationId: uuidSchema("Konuşma kimliği"),
+      listingId: uuidSchema("İlgili ilan kimliği"),
+      source
+    },
+    ["eventType", "conversationId"]
+  );
+
+  return {
+    description:
+      "Gizlilik güvenli legacy ürün olayı. eventType, kabul edilen payload varyantını belirler; varyant dışı alanlar reddedilir.",
+    discriminator: {
+      propertyName: "eventType"
+    },
+    oneOf: [
+      listingUpdated,
+      listingEvent,
+      categoryViewed,
+      searchPerformed,
+      savedSearch,
+      favorite,
+      listingStatus,
+      browseFilter,
+      messageSent
+    ]
+  };
+}
+
+function registerExactResponseContracts(): void {
+  setExactResponses("POST", "/product-events", ["200", "400", "503"]);
+  setExactResponses("POST", "/rag/search", ["200", "400", "429", "503"]);
+
+  setExactResponses(
+    "POST",
+    "/child-profiles",
+    ["201", "400", "401", "503"]
+  );
+
+  for (const path of [
+    "/child-profiles/:childProfileId/notes",
+    "/child-profiles/:childProfileId/reminders"
+  ]) {
+    setExactResponses("POST", path, ["201", "400", "401", "404", "503"]);
+  }
+
+  for (const path of [
+    "/admin/rag/playground/query",
+    "/admin/rag/reindex/run",
+    "/admin/rag/eval/run"
+  ]) {
+    setExactResponses("POST", path, ["200", "400", "401", "403", "503"]);
+  }
+
+  setExactResponses(
+    "GET",
+    "/admin/rag/documents/:documentId/chunks",
+    ["200", "400", "401", "403", "404", "503"]
+  );
+  setExactResponses(
+    "GET",
+    "/admin/rag/eval/history/:runId",
+    ["200", "400", "401", "403", "404", "503"]
+  );
+}
+
+function setExactResponses(
+  method: string,
+  path: string,
+  statuses: string[]
+): void {
+  const key = `${method.toUpperCase()} ${path}`;
+  const existing = ROUTE_CONTRACTS[key] ?? {};
+
+  ROUTE_CONTRACTS[key] = {
+    ...existing,
+    replaceDefaultResponses: true,
+    response: Object.fromEntries(
+      statuses.map((status) => [
+        status,
+        status.startsWith("2")
+          ? successEnvelopeSchema(successStatusDescription(status))
+          : errorEnvelopeSchema(errorStatusDescription(status))
+      ])
+    )
+  };
+}
+
+function successStatusDescription(status: string): string {
+  return status === "201"
+    ? "Kaynak başarıyla oluşturuldu."
+    : "İstek başarıyla tamamlandı.";
+}
+
+function errorStatusDescription(status: string): string {
+  switch (status) {
+    case "400":
+      return "İstek doğrulaması başarısız.";
+    case "401":
+      return "Kimlik doğrulaması gerekli.";
+    case "403":
+      return "Bu işlem için yetki yok.";
+    case "404":
+      return "Kaynak bulunamadı.";
+    case "409":
+      return "İstek mevcut durumla çakışıyor.";
+    case "429":
+      return "İstek sınırı aşıldı.";
+    default:
+      return "Bağımlı servis şu anda kullanılamıyor.";
+  }
 }
 
 function addBody(method: string, path: string, schema: JsonSchema): void {
@@ -1973,6 +2307,32 @@ function booleanSchema(example: boolean): JsonSchema {
   };
 }
 
+function localTimeContract(nullable: boolean): JsonSchema {
+  return stringSchema({
+    example: "10:00",
+    nullable,
+    pattern: "^[0-2][0-9]:[0-5][0-9]$"
+  });
+}
+
+function timezoneContract(): JsonSchema {
+  return stringSchema({
+    defaultValue: "Europe/Istanbul",
+    example: "Europe/Istanbul",
+    maxLength: 80,
+    minLength: 3,
+    pattern: "^[A-Za-z_/-]+$"
+  });
+}
+
+function dateOnlySchema(example: string): JsonSchema {
+  return stringSchema({
+    example,
+    format: "date",
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+  });
+}
+
 function dateTimeSchema(
   example: string,
   nullable = false
@@ -1982,12 +2342,6 @@ function dateTimeSchema(
     format: "date-time",
     nullable
   });
-}
-
-function readProperties(schema: JsonSchema): Record<string, JsonSchema> {
-  return isRecord(schema.properties)
-    ? schema.properties as Record<string, JsonSchema>
-    : {};
 }
 
 function normalizeMethod(method: unknown): string {

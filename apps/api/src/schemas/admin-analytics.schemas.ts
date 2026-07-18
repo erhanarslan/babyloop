@@ -4,8 +4,7 @@ export const adminAnalyticsQuerySchema = z
   .object({
     from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
     to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
-    platform: z.enum(["web", "mobile"]).optional(),
-    granularity: z.enum(["day", "week", "month"]).optional()
+    platform: z.enum(["web", "mobile"]).optional()
   })
   .strict()
   .superRefine((query, context) => {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { applyOpenApiRouteContract } from "../src/openapi/openapi-contracts.js";
+import { adminAnalyticsQuerySchema } from "../src/schemas/admin-analytics.schemas.js";
+import {
+  createChildProfileReminderBodySchema,
+  updateChildProfileReminderBodySchema
+} from "../src/schemas/child-profile-notes-reminders.schemas.js";
+import { productEventBodySchema } from "../src/schemas/product-events.schemas.js";
 
 type SchemaRecord = Record<string, unknown>;
 
@@ -155,5 +161,155 @@ describe("OpenAPI runtime contract alignment", () => {
     const properties = propertiesOf(body);
 
     expect(record(properties.q).maxLength).toBe(120);
+  });
+
+  it("matches child reminder create and update nullability", () => {
+    const createBody = record(
+      contract(
+        "POST",
+        "/api/v1/child-profiles/:childProfileId/reminders"
+      ).body
+    );
+    const createProperties = propertiesOf(createBody);
+
+    expect(record(createProperties.dueAt).nullable).toBe(false);
+    expect(record(createProperties.localTime).nullable).toBe(false);
+    expect(record(createProperties.timezone).pattern).toBe(
+      "^[A-Za-z_/-]+$"
+    );
+    expect(
+      createChildProfileReminderBodySchema.safeParse({
+        title: "Bez al",
+        dueAt: null
+      }).success
+    ).toBe(false);
+
+    const updateBody = record(
+      contract(
+        "PATCH",
+        "/api/v1/child-profiles/:childProfileId/reminders/:reminderId"
+      ).body
+    );
+    const updateProperties = propertiesOf(updateBody);
+
+    expect(record(updateProperties.dueAt).nullable).toBe(true);
+    expect(record(updateProperties.remindAt).nullable).toBe(false);
+    expect(
+      updateChildProfileReminderBodySchema.safeParse({
+        dueAt: null
+      }).success
+    ).toBe(true);
+    expect(
+      updateChildProfileReminderBodySchema.safeParse({
+        remindAt: null
+      }).success
+    ).toBe(false);
+  });
+
+  it("documents the product event discriminated union", () => {
+    const body = record(
+      contract("POST", "/api/v1/product-events").body
+    );
+    const variants = body.oneOf;
+
+    expect(Array.isArray(variants)).toBe(true);
+    expect(variants).toHaveLength(9);
+    expect(record(body.discriminator).propertyName).toBe("eventType");
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        queryLength: 12,
+        resultCount: 4,
+        source: "search_results"
+      }).success
+    ).toBe(true);
+    expect(
+      productEventBodySchema.safeParse({
+        eventType: "search_performed",
+        listingId: "11111111-1111-4111-8111-111111111111"
+      }).success
+    ).toBe(false);
+  });
+
+  it("matches admin analytics query inputs and removes the ignored granularity field", () => {
+    const query = record(
+      contract("GET", "/api/v1/admin/analytics/overview").querystring
+    );
+    const properties = propertiesOf(query);
+
+    expect(Object.keys(properties).sort()).toEqual(
+      ["from", "to", "platform"].sort()
+    );
+    expect(record(properties.from).format).toBe("date");
+    expect(
+      adminAnalyticsQuerySchema.safeParse({
+        from: "2030-01-01",
+        to: "2030-01-31",
+        platform: "web"
+      }).success
+    ).toBe(true);
+    expect(
+      adminAnalyticsQuerySchema.safeParse({
+        granularity: "day"
+      }).success
+    ).toBe(false);
+  });
+
+  it("uses non-UUID RAG path parameters and strict reindex confirmation", () => {
+    const chunksParams = record(
+      contract(
+        "GET",
+        "/api/v1/admin/rag/documents/:documentId/chunks"
+      ).params
+    );
+    const chunksProperties = propertiesOf(chunksParams);
+
+    expect(record(chunksProperties.documentId).format).toBeUndefined();
+    expect(record(chunksProperties.documentId).pattern).toBe(
+      "^[a-z0-9][a-z0-9_-]{1,120}$"
+    );
+
+    const historyParams = record(
+      contract(
+        "GET",
+        "/api/v1/admin/rag/eval/history/:runId"
+      ).params
+    );
+    const historyProperties = propertiesOf(historyParams);
+
+    expect(record(historyProperties.runId).format).toBeUndefined();
+    expect(record(historyProperties.runId).pattern).toBe(
+      "^[a-z0-9][a-z0-9-]{7,80}$"
+    );
+
+    const reindexBody = record(
+      contract("POST", "/api/v1/admin/rag/reindex/run").body
+    );
+    const reindexProperties = propertiesOf(reindexBody);
+
+    expect(record(reindexProperties.confirm).nullable).toBeUndefined();
+  });
+
+  it("publishes endpoint-specific response status sets", () => {
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/product-events").response)
+      ).sort()
+    ).toEqual(["200", "400", "503"]);
+    expect(
+      Object.keys(
+        record(contract("POST", "/api/v1/rag/search").response)
+      ).sort()
+    ).toEqual(["200", "400", "429", "503"]);
+    expect(
+      Object.keys(
+        record(
+          contract(
+            "POST",
+            "/api/v1/child-profiles/:childProfileId/reminders"
+          ).response
+        )
+      ).sort()
+    ).toEqual(["201", "400", "401", "404", "503"]);
   });
 });

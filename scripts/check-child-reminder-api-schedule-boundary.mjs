@@ -107,7 +107,8 @@ function checkApiContract() {
     "z.enum([\"in_app\", \"email_draft\"])",
     "childProfileReminderStatusSchema",
     "z.enum([\"scheduled\", \"completed\", \"cancelled\"])",
-    "remindAt: z.coerce.date()",
+    "const dateInputSchema = z",
+    "remindAt: dateInputSchema.optional()",
     "channel: childProfileReminderChannelSchema.optional().default(\"in_app\")"
   ]) {
     mustContain(schema, schemaFile, token);
