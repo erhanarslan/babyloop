@@ -5,6 +5,7 @@ import {
   adminListingImageActionBodySchema,
   adminListingImageParamsSchema,
   adminListingParamsSchema,
+  adminListingPublicationSettingsBodySchema,
   adminListingsQuerySchema
 } from "../schemas/admin-listings.schemas.js";
 import { requireBackofficePermission } from "../services/admin-context.service.js";
@@ -17,6 +18,11 @@ import {
   type AdminListingImageReview,
   type AdminListingSummary
 } from "../services/admin-listings.service.js";
+import {
+  getMarketplacePublicationSettings,
+  updateMarketplacePublicationSettings,
+  type MarketplacePublicationSettings
+} from "../services/listing-publication.service.js";
 
 type AdminListingsResponse = ApiResponse<{
   listings: AdminListingSummary[];
@@ -31,7 +37,13 @@ type AdminListingActionResponse = ApiResponse<{
   action: string;
   previousStatus: string;
   nextStatus: string;
+  previousPublicationState: string;
+  nextPublicationState: string;
   auditEventId: string;
+}>;
+
+type AdminListingPublicationSettingsResponse = ApiResponse<{
+  settings: MarketplacePublicationSettings;
 }>;
 
 type AdminListingImageActionResponse = ApiResponse<{
@@ -65,12 +77,63 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
             ...(parsedQuery.data.imageReviewStatus
               ? { imageReviewStatus: parsedQuery.data.imageReviewStatus }
               : {}),
+            ...(parsedQuery.data.publicationState
+              ? { publicationState: parsedQuery.data.publicationState }
+              : {}),
             ...(parsedQuery.data.q ? { q: parsedQuery.data.q } : {}),
             ...(parsedQuery.data.categoryId
               ? { categoryId: parsedQuery.data.categoryId }
               : {}),
             ...(parsedQuery.data.sort ? { sort: parsedQuery.data.sort } : {}),
             ...(parsedQuery.data.limit ? { limit: parsedQuery.data.limit } : {})
+          })
+        }
+      };
+    }
+  );
+
+  app.get<{ Reply: AdminListingPublicationSettingsResponse }>(
+    "/admin/listings/publication-settings",
+    async (request, reply) => {
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
+
+      if (!admin) {
+        return reply;
+      }
+
+      return {
+        ok: true,
+        data: {
+          settings: await getMarketplacePublicationSettings(app)
+        }
+      };
+    }
+  );
+
+  app.patch<{ Body: unknown; Reply: AdminListingPublicationSettingsResponse }>(
+    "/admin/listings/publication-settings",
+    async (request, reply) => {
+      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
+
+      if (!admin) {
+        return reply;
+      }
+
+      const parsedBody = adminListingPublicationSettingsBodySchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply
+          .status(400)
+          .send(invalidRequest("Publication settings body is invalid."));
+      }
+
+      return {
+        ok: true,
+        data: {
+          settings: await updateMarketplacePublicationSettings(app, {
+            actorProfileId: admin.profile.id,
+            adminReviewEnabled: parsedBody.data.adminReviewEnabled,
+            autoPublishDelaySeconds: parsedBody.data.autoPublishDelaySeconds
           })
         }
       };
@@ -155,6 +218,32 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
           .send(invalidRequest("Listing action is not valid for the current status."));
       }
 
+      if (result.status === "approved_image_required") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "LISTING_APPROVED_IMAGE_REQUIRED",
+            message: "Listing must have at least one approved image before publication."
+          }
+        });
+      }
+
+      if (result.status === "image_review_pending") {
+        return reply.status(400).send({
+          ok: false,
+          error: {
+            code: "LISTING_IMAGE_REVIEW_PENDING",
+            message: "Every listing image must complete review before publication."
+          }
+        });
+      }
+
+      if (result.status === "invalid_state") {
+        return reply
+          .status(400)
+          .send(invalidRequest("Listing publication action is not valid for the current state."));
+      }
+
       if (result.status !== "applied") {
         return reply.status(400).send(invalidRequest("Listing action is invalid."));
       }
@@ -166,6 +255,8 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
           action: result.action,
           previousStatus: result.previousStatus,
           nextStatus: result.nextStatus,
+          previousPublicationState: result.previousPublicationState,
+          nextPublicationState: result.nextPublicationState,
           auditEventId: result.auditEventId
         }
       };

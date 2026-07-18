@@ -13,6 +13,7 @@ import type {
   AdminListingImageActionValue,
   AdminListingActionValue,
   AdminListingImageReviewStatusValue,
+  AdminListingPublicationStateValue,
   AdminListingStatusValue
 } from "../schemas/admin-listings.schemas.js";
 import {
@@ -21,6 +22,12 @@ import {
   type ListingImageReviewStatus,
   type PriceResponse
 } from "./listing-response.mapper.js";
+import {
+  approveListingPublication,
+  reconcileListingPublication,
+  requestListingPublicationChanges,
+  type ListingPublicationState
+} from "./listing-publication.service.js";
 
 export type AdminListingSort =
   | "newest"
@@ -75,6 +82,8 @@ export type AdminListingRelatedCase = {
 export type AdminListingActionEligibility = {
   canArchive: boolean;
   canRestore: boolean;
+  canPublish: boolean;
+  canRequestChanges: boolean;
   supportedActions: AdminListingActionValue[];
 };
 
@@ -85,6 +94,10 @@ export type AdminListingSummary = {
   price: PriceResponse;
   currency: string;
   status: string;
+  publicationState: ListingPublicationState;
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   category: CategoryBasicResponse;
@@ -121,9 +134,19 @@ export type AdminListingActionResult =
       action: AdminListingActionValue;
       previousStatus: string;
       nextStatus: string;
+      previousPublicationState: ListingPublicationState;
+      nextPublicationState: ListingPublicationState;
       auditEventId: string;
     }
-  | { status: "invalid_transition" | "not_found" | "unsupported_action" };
+  | {
+      status:
+        | "approved_image_required"
+        | "image_review_pending"
+        | "invalid_state"
+        | "invalid_transition"
+        | "not_found"
+        | "unsupported_action";
+    };
 
 export type AdminListingImageActionResult =
   | {
@@ -138,6 +161,7 @@ export async function listAdminListings(
   filters: {
     status?: AdminListingStatusValue;
     imageReviewStatus?: AdminListingImageReviewStatusValue;
+    publicationState?: AdminListingPublicationStateValue;
     q?: string;
     categoryId?: string;
     sort?: AdminListingSort;
@@ -179,7 +203,10 @@ export async function getAdminListingDetail(
     ...summary,
     images,
     relatedModerationCases,
-    actionEligibility: getActionEligibility(summary.status),
+    actionEligibility: getActionEligibility(
+      summary.status,
+      summary.publicationState
+    ),
     auditTrail
   };
 }
@@ -196,7 +223,8 @@ export async function applyAdminListingAction(
   const [listing] = await app.db
     .select({
       id: listings.id,
-      status: listings.status
+      status: listings.status,
+      publicationState: listings.publicationState
     })
     .from(listings)
     .where(eq(listings.id, params.listingId))
@@ -206,22 +234,78 @@ export async function applyAdminListingAction(
     return { status: "not_found" };
   }
 
-  const nextStatus = getNextStatusForAction(params.action);
+  if (params.action === "publish") {
+    const result = await approveListingPublication(app, {
+      actorProfileId: params.actorProfileId,
+      listingId: params.listingId,
+      reason: params.reason
+    });
 
-  if (!nextStatus) {
-    return { status: "unsupported_action" };
+    if (result.status !== "applied") {
+      return { status: result.status };
+    }
+
+    return {
+      status: "applied",
+      listingId: params.listingId,
+      action: params.action,
+      previousStatus: listing.status,
+      nextStatus: result.listing.status,
+      previousPublicationState: listing.publicationState,
+      nextPublicationState: result.listing.publicationState,
+      auditEventId: result.auditEventId
+    };
+  }
+
+  if (params.action === "request_changes") {
+    const result = await requestListingPublicationChanges(app, {
+      actorProfileId: params.actorProfileId,
+      listingId: params.listingId,
+      reason: params.reason
+    });
+
+    if (result.status !== "applied") {
+      return { status: result.status };
+    }
+
+    return {
+      status: "applied",
+      listingId: params.listingId,
+      action: params.action,
+      previousStatus: listing.status,
+      nextStatus: result.listing.status,
+      previousPublicationState: listing.publicationState,
+      nextPublicationState: result.listing.publicationState,
+      auditEventId: result.auditEventId
+    };
   }
 
   if (!isValidAdminListingTransition(listing.status, params.action)) {
     return { status: "invalid_transition" };
   }
 
+  const now = new Date();
+  const nextStatus = params.action === "archive" ? "archived" : "draft";
+  const shouldResetPublication = params.action === "restore" || listing.status === "draft";
+  const nextPublicationState: ListingPublicationState = shouldResetPublication
+    ? "awaiting_images"
+    : listing.publicationState;
   const [auditEvent] = await app.db.transaction(async (tx) => {
     await tx
       .update(listings)
       .set({
         status: nextStatus,
-        updatedAt: new Date()
+        ...(shouldResetPublication
+          ? {
+              publicationState: "awaiting_images" as const,
+              publishAfter: null,
+              publishedAt: null,
+              publicationReviewReason: null
+            }
+          : {
+              publishAfter: null
+            }),
+        updatedAt: now
       })
       .where(eq(listings.id, params.listingId));
 
@@ -237,24 +321,36 @@ export async function applyAdminListingAction(
           action: params.action,
           previousStatus: listing.status,
           nextStatus,
+          previousPublicationState: listing.publicationState,
+          nextPublicationState,
           reasonLength: params.reason.length
         }
       })
-      .returning({
-        id: events.id
-      });
+      .returning({ id: events.id });
   });
 
   if (!auditEvent) {
     throw new Error("Admin listing action audit event creation failed.");
   }
 
+  const reconciled =
+    params.action === "restore"
+      ? await reconcileListingPublication(app, params.listingId, {
+          actorProfileId: params.actorProfileId,
+          trigger: "admin_restored_listing",
+          resubmit: true
+        })
+      : null;
+
   return {
     status: "applied",
     listingId: params.listingId,
     action: params.action,
     previousStatus: listing.status,
-    nextStatus,
+    nextStatus: reconciled?.status ?? nextStatus,
+    previousPublicationState: listing.publicationState,
+    nextPublicationState:
+      reconciled?.publicationState ?? nextPublicationState,
     auditEventId: auditEvent.id
   };
 }
@@ -271,7 +367,8 @@ export async function applyAdminListingImageAction(
 ): Promise<AdminListingImageActionResult> {
   const [listing] = await app.db
     .select({
-      id: listings.id
+      id: listings.id,
+      status: listings.status
     })
     .from(listings)
     .where(eq(listings.id, params.listingId))
@@ -288,7 +385,12 @@ export async function applyAdminListingImageAction(
       reviewStatus: listingImages.reviewStatus
     })
     .from(listingImages)
-    .where(and(eq(listingImages.id, params.imageId), eq(listingImages.listingId, params.listingId)))
+    .where(
+      and(
+        eq(listingImages.id, params.imageId),
+        eq(listingImages.listingId, params.listingId)
+      )
+    )
     .limit(1);
 
   if (!image) {
@@ -314,7 +416,12 @@ export async function applyAdminListingImageAction(
         reviewedAt: now,
         reviewedByProfileId: params.actorProfileId
       })
-      .where(and(eq(listingImages.id, params.imageId), eq(listingImages.listingId, params.listingId)))
+      .where(
+        and(
+          eq(listingImages.id, params.imageId),
+          eq(listingImages.listingId, params.listingId)
+        )
+      )
       .returning({
         id: listingImages.id,
         url: listingImages.url,
@@ -333,6 +440,11 @@ export async function applyAdminListingImageAction(
         createdAt: listingImages.createdAt
       });
 
+    await tx
+      .update(listings)
+      .set({ updatedAt: now })
+      .where(eq(listings.id, params.listingId));
+
     const [auditEvent] = await tx
       .insert(events)
       .values({
@@ -350,9 +462,7 @@ export async function applyAdminListingImageAction(
           result: "applied"
         }
       })
-      .returning({
-        id: events.id
-      });
+      .returning({ id: events.id });
 
     if (!updatedImage || !auditEvent) {
       throw new Error("Admin listing image review audit creation failed.");
@@ -362,6 +472,14 @@ export async function applyAdminListingImageAction(
       auditEventId: auditEvent.id,
       image: updatedImage
     };
+  });
+
+  await reconcileListingPublication(app, params.listingId, {
+    actorProfileId: params.actorProfileId,
+    trigger:
+      nextReviewStatus === "approved"
+        ? "admin_approved_listing_image"
+        : "admin_rejected_listing_image"
   });
 
   return {
@@ -378,6 +496,10 @@ type AdminListingRow = {
   priceAmount: string | null;
   currency: string;
   status: string;
+  publicationState: ListingPublicationState;
+  publishAfter: Date | null;
+  publishedAt: Date | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   createdAt: Date;
@@ -396,6 +518,7 @@ async function selectAdminListingRows(
   filters: {
     status?: AdminListingStatusValue;
     imageReviewStatus?: AdminListingImageReviewStatusValue;
+    publicationState?: AdminListingPublicationStateValue;
     q?: string;
     categoryId?: string;
     sort?: AdminListingSort;
@@ -406,6 +529,9 @@ async function selectAdminListingRows(
   const searchPattern = `%${normalizedQuery}%`;
   const whereConditions = [
     filters.status ? eq(listings.status, filters.status) : undefined,
+    filters.publicationState
+      ? eq(listings.publicationState, filters.publicationState)
+      : undefined,
     filters.imageReviewStatus
       ? inArray(
           listings.id,
@@ -422,6 +548,7 @@ async function selectAdminListingRows(
           ilike(listings.title, searchPattern),
           ilike(listings.description, searchPattern),
           sql`${listings.status}::text ilike ${searchPattern}`,
+          sql`${listings.publicationState}::text ilike ${searchPattern}`,
           sql`${listings.sellerProfileId}::text ilike ${searchPattern}`,
           sql`${productCategories.id}::text ilike ${searchPattern}`,
           ilike(productCategories.name, searchPattern)
@@ -437,6 +564,10 @@ async function selectAdminListingRows(
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       listingType: listings.listingType,
       condition: listings.condition,
       createdAt: listings.createdAt,
@@ -475,6 +606,10 @@ async function hydrateAdminListingSummaries(
     price: buildPrice(row.priceAmount, row.currency),
     currency: row.currency,
     status: row.status,
+    publicationState: row.publicationState,
+    publishAfter: row.publishAfter?.toISOString() ?? null,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    publicationReviewReason: row.publicationReviewReason,
     listingType: row.listingType,
     condition: row.condition,
     category: {
@@ -861,21 +996,44 @@ function getAdminListingOrderBy(sort: AdminListingSort | undefined) {
   }
 }
 
-function getActionEligibility(status: string): AdminListingActionEligibility {
-  return {
-    canArchive: status !== "archived",
-    canRestore: status === "archived",
-    supportedActions: status === "archived" ? ["restore"] : ["archive"]
-  };
-}
+function getActionEligibility(
+  status: string,
+  publicationState: ListingPublicationState
+): AdminListingActionEligibility {
+  const canArchive = status !== "archived";
+  const canRestore = status === "archived";
+  const canPublish =
+    status === "draft" &&
+    (publicationState === "admin_review" || publicationState === "scheduled");
+  const canRequestChanges =
+    status === "draft" &&
+    publicationState !== "changes_requested" &&
+    publicationState !== "awaiting_images";
+  const supportedActions: AdminListingActionValue[] = [];
 
-function getNextStatusForAction(action: AdminListingActionValue): "active" | "archived" | null {
-  switch (action) {
-    case "archive":
-      return "archived";
-    case "restore":
-      return "active";
+  if (canPublish) {
+    supportedActions.push("publish");
   }
+
+  if (canRequestChanges) {
+    supportedActions.push("request_changes");
+  }
+
+  if (canArchive) {
+    supportedActions.push("archive");
+  }
+
+  if (canRestore) {
+    supportedActions.push("restore");
+  }
+
+  return {
+    canArchive,
+    canRestore,
+    canPublish,
+    canRequestChanges,
+    supportedActions
+  };
 }
 
 function isValidAdminListingTransition(
@@ -887,6 +1045,9 @@ function isValidAdminListingTransition(
       return currentStatus !== "archived";
     case "restore":
       return currentStatus === "archived";
+    case "publish":
+    case "request_changes":
+      return false;
   }
 }
 
@@ -926,7 +1087,10 @@ function sanitizeListingAuditMetadata(
     "moderationActionId",
     "nextStatus",
     "nextReviewStatus",
+    "nextPublicationState",
     "previousStatus",
+    "previousPublicationState",
+    "publishAfter",
     "previousReviewStatus",
     "reasonLength",
     "result",

@@ -49,6 +49,10 @@ describe("mobile listings API seller lifecycle", () => {
             id: "listing-1",
             title: "Temiz bebek arabası",
             status: "reserved",
+            publicationState: "published",
+            publishAfter: null,
+            publishedAt: "2026-07-14T10:00:30.000Z",
+            publicationReviewReason: null,
             listingType: "sale",
             condition: "good",
             priceAmount: "1250.00",
@@ -72,6 +76,8 @@ describe("mobile listings API seller lifecycle", () => {
         title: "Temiz bebek arabası",
         status: "reserved",
         statusText: "Rezerve",
+        publicationState: "published",
+        publishedAt: "2026-07-14T10:00:30.000Z",
         listingTypeText: "Satılık",
         conditionText: "İyi",
         priceText: "1.250 TL",
@@ -92,6 +98,10 @@ describe("mobile listings API seller lifecycle", () => {
           id: "listing-1",
           title: "Temiz bebek arabası",
           status: "sold",
+          publicationState: "published",
+          publishAfter: null,
+          publishedAt: "2026-07-14T10:00:30.000Z",
+          publicationReviewReason: null,
           listingType: "sale",
           condition: "good",
           priceAmount: "1250.00",
@@ -104,7 +114,8 @@ describe("mobile listings API seller lifecycle", () => {
       expect.objectContaining({
         id: "listing-1",
         status: "sold",
-        statusText: "Satıldı"
+        statusText: "Satıldı",
+        publicationState: "published"
       })
     );
 

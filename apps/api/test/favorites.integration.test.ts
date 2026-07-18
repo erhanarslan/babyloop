@@ -85,7 +85,10 @@ describe("favorites API", () => {
       }
     });
 
-    expect(okResponse.statusCode).toBe(201);
+    expect(
+      okResponse.statusCode,
+      okResponse.body
+    ).toBe(201);
     expect(oldContractResponse.statusCode).toBe(400);
   });
 

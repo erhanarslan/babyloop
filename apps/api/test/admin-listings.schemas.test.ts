@@ -4,6 +4,7 @@ import {
   adminListingImageActionBodySchema,
   adminListingImageParamsSchema,
   adminListingParamsSchema,
+  adminListingPublicationSettingsBodySchema,
   adminListingsQuerySchema
 } from "../src/schemas/admin-listings.schemas.js";
 
@@ -12,6 +13,7 @@ describe("admin listings schemas", () => {
     const parsed = adminListingsQuerySchema.safeParse({
       status: "archived",
       imageReviewStatus: "needs_review",
+      publicationState: "admin_review",
       q: "stroller",
       categoryId: "30000000-0000-4000-8000-000000000001",
       sort: "updated_desc",
@@ -29,6 +31,8 @@ describe("admin listings schemas", () => {
     expect(adminListingsQuerySchema.safeParse({ status: "under_review" }).success)
       .toBe(false);
     expect(adminListingsQuerySchema.safeParse({ imageReviewStatus: "unknown" }).success)
+      .toBe(false);
+    expect(adminListingsQuerySchema.safeParse({ publicationState: "unknown" }).success)
       .toBe(false);
     expect(adminListingsQuerySchema.safeParse({ sort: "seller_email" }).success)
       .toBe(false);
@@ -57,6 +61,20 @@ describe("admin listings schemas", () => {
 
     expect(
       adminListingActionBodySchema.safeParse({
+        action: "publish",
+        reason: "İlan bilgileri ve görselleri yayın için uygun bulundu."
+      }).success
+    ).toBe(true);
+
+    expect(
+      adminListingActionBodySchema.safeParse({
+        action: "request_changes",
+        reason: "İlan açıklamasının kullanıcı tarafından güncellenmesi gerekiyor."
+      }).success
+    ).toBe(true);
+
+    expect(
+      adminListingActionBodySchema.safeParse({
         action: "under_review",
         reason: "Move listing under review."
       }).success
@@ -66,6 +84,27 @@ describe("admin listings schemas", () => {
       adminListingActionBodySchema.safeParse({
         action: "restore",
         reason: "short"
+      }).success
+    ).toBe(false);
+  });
+
+  it("validates marketplace publication settings", () => {
+    expect(
+      adminListingPublicationSettingsBodySchema.safeParse({
+        adminReviewEnabled: false,
+        autoPublishDelaySeconds: 30
+      }).success
+    ).toBe(true);
+    expect(
+      adminListingPublicationSettingsBodySchema.safeParse({
+        adminReviewEnabled: false,
+        autoPublishDelaySeconds: 4
+      }).success
+    ).toBe(false);
+    expect(
+      adminListingPublicationSettingsBodySchema.safeParse({
+        adminReviewEnabled: "false",
+        autoPublishDelaySeconds: 30
       }).success
     ).toBe(false);
   });

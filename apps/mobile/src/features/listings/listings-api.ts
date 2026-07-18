@@ -6,7 +6,14 @@ import {
   formatMobileListingType
 } from "./listing-labels";
 
-export type MobileListingStatus = "active" | "reserved" | "sold" | "archived";
+export type MobileListingStatus = "draft" | "active" | "reserved" | "sold" | "archived";
+export type MobileListingPublicationState =
+  | "awaiting_images"
+  | "ai_review"
+  | "admin_review"
+  | "scheduled"
+  | "published"
+  | "changes_requested";
 export type MobileListingTypeFilter = "sale" | "donation" | "swap";
 export type MobileListingConditionFilter = "new" | "like_new" | "good" | "fair" | "needs_repair";
 export type MobileListingCreatedSinceFilter = "today" | "last_7_days";
@@ -23,6 +30,10 @@ export type MobileListingSummary = {
   listingTypeText: string;
   status: string | null;
   statusText: string;
+  publicationState: MobileListingPublicationState;
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
 };
 
 export type MobileListingDetail = MobileListingSummary & {
@@ -200,7 +211,12 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
     listingType,
     listingTypeText: formatMobileListingType(listingType),
     status,
-    statusText: formatMobileListingStatus(status)
+    statusText: formatMobileListingStatus(status),
+    publicationState: normalizePublicationState(pickString(record, ["publicationState", "publication_state"])),
+    publishAfter: pickString(record, ["publishAfter", "publish_after"]) ?? null,
+    publishedAt: pickString(record, ["publishedAt", "published_at"]) ?? null,
+    publicationReviewReason:
+      pickString(record, ["publicationReviewReason", "publication_review_reason"]) ?? null
   };
 }
 
@@ -233,6 +249,21 @@ function normalizeMyListingSummary(value: unknown): MobileMyListingSummary {
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
     favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"])
   };
+}
+
+function normalizePublicationState(value: string | null): MobileListingPublicationState {
+  if (
+    value === "awaiting_images" ||
+    value === "ai_review" ||
+    value === "admin_review" ||
+    value === "scheduled" ||
+    value === "published" ||
+    value === "changes_requested"
+  ) {
+    return value;
+  }
+
+  return "awaiting_images";
 }
 
 function formatPrice(record: Record<string, unknown>): string {

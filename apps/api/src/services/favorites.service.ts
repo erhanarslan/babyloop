@@ -5,7 +5,7 @@ import {
   listings,
   productCategories
 } from "@babyloop/database/schema";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { FavoriteBody } from "../schemas/favorites.schemas.js";
 import {
@@ -63,7 +63,11 @@ export async function addFavorite(
     return { status: "invalid_listing" };
   }
 
-  if (!isFavoriteVisibleListingStatus(listing.status)) {
+  if (
+    !isFavoriteVisibleListingStatus(listing.status) ||
+    listing.publicationState !== "published" ||
+    !listing.hasApprovedImage
+  ) {
     return { status: "inactive_listing" };
   }
 
@@ -182,7 +186,14 @@ export async function listFavoritesForProfile(
     .where(
       and(
         eq(favorites.profileId, profileId),
-        inArray(listings.status, [...FAVORITE_VISIBLE_LISTING_STATUSES])
+        inArray(listings.status, [...FAVORITE_VISIBLE_LISTING_STATUSES]),
+        eq(listings.publicationState, "published"),
+        sql`exists (
+          select 1
+          from ${listingImages}
+          where ${listingImages.listingId} = ${listings.id}
+            and ${listingImages.reviewStatus} = 'approved'
+        )`
       )
     )
     .orderBy(desc(favorites.createdAt));
@@ -258,19 +269,43 @@ async function getFavoriteImagesByListingId(
   return imagesByListingId;
 }
 
-async function findFavoriteableListing(app: FastifyInstance, listingId: string) {
+async function findFavoriteableListing(
+  app: FastifyInstance,
+  listingId: string
+) {
   const [listing] = await app.db
     .select({
       id: listings.id,
       sellerProfileId: listings.sellerProfileId,
       title: listings.title,
-      status: listings.status
+      status: listings.status,
+      publicationState: listings.publicationState
     })
     .from(listings)
     .where(eq(listings.id, listingId))
     .limit(1);
 
-  return listing ?? null;
+  if (!listing) {
+    return null;
+  }
+
+  const [approvedImage] = await app.db
+    .select({
+      id: listingImages.id
+    })
+    .from(listingImages)
+    .where(
+      and(
+        eq(listingImages.listingId, listingId),
+        eq(listingImages.reviewStatus, "approved")
+      )
+    )
+    .limit(1);
+
+  return {
+    ...listing,
+    hasApprovedImage: Boolean(approvedImage)
+  };
 }
 
 function isFavoriteVisibleListingStatus(status: string): boolean {

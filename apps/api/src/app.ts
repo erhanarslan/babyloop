@@ -19,6 +19,7 @@ import {
   shouldEnforcePublicCsrf
 } from "./utils/public-csrf.js";
 import { registerDatabasePlugin } from "./plugins/database.plugin.js";
+import { registerListingPublicationWorker } from "./services/listing-publication.service.js";
 import { registerAiListingSuggestionRoutes } from "./routes/ai-listing-suggestions.routes.js";
 import { registerAiPriceSuggestionRoutes } from "./routes/ai-price-suggestions.routes.js";
 import { registerAnalyticsRoutes } from "./routes/analytics.routes.js";
@@ -297,6 +298,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     registerDatabasePlugin(app, {
       databaseUrl: config.databaseUrl
     });
+
+    registerListingPublicationWorker(app);
 
     if (config.authSecret) {
       registerAuthPlugin(app, {

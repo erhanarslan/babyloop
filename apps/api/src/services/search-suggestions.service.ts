@@ -1,9 +1,10 @@
 import {
+  listingImages,
   listings,
   productCategories,
   profiles
 } from "@babyloop/database/schema";
-import { and, asc, eq, ilike, inArray, ne, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { SearchSuggestionsQuery } from "../schemas/search-suggestions.schemas.js";
 
@@ -60,8 +61,15 @@ export async function listSearchSuggestions(
       .where(
         and(
           inArray(listings.status, PUBLIC_LISTING_STATUSES),
+          eq(listings.publicationState, "published"),
           ne(profiles.safetyStatus, "suspended"),
-          ilike(listings.title, searchPattern)
+          ilike(listings.title, searchPattern),
+          sql`exists (
+            select 1
+            from ${listingImages}
+            where ${listingImages.listingId} = ${listings.id}
+              and ${listingImages.reviewStatus} = 'approved'
+          )`
         )
       )
       .orderBy(asc(listings.title))

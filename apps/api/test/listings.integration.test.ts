@@ -37,6 +37,9 @@ import { countEvents, createCategory, createConversation, createListing, getList
 import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, toCookieHeader } from "./helpers/cookies.js";
 import { createRecordingEmailDeliveryService, type RecordingEmailDeliveryService } from "./helpers/email.js";
 import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
+import {
+  processDueListingPublications
+} from "../src/services/listing-publication.service.js";
 import { connectRealtimeSocket, delay, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
 
 let app!: TestApp;
@@ -229,7 +232,94 @@ describe("listings API", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json().data.listing).toMatchObject({
+      status: "draft",
       title: "Temiz bebek arabası"
+    });
+  });
+
+  it("keeps a new listing private during the 30-second publication window", async () => {
+    const seller = await createUser(app);
+    const category = await createCategory(app.db);
+    const created = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "POST",
+      url: "/api/v1/listings",
+      payload: {
+        categoryId: category.id,
+        condition: "good",
+        currency: "TRY",
+        listingType: "sale",
+        priceAmount: "1000.00",
+        title: "Draft publication invariant"
+      }
+    });
+    const listingId = created.json().data.listing.id as string;
+    const publicBeforeImage = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listingId}`
+    });
+    const uploadRequest = multipartRequest({
+      buffer: tinyPng(),
+      filename: "publication.png",
+      mimetype: "image/png"
+    });
+    const upload = await app.inject({
+      ...uploadRequest,
+      headers: {
+        ...authHeader(seller.accessToken),
+        ...uploadRequest.headers
+      },
+      method: "POST",
+      url: `/api/v1/listings/${listingId}/images`
+    });
+    const [listingRow] = await app.db
+      .select({
+        status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
+      })
+      .from(listings)
+      .where(eq(listings.id, listingId))
+      .limit(1);
+    const publicDuringReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listingId}`
+    });
+
+    if (!listingRow?.publishAfter) {
+      throw new Error("Scheduled publication timestamp was not created.");
+    }
+
+    const beforeDueCount = await processDueListingPublications(app, {
+      now: new Date(listingRow.publishAfter.getTime() - 1)
+    });
+    const publishedCount = await processDueListingPublications(app, {
+      now: listingRow.publishAfter
+    });
+    const publicAfterDue = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listingId}`
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json().data.listing).toMatchObject({
+      status: "draft",
+      publicationState: "awaiting_images"
+    });
+    expect(publicBeforeImage.statusCode).toBe(404);
+    expect(upload.statusCode).toBe(201);
+    expect(upload.json().data.image.reviewStatus).toBe("approved");
+    expect(listingRow).toMatchObject({
+      status: "draft",
+      publicationState: "scheduled"
+    });
+    expect(publicDuringReview.statusCode).toBe(404);
+    expect(beforeDueCount).toBe(0);
+    expect(publishedCount).toBe(1);
+    expect(publicAfterDue.statusCode).toBe(200);
+    expect(publicAfterDue.json().data.listing).toMatchObject({
+      status: "active",
+      publicationState: "published"
     });
   });
 
@@ -336,7 +426,9 @@ describe("listings API", () => {
 
   it("lets the seller upload, serve, and delete a safe listing image", async () => {
     const seller = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+    const listing = await createListing(app, seller.accessToken, {
+      withApprovedImage: false
+    });
     const uploadRequest = multipartRequest({
       buffer: tinyPng(),
       filename: "stroller.png",
@@ -364,6 +456,25 @@ describe("listings API", () => {
       .select({ id: listingImages.id, url: listingImages.url })
       .from(listingImages)
       .where(eq(listingImages.id, image.id));
+    const [publicationRow] = await app.db
+      .select({
+        status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+    const detailDuringReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+
+    if (!publicationRow?.publishAfter) {
+      throw new Error("Uploaded listing image did not create a publication schedule.");
+    }
+
+    await processDueListingPublications(app, { now: publicationRow.publishAfter });
     const detail = await app.inject({
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
@@ -374,6 +485,12 @@ describe("listings API", () => {
     });
 
     expect(imageRow).toMatchObject({ id: image.id, url: image.url });
+    expect(publicationRow).toMatchObject({
+      status: "draft",
+      publicationState: "scheduled"
+    });
+    expect(detailDuringReview.statusCode).toBe(404);
+    expect(detail.statusCode).toBe(200);
     expect(detail.json().data.listing.images).toEqual([
       expect.objectContaining({
         id: image.id,
@@ -397,13 +514,23 @@ describe("listings API", () => {
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
     });
+    const ownerDetailAfterDelete = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: `/api/v1/me/listings/${listing.id}`
+    });
     const servedAfterDelete = await app.inject({
       method: "GET",
       url: image.url
     });
 
     expect(deleted.statusCode).toBe(200);
-    expect(detailAfterDelete.json().data.listing.images).toEqual([]);
+    expect(detailAfterDelete.statusCode).toBe(404);
+    expect(ownerDetailAfterDelete.statusCode).toBe(200);
+    expect(ownerDetailAfterDelete.json().data.listing).toMatchObject({
+      images: [],
+      status: "draft"
+    });
     expect(servedAfterDelete.statusCode).toBe(404);
   });
 
@@ -535,7 +662,9 @@ describe("listings API", () => {
   it("enforces listing image count and supports reordering", async () => {
     const seller = await createUser(app);
     const otherUser = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+    const listing = await createListing(app, seller.accessToken, {
+      withApprovedImage: false
+    });
     const uploadedImages: Array<{ id: string }> = [];
 
     for (let index = 0; index < 5; index += 1) {
@@ -858,7 +987,8 @@ describe("listings API", () => {
     const seller = await createUser(app);
     const otherUser = await createUser(app);
     const archivedListing = await createListing(app, seller.accessToken, {
-      title: "Archived stroller"
+      title: "Archived stroller",
+      withApprovedImage: false
     });
     const soldListing = await createListing(app, seller.accessToken, {
       title: "Sold stroller"
@@ -947,7 +1077,7 @@ describe("listings API", () => {
     expect(invalidIdDetail.statusCode).toBe(400);
   });
 
-  it("allows the owner to update editable listing fields", async () => {
+  it("returns material edits to the controlled publication queue", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
     const response = await app.inject({
@@ -963,11 +1093,28 @@ describe("listings API", () => {
     const [row] = await app.db
       .select({
         title: listings.title,
-        priceAmount: listings.priceAmount
+        priceAmount: listings.priceAmount,
+        status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
       })
       .from(listings)
       .where(eq(listings.id, listing.id))
       .limit(1);
+    const publicDuringReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+
+    if (!row?.publishAfter) {
+      throw new Error("Edited listing was not scheduled for publication.");
+    }
+
+    await processDueListingPublications(app, { now: row.publishAfter });
+    const publicAfterReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.listing).toMatchObject({
@@ -976,12 +1123,19 @@ describe("listings API", () => {
       price: {
         amount: "1250.00",
         currency: "TRY"
-      }
+      },
+      status: "draft",
+      publicationState: "scheduled"
     });
     expect(row).toMatchObject({
       title: "Updated stroller listing",
-      priceAmount: "1250.00"
+      priceAmount: "1250.00",
+      status: "draft",
+      publicationState: "scheduled"
     });
+    expect(publicDuringReview.statusCode).toBe(404);
+    expect(publicAfterReview.statusCode).toBe(200);
+    expect(publicAfterReview.json().data.listing.title).toBe("Updated stroller listing");
   });
 
   it("blocks non-owner and logged-out listing updates", async () => {
@@ -1071,10 +1225,9 @@ describe("listings API", () => {
     expect(detail.statusCode).toBe(404);
   });
 
-  it("allows the owner to archive and reactivate a listing", async () => {
+  it("returns an archived listing to the controlled publication queue", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
-    await addApprovedListingImage(listing.id);
     const archived = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "PATCH",
@@ -1095,6 +1248,25 @@ describe("listings API", () => {
         status: "active"
       }
     });
+    const [queuedRow] = await app.db
+      .select({
+        status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+
+    if (!queuedRow?.publishAfter) {
+      throw new Error("Reactivated listing was not scheduled.");
+    }
+
+    const publicDuringReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    await processDueListingPublications(app, { now: queuedRow.publishAfter });
     const visible = await app.inject({
       method: "GET",
       url: "/api/v1/listings"
@@ -1106,13 +1278,19 @@ describe("listings API", () => {
     expect(archived.json().data.listing.status).toBe("archived");
     expect(hiddenIds).not.toContain(listing.id);
     expect(reactivated.statusCode).toBe(200);
-    expect(reactivated.json().data.listing.status).toBe("active");
+    expect(reactivated.json().data.listing).toMatchObject({
+      status: "draft",
+      publicationState: "scheduled"
+    });
+    expect(publicDuringReview.statusCode).toBe(404);
     expect(visibleIds).toContain(listing.id);
   });
 
-  it("rejects reactivating a listing without an approved image", async () => {
+  it("keeps a reactivated listing without an approved image out of publication", async () => {
     const seller = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+    const listing = await createListing(app, seller.accessToken, {
+      withApprovedImage: false
+    });
     const archived = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "PATCH",
@@ -1131,11 +1309,12 @@ describe("listings API", () => {
     });
 
     expect(archived.statusCode).toBe(200);
-    expect(reactivated.statusCode).toBe(400);
-    expect(reactivated.json().error).toMatchObject({
-      code: "LISTING_APPROVED_IMAGE_REQUIRED"
+    expect(reactivated.statusCode).toBe(200);
+    expect(reactivated.json().data.listing).toMatchObject({
+      status: "draft",
+      publicationState: "awaiting_images"
     });
-    expect(await readListingStatus(listing.id)).toBe("archived");
+    expect(await readListingStatus(listing.id)).toBe("draft");
   });
 
   it("allows reserved listings to remain public and messageable", async () => {
@@ -1232,8 +1411,7 @@ describe("listings API", () => {
       { from: "reserved", to: "active" },
       { from: "reserved", to: "sold" },
       { from: "reserved", to: "archived" },
-      { from: "sold", to: "archived" },
-      { from: "archived", to: "active" }
+      { from: "sold", to: "archived" }
     ];
 
     for (const transition of allowedTransitions) {
@@ -1519,7 +1697,8 @@ describe("listings API", () => {
       displayName: "Private Reporter"
     });
     const listing = await createListing(app, seller.accessToken, {
-      title: "Reported review listing"
+      title: "Reported review listing",
+      withApprovedImage: false
     });
 
     await app.db.insert(listingImages).values({
@@ -1634,7 +1813,9 @@ describe("listings API", () => {
     });
     const [listingRow] = await app.db
       .select({
-        status: listings.status
+        status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
       })
       .from(listings)
       .where(eq(listings.id, listing.id))
@@ -1659,10 +1840,15 @@ describe("listings API", () => {
       listingId: listing.id,
       action: "restore",
       previousStatus: "archived",
-      nextStatus: "active"
+      nextStatus: "draft",
+      nextPublicationState: "scheduled"
     });
     expect(restoreAgain.statusCode).toBe(400);
-    expect(listingRow?.status).toBe("active");
+    expect(listingRow).toMatchObject({
+      status: "draft",
+      publicationState: "scheduled"
+    });
+    expect(listingRow?.publishAfter).toBeInstanceOf(Date);
     expect(eventCount).toBe(2);
     expect(archived.body).not.toContain(seller.user.email);
     expect(archived.body).not.toContain("messageBody");
@@ -1718,7 +1904,8 @@ describe("listings API", () => {
       email: "private-seller-image-review@babyloop.test"
     });
     const listing = await createListing(app, seller.accessToken, {
-      title: "Image review listing"
+      title: "Image review listing",
+      withApprovedImage: false
     });
     const [image] = await app.db
       .insert(listingImages)
@@ -1789,6 +1976,24 @@ describe("listings API", () => {
         reason: "A repeated approval should be rejected."
       }
     });
+    const publicDetailDuringPublicationReview = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const [scheduledListing] = await app.db
+      .select({
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter
+      })
+      .from(listings)
+      .where(eq(listings.id, listing.id))
+      .limit(1);
+
+    if (!scheduledListing?.publishAfter) {
+      throw new Error("Approved image did not schedule listing publication.");
+    }
+
+    await processDueListingPublications(app, { now: scheduledListing.publishAfter });
     const publicDetailAfterApprove = await app.inject({
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
@@ -1807,8 +2012,7 @@ describe("listings API", () => {
     });
     expect(rejectAgain.statusCode).toBe(400);
     expect(eventCountAfterNoopReject).toBe(1);
-    expect(publicDetailAfterReject.statusCode).toBe(200);
-    expect(publicDetailAfterReject.json().data.listing.images).toEqual([]);
+    expect(publicDetailAfterReject.statusCode).toBe(404);
     expect(publicListAfterReject.statusCode).toBe(200);
     expect(publicListAfterReject.json().data.listings.map((item: { id: string }) => item.id)).not.toContain(listing.id);
     expect(adminDetailAfterReject.statusCode).toBe(200);
@@ -1820,6 +2024,12 @@ describe("listings API", () => {
     ]);
     expect(approved.statusCode).toBe(200);
     expect(approved.json().data.image.reviewStatus).toBe("approved");
+    expect(publicDetailDuringPublicationReview.statusCode).toBe(404);
+    expect(scheduledListing?.publicationState).toBe("scheduled");
+    expect(publicDetailAfterApprove.statusCode).toBe(200);
+    expect(publicDetailAfterApprove.json().data.listing).toMatchObject({
+      status: "active"
+    });
     expect(publicDetailAfterApprove.json().data.listing.images).toEqual([
       expect.objectContaining({
         id: image.id,
@@ -2092,12 +2302,24 @@ function multipartRequest(input: {
 }
 
 
-async function setListingStatusDirect(listingId: string, status: "active" | "reserved" | "sold" | "archived"): Promise<void> {
+async function setListingStatusDirect(
+  listingId: string,
+  status: "active" | "reserved" | "sold" | "archived"
+): Promise<void> {
+  const now = new Date();
+
   await app.db
     .update(listings)
     .set({
       status,
-      updatedAt: new Date()
+      ...(status === "active" || status === "reserved"
+        ? {
+            publicationState: "published" as const,
+            publishAfter: null,
+            publishedAt: now
+          }
+        : {}),
+      updatedAt: now
     })
     .where(eq(listings.id, listingId));
 }

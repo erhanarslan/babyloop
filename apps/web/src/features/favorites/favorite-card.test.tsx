@@ -57,6 +57,10 @@ function createFavorite(overrides: Partial<FavoriteListing> = {}): FavoriteListi
       currency: "TRY"
     },
     status: "active",
+    publicationState: "published",
+    publishAfter: null,
+    publishedAt: "2026-06-25T11:55:00.000Z",
+    publicationReviewReason: null,
     listingType: "sale",
     condition: "new",
     category: {

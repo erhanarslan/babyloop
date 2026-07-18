@@ -7,7 +7,7 @@ import {
   orders,
   productCategories
 } from "@babyloop/database/schema";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type { ListingImageResponse, PriceResponse } from "./listing-response.mapper.js";
@@ -85,6 +85,8 @@ type CartRow = {
   priceAmount: string | null;
   currency: string;
   status: string;
+  publicationState: string;
+  hasApprovedImage: boolean;
   listingType: string;
   condition: string;
   categoryId: string;
@@ -118,7 +120,11 @@ export async function addCartItem(
     return { status: "own_listing" };
   }
 
-  if (listing.status !== "active") {
+  if (
+    listing.status !== "active" ||
+    listing.publicationState !== "published" ||
+    !listing.hasApprovedImage
+  ) {
     return { status: "listing_unavailable" };
   }
 
@@ -246,7 +252,14 @@ export async function checkoutCartWithMockIyzico(
     return { status: "empty_cart" };
   }
 
-  if (rows.some((row) => row.status !== "active")) {
+  if (
+    rows.some(
+      (row) =>
+        row.status !== "active" ||
+        row.publicationState !== "published" ||
+        !row.hasApprovedImage
+    )
+  ) {
     return { status: "listing_unavailable" };
   }
 
@@ -298,7 +311,19 @@ export async function checkoutCartWithMockIyzico(
         status: "sold",
         updatedAt: now
       })
-      .where(and(inArray(listings.id, listingIds), eq(listings.status, "active")))
+      .where(
+        and(
+          inArray(listings.id, listingIds),
+          eq(listings.status, "active"),
+          eq(listings.publicationState, "published"),
+          sql`exists (
+            select 1
+            from ${listingImages}
+            where ${listingImages.listingId} = ${listings.id}
+              and ${listingImages.reviewStatus} = 'approved'
+          )`
+        )
+      )
       .returning({ id: listings.id });
 
     if (soldRows.length !== listingIds.length) {
@@ -391,24 +416,45 @@ export async function checkoutCartWithMockIyzico(
   return checkout;
 }
 
-async function selectCartListing(app: FastifyInstance, listingId: string): Promise<{
+async function selectCartListing(
+  app: FastifyInstance,
+  listingId: string
+): Promise<{
   sellerProfileId: string;
   status: string;
+  publicationState: string;
+  hasApprovedImage: boolean;
 } | null> {
   const [row] = await app.db
     .select({
       sellerProfileId: listings.sellerProfileId,
-      status: listings.status
+      status: listings.status,
+      publicationState: listings.publicationState
     })
     .from(listings)
     .where(eq(listings.id, listingId))
     .limit(1);
 
-  return row ?? null;
+  if (!row) {
+    return null;
+  }
+
+  const approvedListingIds = await getApprovedListingIds(
+    app,
+    [listingId]
+  );
+
+  return {
+    ...row,
+    hasApprovedImage: approvedListingIds.has(listingId)
+  };
 }
 
-async function selectCartRows(app: FastifyInstance, buyerProfileId: string): Promise<CartRow[]> {
-  return app.db
+async function selectCartRows(
+  app: FastifyInstance,
+  buyerProfileId: string
+): Promise<CartRow[]> {
+  const rows = await app.db
     .select({
       cartItemId: cartItems.id,
       cartCreatedAt: cartItems.createdAt,
@@ -418,6 +464,7 @@ async function selectCartRows(app: FastifyInstance, buyerProfileId: string): Pro
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
       listingType: listings.listingType,
       condition: listings.condition,
       categoryId: productCategories.id,
@@ -425,20 +472,71 @@ async function selectCartRows(app: FastifyInstance, buyerProfileId: string): Pro
       categorySlug: productCategories.slug
     })
     .from(cartItems)
-    .innerJoin(listings, eq(listings.id, cartItems.listingId))
-    .innerJoin(productCategories, eq(productCategories.id, listings.categoryId))
+    .innerJoin(
+      listings,
+      eq(listings.id, cartItems.listingId)
+    )
+    .innerJoin(
+      productCategories,
+      eq(productCategories.id, listings.categoryId)
+    )
     .where(eq(cartItems.buyerProfileId, buyerProfileId))
     .orderBy(asc(cartItems.createdAt));
+
+  const approvedListingIds = await getApprovedListingIds(
+    app,
+    rows.map((row) => row.listingId)
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    hasApprovedImage: approvedListingIds.has(row.listingId)
+  }));
+}
+
+async function getApprovedListingIds(
+  app: FastifyInstance,
+  listingIds: string[]
+): Promise<Set<string>> {
+  if (listingIds.length === 0) {
+    return new Set();
+  }
+
+  const rows = await app.db
+    .select({
+      listingId: listingImages.listingId
+    })
+    .from(listingImages)
+    .where(
+      and(
+        inArray(listingImages.listingId, listingIds),
+        eq(listingImages.reviewStatus, "approved")
+      )
+    );
+
+  return new Set(
+    rows.map((row) => row.listingId)
+  );
 }
 
 async function buildCartResponse(app: FastifyInstance, rows: CartRow[]): Promise<CartResponse> {
   const imagesByListingId = await getCartImagesByListingIds(app, rows.map((row) => row.listingId));
   const items = rows.map((row) => mapCartItem(row, imagesByListingId.get(row.listingId) ?? []));
-  const availableItems = items.filter((item) => item.listing.status === "active");
+  const availableRowIds = new Set(
+    rows
+      .filter(
+        (row) =>
+          row.status === "active" &&
+          row.publicationState === "published" &&
+          row.hasApprovedImage
+      )
+      .map((row) => row.cartItemId)
+  );
+  const availableItems = items.filter((item) => availableRowIds.has(item.id));
 
   return {
     items: availableItems,
-    unavailableItems: items.filter((item) => item.listing.status !== "active"),
+    unavailableItems: items.filter((item) => !availableRowIds.has(item.id)),
     subtotal: {
       amount: formatMoney(
         availableItems.reduce((sum, item) => (

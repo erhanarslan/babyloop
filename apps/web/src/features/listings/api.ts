@@ -15,7 +15,7 @@ export type CreateListingRequest = {
   condition: ListingCondition;
 };
 
-export type ListingLifecycleStatus = "active" | "reserved" | "sold" | "archived";
+export type ListingLifecycleStatus = "draft" | "active" | "reserved" | "sold" | "archived";
 
 export type UpdateListingRequest = Partial<{
   title: string;

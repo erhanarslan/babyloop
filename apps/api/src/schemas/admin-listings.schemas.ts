@@ -15,6 +15,15 @@ export const adminListingImageReviewStatusValues = [
   "rejected"
 ] as const;
 
+export const adminListingPublicationStateValues = [
+  "awaiting_images",
+  "ai_review",
+  "admin_review",
+  "scheduled",
+  "published",
+  "changes_requested"
+] as const;
+
 export const adminListingParamsSchema = z.object({
   listingId: z.string().uuid()
 });
@@ -22,6 +31,7 @@ export const adminListingParamsSchema = z.object({
 export const adminListingsQuerySchema = z.object({
   status: z.enum(adminListingStatusValues).optional(),
   imageReviewStatus: z.enum(adminListingImageReviewStatusValues).optional(),
+  publicationState: z.enum(adminListingPublicationStateValues).optional(),
   q: z.string().trim().min(1).max(120).optional(),
   categoryId: z.string().uuid().optional(),
   sort: z
@@ -31,8 +41,13 @@ export const adminListingsQuerySchema = z.object({
 });
 
 export const adminListingActionBodySchema = z.object({
-  action: z.enum(["archive", "restore"]),
+  action: z.enum(["archive", "restore", "publish", "request_changes"]),
   reason: z.string().trim().min(10).max(1000)
+});
+
+export const adminListingPublicationSettingsBodySchema = z.object({
+  adminReviewEnabled: z.boolean(),
+  autoPublishDelaySeconds: z.number().int().min(5).max(86400)
 });
 
 export const adminListingImageParamsSchema = adminListingParamsSchema.extend({
@@ -52,4 +67,8 @@ export type AdminListingImageParams = z.infer<typeof adminListingImageParamsSche
 export type AdminListingParams = z.infer<typeof adminListingParamsSchema>;
 export type AdminListingStatusValue = (typeof adminListingStatusValues)[number];
 export type AdminListingImageReviewStatusValue = (typeof adminListingImageReviewStatusValues)[number];
+export type AdminListingPublicationStateValue = (typeof adminListingPublicationStateValues)[number];
+export type AdminListingPublicationSettingsBody = z.infer<
+  typeof adminListingPublicationSettingsBodySchema
+>;
 export type AdminListingsQuery = z.infer<typeof adminListingsQuerySchema>;

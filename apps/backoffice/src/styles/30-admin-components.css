@@ -692,3 +692,132 @@
   background: rgba(15, 23, 42, 0.04);
   border-color: rgba(15, 23, 42, 0.18);
 }
+
+.admin-page-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.publication-settings-card {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgba(17, 24, 39, 0.06);
+}
+
+.publication-settings-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.publication-settings-card__header h3,
+.publication-review-panel h3 {
+  margin: 4px 0 8px;
+}
+
+.publication-settings-card__header p,
+.publication-review-panel p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.publication-settings-card__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.publication-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 84px;
+  padding: 16px;
+  border: 1px solid rgba(23, 23, 35, 0.08);
+  border-radius: 14px;
+  background: rgba(247, 247, 251, 0.84);
+}
+
+.publication-toggle-row span {
+  display: grid;
+  gap: 5px;
+}
+
+.publication-toggle-row small,
+.publication-delay-field small {
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.publication-toggle-row input[type="checkbox"] {
+  width: 48px;
+  height: 26px;
+  flex: 0 0 auto;
+  accent-color: #6d28d9;
+}
+
+.publication-delay-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.publication-delay-input span {
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.publication-review-facts {
+  margin-top: 8px;
+}
+
+.publication-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.danger-outline {
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #991b1b;
+}
+
+.status-badge.publication-awaiting_images,
+.status-badge.publication-ai_review,
+.status-badge.publication-admin_review,
+.status-badge.publication-scheduled {
+  border-color: #d8b365;
+  background: #fff7df;
+  color: #775313;
+}
+
+.status-badge.publication-published {
+  border-color: #91c7a2;
+  background: #eaf8ef;
+  color: #24613a;
+}
+
+.status-badge.publication-changes_requested {
+  border-color: #e4a3a7;
+  background: #fff0f1;
+  color: #8d3038;
+}
+
+@media (max-width: 820px) {
+  .publication-settings-card__header {
+    flex-direction: column;
+  }
+
+  .publication-settings-card__controls {
+    grid-template-columns: 1fr;
+  }
+}

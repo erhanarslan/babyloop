@@ -24,6 +24,15 @@ export const listingStatusEnum = pgEnum("listing_status", [
   "archived"
 ]);
 
+export const listingPublicationStateEnum = pgEnum("listing_publication_state", [
+  "awaiting_images",
+  "ai_review",
+  "admin_review",
+  "scheduled",
+  "published",
+  "changes_requested"
+]);
+
 export const listingTypeEnum = pgEnum("listing_type", [
   "sale",
   "swap",
@@ -512,6 +521,12 @@ export const listings = pgTable(
     priceAmount: numeric("price_amount", { precision: 12, scale: 2 }),
     currency: varchar("currency", { length: 3 }).notNull().default("TRY"),
     status: listingStatusEnum("status").notNull().default("draft"),
+    publicationState: listingPublicationStateEnum("publication_state")
+      .notNull()
+      .default("awaiting_images"),
+    publishAfter: timestamp("publish_after", { withTimezone: true }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    publicationReviewReason: text("publication_review_reason"),
     listingType: listingTypeEnum("listing_type").notNull().default("sale"),
     condition: listingConditionEnum("condition").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -520,7 +535,69 @@ export const listings = pgTable(
   (table) => [
     index("listings_seller_profile_id_idx").on(table.sellerProfileId),
     index("listings_category_id_idx").on(table.categoryId),
-    index("listings_status_idx").on(table.status)
+    index("listings_status_idx").on(table.status),
+    index("listings_publication_state_idx").on(table.publicationState),
+    index("listings_publish_after_idx").on(table.publishAfter),
+    check(
+      "listings_public_lifecycle_publication_check",
+      sql`(
+        ${table.status} not in ('active', 'reserved', 'sold')
+        or (
+          ${table.publicationState} = 'published'
+          and ${table.publishedAt} is not null
+        )
+      )`
+    ),
+    check(
+      "listings_published_state_check",
+      sql`(
+        ${table.publicationState} <> 'published'
+        or (
+          ${table.status} in ('active', 'reserved', 'sold', 'archived')
+          and ${table.publishedAt} is not null
+        )
+      )`
+    ),
+    check(
+      "listings_scheduled_state_check",
+      sql`(
+        ${table.publicationState} <> 'scheduled'
+        or (
+          ${table.status} = 'draft'
+          and ${table.publishAfter} is not null
+        )
+      )`
+    ),
+    check(
+      "listings_publish_after_state_check",
+      sql`(
+        ${table.publishAfter} is null
+        or (
+          ${table.status} = 'draft'
+          and ${table.publicationState} = 'scheduled'
+        )
+      )`
+    )
+  ]
+);
+
+export const marketplacePublicationSettings = pgTable(
+  "marketplace_publication_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    adminReviewEnabled: boolean("admin_review_enabled").notNull().default(false),
+    autoPublishDelaySeconds: integer("auto_publish_delay_seconds").notNull().default(30),
+    updatedByProfileId: uuid("updated_by_profile_id").references(() => profiles.id, {
+      onDelete: "set null"
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    check("marketplace_publication_settings_singleton_check", sql`${table.id} = 1`),
+    check(
+      "marketplace_publication_settings_delay_check",
+      sql`${table.autoPublishDelaySeconds} between 5 and 86400`
+    )
   ]
 );
 
@@ -1318,6 +1395,7 @@ export const schema = {
   listings,
   loginApprovalChallenges,
   messages,
+  marketplacePublicationSettings,
   mfaOtpChallenges,
   moderationActions,
   moderationCases,

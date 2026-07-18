@@ -10,6 +10,8 @@ import {
   applyAdminListingAction,
 } from "./api";
 
+type ListingStatusAction = Extract<AdminListingAction, "archive" | "restore">;
+
 type ListingStatusActionFormProps = {
   listing: AdminListingDetail;
   onApplied: (listing: AdminListingDetail) => void;
@@ -22,11 +24,15 @@ export function ListingStatusActionForm({
   onApplied,
 }: ListingStatusActionFormProps) {
   const supportedActions = useMemo(
-    () => listing.actionEligibility.supportedActions,
+    () =>
+      listing.actionEligibility.supportedActions.filter(
+        (action): action is ListingStatusAction =>
+          action === "archive" || action === "restore",
+      ),
     [listing.actionEligibility.supportedActions],
   );
   const initialAction = supportedActions[0] ?? "archive";
-  const [action, setAction] = useState<AdminListingAction>(initialAction);
+  const [action, setAction] = useState<ListingStatusAction>(initialAction);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -96,7 +102,7 @@ export function ListingStatusActionForm({
             <span>Action</span>
             <select
               onChange={(event) =>
-                setAction(event.target.value as AdminListingAction)
+                setAction(event.target.value as ListingStatusAction)
               }
               value={action}
             >
@@ -141,7 +147,7 @@ export function ListingStatusActionForm({
   );
 }
 
-function getActionLabel(action: AdminListingAction): string {
+function getActionLabel(action: ListingStatusAction): string {
   switch (action) {
     case "archive":
       return "Archive listing";

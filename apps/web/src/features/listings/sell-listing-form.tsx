@@ -145,8 +145,6 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
         return;
       }
 
-      let hasNeedsReviewImage = false;
-
       for (const selectedImage of selectedImages) {
         const uploadBody = await uploadListingImageRequest(apiBaseUrl, body.data.listing.id, selectedImage.file);
 
@@ -156,13 +154,11 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           return;
         }
 
-        if (uploadBody.data.image.reviewStatus === "needs_review") {
-          hasNeedsReviewImage = true;
-        }
       }
 
       clearSelectedImages();
-      router.push(`/listings/${body.data.listing.id}${hasNeedsReviewImage ? "?imageReview=needs_review" : ""}`);
+
+      router.push("/my-listings?publication=review");
       router.refresh();
     } catch {
       setErrorMessage("İlan şu an oluşturulamadı. Biraz sonra tekrar dene.");

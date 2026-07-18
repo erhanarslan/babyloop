@@ -31,6 +31,8 @@ export function formatMobileListingCondition(value: string | null | undefined): 
 
 export function formatMobileListingStatus(value: string | null | undefined): string {
   switch (value) {
+    case "draft":
+      return "Taslak / incelemede";
     case "active":
       return "Aktif";
     case "reserved":

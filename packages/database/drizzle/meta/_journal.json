@@ -225,6 +225,20 @@
       "when": 1784287800000,
       "tag": "0033_product_analytics_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784361600000,
+      "tag": "0034_listing_publication_invariant",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784365200000,
+      "tag": "0035_listing_publication_workflow",
+      "breakpoints": true
     }
   ]
 }

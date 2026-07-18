@@ -265,6 +265,11 @@ export function SellScreen() {
       return;
     }
 
+    if (selectedImages.length === 0) {
+      setMessage("İlanı yayınlamak için en az bir gerçek ürün fotoğrafı eklemelisin.");
+      return;
+    }
+
     const imageUploadFiles = selectedImages.map((image) => buildMobileListingImageUploadFile(image));
     const invalidImageUploadFile = imageUploadFiles.find((imageUploadFile) => !imageUploadFile.ok);
 
@@ -302,7 +307,8 @@ export function SellScreen() {
 
       setSelectedImages([]);
       setFormState(createDefaultMobileSellFormState());
-      router.push(`/listing/${encodeURIComponent(listing.id)}`);
+
+      router.replace("/my-listings?publication=review");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "İlan şu an oluşturulamadı.");
     } finally {

@@ -1,6 +1,10 @@
 import { apiGet, isRecord, safeApiErrorMessage } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
-import type { MobileListingStatus, MobileListingSummary } from "../listings/listings-api";
+import type {
+  MobileListingPublicationState,
+  MobileListingStatus,
+  MobileListingSummary
+} from "../listings/listings-api";
 import type { MobileCreateListingPayload } from "./sell-form-model";
 import type { MobileListingImageUploadFile } from "./image-upload-model";
 
@@ -25,7 +29,7 @@ export async function fetchMobileCategories(): Promise<MobileCategory[]> {
 export async function uploadMobileListingImage(
   listingId: string,
   image: MobileListingImageUploadFile
-): Promise<void> {
+): Promise<{ reviewStatus: "approved" | "needs_review" | "pending" | "rejected" | null }> {
   const formData = new FormData();
 
   formData.append("image", {
@@ -48,6 +52,20 @@ export async function uploadMobileListingImage(
       safeApiErrorMessage(responsePayload, "Görsel şu an yüklenemedi. Biraz sonra tekrar dene.")
     );
   }
+
+  const data = unwrapApiData(responsePayload);
+  const imagePayload = isRecord(data) && isRecord(data.image) ? data.image : null;
+  const reviewStatus = imagePayload ? pickString(imagePayload, ["reviewStatus"]) : null;
+
+  return {
+    reviewStatus:
+      reviewStatus === "approved" ||
+      reviewStatus === "needs_review" ||
+      reviewStatus === "pending" ||
+      reviewStatus === "rejected"
+        ? reviewStatus
+        : null
+  };
 }
 
 export async function createMobileListing(
@@ -97,7 +115,19 @@ export async function createMobileListing(
     listingType: payload.listingType,
     listingTypeText: formatListingType(payload.listingType),
     status,
-    statusText: formatListingStatus(status)
+    statusText: formatListingStatus(status),
+    publicationState: normalizeListingPublicationState(
+      pickString(listing, ["publicationState", "publication_state"])
+    ),
+    publishAfter:
+      pickString(listing, ["publishAfter", "publish_after"]) ?? null,
+    publishedAt:
+      pickString(listing, ["publishedAt", "published_at"]) ?? null,
+    publicationReviewReason:
+      pickString(listing, [
+        "publicationReviewReason",
+        "publication_review_reason"
+      ]) ?? null
   };
 }
 
@@ -195,6 +225,23 @@ function pickString(record: Record<string, unknown>, keys: string[]): string | n
 }
 
 
+function normalizeListingPublicationState(
+  value: string | null
+): MobileListingPublicationState {
+  if (
+    value === "awaiting_images" ||
+    value === "ai_review" ||
+    value === "admin_review" ||
+    value === "scheduled" ||
+    value === "published" ||
+    value === "changes_requested"
+  ) {
+    return value;
+  }
+
+  return "awaiting_images";
+}
+
 function formatListingType(value: string): string {
   switch (value) {
     case "sale":
@@ -209,7 +256,13 @@ function formatListingType(value: string): string {
 }
 
 function normalizeListingStatus(value: string | null): MobileListingStatus {
-  if (value === "active" || value === "reserved" || value === "sold" || value === "archived") {
+  if (
+    value === "draft" ||
+    value === "active" ||
+    value === "reserved" ||
+    value === "sold" ||
+    value === "archived"
+  ) {
     return value;
   }
 
@@ -218,6 +271,8 @@ function normalizeListingStatus(value: string | null): MobileListingStatus {
 
 function formatListingStatus(value: MobileListingStatus): string {
   switch (value) {
+    case "draft":
+      return "Taslak / incelemede";
     case "active":
       return "Aktif";
     case "reserved":
@@ -227,6 +282,6 @@ function formatListingStatus(value: MobileListingStatus): string {
     case "archived":
       return "Arşivli";
     default:
-      return "Aktif";
+      return "Taslak";
   }
 }

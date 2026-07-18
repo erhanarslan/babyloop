@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -26,19 +26,23 @@ import {
 import {
   canSubmitMobileListingStatusAction,
   filterMobileMyListings,
+  getMobileListingPublicationDisplay,
   getMobileListingStatusActionMessage,
   getMobileListingStatusActions,
+  hasPendingMobileListingPublication,
   getMobileMyListingStats,
   getMobileMyListingStatusFilterLabel,
   MOBILE_MY_LISTING_STATUS_FILTERS,
   type MobileListingStatusAction,
   type MobileMyListingStatusFilter
 } from "./my-listings-model";
+import { MobilePublicationWaitIndicator } from "./mobile-publication-wait-indicator";
 
 type LoadStatus = "idle" | "loading" | "ready" | "guest" | "error";
 
 export function MyListingsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ publication?: string }>();
   const authSession = useAuthSession();
   const [listings, setListings] = useState<MobileMyListingSummary[]>([]);
   const [status, setStatus] = useState<LoadStatus>("idle");
@@ -46,12 +50,31 @@ export function MyListingsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<MobileMyListingStatusFilter>("all");
   const [pendingListingId, setPendingListingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showPublicationConfirmation, setShowPublicationConfirmation] = useState(
+    params.publication === "review",
+  );
 
   const stats = useMemo(() => getMobileMyListingStats(listings), [listings]);
   const visibleListings = useMemo(
     () => filterMobileMyListings(listings, selectedFilter),
     [listings, selectedFilter]
   );
+  const hasPendingPublication = useMemo(
+    () => hasPendingMobileListingPublication(listings),
+    [listings]
+  );
+
+  useEffect(() => {
+    if (params.publication === "review") {
+      setShowPublicationConfirmation(true);
+    }
+  }, [params.publication]);
+
+  useEffect(() => {
+    if (status === "ready" && showPublicationConfirmation && !hasPendingPublication) {
+      setShowPublicationConfirmation(false);
+    }
+  }, [hasPendingPublication, showPublicationConfirmation, status]);
 
   const loadListings = useCallback(async () => {
     if (authSession.status === "checking") {
@@ -85,6 +108,37 @@ export function MyListingsScreen() {
     void loadListings();
   }, [loadListings]);
 
+  useEffect(() => {
+    if (status !== "ready" || !hasPendingPublication) {
+      return;
+    }
+
+    let active = true;
+    let refreshing = false;
+    const timer = setInterval(() => {
+      if (refreshing) {
+        return;
+      }
+
+      refreshing = true;
+      void fetchMobileMyListings()
+        .then((nextListings) => {
+          if (active) {
+            setListings(nextListings);
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          refreshing = false;
+        });
+    }, 7_000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [hasPendingPublication, status]);
+
   async function handleStatusAction(
     listingId: string,
     nextStatus: MobileListingStatus
@@ -98,12 +152,13 @@ export function MyListingsScreen() {
       setError(null);
       setSuccessMessage(null);
 
+      const currentStatus = listings.find((listing) => listing.id === listingId)?.status ?? null;
       const updatedListing = await updateMobileListingStatus(listingId, nextStatus);
 
       setListings((currentListings) =>
         currentListings.map((listing) => (listing.id === listingId ? updatedListing : listing))
       );
-      setSuccessMessage(getMobileListingStatusActionMessage(nextStatus));
+      setSuccessMessage(getMobileListingStatusActionMessage(nextStatus, currentStatus));
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "İlan durumu güncellenemedi.");
     } finally {
@@ -171,7 +226,8 @@ export function MyListingsScreen() {
         <>
           <View style={styles.summaryGrid}>
             <SummaryPill label="Toplam" value={stats.total} />
-            <SummaryPill label="Aktif" value={stats.active} />
+            <SummaryPill label="Yayında değil" value={stats.draft} />
+            <SummaryPill label="Yayında" value={stats.active} />
             <SummaryPill label="Rezerve" value={stats.reserved} />
             <SummaryPill label="Satıldı" value={stats.sold} />
             <SummaryPill label="Arşivde" value={stats.archived} />
@@ -196,6 +252,17 @@ export function MyListingsScreen() {
               );
             })}
           </View>
+
+          {showPublicationConfirmation ? (
+            <MobileCard style={styles.publicationConfirmationCard}>
+              <View style={styles.publicationMessageRow}>
+                <MobilePublicationWaitIndicator />
+                <View style={styles.publicationMessageContent}>
+                  <Text style={styles.publicationMessageTitle}>İlanın onay sürecinde</Text>
+                </View>
+              </View>
+            </MobileCard>
+          ) : null}
 
           {successMessage ? (
             <MobileCard style={styles.successCard}>
@@ -274,6 +341,10 @@ function MyListingCard({
   pending: boolean;
 }) {
   const actions = getMobileListingStatusActions(listing.status);
+  const publicationDisplay = getMobileListingPublicationDisplay(listing);
+  const isPublic =
+    (listing.status === "active" || listing.status === "reserved") &&
+    listing.publicationState === "published";
 
   return (
     <View style={styles.cardShell}>
@@ -292,15 +363,37 @@ function MyListingCard({
         footerText={listing.createdAt ? `Oluşturulma: ${formatDate(listing.createdAt)}` : null}
         imageUrl={listing.imageUrl}
         locationText={listing.locationText}
-        onPress={onOpen}
+        onPress={isPublic ? onOpen : undefined}
         priceText={listing.priceText}
         title={listing.title}
       />
 
+      {publicationDisplay.title ? (
+        <MobileCard
+          style={
+            publicationDisplay.needsAttention
+              ? styles.publicationAttentionCard
+              : styles.publicationPendingCard
+          }
+        >
+          <View style={styles.publicationMessageRow}>
+            {publicationDisplay.isPending ? <MobilePublicationWaitIndicator /> : null}
+            <View style={styles.publicationMessageContent}>
+              <Text style={styles.publicationMessageTitle}>{publicationDisplay.title}</Text>
+              {publicationDisplay.message ? (
+                <Text style={styles.publicationMessageText}>{publicationDisplay.message}</Text>
+              ) : null}
+            </View>
+          </View>
+        </MobileCard>
+      ) : null}
+
       <View style={styles.cardActions}>
-        <MobileButton iconName="open-outline" onPress={onOpen} variant="secondary">
-          Detay
-        </MobileButton>
+        {isPublic ? (
+          <MobileButton iconName="open-outline" onPress={onOpen} variant="secondary">
+            Detay
+          </MobileButton>
+        ) : null}
 
         <MobileButton
           iconName="create-outline"
@@ -432,6 +525,41 @@ const styles = StyleSheet.create({
   },
   filterChipTextSelected: {
     color: colors.primaryDark
+  },
+  publicationConfirmationCard: {
+    borderColor: "#f4c66d",
+    backgroundColor: "#fff8e8"
+  },
+  publicationPendingCard: {
+    borderColor: "#f4c66d",
+    backgroundColor: "#fff8e8",
+    padding: spacing.sm
+  },
+  publicationAttentionCard: {
+    borderColor: "#fecaca",
+    backgroundColor: "#fff1f2",
+    padding: spacing.sm
+  },
+  publicationMessageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  publicationMessageContent: {
+    minWidth: 0,
+    flex: 1,
+    gap: 3
+  },
+  publicationMessageTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  publicationMessageText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17
   },
   successCard: {
     borderColor: "#bbf7d0",

@@ -6,18 +6,22 @@ import { useEffect, useState } from "react";
 
 import {
   type AdminListingImageReviewStatus,
+  type AdminListingPublicationState,
   type AdminListingSort,
   type AdminListingStatus,
   type AdminListingSummary,
   listAdminListings,
 } from "./api";
+import { ListingPublicationSettingsCard } from "./listing-publication-settings-card";
 
 type StatusFilter = AdminListingStatus | "all";
 type ImageReviewStatusFilter = AdminListingImageReviewStatus | "all";
+type PublicationStateFilter = AdminListingPublicationState | "all";
 
 type FilterState = {
   status: StatusFilter;
   imageReviewStatus: ImageReviewStatusFilter;
+  publicationState: PublicationStateFilter;
   q: string;
   sort: AdminListingSort;
   limit: number;
@@ -38,6 +42,15 @@ const imageReviewStatusFilters: ImageReviewStatusFilter[] = [
   "approved",
   "rejected",
 ];
+const publicationStateFilters: PublicationStateFilter[] = [
+  "all",
+  "awaiting_images",
+  "ai_review",
+  "admin_review",
+  "scheduled",
+  "published",
+  "changes_requested",
+];
 const sortOptions: AdminListingSort[] = [
   "newest",
   "oldest",
@@ -49,6 +62,7 @@ const limitOptions = [25, 50, 100];
 const defaultFilters: FilterState = {
   status: "all",
   imageReviewStatus: "all",
+  publicationState: "all",
   q: "",
   sort: "newest",
   limit: 50,
@@ -69,12 +83,13 @@ export function ListingAdminList() {
       setErrorMessage(null);
 
       const response = await listAdminListings({
-        ...(appliedFilters.status === "all"
-          ? {}
-          : { status: appliedFilters.status }),
+        ...(appliedFilters.status === "all" ? {} : { status: appliedFilters.status }),
         ...(appliedFilters.imageReviewStatus === "all"
           ? {}
           : { imageReviewStatus: appliedFilters.imageReviewStatus }),
+        ...(appliedFilters.publicationState === "all"
+          ? {}
+          : { publicationState: appliedFilters.publicationState }),
         ...(appliedFilters.q.trim() ? { q: appliedFilters.q.trim() } : {}),
         sort: appliedFilters.sort,
         limit: appliedFilters.limit,
@@ -86,7 +101,7 @@ export function ListingAdminList() {
 
       if (!response.ok) {
         setListings([]);
-        setErrorMessage(getApiErrorMessage(response, "Could not load listings."));
+        setErrorMessage(getApiErrorMessage(response, "İlanlar yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -114,353 +129,336 @@ export function ListingAdminList() {
     setAppliedFilters(defaultFilters);
   }
 
-  const isImageReviewQueueActive = appliedFilters.imageReviewStatus === "needs_review";
-  const loadedNeedsReviewCount = isImageReviewQueueActive
+  const isPublicationQueueActive =
+    appliedFilters.publicationState === "admin_review" ||
+    appliedFilters.publicationState === "ai_review";
+  const loadedReviewCount = isPublicationQueueActive
     ? listings.length
-    : listings.filter(isListingAwaitingImageReview).length;
+    : listings.filter(isListingAwaitingPublicationReview).length;
 
   return (
-    <section className="content-card">
-      <div className="page-toolbar">
-        <div>
-          <p className="eyebrow">Marketplace operations</p>
-          <h2>Listings</h2>
-          <p>
-            Review marketplace listings with privacy-safe seller summaries,
-            image review state, AI authenticity signals, and related moderation case signals.
-          </p>
-        </div>
-      </div>
+    <div className="admin-page-stack">
+      <ListingPublicationSettingsCard />
 
-      <div className="state-panel">
-        <strong>{isImageReviewQueueActive ? "Image review queue active" : "Image review queue"}</strong>
-        <p>
-          Needs review images are hidden from public listing responses until an admin approves them.
-          Loaded results awaiting image review: {loadedNeedsReviewCount}.
-        </p>
-        <div className="form-button-row">
-          <button
-            className="secondary-action"
-            disabled={isLoading}
-            onClick={() => {
-              const nextFilters: FilterState = {
-                ...draftFilters,
-                imageReviewStatus: "needs_review",
-                sort: "newest",
-              };
-              setDraftFilters(nextFilters);
-              setAppliedFilters({
-                ...nextFilters,
-                q: nextFilters.q.trim(),
-              });
-            }}
-            type="button"
-          >
-            Show review queue
-          </button>
-          <button
-            className="secondary-action"
-            disabled={isLoading || !isImageReviewQueueActive}
-            onClick={resetFilters}
-            type="button"
-          >
-            Clear queue filter
-          </button>
-        </div>
-      </div>
-
-      <form
-        className="filter-panel"
-        onSubmit={(event) => {
-          event.preventDefault();
-          applyFilters();
-        }}
-      >
-        <div className="filter-grid">
-          <label className="form-field">
-            <span>Status</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  status: event.target.value as StatusFilter,
-                }))
-              }
-              value={draftFilters.status}
-            >
-              {statusFilters.map((status) => (
-                <option key={status} value={status}>
-                  {getStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="form-field">
-            <span>Image review</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  imageReviewStatus: event.target.value as ImageReviewStatusFilter,
-                }))
-              }
-              value={draftFilters.imageReviewStatus}
-            >
-              {imageReviewStatusFilters.map((status) => (
-                <option key={status} value={status}>
-                  {getImageReviewStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="form-field">
-            <span>Search</span>
-            <input
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  q: event.target.value,
-                }))
-              }
-              placeholder="Listing, title, category, seller profile"
-              type="search"
-              value={draftFilters.q}
-            />
-          </label>
-
-          <label className="form-field">
-            <span>Sort</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  sort: event.target.value as AdminListingSort,
-                }))
-              }
-              value={draftFilters.sort}
-            >
-              {sortOptions.map((sort) => (
-                <option key={sort} value={sort}>
-                  {getSortLabel(sort)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="form-field">
-            <span>Limit</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  limit: Number(event.target.value),
-                }))
-              }
-              value={draftFilters.limit}
-            >
-              {limitOptions.map((limit) => (
-                <option key={limit} value={limit}>
-                  {limit}
-                </option>
-              ))}
-            </select>
-          </label>
+      <section className="content-card">
+        <div className="page-toolbar">
+          <div>
+            <p className="eyebrow">Pazar yeri operasyonları</p>
+            <h2>İlan inceleme</h2>
+            <p>
+              İlan yaşam döngüsünü, yayın onayını, AI görsel sinyallerini ve moderasyon
+              ilişkilerini tek kuyruktan yönet.
+            </p>
+          </div>
         </div>
 
-        <div className="filter-actions">
-          <button className="primary-action" disabled={isLoading} type="submit">
-            Apply filters
-          </button>
-          <button
-            className="secondary-action"
-            disabled={isLoading}
-            onClick={resetFilters}
-            type="button"
-          >
-            Reset
-          </button>
-        </div>
-      </form>
-
-      {isLoading ? <div className="state-panel">Loading listings...</div> : null}
-
-      {errorMessage ? (
-        <div className="state-panel danger" role="alert">
-          {errorMessage}
-        </div>
-      ) : null}
-
-      {!isLoading && !errorMessage && listings.length === 0 ? (
         <div className="state-panel">
-          <strong>No listings found</strong>
-          <p>There are no marketplace listings matching this filter.</p>
-        </div>
-      ) : null}
-
-      {!isLoading && !errorMessage && listings.length > 0 ? (
-        <div className="case-list">
-          {listings.map((listing) => (
-            <article
-              className="case-card listing-admin-card"
-              data-admin-listing-id={listing.id}
-              data-admin-listing-status={listing.status}
-              data-admin-primary-image-review-status={listing.primaryImage?.reviewStatus ?? "none"}
-              key={listing.id}
+          <strong>{isPublicationQueueActive ? "Yayın inceleme kuyruğu açık" : "Yayın inceleme kuyruğu"}</strong>
+          <p>Yüklenen sonuçlarda karar bekleyen ilan sayısı: {loadedReviewCount}.</p>
+          <div className="form-button-row">
+            <button
+              className="secondary-action"
+              disabled={isLoading}
+              onClick={() => {
+                const nextFilters: FilterState = {
+                  ...draftFilters,
+                  publicationState: "admin_review",
+                  sort: "newest",
+                };
+                setDraftFilters(nextFilters);
+                setAppliedFilters({ ...nextFilters, q: nextFilters.q.trim() });
+              }}
+              type="button"
             >
-              <div className="listing-admin-card-body">
-                {listing.primaryImage ? (
-                  <img
-                    alt=""
-                    className="listing-admin-thumbnail"
-                    src={listing.primaryImage.url}
-                  />
-                ) : (
-                  <div className="listing-admin-thumbnail placeholder">
-                    No image
-                  </div>
-                )}
-
-                <div>
-                  <div className="case-card-header">
-                    <span className={`status-badge ${listing.status}`}>
-                      {getStatusLabel(listing.status)}
-                    </span>
-                    <span className="muted">{listing.category.name}</span>
-                    {isImageReviewQueueActive || isListingAwaitingImageReview(listing) ? (
-                      <span className="status-badge needs_review">Needs review image</span>
-                    ) : null}
-                  </div>
-
-                  <h3>{listing.title}</h3>
-                  <p>{listing.description ?? "No description provided."}</p>
-
-                  <dl className="compact-details">
-                    <div>
-                      <dt>Price</dt>
-                      <dd>{formatPrice(listing)}</dd>
-                    </div>
-                    <div>
-                      <dt>Seller</dt>
-                      <dd>{listing.seller.displayName}</dd>
-                    </div>
-                    <div>
-                      <dt>Images</dt>
-                      <dd>{listing.imageCount}</dd>
-                    </div>
-                    <div>
-                      <dt>Primary image</dt>
-                      <dd>
-                        {formatPrimaryImageReview(listing)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Open cases</dt>
-                      <dd>{listing.moderation.openRelatedCaseCount}</dd>
-                    </div>
-                    <div>
-                      <dt>Created</dt>
-                      <dd>{formatDateTime(listing.createdAt)}</dd>
-                    </div>
-                    <div>
-                      <dt>Updated</dt>
-                      <dd>{formatDateTime(listing.updatedAt)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-
-              <Link className="secondary-action" href={`/listings/${listing.id}`}>
-                {isImageReviewQueueActive || isListingAwaitingImageReview(listing)
-                    ? "Review images"
-                    : "Open listing"}
-              </Link>
-            </article>
-          ))}
+              Admin onayı bekleyenleri göster
+            </button>
+            <button
+              className="secondary-action"
+              disabled={isLoading}
+              onClick={() => {
+                const nextFilters: FilterState = {
+                  ...draftFilters,
+                  publicationState: "ai_review",
+                  sort: "newest",
+                };
+                setDraftFilters(nextFilters);
+                setAppliedFilters({ ...nextFilters, q: nextFilters.q.trim() });
+              }}
+              type="button"
+            >
+              AI inceleme kuyruğu
+            </button>
+            <button
+              className="secondary-action"
+              disabled={isLoading || !isPublicationQueueActive}
+              onClick={resetFilters}
+              type="button"
+            >
+              Kuyruk filtresini temizle
+            </button>
+          </div>
         </div>
-      ) : null}
-    </section>
+
+        <form
+          className="filter-panel"
+          onSubmit={(event) => {
+            event.preventDefault();
+            applyFilters();
+          }}
+        >
+          <div className="filter-grid">
+            <label className="form-field">
+              <span>Yaşam döngüsü</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    status: event.target.value as StatusFilter,
+                  }))
+                }
+                value={draftFilters.status}
+              >
+                {statusFilters.map((status) => (
+                  <option key={status} value={status}>
+                    {getStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Yayın süreci</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    publicationState: event.target.value as PublicationStateFilter,
+                  }))
+                }
+                value={draftFilters.publicationState}
+              >
+                {publicationStateFilters.map((state) => (
+                  <option key={state} value={state}>
+                    {getPublicationStateLabel(state)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Görsel inceleme</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    imageReviewStatus: event.target.value as ImageReviewStatusFilter,
+                  }))
+                }
+                value={draftFilters.imageReviewStatus}
+              >
+                {imageReviewStatusFilters.map((status) => (
+                  <option key={status} value={status}>
+                    {getImageReviewStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Arama</span>
+              <input
+                onChange={(event) =>
+                  setDraftFilters((current) => ({ ...current, q: event.target.value }))
+                }
+                placeholder="İlan, başlık, kategori veya profil"
+                type="search"
+                value={draftFilters.q}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Sıralama</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    sort: event.target.value as AdminListingSort,
+                  }))
+                }
+                value={draftFilters.sort}
+              >
+                {sortOptions.map((sort) => (
+                  <option key={sort} value={sort}>
+                    {getSortLabel(sort)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Limit</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({ ...current, limit: Number(event.target.value) }))
+                }
+                value={draftFilters.limit}
+              >
+                {limitOptions.map((limit) => (
+                  <option key={limit} value={limit}>
+                    {limit}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="filter-actions">
+            <button className="primary-action" disabled={isLoading} type="submit">
+              Filtreleri uygula
+            </button>
+            <button className="secondary-action" disabled={isLoading} onClick={resetFilters} type="button">
+              Sıfırla
+            </button>
+          </div>
+        </form>
+
+        {isLoading ? <div className="state-panel">İlanlar yükleniyor...</div> : null}
+        {errorMessage ? (
+          <div className="state-panel danger" role="alert">
+            {errorMessage}
+          </div>
+        ) : null}
+        {!isLoading && !errorMessage && listings.length === 0 ? (
+          <div className="state-panel">
+            <strong>İlan bulunamadı</strong>
+            <p>Bu filtrelerle eşleşen pazar yeri ilanı yok.</p>
+          </div>
+        ) : null}
+
+        {!isLoading && !errorMessage && listings.length > 0 ? (
+          <div className="case-list">
+            {listings.map((listing) => (
+              <article
+                className="case-card listing-admin-card"
+                data-admin-listing-id={listing.id}
+                data-admin-listing-status={listing.status}
+                data-admin-publication-state={listing.publicationState}
+                data-admin-primary-image-review-status={listing.primaryImage?.reviewStatus ?? "none"}
+                key={listing.id}
+              >
+                <div className="listing-admin-card-body">
+                  {listing.primaryImage ? (
+                    <img alt="" className="listing-admin-thumbnail" src={listing.primaryImage.url} />
+                  ) : (
+                    <div className="listing-admin-thumbnail placeholder">Görsel yok</div>
+                  )}
+
+                  <div>
+                    <div className="case-card-header">
+                      <span className={`status-badge ${listing.status}`}>
+                        {getStatusLabel(listing.status)}
+                      </span>
+                      <span className={`status-badge publication-${listing.publicationState}`}>
+                        {getPublicationStateLabel(listing.publicationState)}
+                      </span>
+                      <span className="muted">{listing.category.name}</span>
+                      {isListingAwaitingImageReview(listing) ? (
+                        <span className="status-badge needs_review">Görsel incelemesi</span>
+                      ) : null}
+                    </div>
+
+                    <h3>{listing.title}</h3>
+                    <p>{listing.description ?? "Açıklama girilmemiş."}</p>
+
+                    <dl className="compact-details">
+                      <div><dt>Fiyat</dt><dd>{formatPrice(listing)}</dd></div>
+                      <div><dt>Satıcı</dt><dd>{listing.seller.displayName}</dd></div>
+                      <div><dt>Görsel</dt><dd>{listing.imageCount}</dd></div>
+                      <div><dt>AI / ana görsel</dt><dd>{formatPrimaryImageReview(listing)}</dd></div>
+                      <div><dt>Açık vaka</dt><dd>{listing.moderation.openRelatedCaseCount}</dd></div>
+                      <div><dt>Oluşturulma</dt><dd>{formatDateTime(listing.createdAt)}</dd></div>
+                    </dl>
+                  </div>
+                </div>
+
+                <Link className="secondary-action" href={`/listings/${listing.id}`}>
+                  İncelemeyi aç
+                </Link>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+    </div>
   );
 }
 
 function getStatusLabel(status: StatusFilter): string {
   switch (status) {
-    case "all":
-      return "All";
-    case "draft":
-      return "Draft";
-    case "active":
-      return "Active";
-    case "reserved":
-      return "Reserved";
-    case "sold":
-      return "Sold";
-    case "archived":
-      return "Archived";
+    case "all": return "Tümü";
+    case "draft": return "Yayında değil";
+    case "active": return "Yayında";
+    case "reserved": return "Rezerve";
+    case "sold": return "Satıldı";
+    case "archived": return "Arşivde";
+  }
+}
+
+function getPublicationStateLabel(state: PublicationStateFilter): string {
+  switch (state) {
+    case "all": return "Tümü";
+    case "awaiting_images": return "Görsel bekliyor";
+    case "ai_review": return "AI incelemesi";
+    case "admin_review": return "Admin onayı";
+    case "scheduled": return "Otomatik yayın sırası";
+    case "published": return "Yayınlandı";
+    case "changes_requested": return "Düzeltme istendi";
   }
 }
 
 function getImageReviewStatusLabel(status: ImageReviewStatusFilter): string {
   switch (status) {
-    case "all":
-      return "All";
-    case "pending":
-      return "Pending";
-    case "approved":
-      return "Approved";
-    case "needs_review":
-      return "Needs review";
-    case "rejected":
-      return "Rejected";
+    case "all": return "Tümü";
+    case "pending": return "Bekliyor";
+    case "approved": return "Onaylı";
+    case "needs_review": return "İnceleme gerekli";
+    case "rejected": return "Reddedildi";
   }
 }
 
 function getSortLabel(sort: AdminListingSort): string {
   switch (sort) {
-    case "newest":
-      return "Newest";
-    case "oldest":
-      return "Oldest";
-    case "updated_desc":
-      return "Recently updated";
-    case "updated_asc":
-      return "Least recently updated";
+    case "newest": return "En yeni";
+    case "oldest": return "En eski";
+    case "updated_desc": return "Son güncellenen";
+    case "updated_asc": return "En eski güncelleme";
   }
 }
 
 function formatPrice(listing: AdminListingSummary): string {
-  return listing.price
-    ? `${listing.price.amount} ${listing.price.currency}`
-    : "Not set";
+  return listing.price ? `${listing.price.amount} ${listing.price.currency}` : "Belirtilmedi";
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("tr-TR");
 }
 
-function getApiErrorMessage(
-  response: ApiResponse<unknown>,
-  fallback: string,
-): string {
-  if (response.ok) {
-    return fallback;
-  }
-
+function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
+  if (response.ok) return fallback;
   return response.error?.message ?? fallback;
 }
 
 function isListingAwaitingImageReview(listing: AdminListingSummary): boolean {
-  return listing.primaryImage?.reviewStatus === "needs_review";
+  return listing.primaryImage?.reviewStatus === "needs_review" || listing.primaryImage?.reviewStatus === "pending";
+}
+
+function isListingAwaitingPublicationReview(listing: AdminListingSummary): boolean {
+  return listing.publicationState === "admin_review" || listing.publicationState === "ai_review";
 }
 
 function formatPrimaryImageReview(listing: AdminListingSummary): string {
-  if (!listing.primaryImage) {
-    return "No image";
-  }
-
+  if (!listing.primaryImage) return "Görsel yok";
   const reviewStatus = getImageReviewStatusLabel(listing.primaryImage.reviewStatus);
   const aiDecision = listing.primaryImage.authenticity.decision;
-
   return aiDecision ? `${reviewStatus} · AI ${aiDecision}` : reviewStatus;
 }

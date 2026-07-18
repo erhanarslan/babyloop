@@ -118,6 +118,10 @@ function editableListing(): MobileEditableListingDetail {
     sellerDisplayName: "Ayşe",
     status: "active",
     statusText: "Aktif",
+    publicationState: "published",
+    publishAfter: null,
+    publishedAt: "2026-07-14T10:00:30.000Z",
+    publicationReviewReason: null,
     title: "Temiz bebek arabası"
   };
 }

@@ -19,6 +19,7 @@ describe("mobile listing labels", () => {
   });
 
   it("formats listing status labels", () => {
+    expect(formatMobileListingStatus("draft")).toBe("Taslak / incelemede");
     expect(formatMobileListingStatus("active")).toBe("Aktif");
     expect(formatMobileListingStatus("reserved")).toBe("Rezerve");
     expect(formatMobileListingStatus("sold")).toBe("Satıldı");

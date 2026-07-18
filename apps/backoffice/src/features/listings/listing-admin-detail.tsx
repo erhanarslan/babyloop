@@ -10,6 +10,7 @@ import {
   getAdminListing,
 } from "./api";
 import { ListingImageReviewPanel } from "./listing-image-review-panel";
+import { ListingPublicationReviewPanel } from "./listing-publication-review-panel";
 import { ListingStatusActionForm } from "./listing-status-action-form";
 import { RelatedModerationCases } from "./related-moderation-cases";
 
@@ -102,9 +103,14 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
             <p>{listing.description ?? "No description provided."}</p>
           </div>
 
-          <span className={`status-badge ${listing.status}`}>
-            {getStatusLabel(listing.status)}
-          </span>
+          <div className="case-card-header">
+            <span className={`status-badge ${listing.status}`}>
+              {getStatusLabel(listing.status)}
+            </span>
+            <span className={`status-badge publication-${listing.publicationState}`}>
+              {getPublicationStateLabel(listing.publicationState)}
+            </span>
+          </div>
         </div>
 
         <dl className="details-grid">
@@ -115,6 +121,18 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
           <div>
             <dt>Status</dt>
             <dd>{getStatusLabel(listing.status)}</dd>
+          </div>
+          <div>
+            <dt>Yayın süreci</dt>
+            <dd>{getPublicationStateLabel(listing.publicationState)}</dd>
+          </div>
+          <div>
+            <dt>Planlanan yayın</dt>
+            <dd>{listing.publishAfter ? formatDateTime(listing.publishAfter) : "—"}</dd>
+          </div>
+          <div>
+            <dt>Yayınlanma</dt>
+            <dd>{listing.publishedAt ? formatDateTime(listing.publishedAt) : "—"}</dd>
           </div>
           <div>
             <dt>Price</dt>
@@ -146,6 +164,13 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
           </div>
         </dl>
 
+        {listing.publicationReviewReason ? (
+          <section className="note-panel warning">
+            <h3>Son düzeltme gerekçesi</h3>
+            <p>{listing.publicationReviewReason}</p>
+          </section>
+        ) : null}
+
         <section className="note-panel">
           <h3>Seller summary</h3>
           <p>
@@ -174,6 +199,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
       </section>
 
       <section className="side-stack">
+        <ListingPublicationReviewPanel listing={listing} onApplied={setListing} />
         <ListingStatusActionForm listing={listing} onApplied={setListing} />
         <ListingImageReviewPanel
           images={listing.images}
@@ -251,6 +277,26 @@ function getStatusLabel(status: string): string {
   }
 }
 
+
+function getPublicationStateLabel(
+  state: AdminListingDetailType["publicationState"],
+): string {
+  switch (state) {
+    case "awaiting_images":
+      return "Görsel bekliyor";
+    case "ai_review":
+      return "AI / görsel incelemesi";
+    case "admin_review":
+      return "Admin onayı bekliyor";
+    case "scheduled":
+      return "Otomatik yayın sırası";
+    case "published":
+      return "Yayında";
+    case "changes_requested":
+      return "Düzeltme istendi";
+  }
+}
+
 function formatPrice(listing: AdminListingDetailType): string {
   return listing.price
     ? `${listing.price.amount} ${listing.price.currency}`
@@ -258,7 +304,7 @@ function formatPrice(listing: AdminListingDetailType): string {
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("tr-TR");
 }
 
 function getAuditEventLabel(event: AdminListingAuditEvent): string {
@@ -272,6 +318,22 @@ function getAuditEventLabel(event: AdminListingAuditEvent): string {
     if (action === "restore") {
       return "Listing restored";
     }
+  }
+
+  if (event.eventType === "listing_publication_approved") {
+    return "İlan yayınlandı";
+  }
+
+  if (event.eventType === "listing_publication_changes_requested") {
+    return "İlanda düzeltme istendi";
+  }
+
+  if (event.eventType === "listing_auto_published") {
+    return "İlan otomatik yayınlandı";
+  }
+
+  if (event.eventType === "listing_publication_state_changed") {
+    return "Yayın süreci güncellendi";
   }
 
   if (event.eventType === "admin_listing_image_review_applied") {
@@ -303,8 +365,11 @@ const SAFE_ADMIN_LISTING_AUDIT_METADATA_KEYS = [
   "moderationActionId",
   "nextStatus",
   "nextReviewStatus",
+  "nextPublicationState",
   "previousStatus",
+  "previousPublicationState",
   "previousReviewStatus",
+  "publishAfter",
   "reasonLength",
   "result",
   "resultingStatus",

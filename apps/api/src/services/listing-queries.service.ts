@@ -64,6 +64,10 @@ export async function selectActiveListingRows(
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       listingType: listings.listingType,
       condition: listings.condition,
       createdAt: listings.createdAt,
@@ -107,6 +111,10 @@ export async function selectListingsBySellerProfileId(app: FastifyInstance, sell
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       listingType: listings.listingType,
       condition: listings.condition,
       createdAt: listings.createdAt,
@@ -130,6 +138,10 @@ export async function selectListingDetailRow(app: FastifyInstance, id: string) {
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       listingType: listings.listingType,
       condition: listings.condition,
       createdAt: listings.createdAt,
@@ -149,6 +161,13 @@ export async function selectListingDetailRow(app: FastifyInstance, id: string) {
       and(
         eq(listings.id, id),
         inArray(listings.status, PUBLIC_LISTING_STATUSES),
+        eq(listings.publicationState, "published"),
+        sql`exists (
+          select 1
+          from ${listingImages}
+          where ${listingImages.listingId} = ${listings.id}
+            and ${listingImages.reviewStatus} = 'approved'
+        )`,
         ne(profiles.safetyStatus, "suspended")
       )
     )
@@ -163,6 +182,10 @@ export async function selectListingOwnerRow(app: FastifyInstance, id: string) {
       id: listings.id,
       sellerProfileId: listings.sellerProfileId,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       title: listings.title,
       description: listings.description,
       priceAmount: listings.priceAmount,
@@ -191,6 +214,10 @@ export async function selectListingSummaryRow(app: FastifyInstance, id: string) 
       priceAmount: listings.priceAmount,
       currency: listings.currency,
       status: listings.status,
+      publicationState: listings.publicationState,
+      publishAfter: listings.publishAfter,
+      publishedAt: listings.publishedAt,
+      publicationReviewReason: listings.publicationReviewReason,
       listingType: listings.listingType,
       condition: listings.condition,
       createdAt: listings.createdAt,
@@ -340,6 +367,13 @@ function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
 
   return and(
     inArray(listings.status, PUBLIC_LISTING_STATUSES),
+    eq(listings.publicationState, "published"),
+    sql`exists (
+      select 1
+      from ${listingImages}
+      where ${listingImages.listingId} = ${listings.id}
+        and ${listingImages.reviewStatus} = 'approved'
+    )`,
     ne(profiles.safetyStatus, "suspended"),
     ...(shouldSearch
       ? [

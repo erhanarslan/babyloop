@@ -25,6 +25,11 @@ import {
   formatListingType
 } from "./listing-display";
 import { ListingImageFrame } from "./listing-image-frame";
+import {
+  getListingPublicationDisplay,
+  hasPendingListingPublication,
+} from "./listing-publication-display";
+import { PublicationWaitIndicator } from "./publication-wait-indicator";
 
 type MyListingsListProps = {
   apiBaseUrl: string;
@@ -49,7 +54,7 @@ type MenuPosition = {
   width: number;
 };
 
-const STATUS_FILTERS: ListingStatusFilter[] = ["all", "active", "reserved", "sold", "archived"];
+const STATUS_FILTERS: ListingStatusFilter[] = ["all", "draft", "active", "reserved", "sold", "archived"];
 const ACTION_MENU_WIDTH = 240;
 const ACTION_MENU_MARGIN = 12;
 
@@ -64,6 +69,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const [pendingListingId, setPendingListingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>("all");
   const [openMenuListingId, setOpenMenuListingId] = useState<string | null>(null);
+  const [showPublicationConfirmation, setShowPublicationConfirmation] = useState(false);
 
   const clearProtectedState = useCallback(() => {
     setListings([]);
@@ -127,6 +133,63 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         : listings.filter((listing) => listing.status === statusFilter),
     [listings, statusFilter]
   );
+  const hasPendingPublication = useMemo(
+    () => hasPendingListingPublication(listings),
+    [listings]
+  );
+
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+
+    if (currentUrl.searchParams.get("publication") !== "review") {
+      return;
+    }
+
+    setShowPublicationConfirmation(true);
+    currentUrl.searchParams.delete("publication");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && showPublicationConfirmation && !hasPendingPublication) {
+      setShowPublicationConfirmation(false);
+    }
+  }, [hasPendingPublication, isLoading, showPublicationConfirmation]);
+
+  useEffect(() => {
+    if (!hasPendingPublication) {
+      return;
+    }
+
+    let active = true;
+    let refreshing = false;
+
+    const timer = window.setInterval(() => {
+      if (refreshing) {
+        return;
+      }
+
+      refreshing = true;
+      void fetchMyListings(apiBaseUrl)
+        .then((body) => {
+          if (active && body.ok) {
+            setListings(body.data.listings);
+          }
+        })
+        .finally(() => {
+          refreshing = false;
+        });
+    }, 7_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [apiBaseUrl, hasPendingPublication]);
 
   async function handleStatusChange(listingId: string, status: ListingLifecycleStatus) {
     if (!(await requireAuth())) {
@@ -416,6 +479,16 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
           </Link>
         </div>
 
+      {showPublicationConfirmation ? (
+        <div
+          className="flex items-center gap-3 rounded-[1.25rem] border border-amber-300/55 bg-amber-50/80 p-4"
+          role="status"
+        >
+          <PublicationWaitIndicator />
+          <strong className="text-sm font-black text-foreground">İlanın onay sürecinde</strong>
+        </div>
+      ) : null}
+
       {actionMessage ? (
         <Alert title={dictionary.listings.lifecycleActionFailed} message={actionMessage} />
       ) : null}
@@ -438,7 +511,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
             priceAmount: listing.price?.amount ?? "",
             currency: listing.price?.currency ?? "TRY"
           };
-          const isPublic = listing.status === "active" || listing.status === "reserved";
+          const publicationDisplay = getListingPublicationDisplay(listing);
+          const isPublic =
+            (listing.status === "active" || listing.status === "reserved") &&
+            listing.publicationState === "published";
           const firstImageId = listing.firstImage?.id ?? null;
 
           return (
@@ -447,6 +523,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
               className="listing-card relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[0.22rem] before:bg-gradient-to-r before:from-sky-500/85 before:to-emerald-500/80 before:content-['']"
               data-listing-id={listing.id}
               data-listing-status={listing.status}
+              data-listing-publication-state={listing.publicationState}
               key={listing.id}
             >
               <ListingImageFrame
@@ -468,17 +545,48 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                       {formatListingPrice(listing.price, dictionary)}
                     </p>
                   </div>
-                  <Badge tone={getListingStatusTone(listing.status)}>
-                    <span data-listing-status-label={listing.status}>
-                      {formatListingStatus(listing.status, dictionary)}
-                    </span>
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {publicationDisplay.isPending ? (
+                      <PublicationWaitIndicator label={publicationDisplay.tooltip ?? "Onay bekliyor"} />
+                    ) : null}
+                    <Badge tone={getListingStatusTone(listing.status)}>
+                      <span data-listing-status-label={listing.status}>
+                        {formatListingStatus(listing.status, dictionary)}
+                      </span>
+                    </Badge>
+                  </div>
                 </div>
 
                 <p className="text-sm font-semibold leading-6 text-muted-foreground">
                   Durum: {formatListingCondition(listing.condition, dictionary)} · Favori:{" "}
                   {listing.favoriteCount} · Tip: {formatListingType(listing.listingType, dictionary)}
                 </p>
+
+                {publicationDisplay.title ? (
+                  <div
+                    className={[
+                      "flex items-center gap-3 rounded-2xl border px-3 py-3",
+                      publicationDisplay.needsAttention
+                        ? "border-destructive/25 bg-destructive/10"
+                        : "border-amber-300/55 bg-amber-50/80",
+                    ].join(" ")}
+                    data-listing-publication-message={listing.publicationState}
+                  >
+                    {publicationDisplay.isPending ? (
+                      <PublicationWaitIndicator label={publicationDisplay.tooltip ?? "Onay bekliyor"} />
+                    ) : null}
+                    <div>
+                      <strong className="block text-sm font-black text-foreground">
+                        {publicationDisplay.title}
+                      </strong>
+                      {publicationDisplay.message ? (
+                        <p className="mt-1 text-xs font-semibold leading-5 text-muted-foreground">
+                          {publicationDisplay.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 {isEditing ? (
                   <form
@@ -557,7 +665,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                     </Link>
                   ) : (
                     <span className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-black text-muted-foreground">
-                      {dictionary.listings.notPublic}
+                      {publicationDisplay.isPending
+                        ? "Onay sürecinde"
+                        : dictionary.listings.notPublic}
                     </span>
                   )}
 
@@ -565,7 +675,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                     listingId={listing.id}
                     actions={getStatusActions(listing.status).map((status) => ({
                       status,
-                      label: getStatusActionLabel(status, dictionary)
+                      label: getStatusActionLabel(listing.status, status, dictionary)
                     }))}
                     hasImage={Boolean(listing.firstImage)}
                     isOpen={openMenuListingId === listing.id}
@@ -858,6 +968,7 @@ function buildListingMetrics(listings: ListingSummary[]): Record<ListingLifecycl
     },
     {
       total: listings.length,
+      draft: 0,
       active: 0,
       reserved: 0,
       sold: 0,
@@ -881,8 +992,12 @@ function getStatusFilterLabel(
     return "Tüm ilanlar";
   }
 
+  if (status === "draft") {
+    return "Yayında değil";
+  }
+
   if (status === "active") {
-    return "Aktif";
+    return "Yayında";
   }
 
   if (status === "reserved") {
@@ -897,7 +1012,7 @@ function getStatusFilterLabel(
 }
 
 function isListingLifecycleStatus(status: string): status is ListingLifecycleStatus {
-  return ["active", "reserved", "sold", "archived"].includes(status);
+  return ["draft", "active", "reserved", "sold", "archived"].includes(status);
 }
 
 function getListingStatusTone(status: string): "success" | "warning" | "neutral" {
@@ -913,6 +1028,10 @@ function getListingStatusTone(status: string): "success" | "warning" | "neutral"
 }
 
 function getStatusActions(status: string): ListingLifecycleStatus[] {
+  if (status === "draft") {
+    return ["active"];
+  }
+
   if (status === "active") {
     return ["reserved", "sold", "archived"];
   }
@@ -933,10 +1052,16 @@ function getStatusActions(status: string): ListingLifecycleStatus[] {
 }
 
 function getStatusActionLabel(
+  currentStatus: string,
   status: ListingLifecycleStatus,
   dictionary: ReturnType<typeof useI18n>["dictionary"]
 ): string {
+  if (status === "active" && (currentStatus === "draft" || currentStatus === "archived")) {
+    return "Yeniden onaya gönder";
+  }
+
   const labels = {
+    draft: dictionary.listings.reactivateListing,
     active: dictionary.listings.reactivateListing,
     reserved: dictionary.listings.markReserved,
     sold: dictionary.listings.markSold,

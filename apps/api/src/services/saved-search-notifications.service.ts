@@ -166,6 +166,7 @@ async function listMatchingListingsForSavedSearch(
 ): Promise<MatchingListingCandidate[]> {
   const filters: SQL[] = [
     or(eq(listings.status, "active"), eq(listings.status, "reserved"))!,
+    eq(listings.publicationState, "published"),
     ne(listings.sellerProfileId, profileId)
   ];
 

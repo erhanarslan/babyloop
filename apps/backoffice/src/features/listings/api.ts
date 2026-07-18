@@ -16,8 +16,23 @@ export type AdminListingSort =
   | "updated_desc"
   | "updated_asc";
 
-export type AdminListingAction = "archive" | "restore";
+export type AdminListingAction = "archive" | "restore" | "publish" | "request_changes";
 export type AdminListingImageAction = "approve" | "reject";
+
+export type AdminListingPublicationState =
+  | "awaiting_images"
+  | "ai_review"
+  | "admin_review"
+  | "scheduled"
+  | "published"
+  | "changes_requested";
+
+export type MarketplacePublicationSettings = {
+  adminReviewEnabled: boolean;
+  autoPublishDelaySeconds: number;
+  updatedByProfileId: string | null;
+  updatedAt: string;
+};
 export type AdminListingImageReviewStatus = "pending" | "approved" | "needs_review" | "rejected";
 
 export type AdminListingImage = {
@@ -50,6 +65,10 @@ export type AdminListingSummary = {
   } | null;
   currency: string;
   status: AdminListingStatus;
+  publicationState: AdminListingPublicationState;
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   category: {
@@ -102,6 +121,8 @@ export type AdminListingDetail = AdminListingSummary & {
   actionEligibility: {
     canArchive: boolean;
     canRestore: boolean;
+    canPublish: boolean;
+    canRequestChanges: boolean;
     supportedActions: AdminListingAction[];
   };
   auditTrail: AdminListingAuditEvent[];
@@ -110,6 +131,7 @@ export type AdminListingDetail = AdminListingSummary & {
 export type ListAdminListingsParams = {
   status?: AdminListingStatus;
   imageReviewStatus?: AdminListingImageReviewStatus;
+  publicationState?: AdminListingPublicationState;
   q?: string;
   categoryId?: string;
   sort?: AdminListingSort;
@@ -136,6 +158,8 @@ export type ApplyAdminListingActionResponse = {
     action: AdminListingAction;
     previousStatus: string;
     nextStatus: string;
+    previousPublicationState: AdminListingPublicationState;
+    nextPublicationState: AdminListingPublicationState;
     auditEventId: string;
   };
 };
@@ -164,6 +188,9 @@ export async function listAdminListings(
   if (params?.imageReviewStatus) {
     searchParams.set("imageReviewStatus", params.imageReviewStatus);
   }
+  if (params?.publicationState) {
+    searchParams.set("publicationState", params.publicationState);
+  }
   if (params?.q) {
     searchParams.set("q", params.q);
   }
@@ -181,6 +208,27 @@ export async function listAdminListings(
   const path = `${ADMIN_LISTINGS_BASE_PATH}${query ? `?${query}` : ""}`;
 
   return adminRequest<ListAdminListingsResponse>(path);
+}
+
+export async function getMarketplacePublicationSettings(): Promise<
+  ApiResponse<{ settings: MarketplacePublicationSettings }>
+> {
+  return adminRequest<{ settings: MarketplacePublicationSettings }>(
+    `${ADMIN_LISTINGS_BASE_PATH}/publication-settings`,
+  );
+}
+
+export async function updateMarketplacePublicationSettings(input: {
+  adminReviewEnabled: boolean;
+  autoPublishDelaySeconds: number;
+}): Promise<ApiResponse<{ settings: MarketplacePublicationSettings }>> {
+  return adminRequest<{ settings: MarketplacePublicationSettings }>(
+    `${ADMIN_LISTINGS_BASE_PATH}/publication-settings`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function getAdminListing(

@@ -1104,8 +1104,8 @@ function registerAdminBodyContracts(): void {
     "/admin/listings/:listingId/actions",
     objectSchema(
       {
-        action: enumSchema(["archive", "restore"], {
-          example: "archive"
+        action: enumSchema(["archive", "restore", "publish", "request_changes"], {
+          example: "publish"
         }),
         reason: stringSchema({
           example: "İlan içerik politikası incelemesi nedeniyle arşivleniyor.",
@@ -1114,6 +1114,28 @@ function registerAdminBodyContracts(): void {
         })
       },
       ["action", "reason"]
+    )
+  );
+
+  addBody(
+    "PATCH",
+    "/admin/listings/publication-settings",
+    objectSchema(
+      {
+        adminReviewEnabled: {
+          type: "boolean",
+          example: false,
+          description:
+            "Açık olduğunda AI kontrolünü geçen ilanlar yönetici yayın kararı bekler."
+        },
+        autoPublishDelaySeconds: integerSchema({
+          defaultValue: 30,
+          example: 30,
+          maximum: 86400,
+          minimum: 5
+        })
+      },
+      ["adminReviewEnabled", "autoPublishDelaySeconds"]
     )
   );
 
@@ -1425,6 +1447,14 @@ function registerQueryContracts(): void {
         "approved",
         "needs_review",
         "rejected"
+      ]),
+      publicationState: enumSchema([
+        "awaiting_images",
+        "ai_review",
+        "admin_review",
+        "scheduled",
+        "published",
+        "changes_requested"
       ]),
       q: stringSchema({
         example: "bebek arabası",

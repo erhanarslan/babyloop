@@ -2,6 +2,7 @@ import {
   conversationListingContexts,
   conversationParticipants,
   conversations,
+  listingImages,
   listings,
   messages,
   profiles
@@ -458,7 +459,14 @@ async function getListingForConversation(
       and(
         eq(listings.id, listingId),
         inArray(listings.status, MESSAGEABLE_LISTING_STATUSES),
-        ne(profiles.safetyStatus, "suspended")
+        eq(listings.publicationState, "published"),
+        ne(profiles.safetyStatus, "suspended"),
+        sql`exists (
+          select 1
+          from ${listingImages}
+          where ${listingImages.listingId} = ${listings.id}
+            and ${listingImages.reviewStatus} = 'approved'
+        )`
       )
     )
     .limit(1);

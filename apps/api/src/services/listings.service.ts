@@ -3,7 +3,7 @@ import {
   listingImages,
   listings
 } from "@babyloop/database/schema";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
 import type {
@@ -40,6 +40,9 @@ import {
 import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
 import { analyzeListingImageAuthenticity } from "./listing-image-authenticity.service.js";
 import { recordListingImageAuthenticityRun } from "./listing-image-authenticity-run-audit.service.js";
+import {
+  reconcileListingPublication
+} from "./listing-publication.service.js";
 
 export async function createListing(
   app: FastifyInstance,
@@ -75,7 +78,7 @@ export async function createListing(
         description: body.description,
         priceAmount: body.priceAmount,
         currency: body.currency,
-        status: "active",
+        status: "draft",
         listingType: body.listingType,
         condition: body.condition
       })
@@ -85,6 +88,10 @@ export async function createListing(
         priceAmount: listings.priceAmount,
         currency: listings.currency,
         status: listings.status,
+        publicationState: listings.publicationState,
+        publishAfter: listings.publishAfter,
+        publishedAt: listings.publishedAt,
+        publicationReviewReason: listings.publicationReviewReason,
         listingType: listings.listingType,
         condition: listings.condition,
         createdAt: listings.createdAt
@@ -103,7 +110,8 @@ export async function createListing(
         source: "api_manual",
         categoryId: body.categoryId,
         listingType: body.listingType,
-        hasImages: false
+        hasImages: false,
+        publicationState: "awaiting_images"
       }
     });
 
@@ -197,11 +205,24 @@ export async function updateListing(
   }
 
   const now = new Date();
+  const shouldResubmitPublication =
+    listing.status === "draft" ||
+    listing.status === "active" ||
+    listing.status === "reserved";
 
   await app.db.transaction(async (tx) => {
     await tx
       .update(listings)
       .set({
+        ...(shouldResubmitPublication
+          ? {
+              status: "draft" as const,
+              publicationState: "awaiting_images" as const,
+              publishAfter: null,
+              publishedAt: null,
+              publicationReviewReason: null
+            }
+          : {}),
         ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
         ...(body.title !== undefined ? { title: body.title } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
@@ -224,6 +245,12 @@ export async function updateListing(
     });
   });
 
+  await reconcileListingPublication(app, listingId, {
+    actorProfileId: currentUser.profile.id,
+    trigger: "seller_listing_updated",
+    resubmit: shouldResubmitPublication
+  });
+
   return {
     status: "updated",
     listing: await getListingSummary(app, listingId)
@@ -237,7 +264,7 @@ export async function updateListingStatus(
   nextStatus: ListingStatusValue
 ): Promise<
   | { status: "updated"; listing: ListingSummaryResponse }
-  | { status: "not_found" | "forbidden" | "invalid_transition" | "approved_image_required" }
+  | { status: "not_found" | "forbidden" | "invalid_transition" }
 > {
   const listing = await selectListingOwnerRow(app, listingId);
 
@@ -253,12 +280,34 @@ export async function updateListingStatus(
     return { status: "invalid_transition" };
   }
 
-  if (nextStatus === "active" && listing.status !== "active") {
-    const approvedImageCount = await countApprovedListingImages(app, listingId);
-
-    if (approvedImageCount === 0) {
-      return { status: "approved_image_required" };
+  if (
+    nextStatus === "active" &&
+    (listing.status === "draft" || listing.status === "archived")
+  ) {
+    if (listing.status === "archived") {
+      await app.db
+        .update(listings)
+        .set({
+          status: "draft",
+          publicationState: "awaiting_images",
+          publishAfter: null,
+          publishedAt: null,
+          publicationReviewReason: null,
+          updatedAt: new Date()
+        })
+        .where(eq(listings.id, listingId));
     }
+
+    await reconcileListingPublication(app, listingId, {
+      actorProfileId: currentUser.profile.id,
+      trigger: "seller_requested_publication",
+      resubmit: true
+    });
+
+    return {
+      status: "updated",
+      listing: await getListingSummary(app, listingId)
+    };
   }
 
   await app.db.transaction(async (tx) => {
@@ -266,6 +315,23 @@ export async function updateListingStatus(
       .update(listings)
       .set({
         status: nextStatus,
+        ...(nextStatus === "active"
+          ? {
+              publicationState: "published" as const,
+              publishAfter: null,
+              publicationReviewReason: null,
+              publishedAt: listing.publishedAt ?? new Date()
+            }
+          : nextStatus === "archived" && listing.status === "draft"
+            ? {
+                publicationState: "awaiting_images" as const,
+                publishAfter: null,
+                publishedAt: null,
+                publicationReviewReason: null
+              }
+            : nextStatus === "sold" || nextStatus === "archived"
+              ? { publishAfter: null }
+              : {}),
         updatedAt: new Date()
       })
       .where(eq(listings.id, listingId));
@@ -376,38 +442,75 @@ export async function addListingImage(
       return { status: "duplicate_image" };
     }
 
-    const [createdImage] = await app.db
-      .insert(listingImages)
-      .values({
-        listingId: input.listingId,
-        url: storedImage.url,
-        contentHash: storedImage.contentHash,
-        sortOrder: currentImageCount,
-        reviewStatus,
-        authenticityProvider: authenticity.providerName,
-        authenticityModel: authenticity.modelName,
-        authenticityPromptVersion: authenticity.promptVersion,
-        authenticityDecision: authenticity.decision,
-        authenticityConfidence: authenticity.confidence.toFixed(4),
-        authenticityReasons: authenticity.reasons,
-        authenticityFlags: authenticity.flags,
-        authenticityCheckedAt
-      })
-      .returning({
-        id: listingImages.id,
-        url: listingImages.url,
-        sortOrder: listingImages.sortOrder,
-        reviewStatus: listingImages.reviewStatus
-      });
+    const imageToPersist = storedImage;
 
-    if (!createdImage) {
-      throw new Error("Listing image insert failed.");
+    if (!imageToPersist) {
+      throw new Error("Stored listing image is unavailable.");
     }
 
-    await app.db
-      .update(listings)
-      .set({ updatedAt: new Date() })
-      .where(eq(listings.id, input.listingId));
+    const createdImage = await app.db.transaction(async (tx) => {
+      const now = new Date();
+      const [image] = await tx
+        .insert(listingImages)
+        .values({
+          listingId: input.listingId,
+          url: imageToPersist.url,
+          contentHash: imageToPersist.contentHash,
+          sortOrder: currentImageCount,
+          reviewStatus,
+          authenticityProvider: authenticity.providerName,
+          authenticityModel: authenticity.modelName,
+          authenticityPromptVersion: authenticity.promptVersion,
+          authenticityDecision: authenticity.decision,
+          authenticityConfidence: authenticity.confidence.toFixed(4),
+          authenticityReasons: authenticity.reasons,
+          authenticityFlags: authenticity.flags,
+          authenticityCheckedAt
+        })
+        .returning({
+          id: listingImages.id,
+          url: listingImages.url,
+          sortOrder: listingImages.sortOrder,
+          reviewStatus: listingImages.reviewStatus
+        });
+
+      if (!image) {
+        throw new Error("Listing image insert failed.");
+      }
+
+      await tx
+        .update(listings)
+        .set({
+          ...(listing.status === "active" || listing.status === "reserved"
+            ? {
+                status: "draft" as const,
+                publicationState: "awaiting_images" as const,
+                publishAfter: null,
+                publishedAt: null,
+                publicationReviewReason: null
+              }
+            : {}),
+          updatedAt: now
+        })
+        .where(
+          and(
+            eq(listings.id, input.listingId),
+            ...(listing.status === "active" || listing.status === "reserved"
+              ? [inArray(listings.status, ["active", "reserved"])]
+              : [])
+          )
+        );
+
+      return image;
+    });
+
+    await reconcileListingPublication(app, input.listingId, {
+      actorProfileId: currentUser.profile.id,
+      trigger:
+        reviewStatus === "needs_review"
+          ? "listing_image_needs_review"
+          : "listing_image_approved"
+    });
 
     return {
       status: "created",
@@ -452,6 +555,7 @@ export async function deleteListingImage(
   const [image] = await app.db
     .select({
       id: listingImages.id,
+      reviewStatus: listingImages.reviewStatus,
       url: listingImages.url
     })
     .from(listingImages)
@@ -482,6 +586,11 @@ export async function deleteListingImage(
       .update(listings)
       .set({ updatedAt: new Date() })
       .where(eq(listings.id, input.listingId));
+  });
+
+  await reconcileListingPublication(app, input.listingId, {
+    actorProfileId: currentUser.profile.id,
+    trigger: "listing_image_deleted"
   });
 
   await deleteStoredListingImage({
@@ -589,20 +698,6 @@ async function countAllListingImages(
   return row?.imageCount ?? 0;
 }
 
-async function countApprovedListingImages(
-  app: FastifyInstance,
-  listingId: string
-): Promise<number> {
-  const [row] = await app.db
-    .select({
-      imageCount: sql<number>`count(${listingImages.id})::int`
-    })
-    .from(listingImages)
-    .where(and(eq(listingImages.listingId, listingId), eq(listingImages.reviewStatus, "approved")));
-
-  return row?.imageCount ?? 0;
-}
-
 export async function listListingsForCurrentUser(
   app: FastifyInstance,
   currentUser: CurrentUser
@@ -679,6 +774,10 @@ async function mapListingRows(
     listingType: string;
     priceAmount: string | null;
     status: string;
+    publicationState: import("./listing-response.mapper.js").ListingPublicationState;
+    publishAfter: Date | null;
+    publishedAt: Date | null;
+    publicationReviewReason: string | null;
     title: string;
   }>
 ): Promise<ListingSummaryResponse[]> {

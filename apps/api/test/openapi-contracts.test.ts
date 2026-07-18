@@ -99,6 +99,53 @@ describe("OpenAPI route contracts", () => {
     });
   });
 
+  it("documents listing publication settings and review actions", () => {
+    const settings = applyOpenApiRouteContract({
+      method: "PATCH",
+      schema: {},
+      url: "/api/v1/admin/listings/publication-settings"
+    });
+    const action = applyOpenApiRouteContract({
+      method: "POST",
+      schema: {},
+      url: "/api/v1/admin/listings/:listingId/actions"
+    });
+    const query = applyOpenApiRouteContract({
+      method: "GET",
+      schema: {},
+      url: "/api/v1/admin/listings"
+    });
+
+    expect(settings.body).toMatchObject({
+      required: ["adminReviewEnabled", "autoPublishDelaySeconds"],
+      properties: {
+        adminReviewEnabled: { type: "boolean" },
+        autoPublishDelaySeconds: { default: 30, minimum: 5 }
+      }
+    });
+    expect(action.body).toMatchObject({
+      properties: {
+        action: {
+          enum: ["archive", "restore", "publish", "request_changes"]
+        }
+      }
+    });
+    expect(query.querystring).toMatchObject({
+      properties: {
+        publicationState: {
+          enum: [
+            "awaiting_images",
+            "ai_review",
+            "admin_review",
+            "scheduled",
+            "published",
+            "changes_requested"
+          ]
+        }
+      }
+    });
+  });
+
   it("automatically documents every dynamic path parameter", () => {
     const schema = applyOpenApiRouteContract({
       method: "POST",

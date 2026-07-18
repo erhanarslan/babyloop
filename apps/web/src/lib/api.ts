@@ -15,6 +15,14 @@ export type ListingImage = {
   sortOrder: number;
 };
 
+export type ListingPublicationState =
+  | "awaiting_images"
+  | "ai_review"
+  | "admin_review"
+  | "scheduled"
+  | "published"
+  | "changes_requested";
+
 export type ListingSummary = {
   id: string;
   title: string;
@@ -24,6 +32,10 @@ export type ListingSummary = {
   } | null;
   favoriteCount: number;
   status: string;
+  publicationState: ListingPublicationState;
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   category: {

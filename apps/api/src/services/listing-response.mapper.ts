@@ -6,6 +6,14 @@ export type CategoryBasicResponse = {
 
 export type ListingImageReviewStatus = "pending" | "approved" | "needs_review" | "rejected";
 
+export type ListingPublicationState =
+  | "awaiting_images"
+  | "ai_review"
+  | "admin_review"
+  | "scheduled"
+  | "published"
+  | "changes_requested";
+
 export type ListingImageAuthenticityMetadata = {
   decision: "allow" | "needs_review" | "reject";
   confidence: number;
@@ -36,6 +44,10 @@ export type ListingSummaryResponse = {
   price: PriceResponse;
   favoriteCount: number;
   status: string;
+  publicationState: ListingPublicationState;
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   category: CategoryBasicResponse;
@@ -63,6 +75,10 @@ export function mapListingSummary(value: {
   currency: string;
   favoriteCount?: number;
   status: string;
+  publicationState: ListingPublicationState;
+  publishAfter: Date | null;
+  publishedAt: Date | null;
+  publicationReviewReason: string | null;
   listingType: string;
   condition: string;
   createdAt: Date;
@@ -76,6 +92,10 @@ export function mapListingSummary(value: {
     price: buildPrice(value.priceAmount, value.currency),
     favoriteCount: value.favoriteCount ?? 0,
     status: value.status,
+    publicationState: value.publicationState,
+    publishAfter: value.publishAfter?.toISOString() ?? null,
+    publishedAt: value.publishedAt?.toISOString() ?? null,
+    publicationReviewReason: value.publicationReviewReason,
     listingType: value.listingType,
     condition: value.condition,
     category: value.category,
