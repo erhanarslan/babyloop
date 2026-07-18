@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SiteShell } from "../../components/ui";
+import { AccountDeletionPanel } from "../../features/account/account-deletion-panel";
 import { AccountProfilePageContent } from "../../features/account/account-profile-page-content";
 import { getApiBaseUrl } from "../../lib/api";
 import { buildNoIndexMetadata } from "../../lib/seo";
@@ -13,6 +14,7 @@ export default function AccountPage() {
   return (
     <SiteShell>
       <AccountProfilePageContent apiBaseUrl={getApiBaseUrl()} />
+      <AccountDeletionPanel apiBaseUrl={getApiBaseUrl()} />
     </SiteShell>
   );
 }

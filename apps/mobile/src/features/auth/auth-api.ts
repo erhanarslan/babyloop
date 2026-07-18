@@ -122,6 +122,33 @@ export type MobilePasswordChangePayload = {
   passwordChanged: true;
 };
 
+export type MobileAccountDeletionRequest = {
+  currentPassword?: string;
+};
+
+export type MobileAccountDeletionRequestPayload = {
+  challengeId: string;
+  expiresAt: string;
+  passwordRequired: boolean;
+  requested: true;
+};
+
+export type MobileAccountDeletionConfirmRequest = {
+  challengeId: string;
+  code: string;
+  confirmation: "HESABIMI SİL";
+};
+
+export type MobileAccountDeletionConfirmPayload = {
+  accountDeleted: true;
+  profileId: string;
+  storageCleanup: {
+    completedCount: number;
+    failedCount: number;
+    pendingCount: number;
+  };
+};
+
 export type MobileApiFailure = {
   ok: false;
   error: {
@@ -349,6 +376,48 @@ export async function changeMobilePassword(
   }
 }
 
+export async function requestMobileAccountDeletion(
+  payload: MobileAccountDeletionRequest
+): Promise<MobileApiResponse<MobileAccountDeletionRequestPayload>> {
+  try {
+    const currentPassword = payload.currentPassword?.trim();
+    const response = await mobileAuthFetch("/api/v1/auth/account-deletion/request", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(currentPassword ? { currentPassword } : {})
+    });
+
+    return parseApiResponse<MobileAccountDeletionRequestPayload>(response);
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
+export async function confirmMobileAccountDeletion(
+  payload: MobileAccountDeletionConfirmRequest
+): Promise<MobileApiResponse<MobileAccountDeletionConfirmPayload>> {
+  try {
+    const response = await mobileAuthFetch("/api/v1/auth/account-deletion/confirm", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    const body = await parseApiResponse<MobileAccountDeletionConfirmPayload>(response);
+
+    if (body.ok) {
+      clearMobileAuthToken();
+    }
+
+    return body;
+  } catch {
+    return apiUnavailableResponse();
+  }
+}
+
 export async function fetchMobileMfaStatus(): Promise<MobileApiResponse<MobileMfaStatus>> {
   try {
     const response = await mobileAuthFetch("/api/v1/auth/mfa/status");
@@ -525,8 +594,7 @@ export async function mobileAuthFetch(path: string, init: RequestInit = {}): Pro
 }
 
 async function buildMobileAuthRequestInit(init: RequestInit): Promise<RequestInit> {
-  const headers = new Headers(init.headers);
-  withMobileClientHeaders(headers);
+  const headers = withMobileClientHeaders(init.headers);
   const token = await hydrateMobileAuthToken();
 
   if (token) {

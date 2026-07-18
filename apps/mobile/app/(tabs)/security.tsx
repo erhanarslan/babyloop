@@ -7,6 +7,7 @@ import { useAuthSession } from "../../src/features/auth/auth-session";
 import { addMobileAuthSessionsRefreshListener } from "../../src/features/auth/auth-session-events";
 import {
   changeMobilePassword,
+  confirmMobileAccountDeletion,
   disableMobileLoginApproval,
   disableMobileMfa,
   enableMobileLoginApproval,
@@ -14,6 +15,7 @@ import {
   fetchMobileAuthSessions,
   fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
+  requestMobileAccountDeletion,
   revokeMobileAuthSession,
   type MobileAuthSession
 } from "../../src/features/auth/auth-api";
@@ -21,7 +23,11 @@ import {
   buildMobileSensitiveToggleDescription,
   buildMobileSensitiveToggleTitle,
   canSubmitMobileSensitiveTogglePassword,
+  getMobileAccountDeletionErrorMessage,
   getMobileSecurityRows,
+  MOBILE_ACCOUNT_DELETION_CONFIRMATION,
+  normalizeMobileAccountDeletionCode,
+  validateMobileAccountDeletionConfirmation,
   validateMobilePasswordChangeForm,
   type MobilePasswordChangeForm,
   type MobileSecurityRowTone,
@@ -67,6 +73,15 @@ export default function SecurityRoute() {
   const [passwordChangeMessage, setPasswordChangeMessage] = useState<string | null>(null);
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
 
+  const [accountDeletionOpen, setAccountDeletionOpen] = useState(false);
+  const [accountDeletionStep, setAccountDeletionStep] = useState<"request" | "confirm">("request");
+  const [accountDeletionCurrentPassword, setAccountDeletionCurrentPassword] = useState("");
+  const [accountDeletionChallengeId, setAccountDeletionChallengeId] = useState<string | null>(null);
+  const [accountDeletionCode, setAccountDeletionCode] = useState("");
+  const [accountDeletionConfirmation, setAccountDeletionConfirmation] = useState("");
+  const [accountDeletionError, setAccountDeletionError] = useState<string | null>(null);
+  const [savingAccountDeletion, setSavingAccountDeletion] = useState(false);
+
   useEffect(() => {
     if (!currentUser) {
       setMfaEnabled(null);
@@ -82,6 +97,14 @@ export default function SecurityRoute() {
       });
       setPasswordChangeMessage(null);
       setPasswordChangeError(null);
+      setAccountDeletionOpen(false);
+      setAccountDeletionStep("request");
+      setAccountDeletionCurrentPassword("");
+      setAccountDeletionChallengeId(null);
+      setAccountDeletionCode("");
+      setAccountDeletionConfirmation("");
+      setAccountDeletionError(null);
+      setSavingAccountDeletion(false);
       setSessions([]);
       setCurrentSessionId(null);
       return;
@@ -366,6 +389,103 @@ export default function SecurityRoute() {
     }
   }
 
+  function openAccountDeletion() {
+    setAccountDeletionOpen(true);
+    setAccountDeletionStep("request");
+    setAccountDeletionCurrentPassword("");
+    setAccountDeletionChallengeId(null);
+    setAccountDeletionCode("");
+    setAccountDeletionConfirmation("");
+    setAccountDeletionError(null);
+  }
+
+  function closeAccountDeletion() {
+    if (savingAccountDeletion) {
+      return;
+    }
+
+    setAccountDeletionOpen(false);
+    setAccountDeletionStep("request");
+    setAccountDeletionCurrentPassword("");
+    setAccountDeletionChallengeId(null);
+    setAccountDeletionCode("");
+    setAccountDeletionConfirmation("");
+    setAccountDeletionError(null);
+  }
+
+  async function handleAccountDeletionRequest() {
+    setSavingAccountDeletion(true);
+    setAccountDeletionError(null);
+
+    try {
+      const response = await requestMobileAccountDeletion({
+        ...(accountDeletionCurrentPassword.trim()
+          ? { currentPassword: accountDeletionCurrentPassword }
+          : {})
+      });
+
+      if (!response.ok) {
+        setAccountDeletionError(
+          getMobileAccountDeletionErrorMessage(
+            response.error.code,
+            response.error.message
+          )
+        );
+        return;
+      }
+
+      setAccountDeletionChallengeId(response.data.challengeId);
+      setAccountDeletionStep("confirm");
+      setAccountDeletionCurrentPassword("");
+    } finally {
+      setSavingAccountDeletion(false);
+    }
+  }
+
+  async function handleAccountDeletionConfirm() {
+    const validationError = validateMobileAccountDeletionConfirmation({
+      code: accountDeletionCode,
+      confirmation: accountDeletionConfirmation
+    });
+
+    if (validationError) {
+      setAccountDeletionError(validationError);
+      return;
+    }
+
+    if (!accountDeletionChallengeId) {
+      setAccountDeletionError("Hesap silme güvenlik kodunu yeniden iste.");
+      setAccountDeletionStep("request");
+      return;
+    }
+
+    setSavingAccountDeletion(true);
+    setAccountDeletionError(null);
+
+    try {
+      const response = await confirmMobileAccountDeletion({
+        challengeId: accountDeletionChallengeId,
+        code: accountDeletionCode,
+        confirmation: MOBILE_ACCOUNT_DELETION_CONFIRMATION
+      });
+
+      if (!response.ok) {
+        setAccountDeletionError(
+          getMobileAccountDeletionErrorMessage(
+            response.error.code,
+            response.error.message
+          )
+        );
+        return;
+      }
+
+      await authSession.logout();
+      router.replace("/login");
+    } finally {
+      setSavingAccountDeletion(false);
+    }
+  }
+
   async function handleSessionRefresh(options: { silent?: boolean } = {}) {
     const silent = options.silent ?? false;
 
@@ -552,6 +672,44 @@ export default function SecurityRoute() {
 
       </MobileCard>
 
+      <MobileCard style={styles.card}>
+        <Text style={styles.title}>Hesabı kalıcı olarak sil</Text>
+        <Text style={styles.text}>
+          Bu işlem geri alınamaz. Çocuk profilleri, favoriler, kayıtlı aramalar ve bildirim
+          tercihleri silinir; pazaryeri geçmişindeki zorunlu kayıtlar anonimleştirilir.
+        </Text>
+        <MobileButton onPress={openAccountDeletion} variant="danger">
+          Hesabımı sil
+        </MobileButton>
+      </MobileCard>
+
+      <AccountDeletionModal
+        code={accountDeletionCode}
+        confirmation={accountDeletionConfirmation}
+        currentPassword={accountDeletionCurrentPassword}
+        error={accountDeletionError}
+        onCancel={closeAccountDeletion}
+        onCodeChange={(value) => {
+          setAccountDeletionCode(normalizeMobileAccountDeletionCode(value));
+          setAccountDeletionError(null);
+        }}
+        onConfirmationChange={(value) => {
+          setAccountDeletionConfirmation(value);
+          setAccountDeletionError(null);
+        }}
+        onCurrentPasswordChange={(value) => {
+          setAccountDeletionCurrentPassword(value);
+          setAccountDeletionError(null);
+        }}
+        onSubmit={
+          accountDeletionStep === "request"
+            ? () => void handleAccountDeletionRequest()
+            : () => void handleAccountDeletionConfirm()
+        }
+        saving={savingAccountDeletion}
+        step={accountDeletionStep}
+        visible={accountDeletionOpen}
+      />
       <SensitiveSecurityToggleModal
         error={sensitiveToggleError}
         onCancel={closeSensitiveToggle}
@@ -640,6 +798,128 @@ function SensitiveSecurityToggleModal({
               ]}
             >
               <Text style={styles.primaryButtonText}>{saving ? "Doğrulanıyor..." : "Onayla"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function AccountDeletionModal({
+  code,
+  confirmation,
+  currentPassword,
+  error,
+  onCancel,
+  onCodeChange,
+  onConfirmationChange,
+  onCurrentPasswordChange,
+  onSubmit,
+  saving,
+  step,
+  visible
+}: {
+  code: string;
+  confirmation: string;
+  currentPassword: string;
+  error: string | null;
+  onCancel: () => void;
+  onCodeChange: (value: string) => void;
+  onConfirmationChange: (value: string) => void;
+  onCurrentPasswordChange: (value: string) => void;
+  onSubmit: () => void;
+  saving: boolean;
+  step: "request" | "confirm";
+  visible: boolean;
+}) {
+  const isRequestStep = step === "request";
+
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.eyebrow}>Kalıcı işlem</Text>
+          <Text style={styles.title}>
+            {isRequestStep ? "Hesap silme kodu iste" : "Hesap silmeyi onayla"}
+          </Text>
+          <Text style={styles.text}>
+            {isRequestStep
+              ? "Şifreyle açılan hesaplarda mevcut şifreni gir. Yalnızca Google ile giriş yaptıysan alanı boş bırakabilirsin."
+              : `E-postana gelen 6 haneli kodu gir ve onay alanına tam olarak ${MOBILE_ACCOUNT_DELETION_CONFIRMATION} yaz.`}
+          </Text>
+
+          {isRequestStep ? (
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!saving}
+              onChangeText={onCurrentPasswordChange}
+              placeholder="Mevcut şifre (Google hesabında boş bırak)"
+              placeholderTextColor={colors.subtle}
+              secureTextEntry
+              style={styles.input}
+              value={currentPassword}
+            />
+          ) : (
+            <>
+              <TextInput
+                editable={!saving}
+                keyboardType="number-pad"
+                maxLength={6}
+                onChangeText={onCodeChange}
+                placeholder="6 haneli güvenlik kodu"
+                placeholderTextColor={colors.subtle}
+                style={styles.input}
+                value={code}
+              />
+              <TextInput
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!saving}
+                onChangeText={onConfirmationChange}
+                placeholder={MOBILE_ACCOUNT_DELETION_CONFIRMATION}
+                placeholderTextColor={colors.subtle}
+                style={styles.input}
+                value={confirmation}
+              />
+            </>
+          )}
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.modalActions}>
+            <Pressable
+              disabled={saving}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.secondaryButtonText}>Vazgeç</Text>
+            </Pressable>
+            <Pressable
+              disabled={saving}
+              onPress={onSubmit}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed || saving ? styles.pressed : null
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {saving
+                  ? isRequestStep
+                    ? "Kod gönderiliyor..."
+                    : "Hesap siliniyor..."
+                  : isRequestStep
+                    ? "Kodu gönder"
+                    : "Hesabı kalıcı olarak sil"}
+              </Text>
             </Pressable>
           </View>
         </View>
