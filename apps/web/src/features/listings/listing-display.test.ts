@@ -9,7 +9,7 @@ describe("formatListingPrice", () => {
     expect(formatListingPrice({ amount: "6500.00", currency: "TRY" }, dictionary)).toBe("₺6.500");
   });
 
-  it("keeps price-on-request copy for missing prices", () => {
-    expect(formatListingPrice(null, dictionary)).toBe(dictionary.common.priceOnRequest);
+  it("shows donation for missing prices", () => {
+    expect(formatListingPrice(null, dictionary)).toBe("Bağış");
   });
 });

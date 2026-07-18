@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { clearAuthToken } from "../../lib/auth-client";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { TextInput } from "../../components/ui";
 import {
   confirmAccountDeletion,
   requestAccountDeletion
@@ -166,22 +167,21 @@ export function AccountDeletionPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
               </p>
             </div>
 
-            <label className="grid gap-2 text-sm font-bold text-slate-800">
-              Mevcut şifre
-              <input
-                autoComplete="current-password"
-                className="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal text-slate-950"
-                disabled={pendingAction !== null}
-                maxLength={128}
-                onChange={(event) => {
-                  setCurrentPassword(event.target.value);
-                  setErrorMessage(null);
-                }}
-                placeholder="Google hesabında boş bırak"
-                type="password"
-                value={currentPassword}
-              />
-            </label>
+            <TextInput
+              autoComplete="current-password"
+              className="rounded-xl border-slate-300 bg-white font-normal text-slate-950"
+              disabled={pendingAction !== null}
+              label="Mevcut şifre"
+              labelClassName="grid gap-2 text-sm font-bold text-slate-800"
+              maxLength={128}
+              placeholder="Google hesabında boş bırak"
+              type="password"
+              value={currentPassword}
+              onChange={(event) => {
+                setCurrentPassword(event.target.value);
+                setErrorMessage(null);
+              }}
+            />
 
             <div className="flex flex-wrap gap-3">
               <button

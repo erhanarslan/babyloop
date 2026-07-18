@@ -96,7 +96,7 @@ export function AccountProfilePageContent({ apiBaseUrl }: AccountProfilePageCont
   );
 
   return (
-    <PageContainer className="pb-16 pt-6 sm:pt-8" ariaLabel={dictionary.accountProfile.ariaLabel}>
+    <PageContainer className="account-profile-page pb-16 pt-6 sm:pt-8" ariaLabel={dictionary.accountProfile.ariaLabel}>
       <section className="mb-4 sm:mb-5">
         <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">
           {dictionary.accountProfile.pageTitle}

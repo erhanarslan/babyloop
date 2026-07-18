@@ -13,7 +13,7 @@ export default function RegisterError({ error: _error, reset }: RouteErrorProps)
         <h1>Registration could not load</h1>
         <p>The registration flow hit an unexpected error.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

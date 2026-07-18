@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AuthPromptProvider } from "../../features/auth/auth-prompt-provider";
+import { PasswordChangeModalHost } from "../../features/auth/password-change-modal";
 import { getApiBaseUrl } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { SiteFooter } from "../site-footer";
@@ -17,6 +18,7 @@ export function SiteShell({ children }: SiteShellProps) {
         <div className="app-content flex-1">{children}</div>
         <SiteFooter />
       </main>
+      <PasswordChangeModalHost apiBaseUrl={getApiBaseUrl()} />
     </AuthPromptProvider>
   );
 }

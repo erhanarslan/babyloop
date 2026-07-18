@@ -13,7 +13,7 @@ export default function LoginError({ error: _error, reset }: RouteErrorProps) {
         <h1>Sign in could not load</h1>
         <p>The sign-in flow hit an unexpected error.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

@@ -152,7 +152,7 @@ export function FavoritesList({ apiBaseUrl }: FavoritesListProps) {
   }
 
   return (
-    <section className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]" aria-label="Favoriler">
+    <section className="favorites-page-layout grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]" aria-label="Favoriler">
       <aside className="self-start rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
         <nav aria-label="Favori filtreleri" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
           {STATUS_FILTERS.map((status) => (

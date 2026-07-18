@@ -9,7 +9,7 @@ type MyListingsPageContentProps = {
 
 export function MyListingsPageContent({ apiBaseUrl }: MyListingsPageContentProps) {
   return (
-    <PageContainer className="pb-12 pt-5" ariaLabel="İlanlarım">
+    <PageContainer className="my-listings-page pb-12 pt-5" ariaLabel="İlanlarım">
       <MyListingsList apiBaseUrl={apiBaseUrl} />
     </PageContainer>
   );

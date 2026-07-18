@@ -1353,7 +1353,7 @@ export const dictionaries = {
         savedSearches: "Kayıtlı aramalar",
         childProfiles: "Çocuğum / ihtiyaçlar",
         favorites: "Favoriler",
-        security: "Güvenlik ve şifre",
+        security: "Şifre değiştir",
         logout: "Çıkış yap"
       },
       location: {
@@ -2078,7 +2078,7 @@ export const dictionaries = {
       profileSummaryDescription: "Hesabında görünen temel bilgileri burada görebilirsin.",
       name: "Ad soyad",
       city: "Şehir",
-      securityAndPassword: "Güvenlik ve şifre",
+      securityAndPassword: "Şifre değiştir",
       securityDescription: "Şifre alanı hazır; ek güvenlik seçenekleri geldiğinde buradan yönetilecek.",
       securityPasswordDescription: "Şifreni güncelle ve hesabını güvende tut.",
       otpDescription: "Girişlerde ikinci doğrulama adımı.",

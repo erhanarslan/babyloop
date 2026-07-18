@@ -24,4 +24,11 @@ describe("SellListingForm AI draft flow", () => {
     expect(generateDraftBlock).not.toContain("createListing(");
     expect(generateDraftBlock).not.toContain("handleSubmit(");
   });
+  it("requires explicit donation confirmation for price-free listings", () => {
+    expect(source).toContain("needsDonationConfirmation");
+    expect(source).toContain("toDonationListingPayload");
+    expect(source).toContain("Onayla ve bağış ilanı oluştur");
+    expect(source).toContain("Fiyat bilgisi girmediğin için bu ilan bağış ilanı olarak oluşturulacak");
+  });
+
 });

@@ -13,7 +13,7 @@ export default function SellError({ error: _error, reset }: RouteErrorProps) {
         <h1>Sell form could not load</h1>
         <p>The listing creation flow hit an unexpected error.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

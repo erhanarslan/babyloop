@@ -359,15 +359,6 @@ function BrowseFilterSidebar({
             </label>
           </div>
 
-          <label className="babyloop-checkbox-card">
-            <input
-              defaultChecked={filters.hasImages === "true"}
-              name="hasImages"
-              type="checkbox"
-              value="true"
-            />
-            <span>{dictionary.publicPages.browse.imagesOnly}</span>
-          </label>
         </section>
 
         <section className="babyloop-filter-section">
@@ -481,7 +472,6 @@ function BrowseNoResultsPanel({
 
       <ul className={styles.noResultsTips} aria-label="Aramaya devam etme önerileri">
         <li>Fiyat aralığını genişletmeyi dene.</li>
-        <li>Sadece görselli filtreliyse bu seçimi kaldır.</li>
         <li>Benzer ihtiyaçlar için aramayı kaydet.</li>
       </ul>
     </Card>
@@ -501,7 +491,6 @@ function buildBrowseAssistantPrompt(
     filters.condition ? `durum: ${formatListingCondition(filters.condition, dictionary)}` : "",
     filters.priceMin ? `en az fiyat: ${filters.priceMin}` : "",
     filters.priceMax ? `en çok fiyat: ${filters.priceMax}` : "",
-    filters.hasImages === "true" ? "sadece görselli ilanlar" : ""
   ].filter(Boolean);
 
   return parts.length > 0
@@ -531,7 +520,6 @@ function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
     filters.condition,
     filters.priceMin,
     filters.priceMax,
-    filters.hasImages === "true" ? "hasImages" : ""
   ].filter((value) => String(value).trim().length > 0).length;
 }
 
@@ -547,7 +535,21 @@ function ListingCard({
   const { dictionary } = useI18n();
 
   return (
-    <article className={`listing-card ${styles.listingCard}`}>
+    <article className={`browse-listing-card listing-card ${styles.listingCard}`}>
+      <Link
+        aria-label={`${listing.title} ilanını aç`}
+        className="browse-listing-card-hit-area"
+        href={`/listings/${listing.id}`}
+        onClick={() => {
+          void recordProductEvent(apiBaseUrl, {
+            categoryId: listing.category.id,
+            eventType: "listing_card_clicked",
+            listingId: listing.id,
+            source
+          });
+        }}
+      />
+
       <ListingHoverImageFrame
         alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
         apiBaseUrl={apiBaseUrl}
@@ -559,7 +561,7 @@ function ListingCard({
         <div className="listing-card-badges babyloop-listing-card-badges">
           <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
           <Badge tone={listing.listingType === "donation" ? "warning" : "success"}>
-            {formatListingType(listing.listingType, dictionary)}
+            {formatListingType(listing.price ? listing.listingType : "donation", dictionary)}
           </Badge>
         </div>
 
@@ -567,19 +569,6 @@ function ListingCard({
 
         <div className="listing-card-footer babyloop-listing-card-footer">
           <strong>{formatListingPrice(listing.price, dictionary)}</strong>
-          <Link
-            href={`/listings/${listing.id}`}
-            onClick={() => {
-              void recordProductEvent(apiBaseUrl, {
-                categoryId: listing.category.id,
-                eventType: "listing_card_clicked",
-                listingId: listing.id,
-                source
-              });
-            }}
-          >
-            {dictionary.common.viewDetails}
-          </Link>
         </div>
       </div>
     </article>
@@ -705,14 +694,6 @@ function buildActiveFilterChips({
     });
   }
 
-  if (filters.hasImages === "true") {
-    chips.push({
-      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
-        hasImages: ""
-      }),
-      label: "Sadece görselli"
-    });
-  }
 
   if (filters.sort && filters.sort !== "newest") {
     const sortOption = SORT_OPTIONS.find((option) => option.value === filters.sort);
@@ -771,7 +752,6 @@ function buildBrowseHref(
   appendIfPresent(params, "listingType", filters.listingType);
   appendIfPresent(params, "priceMin", filters.priceMin);
   appendIfPresent(params, "priceMax", filters.priceMax);
-  appendIfPresent(params, "hasImages", filters.hasImages);
   appendIfPresent(params, "sort", filters.sort);
   params.set("limit", String(filters.limit));
 

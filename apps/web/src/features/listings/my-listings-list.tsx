@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Alert, Badge, Button, EmptyState, LoadingBlock } from "../../components/ui";
 import type { ListingSummary } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -41,22 +40,20 @@ type EditDraft = {
   currency: string;
 };
 
-type ListingStatusFilter = "all" | ListingLifecycleStatus;
+type ListingStatusFilter = "all" | "completed" | ListingLifecycleStatus;
 
 type ListingActionMenuItem = {
   status: ListingLifecycleStatus;
   label: string;
 };
 
-type MenuPosition = {
-  top: number;
-  left: number;
-  width: number;
-};
-
-const STATUS_FILTERS: ListingStatusFilter[] = ["all", "draft", "active", "reserved", "sold", "archived"];
-const ACTION_MENU_WIDTH = 240;
-const ACTION_MENU_MARGIN = 12;
+const STATUS_FILTERS: Exclude<ListingStatusFilter, "all" | "sold" | "archived">[] = [
+  "draft",
+  "active",
+  "reserved",
+  "completed"
+];
+const BABYLOOP_MY_LISTINGS_DASHBOARD_OVERLAY_V1 = true;
 
 export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   const { dictionary } = useI18n();
@@ -126,13 +123,19 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   }, [apiBaseUrl, dictionary, requireAuth]);
 
   const listingMetrics = useMemo(() => buildListingMetrics(listings), [listings]);
-  const filteredListings = useMemo(
-    () =>
-      statusFilter === "all"
-        ? listings
-        : listings.filter((listing) => listing.status === statusFilter),
-    [listings, statusFilter]
-  );
+  const filteredListings = useMemo(() => {
+    if (statusFilter === "all") {
+      return listings;
+    }
+
+    if (statusFilter === "completed") {
+      return listings.filter(
+        (listing) => listing.status === "sold" || listing.status === "archived"
+      );
+    }
+
+    return listings.filter((listing) => listing.status === statusFilter);
+  }, [listings, statusFilter]);
   const hasPendingPublication = useMemo(
     () => hasPendingListingPublication(listings),
     [listings]
@@ -338,6 +341,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
   function startEditing(listing: ListingSummary) {
     setActionMessage(null);
+    setOpenMenuListingId(null);
     setEditListingId((currentEditingId) => {
       if (currentEditingId === listing.id) {
         return null;
@@ -434,50 +438,78 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   }
 
   return (
-    <section className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]" aria-label="İlan yönetimi">
-      <aside className="self-start rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
-        <nav aria-label="İlan durumu" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
-          {STATUS_FILTERS.map((status) => (
+    <section className="grid gap-4" aria-label="İlan yönetimi">
+      <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/70 bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">İlanlarım</h1>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
+            {statusFilter === "all"
+              ? `${listingMetrics.total} ilan bulunuyor.`
+              : `${filteredListings.length} ilan gösteriliyor.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {statusFilter !== "all" ? (
             <button
-              aria-pressed={statusFilter === status}
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-background px-4 py-2 text-sm font-black text-foreground transition hover:bg-muted"
+              data-status-filter="all"
+              type="button"
+              onClick={() => {
+                setOpenMenuListingId(null);
+                setEditListingId(null);
+                setStatusFilter("all");
+              }}
+            >
+              Tümünü göster
+            </button>
+          ) : null}
+          <Link
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
+            href="/sell"
+          >
+            Yeni ilan ver
+          </Link>
+        </div>
+      </div>
+
+      <nav
+        aria-label="İlan durumu"
+        className="my-listings-status-grid grid grid-cols-2 gap-3 xl:grid-cols-4"
+      >
+        {STATUS_FILTERS.map((status) => {
+          const isActive = statusFilter === status;
+
+          return (
+            <button
+              aria-pressed={isActive}
               className={[
-                "min-w-[150px] rounded-2xl border px-3 py-2 text-left text-sm font-black transition lg:min-w-0",
-                statusFilter === status
-                  ? "border-primary/40 bg-background text-primary shadow-sm"
-                  : "border-transparent text-foreground hover:bg-background/75"
+                "my-listings-status-card min-w-0 rounded-[1.25rem] border p-4 text-left transition",
+                isActive
+                  ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
+                  : "border-border/70 bg-background text-foreground hover:border-primary/30 hover:bg-primary/[0.04]"
               ].join(" ")}
               data-status-filter={status}
               key={status}
               type="button"
               onClick={() => {
                 setOpenMenuListingId(null);
+                setEditListingId(null);
                 setStatusFilter(status);
               }}
             >
-              <span>{getStatusFilterLabel(status, dictionary)}</span>
-              <small className="mt-1 block text-xs font-bold text-muted-foreground">
+              <span className="block text-sm font-black">
+                {getStatusFilterLabel(status, dictionary)}
+              </span>
+              <strong className="mt-2 block text-3xl font-black leading-none">
                 {getStatusCount(listingMetrics, status)}
+              </strong>
+              <small className="mt-2 block text-xs font-bold text-muted-foreground">
+                {isActive ? "Seçili filtre" : "İlanları göster"}
               </small>
             </button>
-          ))}
-        </nav>
-      </aside>
-
-      <div className="grid min-w-0 gap-4">
-        <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/70 bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">İlanlarım</h1>
-            <p className="mt-1 text-sm font-semibold text-muted-foreground">
-              {filteredListings.length} ilan gösteriliyor.
-            </p>
-          </div>
-          <Link
-            className="inline-flex rounded-full bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground"
-            href="/sell"
-          >
-            Yeni ilan ver
-          </Link>
-        </div>
+          );
+        })}
+      </nav>
 
       {showPublicationConfirmation ? (
         <div
@@ -520,19 +552,35 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
           return (
             <article
               aria-label={`İlan: ${listing.title}`}
-              className="listing-card relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[0.22rem] before:bg-gradient-to-r before:from-sky-500/85 before:to-emerald-500/80 before:content-['']"
+              className="my-listing-card listing-card relative overflow-hidden"
               data-listing-id={listing.id}
               data-listing-status={listing.status}
               data-listing-publication-state={listing.publicationState}
               key={listing.id}
             >
-              <ListingImageFrame
-                alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
-                apiBaseUrl={apiBaseUrl}
-                className="listing-card-image"
-                fallbackLabel={dictionary.listings.noImage}
-                url={listing.firstImage?.url ?? null}
-              />
+              {isPublic ? (
+                <Link
+                  aria-label={`${listing.title} ilanını aç`}
+                  className="my-listing-detail-link block"
+                  href={`/listings/${listing.id}`}
+                >
+                  <ListingImageFrame
+                    alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
+                    apiBaseUrl={apiBaseUrl}
+                    className="listing-card-image"
+                    fallbackLabel={dictionary.listings.noImage}
+                    url={listing.firstImage?.url ?? null}
+                  />
+                </Link>
+              ) : (
+                <ListingImageFrame
+                  alt={dictionary.listings.productImageAlt.replace("{title}", listing.title)}
+                  apiBaseUrl={apiBaseUrl}
+                  className="listing-card-image"
+                  fallbackLabel={dictionary.listings.noImage}
+                  url={listing.firstImage?.url ?? null}
+                />
+              )}
 
               <div className="listing-card-body gap-3">
                 <div className="flex items-start justify-between gap-3">
@@ -540,7 +588,16 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                     <p className="listing-meta truncate">
                       {formatCategoryName(listing.category, dictionary)}
                     </p>
-                    <h2 className="line-clamp-2 text-lg font-black leading-snug">{listing.title}</h2>
+                    {isPublic ? (
+                      <Link
+                        className="my-listing-title-link block"
+                        href={`/listings/${listing.id}`}
+                      >
+                        <h2 className="line-clamp-2 text-lg font-black leading-snug">{listing.title}</h2>
+                      </Link>
+                    ) : (
+                      <h2 className="line-clamp-2 text-lg font-black leading-snug">{listing.title}</h2>
+                    )}
                     <p className="mt-2 text-xl font-black text-foreground">
                       {formatListingPrice(listing.price, dictionary)}
                     </p>
@@ -590,7 +647,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
 
                 {isEditing ? (
                   <form
-                    className="listing-inline-form rounded-[1.25rem] border border-border bg-slate-50/90 p-4"
+                    aria-label={`${listing.title} ilanını düzenle`}
+                    aria-modal="true"
+                    className="my-listing-edit-modal listing-inline-form rounded-[1.25rem] border border-border bg-background p-4"
+                    role="dialog"
                     onSubmit={(event) => {
                       void handleEditSubmit(listing.id, event);
                     }}
@@ -646,9 +706,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   </form>
                 ) : null}
 
-                <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
                   <Button
-                    className="min-h-10 flex-1 px-3"
+                    className="min-h-10 w-full px-3"
                     variant="secondary"
                     type="button"
                     disabled={isPending}
@@ -656,20 +716,6 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   >
                     {dictionary.listings.editListing}
                   </Button>
-                  {isPublic ? (
-                    <Link
-                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-black text-primary-foreground"
-                      href={`/listings/${listing.id}`}
-                    >
-                      {dictionary.common.viewDetails}
-                    </Link>
-                  ) : (
-                    <span className="inline-flex min-h-10 flex-1 items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-black text-muted-foreground">
-                      {publicationDisplay.isPending
-                        ? "Onay sürecinde"
-                        : dictionary.listings.notPublic}
-                    </span>
-                  )}
 
                   <MyListingActionsMenu
                     listingId={listing.id}
@@ -691,6 +737,10 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                       void handleImageUpload(listing.id, event);
                     }}
                     onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setEditListingId(null);
+                      }
+
                       setOpenMenuListingId(isOpen ? listing.id : null);
                     }}
                     onStatusChange={(status) => {
@@ -702,7 +752,6 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
             </article>
           );
         })}
-      </div>
       </div>
     </section>
   );
@@ -730,37 +779,10 @@ function MyListingActionsMenu({
   onStatusChange: (status: ListingLifecycleStatus) => void;
 }) {
   const menuId = useId();
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState<MenuPosition | null>(null);
-
-  const updatePosition = useCallback(() => {
-    if (!triggerRef.current) {
-      return;
-    }
-
-    setPosition(calculateActionMenuPosition(triggerRef.current));
-  }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      setPosition(null);
       return;
-    }
-
-    updatePosition();
-
-    function handlePointerDown(event: PointerEvent) {
-      const eventPath = event.composedPath();
-
-      if (
-        (triggerRef.current && eventPath.includes(triggerRef.current)) ||
-        (menuRef.current && eventPath.includes(menuRef.current))
-      ) {
-        return;
-      }
-
-      onOpenChange(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -769,45 +791,70 @@ function MyListingActionsMenu({
       }
     }
 
-    function closeForViewportChange() {
-      onOpenChange(false);
-    }
-
-    function repositionForScroll() {
-      updatePosition();
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("resize", closeForViewportChange);
-    window.addEventListener("scroll", repositionForScroll, true);
 
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("resize", closeForViewportChange);
-      window.removeEventListener("scroll", repositionForScroll, true);
     };
-  }, [isOpen, onOpenChange, updatePosition]);
+  }, [isOpen, onOpenChange]);
 
-  const resolvedPosition =
-    position ?? (isOpen && triggerRef.current ? calculateActionMenuPosition(triggerRef.current) : null);
+  return (
+    <>
+      <button
+        aria-controls={isOpen ? menuId : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-black text-foreground transition hover:bg-muted disabled:opacity-55"
+        data-listing-status-menu-trigger={listingId}
+        disabled={isPending}
+        type="button"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenChange(!isOpen);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
 
-  const menu =
-    isOpen && resolvedPosition
-      ? createPortal(
+          event.preventDefault();
+          onOpenChange(!isOpen);
+        }}
+      >
+        İşlemler
+      </button>
+
+      {isOpen ? (
+        <div
+          className="my-listing-actions-layer"
+          data-listing-card-overlay="actions"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) {
+              onOpenChange(false);
+            }
+          }}
+        >
           <div
-            className="fixed z-[80] max-h-[min(70vh,420px)] overflow-y-auto rounded-2xl border border-border bg-background p-2 shadow-xl"
+            aria-label="İlan işlemleri"
+            className="my-listing-actions-menu rounded-2xl border border-border bg-background p-2 shadow-xl"
             data-listing-status-menu={listingId}
             id={menuId}
-            ref={menuRef}
             role="menu"
-            style={{
-              left: resolvedPosition.left,
-              top: resolvedPosition.top,
-              width: resolvedPosition.width
-            }}
+            onPointerDown={(event) => event.stopPropagation()}
           >
+            <div className="flex items-center justify-between gap-3 px-2 pb-2">
+              <strong className="text-sm font-black text-foreground">İlan işlemleri</strong>
+              <button
+                aria-label="İlan işlemlerini kapat"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-lg font-black text-foreground hover:bg-muted"
+                type="button"
+                onClick={() => onOpenChange(false)}
+              >
+                ×
+              </button>
+            </div>
+
             <label
               className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted focus-within:bg-muted"
               role="menuitem"
@@ -856,9 +903,9 @@ function MyListingActionsMenu({
             {actions.map((action) => (
               <button
                 className="flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-55"
+                data-listing-status-action={action.status}
                 disabled={isPending}
                 key={action.status}
-                data-listing-status-action={action.status}
                 role="menuitem"
                 type="button"
                 onClick={() => {
@@ -869,92 +916,11 @@ function MyListingActionsMenu({
                 <span className="truncate">{action.label}</span>
               </button>
             ))}
-          </div>,
-          document.body
-        )
-      : null;
-
-  return (
-    <>
-      <button
-        aria-controls={isOpen ? menuId : undefined}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        data-listing-status-menu-trigger={listingId}
-        className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-black text-foreground transition hover:bg-muted disabled:opacity-55 sm:w-auto"
-        disabled={isPending}
-        ref={triggerRef}
-        type="button"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          if (!isOpen) {
-            updatePosition();
-          }
-
-          onOpenChange(!isOpen);
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") {
-            return;
-          }
-
-          event.preventDefault();
-
-          if (!isOpen) {
-            updatePosition();
-          }
-
-          onOpenChange(!isOpen);
-        }}
-      >
-        İşlemler
-      </button>
-      {menu}
+          </div>
+        </div>
+      ) : null}
     </>
   );
-}
-
-function calculateActionMenuPosition(trigger: HTMLButtonElement): MenuPosition {
-  const rect = trigger.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const width = Math.min(
-    ACTION_MENU_WIDTH,
-    Math.max(160, viewportWidth - ACTION_MENU_MARGIN * 2)
-  );
-  const maxLeft = Math.max(ACTION_MENU_MARGIN, viewportWidth - width - ACTION_MENU_MARGIN);
-  const left = clamp(rect.right - width, ACTION_MENU_MARGIN, maxLeft);
-
-  const estimatedMenuHeight = Math.min(
-    420,
-    Math.max(220, viewportHeight * 0.7)
-  );
-  const preferredBelowTop = rect.bottom + ACTION_MENU_MARGIN / 2;
-  const preferredAboveTop = rect.top - estimatedMenuHeight - ACTION_MENU_MARGIN / 2;
-  const hasRoomBelow = preferredBelowTop + estimatedMenuHeight <= viewportHeight - ACTION_MENU_MARGIN;
-  const hasRoomAbove = preferredAboveTop >= ACTION_MENU_MARGIN;
-
-  const top = hasRoomBelow
-    ? preferredBelowTop
-    : hasRoomAbove
-      ? preferredAboveTop
-      : clamp(
-          preferredBelowTop,
-          ACTION_MENU_MARGIN,
-          Math.max(ACTION_MENU_MARGIN, viewportHeight - estimatedMenuHeight - ACTION_MENU_MARGIN)
-        );
-
-  return {
-    left,
-    top,
-    width
-  };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }
 
 function buildListingMetrics(listings: ListingSummary[]): Record<ListingLifecycleStatus, number> & { total: number } {
@@ -981,7 +947,15 @@ function getStatusCount(
   metrics: Record<ListingLifecycleStatus, number> & { total: number },
   status: ListingStatusFilter
 ): number {
-  return status === "all" ? metrics.total : metrics[status];
+  if (status === "all") {
+    return metrics.total;
+  }
+
+  if (status === "completed") {
+    return metrics.sold + metrics.archived;
+  }
+
+  return metrics[status];
 }
 
 function getStatusFilterLabel(
@@ -1002,6 +976,10 @@ function getStatusFilterLabel(
 
   if (status === "reserved") {
     return "Rezerve";
+  }
+
+  if (status === "completed") {
+    return "Tamamlanan";
   }
 
   if (status === "sold") {

@@ -274,7 +274,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <h2>{isRegister ? "Create your BabyLoop account" : "Continue to your BabyLoop workspace"}</h2>
         <p>
           {isRegister
-            ? "Use account access for listing creation, messages, saved searches, child age-band planning, and seller tools."
+            ? "İlan verme, mesajlar, kayıtlı aramalar, çocuk ihtiyaçları ve satıcı araçları için hesabını kullan."
             : "Sign in to reach private marketplace tools without storing long-lived tokens in browser storage."}
         </p>
       </div>
@@ -307,7 +307,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
           {isGoogleRedirecting ? dictionary.auth.openingGoogle : dictionary.auth.continueGoogle}
         </Button>
         <p className="form-note">
-          Google sign-in falls back to email and password when it is not configured for this environment.
+          Google ile giriş kullanılamıyorsa e-posta ve şifreyle devam edebilirsin.
         </p>
       </div>
 
@@ -350,7 +350,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         </div>
         <div>
           <strong>Private surfaces</strong>
-          <span>Messages, favorites, seller tools, and account pages stay behind authenticated requests.</span>
+          <span>Mesajlar, favoriler, satıcı araçları ve hesap sayfaları yalnızca güvenli oturumla açılır.</span>
         </div>
       </div>
 

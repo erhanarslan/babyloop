@@ -38,6 +38,7 @@ import {
   type StoredListingImage
 } from "./image-storage.service.js";
 import { canCreateListing, getProfileSafetyStatus } from "./profile-safety.service.js";
+import { resolveListingTypeForPrice } from "./listing-price-policy.service.js";
 import { analyzeListingImageAuthenticity } from "./listing-image-authenticity.service.js";
 import { recordListingImageAuthenticityRun } from "./listing-image-authenticity-run-audit.service.js";
 import {
@@ -68,6 +69,11 @@ export async function createListing(
     return { status: "invalid_category" };
   }
 
+  const effectiveListingType = resolveListingTypeForPrice({
+    listingType: body.listingType,
+    priceAmount: body.priceAmount
+  });
+
   const created = await app.db.transaction(async (tx) => {
     const [createdListing] = await tx
       .insert(listings)
@@ -79,7 +85,7 @@ export async function createListing(
         priceAmount: body.priceAmount,
         currency: body.currency,
         status: "draft",
-        listingType: body.listingType,
+        listingType: effectiveListingType,
         condition: body.condition
       })
       .returning({
@@ -109,7 +115,7 @@ export async function createListing(
       metadata: {
         source: "api_manual",
         categoryId: body.categoryId,
-        listingType: body.listingType,
+        listingType: effectiveListingType,
         hasImages: false,
         publicationState: "awaiting_images"
       }

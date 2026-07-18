@@ -132,7 +132,7 @@ test.describe("my listings flow", () => {
       await expect(listingCard.locator('[data-listing-status-label="sold"]')).toBeVisible();
       await expect(listingCard.getByText("Yayında değil", { exact: true })).toBeVisible();
 
-      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="sold"]').click();
+      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="completed"]').click();
       await expect(listingCard).toBeVisible({ timeout: 15_000 });
 
       await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="active"]').click();
@@ -246,7 +246,7 @@ async function changeListingStatusFromUi(page: Page, listingCard: Locator, statu
   });
   await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 15_000 });
 
-  const menu = page.locator(`[data-listing-status-menu="${listingId}"]`);
+  const menu = listingCard.locator(`[data-listing-status-menu="${listingId}"]`);
   await expect(menu).toBeVisible({ timeout: 15_000 });
   await expect(menu).toHaveAttribute("role", "menu");
 

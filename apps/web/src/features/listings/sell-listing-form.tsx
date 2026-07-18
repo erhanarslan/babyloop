@@ -19,6 +19,10 @@ import {
   formatCategoryName,
   formatListingCondition
 } from "./listing-display";
+import {
+  needsDonationConfirmation,
+  toDonationListingPayload
+} from "./listing-price-policy";
 import type { ListingCondition, ListingType } from "./listing-form-options";
 import {
   buildWebAiListingDraftApplyPatch,
@@ -57,6 +61,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingDonationPayload, setPendingDonationPayload] =
+    useState<CreateListingRequest | null>(null);
   const hasCategories = categories.length > 0;
   const clearSelectedImages = useCallback(() => {
     setSelectedImages((currentImages) => {
@@ -68,6 +74,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     setErrorMessage(null);
     setAiErrorMessage(null);
     setDraftSuggestion(null);
+    setPendingDonationPayload(null);
     setDraftSuggestionStale(false);
     draftSnapshotRef.current = null;
     clearSelectedImages();
@@ -114,6 +121,20 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       return;
     }
 
+    if (selectedImages.length === 0) {
+      setErrorMessage("İlanı yayınlamak için ürünü net gösteren en az bir gerçek fotoğraf ekle.");
+      return;
+    }
+
+    if (needsDonationConfirmation(payload)) {
+      setPendingDonationPayload(toDonationListingPayload(payload));
+      return;
+    }
+
+    await submitListing(payload);
+  }
+
+  async function submitListing(payload: CreateListingRequest) {
     if (!(await requireAuth())) {
       openAuthPrompt({
         title: "İlan oluşturmak için giriş yap",
@@ -126,6 +147,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     }
 
     setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
       if (selectedImages.length > MAX_IMAGE_COUNT) {
@@ -146,18 +168,25 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
       }
 
       for (const selectedImage of selectedImages) {
-        const uploadBody = await uploadListingImageRequest(apiBaseUrl, body.data.listing.id, selectedImage.file);
+        const uploadBody = await uploadListingImageRequest(
+          apiBaseUrl,
+          body.data.listing.id,
+          selectedImage.file
+        );
 
         if (!uploadBody.ok) {
-          const message = getApiErrorMessage(uploadBody.error, dictionary, dictionary.listings.imageUploadFailed);
+          const message = getApiErrorMessage(
+            uploadBody.error,
+            dictionary,
+            dictionary.listings.imageUploadFailed
+          );
           setErrorMessage(`${selectedImage.file.name}: ${message}`);
           return;
         }
-
       }
 
       clearSelectedImages();
-
+      setPendingDonationPayload(null);
       router.push("/my-listings?publication=review");
       router.refresh();
     } catch {
@@ -165,6 +194,16 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function confirmDonationListing() {
+    if (!pendingDonationPayload) {
+      return;
+    }
+
+    const payload = pendingDonationPayload;
+    setPendingDonationPayload(null);
+    void submitListing(payload);
   }
 
   function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
@@ -281,7 +320,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <div className={styles.sectionHeading}>
           <h2>İlan bilgileri</h2>
-          <p>Yayınlamadan önce bilgileri kontrol et.</p>
+
         </div>
         <SellListingFields categories={categories} />
 
@@ -291,9 +330,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <div className="form-actions form-actions-product">
           <p className="form-note">
-            Yayına alınacak ilanlarda en az bir onaylı ürün görseli gerekir; telefon, e-posta
-            veya açık adres yazmana gerek yok.
-          </p>
+             En az bir gerçek ürün fotoğrafı zorunludur.
+           </p>
           <div className="form-button-row">
             <Button type="submit" disabled={isSubmitting || !hasCategories || selectedImages.length === 0}>
               {isSubmitting ? "Kaydediliyor..." : "İlanı oluştur"}
@@ -307,7 +345,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
           <div className="image-upload-header">
             <div>
               <h2>Görseller</h2>
-              <p>En fazla 5 görsel ekleyebilirsin. Yalnızca ilandaki gerçek ürüne ait kendi çektiğin fotoğraflar kabul edilir.</p>
+              <p>En fazla 5 gerçek ürün fotoğrafı ekle.</p>
             </div>
             <Badge>{selectedImages.length}/{MAX_IMAGE_COUNT} görsel</Badge>
           </div>
@@ -325,8 +363,8 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
           {selectedImages.length === 0 ? (
             <div className={styles.imageEmpty}>
-              <strong>Ürünü net gösteren gerçek fotoğraflar ekle.</strong>
-              <span>AI görseli, katalog/stock fotoğraf, render, çizim, ekran görüntüsü veya farklı ürüne ait fotoğraf kabul edilmez.</span>
+              <strong>Gerçek ürün fotoğrafı ekle.</strong>
+              <span>Katalog, render ve AI görselleri kabul edilmez.</span>
             </div>
           ) : (
             <ul className={styles.previewGrid}>
@@ -352,9 +390,9 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
 
         <section className={styles.aiPanel} aria-label="AI önerileri">
           <div className={styles.sectionHeading}>
-            <h2>Görsellerden ilan taslağı</h2>
+            <h2>AI ile taslak</h2>
             <p>
-              Fotoğraflar ve yazdığın bilgilerden öneri üretir. Sonucu kontrol et; AI güvenlik,
+              Başlık ve açıklama önerisi oluştur. Sonucu kontrol et; AI güvenlik,
               kaza geçmişi, sertifika, marka/model veya ürün uygunluğu garantisi vermez.
             </p>
           </div>
@@ -367,7 +405,7 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
               void handleGenerateDraftSuggestion(formRef.current);
             }}
           >
-            {isSuggesting ? "Görseller inceleniyor..." : draftSuggestion ? "Yeniden analiz et" : "AI taslağı oluştur"}
+            {isSuggesting ? "Görseller inceleniyor..." : draftSuggestion ? "Yeniden analiz et" : "Taslak oluştur"}
           </Button>
 
           {aiErrorMessage ? (
@@ -397,11 +435,60 @@ export function SellListingForm({ categories, apiBaseUrl }: SellListingFormProps
               }}
             />
           ) : (
-            <p className="muted">AI taslağı manuel ilan oluşturmayı engellemez ve sen onaylamadan yayın yapmaz.</p>
+            <p className="muted"></p>
           )}
         </section>
       </aside>
-    </form>
+
+      {pendingDonationPayload ? (
+        <div
+          className="sell-donation-confirmation-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSubmitting) {
+              setPendingDonationPayload(null);
+            }
+          }}
+        >
+          <section
+            aria-describedby="sell-donation-confirmation-description"
+            aria-labelledby="sell-donation-confirmation-title"
+            aria-modal="true"
+            className="sell-donation-confirmation-modal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div>
+              <p className="eyebrow">Fiyat bilgisi girilmedi</p>
+              <h2 id="sell-donation-confirmation-title">
+                İlan bağış ilanı olarak oluşturulacak
+              </h2>
+              <p id="sell-donation-confirmation-description">
+                Fiyat bilgisi girmediğin için bu ilan bağış ilanı olarak oluşturulacak. Onaylıyor musun?
+              </p>
+            </div>
+
+            <div className="sell-donation-confirmation-actions">
+              <Button
+                disabled={isSubmitting}
+                type="button"
+                onClick={confirmDonationListing}
+              >
+                Onayla ve bağış ilanı oluştur
+              </Button>
+              <Button
+                disabled={isSubmitting}
+                type="button"
+                variant="ghost"
+                onClick={() => setPendingDonationPayload(null)}
+              >
+                Fiyat girmeye dön
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+</form>
   );
 }
 

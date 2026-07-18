@@ -39,7 +39,7 @@ export function AuthPageShell({ ariaLabel, children, kind }: AuthPageShellProps)
 
   return (
     <>
-      <section className="auth-hero auth-hero-polished">
+      <section className="auth-page-ux auth-hero auth-hero-polished">
         <div>
           <p className="eyebrow">{context.eyebrow}</p>
           <h1>{dictionary.auth[titleKey]}</h1>
@@ -53,7 +53,7 @@ export function AuthPageShell({ ariaLabel, children, kind }: AuthPageShellProps)
         </aside>
       </section>
 
-      <PageContainer className="auth-layout auth-layout-polished" ariaLabel={ariaLabel}>
+      <PageContainer className="auth-page-layout-ux auth-layout auth-layout-polished" ariaLabel={ariaLabel}>
         <Card className="form-panel auth-panel auth-panel-polished">{children}</Card>
 
         <Card as="aside" className="auth-trust-rail" aria-label={dictionary.authPageShell.checklistLabel}>

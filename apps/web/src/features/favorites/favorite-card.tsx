@@ -36,8 +36,8 @@ export function FavoriteCard({
   const isPublic = (favorite.status === "active" || favorite.status === "reserved") && Boolean(imageUrl);
 
   return (
-    <article className="listing-card overflow-hidden">
-      <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
+    <article className="favorite-listing-card listing-card overflow-hidden">
+      <div className="favorite-listing-card-image flex aspect-[4/3] items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-accent/30 to-secondary/40">
         {imageUrl ? (
           <img
             alt=""

@@ -21,7 +21,7 @@ export function SellPageContent({
   const { dictionary } = useI18n();
 
   return (
-    <PageContainer className="pt-0" ariaLabel="İlan oluştur">
+    <PageContainer className="sell-page-ux pt-0" ariaLabel="İlan oluştur">
       <section className="mb-4 sm:mb-5">
         <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">
           İlan Oluştur

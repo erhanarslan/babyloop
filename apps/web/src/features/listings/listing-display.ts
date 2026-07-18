@@ -36,7 +36,7 @@ export function formatListingStatus(value: string, dictionary: Dictionary): stri
 
 export function formatListingPrice(price: ListingPrice, dictionary: Dictionary): string {
   if (!price) {
-    return dictionary.common.priceOnRequest;
+    return "Bağış";
   }
 
   const amount = Number(price.amount);

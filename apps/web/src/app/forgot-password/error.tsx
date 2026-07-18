@@ -13,7 +13,7 @@ export default function ForgotPasswordError({ error: _error, reset }: RouteError
         <h1>Password reset request could not load</h1>
         <p>The forgot password flow hit an unexpected error.</p>
         <button className="button-primary" type="button" onClick={() => reset()}>
-          Try again
+          Tekrar dene
         </button>
       </section>
     </main>

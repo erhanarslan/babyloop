@@ -7,6 +7,7 @@ import type { AuthPayload } from "../../lib/auth-client";
 import { setAuthToken } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { TextInput } from "../../components/ui";
 import {
   completeLoginApproval,
   isLoginApprovalCompletePendingPayload,
@@ -415,16 +416,14 @@ export function AuthActionPromptModal({
             />
           </label>
 
-          <label>
-            <span>{dictionary.common.password}</span>
-            <input
-              name="password"
-              type="password"
-              value={password}
-              autoComplete={isRegister ? "new-password" : "current-password"}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
+          <TextInput
+            autoComplete={isRegister ? "new-password" : "current-password"}
+            label={dictionary.common.password}
+            name="password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
 
           {errorMessage ? (
             <p className="market-auth-modal-error" role="alert">
