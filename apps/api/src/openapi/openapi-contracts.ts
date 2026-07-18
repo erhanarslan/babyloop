@@ -494,39 +494,22 @@ function registerMarketplaceBodyContracts(): void {
       description: stringSchema({
         example:
           "Ürün temiz durumdadır. Katlanma mekanizması ve frenleri çalışmaktadır.",
-        maxLength: 2000,
-        nullable: true
+        maxLength: 2000
       }),
-      priceAmount: stringSchema({
-        example: "6500",
-        maxLength: 13,
-        minLength: 1,
-        pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
-      }),
-      currency: enumSchema(["TRY"], {
-        defaultValue: "TRY",
-        example: "TRY"
-      }),
+      priceAmount: optionalDecimalInputSchema("6500"),
+      currency: currencyCodeSchema("TRY"),
       listingType: enumSchema(listingTypeValues, {
         example: "sale"
       }),
       condition: enumSchema(listingConditionValues, {
         example: "good"
-      }),
-      city: stringSchema({
-        example: "İstanbul",
-        maxLength: 120,
-        nullable: true
       })
     },
-    [
-      "categoryId",
-      "title",
-      "priceAmount",
-      "currency",
-      "listingType",
-      "condition"
-    ]
+    ["categoryId", "title", "listingType", "condition"],
+    {
+      description:
+        "İlan taslak olarak oluşturulur ve yayın kontrol sürecine girer. priceAmount opsiyoneldir; boş metin fiyatı null olarak kaydeder. currency gönderilmezse TRY kullanılır."
+    }
   );
 
   addBody("POST", "/listings", listingCreateBody);
@@ -544,25 +527,17 @@ function registerMarketplaceBodyContracts(): void {
         }),
         description: stringSchema({
           example: "Güncellenmiş ilan açıklaması.",
-          maxLength: 2000,
-          nullable: true
+          maxLength: 2000
         }),
-        priceAmount: stringSchema({
-          example: "6000",
-          maxLength: 13,
-          pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
-        }),
+        priceAmount: optionalDecimalInputSchema("6000"),
+        currency: currencyCodeSchema("TRY"),
         listingType: enumSchema(listingTypeValues),
-        condition: enumSchema(listingConditionValues),
-        city: stringSchema({
-          example: "İstanbul",
-          maxLength: 120,
-          nullable: true
-        })
+        condition: enumSchema(listingConditionValues)
       },
       [],
       {
-        description: "Gönderilen alanlar güncellenir."
+        description:
+          "Gönderilen alanlar güncellenir ve en az bir alan gerekir. priceAmount için boş metin mevcut fiyatı null yapar."
       }
     )
   );
@@ -625,7 +600,7 @@ function registerMarketplaceBodyContracts(): void {
         body: stringSchema({
           example:
             "Merhaba, ürün hâlâ satılık mı? Eksik parçası veya hasarı bulunuyor mu?",
-          maxLength: 5000,
+          maxLength: 500,
           minLength: 1
         })
       },
@@ -649,16 +624,15 @@ function registerMarketplaceBodyContracts(): void {
     "/checkout/mock-iyzico",
     objectSchema(
       {
-        buyerNote: stringSchema({
-          example: "Teslimat için satıcıyla mesajlaşacağım.",
-          maxLength: 500,
-          nullable: true
+        scenario: enumSchema(["success", "failure"], {
+          defaultValue: "success",
+          example: "success"
         })
       },
       [],
       {
         description:
-          "Gerçek tahsilat yapmayan BabyLoop mock iyzico checkout akışı."
+          "Gerçek tahsilat yapmayan BabyLoop mock iyzico checkout akışı. scenario gönderilmezse success kullanılır."
       }
     )
   );
@@ -698,20 +672,28 @@ function registerMarketplaceBodyContracts(): void {
     "/ai/price-suggestions",
     objectSchema(
       {
-        categoryId: uuidSchema("Kategori kimliği", UUID_EXAMPLE),
         title: stringSchema({
           example: "Bebek arabası",
           maxLength: 160
         }),
+        categoryName: stringSchema({
+          example: "Bebek Arabaları",
+          maxLength: 120
+        }),
         condition: enumSchema(listingConditionValues, {
           example: "good"
         }),
-        city: stringSchema({
-          example: "İstanbul",
-          maxLength: 120
-        })
+        listingType: enumSchema(listingTypeValues, {
+          example: "sale"
+        }),
+        currentPriceAmount: optionalDecimalInputSchema("6500"),
+        currency: currencyCodeSchema("TRY")
       },
-      ["categoryId", "condition"]
+      [],
+      {
+        description:
+          "En az bir fiyatlandırma sinyali gönderilmelidir: title, categoryName, condition, listingType veya currentPriceAmount. currency gönderilmezse TRY kullanılır."
+      }
     )
   );
 
@@ -727,7 +709,7 @@ function registerMarketplaceBodyContracts(): void {
         }),
         q: stringSchema({
           example: "bebek arabası",
-          maxLength: 160
+          maxLength: 120
         }),
         categoryId: uuidSchema("Kategori filtresi"),
         listingType: enumSchema(listingTypeValues),
@@ -761,11 +743,10 @@ function registerMarketplaceBodyContracts(): void {
       reason: enumSchema(
         [
           "safety",
-          "fraud",
-          "harassment",
+          "scam",
           "inappropriate",
-          "counterfeit",
           "prohibited_item",
+          "harassment",
           "other"
         ],
         {
@@ -1040,6 +1021,12 @@ function registerChildAndNotificationBodyContracts(): void {
         digest: enumSchema(["immediate", "daily", "weekly"], {
           defaultValue: "immediate",
           example: "immediate"
+        }),
+        reason: stringSchema({
+          description:
+            "Tercih değişikliğinin kullanıcı tarafından girilen güvenli ve opsiyonel açıklaması.",
+          example: "Bu kanaldan bildirim almak istemiyorum.",
+          maxLength: 240
         })
       },
       ["source", "channel", "enabled"]
@@ -1049,25 +1036,37 @@ function registerChildAndNotificationBodyContracts(): void {
   const pushTokenBody = objectSchema(
     {
       token: stringSchema({
-        description: "Expo push token. Response içinde ham token dönmez.",
+        description: "Push token. Response içinde ham token dönmez.",
         example: "ExponentPushToken[example-device-token]",
-        maxLength: 512,
-        minLength: 10
+        maxLength: 2048,
+        minLength: 20
       }),
-      platform: enumSchema(["expo"], {
+      platform: enumSchema(["ios", "android", "expo"], {
         example: "expo"
       }),
       deviceLabel: stringSchema({
         example: "Galaxy S22",
         maxLength: 120,
-        nullable: true
+        minLength: 1
       })
     },
     ["token", "platform"]
   );
 
+  const revokePushTokenBody = objectSchema(
+    {
+      token: stringSchema({
+        description: "İptal edilecek push token.",
+        example: "ExponentPushToken[example-device-token]",
+        maxLength: 2048,
+        minLength: 20
+      })
+    },
+    ["token"]
+  );
+
   addBody("POST", "/notifications/push-tokens", pushTokenBody);
-  addBody("DELETE", "/notifications/push-tokens", pushTokenBody);
+  addBody("DELETE", "/notifications/push-tokens", revokePushTokenBody);
 }
 
 function registerAdminBodyContracts(): void {
@@ -1366,7 +1365,12 @@ function registerQueryContracts(): void {
     objectSchema({
       q: stringSchema({
         example: "bebek arabası",
-        maxLength: 160
+        maxLength: 120
+      }),
+      search: stringSchema({
+        description: "q alanıyla aynı davranan geriye uyumlu arama alias'ı.",
+        example: "bebek arabası",
+        maxLength: 120
       }),
       categoryId: uuidSchema("Kategori filtresi"),
       listingType: enumSchema(listingTypeValues),
@@ -1386,7 +1390,7 @@ function registerQueryContracts(): void {
       limit: integerSchema({
         defaultValue: 20,
         example: 20,
-        maximum: 100,
+        maximum: 50,
         minimum: 1
       }),
       offset: integerSchema({
@@ -1892,6 +1896,32 @@ function uuidSchema(
     description,
     example,
     format: "uuid"
+  });
+}
+
+function optionalDecimalInputSchema(example: string): JsonSchema {
+  return {
+    oneOf: [
+      {
+        type: "string",
+        enum: [""],
+        description: "Boş metin fiyat değerini temizler."
+      },
+      {
+        type: "string",
+        example,
+        pattern: "^(0|[1-9]\\d{0,9})(\\.\\d{1,2})?$"
+      }
+    ]
+  };
+}
+
+function currencyCodeSchema(example: string): JsonSchema {
+  return stringSchema({
+    example,
+    maxLength: 3,
+    minLength: 3,
+    pattern: "^[A-Za-z]{3}$"
   });
 }
 
