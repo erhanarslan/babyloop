@@ -26,9 +26,14 @@ vi.mock("next/navigation", () => ({
   })
 }));
 
-vi.mock("../../lib/auth-client", () => ({
-  getOrRefreshAuthToken: vi.fn().mockResolvedValue(null)
-}));
+vi.mock("../../lib/auth-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/auth-client")>();
+
+  return {
+    ...actual,
+    getOrRefreshAuthToken: vi.fn().mockResolvedValue(null)
+  };
+});
 
 vi.mock("../favorites/api", () => ({
   fetchFavorites: vi.fn(),
