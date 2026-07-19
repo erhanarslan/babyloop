@@ -518,6 +518,7 @@ export function SiteHeader() {
           setIsDrawerOpen(false);
           openAuthPrompt({ title: dictionary.auth.loginTitle });
         }}
+        onLocationChange={setSelectedCity}
         onLogout={handleLogout}
         selectedCity={selectedCity}
         theme={theme}

@@ -2,6 +2,7 @@ import {
   listingImages,
   listings,
   notifications,
+  profiles,
   productCategories,
   savedSearches
 } from "@babyloop/database/schema";
@@ -27,6 +28,7 @@ type SavedSearchCandidate = {
   id: string;
   name: string;
   queryText: string | null;
+  city: string | null;
   categoryId: string | null;
   listingType: string | null;
   condition: string | null;
@@ -143,6 +145,7 @@ async function listEnabledSavedSearches(
       id: savedSearches.id,
       name: savedSearches.name,
       queryText: savedSearches.queryText,
+      city: savedSearches.city,
       categoryId: savedSearches.categoryId,
       listingType: savedSearches.listingType,
       condition: savedSearches.condition,
@@ -172,6 +175,10 @@ async function listMatchingListingsForSavedSearch(
 
   if (savedSearch.queryText) {
     filters.push(sql`${listings.title} ilike ${buildSafeILikePattern(savedSearch.queryText)} escape '\'`);
+  }
+
+  if (savedSearch.city) {
+    filters.push(sql`${profiles.locationCity} ilike ${savedSearch.city}`);
   }
 
   if (savedSearch.categoryId) {
@@ -218,6 +225,7 @@ async function listMatchingListingsForSavedSearch(
     })
     .from(listings)
     .innerJoin(productCategories, eq(listings.categoryId, productCategories.id))
+    .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
     .where(and(...filters))
     .orderBy(desc(listings.createdAt))
     .limit(10);
@@ -259,6 +267,7 @@ function buildSavedSearchDedupeKey(
     savedSearch.id,
     listing.id,
     savedSearch.queryText ?? "",
+    savedSearch.city ?? "",
     savedSearch.categoryId ?? "",
     savedSearch.listingType ?? "",
     savedSearch.condition ?? "",

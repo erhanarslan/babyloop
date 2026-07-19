@@ -13,6 +13,7 @@ export function resolveBrowseFilters(
 
   return {
     q: readParam(searchParams?.q).trim(),
+    city: readParam(searchParams?.city).trim(),
     categoryId: readParam(searchParams?.categoryId),
     condition: readParam(searchParams?.condition),
     listingType: readParam(searchParams?.listingType),
@@ -30,6 +31,7 @@ export function buildListingsPath(filters: BrowseListingsFilters): string {
   const params = new URLSearchParams();
 
   appendIfPresent(params, "q", filters.q);
+  appendIfPresent(params, "city", filters.city);
   appendIfPresent(params, "categoryId", filters.categoryId);
   appendIfPresent(params, "condition", filters.condition);
   appendIfPresent(params, "listingType", filters.listingType);

@@ -29,6 +29,7 @@ export const createSavedSearchBodySchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     q: optionalTrimmedText,
+    city: optionalTrimmedText,
     categoryId: z.string().uuid().optional(),
     listingType: z.enum(listingTypeValues).optional(),
     condition: z.enum(listingConditionValues).optional(),

@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ListingsPayload } from "../../lib/api";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
+import { getLocationQueryValue } from "./public-navigation-model";
 
 const RECENT_SEARCHES_STORAGE_KEY = "babyloop_recent_searches";
 const MAX_RECENT_SEARCHES = 7;
@@ -56,10 +57,21 @@ export function SearchOverlay({
       setIsSuggestionLoading(true);
 
       try {
+        const params = new URLSearchParams({
+          hasImages: "true",
+          limit: "5",
+          offset: "0",
+          q: sanitizedQuery,
+          sort: "newest"
+        });
+        const cityQueryValue = getLocationQueryValue(selectedCity);
+
+        if (cityQueryValue) {
+          params.set("city", cityQueryValue);
+        }
+
         const response = await fetch(
-          `${apiBaseUrl}/api/v1/listings?limit=5&offset=0&sort=newest&q=${encodeURIComponent(
-            sanitizedQuery
-          )}&hasImages=true`,
+          `${apiBaseUrl}/api/v1/listings?${params.toString()}`,
           {
             cache: "no-store",
             signal: controller.signal
@@ -95,7 +107,7 @@ export function SearchOverlay({
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [apiBaseUrl, sanitizedQuery, shouldShowSuggestions]);
+  }, [apiBaseUrl, sanitizedQuery, selectedCity, shouldShowSuggestions]);
 
   useEffect(() => {
     function handleDocumentPointerDown(event: PointerEvent) {
@@ -190,8 +202,10 @@ export function buildBrowseHref(
     params.set("q", query.trim());
   }
 
-  if (city && city !== "turkiye") {
-    params.set("city", city);
+  const cityQueryValue = getLocationQueryValue(city);
+
+  if (cityQueryValue) {
+    params.set("city", cityQueryValue);
   }
 
   Object.entries(filters).forEach(([key, value]) => {

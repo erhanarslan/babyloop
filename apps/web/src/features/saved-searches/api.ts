@@ -7,6 +7,7 @@ export type SavedSearch = {
   id: string;
   name: string;
   q: string;
+  city: string | null;
   categoryId: string | null;
   listingType: string | null;
   condition: string | null;
@@ -30,6 +31,7 @@ export type SavedSearchesPayload = {
 export type CreateSavedSearchPayload = {
   name: string;
   q?: string;
+  city?: string;
   categoryId?: string;
   listingType?: string;
   condition?: string;

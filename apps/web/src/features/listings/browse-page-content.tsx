@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import {
+  getLocationLabel,
+  locationOptions
+} from "../../components/navigation/public-navigation-model";
+import {
   Alert,
   Badge,
   Card,
@@ -260,6 +264,7 @@ function BrowseFilterSidebar({
       </div>
 
       <form action={paginationBasePath} method="get" className="babyloop-filter-form">
+        {filters.city ? <input name="city" type="hidden" value={filters.city} /> : null}
         <section className="babyloop-filter-section">
           <label className="babyloop-filter-field">
             <span>Arama</span>
@@ -483,9 +488,12 @@ function buildBrowseAssistantPrompt(
   selectedCategory: Category | null,
   dictionary: ReturnType<typeof useI18n>["dictionary"]
 ): string {
-  const categoryName = selectedCategory ? formatCategoryName(selectedCategory, dictionary) : "tüm bebek kategorileri";
+  const categoryName = selectedCategory
+    ? formatCategoryName(selectedCategory, dictionary)
+    : "tüm bebek kategorileri";
   const parts = [
     filters.q ? `arama: ${filters.q}` : "",
+    filters.city ? `konum: ${formatBrowseCity(filters.city)}` : "",
     categoryName ? `kategori: ${categoryName}` : "",
     filters.listingType ? `ilan tipi: ${formatListingType(filters.listingType, dictionary)}` : "",
     filters.condition ? `durum: ${formatListingCondition(filters.condition, dictionary)}` : "",
@@ -515,6 +523,7 @@ function getSortLabel(
 function countActiveBrowseFilters(filters: BrowseListingsFilters): number {
   return [
     filters.q,
+    filters.city,
     filters.categoryId,
     filters.listingType,
     filters.condition,
@@ -658,6 +667,15 @@ function buildActiveFilterChips({
     });
   }
 
+  if (filters.city.trim()) {
+    chips.push({
+      href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
+        city: ""
+      }),
+      label: `Konum: ${formatBrowseCity(filters.city)}`
+    });
+  }
+
   if (filters.listingType) {
     chips.push({
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
@@ -743,6 +761,7 @@ function buildBrowseHref(
   const params = new URLSearchParams();
 
   appendIfPresent(params, "q", filters.q);
+  appendIfPresent(params, "city", filters.city);
 
   if (options.includeCategoryId) {
     appendIfPresent(params, "categoryId", filters.categoryId);
@@ -762,6 +781,16 @@ function buildBrowseHref(
   const query = params.toString();
 
   return query ? `${options.basePath}?${query}` : options.basePath;
+}
+
+function formatBrowseCity(value: string): string {
+  const normalizedValue = value.trim().toLocaleLowerCase("tr-TR");
+  const location = locationOptions.find((option) => (
+    option.value.toLocaleLowerCase("tr-TR") === normalizedValue ||
+    getLocationLabel(option.value).toLocaleLowerCase("tr-TR") === normalizedValue
+  ));
+
+  return location ? getLocationLabel(location.value) : value.trim();
 }
 
 type AssistantEntryMode = "age_needs" | "find_products" | "sell_help" | "safe_buying" | "platform_help";

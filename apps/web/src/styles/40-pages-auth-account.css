@@ -1166,6 +1166,31 @@
     text-transform: uppercase;
   }
 
+  .mobile-market-location-field {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .mobile-market-location-field > span {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .mobile-market-location-field select {
+    width: 100%;
+    min-height: 2.9rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.9rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font: inherit;
+    font-weight: 850;
+    padding: 0.65rem 0.8rem;
+  }
+
   .mobile-market-accordion,
   .mobile-market-category {
     display: grid;

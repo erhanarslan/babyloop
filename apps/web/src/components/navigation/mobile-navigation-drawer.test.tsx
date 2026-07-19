@@ -35,12 +35,14 @@ function renderDrawer({
   isOpen = true,
   onClose = vi.fn(),
   onLogin = vi.fn(),
+  onLocationChange = vi.fn(),
   onLogout = vi.fn()
 }: {
   currentAuth?: AuthMe | null;
   isOpen?: boolean;
   onClose?: () => void;
   onLogin?: () => void;
+  onLocationChange?: (city: string) => void;
   onLogout?: () => void;
 } = {}) {
   render(
@@ -51,6 +53,7 @@ function renderDrawer({
       isOpen={isOpen}
       onClose={onClose}
       onLogin={onLogin}
+      onLocationChange={onLocationChange}
       onLogout={onLogout}
       selectedCity="istanbul"
       theme="light"
@@ -58,7 +61,7 @@ function renderDrawer({
     />
   );
 
-  return { onClose, onLogin, onLogout };
+  return { onClose, onLogin, onLocationChange, onLogout };
 }
 
 describe("MobileNavigationDrawer", () => {
@@ -115,5 +118,19 @@ describe("MobileNavigationDrawer", () => {
     fireEvent.click(screen.getAllByRole("button", { name: dictionary.publicShell.header.close })[0]!);
 
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets mobile users change the marketplace city", () => {
+    const onLocationChange = vi.fn();
+    renderDrawer({ onLocationChange });
+
+    fireEvent.change(
+      screen.getByRole("combobox", {
+        name: dictionary.publicShell.header.locationAria
+      }),
+      { target: { value: "ankara" } }
+    );
+
+    expect(onLocationChange).toHaveBeenCalledWith("ankara");
   });
 });

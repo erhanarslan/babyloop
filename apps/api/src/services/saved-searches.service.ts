@@ -7,6 +7,7 @@ export type SavedSearchResponse = {
   id: string;
   name: string;
   q: string;
+  city: string | null;
   categoryId: string | null;
   listingType: string | null;
   condition: string | null;
@@ -44,6 +45,7 @@ export async function createSavedSearch(
       profileId,
       name: body.name,
       queryText: body.q ?? null,
+      city: body.city ?? null,
       categoryId: body.categoryId ?? null,
       listingType: body.listingType ?? null,
       condition: body.condition ?? null,
@@ -99,6 +101,7 @@ function mapSavedSearch(row: typeof savedSearches.$inferSelect): SavedSearchResp
     id: row.id,
     name: row.name,
     q: row.queryText ?? "",
+    city: row.city,
     categoryId: row.categoryId,
     listingType: row.listingType,
     condition: row.condition,

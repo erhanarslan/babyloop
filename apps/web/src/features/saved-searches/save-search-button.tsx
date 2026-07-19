@@ -39,6 +39,7 @@ export function SaveSearchButton({
     const response = await createSavedSearch(apiBaseUrl, {
       name: buildSavedSearchName(filters, categoryName),
       ...(filters.q ? { q: filters.q } : {}),
+      ...(filters.city ? { city: filters.city } : {}),
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters.listingType ? { listingType: filters.listingType } : {}),
       ...(filters.condition ? { condition: filters.condition } : {}),
@@ -93,6 +94,7 @@ function buildSavedSearchName(filters: BrowseListingsFilters, categoryName?: str
 function buildSavedSearchSummary(filters: BrowseListingsFilters, categoryName?: string): string {
   const parts = [
     filters.q.trim() ? `Arama: ${filters.q.trim()}` : "",
+    filters.city.trim() ? `Konum: ${filters.city.trim()}` : "",
     categoryName ? `Kategori: ${categoryName}` : "",
     filters.listingType ? `Tip: ${filters.listingType}` : "",
     filters.condition ? `Durum: ${filters.condition}` : "",

@@ -825,6 +825,7 @@ export const savedSearches = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 120 }).notNull(),
     queryText: varchar("query_text", { length: 120 }),
+    city: varchar("city", { length: 120 }),
     categoryId: uuid("category_id").references(() => productCategories.id, { onDelete: "set null" }),
     listingType: listingTypeEnum("listing_type"),
     condition: listingConditionEnum("condition"),
@@ -841,7 +842,8 @@ export const savedSearches = pgTable(
     index("saved_searches_category_id_idx").on(table.categoryId),
     index("saved_searches_created_at_idx").on(table.createdAt),
     check("saved_searches_name_not_blank_check", sql`length(trim(${table.name})) > 0`),
-    check("saved_searches_query_text_not_blank_check", sql`${table.queryText} is null or length(trim(${table.queryText})) > 0`)
+    check("saved_searches_query_text_not_blank_check", sql`${table.queryText} is null or length(trim(${table.queryText})) > 0`),
+    check("saved_searches_city_not_blank_check", sql`${table.city} is null or length(trim(${table.city})) > 0`)
   ]
 );
 

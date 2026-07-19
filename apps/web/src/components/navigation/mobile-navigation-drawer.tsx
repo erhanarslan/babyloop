@@ -6,7 +6,9 @@ import type { AuthMe } from "../../lib/auth-client";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import {
   accountLinks,
-  babyCategoryGroups
+  babyCategoryGroups,
+  getLocationLabel,
+  locationOptions
 } from "./public-navigation-model";
 import { SearchOverlay } from "./search-overlay";
 
@@ -17,6 +19,7 @@ type MobileNavigationDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
   onLogin: () => void;
+  onLocationChange: (city: string) => void;
   onLogout: () => void;
   selectedCity: string;
   theme: string;
@@ -30,6 +33,7 @@ export function MobileNavigationDrawer({
   isOpen,
   onClose,
   onLogin,
+  onLocationChange,
   onLogout,
   selectedCity,
   theme,
@@ -101,12 +105,29 @@ export function MobileNavigationDrawer({
         </section>
 
         <SearchOverlay
-        apiBaseUrl={apiBaseUrl}
+          apiBaseUrl={apiBaseUrl}
           dictionary={dictionary}
           isAuthenticated={Boolean(currentAuth)}
           selectedCity={selectedCity}
           onNavigate={onClose}
         />
+
+        <section className="mobile-market-section mobile-market-location-section">
+          <label className="mobile-market-location-field">
+            <span>{dictionary.publicShell.header.location}</span>
+            <select
+              aria-label={dictionary.publicShell.header.locationAria}
+              value={selectedCity}
+              onChange={(event) => onLocationChange(event.target.value)}
+            >
+              {locationOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {getLocationLabel(option.value, dictionary)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
 
         <nav className="mobile-market-quick-links" aria-label={dictionary.mobileNavigation.quickLinksLabel}>
           <Link

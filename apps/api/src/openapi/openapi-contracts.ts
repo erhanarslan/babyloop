@@ -767,6 +767,10 @@ function registerMarketplaceBodyContracts(): void {
           example: "bebek arabası",
           maxLength: 120
         }),
+        city: stringSchema({
+          example: "İstanbul",
+          maxLength: 120
+        }),
         categoryId: uuidSchema("Kategori filtresi"),
         listingType: enumSchema(listingTypeValues),
         condition: enumSchema(listingConditionValues),

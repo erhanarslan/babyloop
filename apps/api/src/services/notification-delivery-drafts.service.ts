@@ -145,6 +145,7 @@ function buildSavedSearchHref(savedSearch: Awaited<ReturnType<typeof listSavedSe
   const params = new URLSearchParams();
 
   appendParam(params, "q", savedSearch.q);
+  appendParam(params, "city", savedSearch.city ?? "");
   appendParam(params, "categoryId", savedSearch.categoryId ?? "");
   appendParam(params, "listingType", savedSearch.listingType ?? "");
   appendParam(params, "condition", savedSearch.condition ?? "");

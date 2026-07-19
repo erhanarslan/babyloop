@@ -85,7 +85,10 @@ describe("SearchOverlay", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        "http://api.test/api/v1/listings?limit=5&offset=0&sort=newest&q=puset&hasImages=true",
+        [
+          "http://api.test/api/v1/listings",
+          "hasImages=true&limit=5&offset=0&q=puset&sort=newest&city=%C4%B0stanbul"
+        ].join("?"),
         expect.objectContaining({ cache: "no-store" })
       );
     });
@@ -103,7 +106,7 @@ describe("SearchOverlay", () => {
     fireEvent.submit(input.closest("form")!);
 
     expect(pushMock).toHaveBeenCalledWith(
-      "/browse?q=bebek+arabas%C4%B1+%3Cscript%3E&city=istanbul"
+      "/browse?q=bebek+arabas%C4%B1+%3Cscript%3E&city=%C4%B0stanbul"
     );
     expect(screen.queryByText("<script>")).not.toBeInTheDocument();
   });
@@ -131,6 +134,12 @@ describe("buildBrowseHref", () => {
   it("keeps browse hrefs encoded and omits default country location", () => {
     expect(buildBrowseHref("oto koltuğu", "turkiye", { condition: "good" })).toBe(
       "/browse?q=oto+koltu%C4%9Fu&condition=good"
+    );
+  });
+
+  it("uses the API-facing Turkish city label instead of the storage slug", () => {
+    expect(buildBrowseHref("puset", "istanbul")).toBe(
+      "/browse?q=puset&city=%C4%B0stanbul"
     );
   });
 });

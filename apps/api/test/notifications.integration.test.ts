@@ -390,7 +390,12 @@ describe("notifications API", () => {
       email: "saved-search-watcher@babyloop.test"
     });
     const seller = await createUser(app, {
-      email: "saved-search-seller@babyloop.test"
+      email: "saved-search-seller@babyloop.test",
+      locationCity: "İstanbul"
+    });
+    const otherCitySeller = await createUser(app, {
+      email: "saved-search-ankara-seller@babyloop.test",
+      locationCity: "Ankara"
     });
 
     const [category] = await app.db
@@ -413,6 +418,15 @@ describe("notifications API", () => {
       title: "Temiz puset travel sistem"
     });
     await addApprovedListingImage(matchingListing.id);
+
+    const otherCityListing = await createListing(app, otherCitySeller.accessToken, {
+      categoryId: category!.id,
+      condition: "good",
+      listingType: "sale",
+      priceAmount: "2400.00",
+      title: "Ankara puset travel sistem"
+    });
+    await addApprovedListingImage(otherCityListing.id);
 
     const noImageMatchingListing = await createListing(app, seller.accessToken, {
       categoryId: category!.id,
@@ -445,6 +459,7 @@ describe("notifications API", () => {
       payload: {
         name: "Puset alarmı",
         q: "puset",
+        city: "İstanbul",
         categoryId: category!.id,
         condition: "good",
         listingType: "sale",
@@ -512,8 +527,11 @@ describe("notifications API", () => {
     });
     expect(JSON.stringify(generatedNotifications)).not.toContain(ownListing.id);
     expect(JSON.stringify(generatedNotifications)).not.toContain(noImageMatchingListing.id);
+    expect(JSON.stringify(generatedNotifications)).not.toContain(otherCityListing.id);
     expect(JSON.stringify(generatedNotifications)).not.toContain("Kapalı puset alarmı");
-    expect(JSON.stringify(generatedNotifications)).not.toMatch(/saved-search-seller@babyloop\.test|saved-search-watcher@babyloop\.test|passwordHash|accessToken|refreshToken/i);
+    expect(JSON.stringify(generatedNotifications)).not.toMatch(
+      /saved-search-seller@babyloop\.test|saved-search-watcher@babyloop\.test|passwordHash|accessToken|refreshToken/i
+    );
   });
 
   it("requires auth for saved search notification generation", async () => {

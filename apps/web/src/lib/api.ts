@@ -79,6 +79,7 @@ export type ListingsPagination = {
 
 export type BrowseListingsFilters = {
   q: string;
+  city: string;
   categoryId: string;
   condition: string;
   listingType: string;

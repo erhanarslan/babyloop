@@ -196,6 +196,16 @@ export function getLocationLabel(value: string, dictionary?: Dictionary): string
   return fallbackLocationLabels[option.labelKey];
 }
 
+export function getLocationQueryValue(value: string): string {
+  if (value === "turkiye") {
+    return "";
+  }
+
+  const option = locationOptions.find((locationOption) => locationOption.value === value);
+
+  return option ? fallbackLocationLabels[option.labelKey] : "";
+}
+
 const fallbackLocationLabels: Record<LocationOptionKey, string> = {
   turkiye: "Tüm Türkiye",
   istanbul: "İstanbul",

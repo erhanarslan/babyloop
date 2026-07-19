@@ -108,6 +108,7 @@ function hasBrowseSeoFilters(searchParams: BrowseSearchParams): boolean {
 
   return [
     searchParams.q,
+    searchParams.city,
     searchParams.categoryId,
     searchParams.condition,
     searchParams.listingType,

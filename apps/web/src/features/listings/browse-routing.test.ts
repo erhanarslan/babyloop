@@ -10,6 +10,7 @@ describe("browse routing", () => {
   it("uses safe defaults for empty params", () => {
     expect(resolveBrowseFilters(undefined)).toMatchObject({
       q: "",
+      city: "",
       hasImages: "true",
       sort: "newest",
       limit: DEFAULT_LISTINGS_LIMIT,
@@ -20,6 +21,7 @@ describe("browse routing", () => {
   it("parses supported listing filters and clamps pagination", () => {
     const filters = resolveBrowseFilters({
       q: " bebek arabası ",
+      city: " İstanbul ",
       categoryId: "strollers",
       condition: "good",
       listingType: "sale",
@@ -33,6 +35,7 @@ describe("browse routing", () => {
 
     expect(filters).toMatchObject({
       q: "bebek arabası",
+      city: "İstanbul",
       categoryId: "strollers",
       condition: "good",
       listingType: "sale",
@@ -59,6 +62,15 @@ describe("browse routing", () => {
     expect(path).toContain("sort=newest");
     expect(path).not.toContain("internalUserId");
     expect(path).not.toContain("user-secret");
+  });
+
+  it("preserves the selected city from the public URL to the listings API path", () => {
+    const filters = resolveBrowseFilters({
+      city: " İstanbul ",
+      q: "puset"
+    });
+
+    expect(buildListingsPath(filters)).toContain("city=%C4%B0stanbul");
   });
 
   it("falls back for invalid numeric filters", () => {

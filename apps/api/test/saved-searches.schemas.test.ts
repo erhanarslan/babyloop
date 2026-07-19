@@ -11,6 +11,7 @@ describe("saved search schemas", () => {
     const result = createSavedSearchBodySchema.safeParse({
       name: "Strollers with images",
       q: "stroller",
+      city: " İstanbul ",
       listingType: "sale",
       condition: "good",
       priceMin: "100",
@@ -20,6 +21,9 @@ describe("saved search schemas", () => {
     });
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.city).toBe("İstanbul");
+    }
   });
 
   it("rejects unknown saved search fields", () => {

@@ -50,6 +50,7 @@ describe("saved searches routes", () => {
       payload: {
         name: "Bebek arabası takip",
         q: "puset",
+        city: "İstanbul",
         categoryId: category.id,
         condition: "good",
         listingType: "sale",
@@ -80,6 +81,7 @@ describe("saved searches routes", () => {
         savedSearch: {
           name: "Bebek arabası takip",
           q: "puset",
+          city: "İstanbul",
           categoryId: category.id,
           notificationsEnabled: true
         }

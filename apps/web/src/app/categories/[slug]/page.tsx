@@ -135,6 +135,7 @@ function hasCategorySeoFilters(searchParams: BrowseSearchParams): boolean {
 
   return [
     searchParams.q,
+    searchParams.city,
     searchParams.condition,
     searchParams.listingType,
     searchParams.priceMin,
