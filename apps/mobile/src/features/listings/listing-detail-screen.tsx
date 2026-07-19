@@ -27,6 +27,7 @@ import {
   getMobileListingDetailActionState,
   getMobileListingGalleryImageUrls
 } from "./listing-detail-model";
+import { formatMobileListingAgeRange } from "./listing-age-range-model";
 import { fetchMobileListingShareLink } from "./listing-share-api";
 import { buildMobileListingShareMessage } from "./listing-share-model";
 import {
@@ -426,6 +427,12 @@ export function ListingDetailScreen() {
             <MobileChip tone={actionState.statusTone}>{listing.statusText}</MobileChip>
             <MobileChip tone="primary">{listing.listingTypeText}</MobileChip>
             {listing.conditionText ? <MobileChip>{listing.conditionText}</MobileChip> : null}
+            <MobileChip>
+              {formatMobileListingAgeRange(
+                listing.recommendedAgeMinMonths,
+                listing.recommendedAgeMaxMonths
+              )}
+            </MobileChip>
           </View>
 
           {actionState.notice ? (

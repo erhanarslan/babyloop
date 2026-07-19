@@ -13,6 +13,7 @@ describe("mobile sell form model", () => {
       description: "Temiz kullanıldı.  Yağmurluk dahildir.",
       listingType: "sale",
       priceAmount: "6500,50",
+      recommendedAgeRange: "6:12",
       title: "  Temiz   bebek arabası  "
     });
 
@@ -25,6 +26,8 @@ describe("mobile sell form model", () => {
         description: "Temiz kullanıldı. Yağmurluk dahildir.",
         listingType: "sale",
         priceAmount: "6500.50",
+        recommendedAgeMinMonths: 6,
+        recommendedAgeMaxMonths: 12,
         title: "Temiz bebek arabası"
       }
     });
@@ -67,5 +70,31 @@ describe("mobile sell form model", () => {
 
   it("normalizes decimal comma prices for API contract", () => {
     expect(normalizePriceAmount(" 1250,75 ")).toBe("1250.75");
+  });
+
+  it("sends an explicit paired null range for age-independent listings", () => {
+    expect(buildMobileCreateListingPayload({
+      ...createDefaultMobileSellFormState(),
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      title: "Temiz bebek arabası"
+    })).toEqual({
+      ok: true,
+      payload: expect.objectContaining({
+        recommendedAgeMinMonths: null,
+        recommendedAgeMaxMonths: null
+      })
+    });
+  });
+
+  it("rejects an invalid or one-sided age range value", () => {
+    expect(buildMobileCreateListingPayload({
+      ...createDefaultMobileSellFormState(),
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      recommendedAgeRange: "custom:24:12",
+      title: "Temiz bebek arabası"
+    })).toEqual({
+      ok: false,
+      message: "Geçerli bir önerilen yaş aralığı seçmelisin."
+    });
   });
 });

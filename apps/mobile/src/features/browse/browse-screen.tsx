@@ -24,6 +24,7 @@ import {
   type MobileListingCreatedSinceFilter,
   type MobileListingSummary
 } from "../listings/listings-api";
+import { formatMobileListingAgeRange } from "../listings/listing-age-range-model";
 import { fetchMobileCategories, type MobileCategory } from "../sell/sell-api";
 import { DiscoverHeroBanner } from "./discover-hero-banner";
 import { getDiscoverHeroListings } from "./discover-performance-model";
@@ -280,6 +281,10 @@ export function BrowseScreen() {
               listingTypeText: listing.listingTypeText,
               statusText: listing.statusText
             })}
+            footerText={formatMobileListingAgeRange(
+              listing.recommendedAgeMinMonths,
+              listing.recommendedAgeMaxMonths
+            )}
             imageUrl={listing.imageUrl}
             key={listing.id}
             locationText={listing.locationText}

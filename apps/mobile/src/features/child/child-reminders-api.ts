@@ -2,6 +2,10 @@ import {
   mobileAuthFetch,
   type MobileApiResponse
 } from "../auth/auth-api";
+import {
+  normalizeMobileListingSummary,
+  type MobileListingSummary
+} from "../listings/listings-api";
 
 export type MobileChildAgeBand =
   | "expecting"
@@ -26,6 +30,28 @@ export type MobileChildProfile = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MobileChildLifecycleRecommendationGroup = {
+  childProfileId: string;
+  childProfileLabel: string;
+  ageBand: MobileChildAgeBand;
+  matchedListings: MobileListingSummary[];
+  recommendations: Array<{
+    categoryId: string;
+    categoryName: string;
+    categorySlug: string;
+    reasonCode: string;
+    reasonLabel: string;
+    whyNow: string;
+  }>;
+};
+
+type MobileChildLifecycleRecommendationApiGroup = Omit<
+  MobileChildLifecycleRecommendationGroup,
+  "matchedListings"
+> & {
+  matchedListings?: unknown[];
 };
 
 export type MobileChildNote = {
@@ -78,6 +104,9 @@ export type MobileChildReminder = {
 export type CreateMobileChildProfileRequest = {
   label: string;
   ageBand: MobileChildAgeBand;
+  ageMonths?: number | null;
+  birthMonth?: number | null;
+  birthYear?: number | null;
   notificationCadence?: MobileChildProfileNotificationCadence;
 };
 
@@ -138,6 +167,32 @@ export async function fetchMobileChildProfiles(): Promise<MobileApiResponse<{
   childProfiles: MobileChildProfile[];
 }>> {
   return requestMobileChildApi("/api/v1/child-profiles");
+}
+
+export async function fetchMobileChildLifecycleRecommendations(): Promise<MobileApiResponse<{
+  groups: MobileChildLifecycleRecommendationGroup[];
+}>> {
+  const response = await requestMobileChildApi<{
+    groups: MobileChildLifecycleRecommendationApiGroup[];
+  }>("/api/v1/child-profiles/lifecycle-recommendations");
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const groups = Array.isArray(response.data.groups) ? response.data.groups : [];
+
+  return {
+    ok: true,
+    data: {
+      groups: groups.map((group) => ({
+        ...group,
+        matchedListings: Array.isArray(group.matchedListings)
+          ? group.matchedListings.map(normalizeMobileListingSummary)
+          : []
+      }))
+    }
+  };
 }
 
 export async function createMobileChildProfile(

@@ -53,6 +53,8 @@ describe("mobile listings API seller lifecycle", () => {
             publishAfter: null,
             publishedAt: "2026-07-14T10:00:30.000Z",
             publicationReviewReason: null,
+            recommendedAgeMinMonths: 6,
+            recommendedAgeMaxMonths: 12,
             listingType: "sale",
             condition: "good",
             priceAmount: "1250.00",
@@ -83,7 +85,9 @@ describe("mobile listings API seller lifecycle", () => {
         priceText: "1.250 TL",
         createdAt: "2026-07-14T10:00:00.000Z",
         favoriteCount: 2,
-        imageUrl: "/api/v1/uploads/listings/one.png"
+        imageUrl: "/api/v1/uploads/listings/one.png",
+        recommendedAgeMinMonths: 6,
+        recommendedAgeMaxMonths: 12
       })
     ]);
 
@@ -102,6 +106,8 @@ describe("mobile listings API seller lifecycle", () => {
           publishAfter: null,
           publishedAt: "2026-07-14T10:00:30.000Z",
           publicationReviewReason: null,
+          recommendedAgeMinMonths: null,
+          recommendedAgeMaxMonths: null,
           listingType: "sale",
           condition: "good",
           priceAmount: "1250.00",

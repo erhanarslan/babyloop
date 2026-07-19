@@ -7,6 +7,7 @@ import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { Paragraph, Screen } from "../../ui/screen";
 import { colors, radius, shadows } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
+import { MobileListingAgeRangeField } from "../listings/listing-age-range-field";
 import {
   createMobileListing,
   fetchMobileCategories,
@@ -521,6 +522,12 @@ export function SellScreen() {
             ))}
           </View>
         ) : null}
+
+        <MobileListingAgeRangeField
+          disabled={isSubmitting}
+          onChange={(recommendedAgeRange) => updateFormField("recommendedAgeRange", recommendedAgeRange)}
+          value={formState.recommendedAgeRange}
+        />
       </View>
 
       {message ? (

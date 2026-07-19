@@ -1,6 +1,5 @@
 import {
   formatCadence,
-  getDefaultMobileChildProfilePayload,
   getMobileChildNoteItems,
   getMobileChildReminderItems,
   getMobileChildReminderSettings,
@@ -98,12 +97,7 @@ describe("mobile child reminders model", () => {
   });
 
 
-  it("provides safe default profile and next reminder date", () => {
-    expect(getDefaultMobileChildProfilePayload()).toEqual({
-      label: "Çocuğum",
-      ageBand: "toddler_12_24",
-      notificationCadence: "monthly"
-    });
+  it("calculates the next reminder date without inventing child profile data", () => {
     expect(getNextMobileReminderDateIso(new Date("2030-01-01T08:00:00.000Z"))).toBe(
       "2030-01-02T07:00:00.000Z"
     );

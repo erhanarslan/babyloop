@@ -34,6 +34,8 @@ export type MobileListingSummary = {
   publishAfter: string | null;
   publishedAt: string | null;
   publicationReviewReason: string | null;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
 };
 
 export type MobileListingDetail = MobileListingSummary & {
@@ -72,7 +74,7 @@ export async function fetchMobileListings(
     throw new Error(result.error);
   }
 
-  return extractListingArray(result.data).map(normalizeListingSummary);
+  return extractListingArray(result.data).map(normalizeMobileListingSummary);
 }
 
 export function buildMobileListingsQuery(params: FetchMobileListingsParams = {}): URLSearchParams {
@@ -183,7 +185,7 @@ function extractListingObject(payload: unknown): unknown {
   return payload;
 }
 
-function normalizeListingSummary(value: unknown): MobileListingSummary {
+export function normalizeMobileListingSummary(value: unknown): MobileListingSummary {
   const record = isRecord(value) ? value : {};
   const listingType = pickString(record, ["listingType", "type"]);
   const status = pickString(record, ["status"]);
@@ -216,13 +218,21 @@ function normalizeListingSummary(value: unknown): MobileListingSummary {
     publishAfter: pickString(record, ["publishAfter", "publish_after"]) ?? null,
     publishedAt: pickString(record, ["publishedAt", "published_at"]) ?? null,
     publicationReviewReason:
-      pickString(record, ["publicationReviewReason", "publication_review_reason"]) ?? null
+      pickString(record, ["publicationReviewReason", "publication_review_reason"]) ?? null,
+    recommendedAgeMinMonths: pickNumber(record, [
+      "recommendedAgeMinMonths",
+      "recommended_age_min_months"
+    ]),
+    recommendedAgeMaxMonths: pickNumber(record, [
+      "recommendedAgeMaxMonths",
+      "recommended_age_max_months"
+    ])
   };
 }
 
 function normalizeListingDetail(value: unknown): MobileListingDetail {
   const record = isRecord(value) ? value : {};
-  const summary = normalizeListingSummary(record);
+  const summary = normalizeMobileListingSummary(record);
 
   return {
     ...summary,
@@ -242,7 +252,7 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
 
 function normalizeMyListingSummary(value: unknown): MobileMyListingSummary {
   const record = isRecord(value) ? value : {};
-  const summary = normalizeListingSummary(record);
+  const summary = normalizeMobileListingSummary(record);
 
   return {
     ...summary,
@@ -421,6 +431,8 @@ export type MobileListingUpdatePayload = {
   description?: string;
   listingType?: string;
   priceAmount?: string | null;
+  recommendedAgeMinMonths?: number | null;
+  recommendedAgeMaxMonths?: number | null;
   title?: string;
 };
 
@@ -452,7 +464,9 @@ export async function fetchMobileEditableListingDetail(
     description: pickMobileEditString(listing, ["description"]) ?? "",
     editableImages: normalizeMobileEditableListingImages(listing),
     listingType: pickMobileEditString(listing, ["listingType"]),
-    priceAmount: pickMobileEditNestedString(listing, ["price", "amount"]) ?? ""
+    priceAmount: pickMobileEditNestedString(listing, ["price", "amount"]) ?? "",
+    recommendedAgeMinMonths: pickMobileEditNumber(listing, ["recommendedAgeMinMonths"]),
+    recommendedAgeMaxMonths: pickMobileEditNumber(listing, ["recommendedAgeMaxMonths"])
   };
 }
 
@@ -475,7 +489,7 @@ export async function updateMobileListing(
     );
   }
 
-  return normalizeListingSummary(extractListingObject(responsePayload));
+  return normalizeMobileListingSummary(extractListingObject(responsePayload));
 }
 
 export async function uploadMobileListingEditImage(

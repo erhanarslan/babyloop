@@ -14,6 +14,7 @@ describe("mobile listing edit model", () => {
       description: "Temiz kullanıldı.",
       listingType: "sale",
       priceAmount: "1250.00",
+      recommendedAgeRange: "12:24",
       title: "Temiz bebek arabası"
     });
   });
@@ -26,6 +27,7 @@ describe("mobile listing edit model", () => {
         description: "  Yeni gibi  ",
         listingType: "sale",
         priceAmount: "1250,50",
+        recommendedAgeRange: "6:12",
         title: "  Bebek arabası  "
       })
     ).toEqual({
@@ -37,6 +39,8 @@ describe("mobile listing edit model", () => {
         description: "Yeni gibi",
         listingType: "sale",
         priceAmount: "1250.50",
+        recommendedAgeMinMonths: 6,
+        recommendedAgeMaxMonths: 12,
         title: "Bebek arabası"
       }
     });
@@ -49,6 +53,7 @@ describe("mobile listing edit model", () => {
       description: "",
       listingType: "sale",
       priceAmount: "",
+      recommendedAgeRange: "independent",
       title: "Bebek arabası"
     })).toEqual({
       ok: false,
@@ -61,6 +66,7 @@ describe("mobile listing edit model", () => {
       description: "",
       listingType: "sale",
       priceAmount: "12a",
+      recommendedAgeRange: "independent",
       title: "Bebek arabası"
     })).toEqual({
       ok: false,
@@ -122,6 +128,8 @@ function editableListing(): MobileEditableListingDetail {
     publishAfter: null,
     publishedAt: "2026-07-14T10:00:30.000Z",
     publicationReviewReason: null,
+    recommendedAgeMinMonths: 12,
+    recommendedAgeMaxMonths: 24,
     title: "Temiz bebek arabası"
   };
 }

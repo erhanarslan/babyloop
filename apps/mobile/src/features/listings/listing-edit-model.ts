@@ -1,4 +1,8 @@
 import type { MobileEditableListingDetail } from "./listings-api";
+import {
+  parseMobileListingAgeRange,
+  toMobileListingAgeRangeValue
+} from "./listing-age-range-model";
 
 export type MobileListingEditFormState = {
   categoryId: string;
@@ -6,6 +10,7 @@ export type MobileListingEditFormState = {
   description: string;
   listingType: string;
   priceAmount: string;
+  recommendedAgeRange: string;
   title: string;
 };
 
@@ -19,6 +24,8 @@ export type MobileListingEditValidationResult =
         description: string;
         listingType: string;
         priceAmount: string | null;
+        recommendedAgeMinMonths: number | null;
+        recommendedAgeMaxMonths: number | null;
         title: string;
       };
     }
@@ -36,6 +43,10 @@ export function createMobileListingEditFormState(
     description: listing.description ?? "",
     listingType: listing.listingType ?? "sale",
     priceAmount: listing.priceAmount ?? "",
+    recommendedAgeRange: toMobileListingAgeRangeValue(
+      listing.recommendedAgeMinMonths,
+      listing.recommendedAgeMaxMonths
+    ),
     title: listing.title
   };
 }
@@ -46,6 +57,7 @@ export function buildMobileListingEditPayload(
   const title = state.title.trim();
   const description = state.description.trim();
   const priceAmount = normalizeMobileListingEditPrice(state.priceAmount);
+  const recommendedAgeRange = parseMobileListingAgeRange(state.recommendedAgeRange);
 
   if (!state.categoryId) {
     return {
@@ -82,6 +94,13 @@ export function buildMobileListingEditPayload(
     };
   }
 
+  if (!recommendedAgeRange) {
+    return {
+      ok: false,
+      message: "Geçerli bir önerilen yaş aralığı seçmelisin."
+    };
+  }
+
   return {
     ok: true,
     payload: {
@@ -91,6 +110,8 @@ export function buildMobileListingEditPayload(
       description,
       listingType: state.listingType,
       priceAmount,
+      recommendedAgeMinMonths: recommendedAgeRange.minMonths,
+      recommendedAgeMaxMonths: recommendedAgeRange.maxMonths,
       title
     }
   };

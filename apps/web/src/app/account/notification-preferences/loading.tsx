@@ -7,11 +7,11 @@ export default function NotificationPreferencesLoading() {
         <PageHeading
           eyebrow="BabyLoop"
           title="Bildirim tercihleri yükleniyor"
-          description="Çocuk profili ve kayıtlı arama bildirim tercihleri hazırlanıyor."
+          description="Mesaj ve ilan hareketleri için e-posta tercihlerin hazırlanıyor."
         />
         <LoadingBlock
           title="Bildirim tercihleri yükleniyor"
-          message="Tercihlerin ve bildirim taslakların hazırlanıyor."
+          message="E-posta bildirim ayarların kontrol ediliyor."
         />
       </PageContainer>
     </SiteShell>

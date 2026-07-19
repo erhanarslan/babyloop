@@ -15,6 +15,7 @@ import {
   buildMobileListingChips,
   MobileListingCard
 } from "../../ui/mobile-listing-card";
+import { formatMobileListingAgeRange } from "./listing-age-range-model";
 import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
 import {
@@ -345,6 +346,10 @@ function MyListingCard({
   const isPublic =
     (listing.status === "active" || listing.status === "reserved") &&
     listing.publicationState === "published";
+  const ageRangeLabel = formatMobileListingAgeRange(
+    listing.recommendedAgeMinMonths,
+    listing.recommendedAgeMaxMonths
+  );
 
   return (
     <View style={styles.cardShell}>
@@ -360,7 +365,9 @@ function MyListingCard({
             ? `${listing.favoriteCount} favori`
             : null
         }
-        footerText={listing.createdAt ? `Oluşturulma: ${formatDate(listing.createdAt)}` : null}
+        footerText={listing.createdAt
+          ? `${ageRangeLabel} · Oluşturulma: ${formatDate(listing.createdAt)}`
+          : ageRangeLabel}
         imageUrl={listing.imageUrl}
         locationText={listing.locationText}
         onPress={isPublic ? onOpen : undefined}

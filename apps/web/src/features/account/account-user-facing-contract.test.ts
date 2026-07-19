@@ -32,11 +32,13 @@ describe("account user-facing contract", () => {
     const preferences = read(
       "src/features/notification-preferences/notification-preferences-page-content.tsx"
     );
+    const preferencesLoading = read("src/app/account/notification-preferences/loading.tsx");
 
     expect(preferences).toContain("Bildirim ayarları");
     expect(preferences).toContain('role="switch"');
     expect(preferences).not.toMatch(/audit|sağlayıcısı|supportedSources/iu);
     expect(preferences).not.toContain("fetchChildProfiles");
     expect(preferences).not.toContain("fetchSavedSearches");
+    expect(preferencesLoading).not.toMatch(/çocuk profili|kayıtlı arama|taslak/iu);
   });
 });

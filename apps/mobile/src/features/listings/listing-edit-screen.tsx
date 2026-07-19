@@ -38,6 +38,7 @@ import {
   moveMobileListingImageId,
   type MobileListingEditFormState
 } from "./listing-edit-model";
+import { MobileListingAgeRangeField } from "./listing-age-range-field";
 
 type LoadStatus = "loading" | "ready" | "guest" | "error";
 type SubmitStatus = "idle" | "saving" | "uploading" | "deleting" | "reordering";
@@ -387,6 +388,14 @@ export function ListingEditScreen() {
                 ))}
               </View>
             </Field>
+
+            <MobileListingAgeRangeField
+              disabled={isBusy}
+              onChange={(recommendedAgeRange) =>
+                setFormState((state) => state ? { ...state, recommendedAgeRange } : state)
+              }
+              value={formState.recommendedAgeRange}
+            />
 
             <MobileButton
               disabled={isBusy}

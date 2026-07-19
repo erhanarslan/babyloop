@@ -1,12 +1,39 @@
 import {
   createMobileChildNote,
   createMobileChildReminder,
+  fetchMobileChildLifecycleRecommendations,
   fetchMobileChildProfiles,
   updateMobileChildNote,
   updateMobileChildReminder,
   updateMobileChildProfile
 } from "./child-reminders-api";
 import { mobileAuthFetch } from "../auth/auth-api";
+
+jest.mock("../listings/listings-api", () => ({
+  normalizeMobileListingSummary: (value: unknown) => {
+    const listing = value as Record<string, unknown>;
+
+    return {
+      conditionText: "İyi",
+      id: listing.id,
+      imageUrl: null,
+      imageUrls: [],
+      listingType: "sale",
+      listingTypeText: "Satılık",
+      locationText: "Konum belirtilmedi",
+      priceText: "450 TL",
+      publicationReviewReason: null,
+      publicationState: "published",
+      publishAfter: null,
+      publishedAt: null,
+      recommendedAgeMinMonths: listing.recommendedAgeMinMonths,
+      recommendedAgeMaxMonths: listing.recommendedAgeMaxMonths,
+      status: "active",
+      statusText: "Aktif",
+      title: listing.title
+    };
+  }
+}));
 
 jest.mock("../auth/auth-api", () => ({
   mobileAuthFetch: jest.fn()
@@ -36,6 +63,89 @@ describe("mobile child reminders API", () => {
       }
     });
     expect(mobileAuthFetchMock).toHaveBeenCalledWith("/api/v1/child-profiles", expect.any(Object));
+  });
+
+  it("normalizes age-matched listing recommendations for mobile cards", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        groups: [
+          {
+            childProfileId: "child-1",
+            childProfileLabel: "Ada",
+            ageBand: "preschool_24_36",
+            matchedListings: [
+              {
+                id: "listing-1",
+                title: "Yaşa uygun oyuncak",
+                listingType: "sale",
+                condition: "good",
+                status: "active",
+                publicationState: "published",
+                recommendedAgeMinMonths: 24,
+                recommendedAgeMaxMonths: 36,
+                price: { amount: "450.00", currency: "TRY" }
+              }
+            ],
+            recommendations: []
+          }
+        ]
+      }
+    }));
+
+    const result = await fetchMobileChildLifecycleRecommendations();
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        groups: [
+          expect.objectContaining({
+            childProfileId: "child-1",
+            matchedListings: [
+              expect.objectContaining({
+                id: "listing-1",
+                priceText: "450 TL",
+                recommendedAgeMinMonths: 24,
+                recommendedAgeMaxMonths: 36
+              })
+            ]
+          })
+        ]
+      }
+    });
+    expect(mobileAuthFetchMock).toHaveBeenCalledWith(
+      "/api/v1/child-profiles/lifecycle-recommendations",
+      expect.any(Object)
+    );
+  });
+
+  it("falls back to an empty recommendation list for malformed listing payloads", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        groups: [
+          {
+            childProfileId: "child-1",
+            childProfileLabel: "Ada",
+            ageBand: "preschool_24_36",
+            matchedListings: { unexpected: true },
+            recommendations: []
+          }
+        ]
+      }
+    }));
+
+    await expect(fetchMobileChildLifecycleRecommendations()).resolves.toEqual({
+      ok: true,
+      data: {
+        groups: [
+          expect.objectContaining({
+            childProfileId: "child-1",
+            matchedListings: []
+          })
+        ]
+      }
+    });
   });
 
   it("creates child notes with JSON payload and no token leakage", async () => {

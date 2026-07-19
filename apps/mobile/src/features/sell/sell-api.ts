@@ -127,7 +127,9 @@ export async function createMobileListing(
       pickString(listing, [
         "publicationReviewReason",
         "publication_review_reason"
-      ]) ?? null
+      ]) ?? null,
+    recommendedAgeMinMonths: payload.recommendedAgeMinMonths,
+    recommendedAgeMaxMonths: payload.recommendedAgeMaxMonths
   };
 }
 

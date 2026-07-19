@@ -33,6 +33,7 @@ describe("mobile AI listing draft model", () => {
       description: "Katlanabilir, günlük kullanıma uygun bebek arabası.",
       listingType: "sale",
       priceAmount: "",
+      recommendedAgeRange: "independent",
       title: "Temiz bebek arabası"
     });
   });

@@ -1,3 +1,5 @@
+import { parseMobileListingAgeRange } from "../listings/listing-age-range-model";
+
 export const mobileListingTypeOptions = [
   {
     value: "sale",
@@ -45,6 +47,7 @@ export type MobileSellFormState = {
   description: string;
   listingType: MobileListingType;
   priceAmount: string;
+  recommendedAgeRange: string;
   title: string;
 };
 
@@ -55,6 +58,8 @@ export type MobileCreateListingPayload = {
   description?: string;
   listingType: MobileListingType;
   priceAmount?: string;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
   title: string;
 };
 
@@ -77,6 +82,7 @@ export function createDefaultMobileSellFormState(): MobileSellFormState {
     description: "",
     listingType: "sale",
     priceAmount: "",
+    recommendedAgeRange: "independent",
     title: ""
   };
 }
@@ -87,6 +93,7 @@ export function buildMobileCreateListingPayload(
   const title = normalizeWhitespace(state.title);
   const description = normalizeMultilineText(state.description);
   const priceAmount = normalizePriceAmount(state.priceAmount);
+  const recommendedAgeRange = parseMobileListingAgeRange(state.recommendedAgeRange);
 
   if (!state.categoryId) {
     return {
@@ -123,6 +130,13 @@ export function buildMobileCreateListingPayload(
     };
   }
 
+  if (!recommendedAgeRange) {
+    return {
+      ok: false,
+      message: "Geçerli bir önerilen yaş aralığı seçmelisin."
+    };
+  }
+
   return {
     ok: true,
     payload: {
@@ -132,6 +146,8 @@ export function buildMobileCreateListingPayload(
       ...(description ? { description } : {}),
       listingType: state.listingType,
       ...(priceAmount ? { priceAmount } : {}),
+      recommendedAgeMinMonths: recommendedAgeRange.minMonths,
+      recommendedAgeMaxMonths: recommendedAgeRange.maxMonths,
       title
     }
   };

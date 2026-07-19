@@ -53,6 +53,8 @@ describe("mobile listing edit API", () => {
           status: "archived",
           listingType: "sale",
           condition: "good",
+          recommendedAgeMinMonths: 12,
+          recommendedAgeMaxMonths: 24,
           price: {
             amount: "1250.00",
             currency: "TRY"
@@ -98,6 +100,8 @@ describe("mobile listing edit API", () => {
         ],
         id: "listing-1",
         priceAmount: "1250.00",
+        recommendedAgeMinMonths: 12,
+        recommendedAgeMaxMonths: 24,
         status: "archived"
       })
     );
@@ -115,6 +119,8 @@ describe("mobile listing edit API", () => {
           status: "active",
           listingType: "sale",
           condition: "good",
+          recommendedAgeMinMonths: 12,
+          recommendedAgeMaxMonths: 24,
           price: {
             amount: "1500.00",
             currency: "TRY"

@@ -21,16 +21,25 @@ import {
   createMobileChildNote,
   createMobileChildProfile,
   createMobileChildReminder,
+  fetchMobileChildLifecycleRecommendations,
   fetchMobileChildNotes,
   fetchMobileChildProfiles,
   fetchMobileChildReminders,
   updateMobileChildNote,
   updateMobileChildReminder,
   type MobileChildNote,
+  type MobileChildLifecycleRecommendationGroup,
   type MobileChildProfile,
   type MobileChildReminder
 } from "./child-reminders-api";
-import { getDefaultMobileChildProfilePayload } from "./child-reminders-model";
+import {
+  buildMobileChildProfileCreatePayload,
+  createMobileChildProfileSetupState,
+  formatMobileChildAge,
+  formatMobileChildBirthDate,
+  type MobileChildProfileSetupState
+} from "./child-profile-model";
+import { ChildAgeRecommendations } from "./child-age-recommendations";
 import {
   MobileChildDateTimeField,
   MobileChildLocalTimeField
@@ -62,6 +71,7 @@ import {
 } from "./child-reminder-screen-state-model";
 
 type ScreenStatus = "loading" | "ready" | "error";
+type RecommendationsStatus = "loading" | "ready" | "error";
 type ChildTab = "notes" | "reminders";
 
 export function ChildProfileScreen() {
@@ -69,8 +79,13 @@ export function ChildProfileScreen() {
   const authSession = useAuthSession();
   const currentUser = authSession.currentUser;
   const [childProfile, setChildProfile] = useState<MobileChildProfile | null>(null);
+  const [childProfileSetup, setChildProfileSetup] = useState<MobileChildProfileSetupState>(() =>
+    createMobileChildProfileSetupState()
+  );
   const [notes, setNotes] = useState<MobileChildNote[]>([]);
   const [reminders, setReminders] = useState<MobileChildReminder[]>([]);
+  const [recommendationGroup, setRecommendationGroup] = useState<MobileChildLifecycleRecommendationGroup | null>(null);
+  const [recommendationsStatus, setRecommendationsStatus] = useState<RecommendationsStatus>("loading");
   const [noteForm, setNoteForm] = useState<MobileChildNoteFormState>(() => createMobileChildNoteFormState());
   const [reminderForm, setReminderForm] = useState<MobileChildReminderFormState>(() =>
     createMobileChildReminderFormState("shopping")
@@ -94,6 +109,8 @@ export function ChildProfileScreen() {
       setChildProfile(null);
       setNotes([]);
       setReminders([]);
+      setRecommendationGroup(null);
+      setRecommendationsStatus("ready");
       setStatus("ready");
       return;
     }
@@ -109,23 +126,23 @@ export function ChildProfileScreen() {
       return;
     }
 
-    let nextProfile = getPreferredMobileChildProfile(profilesResponse.data.childProfiles);
+    const nextProfile = getPreferredMobileChildProfile(profilesResponse.data.childProfiles);
 
     if (!nextProfile) {
-      const createResponse = await createMobileChildProfile(getDefaultMobileChildProfilePayload());
-
-      if (!createResponse.ok) {
-        setStatus("error");
-        setMessage(redactMobileChildMessage(createResponse.error.message));
-        return;
-      }
-
-      nextProfile = createResponse.data.childProfile;
+      setChildProfile(null);
+      setNotes([]);
+      setReminders([]);
+      setRecommendationGroup(null);
+      setRecommendationsStatus("ready");
+      setStatus("ready");
+      return;
     }
 
-    const [notesResponse, remindersResponse] = await Promise.all([
+    setRecommendationsStatus("loading");
+    const [notesResponse, remindersResponse, recommendationsResponse] = await Promise.all([
       fetchMobileChildNotes(nextProfile.id),
-      fetchMobileChildReminders(nextProfile.id)
+      fetchMobileChildReminders(nextProfile.id),
+      fetchMobileChildLifecycleRecommendations()
     ]);
 
     if (!notesResponse.ok) {
@@ -143,12 +160,47 @@ export function ChildProfileScreen() {
     setChildProfile(nextProfile);
     setNotes(notesResponse.data.notes);
     setReminders(remindersResponse.data.reminders);
+    setRecommendationGroup(
+      recommendationsResponse.ok
+        ? recommendationsResponse.data.groups.find((group) => group.childProfileId === nextProfile.id) ?? null
+        : null
+    );
+    setRecommendationsStatus(recommendationsResponse.ok ? "ready" : "error");
     setStatus("ready");
   }, [currentUser]);
 
   useEffect(() => {
     void loadChildData();
   }, [loadChildData]);
+
+  async function handleCreateChildProfile() {
+    if (isSubmitting) {
+      return;
+    }
+
+    const payloadResult = buildMobileChildProfileCreatePayload(childProfileSetup);
+
+    if (!payloadResult.ok) {
+      setMessage(payloadResult.message);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage(null);
+
+    const response = await createMobileChildProfile(payloadResult.payload);
+
+    if (!response.ok) {
+      setMessage(redactMobileChildMessage(response.error.message));
+      setIsSubmitting(false);
+      return;
+    }
+
+    setChildProfileSetup(createMobileChildProfileSetupState());
+    await loadChildData();
+    setMessage("Çocuk profili oluşturuldu.");
+    setIsSubmitting(false);
+  }
 
   async function handleSubmitNote() {
     if (!canRunMobileChildProfileAction(childProfile, isSubmitting)) {
@@ -346,28 +398,90 @@ export function ChildProfileScreen() {
     );
   }
 
+  if (status === "ready" && !childProfile) {
+    return (
+      <Screen
+        eyebrow="Çocuğum"
+        title="Çocuk profili oluştur"
+        subtitle="Yaşa uygun ilanlar ve hatırlatıcılar için gerçek yaş bilgisini ekle."
+      >
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+
+        <MobileCard style={styles.formCard}>
+          <MobileSectionHeader
+            description="Yaş ilerledikçe BabyLoop güncel ay bilgisini API üzerinden hesaplar."
+            title="Temel bilgiler"
+          />
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>İsim veya kısa ad</Text>
+            <TextInput
+              accessibilityLabel="Çocuğun ismi veya kısa adı"
+              maxLength={80}
+              onChangeText={(label) => setChildProfileSetup((current) => ({ ...current, label }))}
+              placeholder="Örn. Ada"
+              style={styles.input}
+              value={childProfileSetup.label}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Tamamlanmış yaş (ay)</Text>
+            <TextInput
+              accessibilityLabel="Çocuğun tamamlanmış yaşı ay olarak"
+              keyboardType="number-pad"
+              maxLength={3}
+              onChangeText={(ageMonths) =>
+                setChildProfileSetup((current) => ({ ...current, ageMonths }))
+              }
+              placeholder="Örn. 29"
+              style={styles.input}
+              value={childProfileSetup.ageMonths}
+            />
+            <Text style={styles.fieldHelper}>
+              0–216 arasında yaz. Bu değer kaydedildiği tarihten itibaren dinamik olarak ilerler.
+            </Text>
+          </View>
+
+          <MobileButton
+            disabled={isSubmitting}
+            onPress={() => void handleCreateChildProfile()}
+          >
+            {isSubmitting ? "Oluşturuluyor..." : "Çocuk profili oluştur"}
+          </MobileButton>
+        </MobileCard>
+      </Screen>
+    );
+  }
+
+  const childBirthDateLabel = childProfile ? formatMobileChildBirthDate(childProfile) : null;
+
   return (
     <Screen
       eyebrow="Çocuğum"
       title={childProfile?.label ?? "Not defteri"}
-      subtitle={getMobileChildDeliveryBoundaryText()}
-      headerAction={
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push("/notification-preferences")}
-          style={styles.headerLink}
-        >
-          <Text style={styles.headerLinkText}>Tercihler</Text>
-        </Pressable>
-      }
+      subtitle={childProfile ? formatMobileChildAge(childProfile) : getMobileChildDeliveryBoundaryText()}
     >
-      <MobileCard style={styles.heroCard}>
-        <View style={styles.statsGrid}>
-          <StatChip label="Not" value={notes.length.toString()} />
-          <StatChip label="Hatırlatıcı" value={reminders.length.toString()} />
-          <StatChip label="Aktif" value={scheduledReminderCount.toString()} />
-        </View>
-      </MobileCard>
+      {childProfile ? (
+        <MobileCard style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>🧸</Text></View>
+            <View style={styles.heroText}>
+              <Text style={styles.heroTitle}>{formatMobileChildAge(childProfile)}</Text>
+              <Text style={styles.heroDescription}>
+                {childBirthDateLabel
+                  ? `Doğum ayı: ${childBirthDateLabel}`
+                  : getMobileChildDeliveryBoundaryText()}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statsGrid}>
+            <StatChip label="Not" value={notes.length.toString()} />
+            <StatChip label="Hatırlatıcı" value={reminders.length.toString()} />
+            <StatChip label="Aktif" value={scheduledReminderCount.toString()} />
+          </View>
+        </MobileCard>
+      ) : null}
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
@@ -382,12 +496,18 @@ export function ChildProfileScreen() {
         />
       ) : null}
 
-      <View style={styles.tabRow}>
-        <TabButton active={activeTab === "notes"} label="Not defteri" onPress={() => setActiveTab("notes")} />
-        <TabButton active={activeTab === "reminders"} label="Hatırlatıcılar" onPress={() => setActiveTab("reminders")} />
-      </View>
+      {status === "ready" && childProfile ? (
+        <ChildAgeRecommendations group={recommendationGroup} status={recommendationsStatus} />
+      ) : null}
 
-      {activeTab === "notes" ? (
+      {status === "ready" && childProfile ? (
+        <View style={styles.tabRow}>
+          <TabButton active={activeTab === "notes"} label="Not defteri" onPress={() => setActiveTab("notes")} />
+          <TabButton active={activeTab === "reminders"} label="Hatırlatıcılar" onPress={() => setActiveTab("reminders")} />
+        </View>
+      ) : null}
+
+      {status === "ready" && childProfile && activeTab === "notes" ? (
         <>
           <MobileCard style={styles.formCard}>
             <MobileSectionHeader
@@ -480,7 +600,7 @@ export function ChildProfileScreen() {
         </>
       ) : null}
 
-      {activeTab === "reminders" ? (
+      {status === "ready" && childProfile && activeTab === "reminders" ? (
         <>
           <MobileCard style={styles.formCard}>
             <MobileSectionHeader
@@ -830,19 +950,6 @@ function redactMobileChildMessage(value: string): string {
 }
 
 const styles = StyleSheet.create({
-  headerLink: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 9
-  },
-  headerLinkText: {
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "900"
-  },
   heroCard: {
     gap: spacing.md
   },
@@ -1062,6 +1169,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: "900"
+  },
+  fieldHelper: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17
   },
   twoColumn: {
     gap: spacing.sm

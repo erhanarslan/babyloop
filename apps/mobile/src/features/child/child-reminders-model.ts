@@ -1,5 +1,4 @@
 import type {
-  CreateMobileChildProfileRequest,
   MobileChildNote,
   MobileChildProfile,
   MobileChildProfileNotificationCadence,
@@ -89,14 +88,6 @@ export function getMobileChildReminderSettings(
       status: "draft"
     }
   ];
-}
-
-export function getDefaultMobileChildProfilePayload(): CreateMobileChildProfileRequest {
-  return {
-    label: "Çocuğum",
-    ageBand: "toddler_12_24",
-    notificationCadence: "monthly"
-  };
 }
 
 export function getNextMobileReminderDateIso(now = new Date()): string {
