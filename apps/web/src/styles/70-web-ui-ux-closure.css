@@ -2073,3 +2073,200 @@ form.my-listing-edit-modal .listing-card-actions {
     padding: 0.85rem !important;
   }
 }
+
+
+/* BABYLOOP_MESSAGES_START_PANEL_V1 */
+
+.messages-start-panel {
+  overflow: hidden;
+  border-color: #eadfd6 !important;
+  background:
+    radial-gradient(circle at 50% 18%, rgb(255 231 220 / 0.72), transparent 26%),
+    #fffdf9 !important;
+  color: #352b25;
+  box-shadow: 0 18px 48px rgb(55 43 35 / 0.08) !important;
+  backdrop-filter: none !important;
+}
+
+.messages-start-content {
+  display: grid;
+  width: min(100%, 29rem);
+  justify-items: center;
+  gap: 1.15rem;
+}
+
+.messages-start-visual {
+  position: relative;
+  width: 6.5rem;
+  height: 5.5rem;
+}
+
+.messages-start-bubble {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 1.15rem;
+  box-shadow: 0 14px 32px rgb(55 43 35 / 0.13);
+}
+
+.messages-start-bubble-primary {
+  top: 0;
+  left: 0.2rem;
+  width: 4.8rem;
+  height: 4rem;
+  background: linear-gradient(135deg, #ff786d, #ef5e73);
+  color: #fff;
+  transform: rotate(-4deg);
+}
+
+.messages-start-bubble-primary::after {
+  position: absolute;
+  bottom: -0.45rem;
+  left: 0.85rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  background: #ef5e73;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  content: "";
+}
+
+.messages-start-bubble-secondary {
+  right: 0;
+  bottom: 0;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 4px solid #fffdf9;
+  border-radius: 999px;
+  background: #2f8b72;
+  color: #fff;
+}
+
+.messages-start-content .eyebrow {
+  margin: 0 0 0.3rem;
+  color: #2f8b72;
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.messages-start-content h2 {
+  margin: 0;
+  color: #352b25;
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.messages-start-description {
+  margin: 0.4rem 0 0;
+  color: #74665d;
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+
+.messages-start-actions {
+  display: grid;
+  width: min(100%, 23rem);
+  justify-items: center;
+  gap: 0.65rem;
+}
+
+.messages-start-actions a {
+  display: inline-flex;
+  min-height: 2.85rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff786d, #ef5e73);
+  color: #fff;
+  padding: 0.7rem 1.15rem;
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 11px 26px rgb(239 94 115 / 0.2);
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.messages-start-actions a:hover,
+.messages-start-actions a:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 15px 32px rgb(239 94 115 / 0.27);
+}
+
+.messages-start-actions span {
+  color: #7b6d64;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.messages-start-safety {
+  display: grid;
+  width: min(100%, 24rem);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #dfeee8;
+  border-radius: 1rem;
+  background: #eff9f5;
+  color: #286f5d;
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+}
+
+.messages-start-safety > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.messages-start-safety strong {
+  font-size: 0.82rem;
+  font-weight: 950;
+}
+
+.messages-start-safety span {
+  color: #52796d;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.dark .messages-start-panel {
+  border-color: #4d4038 !important;
+  background:
+    radial-gradient(circle at 50% 18%, rgb(120 54 55 / 0.26), transparent 28%),
+    #241e1a !important;
+  color: #fff8f2;
+}
+
+.dark .messages-start-bubble-secondary {
+  border-color: #241e1a;
+}
+
+.dark .messages-start-content h2 {
+  color: #fff8f2;
+}
+
+.dark .messages-start-description,
+.dark .messages-start-actions span {
+  color: #cdbfb5;
+}
+
+.dark .messages-start-safety {
+  border-color: #355b50;
+  background: #203a33;
+  color: #a7e0cf;
+}
+
+.dark .messages-start-safety span {
+  color: #9bc6ba;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages-start-actions a {
+    transition: none;
+  }
+}
