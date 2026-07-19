@@ -16,6 +16,7 @@ import type { FastifyInstance } from "fastify";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestApp } from "./helpers/app.js";
+import { resetTestDatabase } from "./helpers/db.js";
 import type { CurrentUser } from "../src/plugins/auth.plugin.js";
 import {
   addListingImage,
@@ -33,6 +34,7 @@ let uploadRoot: string;
 
 beforeEach(async () => {
   uploadRoot = await mkdtemp(path.join(os.tmpdir(), "babyloop-authenticity-"));
+  await resetTestDatabase();
   app = await createTestApp({ uploadRoot });
 });
 
@@ -170,7 +172,7 @@ describe("listing image authenticity integration", () => {
     expect(Number(storedImage?.authenticityConfidence)).toBeCloseTo(0.73);
 
     const publicDetail = await getListingDetail(app, created.listing.id);
-    expect(publicDetail?.images).toEqual([]);
+    expect(publicDetail).toBeNull();
 
     const adminDetail = await getAdminListingDetail(app, created.listing.id);
     expect(adminDetail?.images).toHaveLength(1);

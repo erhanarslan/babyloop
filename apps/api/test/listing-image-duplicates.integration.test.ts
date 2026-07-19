@@ -38,7 +38,9 @@ afterEach(async () => {
 describe("listing image duplicate content hash", () => {
   it("rejects uploading the same image content twice for the same listing without exposing hashes", async () => {
     const seller = await createUser(app);
-    const listing = await createListing(app, seller.accessToken);
+    const listing = await createListing(app, seller.accessToken, {
+      withApprovedImage: false
+    });
 
     const firstRequest = multipartRequest({
       buffer: tinyPng(),
@@ -97,8 +99,12 @@ describe("listing image duplicate content hash", () => {
   it("allows the same image content on different listings for now", async () => {
     const firstSeller = await createUser(app, { email: "first-image-seller@example.test" });
     const secondSeller = await createUser(app, { email: "second-image-seller@example.test" });
-    const firstListing = await createListing(app, firstSeller.accessToken);
-    const secondListing = await createListing(app, secondSeller.accessToken);
+    const firstListing = await createListing(app, firstSeller.accessToken, {
+      withApprovedImage: false
+    });
+    const secondListing = await createListing(app, secondSeller.accessToken, {
+      withApprovedImage: false
+    });
 
     const firstRequest = multipartRequest({
       buffer: tinyPng(),
