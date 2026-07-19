@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, LoadingBlock } from "../../components/ui";
+import { Button } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { clearAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -12,64 +12,49 @@ import {
   revokeAuthSessionRequest,
   type AuthSessionPayload
 } from "./api";
+import { CurrentPasswordConfirmationModal } from "./current-password-confirmation-modal";
 
 type SessionManagementPanelProps = {
   apiBaseUrl: string;
 };
 
-type PanelStatus = "loading" | "ready" | "error";
-
 export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelProps) {
   const { dictionary } = useI18n();
-  const [status, setStatus] = useState<PanelStatus>("loading");
   const [sessions, setSessions] = useState<AuthSessionPayload[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isRevokeAllModalOpen, setIsRevokeAllModalOpen] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [isRevokingAll, setIsRevokingAll] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const clearProtectedState = useCallback(() => {
-    setStatus("ready");
-    setSessions([]);
-    setCurrentSessionId(null);
-    setPendingSessionId(null);
-    setIsRevokingAll(false);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-  }, []);
-
-  const { isCheckingAuth, requireAuth } = useProtectedRoute({
-    apiBaseUrl,
-    onUnauthenticated: clearProtectedState
-  });
-
-  const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => Number(b.current) - Number(a.current));
-  }, [sessions]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const { isCheckingAuth, requireAuth } = useProtectedRoute({ apiBaseUrl });
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => Number(b.current) - Number(a.current)),
+    [sessions]
+  );
 
   const loadSessions = useCallback(async () => {
     if (!(await requireAuth())) {
       return;
     }
 
-    setStatus("loading");
+    setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const body = await fetchAuthSessions(apiBaseUrl);
+      const response = await fetchAuthSessions(apiBaseUrl);
 
-      if (!body.ok) {
-        setStatus("error");
-        setErrorMessage(getApiErrorMessage(body.error, dictionary));
+      if (!response.ok) {
+        setErrorMessage(getApiErrorMessage(response.error, dictionary));
         return;
       }
 
-      setSessions(body.data.sessions);
-      setCurrentSessionId(body.data.currentSessionId);
-      setStatus("ready");
+      setSessions(response.data.sessions);
     } catch {
-      setStatus("error");
       setErrorMessage(dictionary.common.apiUnavailable);
+    } finally {
+      setIsLoading(false);
     }
   }, [apiBaseUrl, dictionary, requireAuth]);
 
@@ -78,37 +63,30 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
   }, [loadSessions]);
 
   async function handleRevokeSession(sessionId: string) {
-    if (pendingSessionId || isRevokingAll) {
-      return;
-    }
-
-    if (!(await requireAuth())) {
+    if (pendingSessionId || isRevokingAll || !(await requireAuth())) {
       return;
     }
 
     setPendingSessionId(sessionId);
     setErrorMessage(null);
-    setSuccessMessage(null);
+    setStatusMessage(null);
 
     try {
-      const body = await revokeAuthSessionRequest(apiBaseUrl, sessionId);
+      const response = await revokeAuthSessionRequest(apiBaseUrl, sessionId);
 
-      if (!body.ok) {
-        setErrorMessage(getApiErrorMessage(body.error, dictionary));
+      if (!response.ok) {
+        setErrorMessage(getApiErrorMessage(response.error, dictionary));
         return;
       }
 
-      if (body.data.currentSessionRevoked) {
+      if (response.data.currentSessionRevoked) {
         clearAuthToken({ broadcast: true });
-        setSessions([]);
-        setCurrentSessionId(null);
-        setSuccessMessage("Bu oturum kapatıldı. Tekrar giriş yapman gerekiyor.");
-        window.location.replace("/login");
+        window.location.replace("/?auth=login");
         return;
       }
 
-      setSessions((current) => current.filter((session) => session.id !== body.data.sessionId));
-      setSuccessMessage("Seçili oturum kapatıldı.");
+      setSessions((current) => current.filter((session) => session.id !== response.data.sessionId));
+      setStatusMessage("Oturum kapatıldı.");
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
@@ -116,32 +94,26 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
     }
   }
 
-  async function handleRevokeAllSessions() {
-    if (isRevokingAll || pendingSessionId) {
-      return;
-    }
-
-    if (!(await requireAuth())) {
+  async function handleRevokeAllSessions(currentPassword: string) {
+    if (isRevokingAll || !(await requireAuth())) {
       return;
     }
 
     setIsRevokingAll(true);
     setErrorMessage(null);
-    setSuccessMessage(null);
+    setStatusMessage(null);
 
     try {
-      const body = await revokeAllAuthSessionsRequest(apiBaseUrl);
+      const response = await revokeAllAuthSessionsRequest(apiBaseUrl, currentPassword);
 
-      if (!body.ok) {
-        setErrorMessage(getApiErrorMessage(body.error, dictionary));
+      if (!response.ok) {
+        setErrorMessage(getApiErrorMessage(response.error, dictionary));
         return;
       }
 
       clearAuthToken({ broadcast: true });
       setSessions([]);
-      setCurrentSessionId(null);
-      setSuccessMessage(`${body.data.revokedCount} oturum kapatıldı. Tüm cihazlardan çıkış yapıldı.`);
-      window.location.replace("/login");
+      window.location.replace("/?auth=login");
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
@@ -149,113 +121,98 @@ export function SessionManagementPanel({ apiBaseUrl }: SessionManagementPanelPro
     }
   }
 
-  if (isCheckingAuth || status === "loading") {
-    return <LoadingBlock title="Oturumlar yükleniyor" message="Aktif cihazların hazırlanıyor." />;
-  }
-
   return (
-    <section className="listing-form auth-recovery-form" aria-label="Aktif oturumlar">
-      <div className="auth-form-intro">
-        <p className="eyebrow">Oturumlar</p>
-        <h2>Aktif cihazlar</h2>
-        <p>
-          Hesabına açık olan web ve mobil oturumları buradan takip edebilir, kaybolan cihazdaki oturumu
-          kapatabilir veya tüm cihazlardan çıkış yapabilirsin.
-        </p>
+    <section className="grid gap-3" aria-label="Oturum güvenliği">
+      <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-5">
+          <div>
+            <h3 className="text-base font-black text-foreground">Aktif oturumlar</h3>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">
+              {isLoading || isCheckingAuth ? "Yükleniyor…" : `${sessions.length} açık oturum`}
+            </p>
+          </div>
+          <Button
+            aria-expanded={isExpanded}
+            disabled={isLoading || isCheckingAuth}
+            type="button"
+            variant="secondary"
+            onClick={() => setIsExpanded((current) => !current)}
+          >
+            {isExpanded ? "Gizle" : "Görüntüle"}
+          </Button>
+        </div>
+
+        {isExpanded ? (
+          <div className="mt-4 grid gap-2 border-t border-border/70 pt-4">
+            {sortedSessions.length === 0 ? (
+              <p className="text-sm font-semibold text-muted-foreground">Açık oturum bulunamadı.</p>
+            ) : sortedSessions.map((session) => (
+              <article className="flex items-center justify-between gap-4 rounded-xl bg-background p-3" key={session.id}>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong className="text-sm text-foreground">{session.deviceLabel}</strong>
+                    {session.current ? (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-black text-primary">Bu cihaz</span>
+                    ) : null}
+                  </div>
+                  <span className="mt-1 block text-xs font-semibold text-muted-foreground">
+                    Son kullanım: {formatSessionDate(session.updatedAt)}
+                  </span>
+                </div>
+                <Button
+                  disabled={pendingSessionId !== null || isRevokingAll}
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void handleRevokeSession(session.id)}
+                >
+                  {pendingSessionId === session.id ? "Kapatılıyor…" : "Kapat"}
+                </Button>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <div className="auth-security-summary" aria-label="Oturum özeti">
+      <div className="flex items-center justify-between gap-5 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
         <div>
-          <strong>{sessions.length}</strong>
-          <span>Aktif oturum</span>
-        </div>
-        <div>
-          <strong>{currentSessionId ? "Bu cihaz bulundu" : "Bu cihaz eşleşmedi"}</strong>
-          <span>Mevcut oturum refresh cookie ile eşleştirilir; token/hash kullanıcıya gösterilmez.</span>
-        </div>
-      </div>
-
-      {errorMessage ? <Alert title="Oturumlar güncellenemedi" message={errorMessage} /> : null}
-
-      {successMessage ? (
-        <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4 text-sm font-bold text-primary" role="status">
-          {successMessage}
-        </div>
-      ) : null}
-
-      {status === "error" ? (
-        <Button type="button" variant="secondary" onClick={() => void loadSessions()}>
-          Tekrar dene
-        </Button>
-      ) : null}
-
-      {status === "ready" && sortedSessions.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/80 p-4">
-          <h3 className="text-base font-black text-foreground">Aktif oturum görünmüyor</h3>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Tüm cihazlardan çıkış yaptıysan tekrar giriş yaptığında yeni oturum burada görünür.
+          <h3 className="text-base font-black text-foreground">Tüm oturumları kapat</h3>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+            Bu cihaz dahil her yerdeki oturumunu sonlandır.
           </p>
         </div>
-      ) : null}
-
-      <div className="grid gap-3">
-        {sortedSessions.map((session) => (
-          <article
-            className="rounded-2xl border border-border bg-card/80 p-4"
-            key={session.id}
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="grid gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-black text-foreground">{session.deviceLabel}</h3>
-                  {session.current ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-black text-primary">
-                      Bu cihaz
-                    </span>
-                  ) : null}
-                </div>
-
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {session.userAgent ?? "Cihaz bilgisi yok"}
-                </p>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  IP: {session.ipAddress ?? "Bilinmiyor"} · Son güncelleme: {formatSessionDate(session.updatedAt)}
-                </p>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  Bitiş: {formatSessionDate(session.expiresAt)}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={pendingSessionId === session.id || isRevokingAll}
-                onClick={() => void handleRevokeSession(session.id)}
-              >
-                {pendingSessionId === session.id
-                  ? "Kapatılıyor..."
-                  : session.current
-                    ? "Bu oturumu kapat"
-                    : "Oturumu kapat"}
-              </Button>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="form-actions auth-form-actions">
-        <p className="form-note">
-          Tüm cihazlardan çıkış yaptığında mevcut cihaz dahil açık refresh oturumları iptal edilir.
-        </p>
         <Button
+          disabled={isLoading || sessions.length === 0}
           type="button"
           variant="secondary"
-          disabled={isRevokingAll || sessions.length === 0}
-          onClick={() => void handleRevokeAllSessions()}
+          onClick={() => {
+            setErrorMessage(null);
+            setIsRevokeAllModalOpen(true);
+          }}
         >
-          {isRevokingAll ? "Tüm oturumlar kapatılıyor..." : "Tüm cihazlardan çıkış yap"}
+          Tümünü kapat
         </Button>
       </div>
+
+      {statusMessage ? <p className="text-sm font-bold text-primary" role="status">{statusMessage}</p> : null}
+      {!isRevokeAllModalOpen && errorMessage ? (
+        <p className="text-sm font-bold text-destructive" role="alert">{errorMessage}</p>
+      ) : null}
+
+      <CurrentPasswordConfirmationModal
+        description="Tüm cihazlardaki oturumlarını kapatmak için mevcut şifreni doğrula."
+        errorMessage={errorMessage}
+        isOpen={isRevokeAllModalOpen}
+        isSubmitting={isRevokingAll}
+        submitLabel="Tümünü kapat"
+        title="Tüm oturumları kapat"
+        onClose={() => {
+          if (!isRevokingAll) {
+            setIsRevokeAllModalOpen(false);
+            setErrorMessage(null);
+          }
+        }}
+        onConfirm={(password) => void handleRevokeAllSessions(password)}
+      />
     </section>
   );
 }
@@ -271,7 +228,6 @@ function formatSessionDate(value: string): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    month: "short",
-    year: "numeric"
+    month: "short"
   }).format(date);
 }

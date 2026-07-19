@@ -9,6 +9,9 @@ import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { useProtectedRoute } from "../../lib/use-protected-route";
 import { fetchCurrentUser } from "../auth/api";
+import { MfaSettingsPanel } from "../auth/mfa-settings-panel";
+import { SessionManagementPanel } from "../auth/session-management-panel";
+import { AccountDeletionPanel } from "./account-deletion-panel";
 
 type AccountProfilePageContentProps = {
   apiBaseUrl: string;
@@ -20,7 +23,8 @@ type AccountSectionId =
   | "seller"
   | "family"
   | "security"
-  | "preferences";
+  | "preferences"
+  | "deletion";
 
 type AccountMenuItem = {
   id: AccountSectionId;
@@ -50,6 +54,14 @@ export function AccountProfilePageContent({ apiBaseUrl }: AccountProfilePageCont
     apiBaseUrl,
     onUnauthenticated: clearProtectedState
   });
+
+  useEffect(() => {
+    const requestedSection = new URLSearchParams(window.location.search).get("section");
+
+    if (isAccountSectionId(requestedSection)) {
+      setActiveSectionId(requestedSection);
+    }
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -124,7 +136,17 @@ export function AccountProfilePageContent({ apiBaseUrl }: AccountProfilePageCont
                     ].join(" ")}
                     key={item.id}
                     type="button"
-                    onClick={() => setActiveSectionId(item.id)}
+                    onClick={() => {
+                      setActiveSectionId(item.id);
+                      const currentUrl = new URL(window.location.href);
+                      currentUrl.searchParams.set("section", item.id);
+                      currentUrl.searchParams.delete("changePassword");
+                      window.history.replaceState(
+                        window.history.state,
+                        "",
+                        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+                      );
+                    }}
                   >
                     <span
                       className={[
@@ -154,6 +176,7 @@ export function AccountProfilePageContent({ apiBaseUrl }: AccountProfilePageCont
 
             {!isCheckingAuth && !isLoading && !errorMessage ? (
               <AccountSectionPanel
+                apiBaseUrl={apiBaseUrl}
                 currentUser={currentUser}
                 dictionary={dictionary}
                 sectionId={activeSection.id}
@@ -168,11 +191,13 @@ export function AccountProfilePageContent({ apiBaseUrl }: AccountProfilePageCont
 }
 
 function AccountSectionPanel({
+  apiBaseUrl,
   currentUser,
   dictionary,
   sectionId,
   title
 }: {
+  apiBaseUrl: string;
   currentUser: AuthMe | null;
   dictionary: Dictionary;
   sectionId: AccountSectionId;
@@ -195,7 +220,11 @@ function AccountSectionPanel({
   }
 
   if (sectionId === "security") {
-    return <SecuritySection dictionary={dictionary} title={title} />;
+    return <SecuritySection apiBaseUrl={apiBaseUrl} dictionary={dictionary} title={title} />;
+  }
+
+  if (sectionId === "deletion") {
+    return <AccountDeletionPanel apiBaseUrl={apiBaseUrl} embedded />;
   }
 
   return <PreferencesSection dictionary={dictionary} title={title} />;
@@ -232,14 +261,6 @@ function ProfileSummary({
         </div>
       </dl>
 
-      <div>
-        <Link
-          className="inline-flex rounded-full border border-border bg-background px-4 py-2.5 text-sm font-black text-foreground transition hover:bg-muted"
-          href="/account/security"
-        >
-          {dictionary.accountProfile.securityAndPassword}
-        </Link>
-      </div>
     </div>
   );
 }
@@ -277,7 +298,15 @@ function LinkSection({
   );
 }
 
-function SecuritySection({ dictionary, title }: { dictionary: Dictionary; title: string }) {
+function SecuritySection({
+  apiBaseUrl,
+  dictionary,
+  title
+}: {
+  apiBaseUrl: string;
+  dictionary: Dictionary;
+  title: string;
+}) {
   return (
     <div className="grid gap-5">
       <SectionHeading
@@ -286,14 +315,21 @@ function SecuritySection({ dictionary, title }: { dictionary: Dictionary; title:
       />
       <div className="grid gap-3">
         <Link
-          className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/security"
+          className="flex items-center justify-between gap-5 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5 sm:p-5"
+          href="/account/password"
         >
-          <span className="text-base font-black text-foreground">Güvenlik merkezini aç</span>
-          <span className="text-sm font-semibold leading-6 text-muted-foreground">
-            Şifreni, OTP / MFA ayarını ve aktif cihaz oturumlarını yönet.
+          <span>
+            <span className="block text-base font-black text-foreground">Şifre</span>
+            <span className="mt-1 block text-sm font-semibold leading-6 text-muted-foreground">
+              Hesap şifreni güncelle.
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full border border-border bg-background px-4 py-2 text-sm font-black text-foreground">
+            Değiştir
           </span>
         </Link>
+        <MfaSettingsPanel apiBaseUrl={apiBaseUrl} />
+        <SessionManagementPanel apiBaseUrl={apiBaseUrl} />
       </div>
     </div>
   );
@@ -402,8 +438,25 @@ function buildAccountMenuItems(dictionary: Dictionary): AccountMenuItem[] {
       id: "preferences",
       label: dictionary.accountProfile.menuItems.preferences.label,
       description: dictionary.accountProfile.menuItems.preferences.description
+    },
+    {
+      id: "deletion",
+      label: dictionary.accountProfile.menuItems.deletion.label,
+      description: dictionary.accountProfile.menuItems.deletion.description
     }
   ];
+}
+
+function isAccountSectionId(value: string | null): value is AccountSectionId {
+  return [
+    "profile",
+    "marketplace",
+    "seller",
+    "family",
+    "security",
+    "preferences",
+    "deletion"
+  ].includes(value ?? "");
 }
 
 function buildMarketplaceLinks(dictionary: Dictionary): AccountLink[] {

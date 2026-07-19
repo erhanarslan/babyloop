@@ -313,10 +313,15 @@ export async function revokeAuthSessionRequest(
 }
 
 export async function revokeAllAuthSessionsRequest(
-  apiBaseUrl: string
+  apiBaseUrl: string,
+  currentPassword: string
 ): Promise<ApiResponse<AuthSessionsRevokeAllPayload>> {
   const response = await authFetch(apiBaseUrl, "/api/v1/auth/sessions/revoke-all", {
-    method: "POST"
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ currentPassword })
   });
 
   return response.json() as Promise<ApiResponse<AuthSessionsRevokeAllPayload>>;

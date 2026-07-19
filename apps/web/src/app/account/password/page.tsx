@@ -9,5 +9,5 @@ export const metadata: Metadata = buildNoIndexMetadata(
 );
 
 export default function AccountPasswordPage() {
-  redirect("/account/security#password");
+  redirect("/account/profile?section=security&changePassword=1");
 }

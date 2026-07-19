@@ -21,7 +21,8 @@ import type {
   PasswordChangeBody,
   PasswordResetConfirmBody,
   PasswordResetRequestBody,
-  RegisterBody
+  RegisterBody,
+  SessionRevokeAllBody
 } from "../schemas/auth.schemas.js";
 import { signAccessToken } from "../utils/access-token.js";
 import {
@@ -1179,8 +1180,25 @@ export async function revokeAuthSessionById(
 
 export async function revokeAllAuthSessions(
   app: FastifyInstance,
-  userId: string
-): Promise<AuthSessionsRevokeAllResponse> {
+  userId: string,
+  body: SessionRevokeAllBody
+): Promise<
+  | { status: "ok"; response: AuthSessionsRevokeAllResponse }
+  | { status: "invalid"; response: ApiFailure }
+> {
+  const [user] = await app.db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+    return {
+      status: "invalid",
+      response: invalidCredentials()
+    };
+  }
+
   const now = new Date();
   const revokedSessions = await app.db
     .update(sessions)
@@ -1198,9 +1216,12 @@ export async function revokeAllAuthSessions(
     });
 
   return {
-    ok: true,
-    data: {
-      revokedCount: revokedSessions.length
+    status: "ok",
+    response: {
+      ok: true,
+      data: {
+        revokedCount: revokedSessions.length
+      }
     }
   };
 }

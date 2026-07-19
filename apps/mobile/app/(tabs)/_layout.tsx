@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Keyboard, Platform } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -36,8 +36,6 @@ const tabColors = {
   shadow: colors.primary
 } as const;
 
-const MESSAGE_TAB_BADGE_POLL_INTERVAL_MS = 4000;
-
 type TabIconName = keyof typeof Ionicons.glyphMap;
 
 function TabIcon({
@@ -71,6 +69,19 @@ export default function TabLayout() {
   const [messageConversations, setMessageConversations] = useState<MobileConversationSummary[]>([]);
   const messagesTabBadge = getMobileMessagesTabBadgeLabel(messageConversations);
 
+  const loadMessageConversations = useCallback(async () => {
+    if (!currentProfileId) {
+      setMessageConversations([]);
+      return;
+    }
+
+    try {
+      setMessageConversations(await fetchMobileConversations());
+    } catch {
+      setMessageConversations([]);
+    }
+  }, [currentProfileId]);
+
   useEffect(() => {
     if (!currentProfileId) {
       setMessageConversations([]);
@@ -79,7 +90,7 @@ export default function TabLayout() {
 
     let active = true;
 
-    async function loadMessageConversations() {
+    async function loadInitialMessageConversations() {
       try {
         const nextConversations = await fetchMobileConversations();
 
@@ -93,7 +104,7 @@ export default function TabLayout() {
       }
     }
 
-    void loadMessageConversations();
+    void loadInitialMessageConversations();
 
     return () => {
       active = false;
@@ -101,20 +112,14 @@ export default function TabLayout() {
   }, [currentProfileId]);
 
   useEffect(() => {
-    if (!currentProfileId) {
-      return;
-    }
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void loadMessageConversations();
+      }
+    });
 
-    const intervalId = setInterval(() => {
-      void fetchMobileConversations()
-        .then(setMessageConversations)
-        .catch(() => undefined);
-    }, MESSAGE_TAB_BADGE_POLL_INTERVAL_MS);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [currentProfileId]);
+    return () => subscription.remove();
+  }, [loadMessageConversations]);
 
   useEffect(() => {
     if (!currentProfileId) {

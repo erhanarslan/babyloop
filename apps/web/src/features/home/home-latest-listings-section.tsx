@@ -16,6 +16,13 @@ import type {
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { usePrefersReducedMotion } from "../../lib/use-prefers-reduced-motion";
+import {
+  DEFAULT_LOCATION,
+  LOCATION_CHANGED_EVENT,
+  readStoredLocation
+} from "../../components/navigation/location-selector";
+import { getLocationQueryValue } from "../../components/navigation/public-navigation-model";
 import { AuthActionPromptModal } from "../auth/auth-action-prompt-modal";
 import { fetchFavorites, saveFavorite } from "../favorites/api";
 import { ListingImageFrame } from "../listings/listing-image-frame";
@@ -24,6 +31,13 @@ import {
   formatListingPrice,
   formatListingType
 } from "../listings/listing-display";
+import {
+  getHomeAutoLoadRequestLimit,
+  getHomeInitialListingLimit,
+  HOME_AUTO_STOP_LISTING_COUNT,
+  HOME_LISTING_BATCH_SIZE,
+  HOME_LISTING_SENTINEL_ROOT_MARGIN
+} from "./home-feed-policy";
 
 type HomeLatestListingsSectionProps = {
   apiBaseUrl: string;
@@ -40,13 +54,11 @@ type HomeListing = ListingWithOptionalSeller & {
   locationCity: string | null;
 };
 
-const INITIAL_LISTING_LIMIT = 4;
-const LISTING_BATCH_SIZE = 16;
-const AUTO_STOP_LISTING_COUNT = 80;
 const IMAGE_HOVER_INTERVAL_MS = 1500;
 
 export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSectionProps) {
   const { dictionary } = useI18n();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [listings, setListings] = useState<HomeListing[]>([]);
@@ -63,11 +75,40 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   const [favoriteActionMessage, setFavoriteActionMessage] = useState<string | null>(null);
   const [isFavoriteLoginPromptOpen, setIsFavoriteLoginPromptOpen] = useState(false);
   const [favoritePromptListingId, setFavoritePromptListingId] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState(DEFAULT_LOCATION);
+
+  useEffect(() => {
+    setSelectedCity(readStoredLocation());
+
+    function handleLocationChanged(event: Event) {
+      const city = (event as CustomEvent<{ city?: string }>).detail.city;
+
+      if (city) {
+        setSelectedCity(city);
+      }
+    }
+
+    window.addEventListener(LOCATION_CHANGED_EVENT, handleLocationChanged);
+
+    return () => window.removeEventListener(LOCATION_CHANGED_EVENT, handleLocationChanged);
+  }, []);
 
   const fetchListingBatch = useCallback(
     async (limit: number, offset: number): Promise<HomeListing[]> => {
+      const params = new URLSearchParams({
+        hasImages: "true",
+        limit: String(limit),
+        offset: String(offset),
+        sort: "newest"
+      });
+      const cityQueryValue = getLocationQueryValue(selectedCity);
+
+      if (cityQueryValue) {
+        params.set("city", cityQueryValue);
+      }
+
       const response = await fetch(
-        `${apiBaseUrl}/api/v1/listings?limit=${limit}&offset=${offset}&sort=newest&hasImages=true`,
+        `${apiBaseUrl}/api/v1/listings?${params.toString()}`,
         { cache: "no-store" }
       );
       const body = (await response.json()) as { ok: boolean; data?: ListingsPayload };
@@ -78,7 +119,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
       return body.data.listings.map(toHomeListing);
     },
-    [apiBaseUrl]
+    [apiBaseUrl, selectedCity]
   );
 
   const appendListings = useCallback((nextListings: HomeListing[]) => {
@@ -121,7 +162,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
       setManualInfiniteEnabled(false);
 
       try {
-        const firstListings = await fetchListingBatch(INITIAL_LISTING_LIMIT, 0);
+        const initialListingLimit = getHomeInitialListingLimit(window.innerWidth);
+        const firstListings = await fetchListingBatch(initialListingLimit, 0);
 
         if (!isActive) {
           return;
@@ -129,7 +171,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
         setListings(firstListings);
         setNextOffset(firstListings.length);
-        setHasMoreRemoteListings(firstListings.length === INITIAL_LISTING_LIMIT);
+        setHasMoreRemoteListings(firstListings.length === initialListingLimit);
       } catch {
         if (isActive) {
           setHasError(true);
@@ -158,15 +200,15 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
       }
 
       const isManualFlow = mode === "manual" || manualInfiniteEnabled;
-      const remainingAutoCapacity = AUTO_STOP_LISTING_COUNT - listings.length;
+      const remainingAutoCapacity = HOME_AUTO_STOP_LISTING_COUNT - listings.length;
 
       if (!isManualFlow && remainingAutoCapacity <= 0) {
         return;
       }
 
       const requestedLimit = isManualFlow
-        ? LISTING_BATCH_SIZE
-        : Math.min(LISTING_BATCH_SIZE, remainingAutoCapacity);
+        ? HOME_LISTING_BATCH_SIZE
+        : getHomeAutoLoadRequestLimit(listings.length);
 
       setIsLoadingMore(true);
       setHasError(false);
@@ -214,7 +256,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
           return;
         }
 
-        if (!manualInfiniteEnabled && listings.length >= AUTO_STOP_LISTING_COUNT) {
+        if (!manualInfiniteEnabled && listings.length >= HOME_AUTO_STOP_LISTING_COUNT) {
           return;
         }
 
@@ -222,7 +264,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
       },
       {
         root: null,
-        rootMargin: "420px 0px",
+        rootMargin: HOME_LISTING_SENTINEL_ROOT_MARGIN,
         threshold: 0
       }
     );
@@ -246,7 +288,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
     !isInitialLoading &&
     !isLoadingMore &&
     hasMoreRemoteListings &&
-    listings.length >= AUTO_STOP_LISTING_COUNT;
+    listings.length >= HOME_AUTO_STOP_LISTING_COUNT;
 
   function continueAfterAutoStop() {
     setManualInfiniteEnabled(true);
@@ -378,6 +420,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
                 isFavorited={favoriteListingIds.has(listing.id)}
                 key={listing.id}
                 listing={listing}
+                prefersReducedMotion={prefersReducedMotion}
                 onFavoriteToggle={handleFavoriteToggle}
               />
             ))}
@@ -439,6 +482,7 @@ type HomeProductCardProps = {
   isFavoritePending: boolean;
   isFavorited: boolean;
   listing: HomeListing;
+  prefersReducedMotion: boolean;
   onFavoriteToggle: (listingId: string, isFavorited: boolean) => void | Promise<void>;
 };
 
@@ -448,6 +492,7 @@ function HomeProductCard({
   isFavoritePending,
   isFavorited,
   listing,
+  prefersReducedMotion,
   onFavoriteToggle
 }: HomeProductCardProps) {
   const images = getListingCardImages(listing);
@@ -455,7 +500,7 @@ function HomeProductCard({
   const [isHovering, setIsHovering] = useState(false);
 
   useEffect(() => {
-    if (!isHovering || images.length <= 1) {
+    if (prefersReducedMotion || !isHovering || images.length <= 1) {
       return;
     }
 
@@ -466,10 +511,10 @@ function HomeProductCard({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [images.length, isHovering]);
+  }, [images.length, isHovering, prefersReducedMotion]);
 
   function handleMouseEnter() {
-    if (images.length <= 1) {
+    if (prefersReducedMotion || images.length <= 1) {
       return;
     }
 

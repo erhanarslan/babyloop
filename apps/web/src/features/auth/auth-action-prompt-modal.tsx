@@ -262,6 +262,10 @@ export function AuthActionPromptModal({
     setErrorMessage(null);
     setIsGoogleRedirecting(true);
 
+    if (returnTo) {
+      sessionStorage.setItem(AUTH_RETURN_TO_STORAGE_KEY, returnTo);
+    }
+
     try {
       const response = await startGoogleLogin(apiBaseUrl);
 

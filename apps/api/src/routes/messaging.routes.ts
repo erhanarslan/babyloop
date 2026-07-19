@@ -35,6 +35,7 @@ import {
 import { recordProductEvent } from "../services/product-events.service.js";
 import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 import { safePlainTextFallback } from "../services/text-safety.service.js";
+import { createMarketplaceEmailNotificationCandidate } from "../services/marketplace-email-notification.service.js";
 
 type ConversationResponse = ApiResponse<{
   conversation: ConversationSummaryResponse;
@@ -439,6 +440,18 @@ async function createMessageReceivedNotifications(
         recipientProfileId,
         toNotificationCreatedPayload(notification, unreadCount)
       );
+      await createMarketplaceEmailNotificationCandidate(app, {
+        actionHref: `/conversations/${input.conversationId}`,
+        kind: "message_received",
+        metadata: {
+          ...(contextListing ? { listingTitle: contextListing.title } : {}),
+          senderDisplayName
+        },
+        profileId: recipientProfileId,
+        sourceId: input.message.id
+      }).catch((error: unknown) => {
+        app.log.warn(error, "Failed to create message-received email candidate.");
+      });
     })
   );
 }

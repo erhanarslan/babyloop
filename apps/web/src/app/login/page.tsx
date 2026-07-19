@@ -1,29 +1,21 @@
-import type { Metadata } from "next";
-import { buildNoIndexMetadata } from "../../lib/seo";
-import { Suspense } from "react";
-import { SiteShell } from "../../components/ui";
-import { AuthLinkNote } from "../../features/auth/auth-link-note";
-import { AuthPageShell } from "../../features/auth/auth-page-shell";
-import { AuthErrorNotice } from "../../features/auth/auth-error-notice";
-import { AuthForm } from "../../features/auth/auth-form";
-import { getApiBaseUrl } from "../../lib/api";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = buildNoIndexMetadata(
-  "Login",
-  "Sign in to BabyLoop. Account pages are not indexed."
-);
+type LoginPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function LoginPage() {
-  return (
-    <SiteShell>
-      <AuthPageShell ariaLabel="Login form" kind="login">
-        <Suspense fallback={null}>
-          <AuthErrorNotice />
-        </Suspense>
-        <AuthForm apiBaseUrl={getApiBaseUrl()} mode="login" />
-        <AuthLinkNote kind="noAccount" />
-        <AuthLinkNote kind="forgotPassword" />
-      </AuthPageShell>
-    </SiteShell>
-  );
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const incoming = await searchParams;
+  const params = new URLSearchParams({ auth: "login" });
+
+  for (const key of ["error", "passwordChanged", "returnTo"] as const) {
+    const value = incoming?.[key];
+    const firstValue = Array.isArray(value) ? value[0] : value;
+
+    if (firstValue) {
+      params.set(key, firstValue);
+    }
+  }
+
+  redirect(`/?${params.toString()}`);
 }

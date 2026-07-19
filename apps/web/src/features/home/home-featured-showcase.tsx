@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePrefersReducedMotion } from "../../lib/use-prefers-reduced-motion";
 
 const ROTATION_INTERVAL_MS = 2500;
 
@@ -25,18 +27,19 @@ const showcaseSlides = [
 ] as const;
 
 export function HomeFeaturedShowcase() {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRotationPaused, setIsRotationPaused] = useState(false);
 
   function scrollToLatestListings() {
     document.getElementById("latest-listings")?.scrollIntoView({
-      behavior: "smooth",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "start"
     });
   }
 
   useEffect(() => {
-    if (isRotationPaused) {
+    if (isRotationPaused || prefersReducedMotion) {
       return;
     }
 
@@ -45,7 +48,7 @@ export function HomeFeaturedShowcase() {
     }, ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [isRotationPaused]);
+  }, [isRotationPaused, prefersReducedMotion]);
 
   const activeSlide = showcaseSlides[activeIndex] ?? showcaseSlides[0];
 
@@ -59,7 +62,14 @@ export function HomeFeaturedShowcase() {
       onMouseLeave={() => setIsRotationPaused(false)}
     >
       <div className="home-featured-showcase-image">
-        <img src={activeSlide.src} alt={activeSlide.alt} />
+        <Image
+          alt={activeSlide.alt}
+          height={941}
+          priority={activeIndex === 0}
+          sizes="(max-width: 768px) 100vw, 50vw"
+          src={activeSlide.src}
+          width={1672}
+        />
       </div>
 
       <div className="home-featured-showcase-content">

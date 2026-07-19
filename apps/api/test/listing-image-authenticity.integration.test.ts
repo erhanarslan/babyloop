@@ -129,7 +129,7 @@ describe("listing image authenticity integration", () => {
       errorMessage: null,
       feature: "listing_image_authenticity",
       modelName: "gemini-test-model",
-      promptVersion: "listing_image_authenticity.gemini.v1",
+      promptVersion: "listing_image_authenticity.gemini.v2",
       providerName: "gemini-listing-image-authenticity",
       status: "success"
     });

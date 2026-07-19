@@ -73,10 +73,11 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
+    fireEvent.click(await screen.findByRole("button", { name: "Görüntüle" }));
     expect(await screen.findByText("Mac tarayıcı")).toBeInTheDocument();
     expect(screen.getByText("Android cihaz")).toBeInTheDocument();
     expect(screen.getByText("Bu cihaz")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("2 açık oturum")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/refreshToken|refresh_token|refreshTokenHash|passwordHash|accessToken/iu);
   });
 
@@ -120,18 +121,19 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
+    fireEvent.click(await screen.findByRole("button", { name: "Görüntüle" }));
     const mobileCard = await screen.findByText("Android cihaz");
     const card = mobileCard.closest("article");
 
     expect(card).not.toBeNull();
 
-    fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Oturumu kapat" }));
+    fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Kapat" }));
 
     await waitFor(() => {
       expect(revokeAuthSessionRequest).toHaveBeenCalledWith("http://api.test", "session-mobile");
     });
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Seçili oturum kapatıldı.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Oturum kapatıldı.");
     expect(screen.queryByText("Android cihaz")).not.toBeInTheDocument();
   });
 
@@ -163,13 +165,15 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Tüm cihazlardan çıkış yap" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Tümünü kapat" }));
+    const dialog = await screen.findByRole("dialog", { name: "Tüm oturumları kapat" });
+    fireEvent.change(within(dialog).getByLabelText("Mevcut şifre"), {
+      target: { value: "Password123!" }
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tümünü kapat" }));
 
     await waitFor(() => {
-      expect(revokeAllAuthSessionsRequest).toHaveBeenCalledWith("http://api.test");
+      expect(revokeAllAuthSessionsRequest).toHaveBeenCalledWith("http://api.test", "Password123!");
     });
-
-    expect(await screen.findByRole("status")).toHaveTextContent("1 oturum kapatıldı");
-    expect(screen.getByText("Aktif oturum görünmüyor")).toBeInTheDocument();
   });
 });

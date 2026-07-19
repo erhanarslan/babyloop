@@ -43,7 +43,7 @@ export function MobileListingCard({
           <Image
             accessibilityLabel={imageLabel}
             resizeMode="cover"
-            source={{ uri: imageUrl }}
+            source={{ cache: "force-cache", uri: imageUrl }}
             style={variant === "vertical" ? styles.verticalImage : styles.horizontalImage}
           />
         ) : (

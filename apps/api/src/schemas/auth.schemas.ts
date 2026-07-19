@@ -72,6 +72,12 @@ export const loginApprovalPreferenceSchema = z
   })
   .strict();
 
+export const sessionRevokeAllSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128)
+  })
+  .strict();
+
 export const loginApprovalCompleteSchema = z
   .object({
     approvalToken: z.string().trim().min(32).max(512)
@@ -102,6 +108,7 @@ export type EmailVerificationConfirmBody = z.infer<typeof emailVerificationConfi
 export type MfaVerifyBody = z.infer<typeof mfaVerifySchema>;
 export type MfaPreferenceBody = z.infer<typeof mfaPreferenceSchema>;
 export type LoginApprovalPreferenceBody = z.infer<typeof loginApprovalPreferenceSchema>;
+export type SessionRevokeAllBody = z.infer<typeof sessionRevokeAllSchema>;
 export type LoginApprovalCompleteBody = z.infer<typeof loginApprovalCompleteSchema>;
 export type AccountDeletionRequestBody = z.infer<typeof accountDeletionRequestSchema>;
 export type AccountDeletionConfirmBody = z.infer<typeof accountDeletionConfirmSchema>;

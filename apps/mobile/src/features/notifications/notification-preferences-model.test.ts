@@ -1,5 +1,6 @@
 import {
   canUseMobileNotificationProviderDelivery,
+  findMobileMarketplaceEmailPreference,
   getMobileNotificationPreferenceChannelSummary,
   canUpdateMobileNotificationCadence,
   getMobileNotificationCadenceUpdateMessage,
@@ -7,6 +8,8 @@ import {
   getMobileNotificationPreferenceProfileLabel,
   getPreferredMobileNotificationChildProfile,
   isMobileNotificationCadenceSelected,
+  mobileMarketplaceEmailPreferenceDefinitions,
+  replaceMobileNotificationPreference,
   mobileNotificationPreferenceCadenceOptions
 } from "./notification-preferences-model";
 import type { MobileChildProfile } from "../child/child-reminders-api";
@@ -142,6 +145,44 @@ describe("mobile notification preference model", () => {
     expect(getMobileNotificationPreferenceChannelSummary(payload)).toContain("sunucu ayarları");
     expect(getMobileNotificationPreferenceChannelSummary(null)).toBe("Kaynak ve kanal tercihleri yüklenmedi.");
     expect(canUseMobileNotificationProviderDelivery(payload)).toBe(false);
+    const enabledProviderPayload = {
+      ...payload,
+      preferences: [
+        ...payload.preferences,
+        {
+          ...payload.preferences[0]!,
+          id: "pref-message-email",
+          source: "messages",
+          channel: "email",
+          enabled: false,
+          deliveryAllowed: false,
+          providerCallAllowed: true
+        }
+      ],
+      summary: {
+        ...payload.summary,
+        deliveryProvidersEnabled: true,
+        providerCallsAllowed: true,
+        emailProviderEnabled: true,
+        draftOnlyChannels: ["push", "n8n", "sms"]
+      }
+    };
+    const messageEmail = findMobileMarketplaceEmailPreference(enabledProviderPayload, "messages");
+
+    expect(mobileMarketplaceEmailPreferenceDefinitions.map((item) => item.source)).toEqual([
+      "messages",
+      "listing"
+    ]);
+    expect(canUseMobileNotificationProviderDelivery(enabledProviderPayload)).toBe(true);
+    expect(messageEmail?.enabled).toBe(false);
+    expect(findMobileMarketplaceEmailPreference(
+      replaceMobileNotificationPreference(enabledProviderPayload, {
+        ...messageEmail!,
+        enabled: true,
+        deliveryAllowed: true
+      }),
+      "messages"
+    )?.enabled).toBe(true);
     expect(JSON.stringify(payload)).not.toMatch(/accessToken|refreshToken|passwordHash|rawContact|providerSecret/iu);
   });
 });

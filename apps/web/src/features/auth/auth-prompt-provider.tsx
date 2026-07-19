@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode
@@ -33,6 +35,7 @@ type AuthPromptProviderProps = {
 const DEFAULT_AUTH_TITLE = "BabyLoop’a giriş yap";
 
 export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderProps) {
+  const router = useRouter();
   const [promptOptions, setPromptOptions] = useState<AuthPromptOptions | null>(null);
 
   const closeAuthPrompt = useCallback(() => {
@@ -64,6 +67,33 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
     [apiBaseUrl, closeAuthPrompt, openAuthPrompt]
   );
 
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+
+    if (currentUrl.searchParams.get("auth") !== "login") {
+      return;
+    }
+
+    const returnTo = normalizeReturnTo(currentUrl.searchParams.get("returnTo"));
+    const title = currentUrl.searchParams.get("passwordChanged") === "1"
+      ? "Şifren değişti, yeniden giriş yap"
+      : currentUrl.searchParams.has("error")
+        ? "Giriş tamamlanamadı, tekrar dene"
+        : DEFAULT_AUTH_TITLE;
+
+    openAuthPrompt({
+      title,
+      ...(returnTo ? { returnTo } : {})
+    });
+
+    for (const key of ["auth", "error", "passwordChanged", "returnTo"]) {
+      currentUrl.searchParams.delete(key);
+    }
+
+    const nextUrl = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
+    window.history.replaceState(window.history.state, "", nextUrl || "/");
+  }, [openAuthPrompt]);
+
   return (
     <AuthPromptContext.Provider value={value}>
       {children}
@@ -75,14 +105,28 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
         returnTo={promptOptions?.returnTo}
         onAuthenticated={(payload) => {
           const onAuthenticated = promptOptions?.onAuthenticated;
+          const returnTo = promptOptions?.returnTo;
 
           closeAuthPrompt();
-          onAuthenticated?.(payload);
+          if (onAuthenticated) {
+            onAuthenticated(payload);
+          } else if (returnTo) {
+            router.push(returnTo);
+            router.refresh();
+          }
         }}
         onClose={closeAuthPrompt}
       />
     </AuthPromptContext.Provider>
   );
+}
+
+function normalizeReturnTo(value: string | null): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) {
+    return null;
+  }
+
+  return value;
 }
 
 export function useAuthPrompt(): AuthPromptContextValue {

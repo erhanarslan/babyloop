@@ -17,9 +17,11 @@ const autoAdvanceMs = 2000;
 const maxBannerItems = 5;
 
 export function DiscoverHeroBanner({
+  autoAdvanceEnabled = true,
   listings,
   onListingPress
 }: {
+  autoAdvanceEnabled?: boolean;
   listings: MobileListingSummary[];
   onListingPress: (listingId: string) => void;
 }) {
@@ -29,7 +31,7 @@ export function DiscoverHeroBanner({
   const bannerItems = listings.filter((listing) => listing.imageUrl).slice(0, maxBannerItems);
 
   useEffect(() => {
-    if (containerWidth <= 0 || bannerItems.length <= 1) {
+    if (!autoAdvanceEnabled || containerWidth <= 0 || bannerItems.length <= 1) {
       return;
     }
 
@@ -47,7 +49,7 @@ export function DiscoverHeroBanner({
     }, autoAdvanceMs);
 
     return () => clearInterval(timer);
-  }, [bannerItems.length, containerWidth]);
+  }, [autoAdvanceEnabled, bannerItems.length, containerWidth]);
 
   useEffect(() => {
     if (activeIndex >= bannerItems.length) {

@@ -159,6 +159,9 @@ describe("listing image authenticity provider", () => {
                       isRealProductPhoto: true,
                       isRelevantToListing: true,
                       isStockOrCatalogLike: true,
+                      prohibitedProductCode: null,
+                      prohibitedProductConfidence: 0.02,
+                      prohibitedProductDetected: false,
                       detectedObjects: ["stroller"],
                       categoryHints: ["baby gear"],
                       safetyFlags: {
@@ -192,7 +195,53 @@ describe("listing image authenticity provider", () => {
       decision: "needs_review",
       providerName: "gemini-listing-image-authenticity",
       modelName: "gemini-test-model",
-      promptVersion: "listing_image_authenticity.gemini.v1"
+      promptVersion: "listing_image_authenticity.gemini.v2"
+    });
+  });
+
+  it("overrides an unsafe provider allow decision for a prohibited product", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.LISTING_IMAGE_AUTHENTICITY_PROVIDER = "gemini";
+    process.env.GEMINI_API_KEY = "test-gemini-key";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                decision: "allow",
+                confidence: 0.96,
+                isGeneratedOrIllustration: false,
+                isRealProductPhoto: true,
+                isRelevantToListing: true,
+                isStockOrCatalogLike: false,
+                prohibitedProductCode: "weapon_or_ammunition",
+                prohibitedProductConfidence: 0.94,
+                prohibitedProductDetected: true,
+                safetyFlags: {
+                  containsSensitiveChildContent: false
+                },
+                reasons: ["The image contains a prohibited product."]
+              })
+            }]
+          }
+        }]
+      }), { status: 200 })
+    );
+
+    const result = await analyzeListingImageAuthenticity(fakeApp, baseInput);
+
+    expect(result).toMatchObject({
+      status: "completed",
+      decision: "reject",
+      flags: {
+        productPolicy: {
+          action: "reject",
+          policyVersion: "babyloop_listing_product_policy.v1",
+          prohibitedProductCode: "weapon_or_ammunition"
+        }
+      }
     });
   });
 

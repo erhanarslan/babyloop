@@ -18,7 +18,13 @@ import {
 
 type AccountDeletionStep = "closed" | "request" | "confirm";
 
-export function AccountDeletionPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
+export function AccountDeletionPanel({
+  apiBaseUrl,
+  embedded = false
+}: {
+  apiBaseUrl: string;
+  embedded?: boolean;
+}) {
   const { isAuthenticated, isCheckingAuth } = useProtectedRoute({
     apiBaseUrl,
     redirectTo: "/"
@@ -111,7 +117,7 @@ export function AccountDeletionPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
       }
 
       clearAuthToken({ broadcast: true });
-      window.location.replace("/login?accountDeleted=1");
+      window.location.replace("/?accountDeleted=1");
     } finally {
       setPendingAction(null);
     }
@@ -123,7 +129,7 @@ export function AccountDeletionPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
   return (
     <section
       aria-labelledby="account-deletion-title"
-      className="mx-auto w-full max-w-5xl px-4 pb-12 sm:px-6"
+      className={embedded ? "w-full" : "mx-auto w-full max-w-5xl px-4 pb-12 sm:px-6"}
     >
       <div className="rounded-3xl border border-red-200 bg-red-50 p-6 shadow-sm">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">

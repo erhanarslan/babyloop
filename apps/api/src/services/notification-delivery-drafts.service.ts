@@ -188,8 +188,8 @@ function safeLabel(label: string): string {
 
 function toDraftPolicy(policy: ReturnType<typeof evaluateNotificationDeliveryPolicy>): NotificationDeliveryDraft["policy"] {
   return {
-    deliveryAllowed: policy.deliveryAllowed,
-    draftOnly: policy.draftOnly,
+    deliveryAllowed: false,
+    draftOnly: true,
     dedupKey: policy.dedupKey,
     frequencyWindowHours: policy.frequencyWindowHours,
     blockedReasons: policy.blockedReasons

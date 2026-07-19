@@ -22,7 +22,7 @@ import {
 } from "./analytics-storage";
 import { MobileAnalyticsContext, type MobileAnalyticsContextValue } from "./use-mobile-analytics";
 
-const HEARTBEAT_MS = 15_000;
+const HEARTBEAT_MS = 30_000;
 
 export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";

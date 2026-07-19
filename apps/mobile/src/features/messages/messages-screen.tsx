@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -18,8 +18,6 @@ import {
   type MobileConversationSummary
 } from "./messages-api";
 import { mergeRealtimeConversationSummary } from "./messages-realtime-model";
-
-const CONVERSATION_LIST_POLL_INTERVAL_MS = 4000;
 
 export function MessagesScreen() {
   const authSession = useAuthSession();
@@ -57,23 +55,11 @@ export function MessagesScreen() {
     [currentProfileId]
   );
 
-  useEffect(() => {
-    void loadConversations();
-  }, [loadConversations]);
-
-  useEffect(() => {
-    if (!currentProfileId) {
-      return;
-    }
-
-    const intervalId = setInterval(() => {
-      void loadConversations({ silent: true });
-    }, CONVERSATION_LIST_POLL_INTERVAL_MS);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [currentProfileId, loadConversations]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadConversations();
+    }, [loadConversations])
+  );
 
   useEffect(() => {
     if (!currentProfileId) {

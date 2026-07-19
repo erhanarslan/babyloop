@@ -9,10 +9,11 @@ import {
   type NotificationUnreadCountUpdatedPayload
 } from "@babyloop/shared";
 import { ProtectedActionLink as Link } from "../features/auth/protected-action-link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
+  AUTH_SESSION_ENDED_EVENT,
   fetchCurrentUserWithoutRefresh,
   getAuthToken,
   logoutAndRedirectToHome,
@@ -39,6 +40,7 @@ import { NOTIFICATION_UNREAD_COUNT_UPDATED_EVENT } from "../features/notificatio
 import { CategoryMegaMenu } from "./navigation/category-mega-menu";
 import {
   DEFAULT_LOCATION,
+  LOCATION_CHANGED_EVENT,
   LocationSelector,
   readStoredLocation,
   storeLocation
@@ -46,6 +48,7 @@ import {
 import { MobileNavigationDrawer } from "./navigation/mobile-navigation-drawer";
 import {
   accountLinks,
+  getLocationQueryValue,
   quickCategoryLinks
 } from "./navigation/public-navigation-model";
 import { SearchOverlay } from "./navigation/search-overlay";
@@ -55,6 +58,7 @@ type HeaderMenu = "categories" | "account" | "notifications" | null;
 export function SiteHeader() {
   const apiBaseUrl = getApiBaseUrl();
   const pathname = usePathname();
+  const router = useRouter();
   const headerRef = useRef<HTMLElement | null>(null);
   const { dictionary } = useI18n();
   const { theme, toggleTheme } = useTheme();
@@ -143,22 +147,25 @@ export function SiteHeader() {
       }
     }
 
-    checkWithoutRefresh();
+    function handleSessionEnded() {
+      setCurrentAuth(null);
+    }
 
-    const intervalId = window.setInterval(checkWithoutRefresh, 5000);
+    loadWithRefresh();
 
     window.addEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+    window.addEventListener(AUTH_SESSION_ENDED_EVENT, handleSessionEnded);
     window.addEventListener("focus", checkWithoutRefresh);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isActive = false;
-      window.clearInterval(intervalId);
       window.removeEventListener(AUTH_CHANGED_EVENT, loadWithRefresh);
+      window.removeEventListener(AUTH_SESSION_ENDED_EVENT, handleSessionEnded);
       window.removeEventListener("focus", checkWithoutRefresh);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [apiBaseUrl, pathname]);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     if (!currentAuth) {
@@ -321,6 +328,26 @@ export function SiteHeader() {
   function setSelectedCity(city: string) {
     setSelectedCityState(city);
     storeLocation(city);
+    window.dispatchEvent(
+      new CustomEvent(LOCATION_CHANGED_EVENT, {
+        detail: { city }
+      })
+    );
+
+    if (pathname === "/browse" || pathname.startsWith("/categories/")) {
+      const params = new URLSearchParams(window.location.search);
+      const cityQueryValue = getLocationQueryValue(city);
+
+      if (cityQueryValue) {
+        params.set("city", cityQueryValue);
+      } else {
+        params.delete("city");
+      }
+
+      params.delete("offset");
+      const query = params.toString();
+      router.push(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+    }
   }
 
   function closeMenus() {

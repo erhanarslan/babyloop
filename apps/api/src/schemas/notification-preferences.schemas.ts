@@ -88,7 +88,7 @@ function optionalPreferenceReasonSchema() {
 }
 
 function localTimeSchema() {
-  return z.string().regex(/^[0-2][0-9]:[0-5][0-9]$/u, "Quiet hours must use HH:mm format.");
+  return z.string().regex(/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/u, "Quiet hours must use HH:mm format.");
 }
 
 function timezoneSchema() {

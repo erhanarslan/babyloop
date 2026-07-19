@@ -1,17 +1,9 @@
-const isDevelopment = process.env.NODE_ENV !== "production";
+import { buildContentSecurityPolicy } from "./config/content-security-policy.mjs";
 
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: http: https:",
-  "font-src 'self' data:",
-  "connect-src 'self' http://localhost:4000 ws://localhost:4000 http://127.0.0.1:4000 ws://127.0.0.1:4000",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'"
-].join("; ");
+const contentSecurityPolicy = buildContentSecurityPolicy({
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+  nodeEnv: process.env.NODE_ENV
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -39,7 +31,7 @@ const nextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+            value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=()"
           }
         ]
       }

@@ -267,6 +267,13 @@
       "when": 1784455200000,
       "tag": "0039_saved_search_city",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1784460846000,
+      "tag": "0040_marketplace_email_delivery_kinds",
+      "breakpoints": true
     }
   ]
 }

@@ -1016,6 +1016,22 @@ export const notificationDeliveryLogs = pgTable(
     failedAt: timestamp("failed_at", { withTimezone: true })
   },
   (table) => [
+    check(
+      "notification_delivery_logs_status_check",
+      sql`${table.status} in ('candidate', 'blocked', 'sent', 'failed', 'skipped')`
+    ),
+    check(
+      "notification_delivery_logs_channel_check",
+      sql`${table.channel} in ('in_app', 'email_draft', 'email', 'push', 'n8n')`
+    ),
+    check(
+      "notification_delivery_logs_kind_check",
+      sql`${table.kind} in ('child_lifecycle', 'saved_search', 'child_reminder', 'security', 'message_received', 'listing_favorited')`
+    ),
+    check(
+      "notification_delivery_logs_source_type_check",
+      sql`${table.sourceType} in ('child_profile', 'saved_search', 'login_approval', 'conversation', 'listing')`
+    ),
     uniqueIndex("notification_delivery_logs_idempotency_key_unique").on(table.idempotencyKey),
     index("notification_delivery_logs_profile_created_at_idx").on(table.profileId, table.createdAt),
     index("notification_delivery_logs_dedup_created_at_idx").on(table.dedupKey, table.createdAt),

@@ -239,6 +239,17 @@ Production is blocked if any of these are true:
 `EMAIL_SEND_ENABLED=true` is supported only with `EMAIL_PROVIDER=smtp` or `EMAIL_PROVIDER=resend`.
 Provider previews and admin email ops must never return SMTP credentials, Resend API keys, auth tokens, reset tokens, verification tokens, or OTP codes.
 
+### Marketplace notification email
+
+Message and listing-favorite email delivery uses its own preference-aware worker
+boundary. Production requires `NOTIFICATION_EMAIL_ENABLED=true`,
+`NOTIFICATION_EMAIL_PROVIDER=resend`, `RESEND_FROM_EMAIL`, `RESEND_API_KEY`, and a
+scheduled `pnpm --filter @babyloop/api notifications:process` job. Keep
+`RESEND_API_BASE_URL=https://api.resend.com`; the provider appends `/emails`.
+
+Cloudflare R2, marketplace email, and listing-image policy activation steps are in
+`docs/57-r2-marketplace-email-image-policy-runbook.md`.
+
 
 ## Dev auth token exposure
 

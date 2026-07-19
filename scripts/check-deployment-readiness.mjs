@@ -17,6 +17,7 @@ if (target !== "local") {
   checkAuthRuntimeEnv();
   checkGoogleOAuthEnv();
   checkEmailEnv();
+  checkNotificationEmailEnv();
   checkImageStorageEnv();
   checkListingImageAuthenticityEnv();
   checkAiProviderEnv();
@@ -276,6 +277,38 @@ function checkEmailEnv() {
   ok("email", "Email env checks completed.");
 }
 
+function checkNotificationEmailEnv() {
+  const enabled = lowerEnv("NOTIFICATION_EMAIL_ENABLED") === "true";
+  const provider = lowerEnv("NOTIFICATION_EMAIL_PROVIDER") || "resend";
+
+  if (target === "production" && !enabled) {
+    error("notification-email", "NOTIFICATION_EMAIL_ENABLED must be true for marketplace email notifications in production.");
+  }
+
+  if (!enabled) {
+    warn("notification-email", "Marketplace message/favorite email delivery is disabled.");
+    ok("notification-email", "Disabled notification email configuration checked.");
+    return;
+  }
+
+  if (provider !== "resend") {
+    error("notification-email", "NOTIFICATION_EMAIL_PROVIDER must be resend.");
+  }
+
+  requireEnv("RESEND_API_KEY", "notification-email");
+  requireEnv("RESEND_FROM_EMAIL", "notification-email");
+
+  if (env("RESEND_FROM_EMAIL")?.endsWith(".local")) {
+    error("notification-email", "RESEND_FROM_EMAIL must use a verified production sender domain.");
+  }
+
+  if (env("RESEND_API_BASE_URL")) {
+    requireHttpsUrlEnv("RESEND_API_BASE_URL", "notification-email");
+  }
+
+  ok("notification-email", "Marketplace notification email env checks completed.");
+}
+
 function checkImageStorageEnv() {
   const driver = lowerEnv("IMAGE_STORAGE_DRIVER") || "local";
 
@@ -307,6 +340,23 @@ function checkImageStorageEnv() {
 
     if (env("S3_ENDPOINT")) {
       requireHttpsUrlEnv("S3_ENDPOINT", "storage");
+    }
+
+    if (lowerEnv("S3_REGION") === "auto" && !env("S3_ENDPOINT")) {
+      error("storage", "S3_ENDPOINT is required when S3_REGION=auto (Cloudflare R2 mode).");
+    }
+
+    if (env("S3_ENDPOINT") && env("IMAGE_STORAGE_PUBLIC_BASE_URL")) {
+      try {
+        const endpointHost = new URL(env("S3_ENDPOINT")).hostname;
+        const publicHost = new URL(env("IMAGE_STORAGE_PUBLIC_BASE_URL")).hostname;
+
+        if (endpointHost === publicHost && endpointHost.endsWith("r2.cloudflarestorage.com")) {
+          warn("storage", "IMAGE_STORAGE_PUBLIC_BASE_URL should use an R2 public/custom domain, not the authenticated R2 S3 endpoint.");
+        }
+      } catch {
+        // URL shape errors are reported by requireHttpsUrlEnv above.
+      }
     }
   }
 

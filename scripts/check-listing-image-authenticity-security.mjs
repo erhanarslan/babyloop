@@ -2,10 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
   "apps/api/src/services/listing-image-authenticity.service.ts",
+  "apps/api/src/services/listing-image-product-policy.service.ts",
   "apps/api/src/services/listing-image-authenticity-run-audit.service.ts",
   "apps/api/src/routes/listings.routes.ts",
   "apps/api/src/config/env.ts",
   "apps/api/test/listing-image-authenticity.service.test.ts",
+  "apps/api/test/listing-image-product-policy.service.test.ts",
   "apps/api/test/listing-image-authenticity.integration.test.ts",
   "apps/api/test/auth-config.test.ts",
   "apps/api/test/admin-ai-ops.schemas.test.ts",
@@ -72,7 +74,9 @@ function checkProviderBoundary() {
   mustContain(source, file, "Mock image authenticity provider cannot run in production.");
   mustContain(source, file, "GEMINI_API_KEY or GOOGLE_API_KEY");
   mustContain(source, file, "gemini-listing-image-authenticity");
-  mustContain(source, file, "listing_image_authenticity.gemini.v1");
+  mustContain(source, file, "listing_image_authenticity.gemini.v2");
+  mustContain(source, file, "enforceListingImageProductPolicy");
+  mustContain(source, file, "PROHIBITED_LISTING_PRODUCT_CODES");
   mustContain(source, file, "normalizeProviderOutput");
   mustContain(source, file, "normalizeDecision");
   mustContain(source, file, "normalizeConfidence");

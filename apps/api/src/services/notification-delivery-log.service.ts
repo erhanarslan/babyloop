@@ -17,8 +17,8 @@ export type NotificationDeliveryLogRecord = {
   idempotencyKey: string;
   dedupKey: string;
   frequencyWindowHours: number;
-  deliveryAllowed: false;
-  draftOnly: true;
+  deliveryAllowed: boolean;
+  draftOnly: boolean;
   blockedReasons: NotificationDeliveryPolicyResult["blockedReasons"];
   metadata: Record<string, unknown>;
   createdAt: string;

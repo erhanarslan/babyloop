@@ -160,12 +160,25 @@ describe("notification preferences routes", () => {
         providerSecret: "must-not-be-accepted"
       }
     });
+    const invalidQuietHours = await app.inject({
+      headers: authHeader(user.accessToken),
+      method: "PATCH",
+      url: "/api/v1/notification-preferences",
+      payload: {
+        source: "messages",
+        channel: "email",
+        enabled: true,
+        quietHoursStart: "29:00",
+        quietHoursEnd: "07:00"
+      }
+    });
 
     expect(invalidSource.statusCode).toBe(400);
     expect(invalidChannel.statusCode).toBe(400);
     expect(protectedSecurityOptOut.statusCode).toBe(400);
     expect(protectedSecurityPushOptOut.statusCode).toBe(400);
     expect(unknownField.statusCode).toBe(400);
+    expect(invalidQuietHours.statusCode).toBe(400);
     expect(unknownField.body).not.toContain("must-not-be-accepted");
   });
 });

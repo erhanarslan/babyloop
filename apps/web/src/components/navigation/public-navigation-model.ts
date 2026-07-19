@@ -182,8 +182,7 @@ export const accountLinks: AccountNavigationLink[] = [
   { href: "/notifications", labelKey: "notifications" },
   { href: "/account/saved-searches", labelKey: "savedSearches" },
   { href: "/account/children", labelKey: "childProfiles" },
-  { href: "/favorites", labelKey: "favorites" },
-  { href: "/account/security", labelKey: "security" }
+  { href: "/favorites", labelKey: "favorites" }
 ];
 
 export function getLocationLabel(value: string, dictionary?: Dictionary): string {

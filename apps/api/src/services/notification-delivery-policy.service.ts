@@ -1,10 +1,16 @@
-export type NotificationDeliveryCandidateKind = "child_lifecycle" | "saved_search" | "child_reminder" | "security";
+export type NotificationDeliveryCandidateKind =
+  | "child_lifecycle"
+  | "saved_search"
+  | "child_reminder"
+  | "security"
+  | "message_received"
+  | "listing_favorited";
 export type NotificationDeliveryChannel = "in_app" | "email_draft" | "email" | "push" | "n8n";
 
 export type NotificationDeliveryPolicyInput = {
   profileId: string;
   kind: NotificationDeliveryCandidateKind;
-  sourceType: "child_profile" | "saved_search" | "login_approval";
+  sourceType: "child_profile" | "saved_search" | "login_approval" | "conversation" | "listing";
   sourceId: string;
   channel: NotificationDeliveryChannel;
   actionHref: string;
@@ -12,8 +18,8 @@ export type NotificationDeliveryPolicyInput = {
 };
 
 export type NotificationDeliveryPolicyResult = {
-  deliveryAllowed: false;
-  draftOnly: true;
+  deliveryAllowed: boolean;
+  draftOnly: boolean;
   dedupKey: string;
   frequencyWindowHours: number;
   blockedReasons: Array<
@@ -46,22 +52,26 @@ const SAVED_SEARCH_FREQUENCY_WINDOW_HOURS = 24;
 const SECURITY_FREQUENCY_WINDOW_HOURS = 1;
 
 export function evaluateNotificationDeliveryPolicy(
-  input: NotificationDeliveryPolicyInput
+  input: NotificationDeliveryPolicyInput,
+  options: { deliveryEnabled?: boolean } = {}
 ): NotificationDeliveryPolicyResult {
   const frequencyWindowHours = resolveFrequencyWindowHours(input);
+  const deliveryEnabled = options.deliveryEnabled === true;
 
   return {
-    deliveryAllowed: false,
-    draftOnly: true,
+    deliveryAllowed: deliveryEnabled,
+    draftOnly: !deliveryEnabled,
     dedupKey: buildNotificationDedupKey(input),
     frequencyWindowHours,
-    blockedReasons: [
-      "delivery_disabled",
-      "delivery_log_required",
-      "provider_not_configured",
-      "frequency_policy_required",
-      "dedup_required"
-    ],
+    blockedReasons: deliveryEnabled
+      ? []
+      : [
+          "delivery_disabled",
+          "delivery_log_required",
+          "provider_not_configured",
+          "frequency_policy_required",
+          "dedup_required"
+        ],
     requirements: {
       consentRequired: true,
       deliveryLogRequired: true,
@@ -112,6 +122,10 @@ function resolveFrequencyWindowHours(input: NotificationDeliveryPolicyInput): nu
 
   if (input.kind === "security") {
     return SECURITY_FREQUENCY_WINDOW_HOURS;
+  }
+
+  if (input.kind === "message_received" || input.kind === "listing_favorited") {
+    return 0;
   }
 
   return DEFAULT_FREQUENCY_WINDOW_HOURS;

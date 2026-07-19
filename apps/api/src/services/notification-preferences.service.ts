@@ -13,6 +13,11 @@ import {
   type UpdateNotificationPreferenceBody
 } from "../schemas/notification-preferences.schemas.js";
 import { redactPrivateText } from "./redaction.service.js";
+import {
+  isNotificationEmailProviderConfigured,
+  isNotificationN8nProviderConfigured,
+  isNotificationPushProviderConfigured
+} from "./notification-email-config.service.js";
 
 export type NotificationPreferenceResponse = {
   id: string | null;
@@ -25,7 +30,7 @@ export type NotificationPreferenceResponse = {
   timezone: string;
   digest: NotificationPreferenceDigest;
   deliveryAllowed: boolean;
-  providerCallAllowed: false;
+  providerCallAllowed: boolean;
   draftOnly: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -50,8 +55,9 @@ export type NotificationPreferenceAuditEventResponse = {
 };
 
 export type NotificationPreferencesSummary = {
-  deliveryProvidersEnabled: false;
-  providerCallsAllowed: false;
+  deliveryProvidersEnabled: boolean;
+  providerCallsAllowed: boolean;
+  emailProviderEnabled: boolean;
   supportedSources: NotificationPreferenceSource[];
   supportedChannels: NotificationPreferenceChannel[];
   defaultEnabledChannels: NotificationPreferenceChannel[];
@@ -102,7 +108,7 @@ export async function listNotificationPreferencesForProfile(
           digest: "immediate",
           createdAt: null,
           updatedAt: null
-        });
+        }, process.env);
       })
     ),
     recentAuditEvents: auditRows.map(mapAuditEventRow),
@@ -125,6 +131,7 @@ export async function updateNotificationPreferenceForProfile(
   const quietHoursStart = input.quietHoursStart ?? null;
   const quietHoursEnd = input.quietHoursEnd ?? null;
   const safeReason = input.reason ? redactPrivateText(input.reason) : null;
+  const providerSummary = getNotificationPreferenceSummary(process.env);
   const result = await app.db.transaction(async (tx) => {
     const [existing] = await tx
       .select()
@@ -192,8 +199,8 @@ export async function updateNotificationPreferenceForProfile(
         newQuietHoursEnd: quietHoursEnd,
         reason: safeReason,
         metadata: {
-          providerCallsAllowed: false,
-          deliveryProvidersEnabled: false,
+          providerCallsAllowed: providerSummary.providerCallsAllowed,
+          deliveryProvidersEnabled: providerSummary.deliveryProvidersEnabled,
           source: input.source,
           channel: input.channel,
           digest: input.digest,
@@ -213,9 +220,9 @@ export async function updateNotificationPreferenceForProfile(
   });
 
   return {
-    preference: mapPreferenceRow(result.preference),
+    preference: mapPreferenceRow(result.preference, process.env),
     auditEvent: mapAuditEventRow(result.auditEvent),
-    summary: getNotificationPreferenceSummary()
+    summary: getNotificationPreferenceSummary(process.env)
   };
 }
 
@@ -234,7 +241,8 @@ export async function isNotificationPreferenceEnabledForDelivery(
       enabled: notificationPreferences.enabled,
       mutedUntil: notificationPreferences.mutedUntil,
       quietHoursStart: notificationPreferences.quietHoursStart,
-      quietHoursEnd: notificationPreferences.quietHoursEnd
+      quietHoursEnd: notificationPreferences.quietHoursEnd,
+      timezone: notificationPreferences.timezone
     })
     .from(notificationPreferences)
     .where(and(
@@ -246,19 +254,33 @@ export async function isNotificationPreferenceEnabledForDelivery(
 
   const enabled = preference?.enabled ?? getDefaultEnabled(source, channel);
   const isMuted = Boolean(preference?.mutedUntil && preference.mutedUntil.getTime() > Date.now());
-  const isQuiet = preference ? isQuietHoursActive(preference) : false;
+  const isQuiet = preference ? isNotificationQuietHoursActive(preference) : false;
 
   return enabled && !isMuted && !isQuiet;
 }
 
-export function getNotificationPreferenceSummary(): NotificationPreferencesSummary {
+export function getNotificationPreferenceSummary(
+  env: NodeJS.ProcessEnv = process.env
+): NotificationPreferencesSummary {
+  const emailEnabled = isNotificationEmailProviderConfigured(env);
+  const pushEnabled = isNotificationPushProviderConfigured(env);
+  const n8nEnabled = isNotificationN8nProviderConfigured(env);
+  const anyProviderEnabled = emailEnabled || pushEnabled || n8nEnabled;
+  const draftOnlyChannels: NotificationPreferenceChannel[] = [
+    ...(!emailEnabled ? ["email" as const] : []),
+    ...(!pushEnabled ? ["push" as const] : []),
+    ...(!n8nEnabled ? ["n8n" as const] : []),
+    "sms"
+  ];
+
   return {
-    deliveryProvidersEnabled: false,
-    providerCallsAllowed: false,
+    deliveryProvidersEnabled: anyProviderEnabled,
+    providerCallsAllowed: anyProviderEnabled,
+    emailProviderEnabled: emailEnabled,
     supportedSources: [...notificationPreferenceSourceValues],
     supportedChannels: [...notificationPreferenceChannelValues],
     defaultEnabledChannels: ["in_app"],
-    draftOnlyChannels: ["email", "push", "n8n", "sms"],
+    draftOnlyChannels,
     disabledChannels: ["sms"]
   };
 }
@@ -275,8 +297,16 @@ function mapPreferenceRow(row: {
   digest: string;
   createdAt: Date | null;
   updatedAt: Date | null;
-}): NotificationPreferenceResponse {
-  const isDeliveryAllowed = row.channel === "in_app" && row.enabled && !isQuietHoursActive(row);
+}, env: NodeJS.ProcessEnv): NotificationPreferenceResponse {
+  const providerCallAllowed = (
+    (row.channel === "email" && isNotificationEmailProviderConfigured(env)) ||
+    (row.channel === "push" && isNotificationPushProviderConfigured(env)) ||
+    (row.channel === "n8n" && isNotificationN8nProviderConfigured(env))
+  );
+  const isMuted = Boolean(row.mutedUntil && row.mutedUntil.getTime() > Date.now());
+  const isDeliveryAllowed = row.enabled && !isMuted && !isNotificationQuietHoursActive(row) && (
+    row.channel === "in_app" || providerCallAllowed
+  );
 
   return {
     id: row.id,
@@ -289,8 +319,8 @@ function mapPreferenceRow(row: {
     timezone: row.timezone,
     digest: normalizeDigest(row.digest),
     deliveryAllowed: isDeliveryAllowed,
-    providerCallAllowed: false,
-    draftOnly: row.channel !== "in_app",
+    providerCallAllowed,
+    draftOnly: row.channel !== "in_app" && !providerCallAllowed,
     createdAt: row.createdAt?.toISOString() ?? null,
     updatedAt: row.updatedAt?.toISOString() ?? null
   };
@@ -342,9 +372,59 @@ function getDefaultEnabled(
   return source !== "marketing";
 }
 
-function isQuietHoursActive(row: {
+export function isNotificationQuietHoursActive(row: {
   quietHoursStart: string | null;
   quietHoursEnd: string | null;
-}): boolean {
-  return Boolean(row.quietHoursStart && row.quietHoursEnd);
+  timezone?: string;
+}, now: Date = new Date()): boolean {
+  if (!row.quietHoursStart || !row.quietHoursEnd) {
+    return false;
+  }
+
+  const startMinutes = parseLocalTimeMinutes(row.quietHoursStart);
+  const endMinutes = parseLocalTimeMinutes(row.quietHoursEnd);
+
+  if (startMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  const currentMinutes = getMinutesInTimezone(now, row.timezone ?? "Europe/Istanbul");
+
+  if (currentMinutes === null || startMinutes === endMinutes) {
+    return currentMinutes !== null && startMinutes === endMinutes;
+  }
+
+  return startMinutes < endMinutes
+    ? currentMinutes >= startMinutes && currentMinutes < endMinutes
+    : currentMinutes >= startMinutes || currentMinutes < endMinutes;
+}
+
+function parseLocalTimeMinutes(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/u.exec(value);
+  const hours = Number(match?.[1]);
+  const minutes = Number(match?.[2]);
+
+  return Number.isInteger(hours) && hours >= 0 && hours <= 23 &&
+    Number.isInteger(minutes) && minutes >= 0 && minutes <= 59
+    ? hours * 60 + minutes
+    : null;
+}
+
+function getMinutesInTimezone(now: Date, timezone: string): number | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      hourCycle: "h23",
+      minute: "2-digit",
+      timeZone: timezone
+    }).formatToParts(now);
+    const hours = Number(parts.find((part) => part.type === "hour")?.value);
+    const minutes = Number(parts.find((part) => part.type === "minute")?.value);
+
+    return Number.isInteger(hours) && Number.isInteger(minutes)
+      ? hours * 60 + minutes
+      : null;
+  } catch {
+    return null;
+  }
 }

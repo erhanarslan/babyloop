@@ -200,6 +200,55 @@ describe("notification provider execution service", () => {
     expect(JSON.stringify({ sentLog, skippedLog })).not.toMatch(/secret-resend-key|accessToken|refreshToken|passwordHash/iu);
   });
 
+  it("sends privacy-safe marketplace email with an absolute action URL", async () => {
+    const user = await createUser(app, { email: "marketplace-email@example.test" });
+    await app.db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, user.user.id));
+    await enablePreference(user.accessToken, "messages", "email");
+    const [row] = await app.db
+      .insert(notificationDeliveryLogs)
+      .values({
+        profileId: user.profile.id,
+        kind: "message_received",
+        sourceType: "conversation",
+        sourceId: randomUUID(),
+        channel: "email",
+        status: "candidate",
+        idempotencyKey: `marketplace-provider-test:${randomUUID()}`,
+        dedupKey: `marketplace-provider-test:${randomUUID()}`,
+        frequencyWindowHours: 0,
+        deliveryAllowed: false,
+        draftOnly: true,
+        blockedReasons: [],
+        metadata: {
+          actionHref: "/conversations/conversation-1",
+          listingTitle: "<script>Ahşap oyuncak</script>",
+          senderDisplayName: "Ece",
+          rawBody: "private message contents"
+        }
+      })
+      .returning({ id: notificationDeliveryLogs.id });
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "resend-marketplace-1" }), { status: 200 }));
+
+    const result = await executeNotificationProviderDelivery(app, row!.id, {
+      env: {
+        NOTIFICATION_EMAIL_ENABLED: "true",
+        NOTIFICATION_EMAIL_PROVIDER: "resend",
+        RESEND_API_KEY: "secret-resend-key",
+        RESEND_FROM_EMAIL: "no-reply@example.test",
+        WEB_APP_URL: "https://babyloop.example"
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now: new Date("2030-01-01T10:00:00.000Z")
+    });
+    const body = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body)) as Record<string, unknown>;
+
+    expect(result.status).toBe("sent");
+    expect(body.subject).toBe("BabyLoop'ta yeni mesajın var");
+    expect(body.text).toContain("https://babyloop.example/conversations/conversation-1");
+    expect(String(body.html)).not.toContain("<script>");
+    expect(JSON.stringify(body)).not.toContain("private message contents");
+  });
+
   it("sends Expo push, revokes invalid tokens, and processes pending logs", async () => {
     process.env.PUSH_TOKEN_ENCRYPTION_KEY = "test-push-token-encryption-secret";
     const user = await createUser(app, { email: "push-provider@example.test" });
@@ -302,7 +351,7 @@ describe("notification provider execution service", () => {
 
   async function enablePreference(
     accessToken: string,
-    source: "child_reminder",
+    source: "child_reminder" | "messages" | "listing",
     channel: "email" | "push" | "n8n",
     enabled = true
   ): Promise<void> {

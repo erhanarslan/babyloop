@@ -3,7 +3,29 @@ import type {
   MobileChildProfileNotificationCadence
 } from "../child/child-reminders-api";
 import { formatCadence } from "../child/child-reminders-model";
-import type { MobileNotificationPreferencesPayload } from "./notifications-api";
+import type {
+  MobileNotificationPreference,
+  MobileNotificationPreferencesPayload
+} from "./notifications-api";
+
+export type MobileMarketplaceEmailPreferenceSource = "messages" | "listing";
+
+export const mobileMarketplaceEmailPreferenceDefinitions: ReadonlyArray<{
+  source: MobileMarketplaceEmailPreferenceSource;
+  title: string;
+  description: string;
+}> = [
+  {
+    source: "messages",
+    title: "Yeni mesaj e-postaları",
+    description: "Yeni mesaj geldiğinde e-posta al. Mesajın içeriği e-postaya eklenmez."
+  },
+  {
+    source: "listing",
+    title: "Favoriye eklenme e-postaları",
+    description: "İlanlarından biri favoriye eklendiğinde e-posta al."
+  }
+];
 
 export type MobileNotificationPreferenceCadenceOption = {
   cadence: MobileChildProfileNotificationCadence;
@@ -91,7 +113,25 @@ export function getMobileNotificationPreferenceChannelSummary(
 
 export function canUseMobileNotificationProviderDelivery(
   payload: MobileNotificationPreferencesPayload | null
-): false {
-  void payload;
-  return false;
+): boolean {
+  return payload?.summary.emailProviderEnabled === true;
+}
+
+export function findMobileMarketplaceEmailPreference(
+  payload: MobileNotificationPreferencesPayload | null,
+  source: MobileMarketplaceEmailPreferenceSource
+): MobileNotificationPreference | null {
+  return payload?.preferences.find((item) => item.source === source && item.channel === "email") ?? null;
+}
+
+export function replaceMobileNotificationPreference(
+  payload: MobileNotificationPreferencesPayload,
+  preference: MobileNotificationPreference
+): MobileNotificationPreferencesPayload {
+  return {
+    ...payload,
+    preferences: payload.preferences.map((item) => (
+      item.source === preference.source && item.channel === preference.channel ? preference : item
+    ))
+  };
 }

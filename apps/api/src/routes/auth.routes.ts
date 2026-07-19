@@ -18,7 +18,8 @@ import {
   passwordChangeSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
-  registerBodySchema
+  registerBodySchema,
+  sessionRevokeAllSchema
 } from "../schemas/auth.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
@@ -197,7 +198,9 @@ type PublicCsrfRouteResponse = { ok: true; data: { csrfToken: string } };
 
 type AuthSessionsRouteResponse = AuthSessionsResponse;
 type AuthSessionRevokeRouteResponse = AuthSessionRevokeResponse | ReturnType<typeof invalidAuthRequest>;
-type AuthSessionsRevokeAllRouteResponse = AuthSessionsRevokeAllResponse;
+type AuthSessionsRevokeAllRouteResponse =
+  | AuthSessionsRevokeAllResponse
+  | ReturnType<typeof invalidAuthRequest>;
 
 type LoginApprovalStatusRouteResponse = LoginApprovalStatusResponse;
 type LoginApprovalPreferenceRouteResponse =
@@ -768,8 +771,9 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     );
   });
 
-  app.post<{ Reply: AuthSessionsRevokeAllRouteResponse }>(
+  app.post<{ Body: unknown; Reply: AuthSessionsRevokeAllRouteResponse }>(
     "/auth/sessions/revoke-all",
+    authRateLimitOptions(options),
     async (request, reply) => {
       const currentUser = await requireCurrentUser(app, request, reply);
 
@@ -777,11 +781,21 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply;
       }
 
-      const response = await revokeAllAuthSessions(app, currentUser.userId);
+      const parsedBody = sessionRevokeAllSchema.safeParse(request.body);
+
+      if (!parsedBody.success) {
+        return reply.status(400).send(invalidAuthRequest());
+      }
+
+      const result = await revokeAllAuthSessions(app, currentUser.userId, parsedBody.data);
+
+      if (result.status === "invalid") {
+        return reply.status(401).send(result.response);
+      }
 
       clearPublicAuthCookies(reply);
 
-      return reply.status(200).send(response);
+      return reply.status(200).send(result.response);
     }
   );
 

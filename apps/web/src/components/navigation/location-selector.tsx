@@ -5,7 +5,8 @@ import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { getLocationLabel, locationOptions } from "./public-navigation-model";
 
 export const LOCATION_STORAGE_KEY = "babyloop_marketplace_city";
-export const DEFAULT_LOCATION = "istanbul";
+export const LOCATION_CHANGED_EVENT = "babyloop-marketplace-location-change";
+export const DEFAULT_LOCATION = "turkiye";
 
 type LocationSelectorProps = {
   dictionary: Dictionary;
@@ -98,7 +99,11 @@ export function LocationSelector({
   }
 
   function useAllTurkey() {
-    setSelectedCity("turkiye");
+    selectCity("turkiye");
+  }
+
+  function selectCity(city: string) {
+    setSelectedCity(city);
     setLocationStatus("idle");
     setLocationMessage(null);
     setIsOpen(false);
@@ -134,6 +139,21 @@ export function LocationSelector({
             <span>Seçili konum</span>
             <strong>{getLocationLabel(selectedCity, dictionary)}</strong>
           </div>
+
+          <label className="mobile-market-location-field">
+            <span>{dictionary.publicShell.location.selectCity}</span>
+            <select
+              aria-label={dictionary.publicShell.header.locationAria}
+              value={selectedCity}
+              onChange={(event) => selectCity(event.target.value)}
+            >
+              {locationOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {getLocationLabel(option.value, dictionary)}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <button
             className="market-location-detect"

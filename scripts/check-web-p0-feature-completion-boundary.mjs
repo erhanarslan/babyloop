@@ -57,6 +57,16 @@ requireIncludes("apps/web/src/components/auth-nav.tsx", [
   "AUTH_SESSION_ENDED_EVENT",
   "visibilitychange"
 ]);
+requireExcludes("apps/web/src/components/site-header.tsx", [
+  "setInterval(",
+  "5000"
+]);
+requireIncludes("apps/web/src/components/site-header.tsx", [
+  "loadWithRefresh",
+  "AUTH_CHANGED_EVENT",
+  "AUTH_SESSION_ENDED_EVENT",
+  "visibilitychange"
+]);
 
 requireIncludes("apps/web/src/features/auth/web-login-flow-model.ts", [
   "normalizeWebOtpCode",

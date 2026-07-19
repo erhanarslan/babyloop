@@ -48,7 +48,7 @@ export type MobileNotificationPreference = {
   timezone: string;
   digest: "immediate" | "daily" | "weekly";
   deliveryAllowed: boolean;
-  providerCallAllowed: false;
+  providerCallAllowed: boolean;
   draftOnly: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -76,8 +76,9 @@ export type MobileNotificationPreferencesPayload = {
   preferences: MobileNotificationPreference[];
   recentAuditEvents: MobileNotificationPreferenceAuditEvent[];
   summary: {
-    deliveryProvidersEnabled: false;
-    providerCallsAllowed: false;
+    deliveryProvidersEnabled: boolean;
+    providerCallsAllowed: boolean;
+    emailProviderEnabled?: boolean;
     supportedSources: string[];
     supportedChannels: string[];
     defaultEnabledChannels: string[];

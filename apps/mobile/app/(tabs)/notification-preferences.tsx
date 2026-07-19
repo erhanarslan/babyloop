@@ -1,6 +1,6 @@
 import { Link, router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 
 import {
   fetchMobileChildProfiles,
@@ -20,8 +20,18 @@ import {
   getMobileNotificationPreferenceProfileLabel,
   getPreferredMobileNotificationChildProfile,
   isMobileNotificationCadenceSelected,
-  mobileNotificationPreferenceCadenceOptions
+  canUseMobileNotificationProviderDelivery,
+  findMobileMarketplaceEmailPreference,
+  mobileMarketplaceEmailPreferenceDefinitions,
+  mobileNotificationPreferenceCadenceOptions,
+  replaceMobileNotificationPreference,
+  type MobileMarketplaceEmailPreferenceSource
 } from "../../src/features/notifications/notification-preferences-model";
+import {
+  fetchMobileNotificationPreferences,
+  updateMobileNotificationPreference,
+  type MobileNotificationPreferencesPayload
+} from "../../src/features/notifications/notifications-api";
 
 export default function NotificationPreferencesRoute() {
   const authSession = useAuthSession();
@@ -30,6 +40,8 @@ export default function NotificationPreferencesRoute() {
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<MobileNotificationPreferencesPayload | null>(null);
+  const [updatingEmailSource, setUpdatingEmailSource] = useState<MobileMarketplaceEmailPreferenceSource | null>(null);
 
   const reminderSettings = useMemo(
     () => getMobileChildReminderSettings(childProfile),
@@ -39,21 +51,28 @@ export default function NotificationPreferencesRoute() {
   const loadChildProfile = useCallback(async () => {
     if (!currentUser) {
       setChildProfile(null);
+      setNotificationPreferences(null);
       return;
     }
 
     setIsLoading(true);
     setMessage(null);
 
-    const response = await fetchMobileChildProfiles();
+    const [response, preferencesResponse] = await Promise.all([
+      fetchMobileChildProfiles(),
+      fetchMobileNotificationPreferences()
+    ]);
 
+    setChildProfile(response.ok
+      ? getPreferredMobileNotificationChildProfile(response.data.childProfiles)
+      : null);
+    setNotificationPreferences(preferencesResponse.ok ? preferencesResponse.data : null);
     if (!response.ok) {
       setMessage(response.error.message);
-      setIsLoading(false);
-      return;
     }
-
-    setChildProfile(getPreferredMobileNotificationChildProfile(response.data.childProfiles));
+    if (!preferencesResponse.ok) {
+      setMessage(preferencesResponse.error.message);
+    }
     setIsLoading(false);
   }, [currentUser]);
 
@@ -83,6 +102,39 @@ export default function NotificationPreferencesRoute() {
     setIsUpdating(false);
   }, [childProfile, isUpdating]);
 
+  const handleEmailPreferenceUpdate = useCallback(async (
+    source: MobileMarketplaceEmailPreferenceSource,
+    enabled: boolean
+  ) => {
+    setUpdatingEmailSource(source);
+    setMessage(null);
+    const currentPreference = findMobileMarketplaceEmailPreference(notificationPreferences, source);
+
+    const response = await updateMobileNotificationPreference({
+      source,
+      channel: "email",
+      enabled,
+      mutedUntil: currentPreference?.mutedUntil ?? null,
+      quietHoursStart: currentPreference?.quietHoursStart ?? null,
+      quietHoursEnd: currentPreference?.quietHoursEnd ?? null,
+      timezone: currentPreference?.timezone ?? "Europe/Istanbul",
+      digest: currentPreference?.digest ?? "immediate"
+    });
+
+    if (!response.ok) {
+      setMessage(response.error.message);
+    } else {
+      setNotificationPreferences((current) => current ? {
+        ...replaceMobileNotificationPreference(current, response.data.preference),
+        recentAuditEvents: [response.data.auditEvent, ...current.recentAuditEvents].slice(0, 20),
+        summary: response.data.summary
+      } : current);
+      setMessage(enabled ? "E-posta bildirimi açıldı." : "E-posta bildirimi kapatıldı.");
+    }
+
+    setUpdatingEmailSource(null);
+  }, [notificationPreferences]);
+
   if (!currentUser) {
     return (
       <Screen eyebrow="Bildirimler" title="Giriş gerekli">
@@ -96,7 +148,7 @@ export default function NotificationPreferencesRoute() {
   }
 
   return (
-    <Screen eyebrow="Bildirimler" title="Hatırlatıcılar">
+    <Screen eyebrow="Bildirimler" title="Bildirim tercihleri">
       <MobileCard style={styles.heroCard}>
         <Text style={styles.heroTitle}>Çocuk notları için bildirimler</Text>
         <Text style={styles.heroText}>
@@ -107,7 +159,47 @@ export default function NotificationPreferencesRoute() {
         </Text>
       </MobileCard>
 
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {message ? <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text> : null}
+
+      <MobileCard style={styles.heroCard}>
+        <View style={styles.providerHeader}>
+          <View style={styles.settingContent}>
+            <Text style={styles.sectionTitle}>E-posta bildirimleri</Text>
+            <Text style={styles.settingValue}>
+              {canUseMobileNotificationProviderDelivery(notificationPreferences)
+                ? "E-posta gönderimi sunucuda etkin."
+                : "Tercihlerin kaydedilir; gönderim için sunucuda e-posta sağlayıcısı etkin olmalıdır."}
+            </Text>
+          </View>
+          <Text style={[
+            styles.status,
+            !canUseMobileNotificationProviderDelivery(notificationPreferences) ? styles.statusDisabled : null
+          ]}>
+            {canUseMobileNotificationProviderDelivery(notificationPreferences) ? "Aktif" : "Bekliyor"}
+          </Text>
+        </View>
+        {mobileMarketplaceEmailPreferenceDefinitions.map((definition) => {
+          const preference = findMobileMarketplaceEmailPreference(notificationPreferences, definition.source);
+          const enabled = preference?.enabled ?? false;
+
+          return (
+            <View key={definition.source} style={styles.emailPreferenceRow}>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>{definition.title}</Text>
+                <Text style={styles.settingValue}>{definition.description}</Text>
+              </View>
+              <Switch
+                accessibilityLabel={definition.title}
+                disabled={isLoading || updatingEmailSource !== null}
+                onValueChange={(value) => void handleEmailPreferenceUpdate(definition.source, value)}
+                trackColor={{ false: colors.border, true: colors.peach }}
+                thumbColor={enabled ? colors.primary : colors.muted}
+                value={enabled}
+              />
+            </View>
+          );
+        })}
+      </MobileCard>
 
       <View style={styles.list}>
         {reminderSettings.map((item) => (
@@ -222,6 +314,22 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   cadenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
+    padding: spacing.md
+  },
+  providerHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md
+  },
+  emailPreferenceRow: {
+    minHeight: 76,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

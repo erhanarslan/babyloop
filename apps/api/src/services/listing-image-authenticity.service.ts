@@ -1,6 +1,12 @@
 
 import type { FastifyInstance } from "fastify";
 import type { SafeImage } from "./image-safety.service.js";
+import {
+  enforceListingImageProductPolicy,
+  LISTING_IMAGE_PRODUCT_POLICY_VERSION,
+  normalizeProhibitedListingProductCode,
+  PROHIBITED_LISTING_PRODUCT_CODES
+} from "./listing-image-product-policy.service.js";
 
 export type ListingImageAuthenticityDecision = "allow" | "needs_review" | "reject";
 
@@ -30,7 +36,7 @@ type AnalyzeListingImageAuthenticityInput = {
   title: string;
 };
 
-const PROMPT_VERSION = "listing_image_authenticity.gemini.v1";
+const PROMPT_VERSION = "listing_image_authenticity.gemini.v2";
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com";
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
@@ -120,6 +126,9 @@ async function analyzeWithGemini(
     "- Reject AI-generated images, renders, illustrations, cartoons, memes, logos, screenshots, stock/catalog images, unrelated objects, or images that do not show the listed product.",
     "- Use needs_review when the image may be a real product photo but you are uncertain, it looks catalog-like, or it may show a different product than the listing.",
     "- Reject or needs_review if sensitive child content, unsafe content, medical/treatment claims, or privacy concerns appear.",
+    "- Detect products prohibited on BabyLoop. Prohibited policy codes are:",
+    `  ${PROHIBITED_LISTING_PRODUCT_CODES.join(", ")}.`,
+    "- A recalled or legally banned baby/child product must use recalled_or_banned_child_product. Do not mark an ordinary used product prohibited only because it has wear.",
     "",
     `Listing title: ${input.title}`,
     `Listing category: ${input.categoryName ?? "unknown"}`,
@@ -134,6 +143,9 @@ async function analyzeWithGemini(
     "  \"isGeneratedOrIllustration\": boolean,",
     "  \"isStockOrCatalogLike\": boolean,",
     "  \"isRelevantToListing\": boolean,",
+    "  \"prohibitedProductDetected\": boolean,",
+    "  \"prohibitedProductCode\": string | null,",
+    "  \"prohibitedProductConfidence\": number,",
     "  \"detectedObjects\": string[],",
     "  \"categoryHints\": string[],",
     "  \"safetyFlags\": {",
@@ -268,28 +280,56 @@ function normalizeProviderOutput(
     isGeneratedOrIllustration?: unknown;
     isStockOrCatalogLike?: unknown;
     isRelevantToListing?: unknown;
+    prohibitedProductDetected?: unknown;
+    prohibitedProductCode?: unknown;
+    prohibitedProductConfidence?: unknown;
   };
 
   const decision = normalizeDecision(parsed.decision);
   const confidence = normalizeConfidence(parsed.confidence);
   const reasons = normalizeStringArray(parsed.reasons).slice(0, 8);
+  const safetyFlags = normalizeRecord(parsed.safetyFlags);
+  const productPolicy = enforceListingImageProductPolicy({
+    confidence,
+    providerDecision: decision,
+    signals: {
+      containsSensitiveChildContent: safetyFlags.containsSensitiveChildContent === true,
+      isRealProductPhoto: parsed.isRealProductPhoto === true,
+      isRelevantToListing: parsed.isRelevantToListing === true,
+      prohibitedProductCode: normalizeProhibitedListingProductCode(parsed.prohibitedProductCode),
+      prohibitedProductConfidence: normalizeConfidence(parsed.prohibitedProductConfidence),
+      prohibitedProductDetected: parsed.prohibitedProductDetected === true
+    }
+  });
+  const normalizedReasons = productPolicy.reason
+    ? [productPolicy.reason, ...reasons].slice(0, 8)
+    : reasons;
 
   return {
     status: "completed",
-    decision,
+    decision: productPolicy.decision,
     confidence,
     providerName,
     modelName,
     promptVersion: PROMPT_VERSION,
-    reasons: reasons.length > 0 ? reasons : ["Provider returned no detailed reason."],
+    reasons: normalizedReasons.length > 0
+      ? normalizedReasons
+      : ["Provider returned no detailed reason."],
     flags: {
-      safetyFlags: normalizeRecord(parsed.safetyFlags),
+      safetyFlags,
       detectedObjects: normalizeStringArray(parsed.detectedObjects).slice(0, 12),
       categoryHints: normalizeStringArray(parsed.categoryHints).slice(0, 12),
       isRealProductPhoto: parsed.isRealProductPhoto === true,
       isGeneratedOrIllustration: parsed.isGeneratedOrIllustration === true,
       isStockOrCatalogLike: parsed.isStockOrCatalogLike === true,
-      isRelevantToListing: parsed.isRelevantToListing === true
+      isRelevantToListing: parsed.isRelevantToListing === true,
+      productPolicy: {
+        action: productPolicy.action,
+        policyVersion: LISTING_IMAGE_PRODUCT_POLICY_VERSION,
+        prohibitedProductCode: productPolicy.signals.prohibitedProductCode,
+        prohibitedProductConfidence: productPolicy.signals.prohibitedProductConfidence,
+        prohibitedProductDetected: productPolicy.signals.prohibitedProductDetected
+      }
     }
   };
 }
@@ -327,20 +367,6 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>;
-}
-
-function readOpenAiTimeoutMs(value: string | undefined): number {
-  if (!value) {
-    return DEFAULT_GEMINI_TIMEOUT_MS;
-  }
-
-  const timeoutMs = Number(value);
-
-  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) {
-    return DEFAULT_GEMINI_TIMEOUT_MS;
-  }
-
-  return Math.min(timeoutMs, 30_000);
 }
 
 function isAbortError(error: unknown): boolean {

@@ -273,7 +273,8 @@ function registerCoreBodyContracts(): void {
     "/auth/mfa/enable",
     "/auth/mfa/disable",
     "/auth/login-approval/enable",
-    "/auth/login-approval/disable"
+    "/auth/login-approval/disable",
+    "/auth/sessions/revoke-all"
   ]) {
     addBody("POST", path, passwordPreferenceBody);
   }
@@ -2054,7 +2055,7 @@ function registerExactResponseContracts(): void {
     "/auth/sessions/:sessionId/revoke"
   ], ["200", "401", "403", "404", "503"]);
   setExactResponses("POST", "/auth/logout", ["200", "403", "503"]);
-  setExactResponses("POST", "/auth/sessions/revoke-all", ["200", "401", "403", "503"]);
+  setExactResponses("POST", "/auth/sessions/revoke-all", ["200", "400", "401", "403", "503"]);
   setExactResponses("POST", "/auth/backoffice/login", ["200", "400", "401", "403", "429", "503"]);
   setExactResponses("POST", "/auth/backoffice/refresh", ["200", "401", "403", "429", "503"]);
   setExactResponses("POST", "/auth/backoffice/logout", ["200", "403", "503"]);

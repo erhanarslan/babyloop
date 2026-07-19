@@ -50,7 +50,7 @@ export type NotificationPreference = {
   timezone: string;
   digest: "immediate" | "daily" | "weekly";
   deliveryAllowed: boolean;
-  providerCallAllowed: false;
+  providerCallAllowed: boolean;
   draftOnly: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -78,8 +78,9 @@ export type NotificationPreferencesPayload = {
   preferences: NotificationPreference[];
   recentAuditEvents: NotificationPreferenceAuditEvent[];
   summary: {
-    deliveryProvidersEnabled: false;
-    providerCallsAllowed: false;
+    deliveryProvidersEnabled: boolean;
+    providerCallsAllowed: boolean;
+    emailProviderEnabled: boolean;
     supportedSources: string[];
     supportedChannels: string[];
     defaultEnabledChannels: string[];
@@ -102,4 +103,36 @@ export async function fetchNotificationPreferences(
   const response = await authFetch(apiBaseUrl, "/api/v1/notification-preferences");
 
   return response.json() as Promise<ApiResponse<NotificationPreferencesPayload>>;
+}
+
+export async function updateNotificationPreference(
+  apiBaseUrl: string,
+  input: {
+    source: string;
+    channel: string;
+    enabled: boolean;
+    mutedUntil?: string | null;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    timezone?: string;
+    digest?: NotificationPreference["digest"];
+  }
+): Promise<ApiResponse<{
+  preference: NotificationPreference;
+  auditEvent: NotificationPreferenceAuditEvent;
+  summary: NotificationPreferencesPayload["summary"];
+}>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/notification-preferences", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(input)
+  });
+
+  return response.json() as Promise<ApiResponse<{
+    preference: NotificationPreference;
+    auditEvent: NotificationPreferenceAuditEvent;
+    summary: NotificationPreferencesPayload["summary"];
+  }>>;
 }

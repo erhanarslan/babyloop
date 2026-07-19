@@ -100,12 +100,69 @@ export function getDefaultMobileChildProfilePayload(): CreateMobileChildProfileR
 }
 
 export function getNextMobileReminderDateIso(now = new Date()): string {
-  const next = new Date(now);
+  const timezone = "Europe/Istanbul";
+  const localDate = getDatePartsInTimezone(now, timezone);
 
-  next.setDate(next.getDate() + 1);
-  next.setHours(10, 0, 0, 0);
+  if (!localDate) {
+    const fallback = new Date(now);
+    fallback.setUTCDate(fallback.getUTCDate() + 1);
+    fallback.setUTCHours(7, 0, 0, 0);
+    return fallback.toISOString();
+  }
 
-  return next.toISOString();
+  const nominalUtc = Date.UTC(localDate.year, localDate.month - 1, localDate.day + 1, 10, 0, 0, 0);
+  const offsetMinutes = getTimezoneOffsetMinutes(new Date(nominalUtc), timezone);
+
+  return new Date(nominalUtc - offsetMinutes * 60_000).toISOString();
+}
+
+function getDatePartsInTimezone(
+  date: Date,
+  timezone: string
+): { year: number; month: number; day: number } | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: timezone,
+      year: "numeric"
+    }).formatToParts(date);
+    const year = Number(parts.find((part) => part.type === "year")?.value);
+    const month = Number(parts.find((part) => part.type === "month")?.value);
+    const day = Number(parts.find((part) => part.type === "day")?.value);
+
+    return Number.isInteger(year) && Number.isInteger(month) && Number.isInteger(day)
+      ? { year, month, day }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getTimezoneOffsetMinutes(date: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
+    timeZone: timezone,
+    year: "numeric"
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => Number(
+    parts.find((part) => part.type === type)?.value
+  );
+  const asUtc = Date.UTC(
+    read("year"),
+    read("month") - 1,
+    read("day"),
+    read("hour"),
+    read("minute"),
+    read("second")
+  );
+
+  return (asUtc - date.getTime()) / 60_000;
 }
 
 export function formatCadence(cadence: MobileChildProfileNotificationCadence): string {

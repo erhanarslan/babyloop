@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Screen } from "../../ui/screen";
@@ -16,6 +16,7 @@ import {
   MobileListingCard
 } from "../../ui/mobile-listing-card";
 import { colors, radius, spacing } from "../../ui/theme";
+import { useMobileReducedMotion } from "../../lib/use-mobile-reduced-motion";
 import {
   fetchMobileListings,
   type FetchMobileListingsParams,
@@ -25,6 +26,7 @@ import {
 } from "../listings/listings-api";
 import { fetchMobileCategories, type MobileCategory } from "../sell/sell-api";
 import { DiscoverHeroBanner } from "./discover-hero-banner";
+import { getDiscoverHeroListings } from "./discover-performance-model";
 
 type HomeListingFilters = {
   categoryId: string;
@@ -53,6 +55,9 @@ const emptyHomeListingFilters: HomeListingFilters = {
 
 export function BrowseScreen() {
   const router = useRouter();
+  const prefersReducedMotion = useMobileReducedMotion();
+  const listingRequestIdRef = useRef(0);
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [listings, setListings] = useState<MobileListingSummary[]>([]);
   const [heroListings, setHeroListings] = useState<MobileListingSummary[]>([]);
   const [categories, setCategories] = useState<MobileCategory[]>([]);
@@ -68,6 +73,8 @@ export function BrowseScreen() {
   const hasSearchOrFilters = appliedQuery.length > 0 || activeFilterCount > 0;
 
   const loadListings = useCallback(async (query: string, filters: HomeListingFilters) => {
+    const requestId = ++listingRequestIdRef.current;
+
     try {
       setStatus("loading");
       setError(null);
@@ -78,9 +85,26 @@ export function BrowseScreen() {
         ...toListingQueryFilters(filters)
       });
 
+      if (requestId !== listingRequestIdRef.current) {
+        return;
+      }
+
       setListings(nextListings);
+      const nextHeroListings = getDiscoverHeroListings({
+        activeFilterCount: getActiveFilterCount(filters),
+        listings: nextListings,
+        query
+      });
+
+      if (nextHeroListings) {
+        setHeroListings(nextHeroListings);
+      }
       setStatus(nextListings.length > 0 ? "ready" : "empty");
     } catch (loadError) {
+      if (requestId !== listingRequestIdRef.current) {
+        return;
+      }
+
       setListings([]);
       setStatus("error");
       setError(loadError instanceof Error ? loadError.message : "İlanlar yüklenemedi.");
@@ -94,33 +118,34 @@ export function BrowseScreen() {
   useEffect(() => {
     let active = true;
 
-    async function loadHomeData() {
+    async function loadCategories() {
       try {
-        const [latestListings, nextCategories] = await Promise.all([
-          fetchMobileListings({
-            limit: 10
-          }),
-          fetchMobileCategories()
-        ]);
+        const nextCategories = await fetchMobileCategories();
 
         if (active) {
-          setHeroListings(latestListings);
           setCategories(nextCategories);
         }
       } catch {
         if (active) {
-          setHeroListings([]);
           setCategories([]);
         }
       }
     }
 
-    void loadHomeData();
+    void loadCategories();
 
     return () => {
       active = false;
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+
+      return () => setIsScreenFocused(false);
+    }, [])
+  );
 
   function handleSearch() {
     setAppliedQuery(draftQuery.trim());
@@ -176,6 +201,7 @@ export function BrowseScreen() {
       }
     >
       <DiscoverHeroBanner
+        autoAdvanceEnabled={isScreenFocused && !prefersReducedMotion}
         listings={heroListings}
         onListingPress={(listingId) => router.push(`/listing/${encodeURIComponent(listingId)}`)}
       />

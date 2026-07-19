@@ -14,8 +14,8 @@ const routeSource = readFileSync(
   join(process.cwd(), "src/app/account/password/page.tsx"),
   "utf8"
 );
-const securityPageSource = readFileSync(
-  join(process.cwd(), "src/features/account/account-security-page-content.tsx"),
+const profilePageSource = readFileSync(
+  join(process.cwd(), "src/features/account/account-profile-page-content.tsx"),
   "utf8"
 );
 
@@ -35,17 +35,15 @@ describe("password change modal contract", () => {
     );
   });
 
-  it("redirects legacy direct password URLs into the security center", () => {
-    expect(routeSource).toContain('redirect("/account/security#password")');
+  it("redirects legacy direct password URLs into the profile security section", () => {
+    expect(routeSource).toContain('redirect("/account/profile?section=security&changePassword=1")');
     expect(routeSource).not.toContain("<ChangePasswordForm");
   });
 
-  it("exposes password, MFA, and session management in the security center", () => {
-    expect(securityPageSource).toContain('id="password"');
-    expect(securityPageSource).toContain('id="mfa"');
-    expect(securityPageSource).toContain('id="sessions"');
-    expect(securityPageSource).toContain("<ChangePasswordForm");
-    expect(securityPageSource).toContain("<MfaSettingsPanel");
-    expect(securityPageSource).toContain("<SessionManagementPanel");
+  it("keeps password, MFA, and session management inside the profile security section", () => {
+    expect(profilePageSource).toContain('href="/account/password"');
+    expect(profilePageSource).toContain("<MfaSettingsPanel");
+    expect(profilePageSource).toContain("<SessionManagementPanel");
+    expect(profilePageSource).not.toContain('href="/account/security"');
   });
 });

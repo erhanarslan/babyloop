@@ -1210,12 +1210,34 @@ describe("auth API", () => {
     const firstRefreshCookie = getRefreshSetCookie(firstLogin);
     const secondRefreshCookie = getRefreshSetCookie(secondLogin);
 
+    const missingPasswordResponse = await app.inject({
+      headers: {
+        cookie: `${toCookieHeader(firstPublicAccessCookie)}; ${toCookieHeader(firstRefreshCookie)}`
+      },
+      method: "POST",
+      url: "/api/v1/auth/sessions/revoke-all",
+      payload: {}
+    });
+    const invalidPasswordResponse = await app.inject({
+      headers: {
+        cookie: `${toCookieHeader(firstPublicAccessCookie)}; ${toCookieHeader(firstRefreshCookie)}`
+      },
+      method: "POST",
+      url: "/api/v1/auth/sessions/revoke-all",
+      payload: {
+        currentPassword: "WrongPassword123!"
+      }
+    });
+
     const revokeAllResponse = await app.inject({
       headers: {
         cookie: `${toCookieHeader(firstPublicAccessCookie)}; ${toCookieHeader(firstRefreshCookie)}`
       },
       method: "POST",
-      url: "/api/v1/auth/sessions/revoke-all"
+      url: "/api/v1/auth/sessions/revoke-all",
+      payload: {
+        currentPassword: "Password123!"
+      }
     });
     const firstRefreshResponse = await app.inject({
       headers: {
@@ -1238,6 +1260,8 @@ describe("auth API", () => {
       .from(sessions)
       .where(and(isNull(sessions.revokedAt), gt(sessions.expiresAt, new Date())));
 
+    expect(missingPasswordResponse.statusCode).toBe(400);
+    expect(invalidPasswordResponse.statusCode).toBe(401);
     expect(revokeAllResponse.statusCode).toBe(200);
     expect(revokeAllResponse.json()).toMatchObject({
       ok: true,

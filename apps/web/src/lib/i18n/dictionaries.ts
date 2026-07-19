@@ -833,6 +833,10 @@ export const dictionaries = {
         preferences: {
           label: "Preferences",
           description: "Notification and payment settings"
+        },
+        deletion: {
+          label: "Delete account",
+          description: "Permanently close your BabyLoop account"
         }
       },
       links: {
@@ -2112,6 +2116,10 @@ export const dictionaries = {
         preferences: {
           label: "Tercihler",
           description: "Bildirim ve ödeme ayarları"
+        },
+        deletion: {
+          label: "Hesabı sil",
+          description: "BabyLoop hesabını kalıcı olarak kapat"
         }
       },
       links: {

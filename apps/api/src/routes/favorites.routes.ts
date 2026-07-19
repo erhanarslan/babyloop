@@ -18,6 +18,7 @@ import {
   getUnreadNotificationCount
 } from "../services/notifications.service.js";
 import { recordProductEvent } from "../services/product-events.service.js";
+import { createMarketplaceEmailNotificationCandidate } from "../services/marketplace-email-notification.service.js";
 
 type FavoriteActionResponse = ApiResponse<FavoriteActionResult>;
 
@@ -99,6 +100,17 @@ export function registerFavoriteRoutes(app: FastifyInstance): void {
           result.result.notificationTarget.recipientProfileId,
           toNotificationCreatedPayload(notification, unreadCount)
         );
+        await createMarketplaceEmailNotificationCandidate(app, {
+          actionHref: `/listings/${result.result.notificationTarget.listingId}`,
+          kind: "listing_favorited",
+          metadata: {
+            listingTitle: result.result.notificationTarget.listingTitle
+          },
+          profileId: result.result.notificationTarget.recipientProfileId,
+          sourceId: notification.id
+        }).catch((error: unknown) => {
+          app.log.warn(error, "Failed to create listing-favorited email candidate.");
+        });
       }
     }
 

@@ -62,18 +62,20 @@ describe("MfaSettingsPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("İkinci doğrulama şu an kapalı.")).toBeInTheDocument();
+    const toggle = await screen.findByRole("switch", { name: "İki adımlı doğrulama kapalı" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
 
+    fireEvent.click(toggle);
     fireEvent.change(screen.getByLabelText("Mevcut şifre"), {
       target: { value: "Password123!" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "OTP / MFA etkinleştir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aç" }));
 
     await waitFor(() => {
       expect(enableMfa).toHaveBeenCalledWith("http://api.test", "Password123!");
     });
 
-    expect(await screen.findByRole("status")).toHaveTextContent("OTP / MFA etkinleştirildi");
+    expect(await screen.findByRole("status")).toHaveTextContent("İki adımlı doğrulama açıldı");
     expect(screen.queryByText("Password123!")).not.toBeInTheDocument();
     expect(JSON.stringify(screen.queryByText("Password123!"))).not.toMatch(/accessToken|refreshToken|passwordHash/iu);
   });
@@ -99,18 +101,20 @@ describe("MfaSettingsPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Sonraki girişlerde e-posta OTP kodu gerekir.")).toBeInTheDocument();
+    const toggle = await screen.findByRole("switch", { name: "İki adımlı doğrulama açık" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
 
+    fireEvent.click(toggle);
     fireEvent.change(screen.getByLabelText("Mevcut şifre"), {
       target: { value: "Password123!" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "OTP / MFA kapat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
 
     await waitFor(() => {
       expect(disableMfa).toHaveBeenCalledWith("http://api.test", "Password123!");
     });
 
-    expect(await screen.findByRole("status")).toHaveTextContent("OTP / MFA kapatıldı");
+    expect(await screen.findByRole("status")).toHaveTextContent("İki adımlı doğrulama kapatıldı");
   });
 
   it("requires current password before changing MFA", async () => {
@@ -125,9 +129,10 @@ describe("MfaSettingsPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByRole("button", { name: "OTP / MFA etkinleştir" }));
+    fireEvent.click(await screen.findByRole("switch", { name: "İki adımlı doğrulama kapalı" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aç" }));
 
-    expect(await screen.findByText("Mevcut şifrenizi girin.")).toBeInTheDocument();
+    expect(await screen.findByText("Mevcut şifreni gir.")).toBeInTheDocument();
     expect(enableMfa).not.toHaveBeenCalled();
   });
 });

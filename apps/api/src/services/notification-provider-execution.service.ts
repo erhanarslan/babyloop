@@ -1,8 +1,10 @@
 import { notificationDeliveryLogs, profiles, users } from "@babyloop/database/schema";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import type { NotificationPreferenceSource } from "../schemas/notification-preferences.schemas.js";
 import { sanitizeNotificationMetadata } from "./notification-delivery-log.service.js";
 import { isNotificationPreferenceEnabledForDelivery } from "./notification-preferences.service.js";
+import { getNotificationEmailProviderConfig } from "./notification-email-config.service.js";
 import {
   listNotificationPushTokensForDelivery,
   revokeNotificationPushTokenById
@@ -288,11 +290,13 @@ function resolveProviderForChannel(channel: string): NotificationProviderName | 
   return null;
 }
 
-function resolvePreferenceSource(kind: string): "child_reminder" | "saved_search" | "child_lifecycle" | "marketplace" | "security" {
+function resolvePreferenceSource(kind: string): NotificationPreferenceSource {
   if (kind === "child_reminder") return "child_reminder";
   if (kind === "saved_search") return "saved_search";
   if (kind === "child_lifecycle") return "child_lifecycle";
   if (kind === "security") return "security";
+  if (kind === "message_received") return "messages";
+  if (kind === "listing_favorited") return "listing";
   return "marketplace";
 }
 
@@ -310,6 +314,7 @@ type ProviderConfig = {
   apiKey?: string | undefined;
   fromEmail?: string | undefined;
   fromName?: string | undefined;
+  webAppUrl?: string | undefined;
   bearerToken?: string | undefined;
   secret?: string | undefined;
 };
@@ -327,16 +332,15 @@ function readProviderConfig(provider: NotificationProviderName, env: NodeJS.Proc
   }
 
   if (provider === "resend") {
+    const emailConfig = getNotificationEmailProviderConfig(env);
+
     return {
-      enabled:
-        readBoolean(env.NOTIFICATION_EMAIL_ENABLED) &&
-        (env.NOTIFICATION_EMAIL_PROVIDER ?? "resend").trim().toLowerCase() === "resend" &&
-        Boolean(env.RESEND_API_KEY?.trim()) &&
-        Boolean(env.RESEND_FROM_EMAIL?.trim()),
+      enabled: emailConfig.enabled,
       url: (env.RESEND_API_BASE_URL?.trim() || "https://api.resend.com").replace(/\/+$/u, ""),
-      apiKey: env.RESEND_API_KEY?.trim(),
-      fromEmail: env.RESEND_FROM_EMAIL?.trim(),
-      fromName: env.RESEND_FROM_NAME?.trim() || "BabyLoop",
+      apiKey: emailConfig.apiKey,
+      fromEmail: emailConfig.fromEmail,
+      fromName: emailConfig.fromName,
+      webAppUrl: (env.WEB_APP_URL ?? env.NEXT_PUBLIC_SITE_URL)?.trim(),
       timeoutMs: readPositiveInteger(env.NOTIFICATION_EMAIL_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
       maxRetries: readPositiveInteger(env.NOTIFICATION_EMAIL_MAX_RETRIES, DEFAULT_MAX_RETRIES)
     };
@@ -410,7 +414,7 @@ async function executeResendEmail(
   options: { fetchImpl: typeof fetch; now: Date }
 ): Promise<ProviderAttemptResult> {
   const safeSubject = buildNotificationSubject(row);
-  const safeText = buildNotificationText(row);
+  const safeText = buildNotificationText(row, config.webAppUrl);
   const response = await fetchJson(`${config.url}/emails`, {
     fetchImpl: options.fetchImpl,
     timeoutMs: config.timeoutMs,
@@ -645,29 +649,65 @@ function buildNotificationSubject(row: DeliveryLogRow): string {
     return "BabyLoop yaşa göre öneri";
   }
 
+  if (row.kind === "message_received") {
+    return "BabyLoop'ta yeni mesajın var";
+  }
+
+  if (row.kind === "listing_favorited") {
+    return "İlanın BabyLoop'ta favoriye eklendi";
+  }
+
   return "BabyLoop bildirimi";
 }
 
-function buildNotificationText(row: DeliveryLogRow): string {
+function buildNotificationText(row: DeliveryLogRow, webAppUrl?: string): string {
   const metadata = row.metadata ?? {};
+  let message: string;
 
   if (row.kind === "security") {
-    return `${readString(metadata.deviceLabel) ?? "Yeni web girişi"} için mobil onay gerekiyor. Bu işlemi siz başlatmadıysanız reddedin.`;
+    message = `${readString(metadata.deviceLabel) ?? "Yeni web girişi"} için mobil onay gerekiyor. Bu işlemi siz başlatmadıysanız reddedin.`;
+  } else if (row.kind === "child_reminder") {
+    message = `${readString(metadata.reminderTitle) ?? "Hatırlatma"} için bildirim zamanı geldi.`;
+  } else if (row.kind === "saved_search") {
+    message = `${readString(metadata.savedSearchTitle) ?? "Kayıtlı aramanız"} için yeni eşleşmeler olabilir.`;
+  } else if (row.kind === "child_lifecycle") {
+    message = `${readString(metadata.categoryName) ?? "Yaşa uygun ürün"} önerisi hazır.`;
+  } else if (row.kind === "message_received") {
+    const sender = readString(metadata.senderDisplayName) ?? "Bir BabyLoop kullanıcısı";
+    const listingTitle = readString(metadata.listingTitle);
+    message = listingTitle
+      ? `${sender}, “${listingTitle}” ilanı hakkında sana yeni bir mesaj gönderdi.`
+      : `${sender} sana yeni bir mesaj gönderdi.`;
+  } else if (row.kind === "listing_favorited") {
+    const listingTitle = readString(metadata.listingTitle) ?? "İlanın";
+    message = `“${listingTitle}” bir BabyLoop kullanıcısı tarafından favoriye eklendi.`;
+  } else {
+    message = "BabyLoop bildiriminiz var.";
   }
 
-  if (row.kind === "child_reminder") {
-    return `${readString(metadata.reminderTitle) ?? "Hatırlatma"} için bildirim zamanı geldi.`;
+  const actionUrl = buildNotificationActionUrl(metadata.actionHref, webAppUrl);
+
+  return actionUrl ? `${message}\n\nGörüntüle: ${actionUrl}` : message;
+}
+
+function buildNotificationActionUrl(actionHref: unknown, webAppUrl?: string): string | null {
+  const safePath = readString(actionHref);
+
+  if (!safePath?.startsWith("/") || safePath.startsWith("//") || !webAppUrl) {
+    return null;
   }
 
-  if (row.kind === "saved_search") {
-    return `${readString(metadata.savedSearchTitle) ?? "Kayıtlı aramanız"} için yeni eşleşmeler olabilir.`;
-  }
+  try {
+    const baseUrl = new URL(webAppUrl);
 
-  if (row.kind === "child_lifecycle") {
-    return `${readString(metadata.categoryName) ?? "Yaşa uygun ürün"} önerisi hazır.`;
-  }
+    if (baseUrl.protocol !== "https:" && baseUrl.protocol !== "http:") {
+      return null;
+    }
 
-  return "BabyLoop bildiriminiz var.";
+    return new URL(safePath, baseUrl).toString();
+  } catch {
+    return null;
+  }
 }
 
 function sanitizeNotificationText(value: string, maxLength: number): string {
@@ -689,7 +729,13 @@ function escapeHtml(value: string): string {
 }
 
 function readString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim().slice(0, 160) : null;
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const safeValue = sanitizeNotificationText(value, 160);
+
+  return safeValue.length > 0 ? safeValue : null;
 }
 
 function sanitizeProviderResponseMeta(json: Record<string, unknown> | null, status: number): Record<string, unknown> {
