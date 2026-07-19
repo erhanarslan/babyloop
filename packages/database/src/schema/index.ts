@@ -273,6 +273,7 @@ export const childProfiles = pgTable(
     label: varchar("label", { length: 80 }).notNull().default("Çocuğum"),
     ageBand: childAgeBandEnum("age_band").notNull(),
     ageMonths: integer("age_months"),
+    ageAsOfDate: timestamp("age_as_of_date", { withTimezone: true }),
     birthMonth: integer("birth_month"),
     birthYear: integer("birth_year"),
     gender: childProfileGenderEnum("gender"),
@@ -286,7 +287,7 @@ export const childProfiles = pgTable(
     index("child_profiles_age_band_idx").on(table.ageBand),
     index("child_profiles_profile_active_idx").on(table.profileId, table.isActive),
     check("child_profiles_label_not_blank_check", sql`length(trim(${table.label})) > 0`),
-    check("child_profiles_age_months_check", sql`${table.ageMonths} is null or ${table.ageMonths} between 0 and 96`),
+    check("child_profiles_age_months_check", sql`${table.ageMonths} is null or ${table.ageMonths} between 0 and 216`),
     check("child_profiles_birth_month_check", sql`${table.birthMonth} is null or ${table.birthMonth} between 1 and 12`),
     check("child_profiles_birth_year_check", sql`${table.birthYear} is null or ${table.birthYear} between 2016 and 2035`)
   ]

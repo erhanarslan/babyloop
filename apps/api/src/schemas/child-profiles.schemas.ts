@@ -30,7 +30,7 @@ const nullableOptionalIntSchema = (min: number, max: number) =>
   );
 
 const childProfileOptionalDetailsSchema = {
-  ageMonths: nullableOptionalIntSchema(0, 96),
+  ageMonths: nullableOptionalIntSchema(0, 216),
   birthMonth: nullableOptionalIntSchema(1, 12),
   birthYear: nullableOptionalIntSchema(2016, 2035),
   gender: childProfileGenderSchema.nullable().optional(),
@@ -53,13 +53,16 @@ export const createChildProfileBodySchema = z
   .strict()
   .refine(hasCompleteBirthMonthYear, {
     message: "Birth month and birth year must be provided together."
+  })
+  .refine(isBirthMonthYearNotFuture, {
+    message: "Birth month and year cannot be in the future."
   });
 
 export const updateChildProfileBodySchema = z
   .object({
     label: z.string().trim().min(1).max(80).optional(),
     ageBand: childAgeBandSchema.optional(),
-    ageMonths: nullableOptionalIntSchema(0, 96),
+    ageMonths: nullableOptionalIntSchema(0, 216),
     birthMonth: nullableOptionalIntSchema(1, 12),
     birthYear: nullableOptionalIntSchema(2016, 2035),
     gender: childProfileGenderSchema.nullable().optional(),
@@ -72,6 +75,9 @@ export const updateChildProfileBodySchema = z
   })
   .refine(hasCompleteBirthMonthYear, {
     message: "Birth month and birth year must be provided together."
+  })
+  .refine(isBirthMonthYearNotFuture, {
+    message: "Birth month and year cannot be in the future."
   });
 
 export type ChildAgeBand = z.infer<typeof childAgeBandSchema>;
@@ -89,4 +95,25 @@ function hasCompleteBirthMonthYear(value: {
   const hasBirthYear = value.birthYear !== undefined && value.birthYear !== null;
 
   return hasBirthMonth === hasBirthYear;
+}
+
+
+function isBirthMonthYearNotFuture(value: {
+  birthMonth?: number | null | undefined;
+  birthYear?: number | null | undefined;
+}): boolean {
+  const hasBirthMonth =
+    value.birthMonth !== undefined && value.birthMonth !== null;
+  const hasBirthYear =
+    value.birthYear !== undefined && value.birthYear !== null;
+
+  if (!hasBirthMonth || !hasBirthYear) {
+    return true;
+  }
+
+  const now = new Date();
+  const currentMonthIndex = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  const birthMonthIndex = value.birthYear! * 12 + (value.birthMonth! - 1);
+
+  return birthMonthIndex <= currentMonthIndex;
 }

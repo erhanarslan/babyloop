@@ -11,6 +11,11 @@ import type {
   CreateChildProfileBody,
   UpdateChildProfileBody
 } from "../schemas/child-profiles.schemas.js";
+import {
+  buildChildAgeStorageValues,
+  mergeChildAgeStorageValues,
+  resolveChildAgeSnapshot
+} from "./child-age.service.js";
 
 export type ChildProfileResponse = {
   id: string;
@@ -169,15 +174,18 @@ export async function createChildProfile(
   profileId: string,
   body: CreateChildProfileBody
 ): Promise<ChildProfileResponse> {
+  const now = new Date();
+  const ageStorage = buildChildAgeStorageValues(body, now);
   const [created] = await app.db
     .insert(childProfiles)
     .values({
       profileId,
       label: body.label,
-      ageBand: body.ageBand,
-      ageMonths: body.ageMonths ?? null,
-      birthMonth: body.birthMonth ?? null,
-      birthYear: body.birthYear ?? null,
+      ageBand: ageStorage.ageBand,
+      ageMonths: ageStorage.ageMonths,
+      ageAsOfDate: ageStorage.ageAsOfDate,
+      birthMonth: ageStorage.birthMonth,
+      birthYear: ageStorage.birthYear,
       gender: body.gender ?? null,
       notificationCadence: body.notificationCadence,
       isActive: body.isActive
@@ -197,18 +205,42 @@ export async function updateChildProfile(
   childProfileId: string,
   body: UpdateChildProfileBody
 ): Promise<{ status: "updated"; childProfile: ChildProfileResponse } | { status: "not_found" }> {
+  const [existing] = await app.db
+    .select()
+    .from(childProfiles)
+    .where(and(eq(childProfiles.id, childProfileId), eq(childProfiles.profileId, profileId)))
+    .limit(1);
+
+  if (!existing) {
+    return { status: "not_found" };
+  }
+
+  const now = new Date();
+  const ageStorage = mergeChildAgeStorageValues(
+    {
+      ageBand: existing.ageBand,
+      ageMonths: existing.ageMonths,
+      ageAsOfDate: existing.ageAsOfDate,
+      birthMonth: existing.birthMonth,
+      birthYear: existing.birthYear
+    },
+    body,
+    now
+  );
+
   const [updated] = await app.db
     .update(childProfiles)
     .set({
       ...(body.label !== undefined ? { label: body.label } : {}),
-      ...(body.ageBand !== undefined ? { ageBand: body.ageBand } : {}),
-      ...(body.ageMonths !== undefined ? { ageMonths: body.ageMonths } : {}),
-      ...(body.birthMonth !== undefined ? { birthMonth: body.birthMonth } : {}),
-      ...(body.birthYear !== undefined ? { birthYear: body.birthYear } : {}),
+      ageBand: ageStorage.ageBand,
+      ageMonths: ageStorage.ageMonths,
+      ageAsOfDate: ageStorage.ageAsOfDate,
+      birthMonth: ageStorage.birthMonth,
+      birthYear: ageStorage.birthYear,
       ...(body.gender !== undefined ? { gender: body.gender } : {}),
       ...(body.notificationCadence !== undefined ? { notificationCadence: body.notificationCadence } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
-      updatedAt: new Date()
+      updatedAt: now
     })
     .where(and(eq(childProfiles.id, childProfileId), eq(childProfiles.profileId, profileId)))
     .returning();
@@ -246,9 +278,10 @@ export async function listLifecycleRecommendations(
     .where(and(eq(childProfiles.profileId, profileId), eq(childProfiles.isActive, true)))
     .orderBy(asc(childProfiles.createdAt));
 
+  const currentChildProfiles = childProfileRows.map(mapChildProfile);
   const categorySlugs = [
     ...new Set(
-      childProfileRows.flatMap((childProfile) =>
+      currentChildProfiles.flatMap((childProfile) =>
         LIFECYCLE_RECOMMENDATION_RULES[childProfile.ageBand].map((rule) => rule.categorySlug)
       )
     )
@@ -269,7 +302,7 @@ export async function listLifecycleRecommendations(
 
   const categoriesBySlug = new Map(categoryRows.map((category) => [category.slug, category]));
 
-  return childProfileRows.map((childProfile) => ({
+  return currentChildProfiles.map((childProfile) => ({
     childProfileId: childProfile.id,
     childProfileLabel: childProfile.label,
     ageBand: childProfile.ageBand,
@@ -304,11 +337,19 @@ export async function listLifecycleRecommendations(
 }
 
 function mapChildProfile(row: typeof childProfiles.$inferSelect): ChildProfileResponse {
+  const currentAge = resolveChildAgeSnapshot({
+    ageBand: row.ageBand,
+    ageMonths: row.ageMonths,
+    ageAsOfDate: row.ageAsOfDate,
+    birthMonth: row.birthMonth,
+    birthYear: row.birthYear
+  });
+
   return {
     id: row.id,
     label: row.label,
-    ageBand: row.ageBand,
-    ageMonths: row.ageMonths,
+    ageBand: currentAge.ageBand,
+    ageMonths: currentAge.ageMonths,
     birthMonth: row.birthMonth,
     birthYear: row.birthYear,
     gender: row.gender,

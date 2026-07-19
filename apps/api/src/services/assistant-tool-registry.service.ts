@@ -52,7 +52,7 @@ const listingDetailInputSchema = z
 
 const childAgeBandInputSchema = z
   .object({
-    ageMonths: z.number().int().min(0).max(96).optional(),
+    ageMonths: z.number().int().min(0).max(216).optional(),
     ageBand: z.string().trim().min(1).max(40).optional()
   })
   .strict();

@@ -816,7 +816,7 @@ function registerChildAndNotificationBodyContracts(): void {
         }),
         ageMonths: integerSchema({
           example: 30,
-          maximum: 96,
+          maximum: 216,
           minimum: 0,
           nullable: true
         }),
@@ -862,7 +862,7 @@ function registerChildAndNotificationBodyContracts(): void {
         ageBand: enumSchema(childAgeBandValues),
         ageMonths: integerSchema({
           example: 30,
-          maximum: 96,
+          maximum: 216,
           minimum: 0,
           nullable: true
         }),

@@ -1004,7 +1004,7 @@ function buildChildProfilePayload(formState: ChildProfileFormState): {
   if (formState.ageInputMode === "months") {
     const ageMonths = Number.parseInt(formState.ageMonths, 10);
 
-    if (!Number.isInteger(ageMonths) || ageMonths < 0 || ageMonths > 96) {
+    if (!Number.isInteger(ageMonths) || ageMonths < 0 || ageMonths > 216) {
       return null;
     }
 
