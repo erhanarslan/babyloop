@@ -70,6 +70,23 @@ NOTIFICATION_SMOKE_CHANNELS=email \
 pnpm --filter @babyloop/api notifications:smoke:providers
 ```
 
+To test the actual message and listing-favorite email templates against an
+existing, verified BabyLoop account, first enable both email toggles in that
+account's notification settings. Then run the explicit two-email smoke below.
+It executes only the two candidates it creates and never drains unrelated
+pending notification rows:
+
+```bash
+NOTIFICATION_MARKETPLACE_SMOKE_CONFIRM_SEND=true \
+NOTIFICATION_SMOKE_RECIPIENT_EMAIL=you@example.com \
+pnpm --filter @babyloop/api notifications:smoke:marketplace-email
+```
+
+The command refuses to send when the recipient is missing/unverified, either
+preference is disabled, `WEB_APP_URL` is not an absolute HTTPS URL, or Resend is
+not fully enabled. Its output redacts the recipient and never prints provider
+credentials.
+
 ## 3. Listing-image product policy
 
 Production must use the Gemini authenticity provider:

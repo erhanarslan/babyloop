@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { LOCATION_COOKIE_KEY } from "../../components/navigation/location-preference-model";
 import { SiteShell } from "../../components/ui";
 import {
   buildListingsPath,
   resolveBrowseFilters,
+  resolveBrowseLocationCity,
   type BrowseSearchParams
 } from "../../features/listings/browse-routing";
 import { BrowsePageContent } from "../../features/listings/browse-page-content";
@@ -42,7 +45,13 @@ export async function generateMetadata({ searchParams }: BrowsePageProps): Promi
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const resolvedSearchParams = await searchParams;
-  const filters = resolveBrowseFilters(resolvedSearchParams);
+  const cookieStore = await cookies();
+  const filters = resolveBrowseFilters(resolvedSearchParams, {
+    city: resolveBrowseLocationCity(
+      resolvedSearchParams,
+      cookieStore.get(LOCATION_COOKIE_KEY)?.value
+    )
+  });
   const listingsPath = buildListingsPath(filters);
   const suggestionsPath = buildSearchSuggestionsPath(filters.q);
   const [categoriesResult, listingsResult, suggestionsResult] = await Promise.all([

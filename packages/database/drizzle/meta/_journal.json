@@ -274,6 +274,13 @@
       "when": 1784460846000,
       "tag": "0040_marketplace_email_delivery_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1784468619108,
+      "tag": "0041_profile_location_city_index",
+      "breakpoints": true
     }
   ]
 }

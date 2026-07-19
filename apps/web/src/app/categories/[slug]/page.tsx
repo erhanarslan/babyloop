@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { LOCATION_COOKIE_KEY } from "../../../components/navigation/location-preference-model";
 import { SiteShell } from "../../../components/ui";
 import {
   buildListingsPath,
   resolveBrowseFilters,
+  resolveBrowseLocationCity,
   type BrowseSearchParams
 } from "../../../features/listings/browse-routing";
 import { BrowsePageContent } from "../../../features/listings/browse-page-content";
@@ -68,8 +71,13 @@ export default async function CategoryPage({
     notFound();
   }
 
+  const cookieStore = await cookies();
   const filters = resolveBrowseFilters(resolvedSearchParams, {
-    categoryId: category.id
+    categoryId: category.id,
+    city: resolveBrowseLocationCity(
+      resolvedSearchParams,
+      cookieStore.get(LOCATION_COOKIE_KEY)?.value
+    )
   });
   const listingsPath = buildListingsPath(filters);
   const suggestionsPath = buildSearchSuggestionsPath(filters.q);

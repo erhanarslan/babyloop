@@ -30,4 +30,15 @@ describe("marketplace location flow", () => {
     expect(homeFeed).toContain("window.addEventListener(LOCATION_CHANGED_EVENT");
     expect(homeFeed).toContain('params.set("city", cityQueryValue)');
   });
+
+  it("makes the stored location available to server-rendered listing queries", () => {
+    const preferenceModel = read("src/components/navigation/location-preference-model.ts");
+    const browsePage = read("src/app/browse/page.tsx");
+    const categoryPage = read("src/app/categories/[slug]/page.tsx");
+
+    expect(preferenceModel).toContain("LOCATION_COOKIE_KEY");
+    expect(preferenceModel).toContain("SameSite=Lax");
+    expect(browsePage).toContain("resolveBrowseLocationCity");
+    expect(categoryPage).toContain("resolveBrowseLocationCity");
+  });
 });

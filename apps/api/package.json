@@ -17,7 +17,8 @@
     "test:integration": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit",
-    "notifications:smoke:providers": "pnpm exec tsx src/scripts/smoke-notification-provider-flow.ts"
+    "notifications:smoke:providers": "pnpm exec tsx src/scripts/smoke-notification-provider-flow.ts",
+    "notifications:smoke:marketplace-email": "pnpm exec tsx src/scripts/smoke-marketplace-email-notifications.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

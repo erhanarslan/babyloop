@@ -45,6 +45,7 @@ import {
   readStoredLocation,
   storeLocation
 } from "./navigation/location-selector";
+import { resolveLocationPreference } from "./navigation/location-preference-model";
 import { MobileNavigationDrawer } from "./navigation/mobile-navigation-drawer";
 import {
   accountLinks,
@@ -76,8 +77,21 @@ export function SiteHeader() {
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
   useEffect(() => {
-    setSelectedCityState(readStoredLocation());
-  }, []);
+    const storedCity = readStoredLocation();
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasExplicitCity = (
+      pathname === "/browse" || pathname.startsWith("/categories/")
+    ) && searchParams.has("city");
+    const explicitCity = hasExplicitCity
+      ? searchParams.get("city")?.trim()
+        ? resolveLocationPreference(searchParams.get("city"))
+        : DEFAULT_LOCATION
+      : null;
+    const nextCity = explicitCity ?? storedCity;
+
+    setSelectedCityState(nextCity);
+    storeLocation(nextCity);
+  }, [pathname]);
 
   useEffect(() => {
     setOpenMenu(null);

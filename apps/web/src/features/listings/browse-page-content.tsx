@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import {
+  DEFAULT_LOCATION,
+  LOCATION_CHANGED_EVENT,
+  storeLocation
+} from "../../components/navigation/location-selector";
+import {
   getLocationLabel,
   locationOptions
 } from "../../components/navigation/public-navigation-model";
@@ -61,6 +66,7 @@ const SORT_OPTIONS = [
 ] as const;
 
 type FilterChip = {
+  clearsLocation?: boolean;
   href: string;
   label: string;
 };
@@ -164,7 +170,12 @@ export function BrowsePageContent({
               <p className="eyebrow">Aktif filtreler</p>
               <div className="filter-chip-list">
                 {activeFilterChips.map((chip) => (
-                  <Link className="filter-chip" href={chip.href} key={chip.label}>
+                  <Link
+                    className="filter-chip"
+                    href={chip.href}
+                    key={chip.label}
+                    {...(chip.clearsLocation ? { onClick: clearMarketplaceLocation } : {})}
+                  >
                     {chip.label}
                     <span aria-hidden="true">×</span>
                   </Link>
@@ -669,6 +680,7 @@ function buildActiveFilterChips({
 
   if (filters.city.trim()) {
     chips.push({
+      clearsLocation: true,
       href: buildBrowseHrefWithOverrides(filters, paginationBasePath, currentCategorySlug, {
         city: ""
       }),
@@ -726,6 +738,13 @@ function buildActiveFilterChips({
   }
 
   return chips;
+}
+
+function clearMarketplaceLocation(): void {
+  storeLocation(DEFAULT_LOCATION);
+  window.dispatchEvent(new CustomEvent(LOCATION_CHANGED_EVENT, {
+    detail: { city: DEFAULT_LOCATION }
+  }));
 }
 
 function buildBrowseHrefWithOverrides(

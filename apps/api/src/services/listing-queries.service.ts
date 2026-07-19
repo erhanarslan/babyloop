@@ -397,7 +397,9 @@ function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
     ...(options.categoryId ? [eq(listings.categoryId, options.categoryId)] : []),
     ...(options.listingType ? [eq(listings.listingType, options.listingType)] : []),
     ...(options.condition ? [eq(listings.condition, options.condition)] : []),
-    ...(options.city ? [ilike(profiles.locationCity, options.city)] : []),
+    ...(options.city
+      ? [sql`lower(trim(${profiles.locationCity})) = lower(trim(${options.city}))`]
+      : []),
     ...(options.createdSince ? [gte(listings.createdAt, getCreatedSinceDate(options.createdSince))] : []),
     ...(options.priceMin ? [sql`${listings.priceAmount} >= ${options.priceMin}`] : []),
     ...(options.priceMax ? [sql`${listings.priceAmount} <= ${options.priceMax}`] : []),

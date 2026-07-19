@@ -1,4 +1,6 @@
 import type { BrowseListingsFilters } from "../../lib/api";
+import { normalizeLocationPreference } from "../../components/navigation/location-preference-model";
+import { getLocationQueryValue } from "../../components/navigation/public-navigation-model";
 
 export const DEFAULT_LISTINGS_LIMIT = 20;
 
@@ -25,6 +27,17 @@ export function resolveBrowseFilters(
     offset: Math.min(Math.max(offset, 0), 10000),
     ...overrides
   };
+}
+
+export function resolveBrowseLocationCity(
+  searchParams: BrowseSearchParams,
+  storedLocation: string | null | undefined
+): string {
+  if (searchParams && Object.prototype.hasOwnProperty.call(searchParams, "city")) {
+    return readParam(searchParams.city).trim();
+  }
+
+  return getLocationQueryValue(normalizeLocationPreference(storedLocation));
 }
 
 export function buildListingsPath(filters: BrowseListingsFilters): string {

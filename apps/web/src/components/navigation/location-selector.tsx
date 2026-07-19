@@ -3,10 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import { getLocationLabel, locationOptions } from "./public-navigation-model";
+import {
+  buildLocationPreferenceCookie,
+  DEFAULT_LOCATION,
+  LOCATION_CHANGED_EVENT,
+  LOCATION_STORAGE_KEY,
+  normalizeLocationPreference,
+  readLocationPreferenceFromCookie
+} from "./location-preference-model";
 
-export const LOCATION_STORAGE_KEY = "babyloop_marketplace_city";
-export const LOCATION_CHANGED_EVENT = "babyloop-marketplace-location-change";
-export const DEFAULT_LOCATION = "turkiye";
+export {
+  DEFAULT_LOCATION,
+  LOCATION_CHANGED_EVENT,
+  LOCATION_STORAGE_KEY
+} from "./location-preference-model";
 
 type LocationSelectorProps = {
   dictionary: Dictionary;
@@ -186,20 +196,29 @@ export function readStoredLocation(): string {
   try {
     const storedCity = window.localStorage.getItem(LOCATION_STORAGE_KEY);
 
-    return locationOptions.some((option) => option.value === storedCity)
-      ? storedCity ?? DEFAULT_LOCATION
-      : DEFAULT_LOCATION;
+    if (storedCity) {
+      return normalizeLocationPreference(storedCity);
+    }
   } catch {
-    return DEFAULT_LOCATION;
+    // Cookie fallback keeps the preference available when localStorage is blocked.
   }
+
+  return readLocationPreferenceFromCookie(document.cookie) ?? DEFAULT_LOCATION;
 }
 
 export function storeLocation(city: string): void {
+  const normalized = normalizeLocationPreference(city);
+
   try {
-    window.localStorage.setItem(LOCATION_STORAGE_KEY, city);
+    window.localStorage.setItem(LOCATION_STORAGE_KEY, normalized);
   } catch {
-    return;
+    // The cookie remains the server-readable source when localStorage is unavailable.
   }
+
+  document.cookie = buildLocationPreferenceCookie(
+    normalized,
+    window.location.protocol === "https:"
+  );
 }
 
 function findNearestSupportedCity(latitude: number, longitude: number): string {

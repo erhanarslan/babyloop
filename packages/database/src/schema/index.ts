@@ -226,6 +226,9 @@ export const profiles = pgTable(
   },
   (table) => [
     uniqueIndex("profiles_user_id_unique").on(table.userId),
+    index("profiles_location_city_normalized_idx")
+      .on(sql`lower(trim(${table.locationCity}))`)
+      .where(sql`${table.locationCity} is not null`),
     index("profiles_safety_status_idx").on(table.safetyStatus),
     index("profiles_safety_status_updated_by_idx").on(table.safetyStatusUpdatedByProfileId)
   ]

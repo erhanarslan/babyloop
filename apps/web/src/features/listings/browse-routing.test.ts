@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildListingsPath,
   DEFAULT_LISTINGS_LIMIT,
-  resolveBrowseFilters
+  resolveBrowseFilters,
+  resolveBrowseLocationCity
 } from "./browse-routing";
 
 describe("browse routing", () => {
@@ -71,6 +72,16 @@ describe("browse routing", () => {
     });
 
     expect(buildListingsPath(filters)).toContain("city=%C4%B0stanbul");
+  });
+
+  it("uses the stored marketplace city when the URL has no explicit city filter", () => {
+    expect(resolveBrowseLocationCity({ q: "puset" }, "istanbul")).toBe("İstanbul");
+    expect(resolveBrowseLocationCity(undefined, "turkiye")).toBe("");
+  });
+
+  it("keeps an explicit URL city ahead of the stored preference", () => {
+    expect(resolveBrowseLocationCity({ city: " Ankara " }, "istanbul")).toBe("Ankara");
+    expect(resolveBrowseLocationCity({ city: "" }, "istanbul")).toBe("");
   });
 
   it("falls back for invalid numeric filters", () => {
