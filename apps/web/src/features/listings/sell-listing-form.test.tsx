@@ -24,6 +24,12 @@ describe("SellListingForm AI draft flow", () => {
     expect(generateDraftBlock).not.toContain("createListing(");
     expect(generateDraftBlock).not.toContain("handleSubmit(");
   });
+  it("maps the selected age range into paired API fields", () => {
+    expect(source).toContain("recommendedAgeRange");
+    expect(source).toContain("recommendedAgeMinMonths: recommendedAgeRange.minMonths");
+    expect(source).toContain("recommendedAgeMaxMonths: recommendedAgeRange.maxMonths");
+  });
+
   it("requires explicit donation confirmation for price-free listings", () => {
     expect(source).toContain("needsDonationConfirmation");
     expect(source).toContain("toDonationListingPayload");

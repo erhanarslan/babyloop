@@ -5,6 +5,7 @@ import type { Category } from "../../lib/api";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { formatCategoryName, formatListingCondition, formatListingType } from "./listing-display";
 import { conditions, listingTypes } from "./listing-form-options";
+import { listingAgeRangeOptions } from "./listing-age-range";
 
 type SellListingFieldsProps = {
   categories: Category[];
@@ -80,6 +81,24 @@ export function SellListingFields({ categories }: SellListingFieldsProps) {
             </option>
           ))}
       </Select>
+
+      <div>
+        <Select
+          label="Önerilen yaş aralığı"
+          name="recommendedAgeRange"
+          defaultValue="independent"
+          required
+        >
+          {listingAgeRangeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+        <p className="mt-1 text-xs font-semibold text-muted-foreground">
+          Üreticinin ürün üzerindeki yaş bilgisini esas al.
+        </p>
+      </div>
 
       <TextInput
         label="Şehir"

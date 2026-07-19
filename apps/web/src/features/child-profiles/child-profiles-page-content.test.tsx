@@ -27,6 +27,14 @@ describe("ChildProfilesPageContent", () => {
     expect(source).toContain("Çocuk profili için isim veya etiket ekle.");
   });
 
+  it("uses dynamic age limits and real listing recommendation states", () => {
+    expect(source).toContain("max={216}");
+    expect(source).not.toContain("max={96}");
+    expect(source).toContain("matchedListings");
+    expect(source).toContain("Güncel yaşa uygun yayında ilan bulunamadı.");
+    expect(source).toContain("Yaşa uygun ilanlar yüklenemedi");
+  });
+
   it("uses one assistant CTA for age recommendations and filters browse links to image-backed listings", () => {
     expect(source).toContain("Asistana sor");
     expect(source).not.toContain("href={buildAssistantPromptHref(childProfile, recommendation)}");

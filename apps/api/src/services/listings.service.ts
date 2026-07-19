@@ -86,7 +86,9 @@ export async function createListing(
         currency: body.currency,
         status: "draft",
         listingType: effectiveListingType,
-        condition: body.condition
+        condition: body.condition,
+        recommendedAgeMinMonths: body.recommendedAgeMinMonths ?? null,
+        recommendedAgeMaxMonths: body.recommendedAgeMaxMonths ?? null
       })
       .returning({
         id: listings.id,
@@ -100,6 +102,8 @@ export async function createListing(
         publicationReviewReason: listings.publicationReviewReason,
         listingType: listings.listingType,
         condition: listings.condition,
+        recommendedAgeMinMonths: listings.recommendedAgeMinMonths,
+        recommendedAgeMaxMonths: listings.recommendedAgeMaxMonths,
         createdAt: listings.createdAt
       });
 
@@ -236,6 +240,12 @@ export async function updateListing(
         ...(body.currency !== undefined ? { currency: body.currency } : {}),
         ...(body.listingType !== undefined ? { listingType: body.listingType } : {}),
         ...(body.condition !== undefined ? { condition: body.condition } : {}),
+        ...(body.recommendedAgeMinMonths !== undefined
+          ? { recommendedAgeMinMonths: body.recommendedAgeMinMonths }
+          : {}),
+        ...(body.recommendedAgeMaxMonths !== undefined
+          ? { recommendedAgeMaxMonths: body.recommendedAgeMaxMonths }
+          : {}),
         updatedAt: now
       })
       .where(eq(listings.id, listingId));
@@ -779,6 +789,8 @@ async function mapListingRows(
     id: string;
     listingType: string;
     priceAmount: string | null;
+    recommendedAgeMinMonths: number | null;
+    recommendedAgeMaxMonths: number | null;
     status: string;
     publicationState: import("./listing-response.mapper.js").ListingPublicationState;
     publishAfter: Date | null;

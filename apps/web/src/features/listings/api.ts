@@ -13,6 +13,8 @@ export type CreateListingRequest = {
   currency?: string;
   listingType: ListingType;
   condition: ListingCondition;
+  recommendedAgeMinMonths?: number | null;
+  recommendedAgeMaxMonths?: number | null;
 };
 
 export type ListingLifecycleStatus = "draft" | "active" | "reserved" | "sold" | "archived";
@@ -24,6 +26,8 @@ export type UpdateListingRequest = Partial<{
   currency: string;
   listingType: ListingType;
   condition: ListingCondition;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
 }>;
 
 export type CreateListingPayload = {

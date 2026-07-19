@@ -16,6 +16,7 @@ import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
 import { ListingShareButton } from "./listing-share-button";
+import { formatListingAgeRange } from "./listing-age-range";
 import {
   formatCategoryName,
   formatListingCondition,
@@ -125,6 +126,12 @@ export function ListingDetailContent({
             <Badge>{categoryName}</Badge>
             <Badge>{listingType}</Badge>
             <Badge>{condition}</Badge>
+            <Badge>
+              {formatListingAgeRange(
+                listing.recommendedAgeMinMonths,
+                listing.recommendedAgeMaxMonths
+              )}
+            </Badge>
             <Badge tone={listing.status === "reserved" ? "warning" : "success"}>{listingStatus}</Badge>
           </div>
 
@@ -165,7 +172,21 @@ export function ListingDetailContent({
               <dt>İlan</dt>
               <dd>{listingStatus}</dd>
             </div>
+            <div>
+              <dt>Önerilen yaş</dt>
+              <dd>
+                {formatListingAgeRange(
+                  listing.recommendedAgeMinMonths,
+                  listing.recommendedAgeMaxMonths
+                )}
+              </dd>
+            </div>
           </dl>
+
+          <p className="listing-detail-p0-note">
+            Yaş aralığı satıcı bilgisidir; ürün güvenliği veya beden uyumu garantisi değildir.
+            Üretici etiketini ve ürün ölçülerini kontrol et.
+          </p>
 
           {isOwner ? (
             <OwnerListingActions />

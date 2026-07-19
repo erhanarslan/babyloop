@@ -3,6 +3,7 @@ import { validatePlainText } from "../services/text-safety.service.js";
 
 const DECIMAL_PRICE_PATTERN = /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+const listingAgeMonthsSchema = z.number().int().min(0).max(216).nullable();
 export const listingStatusValues = ["active", "reserved", "sold", "archived"] as const;
 export const listingTypeValues = ["sale", "swap", "donation"] as const;
 export const listingConditionValues = ["new", "like_new", "good", "fair", "needs_repair"] as const;
@@ -94,9 +95,12 @@ export const createListingBodySchema = z
       .optional()
       .default("TRY"),
     listingType: z.enum(["sale", "swap", "donation"]),
-    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"])
+    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]),
+    recommendedAgeMinMonths: listingAgeMonthsSchema.optional(),
+    recommendedAgeMaxMonths: listingAgeMonthsSchema.optional()
   })
-  .strict();
+  .strict()
+  .superRefine(validateListingAgeRange);
 
 export const updateListingBodySchema = z
   .object({
@@ -114,9 +118,12 @@ export const updateListingBodySchema = z
       .refine((value) => CURRENCY_PATTERN.test(value), "Currency must be a 3-letter code.")
       .optional(),
     listingType: z.enum(["sale", "swap", "donation"]).optional(),
-    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]).optional()
+    condition: z.enum(["new", "like_new", "good", "fair", "needs_repair"]).optional(),
+    recommendedAgeMinMonths: listingAgeMonthsSchema.optional(),
+    recommendedAgeMaxMonths: listingAgeMonthsSchema.optional()
   })
   .strict()
+  .superRefine(validateListingAgeRange)
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one listing field must be provided."
   });
@@ -134,6 +141,51 @@ export type ListingsQuery = z.infer<typeof listingsQuerySchema>;
 export type ReorderListingImagesBody = z.infer<typeof reorderListingImagesBodySchema>;
 export type UpdateListingBody = z.infer<typeof updateListingBodySchema>;
 export type UpdateListingStatusBody = z.infer<typeof updateListingStatusBodySchema>;
+
+function validateListingAgeRange(
+  value: {
+    recommendedAgeMinMonths?: number | null | undefined;
+    recommendedAgeMaxMonths?: number | null | undefined;
+  },
+  context: z.RefinementCtx
+): void {
+  const hasMin = value.recommendedAgeMinMonths !== undefined;
+  const hasMax = value.recommendedAgeMaxMonths !== undefined;
+
+  if (hasMin !== hasMax) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Recommended age minimum and maximum must be provided together.",
+      path: hasMin ? ["recommendedAgeMaxMonths"] : ["recommendedAgeMinMonths"]
+    });
+    return;
+  }
+
+  if (!hasMin || !hasMax) {
+    return;
+  }
+
+  const min = value.recommendedAgeMinMonths;
+  const max = value.recommendedAgeMaxMonths;
+
+  if (min === null && max === null) {
+    return;
+  }
+
+  if (
+    min === undefined ||
+    max === undefined ||
+    min === null ||
+    max === null ||
+    min > max
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Recommended age range must be independent or a valid minimum/maximum pair.",
+      path: ["recommendedAgeMaxMonths"]
+    });
+  }
+}
 
 function plainTextField(options: {
   allowMultiline?: boolean;

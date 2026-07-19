@@ -92,6 +92,9 @@ describe("OpenAPI runtime contract alignment", () => {
     ]);
     expect(createProperties).not.toHaveProperty("city");
     expect(createProperties).toHaveProperty("priceAmount");
+    expect(createProperties).toHaveProperty("recommendedAgeMinMonths");
+    expect(createProperties).toHaveProperty("recommendedAgeMaxMonths");
+    expect(record(createProperties.recommendedAgeMinMonths).maximum).toBe(216);
     expect(record(createProperties.currency).pattern).toBe("^[A-Za-z]{3}$");
 
     const updateBody = record(
@@ -101,6 +104,9 @@ describe("OpenAPI runtime contract alignment", () => {
 
     expect(updateProperties).not.toHaveProperty("city");
     expect(updateProperties).toHaveProperty("currency");
+    expect(updateProperties).toHaveProperty("recommendedAgeMinMonths");
+    expect(updateProperties).toHaveProperty("recommendedAgeMaxMonths");
+    expect(record(updateProperties.recommendedAgeMaxMonths).maximum).toBe(216);
     expect(updateBody.required).toBeUndefined();
   });
 

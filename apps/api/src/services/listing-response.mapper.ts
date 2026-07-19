@@ -50,6 +50,8 @@ export type ListingSummaryResponse = {
   publicationReviewReason: string | null;
   listingType: string;
   condition: string;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
   category: CategoryBasicResponse;
   firstImage: ListingImageResponse | null;
   images: ListingImageResponse[];
@@ -81,6 +83,8 @@ export function mapListingSummary(value: {
   publicationReviewReason: string | null;
   listingType: string;
   condition: string;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
   createdAt: Date;
   category: CategoryBasicResponse;
   firstImage: ListingImageResponse | null;
@@ -98,6 +102,8 @@ export function mapListingSummary(value: {
     publicationReviewReason: value.publicationReviewReason,
     listingType: value.listingType,
     condition: value.condition,
+    recommendedAgeMinMonths: value.recommendedAgeMinMonths,
+    recommendedAgeMaxMonths: value.recommendedAgeMaxMonths,
     category: value.category,
     firstImage: value.firstImage,
     images: value.images ?? (value.firstImage ? [value.firstImage] : []),

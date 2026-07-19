@@ -24,6 +24,7 @@ import {
   toDonationListingPayload
 } from "./listing-price-policy";
 import type { ListingCondition, ListingType } from "./listing-form-options";
+import { parseListingAgeRangeFormValue } from "./listing-age-range";
 import {
   buildWebAiListingDraftApplyPatch,
   normalizeWebAiListingDraftSuggestion,
@@ -604,7 +605,7 @@ function AiDraftSuggestionReview({
   );
 }
 
-function buildCreateListingPayload(formData: FormData): CreateListingRequest | null {
+export function buildCreateListingPayload(formData: FormData): CreateListingRequest | null {
   const categoryId = getString(formData, "categoryId");
   const title = getString(formData, "title");
   const description = getString(formData, "description");
@@ -612,7 +613,10 @@ function buildCreateListingPayload(formData: FormData): CreateListingRequest | n
   const currency = getString(formData, "currency").toUpperCase() || "TRY";
   const listingType = getString(formData, "listingType") as ListingType;
   const condition = getString(formData, "condition") as ListingCondition;
-  if (!categoryId || !title || !listingType || !condition) {
+  const recommendedAgeRange = parseListingAgeRangeFormValue(
+    getString(formData, "recommendedAgeRange") || "independent"
+  );
+  if (!categoryId || !title || !listingType || !condition || !recommendedAgeRange) {
     return null;
   }
 
@@ -622,6 +626,8 @@ function buildCreateListingPayload(formData: FormData): CreateListingRequest | n
     currency,
     listingType,
     condition,
+    recommendedAgeMinMonths: recommendedAgeRange.minMonths,
+    recommendedAgeMaxMonths: recommendedAgeRange.maxMonths,
     ...(description ? { description } : {}),
     ...(priceAmount ? { priceAmount } : {})
   };

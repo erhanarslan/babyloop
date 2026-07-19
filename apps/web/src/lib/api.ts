@@ -38,6 +38,8 @@ export type ListingSummary = {
   publicationReviewReason: string | null;
   listingType: string;
   condition: string;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
   category: {
     id: string;
     name: string;

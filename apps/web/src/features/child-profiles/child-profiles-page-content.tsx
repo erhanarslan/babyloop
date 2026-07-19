@@ -13,6 +13,10 @@ import {
   TextInput
 } from "../../components/ui";
 import { useProtectedRoute } from "../../lib/use-protected-route";
+import { useI18n } from "../../lib/i18n/i18n-provider";
+import { ListingImageFrame } from "../listings/listing-image-frame";
+import { formatListingPrice } from "../listings/listing-display";
+import { formatListingAgeRange } from "../listings/listing-age-range";
 import {
   buildDefaultWebChildReminderFormState,
   buildWebChildReminderCreatePayloadFromState,
@@ -46,6 +50,7 @@ type ChildProfilesPageContentProps = {
 
 type EditorMode = "view" | "new" | "edit";
 type AgeInputMode = "months" | "birth";
+type RecommendationsLoadStatus = "loading" | "ready" | "error";
 
 type ChildProfileFormState = {
   ageInputMode: AgeInputMode;
@@ -88,6 +93,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
   const { isCheckingAuth, requireAuth } = useProtectedRoute({ apiBaseUrl });
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
   const [recommendationGroups, setRecommendationGroups] = useState<LifecycleRecommendationGroup[]>([]);
+  const [recommendationsStatus, setRecommendationsStatus] = useState<RecommendationsLoadStatus>("loading");
   const [notesByChildId, setNotesByChildId] = useState<Record<string, ChildProfileNote[]>>({});
   const [remindersByChildId, setRemindersByChildId] = useState<Record<string, ChildProfileReminder[]>>({});
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
@@ -120,6 +126,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
 
     setIsLoading(true);
     setMessage(null);
+    setRecommendationsStatus("loading");
 
     try {
       const [childProfilesResponse, lifecycleRecommendationsResponse] = await Promise.all([
@@ -155,6 +162,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       setNotesByChildId(nextNotesByChildId);
       setRemindersByChildId(nextRemindersByChildId);
       setRecommendationGroups(lifecycleRecommendationsResponse.ok ? lifecycleRecommendationsResponse.data.groups : []);
+      setRecommendationsStatus(lifecycleRecommendationsResponse.ok ? "ready" : "error");
       setSelectedChildProfileId((currentId) => {
         if (currentId && nextChildProfiles.some((childProfile) => childProfile.id === currentId)) {
           return currentId;
@@ -165,6 +173,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
       setEditorMode(nextChildProfiles.length > 0 ? "view" : "new");
     } catch {
       setRecommendationGroups([]);
+      setRecommendationsStatus("error");
       setMessage({ tone: "error", text: "Çocuk bilgileri şu anda yüklenemiyor." });
     } finally {
       setIsLoading(false);
@@ -443,8 +452,10 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
             />
           ) : selectedChildProfile ? (
             <ChildProfileSummary
+              apiBaseUrl={apiBaseUrl}
               childProfile={selectedChildProfile}
               recommendationGroup={selectedRecommendationGroup}
+              recommendationsStatus={recommendationsStatus}
               notes={selectedNotes}
               reminders={selectedReminders}
               onArchiveNote={(noteId) => void handleArchiveNote(selectedChildProfile, noteId)}
@@ -525,7 +536,7 @@ function ChildProfileForm({
             <TextInput
               label="Yaş"
               min={0}
-              max={96}
+              max={216}
               onChange={(event) => onChange({ ...formState, ageMonths: event.target.value })}
               placeholder="39"
               type="number"
@@ -601,8 +612,10 @@ function ChildProfileForm({
 }
 
 function ChildProfileSummary({
+  apiBaseUrl,
   childProfile,
   recommendationGroup,
+  recommendationsStatus,
   notes,
   reminders,
   onArchiveNote,
@@ -615,8 +628,10 @@ function ChildProfileSummary({
   onPauseReminder,
   onResumeReminder,
 }: {
+  apiBaseUrl: string;
   childProfile: ChildProfile;
   recommendationGroup: LifecycleRecommendationGroup | null;
+  recommendationsStatus: RecommendationsLoadStatus;
   notes: ChildProfileNote[];
   reminders: ChildProfileReminder[];
   onArchiveNote: (noteId: string) => void;
@@ -658,8 +673,10 @@ function ChildProfileSummary({
       />
 
       <ChildLifecycleRecommendations
+        apiBaseUrl={apiBaseUrl}
         childProfile={childProfile}
         recommendationGroup={recommendationGroup}
+        status={recommendationsStatus}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -918,31 +935,37 @@ function ChildNotebookPanel({
   );
 }
 function ChildLifecycleRecommendations({
+  apiBaseUrl,
   childProfile,
-  recommendationGroup
+  recommendationGroup,
+  status
 }: {
+  apiBaseUrl: string;
   childProfile: ChildProfile;
   recommendationGroup: LifecycleRecommendationGroup | null;
+  status: RecommendationsLoadStatus;
 }) {
-  const recommendations = recommendationGroup?.recommendations ?? [];
+  const { dictionary } = useI18n();
 
-  if (!childProfile.isActive || recommendations.length === 0) {
+  if (!childProfile.isActive) {
     return null;
   }
 
-  return (
-    <details className="rounded-[1.25rem] border border-border bg-background/75 p-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-black text-foreground [&::-webkit-details-marker]:hidden">
-        <span>Yaşa göre öneriler</span>
-        <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-          {recommendations.length}
-        </span>
-      </summary>
+  const recommendations = recommendationGroup?.recommendations ?? [];
+  const matchedListings = recommendationGroup?.matchedListings ?? [];
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-muted/20 p-3">
-        <p className="text-sm font-semibold text-muted-foreground">
-          Bu öneriler yaş bandına göre güvenli kategori gezinmesi için hazırlanır; ürün seçimi ilan verisine göre yapılır.
-        </p>
+  return (
+    <section
+      aria-label="Yaşa göre öneriler"
+      className="rounded-[1.25rem] border border-border bg-background/75 p-4"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-foreground">Yaşa uygun ilanlar</h3>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
+            Güncel yaş bilgisine ve satıcının belirttiği yaş aralığına göre eşleşir.
+          </p>
+        </div>
         <Link
           className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground"
           href={buildAssistantPromptHref(childProfile)}
@@ -951,28 +974,96 @@ function ChildLifecycleRecommendations({
         </Link>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {recommendations.slice(0, 4).map((recommendation) => (
-          <article
-            className="rounded-2xl border border-border bg-muted/20 p-3"
-            key={`${recommendation.categoryId}-${recommendation.reasonCode}`}
-          >
-            <strong className="block text-sm font-black text-foreground">{recommendation.categoryName}</strong>
-            <span className="mt-1 block text-xs font-semibold text-muted-foreground">
-              {recommendation.whyNow || recommendation.reasonLabel}
-            </span>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                className="rounded-full bg-foreground px-3 py-1.5 text-xs font-black text-background"
-                href={buildRecommendationBrowseHref(recommendation)}
-              >
-                İlanlar
+      <p className="mt-3 rounded-2xl border border-amber-300/45 bg-amber-50/70 p-3 text-xs font-bold leading-5 text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/20 dark:text-amber-100">
+        Yaş eşleşmesi güvenlik veya beden uyumu garantisi değildir. Üretici etiketini,
+        ölçüleri ve ürün durumunu kontrol et.
+      </p>
+
+      {status === "loading" ? (
+        <div className="mt-3">
+          <LoadingBlock title="İlanlar hazırlanıyor" message="Güncel yaş eşleşmeleri kontrol ediliyor." />
+        </div>
+      ) : null}
+
+      {status === "error" ? (
+        <div className="mt-3">
+          <Alert
+            title="Yaşa uygun ilanlar yüklenemedi"
+            message="İlan eşleşmeleri şu anda alınamıyor. Biraz sonra tekrar dene."
+          />
+        </div>
+      ) : null}
+
+      {status === "ready" && matchedListings.length === 0 ? (
+        <p className="mt-3 rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm font-semibold text-muted-foreground">
+          Güncel yaşa uygun yayında ilan bulunamadı.
+        </p>
+      ) : null}
+
+      {status === "ready" && matchedListings.length > 0 ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {matchedListings.map((listing) => (
+            <article
+              className="overflow-hidden rounded-2xl border border-border bg-background"
+              key={listing.id}
+            >
+              <Link className="block" href={`/listings/${listing.id}`}>
+                <ListingImageFrame
+                  alt={`Ürün görseli: ${listing.title}`}
+                  apiBaseUrl={apiBaseUrl}
+                  className="aspect-[4/3] w-full"
+                  fallbackLabel="Görsel yok"
+                  url={listing.firstImage?.url ?? null}
+                />
+                <div className="p-3">
+                  <strong className="line-clamp-2 block text-sm font-black text-foreground">
+                    {listing.title}
+                  </strong>
+                  <span className="mt-1 block text-sm font-black text-foreground">
+                    {formatListingPrice(listing.price, dictionary)}
+                  </span>
+                  <span className="mt-1 block text-xs font-bold text-muted-foreground">
+                    {formatListingAgeRange(
+                      listing.recommendedAgeMinMonths,
+                      listing.recommendedAgeMaxMonths
+                    )}
+                  </span>
+                </div>
               </Link>
-            </div>
-          </article>
-        ))}
-      </div>
-    </details>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      {recommendations.length > 0 ? (
+        <details className="mt-4 rounded-2xl border border-border bg-muted/15 p-3">
+          <summary className="cursor-pointer text-sm font-black text-foreground">
+            Kategori fikirleri ({recommendations.length})
+          </summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {recommendations.slice(0, 4).map((recommendation) => (
+              <article
+                className="rounded-2xl border border-border bg-background p-3"
+                key={`${recommendation.categoryId}-${recommendation.reasonCode}`}
+              >
+                <strong className="block text-sm font-black text-foreground">
+                  {recommendation.categoryName}
+                </strong>
+                <span className="mt-1 block text-xs font-semibold text-muted-foreground">
+                  {recommendation.whyNow || recommendation.reasonLabel}
+                </span>
+                <Link
+                  className="mt-3 inline-flex rounded-full bg-foreground px-3 py-1.5 text-xs font-black text-background"
+                  href={buildRecommendationBrowseHref(recommendation)}
+                >
+                  İlanlar
+                </Link>
+              </article>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

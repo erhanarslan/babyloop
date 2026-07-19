@@ -16,6 +16,8 @@ import {
   mergeChildAgeStorageValues,
   resolveChildAgeSnapshot
 } from "./child-age.service.js";
+import { listAgeMatchedListingsForChild } from "./child-listing-recommendations.service.js";
+import type { ListingSummaryResponse } from "./listing-response.mapper.js";
 
 export type ChildProfileResponse = {
   id: string;
@@ -35,6 +37,7 @@ export type LifecycleRecommendationResponse = {
   childProfileId: string;
   childProfileLabel: string;
   ageBand: ChildAgeBand;
+  matchedListings?: ListingSummaryResponse[];
   recommendations: Array<{
     categoryId: string;
     categoryName: string;
@@ -270,7 +273,8 @@ export async function deleteChildProfile(
 
 export async function listLifecycleRecommendations(
   app: FastifyInstance,
-  profileId: string
+  profileId: string,
+  options: { includeMatchedListings?: boolean } = {}
 ): Promise<LifecycleRecommendationResponse[]> {
   const childProfileRows = await app.db
     .select()
@@ -287,25 +291,44 @@ export async function listLifecycleRecommendations(
     )
   ];
 
-  if (childProfileRows.length === 0 || categorySlugs.length === 0) {
+  if (childProfileRows.length === 0) {
     return [];
   }
 
-  const categoryRows = await app.db
-    .select({
-      id: productCategories.id,
-      name: productCategories.name,
-      slug: productCategories.slug
-    })
-    .from(productCategories)
-    .where(inArray(productCategories.slug, categorySlugs));
+  const categoryRows = categorySlugs.length === 0
+    ? []
+    : await app.db
+        .select({
+          id: productCategories.id,
+          name: productCategories.name,
+          slug: productCategories.slug
+        })
+        .from(productCategories)
+        .where(inArray(productCategories.slug, categorySlugs));
 
   const categoriesBySlug = new Map(categoryRows.map((category) => [category.slug, category]));
+  const matchedListingsByChildId: Map<string, ListingSummaryResponse[]> =
+    options.includeMatchedListings
+      ? new Map(
+          await Promise.all(
+            currentChildProfiles.map(async (childProfile) => [
+              childProfile.id,
+              await listAgeMatchedListingsForChild(app, {
+                ageMonths: childProfile.ageMonths,
+                viewerProfileId: profileId
+              })
+            ] as const)
+          )
+        )
+      : new Map();
 
   return currentChildProfiles.map((childProfile) => ({
     childProfileId: childProfile.id,
     childProfileLabel: childProfile.label,
     ageBand: childProfile.ageBand,
+    ...(options.includeMatchedListings
+      ? { matchedListings: matchedListingsByChildId.get(childProfile.id) ?? [] }
+      : {}),
     recommendations: LIFECYCLE_RECOMMENDATION_RULES[childProfile.ageBand]
       .map((rule) => {
         const category = categoriesBySlug.get(rule.categorySlug);

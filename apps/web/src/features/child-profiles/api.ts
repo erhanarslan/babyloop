@@ -2,6 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import { authFetch } from "../../lib/auth-client";
+import type { ListingSummary } from "../../lib/api";
 
 export type ChildAgeBand =
   | "expecting"
@@ -81,6 +82,7 @@ export type LifecycleRecommendationGroup = {
   childProfileId: string;
   childProfileLabel: string;
   ageBand: ChildAgeBand;
+  matchedListings: ListingSummary[];
   recommendations: Array<{
     categoryId: string;
     categoryName: string;

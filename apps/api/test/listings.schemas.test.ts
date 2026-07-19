@@ -107,6 +107,73 @@ describe("listings schemas", () => {
     ).toBe(false);
   });
 
+  it("accepts paired or age-independent listing ranges", () => {
+    const base = {
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      condition: "good",
+      listingType: "sale",
+      title: "Age matched stroller"
+    };
+
+    expect(createListingBodySchema.safeParse(base).success).toBe(true);
+    expect(
+      createListingBodySchema.safeParse({
+        ...base,
+        recommendedAgeMinMonths: null,
+        recommendedAgeMaxMonths: null
+      }).success
+    ).toBe(true);
+    expect(
+      createListingBodySchema.safeParse({
+        ...base,
+        recommendedAgeMinMonths: 12,
+        recommendedAgeMaxMonths: 24
+      }).success
+    ).toBe(true);
+    expect(
+      updateListingBodySchema.safeParse({
+        recommendedAgeMinMonths: null,
+        recommendedAgeMaxMonths: null
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects one-sided, reversed, and out-of-range listing ages", () => {
+    const base = {
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      condition: "good",
+      listingType: "sale",
+      title: "Invalid age range listing"
+    };
+
+    expect(
+      createListingBodySchema.safeParse({
+        ...base,
+        recommendedAgeMinMonths: 12
+      }).success
+    ).toBe(false);
+    expect(
+      createListingBodySchema.safeParse({
+        ...base,
+        recommendedAgeMinMonths: 24,
+        recommendedAgeMaxMonths: 12
+      }).success
+    ).toBe(false);
+    expect(
+      createListingBodySchema.safeParse({
+        ...base,
+        recommendedAgeMinMonths: 0,
+        recommendedAgeMaxMonths: 217
+      }).success
+    ).toBe(false);
+    expect(
+      updateListingBodySchema.safeParse({
+        recommendedAgeMinMonths: null,
+        recommendedAgeMaxMonths: 24
+      }).success
+    ).toBe(false);
+  });
+
   it("rejects client-provided imageUrls in create/update listing contracts", () => {
     const createResult = createListingBodySchema.safeParse({
       categoryId: "00000000-0000-4000-8000-000000000001",

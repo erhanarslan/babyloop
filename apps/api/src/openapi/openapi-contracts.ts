@@ -535,12 +535,24 @@ function registerMarketplaceBodyContracts(): void {
       }),
       condition: enumSchema(listingConditionValues, {
         example: "good"
+      }),
+      recommendedAgeMinMonths: integerSchema({
+        example: 12,
+        maximum: 216,
+        minimum: 0,
+        nullable: true
+      }),
+      recommendedAgeMaxMonths: integerSchema({
+        example: 24,
+        maximum: 216,
+        minimum: 0,
+        nullable: true
       })
     },
     ["categoryId", "title", "listingType", "condition"],
     {
       description:
-        "İlan taslak olarak oluşturulur ve yayın kontrol sürecine girer. priceAmount opsiyoneldir; boş metin fiyatı null olarak kaydeder. currency gönderilmezse TRY kullanılır."
+        "İlan taslak olarak oluşturulur ve yayın kontrol sürecine girer. Yaş aralığı alanları birlikte gönderilir; ikisinin null olması yaştan bağımsız anlamına gelir. priceAmount opsiyoneldir; boş metin fiyatı null olarak kaydeder. currency gönderilmezse TRY kullanılır."
     }
   );
 
@@ -564,12 +576,24 @@ function registerMarketplaceBodyContracts(): void {
         priceAmount: optionalDecimalInputSchema("6000"),
         currency: currencyCodeSchema("TRY"),
         listingType: enumSchema(listingTypeValues),
-        condition: enumSchema(listingConditionValues)
+        condition: enumSchema(listingConditionValues),
+        recommendedAgeMinMonths: integerSchema({
+          example: 12,
+          maximum: 216,
+          minimum: 0,
+          nullable: true
+        }),
+        recommendedAgeMaxMonths: integerSchema({
+          example: 24,
+          maximum: 216,
+          minimum: 0,
+          nullable: true
+        })
       },
       [],
       {
         description:
-          "Gönderilen alanlar güncellenir ve en az bir alan gerekir. priceAmount için boş metin mevcut fiyatı null yapar."
+          "Gönderilen alanlar güncellenir ve en az bir alan gerekir. Yaş aralığı değiştirilirken minimum ve maksimum birlikte gönderilir. priceAmount için boş metin mevcut fiyatı null yapar."
       }
     )
   );

@@ -80,6 +80,8 @@ function createFavorite(overrides: Partial<FavoriteListing> = {}): FavoriteListi
         sortOrder: 0
       }
     ],
+    recommendedAgeMinMonths: null,
+    recommendedAgeMaxMonths: null,
     favoritedAt: "2026-06-25T12:00:00.000Z",
     ...overrides
   };

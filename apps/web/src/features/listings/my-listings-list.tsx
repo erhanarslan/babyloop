@@ -25,6 +25,12 @@ import {
 } from "./listing-display";
 import { ListingImageFrame } from "./listing-image-frame";
 import {
+  formatListingAgeRange,
+  listingAgeRangeOptions,
+  parseListingAgeRangeFormValue,
+  toListingAgeRangeFormValue
+} from "./listing-age-range";
+import {
   getListingPublicationDisplay,
   hasPendingListingPublication,
 } from "./listing-publication-display";
@@ -38,6 +44,7 @@ type EditDraft = {
   title: string;
   priceAmount: string;
   currency: string;
+  recommendedAgeRange: string;
 };
 
 type ListingStatusFilter = "all" | "completed" | ListingLifecycleStatus;
@@ -304,8 +311,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
     const title = draft.title.trim();
     const priceAmount = draft.priceAmount.trim();
     const currency = draft.currency.trim().toUpperCase() || "TRY";
+    const recommendedAgeRange = parseListingAgeRangeFormValue(draft.recommendedAgeRange);
 
-    if (!title || !priceAmount) {
+    if (!title || !priceAmount || !recommendedAgeRange) {
       setActionMessage(dictionary.listings.requiredFields);
       return;
     }
@@ -317,7 +325,9 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       const body = await updateListingRequest(apiBaseUrl, listingId, {
         title,
         currency,
-        priceAmount
+        priceAmount,
+        recommendedAgeMinMonths: recommendedAgeRange.minMonths,
+        recommendedAgeMaxMonths: recommendedAgeRange.maxMonths
       });
 
       if (!body.ok) {
@@ -355,7 +365,11 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       [listing.id]: {
         title: listing.title,
         priceAmount: listing.price?.amount ?? "",
-        currency: listing.price?.currency ?? "TRY"
+        currency: listing.price?.currency ?? "TRY",
+        recommendedAgeRange: toListingAgeRangeFormValue(
+          listing.recommendedAgeMinMonths,
+          listing.recommendedAgeMaxMonths
+        )
       }
     }));
   }
@@ -373,7 +387,7 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
   function updateEditDraft(
     listingId: string,
     field: keyof EditDraft,
-    event: ChangeEvent<HTMLInputElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
     const value = event.target.value;
 
@@ -383,6 +397,8 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         title: currentDrafts[listingId]?.title ?? "",
         priceAmount: currentDrafts[listingId]?.priceAmount ?? "",
         currency: currentDrafts[listingId]?.currency ?? "TRY",
+        recommendedAgeRange:
+          currentDrafts[listingId]?.recommendedAgeRange ?? "independent",
         [field]: value
       }
     }));
@@ -405,7 +421,11 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
         [updatedListing.id]: {
           title: updatedListing.title,
           priceAmount: updatedListing.price?.amount ?? "",
-          currency: updatedListing.price?.currency ?? "TRY"
+          currency: updatedListing.price?.currency ?? "TRY",
+          recommendedAgeRange: toListingAgeRangeFormValue(
+            updatedListing.recommendedAgeMinMonths,
+            updatedListing.recommendedAgeMaxMonths
+          )
         }
       };
     });
@@ -541,7 +561,11 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
           const draft = editDrafts[listing.id] ?? {
             title: listing.title,
             priceAmount: listing.price?.amount ?? "",
-            currency: listing.price?.currency ?? "TRY"
+            currency: listing.price?.currency ?? "TRY",
+            recommendedAgeRange: toListingAgeRangeFormValue(
+              listing.recommendedAgeMinMonths,
+              listing.recommendedAgeMaxMonths
+            )
           };
           const publicationDisplay = getListingPublicationDisplay(listing);
           const isPublic =
@@ -618,6 +642,12 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                   Durum: {formatListingCondition(listing.condition, dictionary)} · Favori:{" "}
                   {listing.favoriteCount} · Tip: {formatListingType(listing.listingType, dictionary)}
                 </p>
+                <p className="text-xs font-bold text-muted-foreground">
+                  Önerilen yaş: {formatListingAgeRange(
+                    listing.recommendedAgeMinMonths,
+                    listing.recommendedAgeMaxMonths
+                  )}
+                </p>
 
                 {publicationDisplay.title ? (
                   <div
@@ -688,6 +718,34 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
                       value={draft.currency}
                       onChange={(event) => updateEditDraft(listing.id, "currency", event)}
                     />
+
+                    <label>
+                      <span>Önerilen yaş aralığı</span>
+                      <select
+                        name="recommendedAgeRange"
+                        value={draft.recommendedAgeRange}
+                        disabled={isPending}
+                        onChange={(event) =>
+                          updateEditDraft(listing.id, "recommendedAgeRange", event)
+                        }
+                      >
+                        {!listingAgeRangeOptions.some(
+                          (option) => option.value === draft.recommendedAgeRange
+                        ) ? (
+                          <option value={draft.recommendedAgeRange}>
+                            {formatListingAgeRange(
+                              listing.recommendedAgeMinMonths,
+                              listing.recommendedAgeMaxMonths
+                            )} (mevcut)
+                          </option>
+                        ) : null}
+                        {listingAgeRangeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
                     <div className="listing-card-actions">
                       <Button type="submit" disabled={isPending}>

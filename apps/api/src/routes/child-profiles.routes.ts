@@ -141,7 +141,9 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          groups: await listLifecycleRecommendations(app, currentUser.profile.id)
+          groups: await listLifecycleRecommendations(app, currentUser.profile.id, {
+            includeMatchedListings: true
+          })
         }
       };
     }

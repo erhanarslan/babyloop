@@ -530,6 +530,8 @@ export const listings = pgTable(
     publicationReviewReason: text("publication_review_reason"),
     listingType: listingTypeEnum("listing_type").notNull().default("sale"),
     condition: listingConditionEnum("condition").notNull(),
+    recommendedAgeMinMonths: integer("recommended_age_min_months"),
+    recommendedAgeMaxMonths: integer("recommended_age_max_months"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -539,6 +541,24 @@ export const listings = pgTable(
     index("listings_status_idx").on(table.status),
     index("listings_publication_state_idx").on(table.publicationState),
     index("listings_publish_after_idx").on(table.publishAfter),
+    index("listings_recommended_age_range_idx").on(
+      table.recommendedAgeMinMonths,
+      table.recommendedAgeMaxMonths,
+      table.publishedAt
+    ),
+    check(
+      "listings_recommended_age_range_check",
+      sql`(
+        (${table.recommendedAgeMinMonths} is null and ${table.recommendedAgeMaxMonths} is null)
+        or (
+          ${table.recommendedAgeMinMonths} is not null
+          and ${table.recommendedAgeMaxMonths} is not null
+          and ${table.recommendedAgeMinMonths} between 0 and 216
+          and ${table.recommendedAgeMaxMonths} between 0 and 216
+          and ${table.recommendedAgeMinMonths} <= ${table.recommendedAgeMaxMonths}
+        )
+      )`
+    ),
     check(
       "listings_public_lifecycle_publication_check",
       sql`(
