@@ -74,10 +74,20 @@ requireExcludes("apps/web/src/features/account/account-profile-page-content.tsx"
   "yakında",
   "disabled coming"
 ]);
-requireIncludes("apps/web/src/app/account/password/page.tsx", [
+requireIncludes("apps/web/src/features/account/account-security-page-content.tsx", [
   "id=\"password\"",
   "id=\"mfa\"",
-  "id=\"sessions\""
+  "id=\"sessions\"",
+  "<ChangePasswordForm",
+  "<MfaSettingsPanel",
+  "<SessionManagementPanel"
+]);
+requireIncludes("apps/web/src/app/account/security/page.tsx", [
+  "AccountSecurityPageContent",
+  "buildNoIndexMetadata"
+]);
+requireIncludes("apps/web/src/app/account/password/page.tsx", [
+  "redirect(\"/account/security#password\")"
 ]);
 
 requireIncludes("apps/web/src/features/assistant/api.ts", [
@@ -128,7 +138,6 @@ requireIncludes("apps/web/src/features/listings/sell-listing-form.tsx", [
   "handleGenerateDraftSuggestion"
 ]);
 requireExcludes("apps/web/src/features/listings/sell-listing-form.tsx", [
-  "submitListing(",
   "providerName",
   "promptVersion",
   "modelName"

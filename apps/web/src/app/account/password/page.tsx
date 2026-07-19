@@ -5,9 +5,9 @@ import { buildNoIndexMetadata } from "../../../lib/seo";
 
 export const metadata: Metadata = buildNoIndexMetadata(
   "Şifre değiştir",
-  "BabyLoop şifre değiştirme işlemi güvenli hesap penceresinde tamamlanır."
+  "BabyLoop şifre değiştirme işlemi hesap güvenliği merkezinde tamamlanır."
 );
 
 export default function AccountPasswordPage() {
-  redirect("/account?changePassword=1");
+  redirect("/account/security#password");
 }

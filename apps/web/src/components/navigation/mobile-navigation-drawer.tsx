@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { ProtectedActionLink as Link } from "../../features/auth/protected-action-link";
-import { useEffect, useState } from "react";
 import type { AuthMe } from "../../lib/auth-client";
 import type { Dictionary } from "../../lib/i18n/dictionaries";
 import {
@@ -11,6 +12,15 @@ import {
   locationOptions
 } from "./public-navigation-model";
 import { SearchOverlay } from "./search-overlay";
+
+const DRAWER_FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])"
+].join(",");
 
 type MobileNavigationDrawerProps = {
   apiBaseUrl: string;
@@ -39,24 +49,58 @@ export function MobileNavigationDrawer({
   theme,
   toggleTheme
 }: MobileNavigationDrawerProps) {
+  const drawerRef = useRef<HTMLElement | null>(null);
   const [openCategoryId, setOpenCategoryId] = useState<string>(babyCategoryGroups[0]?.id ?? "travel");
 
   useEffect(() => {
     document.documentElement.classList.toggle("mobile-market-nav-open", isOpen);
+    const previouslyFocusedElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
 
-    function handleEscape(event: KeyboardEvent) {
+    function handleDrawerKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = getDrawerFocusableElements(drawerRef.current);
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements.at(-1);
+
+      if (!firstElement || !lastElement) {
+        event.preventDefault();
+        drawerRef.current?.focus();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     }
 
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
+      document.addEventListener("keydown", handleDrawerKeyDown);
+      const firstElement = getDrawerFocusableElements(drawerRef.current)[0];
+      (firstElement ?? drawerRef.current)?.focus();
     }
 
     return () => {
       document.documentElement.classList.remove("mobile-market-nav-open");
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleDrawerKeyDown);
+
+      if (isOpen && previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus();
+      }
     };
   }, [isOpen, onClose]);
 
@@ -72,9 +116,15 @@ export function MobileNavigationDrawer({
       ) : null}
 
       <aside
+        aria-hidden={!isOpen}
         aria-label={dictionary.mobileNavigation.drawerLabel}
+        aria-modal={isOpen ? true : undefined}
         className={isOpen ? "mobile-market-drawer open" : "mobile-market-drawer"}
         id="mobile-market-navigation"
+        inert={!isOpen}
+        ref={drawerRef}
+        role="dialog"
+        tabIndex={-1}
       >
         <div className="mobile-market-drawer-header">
           <Link className="mobile-market-brand-logo" href="/" aria-label={dictionary.mobileNavigation.brandHomeLabel} onClick={onClose}>
@@ -203,4 +253,14 @@ export function MobileNavigationDrawer({
       </aside>
     </>
   );
+}
+
+function getDrawerFocusableElements(drawer: HTMLElement | null): HTMLElement[] {
+  if (!drawer) {
+    return [];
+  }
+
+  return Array.from(
+    drawer.querySelectorAll<HTMLElement>(DRAWER_FOCUSABLE_SELECTOR)
+  ).filter((element) => !element.hasAttribute("disabled"));
 }

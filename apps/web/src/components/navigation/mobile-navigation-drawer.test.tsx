@@ -120,6 +120,49 @@ describe("MobileNavigationDrawer", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps keyboard focus inside the open drawer and hides the closed drawer", () => {
+    const { rerender } = render(
+      <MobileNavigationDrawer
+        apiBaseUrl="http://api.test"
+        currentAuth={null}
+        dictionary={dictionary}
+        isOpen
+        onClose={vi.fn()}
+        onLogin={vi.fn()}
+        onLocationChange={vi.fn()}
+        onLogout={vi.fn()}
+        selectedCity="istanbul"
+        theme="light"
+        toggleTheme={vi.fn()}
+      />
+    );
+    const drawer = screen.getByRole("dialog", {
+      name: dictionary.mobileNavigation.drawerLabel
+    });
+
+    expect(drawer).toContainElement(document.activeElement as HTMLElement);
+    expect(drawer).toHaveAttribute("aria-modal", "true");
+
+    rerender(
+      <MobileNavigationDrawer
+        apiBaseUrl="http://api.test"
+        currentAuth={null}
+        dictionary={dictionary}
+        isOpen={false}
+        onClose={vi.fn()}
+        onLogin={vi.fn()}
+        onLocationChange={vi.fn()}
+        onLogout={vi.fn()}
+        selectedCity="istanbul"
+        theme="light"
+        toggleTheme={vi.fn()}
+      />
+    );
+
+    expect(drawer).toHaveAttribute("aria-hidden", "true");
+    expect(drawer).toHaveAttribute("inert");
+  });
+
   it("lets mobile users change the marketplace city", () => {
     const onLocationChange = vi.fn();
     renderDrawer({ onLocationChange });

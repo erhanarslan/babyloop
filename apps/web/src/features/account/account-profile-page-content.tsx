@@ -235,7 +235,7 @@ function ProfileSummary({
       <div>
         <Link
           className="inline-flex rounded-full border border-border bg-background px-4 py-2.5 text-sm font-black text-foreground transition hover:bg-muted"
-          href="/account/password"
+          href="/account/security"
         >
           {dictionary.accountProfile.securityAndPassword}
         </Link>
@@ -287,11 +287,11 @@ function SecuritySection({ dictionary, title }: { dictionary: Dictionary; title:
       <div className="grid gap-3">
         <Link
           className="grid gap-1 rounded-2xl border border-border/70 bg-muted/20 p-4 transition hover:border-primary/30 hover:bg-primary/5"
-          href="/account/password"
+          href="/account/security"
         >
-          <span className="text-base font-black text-foreground">Şifre değiştir</span>
+          <span className="text-base font-black text-foreground">Güvenlik merkezini aç</span>
           <span className="text-sm font-semibold leading-6 text-muted-foreground">
-            Mevcut şifrenle yeni şifreni güvenli şekilde güncelle.
+            Şifreni, OTP / MFA ayarını ve aktif cihaz oturumlarını yönet.
           </span>
         </Link>
       </div>

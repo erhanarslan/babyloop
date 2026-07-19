@@ -10,7 +10,7 @@ import {
 } from "@babyloop/shared";
 import { ProtectedActionLink as Link } from "../features/auth/protected-action-link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AUTH_CHANGED_EVENT,
   fetchCurrentUserWithoutRefresh,
@@ -69,6 +69,7 @@ export function SiteHeader() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { openAuthPrompt } = useAuthPrompt();
   const [selectedCity, setSelectedCityState] = useState(DEFAULT_LOCATION);
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
   useEffect(() => {
     setSelectedCityState(readStoredLocation());
@@ -513,7 +514,7 @@ export function SiteHeader() {
         currentAuth={currentAuth}
         dictionary={dictionary}
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={closeDrawer}
         onLogin={() => {
           setIsDrawerOpen(false);
           openAuthPrompt({ title: dictionary.auth.loginTitle });

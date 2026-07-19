@@ -1,9 +1,16 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
   buildSavedSearchChips,
   buildSavedSearchHref
 } from "./saved-searches-page-content";
+
+const legacyRouteSource = readFileSync(
+  join(process.cwd(), "src/app/saved-searches/page.tsx"),
+  "utf8"
+);
 
 describe("saved searches management page", () => {
   it("localizes sort values instead of exposing API tokens", () => {
@@ -29,5 +36,11 @@ describe("saved searches management page", () => {
     expect(href).toContain("priceMax=2500");
     expect(href).not.toContain("sort=newest");
     expect(href).not.toContain("hasImages");
+  });
+
+  it("redirects the legacy route to the canonical account page", () => {
+    expect(legacyRouteSource).toContain('redirect("/account/saved-searches")');
+    expect(legacyRouteSource).toContain("buildNoIndexMetadata");
+    expect(legacyRouteSource).not.toContain("<SavedSearchesPageContent");
   });
 });

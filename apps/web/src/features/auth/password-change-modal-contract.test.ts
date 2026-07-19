@@ -14,6 +14,10 @@ const routeSource = readFileSync(
   join(process.cwd(), "src/app/account/password/page.tsx"),
   "utf8"
 );
+const securityPageSource = readFileSync(
+  join(process.cwd(), "src/features/account/account-security-page-content.tsx"),
+  "utf8"
+);
 
 describe("password change modal contract", () => {
   it("opens password actions in a global modal instead of navigating", () => {
@@ -31,8 +35,17 @@ describe("password change modal contract", () => {
     );
   });
 
-  it("redirects legacy direct password URLs into the modal-backed account view", () => {
-    expect(routeSource).toContain('redirect("/account?changePassword=1")');
+  it("redirects legacy direct password URLs into the security center", () => {
+    expect(routeSource).toContain('redirect("/account/security#password")');
     expect(routeSource).not.toContain("<ChangePasswordForm");
+  });
+
+  it("exposes password, MFA, and session management in the security center", () => {
+    expect(securityPageSource).toContain('id="password"');
+    expect(securityPageSource).toContain('id="mfa"');
+    expect(securityPageSource).toContain('id="sessions"');
+    expect(securityPageSource).toContain("<ChangePasswordForm");
+    expect(securityPageSource).toContain("<MfaSettingsPanel");
+    expect(securityPageSource).toContain("<SessionManagementPanel");
   });
 });

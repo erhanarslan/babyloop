@@ -64,7 +64,7 @@ export function ChangePasswordForm({ apiBaseUrl }: ChangePasswordFormProps) {
 
       clearAuthToken({ broadcast: true });
       router.replace("/login?passwordChanged=1");
-} catch {
+    } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
       setIsSubmitting(false);

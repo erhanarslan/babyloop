@@ -27,7 +27,7 @@ export function SiteFooter() {
     },
     {
       links: [
-        { href: "/#safety", label: dictionary.home.safetyEyebrow },
+        { href: "/guides", label: dictionary.home.safetyEyebrow },
         { href: "/browse", label: dictionary.common.browseMarketplace }
       ],
       title: dictionary.footer.support
