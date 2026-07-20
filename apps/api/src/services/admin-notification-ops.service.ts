@@ -62,6 +62,7 @@ export type AdminNotificationDeliveryLogPreview = {
   totals: {
     all: number;
     candidate: number;
+    processing: number;
     blocked: number;
     sent: number;
     failed: number;
@@ -95,6 +96,9 @@ export type AdminNotificationDeliveryLogPreviewItem = {
   attemptCount: number;
   lastAttemptAt: string | null;
   nextAttemptAt: string | null;
+  claimedAt: string | null;
+  claimExpiresAt: string | null;
+  workerId: string | null;
   lastErrorCode: string | null;
   lastErrorMessageRedacted: string | null;
   skippedReason: string | null;
@@ -158,7 +162,7 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
       }
     ],
     nextSteps: [
-      "delivery log transition modeli: candidate/blocked/sent/failed/skipped",
+      "delivery log transition modeli: candidate/processing/blocked/sent/failed/skipped",
       "notification_delivery_logs schema ve admin audit bağlantısı",
       "sender provider sandbox",
       "retry ve dead-letter policy",
@@ -218,6 +222,9 @@ export async function getAdminNotificationDeliveryLogPreview(
         attemptCount: notificationDeliveryLogs.attemptCount,
         lastAttemptAt: notificationDeliveryLogs.lastAttemptAt,
         nextAttemptAt: notificationDeliveryLogs.nextAttemptAt,
+        claimedAt: notificationDeliveryLogs.claimedAt,
+        claimExpiresAt: notificationDeliveryLogs.claimExpiresAt,
+        workerId: notificationDeliveryLogs.workerId,
         lastErrorCode: notificationDeliveryLogs.lastErrorCode,
         lastErrorMessageRedacted: notificationDeliveryLogs.lastErrorMessageRedacted,
         skippedReason: notificationDeliveryLogs.skippedReason,
@@ -247,6 +254,7 @@ export async function getAdminNotificationDeliveryLogPreview(
     totals: {
       all: totalRows[0]?.count ?? 0,
       candidate: totalByStatus.get("candidate") ?? 0,
+      processing: totalByStatus.get("processing") ?? 0,
       blocked: totalByStatus.get("blocked") ?? 0,
       sent: totalByStatus.get("sent") ?? 0,
       failed: totalByStatus.get("failed") ?? 0,
@@ -273,6 +281,9 @@ export async function getAdminNotificationDeliveryLogPreview(
       attemptCount: row.attemptCount,
       lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
       nextAttemptAt: row.nextAttemptAt?.toISOString() ?? null,
+      claimedAt: row.claimedAt?.toISOString() ?? null,
+      claimExpiresAt: row.claimExpiresAt?.toISOString() ?? null,
+      workerId: sanitizeShortText(row.workerId),
       lastErrorCode: sanitizeShortText(row.lastErrorCode),
       lastErrorMessageRedacted: sanitizeShortText(row.lastErrorMessageRedacted),
       skippedReason: sanitizeShortText(row.skippedReason),
@@ -286,7 +297,7 @@ export async function getAdminNotificationDeliveryLogPreview(
       createdAt: row.createdAt.toISOString()
     })),
     privacyNote:
-      "Preview yalnızca aggregate count, provider status ve redacted source/message ref döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider secret veya raw body göstermez."
+      "Preview yalnızca aggregate count, claim lease status, provider status ve redacted source/message ref döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization, provider secret veya raw body göstermez."
   };
 }
 
@@ -339,7 +350,7 @@ function normalizeChannel(value: string): NotificationDeliveryChannel | "email" 
 }
 
 function normalizeStatus(value: string): NotificationDeliveryLogStatus | "unknown" {
-  if (value === "candidate" || value === "blocked" || value === "sent" || value === "failed" || value === "skipped") {
+  if (value === "candidate" || value === "processing" || value === "blocked" || value === "sent" || value === "failed" || value === "skipped") {
     return value;
   }
 

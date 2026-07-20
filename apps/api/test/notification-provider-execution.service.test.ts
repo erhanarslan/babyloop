@@ -275,6 +275,146 @@ describe("notification provider execution service", () => {
     expect(JSON.stringify(body)).not.toContain("private message contents");
   });
 
+
+  it("atomically claims a delivery so concurrent workers call the provider once", async () => {
+    const user = await createUser(app, { email: "atomic-claim@example.test" });
+    await enablePreference(user.accessToken, "child_reminder", "n8n");
+    const logId = await createDeliveryLog(user.profile.id, "n8n");
+    let resolveFetch: ((response: Response) => void) | null = null;
+    const fetchImpl = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    const env = {
+      N8N_NOTIFICATION_WEBHOOK_ENABLED: "true",
+      N8N_NOTIFICATION_WEBHOOK_URL: "https://n8n.example.test/webhook"
+    };
+
+    const first = executeNotificationProviderDelivery(app, logId, {
+      env,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      workerId: "worker-a"
+    });
+
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+
+    const second = await executeNotificationProviderDelivery(app, logId, {
+      env,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      workerId: "worker-b"
+    });
+
+    expect(second).toMatchObject({
+      status: "duplicate",
+      reason: "already_claimed"
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    if (!resolveFetch) {
+      throw new Error("Deferred provider response was not initialized.");
+    }
+
+    resolveFetch(new Response(JSON.stringify({ id: "atomic-run-1" }), { status: 200 }));
+    await expect(first).resolves.toMatchObject({ status: "sent" });
+    expect(await getDeliveryLog(logId)).toMatchObject({
+      status: "sent",
+      claimToken: null,
+      claimedAt: null,
+      claimExpiresAt: null,
+      workerId: null,
+      attemptCount: 1
+    });
+  });
+
+  it("recovers an expired processing claim and clears the lease after delivery", async () => {
+    const user = await createUser(app, { email: "stale-claim@example.test" });
+    await enablePreference(user.accessToken, "child_reminder", "n8n");
+    const logId = await createDeliveryLog(user.profile.id, "n8n");
+    const now = new Date("2030-01-01T10:00:00.000Z");
+
+    await app.db
+      .update(notificationDeliveryLogs)
+      .set({
+        status: "processing",
+        provider: "n8n",
+        providerStatus: "processing",
+        claimToken: "stale-claim-token",
+        claimedAt: new Date("2030-01-01T09:50:00.000Z"),
+        claimExpiresAt: new Date("2030-01-01T09:55:00.000Z"),
+        workerId: "dead-worker"
+      })
+      .where(eq(notificationDeliveryLogs.id, logId));
+
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "recovered-run-1" }), { status: 200 }));
+    const summary = await processPendingNotificationProviderDeliveries(app, {
+      env: {
+        N8N_NOTIFICATION_WEBHOOK_ENABLED: "true",
+        N8N_NOTIFICATION_WEBHOOK_URL: "https://n8n.example.test/webhook"
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now,
+      workerId: "recovery-worker"
+    });
+
+    expect(summary).toMatchObject({
+      processed: 1,
+      claimed: 1,
+      staleRecovered: 1,
+      sent: 1
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await getDeliveryLog(logId)).toMatchObject({
+      status: "sent",
+      claimToken: null,
+      claimedAt: null,
+      claimExpiresAt: null,
+      workerId: null
+    });
+  });
+
+  it("does not steal an active processing claim", async () => {
+    const user = await createUser(app, { email: "active-claim@example.test" });
+    const logId = await createDeliveryLog(user.profile.id, "n8n");
+    const now = new Date("2030-01-01T10:00:00.000Z");
+
+    await app.db
+      .update(notificationDeliveryLogs)
+      .set({
+        status: "processing",
+        provider: "n8n",
+        providerStatus: "processing",
+        claimToken: "active-claim-token",
+        claimedAt: now,
+        claimExpiresAt: new Date("2030-01-01T10:05:00.000Z"),
+        workerId: "active-worker"
+      })
+      .where(eq(notificationDeliveryLogs.id, logId));
+
+    const fetchImpl = vi.fn();
+    const summary = await processPendingNotificationProviderDeliveries(app, {
+      env: {
+        N8N_NOTIFICATION_WEBHOOK_ENABLED: "true",
+        N8N_NOTIFICATION_WEBHOOK_URL: "https://n8n.example.test/webhook"
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now,
+      workerId: "other-worker"
+    });
+
+    expect(summary).toMatchObject({
+      processed: 0,
+      claimed: 0,
+      staleRecovered: 0
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getDeliveryLog(logId)).toMatchObject({
+      status: "processing",
+      claimToken: "active-claim-token",
+      workerId: "active-worker"
+    });
+  });
+
   it("sends Expo push, revokes invalid tokens, and processes pending logs", async () => {
     process.env.PUSH_TOKEN_ENCRYPTION_KEY = "test-push-token-encryption-secret";
     const user = await createUser(app, { email: "push-provider@example.test" });

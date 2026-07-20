@@ -517,3 +517,12 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Verified-user and Google-linked-user counts are checked against database state, not inferred only from event trends.
 - [ ] Analytics retention and rollup commands are dry-run/idempotent where applicable.
 - [ ] No session replay, keyboard capture, DOM click stream, or third-party cross-site tracking is introduced.
+
+
+### Notification worker concurrency
+
+- [ ] `pnpm security:notification-worker-atomic-claim` passes.
+- [ ] Start overlapping notification processor runs against a safe sandbox provider and confirm one provider request per delivery log.
+- [ ] Confirm an active processing lease remains owned by its worker.
+- [ ] Confirm an expired processing lease is recovered and reported in the worker summary.
+- [ ] Confirm backoffice shows processing/lease state without claim tokens, provider credentials, recipient data or raw payloads.

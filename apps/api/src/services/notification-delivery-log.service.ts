@@ -5,7 +5,7 @@ import type {
   NotificationDeliveryPolicyResult
 } from "./notification-delivery-policy.service.js";
 
-export type NotificationDeliveryLogStatus = "candidate" | "blocked" | "sent" | "failed" | "skipped";
+export type NotificationDeliveryLogStatus = "candidate" | "processing" | "blocked" | "sent" | "failed" | "skipped";
 
 export type NotificationDeliveryLogRecord = {
   profileId: string;

@@ -38,7 +38,7 @@ This release gate covers backlog items #193-#223. Codex did not run tests in thi
 The package intentionally does not enable any external provider by default. It also does not implement:
 
 - Real SMS send.
-- Real queue worker.
+- Persistent queue infrastructure; the current one-shot database-backed processor is claim-safe but must still be scheduled by the deployment platform.
 - Real payment/Iyzico changes.
 - Real production S3/R2 migration.
 
@@ -50,6 +50,12 @@ No external provider call is made with the default configuration. Resend can per
 
 BabyLoop now has an env-gated notification provider execution layer on top of `notification_delivery_logs`. Missing env keeps delivery safe as `provider_disabled` / `skipped` and no network call is made.
 
+Worker env vars:
+
+- `NOTIFICATION_PROVIDER_PROCESS_LIMIT`
+- `NOTIFICATION_PROVIDER_WORKER_ID` (optional; generated from hostname/pid/random suffix when omitted)
+- `NOTIFICATION_PROVIDER_CLAIM_TTL_MS` (default 300000; runtime keeps the lease above provider timeout plus 30 seconds)
+
 Provider env vars:
 
 - n8n: `N8N_NOTIFICATION_WEBHOOK_ENABLED`, `N8N_NOTIFICATION_WEBHOOK_URL`, `N8N_NOTIFICATION_WEBHOOK_BEARER_TOKEN`, `N8N_NOTIFICATION_WEBHOOK_SECRET`, `N8N_NOTIFICATION_WEBHOOK_TIMEOUT_MS`, `N8N_NOTIFICATION_WEBHOOK_MAX_RETRIES`
@@ -58,7 +64,10 @@ Provider env vars:
 
 Delivery lifecycle:
 
-- `candidate` logs are processed by `pnpm --filter @babyloop/api notifications:process`.
+- `candidate` and due retry logs are processed by `pnpm --filter @babyloop/api notifications:process`.
+- A worker must atomically move a row to `processing` with a claim token, worker id, claimed time and lease expiry before any provider call.
+- Concurrent workers cannot send the same active claim. Expired `processing` claims can be recovered by another worker.
+- Final `sent`, `failed` or `skipped` writes are claim-token-bound and clear the lease fields.
 - Preference/consent gates run before provider calls.
 - Provider env missing: `skipped` with `skippedReason=provider_disabled`.
 - Success: `sent`, `providerStatus=sent`, redacted `providerMessageId`, `sentAt`, `deliveredAt`.

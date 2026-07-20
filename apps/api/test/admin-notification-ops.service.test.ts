@@ -67,6 +67,29 @@ describe("admin notification ops service", () => {
           cookie: "session-cookie",
           authorization: "Bearer secret"
         }
+      },
+      {
+        profileId: user.profile.id,
+        kind: "security",
+        sourceType: "login_approval",
+        sourceId: "login-approval-1",
+        channel: "push",
+        status: "processing",
+        provider: "expo",
+        providerStatus: "processing",
+        claimToken: "secret-claim-token",
+        claimedAt: new Date("2030-01-01T10:01:00.000Z"),
+        claimExpiresAt: new Date("2030-01-01T10:06:00.000Z"),
+        workerId: "notification-worker-1",
+        idempotencyKey: "secret-idempotency-key-3",
+        dedupKey: "secret-dedup-key-3",
+        frequencyWindowHours: 1,
+        deliveryAllowed: true,
+        draftOnly: false,
+        blockedReasons: [],
+        metadata: {
+          token: "secret-device-token"
+        }
       }
     ]);
 
@@ -110,8 +133,9 @@ describe("admin notification ops service", () => {
     );
 
     expect(preview.deliveryLogPreview.totals).toMatchObject({
-      all: 2,
+      all: 3,
       candidate: 1,
+      processing: 1,
       blocked: 1
     });
     expect(preview.deliveryLogPreview.byKind).toEqual(
@@ -126,7 +150,7 @@ describe("admin notification ops service", () => {
         { channel: "email_draft", count: 1 }
       ])
     );
-    expect(preview.deliveryLogPreview.recent).toHaveLength(2);
+    expect(preview.deliveryLogPreview.recent).toHaveLength(3);
     expect(preview.deliveryLogPreview.recent).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -136,10 +160,19 @@ describe("admin notification ops service", () => {
           providerStatus: "retry_scheduled",
           attemptCount: 2,
           lastErrorCode: "resend_500"
+        }),
+        expect.objectContaining({
+          status: "processing",
+          provider: "expo",
+          providerStatus: "processing",
+          workerId: "notification-worker-1",
+          claimedAt: "2030-01-01T10:01:00.000Z",
+          claimExpiresAt: "2030-01-01T10:06:00.000Z"
         })
       ])
     );
     expect(serialized).not.toMatch(/parent@example|ops-preview-user@example|secret-idempotency|secret-dedup|secret-token|session-cookie|Bearer secret|raw-sensitive-payload-from-metadata/iu);
+    expect(serialized).not.toMatch(/secret-claim-token|secret-device-token/iu);
     expect(preview.warning).toContain("Email, push, n8n, queue veya in-app notification gönderimi yapmaz");
   });
 });

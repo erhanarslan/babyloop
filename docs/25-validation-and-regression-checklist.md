@@ -915,3 +915,15 @@ Run pnpm security:mobile-auth-otp-session-regression before claiming mobile auth
 This audit covers mfa_required, OTP, refresh, logout, SecureStore, mobile P0 release gate, and API/mobile session regression expectations.
 
 Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
+
+
+### Notification worker atomic claim
+
+- [ ] `pnpm security:notification-worker-atomic-claim` passes.
+- [ ] Migration `0042_notification_worker_atomic_claim` is applied before the new worker starts.
+- [ ] Two concurrent workers produce one provider call for one delivery log.
+- [ ] Active processing leases are not stolen.
+- [ ] Expired processing leases are recoverable and recovery is counted.
+- [ ] Sent/failed/skipped final writes require the active claim token and clear all lease fields.
+- [ ] SIGTERM/SIGINT stop new claims and abort the current provider request through the normal retry path.
+- [ ] Backoffice exposes processing count, sanitized worker id and lease timestamps but never claim tokens.

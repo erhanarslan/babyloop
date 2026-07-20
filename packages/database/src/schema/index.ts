@@ -1004,6 +1004,10 @@ export const notificationDeliveryLogs = pgTable(
     provider: varchar("provider", { length: 40 }),
     providerStatus: varchar("provider_status", { length: 40 }),
     providerMessageId: varchar("provider_message_id", { length: 160 }),
+    claimToken: varchar("claim_token", { length: 64 }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimExpiresAt: timestamp("claim_expires_at", { withTimezone: true }),
+    workerId: varchar("worker_id", { length: 120 }),
     attemptCount: integer("attempt_count").notNull().default(0),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
@@ -1021,7 +1025,7 @@ export const notificationDeliveryLogs = pgTable(
   (table) => [
     check(
       "notification_delivery_logs_status_check",
-      sql`${table.status} in ('candidate', 'blocked', 'sent', 'failed', 'skipped')`
+      sql`${table.status} in ('candidate', 'processing', 'blocked', 'sent', 'failed', 'skipped')`
     ),
     check(
       "notification_delivery_logs_channel_check",
@@ -1039,7 +1043,8 @@ export const notificationDeliveryLogs = pgTable(
     index("notification_delivery_logs_profile_created_at_idx").on(table.profileId, table.createdAt),
     index("notification_delivery_logs_dedup_created_at_idx").on(table.dedupKey, table.createdAt),
     index("notification_delivery_logs_kind_source_idx").on(table.kind, table.sourceType, table.sourceId),
-    index("notification_delivery_logs_provider_status_idx").on(table.provider, table.status, table.nextAttemptAt)
+    index("notification_delivery_logs_provider_status_idx").on(table.provider, table.status, table.nextAttemptAt),
+    index("notification_delivery_logs_claim_idx").on(table.status, table.claimExpiresAt, table.nextAttemptAt)
   ]
 );
 

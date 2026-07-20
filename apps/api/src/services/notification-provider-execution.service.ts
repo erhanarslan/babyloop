@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { notificationDeliveryLogs, profiles, users } from "@babyloop/database/schema";
-import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { NotificationPreferenceSource } from "../schemas/notification-preferences.schemas.js";
 import { sanitizeNotificationMetadata } from "./notification-delivery-log.service.js";
@@ -24,8 +25,11 @@ export type NotificationProviderExecutionResult = {
   deliveryLogId: string;
   provider: NotificationProviderName | null;
   retryable: boolean;
+  recoveredStaleClaim: boolean;
   reason:
     | "already_sent"
+    | "already_claimed"
+    | "not_claimable"
     | "unsupported_channel"
     | "delivery_disabled"
     | "preference_disabled"
@@ -42,10 +46,16 @@ export type NotificationProviderExecutionOptions = {
   env?: NodeJS.ProcessEnv | undefined;
   fetchImpl?: typeof fetch | undefined;
   now?: Date | undefined;
+  workerId?: string | undefined;
+  claimTtlMs?: number | undefined;
+  signal?: AbortSignal | undefined;
 };
 
 export type ProcessPendingNotificationProviderDeliveriesSummary = {
   processed: number;
+  claimed: number;
+  duplicates: number;
+  staleRecovered: number;
   sent: number;
   skipped: number;
   failed: number;
@@ -75,6 +85,9 @@ type ProviderAttemptResult =
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_TIMEOUT_MS = 3000;
+const DEFAULT_CLAIM_TTL_MS = 5 * 60 * 1000;
+const MIN_CLAIM_TTL_MS = 60 * 1000;
+const MAX_CLAIM_TTL_MS = 15 * 60 * 1000;
 
 export async function executeNotificationProviderDelivery(
   app: FastifyInstance,
@@ -92,46 +105,72 @@ export async function executeNotificationProviderDelivery(
       deliveryLogId,
       provider: null,
       retryable: false,
+      recoveredStaleClaim: false,
       reason: null
     };
   }
 
   const provider = resolveProviderForChannel(row.channel);
-
-  if (!provider) {
-    await markDeliverySkipped(app, row.id, {
-      provider: null,
-      reason: "unsupported_channel",
-      now
-    });
-
-    return result("skipped", row.id, null, false, "unsupported_channel");
-  }
+  const providerConfig = provider ? readProviderConfig(provider, env) : null;
 
   if (row.status === "sent") {
     return result("duplicate", row.id, provider, false, "already_sent");
   }
 
+  const claim = await claimNotificationProviderDelivery(app, row, {
+    now,
+    provider,
+    workerId: options.workerId,
+    claimTtlMs: Math.max(
+      options.claimTtlMs ?? readPositiveInteger(env.NOTIFICATION_PROVIDER_CLAIM_TTL_MS, DEFAULT_CLAIM_TTL_MS),
+      (providerConfig?.timeoutMs ?? 0) + 30_000
+    )
+  });
+
+  if (!claim) {
+    const current = await getDeliveryLogRow(app, deliveryLogId);
+
+    if (current?.status === "sent") {
+      return result("duplicate", row.id, provider, false, "already_sent");
+    }
+
+    return result(
+      "duplicate",
+      row.id,
+      provider,
+      false,
+      current?.status === "processing" ? "already_claimed" : "not_claimable"
+    );
+  }
+
+  if (!provider) {
+    await markDeliverySkipped(app, row.id, claim.claimToken, {
+      provider: null,
+      reason: "unsupported_channel",
+      now
+    });
+
+    return result("skipped", row.id, null, false, "unsupported_channel", claim.recoveredStaleClaim);
+  }
+
   if (!row.deliveryAllowed || row.draftOnly) {
-    await markDeliverySkipped(app, row.id, {
+    await markDeliverySkipped(app, row.id, claim.claimToken, {
       provider,
       reason: "delivery_disabled",
       now
     });
 
-    return result("skipped", row.id, provider, false, "delivery_disabled");
+    return result("skipped", row.id, provider, false, "delivery_disabled", claim.recoveredStaleClaim);
   }
 
-  const providerConfig = readProviderConfig(provider, env);
-
-  if (!providerConfig.enabled) {
-    await markDeliverySkipped(app, row.id, {
+  if (!providerConfig?.enabled) {
+    await markDeliverySkipped(app, row.id, claim.claimToken, {
       provider,
       reason: "provider_disabled",
       now
     });
 
-    return result("skipped", row.id, provider, false, "provider_disabled");
+    return result("skipped", row.id, provider, false, "provider_disabled", claim.recoveredStaleClaim);
   }
 
   const preferenceEnabled = await isNotificationPreferenceEnabledForDelivery(
@@ -142,45 +181,46 @@ export async function executeNotificationProviderDelivery(
   );
 
   if (!preferenceEnabled) {
-    await markDeliverySkipped(app, row.id, {
+    await markDeliverySkipped(app, row.id, claim.claimToken, {
       provider,
       reason: "preference_disabled",
       now
     });
 
-    return result("skipped", row.id, provider, false, "preference_disabled");
+    return result("skipped", row.id, provider, false, "preference_disabled", claim.recoveredStaleClaim);
   }
 
   if (provider === "resend" && (!row.emailVerifiedAt || !row.recipientEmail)) {
-    await markDeliverySkipped(app, row.id, {
+    await markDeliverySkipped(app, row.id, claim.claimToken, {
       provider,
       reason: "recipient_email_unverified",
       now
     });
 
-    return result("skipped", row.id, provider, false, "recipient_email_unverified");
+    return result("skipped", row.id, provider, false, "recipient_email_unverified", claim.recoveredStaleClaim);
   }
 
   const attemptResult = await executeProviderAttempt(app, row, provider, providerConfig, {
     fetchImpl,
-    now
+    now,
+    signal: options.signal
   });
 
   if (attemptResult.status === "sent") {
-    await markDeliverySent(app, row.id, {
+    await markDeliverySent(app, row.id, claim.claimToken, {
       provider,
       providerMessageId: attemptResult.providerMessageId,
       providerResponseMeta: attemptResult.providerResponseMeta,
       now
     });
 
-    return result("sent", row.id, provider, false, null);
+    return result("sent", row.id, provider, false, null, claim.recoveredStaleClaim);
   }
 
   const maxRetries = providerConfig.maxRetries;
   const retryable = attemptResult.retryable && row.attemptCount + 1 < maxRetries;
 
-  await markDeliveryFailed(app, row.id, {
+  await markDeliveryFailed(app, row.id, claim.claimToken, {
     provider,
     retryable,
     now,
@@ -195,7 +235,8 @@ export async function executeNotificationProviderDelivery(
     row.id,
     provider,
     retryable,
-    attemptResult.retryable ? "provider_error" : "provider_rejected"
+    attemptResult.retryable ? "provider_error" : "provider_rejected",
+    claim.recoveredStaleClaim
   );
 }
 
@@ -204,28 +245,51 @@ export async function processPendingNotificationProviderDeliveries(
   options: NotificationProviderExecutionOptions & { limit?: number } = {}
 ): Promise<ProcessPendingNotificationProviderDeliveriesSummary> {
   const now = options.now ?? new Date();
+  const due = or(isNull(notificationDeliveryLogs.nextAttemptAt), lte(notificationDeliveryLogs.nextAttemptAt, now));
   const rows = await app.db
     .select({
       id: notificationDeliveryLogs.id
     })
     .from(notificationDeliveryLogs)
-    .where(and(
-      or(eq(notificationDeliveryLogs.status, "candidate"), eq(notificationDeliveryLogs.providerStatus, "retry_scheduled")),
-      or(isNull(notificationDeliveryLogs.nextAttemptAt), lte(notificationDeliveryLogs.nextAttemptAt, now))
+    .where(or(
+      and(eq(notificationDeliveryLogs.status, "candidate"), due),
+      and(
+        eq(notificationDeliveryLogs.status, "failed"),
+        eq(notificationDeliveryLogs.providerStatus, "retry_scheduled"),
+        due
+      ),
+      and(
+        eq(notificationDeliveryLogs.status, "processing"),
+        or(
+          isNull(notificationDeliveryLogs.claimExpiresAt),
+          lte(notificationDeliveryLogs.claimExpiresAt, now)
+        )
+      )
     ))
+    .orderBy(asc(notificationDeliveryLogs.createdAt))
     .limit(options.limit ?? 50);
   const results: NotificationProviderExecutionResult[] = [];
 
   for (const row of rows) {
+    if (options.signal?.aborted) {
+      break;
+    }
+
     results.push(await executeNotificationProviderDelivery(app, row.id, {
       env: options.env,
       fetchImpl: options.fetchImpl,
-      now
+      now: options.now ?? new Date(),
+      workerId: options.workerId,
+      claimTtlMs: options.claimTtlMs,
+      signal: options.signal
     }));
   }
 
   return {
     processed: results.length,
+    claimed: results.filter((item) => item.status !== "duplicate" && item.status !== "not_found").length,
+    duplicates: results.filter((item) => item.status === "duplicate").length,
+    staleRecovered: results.filter((item) => item.recoveredStaleClaim).length,
     sent: results.filter((item) => item.status === "sent").length,
     skipped: results.filter((item) => item.status === "skipped").length,
     failed: results.filter((item) => item.status === "failed").length,
@@ -240,15 +304,86 @@ function result(
   deliveryLogId: string,
   provider: NotificationProviderName | null,
   retryable: boolean,
-  reason: NotificationProviderExecutionResult["reason"]
+  reason: NotificationProviderExecutionResult["reason"],
+  recoveredStaleClaim = false
 ): NotificationProviderExecutionResult {
   return {
     status,
     deliveryLogId,
     provider,
     retryable,
+    recoveredStaleClaim,
     reason
   };
+}
+
+type NotificationDeliveryClaim = {
+  claimToken: string;
+  recoveredStaleClaim: boolean;
+};
+
+async function claimNotificationProviderDelivery(
+  app: FastifyInstance,
+  row: DeliveryLogRow,
+  input: {
+    now: Date;
+    provider: NotificationProviderName | null;
+    workerId?: string | undefined;
+    claimTtlMs: number;
+  }
+): Promise<NotificationDeliveryClaim | null> {
+  const claimToken = randomUUID();
+  const claimTtlMs = Math.min(Math.max(input.claimTtlMs, MIN_CLAIM_TTL_MS), MAX_CLAIM_TTL_MS);
+  const claimExpiresAt = new Date(input.now.getTime() + claimTtlMs);
+  const workerId = sanitizeWorkerId(input.workerId ?? `inline-${process.pid}`);
+  const due = or(isNull(notificationDeliveryLogs.nextAttemptAt), lte(notificationDeliveryLogs.nextAttemptAt, input.now));
+  const [claimed] = await app.db
+    .update(notificationDeliveryLogs)
+    .set({
+      status: "processing",
+      provider: input.provider,
+      providerStatus: "processing",
+      claimToken,
+      claimedAt: input.now,
+      claimExpiresAt,
+      workerId,
+      nextAttemptAt: null
+    })
+    .where(and(
+      eq(notificationDeliveryLogs.id, row.id),
+      or(
+        and(eq(notificationDeliveryLogs.status, "candidate"), due),
+        and(
+          eq(notificationDeliveryLogs.status, "failed"),
+          eq(notificationDeliveryLogs.providerStatus, "retry_scheduled"),
+          due
+        ),
+        and(
+          eq(notificationDeliveryLogs.status, "processing"),
+          or(
+            isNull(notificationDeliveryLogs.claimExpiresAt),
+            lte(notificationDeliveryLogs.claimExpiresAt, input.now)
+          )
+        )
+      )
+    ))
+    .returning({ id: notificationDeliveryLogs.id });
+
+  if (!claimed) {
+    return null;
+  }
+
+  return {
+    claimToken,
+    recoveredStaleClaim: row.status === "processing"
+  };
+}
+
+function sanitizeWorkerId(value: string): string {
+  return value
+    .replace(/[^a-zA-Z0-9_.:@-]/gu, "-")
+    .replace(/-+/gu, "-")
+    .slice(0, 120) || `worker-${process.pid}`;
 }
 
 async function getDeliveryLogRow(app: FastifyInstance, deliveryLogId: string): Promise<DeliveryLogRow | null> {
@@ -269,6 +404,10 @@ async function getDeliveryLogRow(app: FastifyInstance, deliveryLogId: string): P
       provider: notificationDeliveryLogs.provider,
       providerStatus: notificationDeliveryLogs.providerStatus,
       providerMessageId: notificationDeliveryLogs.providerMessageId,
+      claimToken: notificationDeliveryLogs.claimToken,
+      claimedAt: notificationDeliveryLogs.claimedAt,
+      claimExpiresAt: notificationDeliveryLogs.claimExpiresAt,
+      workerId: notificationDeliveryLogs.workerId,
       attemptCount: notificationDeliveryLogs.attemptCount,
       lastAttemptAt: notificationDeliveryLogs.lastAttemptAt,
       nextAttemptAt: notificationDeliveryLogs.nextAttemptAt,
@@ -385,6 +524,7 @@ async function executeProviderAttempt(
   options: {
     fetchImpl: typeof fetch;
     now: Date;
+    signal?: AbortSignal | undefined;
   }
 ): Promise<ProviderAttemptResult> {
   if (provider === "n8n") {
@@ -401,7 +541,7 @@ async function executeProviderAttempt(
 async function executeN8nWebhook(
   row: DeliveryLogRow,
   config: ProviderConfig,
-  options: { fetchImpl: typeof fetch; now: Date }
+  options: { fetchImpl: typeof fetch; now: Date; signal?: AbortSignal | undefined }
 ): Promise<ProviderAttemptResult> {
   const response = await fetchJson(config.url!, {
     fetchImpl: options.fetchImpl,
@@ -413,7 +553,8 @@ async function executeN8nWebhook(
       ...(config.bearerToken ? { authorization: `Bearer ${config.bearerToken}` } : {}),
       ...(config.secret ? { "x-babyloop-webhook-secret": config.secret } : {})
     },
-    body: JSON.stringify(buildProviderPayload(row, options.now))
+    body: JSON.stringify(buildProviderPayload(row, options.now)),
+    signal: options.signal
   });
 
   return toProviderAttemptResult(response, "n8n");
@@ -422,7 +563,7 @@ async function executeN8nWebhook(
 async function executeResendEmail(
   row: DeliveryLogRow,
   config: ProviderConfig,
-  options: { fetchImpl: typeof fetch; now: Date }
+  options: { fetchImpl: typeof fetch; now: Date; signal?: AbortSignal | undefined }
 ): Promise<ProviderAttemptResult> {
   const safeSubject = buildNotificationSubject(row);
   const safeText = buildNotificationText(row, config.webAppUrl);
@@ -445,7 +586,8 @@ async function executeResendEmail(
         { name: "source", value: row.kind },
         { name: "channel", value: row.channel }
       ]
-    })
+    }),
+    signal: options.signal
   });
 
   return toProviderAttemptResult(response, "resend");
@@ -455,7 +597,7 @@ async function executeExpoPush(
   app: FastifyInstance,
   row: DeliveryLogRow,
   config: ProviderConfig,
-  options: { fetchImpl: typeof fetch; now: Date }
+  options: { fetchImpl: typeof fetch; now: Date; signal?: AbortSignal | undefined }
 ): Promise<ProviderAttemptResult> {
   const tokens = await listNotificationPushTokensForDelivery(app, row.profileId);
 
@@ -484,7 +626,8 @@ async function executeExpoPush(
       "content-type": "application/json",
       "x-idempotency-key": row.idempotencyKey
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: options.signal
   });
 
   if (response.ok && Array.isArray(response.json?.data)) {
@@ -522,10 +665,18 @@ async function fetchJson(
     method: "POST";
     headers: Record<string, string>;
     body: string;
+    signal?: AbortSignal | undefined;
   }
 ): Promise<FetchJsonResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), input.timeoutMs);
+  const abortFromParent = () => controller.abort(input.signal?.reason);
+
+  if (input.signal?.aborted) {
+    abortFromParent();
+  } else {
+    input.signal?.addEventListener("abort", abortFromParent, { once: true });
+  }
 
   try {
     const response = await input.fetchImpl(url, {
@@ -554,6 +705,7 @@ async function fetchJson(
     };
   } finally {
     clearTimeout(timeout);
+    input.signal?.removeEventListener("abort", abortFromParent);
   }
 }
 
@@ -785,6 +937,7 @@ function sanitizeErrorMessage(error: unknown): string {
 async function markDeliverySkipped(
   app: FastifyInstance,
   deliveryLogId: string,
+  claimToken: string,
   input: {
     provider: NotificationProviderName | null;
     reason: NonNullable<NotificationProviderExecutionResult["reason"]>;
@@ -803,14 +956,23 @@ async function markDeliverySkipped(
       lastErrorCode: null,
       lastErrorMessageRedacted: null,
       providerResponseMeta: {},
-      metadata: sanitizeNotificationMetadata((await getDeliveryLogMetadata(app, deliveryLogId)) ?? {})
+      metadata: sanitizeNotificationMetadata((await getDeliveryLogMetadata(app, deliveryLogId)) ?? {}),
+      claimToken: null,
+      claimedAt: null,
+      claimExpiresAt: null,
+      workerId: null
     })
-    .where(eq(notificationDeliveryLogs.id, deliveryLogId));
+    .where(and(
+      eq(notificationDeliveryLogs.id, deliveryLogId),
+      eq(notificationDeliveryLogs.status, "processing"),
+      eq(notificationDeliveryLogs.claimToken, claimToken)
+    ));
 }
 
 async function markDeliverySent(
   app: FastifyInstance,
   deliveryLogId: string,
+  claimToken: string,
   input: {
     provider: NotificationProviderName;
     providerMessageId: string | null;
@@ -837,14 +999,23 @@ async function markDeliverySent(
       sentAt: input.now,
       deliveredAt: input.now,
       failedAt: null,
-      skippedReason: null
+      skippedReason: null,
+      claimToken: null,
+      claimedAt: null,
+      claimExpiresAt: null,
+      workerId: null
     })
-    .where(and(eq(notificationDeliveryLogs.id, deliveryLogId), sql`${notificationDeliveryLogs.status} <> 'sent'`));
+    .where(and(
+      eq(notificationDeliveryLogs.id, deliveryLogId),
+      eq(notificationDeliveryLogs.status, "processing"),
+      eq(notificationDeliveryLogs.claimToken, claimToken)
+    ));
 }
 
 async function markDeliveryFailed(
   app: FastifyInstance,
   deliveryLogId: string,
+  claimToken: string,
   input: {
     provider: NotificationProviderName;
     retryable: boolean;
@@ -869,9 +1040,17 @@ async function markDeliveryFailed(
       providerResponseMeta: input.providerResponseMeta,
       metadata: sanitizeNotificationMetadata((await getDeliveryLogMetadata(app, deliveryLogId)) ?? {}),
       failedAt: input.retryable ? null : input.now,
-      skippedReason: null
+      skippedReason: null,
+      claimToken: null,
+      claimedAt: null,
+      claimExpiresAt: null,
+      workerId: null
     })
-    .where(eq(notificationDeliveryLogs.id, deliveryLogId));
+    .where(and(
+      eq(notificationDeliveryLogs.id, deliveryLogId),
+      eq(notificationDeliveryLogs.status, "processing"),
+      eq(notificationDeliveryLogs.claimToken, claimToken)
+    ));
 }
 
 async function getDeliveryLogMetadata(

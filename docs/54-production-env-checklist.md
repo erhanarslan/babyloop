@@ -73,6 +73,16 @@ Use the variable names below as the source of truth for the current codebase. Ol
 
 Real email sending must stay disabled until delivery logging, deduplication, frequency limiting, idempotency, and admin audit are implemented for the relevant notification flows.
 
+## Notification delivery worker
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NOTIFICATION_PROVIDER_PROCESS_LIMIT` | Recommended | Maximum rows inspected per one-shot processor run |
+| `NOTIFICATION_PROVIDER_WORKER_ID` | Optional | Stable deployment instance identifier; generated automatically when omitted |
+| `NOTIFICATION_PROVIDER_CLAIM_TTL_MS` | Recommended | Claim lease in milliseconds; default 300000 and must exceed provider timeout |
+
+Run `pnpm --filter @babyloop/api notifications:process` from exactly one scheduled job definition per deployment environment. Multiple overlapping instances are supported because every provider attempt requires an atomic database claim. Alert on expired `processing` claims, final failures and repeated stale-claim recovery.
+
 ## Image storage
 
 | Variable | Required | Notes |

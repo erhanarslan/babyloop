@@ -281,6 +281,13 @@
       "when": 1784468619108,
       "tag": "0041_profile_location_city_index",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1784552400000,
+      "tag": "0042_notification_worker_atomic_claim",
+      "breakpoints": true
     }
   ]
 }

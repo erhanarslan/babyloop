@@ -94,6 +94,7 @@ type AdminNotificationOpsPreview = {
     totals: {
       all: number;
       candidate: number;
+      processing: number;
       blocked: number;
       sent: number;
       failed: number;
@@ -114,6 +115,9 @@ type AdminNotificationOpsPreview = {
       attemptCount: number;
       lastAttemptAt: string | null;
       nextAttemptAt: string | null;
+      claimedAt: string | null;
+      claimExpiresAt: string | null;
+      workerId: string | null;
       lastErrorCode: string | null;
       lastErrorMessageRedacted: string | null;
       skippedReason: string | null;
@@ -348,6 +352,7 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <SummaryCard label="Toplam" value={deliveryLogPreview.totals.all} />
             <SummaryCard label="Candidate" value={deliveryLogPreview.totals.candidate} />
+            <SummaryCard label="Processing" value={deliveryLogPreview.totals.processing} />
             <SummaryCard label="Blocked" value={deliveryLogPreview.totals.blocked} />
             <SummaryCard label="Sent" value={deliveryLogPreview.totals.sent} />
             <SummaryCard label="Failed" value={deliveryLogPreview.totals.failed} />
@@ -395,6 +400,8 @@ export function NotificationOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {item.attemptCount}
+                        {item.workerId ? ` / worker ${item.workerId}` : ""}
+                        {item.claimExpiresAt ? ` / lease ${item.claimExpiresAt}` : ""}
                         {item.nextAttemptAt ? ` / retry ${item.nextAttemptAt}` : ""}
                       </td>
                       <td className="px-4 py-3 text-slate-600">

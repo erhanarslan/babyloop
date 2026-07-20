@@ -27,6 +27,7 @@ const steps = [
   { label: "Notification ops preview guard", command: "pnpm", args: ["security:notification-ops-preview"] },
   { label: "Notification delivery log guard", command: "pnpm", args: ["security:notification-delivery-log"] },
   { label: "Notification provider execution guard", command: "pnpm", args: ["security:notification-provider-execution"] },
+  { label: "Notification worker atomic claim guard", command: "pnpm", args: ["security:notification-worker-atomic-claim"] },
   { label: "Auth secret leak guard", command: "pnpm", args: ["security:auth-leaks"] },
   { label: "Public auth cookie migration guard", command: "pnpm", args: ["security:public-auth-cookie-migration"] },
   { label: "Release artifact guard", command: "pnpm", args: ["release:artifacts"] },

@@ -115,8 +115,9 @@ describe("NotificationOpsPage", () => {
               enabled: true,
               draftOnly: true,
               totals: {
-                all: 2,
+                all: 3,
                 candidate: 1,
+                processing: 1,
                 blocked: 1,
                 sent: 0,
                 failed: 0,
@@ -124,7 +125,10 @@ describe("NotificationOpsPage", () => {
               },
               byKind: [{ kind: "saved_search", count: 1 }],
               byChannel: [{ channel: "in_app", count: 1 }],
-              byStatus: [{ status: "candidate", count: 1 }],
+              byStatus: [
+                { status: "candidate", count: 1 },
+                { status: "processing", count: 1 }
+              ],
               recent: [
                 {
                   kind: "saved_search",
@@ -138,6 +142,9 @@ describe("NotificationOpsPage", () => {
                   attemptCount: 0,
                   lastAttemptAt: null,
                   nextAttemptAt: null,
+                  claimedAt: null,
+                  claimExpiresAt: null,
+                  workerId: null,
                   lastErrorCode: null,
                   lastErrorMessageRedacted: null,
                   skippedReason: null,
@@ -149,6 +156,33 @@ describe("NotificationOpsPage", () => {
                   blockedReasons: ["delivery_disabled"],
                   frequencyWindowHours: 24,
                   createdAt: "2026-07-05T00:00:00.000Z"
+                },
+                {
+                  kind: "security",
+                  sourceType: "login_approval",
+                  sourceRef: "login…oval-1",
+                  channel: "push",
+                  status: "processing",
+                  provider: "expo",
+                  providerStatus: "processing",
+                  providerMessageRef: null,
+                  attemptCount: 0,
+                  lastAttemptAt: null,
+                  nextAttemptAt: null,
+                  claimedAt: "2026-07-05T00:01:00.000Z",
+                  claimExpiresAt: "2026-07-05T00:06:00.000Z",
+                  workerId: "notification-worker-1",
+                  lastErrorCode: null,
+                  lastErrorMessageRedacted: null,
+                  skippedReason: null,
+                  sentAt: null,
+                  deliveredAt: null,
+                  failedAt: null,
+                  deliveryAllowed: true,
+                  draftOnly: false,
+                  blockedReasons: [],
+                  frequencyWindowHours: 1,
+                  createdAt: "2026-07-05T00:01:00.000Z"
                 }
               ],
               privacyNote:
@@ -194,6 +228,9 @@ describe("NotificationOpsPage", () => {
     expect(screen.getByText(/sent\/failed future sender gerektirir/iu)).toBeInTheDocument();
     expect(document.body.textContent).toContain("sent/failed future sender gerektirir");
     expect(screen.getByText("Toplam")).toBeInTheDocument();
+    expect(screen.getByText("Processing")).toBeInTheDocument();
+    expect(document.body.textContent).toContain("worker notification-worker-1");
+    expect(document.body.textContent).toContain("lease 2026-07-05T00:06:00.000Z");
     expect(screen.getAllByText("saved_search").length).toBeGreaterThan(0);
     expect(screen.getByText("saved_search:saved…ing-1")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/api[_-]?key|password|secret|parent@example|accessToken|refreshToken|secret-idempotency|secret-dedup/iu);
