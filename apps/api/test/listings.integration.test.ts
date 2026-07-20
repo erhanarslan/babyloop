@@ -92,7 +92,8 @@ describe("listings API", () => {
     expect(response.json().data.listings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: listing.id
+          id: listing.id,
+          locationCity: seller.profile.locationCity
         })
       ])
     );

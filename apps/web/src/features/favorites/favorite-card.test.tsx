@@ -63,6 +63,7 @@ function createFavorite(overrides: Partial<FavoriteListing> = {}): FavoriteListi
     publicationReviewReason: null,
     listingType: "sale",
     condition: "new",
+    locationCity: null,
     category: {
       id: "20000000-0000-4000-8000-000000000001",
       name: "Bebek Arabası",

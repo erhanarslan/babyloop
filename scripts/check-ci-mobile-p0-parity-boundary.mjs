@@ -89,6 +89,18 @@ function checkPackageScripts() {
     "node scripts/check-ci-mobile-p0-parity-boundary.mjs"
   );
 
+  const mobileP0Tests = scripts["test:mobile:p0"] ?? "";
+  mustContain(
+    mobileP0Tests,
+    "package.json#test:mobile:p0",
+    "pnpm --filter @babyloop/shared build"
+  );
+  mustContain(
+    mobileP0Tests,
+    "package.json#test:mobile:p0",
+    "pnpm --filter @babyloop/mobile test:p0"
+  );
+
   const mobileGate = scripts["release:mobile:p0"] ?? "";
   mustContain(mobileGate, "package.json#release:mobile:p0", "pnpm security:mobile-auth");
   mustContain(mobileGate, "package.json#release:mobile:p0", "pnpm security:mobile-notifications");

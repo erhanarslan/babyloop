@@ -2117,7 +2117,7 @@ function registerExactResponseContracts(): void {
   setExactResponses("POST", "/favorites", ["200", "400", "401", "403", "503"]);
   setExactResponses("POST", "/cart/items", ["200", "400", "401", "403", "404", "409", "500", "503"]);
   setExactResponses("DELETE", "/favorites", ["200", "400", "401", "403", "503"]);
-  setExactResponsesForPaths("GET", ["/favorites", "/cart"], ["200", "401", "503"]);
+  setExactResponsesForPaths("GET", ["/favorites", "/cart", "/cart/summary"], ["200", "401", "503"]);
   setExactResponses("GET", "/profiles/:profileId/favorites", ["200", "400", "401", "403", "503"]);
   setExactResponses("DELETE", "/cart/items/:listingId", ["200", "400", "401", "403", "503"]);
   setExactResponses("DELETE", "/cart", ["200", "401", "403", "503"]);

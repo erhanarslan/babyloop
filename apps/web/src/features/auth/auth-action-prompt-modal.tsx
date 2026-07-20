@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import type { AuthPayload } from "../../lib/auth-client";
-import { setAuthToken } from "../../lib/auth-client";
+import { setAuthPayload } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { TextInput } from "../../components/ui";
@@ -99,10 +99,9 @@ export function AuthActionPromptModal({
 
           if (!isLoginApprovalCompletePendingPayload(authPayload)) {
             active = false;
-            setAuthToken(authPayload.accessToken);
+            setAuthPayload(authPayload);
             setLoginApproval(null);
             setErrorMessage(null);
-            window.dispatchEvent(new Event("babyloop-auth-change"));
             onAuthenticated?.(authPayload);
             onClose();
             router.refresh();
@@ -202,7 +201,7 @@ export function AuthActionPromptModal({
         return;
       }
 
-      setAuthToken(stage.auth.accessToken);
+      setAuthPayload(stage.auth);
       onAuthenticated?.(stage.auth);
       onClose();
       router.refresh();
@@ -244,7 +243,7 @@ export function AuthActionPromptModal({
       }
 
       if (stage.type === "authenticated") {
-        setAuthToken(stage.auth.accessToken);
+        setAuthPayload(stage.auth);
         setMfaChallenge(null);
         setOtpCode("");
         onAuthenticated?.(stage.auth);

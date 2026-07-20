@@ -42,6 +42,7 @@ const baseListing = {
     sortOrder: 0
   },
   images: [],
+  locationCity: "İstanbul",
   createdAt: "2026-06-20T10:00:00.000Z"
 };
 
@@ -73,34 +74,11 @@ describe("LatestListingRotator", () => {
   });
 
   it("renders loading and then public listing data from the API", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ ok: true, data: { listings: [baseListing] } }), {
-          status: 200
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            ok: true,
-            data: {
-              listing: {
-                ...baseListing,
-                description: "Kısa açıklama",
-                images: [baseListing.firstImage],
-                seller: {
-                  id: "seller-profile-id",
-                  displayName: "Ayşe Demir",
-                  avatarUrl: null,
-                  locationCity: "İstanbul"
-                },
-                updatedAt: "2026-06-20T10:00:00.000Z"
-              }
-            }
-          }),
-          { status: 200 }
-        )
-      );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, data: { listings: [baseListing] } }), {
+        status: 200
+      })
+    );
 
     renderRotator();
 
@@ -109,6 +87,7 @@ describe("LatestListingRotator", () => {
     expect(screen.getByText("İstanbul")).toBeInTheDocument();
     expect(screen.queryByText("seller-profile-id")).not.toBeInTheDocument();
     expect(screen.queryByText("ayse@example.test")).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("renders controlled empty and error states", async () => {

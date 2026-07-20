@@ -12,6 +12,13 @@ describe("web auth client runtime guards", () => {
     expect(source).toContain("fetchCurrentUserWithoutRefreshPromise = fetchCurrentUserWithoutRefreshOnce");
   });
 
+  it("reuses a short-lived authenticated user snapshot across global shell consumers", () => {
+    expect(source).toContain("CURRENT_AUTH_CACHE_TTL_MS");
+    expect(source).toContain("cachedCurrentAuth");
+    expect(source).toContain("cachedCurrentAuth?.token === token");
+    expect(source).toContain("currentAuth: {");
+  });
+
   it("separates network unavailable from real session rejection", () => {
     expect(source).toContain("apiUnavailableResponse");
     expect(source).toContain("isSessionRejectionStatus");

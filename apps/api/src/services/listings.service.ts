@@ -826,6 +826,7 @@ async function mapListingRows(
     publishedAt: Date | null;
     publicationReviewReason: string | null;
     title: string;
+    sellerLocationCity?: string | null;
   }>
 ): Promise<ListingSummaryResponse[]> {
   const listingIds = rows.map((row) => row.id);
@@ -844,7 +845,8 @@ async function mapListingRows(
       },
       favoriteCount: favoriteCounts.get(row.id) ?? 0,
       firstImage: imagesByListingId.get(row.id)?.[0] ?? null,
-      images: imagesByListingId.get(row.id) ?? []
+      images: imagesByListingId.get(row.id) ?? [],
+      locationCity: row.sellerLocationCity ?? null
     })
   );
 }

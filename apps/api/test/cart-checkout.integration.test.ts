@@ -92,6 +92,51 @@ describe("cart and mock iyzico checkout API", () => {
     expect(JSON.stringify(cartAddedEvent)).not.toMatch(/password|accessToken|refreshToken|phone|email|providerPaymentId/iu);
   });
 
+  it("returns a lightweight cart summary for global header badges", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const availableListing = await createListing(app, seller.accessToken, {
+      title: "Available summary stroller"
+    });
+    const unavailableListing = await createListing(app, seller.accessToken, {
+      title: "Unavailable summary carrier"
+    });
+
+    for (const listing of [availableListing, unavailableListing]) {
+      await app.inject({
+        headers: authHeader(buyer.accessToken),
+        method: "POST",
+        url: "/api/v1/cart/items",
+        payload: { listingId: listing.id }
+      });
+    }
+
+    await app.db
+      .update(listings)
+      .set({ status: "archived" })
+      .where(eq(listings.id, unavailableListing.id));
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "GET",
+      url: "/api/v1/cart/summary"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      data: {
+        summary: {
+          itemCount: 1,
+          unavailableItemCount: 1
+        }
+      }
+    });
+    expect(response.body).not.toContain("listing");
+    expect(response.body).not.toContain("price");
+    expect(response.body).not.toContain("image");
+  });
+
   it("rejects adding the seller's own listing to cart", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);

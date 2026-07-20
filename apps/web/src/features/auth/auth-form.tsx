@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { Alert, Button } from "../../components/ui";
-import { setAuthToken } from "../../lib/auth-client";
+import { setAuthPayload } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { AuthFields } from "./auth-fields";
@@ -91,10 +91,9 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
           if (!isLoginApprovalCompletePendingPayload(authPayload)) {
             active = false;
-            setAuthToken(authPayload.accessToken);
+            setAuthPayload(authPayload);
             setLoginApproval(null);
             setErrorMessage(null);
-            window.dispatchEvent(new Event("babyloop-auth-change"));
 
             const returnTo = getStoredAuthReturnTo("/account");
             clearStoredAuthReturnTo();
@@ -190,7 +189,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         return;
       }
 
-      setAuthToken(stage.auth.accessToken);
+      setAuthPayload(stage.auth);
 
       if (isRegister) {
         setDevEmailVerificationToken(stage.auth.devEmailVerificationToken ?? null);
@@ -241,7 +240,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       }
 
       if (stage.type === "authenticated") {
-        setAuthToken(stage.auth.accessToken);
+        setAuthPayload(stage.auth);
         setMfaChallenge(null);
         setOtpCode("");
         const returnTo = getStoredAuthReturnTo("/browse");

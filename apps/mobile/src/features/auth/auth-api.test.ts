@@ -13,6 +13,7 @@ import {
   fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
   getMobileAuthToken,
+  hydrateMobileAuthToken,
   mobileAuthFetch,
   setMobileAuthToken,
   submitMobileAuthRequest,
@@ -51,6 +52,28 @@ describe("mobile auth API MFA flow", () => {
     storedTokens.length = 0;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     clearMobileAuthToken();
+    const storage = jest.requireMock("./auth-token-storage") as {
+      getStoredMobileAuthToken: jest.Mock;
+    };
+    storage.getStoredMobileAuthToken.mockClear();
+  });
+
+  it("coalesces concurrent SecureStore token hydration during cold start", async () => {
+    storedTokens.push("persisted-mobile-token");
+    const storage = jest.requireMock("./auth-token-storage") as {
+      getStoredMobileAuthToken: jest.Mock;
+    };
+
+    const [first, second, third] = await Promise.all([
+      hydrateMobileAuthToken(),
+      hydrateMobileAuthToken(),
+      hydrateMobileAuthToken()
+    ]);
+
+    expect(first).toBe("persisted-mobile-token");
+    expect(second).toBe("persisted-mobile-token");
+    expect(third).toBe("persisted-mobile-token");
+    expect(storage.getStoredMobileAuthToken).toHaveBeenCalledTimes(1);
   });
 
   it("sends the current terms version and mobile source on registration", async () => {

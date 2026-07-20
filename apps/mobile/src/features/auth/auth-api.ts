@@ -210,6 +210,7 @@ let memoryAuthToken: string | null = null;
 let cachedPublicCsrfToken: string | null = null;
 let publicCsrfTokenPromise: Promise<string | null> | null = null;
 let mobileSessionRefreshPromise: Promise<MobileApiResponse<MobileAuthPayload>> | null = null;
+let mobileAuthTokenHydrationPromise: Promise<string | null> | null = null;
 
 export function getMobileAuthToken(): string | null {
   return memoryAuthToken;
@@ -220,13 +221,23 @@ export async function hydrateMobileAuthToken(): Promise<string | null> {
     return memoryAuthToken;
   }
 
-  const storedToken = await getStoredMobileAuthToken();
-
-  if (storedToken) {
-    memoryAuthToken = storedToken;
+  if (mobileAuthTokenHydrationPromise) {
+    return mobileAuthTokenHydrationPromise;
   }
 
-  return memoryAuthToken;
+  mobileAuthTokenHydrationPromise = getStoredMobileAuthToken()
+    .then((storedToken) => {
+      if (storedToken) {
+        memoryAuthToken = storedToken;
+      }
+
+      return memoryAuthToken;
+    })
+    .finally(() => {
+      mobileAuthTokenHydrationPromise = null;
+    });
+
+  return mobileAuthTokenHydrationPromise;
 }
 
 export function setMobileAuthToken(token: string): void {
@@ -238,6 +249,7 @@ export function clearMobileAuthToken(): void {
   memoryAuthToken = null;
   cachedPublicCsrfToken = null;
   publicCsrfTokenPromise = null;
+  mobileAuthTokenHydrationPromise = null;
   void clearStoredMobileAuthToken();
 }
 

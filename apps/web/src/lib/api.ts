@@ -47,6 +47,7 @@ export type ListingSummary = {
   };
   firstImage: ListingImage | null;
   images: ListingImage[];
+  locationCity: string | null;
   createdAt: string;
 };
 

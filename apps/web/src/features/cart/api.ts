@@ -26,6 +26,13 @@ export type CartPayload = {
   };
 };
 
+export type CartSummaryPayload = {
+  summary: {
+    itemCount: number;
+    unavailableItemCount: number;
+  };
+};
+
 export type MockCheckoutPayload = {
   checkout: {
     orderId: string;
@@ -47,6 +54,12 @@ export async function fetchCart(apiBaseUrl: string): Promise<ApiResponse<CartPay
   const response = await authFetch(apiBaseUrl, "/api/v1/cart");
 
   return response.json() as Promise<ApiResponse<CartPayload>>;
+}
+
+export async function fetchCartSummary(apiBaseUrl: string): Promise<ApiResponse<CartSummaryPayload>> {
+  const response = await authFetch(apiBaseUrl, "/api/v1/cart/summary");
+
+  return response.json() as Promise<ApiResponse<CartSummaryPayload>>;
 }
 
 export async function addCartItem(apiBaseUrl: string, listingId: string): Promise<ApiResponse<CartPayload>> {

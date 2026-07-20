@@ -30,23 +30,57 @@ let publicCsrfTokenPromise: Promise<string | null> | null = null;
 let authSessionVersion = 0;
 let memoryAuthToken: string | null = null;
 let cachedPublicCsrfToken: string | null = null;
+let cachedCurrentAuth: { auth: AuthMe; cachedAt: number; token: string } | null = null;
 let manuallyLoggedOut = false;
 let lastRefreshFailureAt = 0;
 
 const REFRESH_FAILURE_COOLDOWN_MS = 15_000;
+export const CURRENT_AUTH_CACHE_TTL_MS = 30_000;
 
 export function getAuthToken(): string | null {
   return memoryAuthToken;
 }
 
-export function setAuthToken(token: string): void {
+export function setAuthPayload(
+  payload: AuthPayload,
+  options: { broadcast?: boolean } = {}
+): void {
+  setAuthToken(payload.accessToken, {
+    currentAuth: {
+      profile: payload.profile,
+      user: payload.user
+    },
+    ...(options.broadcast === undefined ? {} : { broadcast: options.broadcast })
+  });
+}
+
+export function setAuthToken(
+  token: string,
+  options: { currentAuth?: AuthMe; broadcast?: boolean } = {}
+): void {
+  const tokenChanged = memoryAuthToken !== token;
   memoryAuthToken = token;
   manuallyLoggedOut = false;
   lastRefreshFailureAt = 0;
   fetchCurrentUserWithoutRefreshPromise = null;
-  authSessionVersion += 1;
 
-  dispatchAuthEvent(AUTH_CHANGED_EVENT);
+  if (options.currentAuth) {
+    cachedCurrentAuth = {
+      auth: options.currentAuth,
+      cachedAt: Date.now(),
+      token
+    };
+  } else if (tokenChanged) {
+    cachedCurrentAuth = null;
+  }
+
+  if (tokenChanged) {
+    authSessionVersion += 1;
+  }
+
+  if (options.broadcast ?? true) {
+    dispatchAuthEvent(AUTH_CHANGED_EVENT);
+  }
 }
 
 export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
@@ -55,6 +89,7 @@ export function clearAuthToken(options: { broadcast?: boolean } = {}): void {
 
   memoryAuthToken = null;
   cachedPublicCsrfToken = null;
+  cachedCurrentAuth = null;
   fetchCurrentUserWithoutRefreshPromise = null;
   publicCsrfTokenPromise = null;
 
@@ -134,7 +169,12 @@ async function doRefreshSession(
       }
 
       lastRefreshFailureAt = 0;
-      setAuthToken(body.data.accessToken);
+      setAuthToken(body.data.accessToken, {
+        currentAuth: {
+          profile: body.data.profile,
+          user: body.data.user
+        }
+      });
       return body;
     }
 
@@ -225,7 +265,23 @@ export async function validateCurrentAuthSession(apiBaseUrl: string): Promise<bo
   }
 }
 
-export async function fetchCurrentUserWithoutRefresh(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
+export async function fetchCurrentUserWithoutRefresh(
+  apiBaseUrl: string,
+  options: { force?: boolean } = {}
+): Promise<ApiResponse<AuthMe>> {
+  const token = getAuthToken();
+
+  if (!options.force && token && cachedCurrentAuth?.token === token) {
+    const ageMs = Date.now() - cachedCurrentAuth.cachedAt;
+
+    if (ageMs < CURRENT_AUTH_CACHE_TTL_MS) {
+      return {
+        ok: true,
+        data: cachedCurrentAuth.auth
+      };
+    }
+  }
+
   if (fetchCurrentUserWithoutRefreshPromise) {
     return fetchCurrentUserWithoutRefreshPromise;
   }
@@ -260,6 +316,14 @@ async function fetchCurrentUserWithoutRefreshOnce(apiBaseUrl: string): Promise<A
 
     if (!response.ok) {
       return body.ok ? apiUnavailableResponse<AuthMe>() : body;
+    }
+
+    if (body.ok && token) {
+      cachedCurrentAuth = {
+        auth: body.data,
+        cachedAt: Date.now(),
+        token
+      };
     }
 
     return body;
@@ -417,6 +481,7 @@ function markManuallyLoggedOut(): void {
   fetchCurrentUserWithoutRefreshPromise = null;
   publicCsrfTokenPromise = null;
   cachedPublicCsrfToken = null;
+  cachedCurrentAuth = null;
 }
 
 function isManuallyLoggedOut(): boolean {

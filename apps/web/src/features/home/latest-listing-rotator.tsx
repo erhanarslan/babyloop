@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type {
-  ListingDetailPayload,
-  ListingsPayload,
-  ListingSummary
-} from "../../lib/api";
+import type { ListingsPayload, ListingSummary } from "../../lib/api";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { ListingImageFrame } from "../listings/listing-image-frame";
 import {
@@ -19,19 +15,16 @@ type LatestListingRotatorProps = {
   apiBaseUrl: string;
 };
 
-type RotatorListing = ListingSummary & {
-  locationCity: string | null;
-};
-
 const ROTATION_INTERVAL_MS = 2500;
 
 export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) {
   const { dictionary } = useI18n();
-  const [listings, setListings] = useState<RotatorListing[]>([]);
+  const [listings, setListings] = useState<ListingSummary[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -49,8 +42,23 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
     };
   }, []);
 
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      setIsPageVisible(document.visibilityState === "visible");
+    }
+
+    handleVisibilityChange();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     let isActive = true;
+    const controller = new AbortController();
 
     async function loadLatestListings() {
       setIsLoading(true);
@@ -58,7 +66,8 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
 
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/listings?limit=3&sort=newest&hasImages=true`, {
-          cache: "no-store"
+          cache: "no-store",
+          signal: controller.signal
         });
         const body = (await response.json()) as { ok: boolean; data?: ListingsPayload };
 
@@ -73,16 +82,13 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
         }
 
         const summaries = body.data.listings.slice(0, 3);
-        const enrichedListings = await Promise.all(
-          summaries.map(async (listing) => enrichListingWithCity(apiBaseUrl, listing))
-        );
 
         if (isActive) {
-          setListings(enrichedListings);
+          setListings(summaries);
           setActiveIndex(0);
         }
-      } catch {
-        if (isActive) {
+      } catch (error) {
+        if (isActive && !(error instanceof DOMException && error.name === "AbortError")) {
           setHasError(true);
           setListings([]);
         }
@@ -97,11 +103,12 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
 
     return () => {
       isActive = false;
+      controller.abort();
     };
   }, [apiBaseUrl]);
 
   useEffect(() => {
-    if (prefersReducedMotion || isPaused || listings.length <= 1) {
+    if (!isPageVisible || prefersReducedMotion || isPaused || listings.length <= 1) {
       return;
     }
 
@@ -112,7 +119,7 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
     return () => {
       window.clearInterval(interval);
     };
-  }, [isPaused, listings.length, prefersReducedMotion]);
+  }, [isPageVisible, isPaused, listings.length, prefersReducedMotion]);
 
   const activeListing = listings[activeIndex] ?? listings[0] ?? null;
 
@@ -194,28 +201,4 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
       ) : null}
     </section>
   );
-}
-
-async function enrichListingWithCity(
-  apiBaseUrl: string,
-  listing: ListingSummary
-): Promise<RotatorListing> {
-  try {
-    const response = await fetch(`${apiBaseUrl}/api/v1/listings/${listing.id}`, {
-      cache: "no-store"
-    });
-    const body = (await response.json()) as { ok: boolean; data?: ListingDetailPayload };
-
-    if (!response.ok || !body.ok || !body.data) {
-      return { ...listing, locationCity: null };
-    }
-
-    return {
-      ...listing,
-      firstImage: body.data.listing.images[0] ?? listing.firstImage,
-      locationCity: body.data.listing.seller.locationCity
-    };
-  } catch {
-    return { ...listing, locationCity: null };
-  }
 }

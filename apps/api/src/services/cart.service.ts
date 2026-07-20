@@ -51,6 +51,11 @@ export type CartResponse = {
   currency: "TRY";
 };
 
+export type CartSummaryResponse = {
+  itemCount: number;
+  unavailableItemCount: number;
+};
+
 export type MockCheckoutItemResponse = {
   listingId: string;
   title: string;
@@ -100,6 +105,37 @@ export async function getCartForCurrentUser(
 ): Promise<CartResponse> {
   const rows = await selectCartRows(app, currentUser.profile.id);
   return buildCartResponse(app, rows);
+}
+
+export async function getCartSummaryForCurrentUser(
+  app: FastifyInstance,
+  currentUser: CurrentUser
+): Promise<CartSummaryResponse> {
+  const [row] = await app.db
+    .select({
+      totalItemCount: sql<number>`count(${cartItems.id})::int`,
+      availableItemCount: sql<number>`count(${cartItems.id}) filter (
+        where ${listings.status} = 'active'
+          and ${listings.publicationState} = 'published'
+          and exists (
+            select 1
+            from ${listingImages}
+            where ${listingImages.listingId} = ${listings.id}
+              and ${listingImages.reviewStatus} = 'approved'
+          )
+      )::int`
+    })
+    .from(cartItems)
+    .innerJoin(listings, eq(listings.id, cartItems.listingId))
+    .where(eq(cartItems.buyerProfileId, currentUser.profile.id));
+
+  const totalItemCount = row?.totalItemCount ?? 0;
+  const itemCount = row?.availableItemCount ?? 0;
+
+  return {
+    itemCount,
+    unavailableItemCount: Math.max(0, totalItemCount - itemCount)
+  };
 }
 
 export async function addCartItem(

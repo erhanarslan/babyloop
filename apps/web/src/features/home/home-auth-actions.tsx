@@ -1,9 +1,14 @@
 "use client";
 
-import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AUTH_CHANGED_EVENT, authFetch, getAuthToken, refreshSession, type AuthMe } from "../../lib/auth-client";
+import {
+  AUTH_CHANGED_EVENT,
+  fetchCurrentUserWithoutRefresh,
+  getAuthToken,
+  refreshSession,
+  type AuthMe
+} from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 
 type HomeAuthActionsProps = {
@@ -73,10 +78,9 @@ export function HomeAuthActions({ apiBaseUrl, compact = false }: HomeAuthActions
 }
 
 async function fetchMe(apiBaseUrl: string): Promise<AuthMe | null> {
-  const response = await authFetch(apiBaseUrl, "/api/v1/auth/me");
-  const body = (await response.json()) as ApiResponse<AuthMe>;
+  const body = await fetchCurrentUserWithoutRefresh(apiBaseUrl);
 
-  return response.ok && body.ok ? body.data : null;
+  return body.ok ? body.data : null;
 }
 
 async function refreshMe(apiBaseUrl: string): Promise<AuthMe | null> {

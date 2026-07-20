@@ -7,13 +7,16 @@ import {
   checkoutCartWithMockIyzico,
   clearCart,
   getCartForCurrentUser,
+  getCartSummaryForCurrentUser,
   removeCartItem,
   type CartResponse,
+  type CartSummaryResponse,
   type MockCheckoutResponse
 } from "../services/cart.service.js";
 import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 
 type CartApiResponse = ApiResponse<{ cart: CartResponse }>;
+type CartSummaryApiResponse = ApiResponse<{ summary: CartSummaryResponse }>;
 type CheckoutApiResponse = ApiResponse<{ checkout: MockCheckoutResponse }>;
 
 export function registerCartRoutes(app: FastifyInstance): void {
@@ -28,6 +31,21 @@ export function registerCartRoutes(app: FastifyInstance): void {
       ok: true,
       data: {
         cart: await getCartForCurrentUser(app, currentUser)
+      }
+    };
+  });
+
+  app.get<{ Reply: CartSummaryApiResponse | ApiFailure }>("/cart/summary", async (request, reply) => {
+    const currentUser = await requireCurrentUser(app, request, reply);
+
+    if (!currentUser) {
+      return reply;
+    }
+
+    return {
+      ok: true,
+      data: {
+        summary: await getCartSummaryForCurrentUser(app, currentUser)
       }
     };
   });

@@ -31,7 +31,7 @@ import {
   markAllNotificationsRead,
   type Notification
 } from "../features/notifications/api";
-import { CART_CHANGED_EVENT, fetchCart } from "../features/cart/api";
+import { CART_CHANGED_EVENT, fetchCartSummary } from "../features/cart/api";
 import {
   buildNotificationSummary,
   sortNotifications
@@ -296,10 +296,10 @@ export function SiteHeader() {
 
     async function loadCartCount() {
       try {
-        const body = await fetchCart(apiBaseUrl);
+        const body = await fetchCartSummary(apiBaseUrl);
 
         if (isActive && body.ok) {
-          setCartItemCount(body.data.cart.items.length);
+          setCartItemCount(body.data.summary.itemCount);
         }
       } catch {
         if (isActive) {
