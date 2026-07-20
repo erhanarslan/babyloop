@@ -1,7 +1,11 @@
 import {
+  buildMobileListingsQuery,
+  fetchMobileListingDetail,
+  fetchMobileListingsPage,
   fetchMobileMyListings,
   updateMobileListingStatus
 } from "./listings-api";
+import { apiGet } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
 
 jest.mock("../../api/client", () => ({
@@ -30,14 +34,98 @@ jest.mock("../auth/auth-api", () => ({
 }));
 
 const mobileAuthFetchMock = mobileAuthFetch as jest.MockedFunction<typeof mobileAuthFetch>;
+const apiGetMock = apiGet as jest.MockedFunction<typeof apiGet>;
 
 describe("mobile listings API seller lifecycle", () => {
   beforeEach(() => {
     mobileAuthFetchMock.mockReset();
+    apiGetMock.mockReset();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+
+  it("builds offset-aware listing queries and preserves API pagination", async () => {
+    apiGetMock.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        listings: [
+          {
+            id: "listing-page-2",
+            title: "Sayfalı ilan",
+            status: "active",
+            publicationState: "published",
+            listingType: "sale",
+            condition: "good",
+            priceAmount: "250.00",
+            currency: "TRY"
+          }
+        ],
+        pagination: {
+          limit: 20,
+          offset: 20,
+          total: 41,
+          hasNextPage: true
+        }
+      }
+    });
+
+    const page = await fetchMobileListingsPage({
+      limit: 20,
+      offset: 20,
+      q: "oyuncak"
+    });
+
+    expect(page.pagination).toEqual({
+      limit: 20,
+      offset: 20,
+      total: 41,
+      hasNextPage: true
+    });
+    expect(page.listings[0]).toEqual(expect.objectContaining({
+      id: "listing-page-2",
+      title: "Sayfalı ilan"
+    }));
+    expect(apiGetMock).toHaveBeenCalledWith(
+      "/api/v1/listings?limit=20&offset=20&sort=newest&q=oyuncak",
+      { signal: undefined }
+    );
+    expect(buildMobileListingsQuery({ offset: 40 }).get("offset")).toBe("40");
+  });
+
+  it("loads authenticated listing viewer state without downloading all favorites", async () => {
+    mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
+      ok: true,
+      data: {
+        listing: {
+          id: "listing-detail-1",
+          title: "Favori ilan",
+          status: "active",
+          publicationState: "published",
+          listingType: "sale",
+          condition: "good",
+          priceAmount: "500.00",
+          currency: "TRY",
+          viewerState: {
+            isFavorited: true,
+            isOwner: false
+          }
+        }
+      }
+    }));
+
+    const listing = await fetchMobileListingDetail("listing-detail-1");
+
+    expect(listing.viewerState).toEqual({
+      isFavorited: true,
+      isOwner: false
+    });
+    expect(mobileAuthFetchMock).toHaveBeenCalledWith(
+      "/api/v1/listings/listing-detail-1",
+      { signal: undefined }
+    );
   });
 
   it("loads current user's listings through authenticated mobile fetch", async () => {

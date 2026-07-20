@@ -11,12 +11,17 @@ export type ApiClientResult<T> =
       status?: number;
     };
 
-export async function apiGet<T>(path: string): Promise<ApiClientResult<T>> {
+export async function apiGet<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<ApiClientResult<T>> {
+  const headers = new Headers(init.headers);
+  headers.set("Accept", "application/json");
+
   return apiRequest<T>(path, {
+    ...init,
     method: "GET",
-    headers: {
-      Accept: "application/json"
-    }
+    headers
   });
 }
 

@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Screen } from "../../ui/screen";
+import { MobileVirtualizedScreen } from "../../ui/mobile-virtualized-screen";
 import {
   MobileButton,
   MobileEmptyState,
@@ -18,7 +18,7 @@ import {
 import { colors, radius, spacing } from "../../ui/theme";
 import { useMobileReducedMotion } from "../../lib/use-mobile-reduced-motion";
 import {
-  fetchMobileListings,
+  fetchMobileListingsPage,
   type FetchMobileListingsParams,
   type MobileListingConditionFilter,
   type MobileListingCreatedSinceFilter,
@@ -54,16 +54,33 @@ const emptyHomeListingFilters: HomeListingFilters = {
   priceMin: ""
 };
 
+const DISCOVER_PAGE_SIZE = 20;
+
+type BrowseLoadMode = "append" | "refresh" | "replace";
+
+const emptyPagination = {
+  hasNextPage: false,
+  limit: DISCOVER_PAGE_SIZE,
+  offset: 0,
+  total: 0
+};
+
+
 export function BrowseScreen() {
   const router = useRouter();
   const prefersReducedMotion = useMobileReducedMotion();
   const listingRequestIdRef = useRef(0);
+  const listingAbortControllerRef = useRef<AbortController | null>(null);
+  const listingsRef = useRef<MobileListingSummary[]>([]);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [listings, setListings] = useState<MobileListingSummary[]>([]);
   const [heroListings, setHeroListings] = useState<MobileListingSummary[]>([]);
   const [categories, setCategories] = useState<MobileCategory[]>([]);
+  const [pagination, setPagination] = useState(emptyPagination);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [draftQuery, setDraftQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [draftFilters, setDraftFilters] = useState<HomeListingFilters>(emptyHomeListingFilters);
@@ -73,46 +90,88 @@ export function BrowseScreen() {
   const activeFilterCount = getActiveFilterCount(appliedFilters);
   const hasSearchOrFilters = appliedQuery.length > 0 || activeFilterCount > 0;
 
-  const loadListings = useCallback(async (query: string, filters: HomeListingFilters) => {
+  const loadListings = useCallback(async (
+    query: string,
+    filters: HomeListingFilters,
+    offset = 0,
+    mode: BrowseLoadMode = "replace"
+  ) => {
+    listingAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    listingAbortControllerRef.current = controller;
     const requestId = ++listingRequestIdRef.current;
 
-    try {
+    if (mode === "replace") {
       setStatus("loading");
-      setError(null);
+    } else if (mode === "append") {
+      setIsLoadingMore(true);
+    } else {
+      setIsRefreshing(true);
+    }
 
-      const nextListings = await fetchMobileListings({
+    setError(null);
+
+    try {
+      const page = await fetchMobileListingsPage({
         q: query,
-        limit: 20,
+        limit: DISCOVER_PAGE_SIZE,
+        offset,
         ...toListingQueryFilters(filters)
+      }, {
+        signal: controller.signal
       });
 
-      if (requestId !== listingRequestIdRef.current) {
+      if (controller.signal.aborted || requestId !== listingRequestIdRef.current) {
         return;
       }
 
-      setListings(nextListings);
-      const nextHeroListings = getDiscoverHeroListings({
-        activeFilterCount: getActiveFilterCount(filters),
-        listings: nextListings,
-        query
-      });
+      const nextListings = mode === "append"
+        ? mergeUniqueListings(listingsRef.current, page.listings)
+        : page.listings;
 
-      setHeroListings(nextHeroListings);
+      listingsRef.current = nextListings;
+      setListings(nextListings);
+      setPagination(page.pagination);
+
+      if (mode !== "append") {
+        setHeroListings(getDiscoverHeroListings({
+          activeFilterCount: getActiveFilterCount(filters),
+          listings: page.listings,
+          query
+        }));
+      }
+
       setStatus(nextListings.length > 0 ? "ready" : "empty");
     } catch (loadError) {
-      if (requestId !== listingRequestIdRef.current) {
+      if (
+        controller.signal.aborted ||
+        requestId !== listingRequestIdRef.current ||
+        (loadError instanceof Error && loadError.name === "AbortError")
+      ) {
         return;
       }
 
-      setListings([]);
-      setStatus("error");
+      if (mode === "replace") {
+        listingsRef.current = [];
+        setListings([]);
+        setPagination(emptyPagination);
+        setStatus("error");
+      }
+
       setError(loadError instanceof Error ? loadError.message : "İlanlar yüklenemedi.");
+    } finally {
+      if (requestId === listingRequestIdRef.current) {
+        setIsLoadingMore(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    void loadListings(appliedQuery, appliedFilters);
+    void loadListings(appliedQuery, appliedFilters, 0, "replace");
   }, [appliedFilters, appliedQuery, loadListings]);
+
+  useEffect(() => () => listingAbortControllerRef.current?.abort(), []);
 
   useEffect(() => {
     let active = true;
@@ -177,28 +236,21 @@ export function BrowseScreen() {
     setFilterOpen(false);
   }
 
-  return (
-    <Screen
-      title="Keşfet"
-      headerAction={
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel="Başlığa göre ilan ara"
-            onPress={() => setSearchOpen(true)}
-            style={styles.searchIconButton}
-          >
-            <Ionicons color={colors.primaryDark} name="search" size={21} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel="İlan filtrelerini aç"
-            onPress={() => setFilterOpen(true)}
-            style={[styles.searchIconButton, activeFilterCount > 0 ? styles.searchIconButtonActive : null]}
-          >
-            <Ionicons color={colors.primaryDark} name="options-outline" size={21} />
-          </Pressable>
-        </View>
-      }
-    >
+  function handleLoadMore() {
+    if (status !== "ready" || isLoadingMore || !pagination.hasNextPage) {
+      return;
+    }
+
+    void loadListings(
+      appliedQuery,
+      appliedFilters,
+      pagination.offset + pagination.limit,
+      "append"
+    );
+  }
+
+  const listHeader = (
+    <>
       {!hasSearchOrFilters ? (
         <DiscoverHeroBanner
           autoAdvanceEnabled={isScreenFocused && !prefersReducedMotion}
@@ -206,26 +258,6 @@ export function BrowseScreen() {
           onListingPress={(listingId) => router.push(`/listing/${encodeURIComponent(listingId)}`)}
         />
       ) : null}
-
-      <SearchSheet
-        appliedQuery={appliedQuery}
-        draftQuery={draftQuery}
-        onChangeQuery={setDraftQuery}
-        onClear={handleClearSearch}
-        onClose={() => setSearchOpen(false)}
-        onSearch={handleSearch}
-        visible={searchOpen}
-      />
-
-      <FilterSheet
-        categories={categories}
-        filters={draftFilters}
-        onApply={handleApplyFilters}
-        onChangeFilters={setDraftFilters}
-        onClear={handleClearFilters}
-        onClose={() => setFilterOpen(false)}
-        visible={filterOpen}
-      />
 
       <MobileSectionHeader
         description={getBrowseSectionDescription(appliedQuery, activeFilterCount)}
@@ -247,56 +279,136 @@ export function BrowseScreen() {
           </Pressable>
         </View>
       ) : null}
-
-      {status === "loading" ? <MobileSkeleton label="İlanlar yükleniyor..." /> : null}
-
-      {status === "error" ? (
-        <MobileErrorState
-          actionLabel="Tekrar dene"
-          message={error}
-          onAction={() => void loadListings(appliedQuery, appliedFilters)}
-          title="İlanlar yüklenemedi"
-        />
-      ) : null}
-
-      {status === "empty" ? (
-        <MobileEmptyState
-          actionLabel={hasSearchOrFilters ? "Arama ve filtreleri temizle" : "Tekrar dene"}
-          message={
-            hasSearchOrFilters
-              ? "Arama veya filtreler çok dar olabilir. Hepsini temizleyip son ilanlara dönebilirsin."
-              : "Şu an gösterilecek ilan yok. Biraz sonra tekrar dene."
-          }
-          onAction={hasSearchOrFilters ? handleClearDiscovery : () => void loadListings(appliedQuery, appliedFilters)}
-          title="Eşleşen ilan yok"
-        />
-      ) : null}
-
-      <View style={styles.list}>
-        {listings.map((listing) => (
-          <MobileListingCard
-            accessibilityLabel={`İlanı aç: ${listing.title}`}
-            chips={buildMobileListingChips({
-              conditionText: listing.conditionText,
-              listingTypeText: listing.listingTypeText,
-              statusText: listing.statusText
-            })}
-            footerText={formatMobileListingAgeRange(
-              listing.recommendedAgeMinMonths,
-              listing.recommendedAgeMaxMonths
-            )}
-            imageUrl={listing.imageUrl}
-            key={listing.id}
-            locationText={listing.locationText}
-            onPress={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
-            priceText={listing.priceText}
-            title={listing.title}
-            variant="vertical"
-          />
-        ))}
-      </View>
-    </Screen>
+    </>
   );
+
+  const listEmpty = status === "loading" ? (
+    <MobileSkeleton label="İlanlar yükleniyor..." />
+  ) : status === "error" ? (
+    <MobileErrorState
+      actionLabel="Tekrar dene"
+      message={error}
+      onAction={() => void loadListings(appliedQuery, appliedFilters, 0, "replace")}
+      title="İlanlar yüklenemedi"
+    />
+  ) : status === "empty" ? (
+    <MobileEmptyState
+      actionLabel={hasSearchOrFilters ? "Arama ve filtreleri temizle" : "Tekrar dene"}
+      message={
+        hasSearchOrFilters
+          ? "Arama veya filtreler çok dar olabilir. Hepsini temizleyip son ilanlara dönebilirsin."
+          : "Şu an gösterilecek ilan yok. Biraz sonra tekrar dene."
+      }
+      onAction={hasSearchOrFilters
+        ? handleClearDiscovery
+        : () => void loadListings(appliedQuery, appliedFilters, 0, "replace")}
+      title="Eşleşen ilan yok"
+    />
+  ) : null;
+
+  const listFooter = listings.length > 0 ? (
+    <View style={styles.listFooter}>
+      {isLoadingMore ? <MobileSkeleton label="Daha fazla ilan yükleniyor..." /> : null}
+      {pagination.hasNextPage && !isLoadingMore ? (
+        <MobileButton onPress={handleLoadMore} variant="secondary">
+          Daha fazla ilan göster
+        </MobileButton>
+      ) : null}
+      {!pagination.hasNextPage ? (
+        <Text style={styles.paginationEndText}>
+          {pagination.total > 0 ? `${pagination.total} ilanın tamamı gösterildi.` : "Tüm ilanlar gösterildi."}
+        </Text>
+      ) : null}
+      {error && status === "ready" ? <Text style={styles.paginationErrorText}>{error}</Text> : null}
+    </View>
+  ) : null;
+
+  return (
+    <MobileVirtualizedScreen
+      data={listings}
+      headerAction={
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityLabel="Başlığa göre ilan ara"
+            onPress={() => setSearchOpen(true)}
+            style={styles.searchIconButton}
+          >
+            <Ionicons color={colors.primaryDark} name="search" size={21} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="İlan filtrelerini aç"
+            onPress={() => setFilterOpen(true)}
+            style={[styles.searchIconButton, activeFilterCount > 0 ? styles.searchIconButtonActive : null]}
+          >
+            <Ionicons color={colors.primaryDark} name="options-outline" size={21} />
+          </Pressable>
+        </View>
+      }
+      keyExtractor={(listing) => listing.id}
+      listEmpty={listEmpty}
+      listFooter={listFooter}
+      listHeader={listHeader}
+      onEndReached={handleLoadMore}
+      onRefresh={() => void loadListings(appliedQuery, appliedFilters, 0, "refresh")}
+      overlay={
+        <>
+          <SearchSheet
+            appliedQuery={appliedQuery}
+            draftQuery={draftQuery}
+            onChangeQuery={setDraftQuery}
+            onClear={handleClearSearch}
+            onClose={() => setSearchOpen(false)}
+            onSearch={handleSearch}
+            visible={searchOpen}
+          />
+          <FilterSheet
+            categories={categories}
+            filters={draftFilters}
+            onApply={handleApplyFilters}
+            onChangeFilters={setDraftFilters}
+            onClear={handleClearFilters}
+            onClose={() => setFilterOpen(false)}
+            visible={filterOpen}
+          />
+        </>
+      }
+      refreshing={isRefreshing}
+      renderItem={({ item: listing }) => (
+        <MobileListingCard
+          accessibilityLabel={`İlanı aç: ${listing.title}`}
+          chips={buildMobileListingChips({
+            conditionText: listing.conditionText,
+            listingTypeText: listing.listingTypeText,
+            statusText: listing.statusText
+          })}
+          footerText={formatMobileListingAgeRange(
+            listing.recommendedAgeMinMonths,
+            listing.recommendedAgeMaxMonths
+          )}
+          imageUrl={listing.imageUrl}
+          locationText={listing.locationText}
+          onPress={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
+          priceText={listing.priceText}
+          title={listing.title}
+          variant="vertical"
+        />
+      )}
+      title="Keşfet"
+    />
+  );
+}
+
+function mergeUniqueListings(
+  current: MobileListingSummary[],
+  incoming: MobileListingSummary[]
+): MobileListingSummary[] {
+  const byId = new Map(current.map((listing) => [listing.id, listing]));
+
+  for (const listing of incoming) {
+    byId.set(listing.id, listing);
+  }
+
+  return [...byId.values()];
 }
 
 function FilterSheet({
@@ -752,8 +864,21 @@ const styles = StyleSheet.create({
   searchButton: {
     flex: 1
   },
-  list: {
-    gap: spacing.md
+  listFooter: {
+    gap: spacing.md,
+    paddingTop: spacing.lg
+  },
+  paginationEndText: {
+    color: colors.subtle,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  paginationErrorText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center"
   }
 });
 

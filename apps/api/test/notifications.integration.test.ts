@@ -87,6 +87,7 @@ describe("notifications API", () => {
     expect(sendResponse.statusCode).toBe(201);
     expect(sellerNotifications.statusCode).toBe(200);
     expect(sellerNotifications.json().data.notifications).toHaveLength(1);
+    expect(sellerNotifications.json().data.unreadCount).toBe(1);
     expect(sellerNotifications.json().data.notifications[0]).toMatchObject({
       actorProfile: {
         id: buyer.profile.id,

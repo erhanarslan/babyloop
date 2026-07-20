@@ -113,6 +113,7 @@ export type MobilePushTokenRegistration = {
 
 export async function fetchMobileNotifications(): Promise<MobileApiResponse<{
   notifications: MobileNotification[];
+  unreadCount: number;
 }>> {
   return requestMobileNotificationsApi("/api/v1/notifications");
 }

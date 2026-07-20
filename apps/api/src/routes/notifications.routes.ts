@@ -40,6 +40,7 @@ import {
 
 type NotificationsResponse = ApiResponse<{
   notifications: NotificationResponse[];
+  unreadCount: number;
 }>;
 
 type UnreadCountResponse = ApiResponse<{
@@ -272,10 +273,16 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
       return reply;
     }
 
+    const [notifications, unreadCount] = await Promise.all([
+      listNotificationsForProfile(app, currentUser.profile.id),
+      getUnreadNotificationCount(app, currentUser.profile.id)
+    ]);
+
     return {
       ok: true,
       data: {
-        notifications: await listNotificationsForProfile(app, currentUser.profile.id)
+        notifications,
+        unreadCount
       }
     };
   });

@@ -26,7 +26,8 @@ describe("mobile notifications API", () => {
     mobileAuthFetchMock.mockResolvedValueOnce(apiResponse({
       ok: true,
       data: {
-        notifications: []
+        notifications: [],
+        unreadCount: 0
       }
     }));
 
@@ -35,7 +36,8 @@ describe("mobile notifications API", () => {
     expect(result).toEqual({
       ok: true,
       data: {
-        notifications: []
+        notifications: [],
+        unreadCount: 0
       }
     });
     expect(mobileAuthFetchMock).toHaveBeenCalledWith("/api/v1/notifications", {});

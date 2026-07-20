@@ -130,6 +130,10 @@ function editableListing(): MobileEditableListingDetail {
     publicationReviewReason: null,
     recommendedAgeMinMonths: 12,
     recommendedAgeMaxMonths: 24,
-    title: "Temiz bebek arabası"
+    title: "Temiz bebek arabası",
+    viewerState: {
+      isFavorited: false,
+      isOwner: true
+    }
   };
 }

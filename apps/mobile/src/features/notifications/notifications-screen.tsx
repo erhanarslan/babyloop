@@ -6,7 +6,6 @@ import { useAuthSession } from "../auth/auth-session";
 import {
   fetchMobileNotificationPreferences,
   fetchMobileNotifications,
-  fetchMobileUnreadNotificationCount,
   generateMobileChildLifecycleNotifications,
   markAllMobileNotificationsRead,
   markMobileNotificationRead,
@@ -67,11 +66,7 @@ export function NotificationsScreen() {
 
     setError(null);
 
-    const [notificationsResponse, unreadResponse, preferencesResponse] = await Promise.all([
-      fetchMobileNotifications(),
-      fetchMobileUnreadNotificationCount(),
-      fetchMobileNotificationPreferences()
-    ]);
+    const notificationsResponse = await fetchMobileNotifications();
 
     if (!notificationsResponse.ok) {
       setStatus("error");
@@ -79,21 +74,37 @@ export function NotificationsScreen() {
       return;
     }
 
-    if (!unreadResponse.ok) {
-      setStatus("error");
-      setError(unreadResponse.error.message);
-      return;
-    }
-
     setNotifications(notificationsResponse.data.notifications);
-    setUnreadCount(unreadResponse.data.count);
-    setPreferencesPayload(preferencesResponse.ok ? preferencesResponse.data : null);
+    setUnreadCount(notificationsResponse.data.unreadCount);
     setStatus("ready");
   }, [currentUser]);
 
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPreferences() {
+      if (!currentUser) {
+        setPreferencesPayload(null);
+        return;
+      }
+
+      const response = await fetchMobileNotificationPreferences();
+
+      if (active) {
+        setPreferencesPayload(response.ok ? response.data : null);
+      }
+    }
+
+    void loadPreferences();
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser]);
 
   const handleNotificationPress = useCallback(async (notification: MobileNotification) => {
     if (isMutating) {

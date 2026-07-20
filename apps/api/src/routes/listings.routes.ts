@@ -466,7 +466,14 @@ export function registerListingRoutes(app: FastifyInstance, options: ListingRout
         });
       }
 
-      const listing = await getListingDetail(app, parsedParams.data.id);
+      const currentUser = typeof app.authenticate === "function"
+        ? await app.authenticate(request)
+        : null;
+      const listing = await getListingDetail(
+        app,
+        parsedParams.data.id,
+        currentUser?.profile.id ?? null
+      );
 
       if (!listing) {
         return reply.status(404).send({

@@ -339,6 +339,10 @@ describe("listings API", () => {
           id: listing.id,
           seller: {
             id: seller.profile.id
+          },
+          viewerState: {
+            isFavorited: false,
+            isOwner: false
           }
         }
       }
@@ -378,6 +382,16 @@ describe("listings API", () => {
       method: "GET",
       url: `/api/v1/listings/${listing.id}`
     });
+    const firstBuyerDetail = await app.inject({
+      headers: authHeader(firstBuyer.accessToken),
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const sellerDetail = await app.inject({
+      headers: authHeader(seller.accessToken),
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
     const sellerListingsWithTwoFavorites = await app.inject({
       headers: authHeader(seller.accessToken),
       method: "GET",
@@ -400,6 +414,14 @@ describe("listings API", () => {
 
     expect(detailWithTwoFavorites.statusCode).toBe(200);
     expect(detailWithTwoFavorites.json().data.listing.favoriteCount).toBe(2);
+    expect(firstBuyerDetail.json().data.listing.viewerState).toEqual({
+      isFavorited: true,
+      isOwner: false
+    });
+    expect(sellerDetail.json().data.listing.viewerState).toEqual({
+      isFavorited: false,
+      isOwner: true
+    });
     expect(sellerListingsWithTwoFavorites.statusCode).toBe(200);
     expect(sellerListingsWithTwoFavorites.json().data.listings).toEqual(
       expect.arrayContaining([

@@ -44,6 +44,10 @@ export type MobileListingDetail = MobileListingSummary & {
   sellerProfileId: string | null;
   sellerDisplayName: string | null;
   favoriteCount: number | null;
+  viewerState: {
+    isFavorited: boolean;
+    isOwner: boolean;
+  };
 };
 
 export type MobileMyListingSummary = MobileListingSummary & {
@@ -59,28 +63,61 @@ export type FetchMobileListingsParams = {
   listingType?: MobileListingTypeFilter;
   q?: string;
   limit?: number;
+  offset?: number;
   priceMax?: string;
   priceMin?: string;
 };
 
-export async function fetchMobileListings(
-  params: FetchMobileListingsParams = {}
-): Promise<MobileListingSummary[]> {
-  const query = buildMobileListingsQuery(params);
 
-  const result = await apiGet<unknown>(`/api/v1/listings?${query.toString()}`);
+export type MobileListingsPage = {
+  listings: MobileListingSummary[];
+  pagination: {
+    hasNextPage: boolean;
+    limit: number;
+    offset: number;
+    total: number;
+  };
+};
+
+export type FetchMobileListingsOptions = {
+  signal?: AbortSignal;
+};
+
+export async function fetchMobileListings(
+  params: FetchMobileListingsParams = {},
+  options: FetchMobileListingsOptions = {}
+): Promise<MobileListingSummary[]> {
+  const page = await fetchMobileListingsPage(params, options);
+  return page.listings;
+}
+
+export async function fetchMobileListingsPage(
+  params: FetchMobileListingsParams = {},
+  options: FetchMobileListingsOptions = {}
+): Promise<MobileListingsPage> {
+  const query = buildMobileListingsQuery(params);
+  const result = await apiGet<unknown>(`/api/v1/listings?${query.toString()}`, {
+    signal: options.signal
+  });
+
+  if (options.signal?.aborted) {
+    throw createAbortError();
+  }
 
   if (!result.ok) {
     throw new Error(result.error);
   }
 
-  return extractListingArray(result.data).map(normalizeMobileListingSummary);
+  return {
+    listings: extractListingArray(result.data).map(normalizeMobileListingSummary),
+    pagination: extractMobileListingsPagination(result.data, params)
+  };
 }
 
 export function buildMobileListingsQuery(params: FetchMobileListingsParams = {}): URLSearchParams {
   const query = new URLSearchParams({
     limit: String(params.limit ?? 20),
-    offset: "0",
+    offset: String(params.offset ?? 0),
     sort: "newest"
   });
 
@@ -104,14 +141,24 @@ function setTrimmedQueryParam(query: URLSearchParams, key: string, value: string
   }
 }
 
-export async function fetchMobileListingDetail(listingId: string): Promise<MobileListingDetail> {
-  const result = await apiGet<unknown>(`/api/v1/listings/${encodeURIComponent(listingId)}`);
+export async function fetchMobileListingDetail(
+  listingId: string,
+  options: FetchMobileListingsOptions = {}
+): Promise<MobileListingDetail> {
+  const response = await mobileAuthFetch(`/api/v1/listings/${encodeURIComponent(listingId)}`, {
+    signal: options.signal
+  });
+  const payload: unknown = await response.json().catch(() => null);
 
-  if (!result.ok) {
-    throw new Error(result.error);
+  if (options.signal?.aborted) {
+    throw createAbortError();
   }
 
-  return normalizeListingDetail(extractListingObject(result.data));
+  if (!response.ok) {
+    throw new Error(safeApiErrorMessage(payload, "İlan detayı yüklenemedi."));
+  }
+
+  return normalizeListingDetail(extractListingObject(payload));
 }
 
 export async function fetchMobileMyListings(): Promise<MobileMyListingSummary[]> {
@@ -246,7 +293,8 @@ function normalizeListingDetail(value: unknown): MobileListingDetail {
       pickString(record, ["sellerDisplayName", "sellerName"]) ??
       pickNestedString(record, ["seller", "displayName"]) ??
       pickNestedString(record, ["seller", "name"]),
-    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"])
+    favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"]),
+    viewerState: normalizeMobileListingViewerState(record.viewerState)
   };
 }
 
@@ -259,6 +307,38 @@ function normalizeMyListingSummary(value: unknown): MobileMyListingSummary {
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? null,
     favoriteCount: pickNumber(record, ["favoriteCount", "favoritesCount"])
   };
+}
+
+
+function extractMobileListingsPagination(
+  payload: unknown,
+  params: FetchMobileListingsParams
+): MobileListingsPage["pagination"] {
+  const root = isRecord(payload) && isRecord(payload.data) ? payload.data : payload;
+  const pagination = isRecord(root) && isRecord(root.pagination) ? root.pagination : {};
+  const limit = pickNumber(pagination, ["limit"]) ?? params.limit ?? 20;
+  const offset = pickNumber(pagination, ["offset"]) ?? params.offset ?? 0;
+  const total = pickNumber(pagination, ["total"]) ?? offset + extractListingArray(payload).length;
+  const hasNextPage = typeof pagination.hasNextPage === "boolean"
+    ? pagination.hasNextPage
+    : offset + extractListingArray(payload).length < total;
+
+  return { hasNextPage, limit, offset, total };
+}
+
+function normalizeMobileListingViewerState(value: unknown): MobileListingDetail["viewerState"] {
+  const record = isRecord(value) ? value : {};
+
+  return {
+    isFavorited: record.isFavorited === true,
+    isOwner: record.isOwner === true
+  };
+}
+
+function createAbortError(): Error {
+  const error = new Error("Request aborted.");
+  error.name = "AbortError";
+  return error;
 }
 
 function normalizePublicationState(value: string | null): MobileListingPublicationState {

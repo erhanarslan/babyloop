@@ -1,5 +1,6 @@
 import {
   events,
+  favorites,
   listingImages,
   listings
 } from "@babyloop/database/schema";
@@ -772,7 +773,11 @@ export async function getOwnerListingDetail(
         avatarUrl: null,
         locationCity: profile.locationCity ?? null
       },
-      updatedAt: row.updatedAt.toISOString()
+      updatedAt: row.updatedAt.toISOString(),
+      viewerState: {
+        isFavorited: false,
+        isOwner: true
+      }
     }
   };
 }
@@ -866,7 +871,8 @@ function isAllowedStatusTransition(currentStatus: string, nextStatus: ListingSta
 
 export async function getListingDetail(
   app: FastifyInstance,
-  id: string
+  id: string,
+  viewerProfileId: string | null = null
 ): Promise<ListingDetailResponse | null> {
   const row = await selectListingDetailRow(app, id);
 
@@ -874,9 +880,13 @@ export async function getListingDetail(
     return null;
   }
 
-  const [images, favoriteCounts] = await Promise.all([
+  const isOwner = viewerProfileId === row.sellerId;
+  const [images, favoriteCounts, isFavorited] = await Promise.all([
     getPublicListingImages(app, row.id),
-    getFavoriteCounts(app, [row.id])
+    getFavoriteCounts(app, [row.id]),
+    viewerProfileId && !isOwner
+      ? isListingFavoritedByProfile(app, viewerProfileId, row.id)
+      : Promise.resolve(false)
   ]);
 
   return {
@@ -898,6 +908,24 @@ export async function getListingDetail(
       avatarUrl: row.sellerAvatarUrl,
       locationCity: row.sellerLocationCity
     },
-    updatedAt: row.updatedAt.toISOString()
+    updatedAt: row.updatedAt.toISOString(),
+    viewerState: {
+      isFavorited,
+      isOwner
+    }
   };
+}
+
+async function isListingFavoritedByProfile(
+  app: FastifyInstance,
+  profileId: string,
+  listingId: string
+): Promise<boolean> {
+  const [row] = await app.db
+    .select({ id: favorites.id })
+    .from(favorites)
+    .where(and(eq(favorites.profileId, profileId), eq(favorites.listingId, listingId)))
+    .limit(1);
+
+  return Boolean(row);
 }

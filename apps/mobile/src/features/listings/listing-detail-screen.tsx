@@ -18,10 +18,7 @@ import {
   setPendingMobileLoginIntent
 } from "../auth/mobile-login-intent";
 import { addMobileCartItem } from "../basket/basket-api";
-import {
-  fetchMobileFavorites,
-  saveMobileFavorite
-} from "../favorites/favorites-api";
+import { saveMobileFavorite } from "../favorites/favorites-api";
 import { startMobileConversationForListing } from "../messages/messages-api";
 import {
   getMobileListingDetailActionState,
@@ -65,9 +62,7 @@ export function ListingDetailScreen() {
   const [shareError, setShareError] = useState<string | null>(null);
   const [handledPostLoginAction, setHandledPostLoginAction] = useState<string | null>(null);
 
-  const isOwnListing = Boolean(
-    currentUser && listing?.sellerProfileId && currentUser.profile.id === listing.sellerProfileId
-  );
+  const isOwnListing = Boolean(listing?.viewerState.isOwner);
   const actionState = listing
     ? getMobileListingDetailActionState({
         isOwnListing,
@@ -95,7 +90,7 @@ export function ListingDetailScreen() {
   }
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     async function loadListing() {
       try {
@@ -105,21 +100,27 @@ export function ListingDetailScreen() {
         setConversationError(null);
         setCartError(null);
         setShareError(null);
+        setFavoriteStatus("checking");
 
-        const nextListing = await fetchMobileListingDetail(listingId);
+        const nextListing = await fetchMobileListingDetail(listingId, {
+          signal: controller.signal
+        });
 
-        if (!active) {
+        if (controller.signal.aborted) {
           return;
         }
 
         setListing(nextListing);
+        setIsFavorited(nextListing.viewerState.isFavorited);
+        setFavoriteStatus("idle");
         setSelectedImageUrl(null);
         setStatus("ready");
       } catch (loadError) {
-        if (!active) {
+        if (controller.signal.aborted || (loadError instanceof Error && loadError.name === "AbortError")) {
           return;
         }
 
+        setFavoriteStatus("idle");
         setStatus("error");
         setError(loadError instanceof Error ? loadError.message : "İlan detayı yüklenemedi.");
       }
@@ -127,50 +128,8 @@ export function ListingDetailScreen() {
 
     void loadListing();
 
-    return () => {
-      active = false;
-    };
-  }, [listingId]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadFavoriteState() {
-      setFavoriteError(null);
-
-      if (!currentUser || !listing || isOwnListing || !actionState?.canFavorite) {
-        setIsFavorited(false);
-        setFavoriteStatus("idle");
-        return;
-      }
-
-      try {
-        setFavoriteStatus("checking");
-
-        const favorites = await fetchMobileFavorites();
-
-        if (!active) {
-          return;
-        }
-
-        setIsFavorited(favorites.some((favorite) => favorite.id === listingId));
-        setFavoriteStatus("idle");
-      } catch {
-        if (!active) {
-          return;
-        }
-
-        setIsFavorited(false);
-        setFavoriteStatus("idle");
-      }
-    }
-
-    void loadFavoriteState();
-
-    return () => {
-      active = false;
-    };
-  }, [actionState?.canFavorite, currentUser, isOwnListing, listing, listingId]);
+    return () => controller.abort();
+  }, [currentUser?.profile.id, listingId]);
 
   function redirectToLoginForListingAction(action: "favorite" | "message" | "cart") {
     if (!listing) {

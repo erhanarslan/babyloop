@@ -61,6 +61,10 @@ export type ListingSummaryResponse = {
 export type ListingDetailResponse = ListingSummaryResponse & {
   description: string | null;
   images: ListingImageResponse[];
+  viewerState: {
+    isFavorited: boolean;
+    isOwner: boolean;
+  };
   seller: {
     id: string;
     displayName: string;

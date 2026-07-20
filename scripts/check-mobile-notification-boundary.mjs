@@ -152,7 +152,7 @@ function checkMobileNotificationModelAndScreen() {
 
   for (const token of [
     "fetchMobileNotifications",
-    "fetchMobileUnreadNotificationCount",
+    "notificationsResponse.data.unreadCount",
     "markMobileNotificationRead",
     "markAllMobileNotificationsRead",
     "router.push(`/conversation/${encodeURIComponent(notification.entityId)}`)",
@@ -161,6 +161,8 @@ function checkMobileNotificationModelAndScreen() {
   ]) {
     mustContain(screen, screenFile, token);
   }
+
+  mustNotContain(screen, screenFile, "fetchMobileUnreadNotificationCount");
 
   for (const forbidden of [
     "@react-native-async-storage/async-storage",
