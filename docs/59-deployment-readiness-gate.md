@@ -143,3 +143,17 @@ Exact guard wording: manual approval is required before beta production release.
 ## Runtime health and observability deployment requirements
 
 Staging and production deployment readiness must configure authenticated metrics, an HTTPS error-reporting sink, worker heartbeat requirements, stale claim policy, and migration `0043_runtime_readiness_observability`. Liveness must not depend on external services; readiness must fail closed for every dependency explicitly marked required.
+
+## Backup, restore, and rollback implementation gate
+
+The repository now includes executable PostgreSQL backup, checksum verification, age encryption, retention, controlled restore, isolated restore smoke, release manifest, and rollback-plan tooling.
+
+Required commands:
+
+```bash
+pnpm security:backup-restore-rollback
+pnpm test:ops:backup-restore
+TEST_DATABASE_URL=... pnpm ops:db:restore-smoke
+```
+
+Production readiness additionally requires an encrypted pre-deploy backup, a checksum-verified replica copy, restore-smoke evidence, immutable release image digests, and a previous release manifest. Database rollback is forward-only: the current schema is retained and older code is allowed only after explicit compatibility review. Provider-specific rollback execution remains blocked until a checked-in deployment adapter is added under `scripts/deploy/adapters/`.

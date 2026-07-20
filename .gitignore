@@ -207,6 +207,12 @@ temp/
 .storage/
 .local-storage/
 
+# Database backup, restore receipts and release manifests are local/secret-bearing runtime artifacts.
+var/backups/
+var/restore-work/
+var/restore-receipts/
+.release/
+
 *.tmp
 *.temp
 

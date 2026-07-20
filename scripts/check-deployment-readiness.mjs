@@ -23,6 +23,7 @@ if (target !== "local") {
   checkAiProviderEnv();
   checkRagEnv();
   checkObservabilityEnv();
+  checkBackupRestoreEnv();
   checkBackofficePosture();
 } else {
   note("local", "Strict staging/production env validation is skipped for local target.");
@@ -96,7 +97,13 @@ function checkRequiredFiles() {
     "docs/54-production-env-checklist.md",
     "scripts/release-smoke.sh",
     "scripts/check-release-artifacts.mjs",
-    "scripts/clean-release-artifacts.mjs"
+    "scripts/clean-release-artifacts.mjs",
+    "scripts/ops/postgres-backup.mjs",
+    "scripts/ops/postgres-restore.mjs",
+    "scripts/ops/postgres-restore-smoke.mjs",
+    "scripts/ops/release-manifest.mjs",
+    "scripts/ops/release-rollback.mjs",
+    "docs/83-backup-restore-rollback.md"
   ];
 
   for (const file of requiredFiles) {
@@ -530,6 +537,53 @@ function checkObservabilityEnv() {
   }
 
   ok("observability", "Runtime readiness and observability env checks completed.");
+}
+
+function checkBackupRestoreEnv() {
+  const backupEnvironment = lowerEnv("BACKUP_ENVIRONMENT");
+  const outputDirectory = env("BACKUP_OUTPUT_DIR");
+  const replicaDirectory = env("BACKUP_REPLICA_DIR");
+  const encryptionMode = lowerEnv("BACKUP_ENCRYPTION_MODE");
+  const retentionDays = numberEnv("BACKUP_RETENTION_DAYS");
+  const retentionCount = numberEnv("BACKUP_RETENTION_COUNT");
+
+  requireEnvValue("BACKUP_ENVIRONMENT", target, "backup");
+  requireEnv("BACKUP_OUTPUT_DIR", "backup");
+
+  if (!["none", "age"].includes(encryptionMode)) {
+    error("backup", "BACKUP_ENCRYPTION_MODE must be none or age.");
+  }
+
+  for (const [key, value] of [["BACKUP_RETENTION_DAYS", retentionDays], ["BACKUP_RETENTION_COUNT", retentionCount]]) {
+    if (value === null || !Number.isInteger(value) || value < 1) {
+      error("backup", `${key} must be a positive integer.`);
+    }
+  }
+
+  if (outputDirectory && replicaDirectory && outputDirectory === replicaDirectory) {
+    error("backup", "BACKUP_REPLICA_DIR must differ from BACKUP_OUTPUT_DIR.");
+  }
+
+  if (target === "production") {
+    requireEnvValue("BACKUP_ENCRYPTION_MODE", "age", "backup");
+    requireEnv("BACKUP_AGE_RECIPIENT", "backup");
+    requireEnv("BACKUP_REPLICA_DIR", "backup");
+    requireEnv("BACKUP_RESTORE_SMOKE_EVIDENCE", "backup");
+    requireEnv("RELEASE_BACKUP_MANIFEST_PATH", "backup");
+    requireEnv("RELEASE_DATABASE_FORWARD_COMPATIBLE", "backup");
+
+    const recipient = env("BACKUP_AGE_RECIPIENT");
+    if (recipient && !recipient.startsWith("age1")) {
+      error("backup", "BACKUP_AGE_RECIPIENT must be a public age recipient beginning with age1.");
+    }
+    if (env("BACKUP_AGE_IDENTITY_FILE")) {
+      warn("backup", "BACKUP_AGE_IDENTITY_FILE should be mounted only into controlled restore jobs, not the API runtime.");
+    }
+  } else if (backupEnvironment === "staging" && encryptionMode !== "age") {
+    warn("backup", "Staging backups should use age encryption before production rehearsal.");
+  }
+
+  ok("backup", "Backup, restore-smoke, and rollback env checks completed.");
 }
 
 function checkBackofficePosture() {

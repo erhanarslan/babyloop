@@ -938,3 +938,16 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] `GET /internal/metrics` is disabled or returns `401` without the bearer token.
 - [ ] Error webhook payloads contain no connection string, token, cookie, authorization header, request body, e-mail, user ID, or raw stack.
 - [ ] Database migration `0043_runtime_readiness_observability` is applied in the target environment.
+
+## Backup, restore, and rollback gate
+
+- [ ] `pnpm security:backup-restore-rollback` passes.
+- [ ] `pnpm test:ops:backup-restore` passes.
+- [ ] `TEST_DATABASE_URL=... pnpm ops:db:restore-smoke` restores into an isolated temporary database and cleans it up.
+- [ ] Production backup uses `age` encryption and a checksum-verified replica directory.
+- [ ] Backup artifact, manifest, retention policy, release Git SHA, and migration head are recorded.
+- [ ] Restore refuses checksum mismatch, non-empty targets without dual confirmation, and protected PostgreSQL databases.
+- [ ] Release images are pinned by immutable SHA-256 digest.
+- [ ] Rollback keeps the current schema; no down migration is executed.
+- [ ] Forward schema compatibility is reviewed before rolling older code onto a newer migration.
+- [ ] Backup, restore-smoke, rollback plan, owner, and manual go/no-go evidence are retained.

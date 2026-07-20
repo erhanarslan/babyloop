@@ -561,3 +561,17 @@ HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS=true
 ```
 
 `pnpm security:runtime-readiness-observability` and `pnpm test:api:readiness` must pass. Database migration `0043_runtime_readiness_observability` must be applied before enabling required worker readiness.
+
+## Backup, restore, and rollback environment
+
+- `BACKUP_ENVIRONMENT=production`
+- `BACKUP_OUTPUT_DIR` points to a restricted primary backup directory.
+- `BACKUP_REPLICA_DIR` points to a separate persistent mounted volume or backup sink.
+- `BACKUP_ENCRYPTION_MODE=age`
+- `BACKUP_AGE_RECIPIENT` contains only the public age recipient.
+- `BACKUP_AGE_IDENTITY_FILE` is supplied only to controlled restore jobs through secret management.
+- `BACKUP_RETENTION_DAYS` and `BACKUP_RETENTION_COUNT` are explicit positive integers.
+- `BACKUP_RESTORE_SMOKE_EVIDENCE` records the most recent isolated restore proof.
+- `RELEASE_BACKUP_MANIFEST_PATH` identifies the verified pre-deploy backup manifest.
+- `RELEASE_DATABASE_FORWARD_COMPATIBLE` is explicitly reviewed for each migration-bearing release.
+- Real backup artifacts, manifests, restore receipts, age private identities, and release manifests are not committed.

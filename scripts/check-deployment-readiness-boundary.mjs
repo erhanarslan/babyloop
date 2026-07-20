@@ -11,6 +11,8 @@ const requiredFiles = [
   "docs/54-production-env-checklist.md",
   "docs/55-beta-critical-smoke-checklist.md",
   "docs/58-beta-critical-smoke-automation.md",
+  "docs/83-backup-restore-rollback.md",
+  "scripts/check-backup-restore-rollback-boundary.mjs",
   "package.json"
 ];
 
@@ -88,6 +90,11 @@ function checkDocs() {
     mustContainCaseInsensitive(source, file, "database migration");
     mustContainCaseInsensitive(source, file, "rollback");
     mustContainCaseInsensitive(source, file, "observability");
+  }
+
+  const backupDoc = read("docs/83-backup-restore-rollback.md");
+  for (const token of ["SHA-256", "restore smoke", "no down migration", "manual go/no-go"]) {
+    mustContainCaseInsensitive(backupDoc, "docs/83-backup-restore-rollback.md", token);
   }
 
   const mainDoc = read("docs/59-deployment-readiness-gate.md");

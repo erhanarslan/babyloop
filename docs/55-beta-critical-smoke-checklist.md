@@ -535,3 +535,13 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Worker heartbeat timestamps update after notification and child-reminder processor runs.
 - [ ] Protected metrics reject missing/invalid bearer tokens.
 - [ ] Sanitized error reporting is verified against a staging sink.
+
+## Backup and rollback proof
+
+- [ ] Full beta critical smoke includes `pnpm security:backup-restore-rollback`.
+- [ ] Backup/restore unit tests pass.
+- [ ] An isolated restore smoke has passed against the current staging clone or test database.
+- [ ] The restore smoke created and removed its temporary database.
+- [ ] The production release manifest references a verified encrypted backup.
+- [ ] A checksum-verified previous release manifest exists as the rollback target.
+- [ ] The rollback plan uses immutable image digests and no down migration.
