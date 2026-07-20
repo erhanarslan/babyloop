@@ -83,6 +83,40 @@ describe("mobile analytics client", () => {
     expect(sendMobileAnalyticsBatch).toHaveBeenCalledTimes(1);
     expect(await getStoredMobileAnalyticsQueue()).toHaveLength(1);
   });
+  it("serializes concurrent queue writes without dropping events", async () => {
+    let eventIndex = 0;
+    const client = new MobileAnalyticsClient({
+      anonymousId: "anon-mobile",
+      getScreenName: () => "discover",
+      getSessionId: () => "session-mobile",
+      randomId: () => `event-concurrent-${eventIndex += 1}`
+    });
+
+    await Promise.all(Array.from({ length: 20 }, () => client.trackScreenView("discover")));
+
+    const queued = await getStoredMobileAnalyticsQueue();
+    expect(queued).toHaveLength(20);
+    expect(new Set(queued.map((event) => event.eventId)).size).toBe(20);
+  });
+
+  it("flushes all stored batches in FIFO order", async () => {
+    await setStoredMobileAnalyticsQueue(
+      Array.from({ length: 55 }, (_, index) => buildQueuedEvent(`event-batch-${index}`))
+    );
+    const client = new MobileAnalyticsClient({
+      anonymousId: "anon-mobile",
+      getScreenName: () => "discover",
+      getSessionId: () => "session-mobile"
+    });
+
+    await client.flush();
+
+    expect(sendMobileAnalyticsBatch).toHaveBeenCalledTimes(2);
+    expect((sendMobileAnalyticsBatch as jest.Mock).mock.calls[0][0]).toHaveLength(50);
+    expect((sendMobileAnalyticsBatch as jest.Mock).mock.calls[1][0]).toHaveLength(5);
+    expect(await getStoredMobileAnalyticsQueue()).toHaveLength(0);
+  });
+
 });
 
 function buildQueuedEvent(eventId: string): AnalyticsEventEnvelope {

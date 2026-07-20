@@ -12,6 +12,8 @@ import {
   fetchMobileLoginApprovalStatus,
   fetchMobileMfaStatus,
   getMobileAuthToken,
+  mobileAuthFetch,
+  setMobileAuthToken,
   submitMobileAuthRequest,
   verifyMobileMfaLogin
 } from "./auth-api";
@@ -605,6 +607,43 @@ describe("mobile auth API MFA flow", () => {
     expect(headers.get("x-babyloop-client")).toBe("mobile");
     expect(String(init?.body)).toContain('"clientType":"mobile"');
     expect(String(init?.body)).not.toMatch(/approvalToken|refreshTokenHash|passwordHash/iu);
+  });
+
+  it("dedupes concurrent 401 refresh requests before retrying protected calls", async () => {
+    setMobileAuthToken("expired-mobile-token");
+    let protectedRequestCount = 0;
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/api/v1/auth/refresh")) {
+        return mockApiResponse(200, {
+          ok: true,
+          data: {
+            accessToken: "refreshed-mobile-token",
+            user: { id: "user-1", email: "parent@example.com", role: "user" },
+            profile: { id: "profile-1", displayName: "Parent", locationCity: "İstanbul" }
+          }
+        });
+      }
+
+      if (url.endsWith("/api/v1/protected")) {
+        protectedRequestCount += 1;
+        return protectedRequestCount <= 2
+          ? mockApiResponse(401, { ok: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } })
+          : mockApiResponse(200, { ok: true, data: { allowed: true } });
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    const [first, second] = await Promise.all([
+      mobileAuthFetch("/api/v1/protected"),
+      mobileAuthFetch("/api/v1/protected")
+    ]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/api/v1/auth/refresh"))).toHaveLength(1);
+    expect(getMobileAuthToken()).toBe("refreshed-mobile-token");
   });
 
 });

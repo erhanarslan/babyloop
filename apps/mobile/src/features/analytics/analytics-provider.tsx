@@ -1,6 +1,6 @@
 import { usePathname } from "expo-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import {
@@ -23,6 +23,8 @@ import {
 import { MobileAnalyticsContext, type MobileAnalyticsContextValue } from "./use-mobile-analytics";
 
 const HEARTBEAT_MS = 30_000;
+export const MOBILE_ANALYTICS_FLUSH_DELAY_MS = 10_000;
+export const MOBILE_ANALYTICS_FLUSH_THRESHOLD = 10;
 
 export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -34,6 +36,34 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
   const lastEngagementAtRef = useRef(Date.now());
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const sessionRef = useRef<MobileAnalyticsSessionState | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearScheduledFlush = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+  }, []);
+
+  const flushNow = useCallback(() => {
+    clearScheduledFlush();
+    void clientRef.current?.flush();
+  }, [clearScheduledFlush]);
+
+  const scheduleFlush = useCallback(() => {
+    if (flushTimerRef.current) {
+      return;
+    }
+
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      void clientRef.current?.flush();
+    }, MOBILE_ANALYTICS_FLUSH_DELAY_MS);
+  }, []);
+
+  const trackQueued = useCallback((input: MobileAnalyticsTrackInput) => {
+    void queueMobileAnalyticsEvent(clientRef.current, input, { flushNow, scheduleFlush });
+  }, [flushNow, scheduleFlush]);
 
   useEffect(() => {
     let active = true;
@@ -55,8 +85,10 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      clearScheduledFlush();
+      void clientRef.current?.flush();
     };
-  }, []);
+  }, [clearScheduledFlush]);
 
   useEffect(() => {
     sessionRef.current = sessionState;
@@ -77,8 +109,14 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
     }
 
     lastScreenViewRef.current = key;
-    void client.trackScreenView(screenName).then(() => client.flush());
-  }, [screenName]);
+    void client.trackScreenView(screenName).then((queueLength) => {
+      if (queueLength >= MOBILE_ANALYTICS_FLUSH_THRESHOLD) {
+        flushNow();
+      } else {
+        scheduleFlush();
+      }
+    });
+  }, [flushNow, scheduleFlush, screenName, sessionState]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -91,7 +129,13 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const deltaMs = now - lastEngagementAtRef.current;
       lastEngagementAtRef.current = now;
-      void client.trackEngagement(screenNameRef.current, deltaMs).then(() => client.flush());
+      void client.trackEngagement(screenNameRef.current, deltaMs).then((queueLength) => {
+        if (queueLength >= MOBILE_ANALYTICS_FLUSH_THRESHOLD) {
+          flushNow();
+        } else if (queueLength > 0) {
+          scheduleFlush();
+        }
+      });
     }, HEARTBEAT_MS);
 
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -102,6 +146,7 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
         const now = Date.now();
         const deltaMs = now - lastEngagementAtRef.current;
         lastEngagementAtRef.current = now;
+        clearScheduledFlush();
         void trackEngagementAndFlush(clientRef.current, screenNameRef.current, deltaMs);
         return;
       }
@@ -111,7 +156,7 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
         void resumeMobileSession().then((session) => {
           sessionRef.current = session;
           setSessionState(session);
-          void clientRef.current?.flush();
+          flushNow();
         });
       }
     });
@@ -120,47 +165,45 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
       clearInterval(interval);
       subscription.remove();
     };
-  }, []);
+  }, [clearScheduledFlush, flushNow, scheduleFlush]);
 
   const contextValue = useMemo<MobileAnalyticsContextValue>(() => ({
-    track: (input) => {
-      void trackAndFlush(clientRef.current, input);
-    },
+    track: trackQueued,
     trackAiDraftApplied: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "ai_listing_draft_applied", properties: input });
+      trackQueued({ eventName: "ai_listing_draft_applied", properties: input });
     },
     trackAiDraftRequested: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "ai_listing_draft_requested", properties: input });
+      trackQueued({ eventName: "ai_listing_draft_requested", properties: input });
     },
     trackAssistantAnswer: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "assistant_answer_received", properties: input });
+      trackQueued({ eventName: "assistant_answer_received", properties: input });
     },
     trackAssistantOpened: () => {
-      void trackAndFlush(clientRef.current, { eventName: "assistant_opened", properties: { sourceSurface: "assistant" } });
+      trackQueued({ eventName: "assistant_opened", properties: { sourceSurface: "assistant" } });
     },
     trackCartChanged: (input) => {
-      void trackAndFlush(clientRef.current, {
+      trackQueued({
         eventName: input.added ? "cart_item_added" : "cart_item_removed",
         properties: input
       });
     },
     trackChildProfileOpened: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "child_profile_opened", properties: input });
+      trackQueued({ eventName: "child_profile_opened", properties: input });
     },
     trackConversationOpened: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "conversation_opened", properties: input });
+      trackQueued({ eventName: "conversation_opened", properties: input });
     },
     trackFavoriteChanged: (input) => {
-      void trackAndFlush(clientRef.current, {
+      trackQueued({
         eventName: input.favorited ? "listing_favorited" : "listing_unfavorited",
         properties: input
       });
     },
     trackListingOpened: (input) => {
-      void trackAndFlush(clientRef.current, { eventName: "listing_opened", properties: input });
+      trackQueued({ eventName: "listing_opened", properties: input });
     },
     trackReminderChanged: (input) => {
-      void trackAndFlush(clientRef.current, {
+      trackQueued({
         eventName: input.action === "created"
           ? "child_reminder_created"
           : input.action === "updated"
@@ -169,7 +212,7 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
         properties: input
       });
     }
-  }), []);
+  }), [trackQueued]);
 
   return (
     <MobileAnalyticsContext.Provider value={contextValue}>
@@ -178,13 +221,22 @@ export function MobileAnalyticsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-async function trackAndFlush(client: MobileAnalyticsClient | null, input: MobileAnalyticsTrackInput): Promise<void> {
+async function queueMobileAnalyticsEvent(
+  client: MobileAnalyticsClient | null,
+  input: MobileAnalyticsTrackInput,
+  controls: { flushNow: () => void; scheduleFlush: () => void }
+): Promise<void> {
   if (!client) {
     return;
   }
 
-  await client.track(input);
-  await client.flush();
+  const queueLength = await client.track(input);
+
+  if (queueLength >= MOBILE_ANALYTICS_FLUSH_THRESHOLD) {
+    controls.flushNow();
+  } else {
+    controls.scheduleFlush();
+  }
 }
 
 async function trackEngagementAndFlush(

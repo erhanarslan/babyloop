@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Keyboard, Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -14,18 +14,10 @@ import {
   MOBILE_TAB_BAR_HORIZONTAL_MARGIN,
   MOBILE_TAB_BAR_RADIUS
 } from "../../src/ui/mobile-layout";
-import { useAuthSession } from "../../src/features/auth/auth-session";
-import {
-  fetchMobileConversations,
-  type MobileConversationSummary
-} from "../../src/features/messages/messages-api";
-import {
-  mergeRealtimeConversationSummary
-} from "../../src/features/messages/messages-realtime-model";
+import { useMobileConversationList } from "../../src/features/messages/conversation-list-store";
 import {
   getMobileMessagesTabBadgeLabel
 } from "../../src/features/messages/messages-tab-badge-model";
-import { subscribeMobileRealtime } from "../../src/features/realtime/mobile-realtime";
 import { colors } from "../../src/ui/theme";
 
 const tabColors = {
@@ -64,91 +56,8 @@ export default function TabLayout() {
   const [keyboardInsetLocked, setKeyboardInsetLocked] = useState(false);
   const keyboardInsetLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const authSession = useAuthSession();
-  const currentProfileId = authSession.currentUser?.profile.id ?? null;
-  const [messageConversations, setMessageConversations] = useState<MobileConversationSummary[]>([]);
-  const messagesTabBadge = getMobileMessagesTabBadgeLabel(messageConversations);
-
-  const loadMessageConversations = useCallback(async () => {
-    if (!currentProfileId) {
-      setMessageConversations([]);
-      return;
-    }
-
-    try {
-      setMessageConversations(await fetchMobileConversations());
-    } catch {
-      setMessageConversations([]);
-    }
-  }, [currentProfileId]);
-
-  useEffect(() => {
-    if (!currentProfileId) {
-      setMessageConversations([]);
-      return;
-    }
-
-    let active = true;
-
-    async function loadInitialMessageConversations() {
-      try {
-        const nextConversations = await fetchMobileConversations();
-
-        if (active) {
-          setMessageConversations(nextConversations);
-        }
-      } catch {
-        if (active) {
-          setMessageConversations([]);
-        }
-      }
-    }
-
-    void loadInitialMessageConversations();
-
-    return () => {
-      active = false;
-    };
-  }, [currentProfileId]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        void loadMessageConversations();
-      }
-    });
-
-    return () => subscription.remove();
-  }, [loadMessageConversations]);
-
-  useEffect(() => {
-    if (!currentProfileId) {
-      return;
-    }
-
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    void subscribeMobileRealtime({
-      onConversationUpdated: (payload) => {
-        setMessageConversations((currentConversations) =>
-          mergeRealtimeConversationSummary(currentConversations, payload.conversation)
-        );
-      }
-    }).then((subscription) => {
-      if (!active) {
-        subscription.unsubscribe();
-        return;
-      }
-
-      unsubscribe = subscription.unsubscribe;
-    });
-
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [currentProfileId]);
+  const conversationList = useMobileConversationList();
+  const messagesTabBadge = getMobileMessagesTabBadgeLabel(conversationList.conversations);
 
   useEffect(() => {
     if (Platform.OS !== "android" || navigationVisibility !== "visible") {

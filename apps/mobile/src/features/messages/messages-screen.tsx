@@ -1,5 +1,5 @@
 import { Link, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "../../ui/screen";
@@ -12,85 +12,19 @@ import {
 } from "../../ui/mobile-primitives";
 import { colors, radius, spacing } from "../../ui/theme";
 import { useAuthSession } from "../auth/auth-session";
-import { subscribeMobileRealtime } from "../realtime/mobile-realtime";
-import {
-  fetchMobileConversations,
-  type MobileConversationSummary
-} from "./messages-api";
-import { mergeRealtimeConversationSummary } from "./messages-realtime-model";
+import { useMobileConversationList } from "./conversation-list-store";
+import type { MobileConversationSummary } from "./messages-api";
 
 export function MessagesScreen() {
   const authSession = useAuthSession();
-  const currentProfileId = authSession.currentUser?.profile.id ?? null;
-  const [conversations, setConversations] = useState<MobileConversationSummary[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [error, setError] = useState<string | null>(null);
-
-  const loadConversations = useCallback(
-    async (options: { silent?: boolean } = {}) => {
-      if (!currentProfileId) {
-        setConversations([]);
-        setStatus("ready");
-        setError(null);
-        return;
-      }
-
-      try {
-        if (!options.silent) {
-          setStatus("loading");
-        }
-
-        const nextConversations = await fetchMobileConversations();
-
-        setConversations(nextConversations);
-        setStatus("ready");
-        setError(null);
-      } catch (nextError) {
-        if (!options.silent) {
-          setStatus("error");
-          setError(nextError instanceof Error ? nextError.message : "Mesajlar şu an yüklenemedi.");
-        }
-      }
-    },
-    [currentProfileId]
-  );
+  const conversationList = useMobileConversationList();
+  const { conversations, error, refresh, status } = conversationList;
 
   useFocusEffect(
     useCallback(() => {
-      void loadConversations();
-    }, [loadConversations])
+      void refresh({ maxAgeMs: 15_000 });
+    }, [refresh])
   );
-
-  useEffect(() => {
-    if (!currentProfileId) {
-      return;
-    }
-
-    let active = true;
-    let unsubscribe: (() => void) | null = null;
-
-    void subscribeMobileRealtime({
-      onConversationUpdated: (payload) => {
-        setConversations((currentConversations) =>
-          mergeRealtimeConversationSummary(currentConversations, payload.conversation)
-        );
-        setStatus("ready");
-        setError(null);
-      }
-    }).then((subscription) => {
-      if (!active) {
-        subscription.unsubscribe();
-        return;
-      }
-
-      unsubscribe = subscription.unsubscribe;
-    });
-
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [currentProfileId]);
 
   if (!authSession.currentUser) {
     return (
@@ -114,7 +48,7 @@ export function MessagesScreen() {
         <MobileErrorState
           actionLabel="Tekrar dene"
           message={error}
-          onAction={() => void loadConversations()}
+          onAction={() => void refresh()}
           title="Mesajlar yüklenemedi"
         />
       ) : null}

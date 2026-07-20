@@ -1,20 +1,24 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { useAuthSession } from "../auth/auth-session";
+import { getMobilePushRegistrationCache, setMobilePushRegistrationCache } from "./mobile-push-registration-cache";
 import {
-  registerMobileDeviceForPushNotifications,
-  type MobilePushRegistrationResult
+  getMobilePushRegistrationRetryDelay,
+  isMobilePushRegistrationCacheFresh,
+  MOBILE_PUSH_REGISTRATION_MAX_ATTEMPTS,
+  shouldStopMobilePushRegistration
+} from "./mobile-push-registration-policy";
+import {
+  registerMobileDeviceForPushNotifications
 } from "./mobile-push-registration";
-
-const RETRY_DELAY_MS = 5000;
-const MAX_ATTEMPTS = 24;
 
 export function MobilePushRegistrationBootstrap() {
   const authSession = useAuthSession();
-  const canRegisterPush =
-    authSession.status === "authenticated" && Boolean(authSession.currentUser);
+  const currentProfileId = authSession.currentUser?.profile.id ?? null;
+  const canRegisterPush = authSession.status === "authenticated" && Boolean(currentProfileId);
 
   const attemptCountRef = useRef(0);
+  const cacheCheckedRef = useRef(false);
   const inFlightRef = useRef(false);
   const stoppedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,7 +32,7 @@ export function MobilePushRegistrationBootstrap() {
   }, [authSession.status, authSession.currentUser, canRegisterPush]);
 
   useEffect(() => {
-    if (!canRegisterPush) {
+    if (!canRegisterPush || !currentProfileId) {
       logMobilePushBootstrapDebug("skip registration until authenticated", {
         authStatus: authSession.status,
         hasCurrentUser: Boolean(authSession.currentUser)
@@ -36,8 +40,11 @@ export function MobilePushRegistrationBootstrap() {
       return;
     }
 
+    const authenticatedProfileId = currentProfileId;
+
     stoppedRef.current = false;
     attemptCountRef.current = 0;
+    cacheCheckedRef.current = false;
 
     function clearRetryTimer() {
       if (timerRef.current) {
@@ -46,52 +53,84 @@ export function MobilePushRegistrationBootstrap() {
       }
     }
 
-    function shouldStop(result: MobilePushRegistrationResult): boolean {
-      if (result.status === "registered" || result.status === "denied") {
-        return true;
-      }
-
-      return (
-        result.reason === "physical_device_required" ||
-        result.reason === "web_not_supported" ||
-        result.reason === "android_fcm_configuration_missing"
-      );
-    }
-
     function scheduleRetry() {
-      if (stoppedRef.current || attemptCountRef.current >= MAX_ATTEMPTS || timerRef.current) {
+      if (
+        stoppedRef.current ||
+        attemptCountRef.current >= MOBILE_PUSH_REGISTRATION_MAX_ATTEMPTS ||
+        timerRef.current
+      ) {
         return;
       }
 
+      const delayMs = getMobilePushRegistrationRetryDelay(attemptCountRef.current);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         void runRegistration();
-      }, RETRY_DELAY_MS);
+      }, delayMs);
+    }
+
+    async function hasFreshRegistrationCache(): Promise<boolean> {
+      if (cacheCheckedRef.current) {
+        return false;
+      }
+
+      cacheCheckedRef.current = true;
+      const cached = await getMobilePushRegistrationCache();
+
+      return Boolean(cached && isMobilePushRegistrationCacheFresh({
+        cachedProfileId: cached.profileId,
+        currentProfileId: authenticatedProfileId,
+        now: Date.now(),
+        registeredAt: cached.registeredAt
+      }));
     }
 
     async function runRegistration() {
-      if (stoppedRef.current || inFlightRef.current || attemptCountRef.current >= MAX_ATTEMPTS) {
+      if (
+        stoppedRef.current ||
+        inFlightRef.current ||
+        timerRef.current ||
+        attemptCountRef.current >= MOBILE_PUSH_REGISTRATION_MAX_ATTEMPTS
+      ) {
         return;
       }
 
       inFlightRef.current = true;
-      attemptCountRef.current += 1;
 
       try {
+        if (await hasFreshRegistrationCache()) {
+          stoppedRef.current = true;
+          clearRetryTimer();
+          logMobilePushBootstrapDebug("registration cache hit", {
+            profileId: authenticatedProfileId
+          });
+          return;
+        }
+
+        attemptCountRef.current += 1;
         logMobilePushBootstrapDebug("registration attempt", {
           attempt: attemptCountRef.current
         });
 
         const result = await registerMobileDeviceForPushNotifications();
-
         logMobilePushBootstrapDebug("registration result", result);
 
-        if (shouldStop(result)) {
+        if (result.status === "registered") {
+          await setMobilePushRegistrationCache({
+            profileId: authenticatedProfileId,
+            registeredAt: Date.now(),
+            ...(result.tokenHashPrefix ? { tokenHashPrefix: result.tokenHashPrefix } : {})
+          }).catch(() => undefined);
+        }
+
+        if (shouldStopMobilePushRegistration(result)) {
           stoppedRef.current = true;
           clearRetryTimer();
           return;
         }
 
+        scheduleRetry();
+      } catch {
         scheduleRetry();
       } finally {
         inFlightRef.current = false;
@@ -111,11 +150,10 @@ export function MobilePushRegistrationBootstrap() {
       clearRetryTimer();
       subscription.remove();
     };
-  }, [canRegisterPush]);
+  }, [authSession.currentUser, authSession.status, canRegisterPush, currentProfileId]);
 
   return null;
 }
-
 
 function logMobilePushBootstrapDebug(message: string, metadata?: Record<string, unknown>): void {
   if (typeof __DEV__ !== "undefined" && __DEV__) {

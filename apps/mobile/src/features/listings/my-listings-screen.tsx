@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Screen } from "../../ui/screen";
 import {
@@ -38,6 +38,10 @@ import {
   type MobileMyListingStatusFilter
 } from "./my-listings-model";
 import { MobilePublicationWaitIndicator } from "./mobile-publication-wait-indicator";
+import {
+  getMobilePendingPublicationPollDelay,
+  shouldPollMobilePendingPublication
+} from "./my-listings-runtime-model";
 
 type LoadStatus = "idle" | "loading" | "ready" | "guest" | "error";
 
@@ -54,6 +58,9 @@ export function MyListingsScreen() {
   const [showPublicationConfirmation, setShowPublicationConfirmation] = useState(
     params.publication === "review",
   );
+  const [isFocused, setIsFocused] = useState(false);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const loadRequestIdRef = useRef(0);
 
   const stats = useMemo(() => getMobileMyListingStats(listings), [listings]);
   const visibleListings = useMemo(
@@ -84,11 +91,15 @@ export function MyListingsScreen() {
     }
 
     if (!authSession.currentUser) {
+      loadRequestIdRef.current += 1;
       setListings([]);
       setStatus("guest");
       setError(null);
       return;
     }
+
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
 
     try {
       setStatus("loading");
@@ -97,48 +108,89 @@ export function MyListingsScreen() {
 
       const nextListings = await fetchMobileMyListings();
 
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setListings(nextListings);
       setStatus("ready");
     } catch (loadError) {
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setStatus("error");
       setError(loadError instanceof Error ? loadError.message : "İlanların yüklenemedi.");
     }
   }, [authSession.currentUser, authSession.status]);
 
   useEffect(() => {
-    void loadListings();
-  }, [loadListings]);
+    const subscription = AppState.addEventListener("change", setAppState);
+    return () => subscription.remove();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      void loadListings();
+
+      return () => {
+        setIsFocused(false);
+        loadRequestIdRef.current += 1;
+      };
+    }, [loadListings])
+  );
 
   useEffect(() => {
-    if (status !== "ready" || !hasPendingPublication) {
+    if (!shouldPollMobilePendingPublication({
+      appState,
+      hasCurrentUser: Boolean(authSession.currentUser),
+      hasPendingPublication,
+      isFocused,
+      status
+    })) {
       return;
     }
 
     let active = true;
-    let refreshing = false;
-    const timer = setInterval(() => {
-      if (refreshing) {
-        return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+
+    const schedule = () => {
+      timer = setTimeout(() => {
+        void poll();
+      }, getMobilePendingPublicationPollDelay(attempt));
+    };
+
+    const poll = async () => {
+      try {
+        const nextListings = await fetchMobileMyListings();
+
+        if (!active) {
+          return;
+        }
+
+        setListings(nextListings);
+        attempt += 1;
+      } catch {
+        attempt += 1;
       }
 
-      refreshing = true;
-      void fetchMobileMyListings()
-        .then((nextListings) => {
-          if (active) {
-            setListings(nextListings);
-          }
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          refreshing = false;
-        });
-    }, 7_000);
+      if (active) {
+        schedule();
+      }
+    };
+
+    schedule();
 
     return () => {
       active = false;
-      clearInterval(timer);
+
+      if (timer) {
+        clearTimeout(timer);
+      }
     };
-  }, [hasPendingPublication, status]);
+  }, [appState, authSession.currentUser, hasPendingPublication, isFocused, status]);
 
   async function handleStatusAction(
     listingId: string,

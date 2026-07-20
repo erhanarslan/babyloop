@@ -206,6 +206,7 @@ export type MobileAuthSessionsRevokeAllPayload = {
 let memoryAuthToken: string | null = null;
 let cachedPublicCsrfToken: string | null = null;
 let publicCsrfTokenPromise: Promise<string | null> | null = null;
+let mobileSessionRefreshPromise: Promise<MobileApiResponse<MobileAuthPayload>> | null = null;
 
 export function getMobileAuthToken(): string | null {
   return memoryAuthToken;
@@ -323,11 +324,24 @@ export async function fetchMobileCurrentUser(): Promise<MobileApiResponse<Mobile
   }
 }
 
-export async function refreshMobileSession(): Promise<MobileApiResponse<MobileAuthPayload>> {
+export function refreshMobileSession(): Promise<MobileApiResponse<MobileAuthPayload>> {
+  if (mobileSessionRefreshPromise) {
+    return mobileSessionRefreshPromise;
+  }
+
+  mobileSessionRefreshPromise = performMobileSessionRefresh().finally(() => {
+    mobileSessionRefreshPromise = null;
+  });
+
+  return mobileSessionRefreshPromise;
+}
+
+async function performMobileSessionRefresh(): Promise<MobileApiResponse<MobileAuthPayload>> {
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
       method: "POST",
-      credentials: "include"
+      credentials: "include",
+      headers: withMobileClientHeaders()
     });
 
     const body = await parseApiResponse<MobileAuthPayload>(response);

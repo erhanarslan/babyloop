@@ -1,7 +1,7 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { useAuthSession } from "../../src/features/auth/auth-session";
 import { addMobileAuthSessionsRefreshListener } from "../../src/features/auth/auth-session-events";
@@ -81,107 +81,60 @@ export default function SecurityRoute() {
   const [accountDeletionConfirmation, setAccountDeletionConfirmation] = useState("");
   const [accountDeletionError, setAccountDeletionError] = useState<string | null>(null);
   const [savingAccountDeletion, setSavingAccountDeletion] = useState(false);
+  const securityOverviewRefreshRef = useRef<Promise<void> | null>(null);
+  const currentSecurityProfileIdRef = useRef(currentUser?.profile.id ?? null);
+  currentSecurityProfileIdRef.current = currentUser?.profile.id ?? null;
 
   useEffect(() => {
-    if (!currentUser) {
-      setMfaEnabled(null);
-      setMobileLoginApprovalEnabled(null);
-      setSensitiveToggle(null);
-      setSensitiveTogglePassword("");
-      setSensitiveToggleError(null);
-      setPasswordChangeOpen(false);
-      setPasswordChangeForm({
-        confirmPassword: "",
-        currentPassword: "",
-        newPassword: ""
-      });
-      setPasswordChangeMessage(null);
-      setPasswordChangeError(null);
-      setAccountDeletionOpen(false);
-      setAccountDeletionStep("request");
-      setAccountDeletionCurrentPassword("");
-      setAccountDeletionChallengeId(null);
-      setAccountDeletionCode("");
-      setAccountDeletionConfirmation("");
-      setAccountDeletionError(null);
-      setSavingAccountDeletion(false);
-      setSessions([]);
-      setCurrentSessionId(null);
+    if (currentUser) {
       return;
     }
 
-    let cancelled = false;
-
-    async function loadMfaStatus() {
-      setLoadingMfaStatus(true);
-      setMfaError(null);
-
-      const response = await fetchMobileMfaStatus();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (response.ok) {
-        setMfaEnabled(response.data.mfaEnabled);
-      } else {
-        setMfaEnabled(null);
-        setMfaError(response.error.message);
-      }
-
-      setLoadingMfaStatus(false);
-    }
-
-    async function loadLoginApprovalStatus() {
-      setLoadingLoginApprovalStatus(true);
-      setLoginApprovalError(null);
-
-      const response = await fetchMobileLoginApprovalStatus();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (response.ok) {
-        setMobileLoginApprovalEnabled(response.data.mobileLoginApprovalEnabled);
-      } else {
-        setMobileLoginApprovalEnabled(null);
-        setLoginApprovalError(response.error.message);
-      }
-
-      setLoadingLoginApprovalStatus(false);
-    }
-
-    async function loadSessions() {
-      setLoadingSessions(true);
-      setSessionError(null);
-
-      const response = await fetchMobileAuthSessions();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (response.ok) {
-        setSessions(response.data.sessions);
-        setCurrentSessionId(response.data.currentSessionId);
-      } else {
-        setSessions([]);
-        setCurrentSessionId(null);
-        setSessionError(response.error.message);
-      }
-
-      setLoadingSessions(false);
-    }
-
-    void loadMfaStatus();
-    void loadLoginApprovalStatus();
-    void loadSessions();
-
-    return () => {
-      cancelled = true;
-    };
+    setMfaEnabled(null);
+    setMobileLoginApprovalEnabled(null);
+    setSensitiveToggle(null);
+    setSensitiveTogglePassword("");
+    setSensitiveToggleError(null);
+    setPasswordChangeOpen(false);
+    setPasswordChangeForm({
+      confirmPassword: "",
+      currentPassword: "",
+      newPassword: ""
+    });
+    setPasswordChangeMessage(null);
+    setPasswordChangeError(null);
+    setAccountDeletionOpen(false);
+    setAccountDeletionStep("request");
+    setAccountDeletionCurrentPassword("");
+    setAccountDeletionChallengeId(null);
+    setAccountDeletionCode("");
+    setAccountDeletionConfirmation("");
+    setAccountDeletionError(null);
+    setSavingAccountDeletion(false);
+    setLoadingMfaStatus(false);
+    setLoadingLoginApprovalStatus(false);
+    setLoadingSessions(false);
+    setSessions([]);
+    setCurrentSessionId(null);
   }, [currentUser]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!currentUser) {
+        return;
+      }
+
+      void handleSecurityOverviewRefresh();
+
+      const subscription = AppState.addEventListener("change", (nextState) => {
+        if (nextState === "active") {
+          void handleSecurityOverviewRefresh({ silent: true });
+        }
+      });
+
+      return () => subscription.remove();
+    }, [currentUser])
+  );
 
   const securityRows = useMemo(
     () => getMobileSecurityRows({
@@ -194,20 +147,6 @@ export default function SecurityRoute() {
     () => buildMobileSessionCards(sessions, currentSessionId),
     [sessions, currentSessionId]
   );
-
-  useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
-
-    const sessionSyncIntervalId = setInterval(() => {
-      void handleSessionRefresh({ silent: true });
-    }, 4000);
-
-    return () => {
-      clearInterval(sessionSyncIntervalId);
-    };
-  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -486,7 +425,83 @@ export default function SecurityRoute() {
     }
   }
 
+  function handleSecurityOverviewRefresh(options: { silent?: boolean } = {}): Promise<void> {
+    if (securityOverviewRefreshRef.current) {
+      return securityOverviewRefreshRef.current;
+    }
+
+    const requestProfileId = currentSecurityProfileIdRef.current;
+
+    if (!requestProfileId) {
+      return Promise.resolve();
+    }
+
+    const task = (async () => {
+      const silent = options.silent ?? false;
+
+      if (!silent) {
+        setLoadingMfaStatus(true);
+        setLoadingLoginApprovalStatus(true);
+        setLoadingSessions(true);
+        setMfaError(null);
+        setLoginApprovalError(null);
+        setSessionError(null);
+      }
+
+      const [mfaResponse, loginApprovalResponse, sessionsResponse] = await Promise.all([
+        fetchMobileMfaStatus(),
+        fetchMobileLoginApprovalStatus(),
+        fetchMobileAuthSessions()
+      ]);
+
+      if (currentSecurityProfileIdRef.current !== requestProfileId) {
+        return;
+      }
+
+      if (mfaResponse.ok) {
+        setMfaEnabled(mfaResponse.data.mfaEnabled);
+      } else if (!silent) {
+        setMfaEnabled(null);
+        setMfaError(mfaResponse.error.message);
+      }
+
+      if (loginApprovalResponse.ok) {
+        setMobileLoginApprovalEnabled(loginApprovalResponse.data.mobileLoginApprovalEnabled);
+      } else if (!silent) {
+        setMobileLoginApprovalEnabled(null);
+        setLoginApprovalError(loginApprovalResponse.error.message);
+      }
+
+      if (sessionsResponse.ok) {
+        setSessions(sessionsResponse.data.sessions);
+        setCurrentSessionId(sessionsResponse.data.currentSessionId);
+      } else if (!silent) {
+        setSessions([]);
+        setCurrentSessionId(null);
+        setSessionError(sessionsResponse.error.message);
+      }
+
+      if (!silent) {
+        setLoadingMfaStatus(false);
+        setLoadingLoginApprovalStatus(false);
+        setLoadingSessions(false);
+      }
+    })();
+
+    securityOverviewRefreshRef.current = task.finally(() => {
+      securityOverviewRefreshRef.current = null;
+    });
+
+    return securityOverviewRefreshRef.current;
+  }
+
   async function handleSessionRefresh(options: { silent?: boolean } = {}) {
+    const requestProfileId = currentSecurityProfileIdRef.current;
+
+    if (!requestProfileId) {
+      return;
+    }
+
     const silent = options.silent ?? false;
 
     if (!silent) {
@@ -496,6 +511,10 @@ export default function SecurityRoute() {
     }
 
     const response = await fetchMobileAuthSessions();
+
+    if (currentSecurityProfileIdRef.current !== requestProfileId) {
+      return;
+    }
 
     if (response.ok) {
       setSessions(response.data.sessions);

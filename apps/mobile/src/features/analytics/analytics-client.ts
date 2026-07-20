@@ -30,29 +30,33 @@ export type MobileAnalyticsClientOptions = {
 export class MobileAnalyticsClient {
   private flushPromise: Promise<void> | null = null;
   private retryAfter = 0;
+  private operationPromise: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: MobileAnalyticsClientOptions) {}
 
-  async track(input: MobileAnalyticsTrackInput): Promise<void> {
-    const event = buildMobileAnalyticsEvent({
-      anonymousId: this.options.anonymousId,
-      appVersion: getMobileAppVersion(),
-      eventId: this.options.randomId?.() ?? createMobileRandomId(),
-      eventName: input.eventName,
-      occurredAt: new Date(),
-      properties: {
-        ...(input.properties ?? {}),
-        platformOS: Platform.OS
-      },
-      screenName: input.screenName ?? this.options.getScreenName(),
-      sessionId: this.options.getSessionId()
-    });
+  track(input: MobileAnalyticsTrackInput): Promise<number> {
+    return this.enqueueOperation(async () => {
+      const event = buildMobileAnalyticsEvent({
+        anonymousId: this.options.anonymousId,
+        appVersion: getMobileAppVersion(),
+        eventId: this.options.randomId?.() ?? createMobileRandomId(),
+        eventName: input.eventName,
+        occurredAt: new Date(),
+        properties: {
+          ...(input.properties ?? {}),
+          platformOS: Platform.OS
+        },
+        screenName: input.screenName ?? this.options.getScreenName(),
+        sessionId: this.options.getSessionId()
+      });
 
-    await appendStoredMobileAnalyticsEvent(event);
+      const queue = await appendStoredMobileAnalyticsEvent(event);
+      return queue.length;
+    });
   }
 
-  async trackScreenView(screenName: string): Promise<void> {
-    await this.track({
+  trackScreenView(screenName: string): Promise<number> {
+    return this.track({
       eventName: "screen_viewed",
       properties: {
         screenName
@@ -61,14 +65,14 @@ export class MobileAnalyticsClient {
     });
   }
 
-  async trackEngagement(screenName: string, deltaMs: number): Promise<void> {
+  trackEngagement(screenName: string, deltaMs: number): Promise<number> {
     const engagementMs = clampMobileEngagementDelta(deltaMs);
 
     if (engagementMs <= 0) {
-      return;
+      return Promise.resolve(0);
     }
 
-    await this.track({
+    return this.track({
       eventName: "engagement_heartbeat",
       properties: {
         engagementMs,
@@ -83,7 +87,7 @@ export class MobileAnalyticsClient {
       return this.flushPromise;
     }
 
-    this.flushPromise = this.flushInternal().finally(() => {
+    this.flushPromise = this.enqueueOperation(() => this.flushInternal()).finally(() => {
       this.flushPromise = null;
     });
 
@@ -95,22 +99,41 @@ export class MobileAnalyticsClient {
       return;
     }
 
-    const queue = await getStoredMobileAnalyticsQueue();
+    while (true) {
+      const queue = await getStoredMobileAnalyticsQueue();
 
-    if (queue.length === 0) {
-      return;
+      if (queue.length === 0) {
+        return;
+      }
+
+      const { batch, remaining } = takeMobileAnalyticsBatch<AnalyticsEventEnvelope>(queue);
+      const response = await sendMobileAnalyticsBatch(batch);
+
+      if (!response.ok) {
+        this.retryAfter = Date.now() + 10_000;
+        return;
+      }
+
+      this.retryAfter = 0;
+      await setStoredMobileAnalyticsQueue(remaining);
+
+      if (remaining.length === 0) {
+        return;
+      }
     }
+  }
 
-    const { batch, remaining } = takeMobileAnalyticsBatch<AnalyticsEventEnvelope>(queue);
-    const response = await sendMobileAnalyticsBatch(batch);
+  private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.operationPromise
+      .catch(() => undefined)
+      .then(operation);
 
-    if (!response.ok) {
-      this.retryAfter = Date.now() + 10_000;
-      return;
-    }
+    this.operationPromise = result.then(
+      () => undefined,
+      () => undefined
+    );
 
-    this.retryAfter = 0;
-    await setStoredMobileAnalyticsQueue(remaining);
+    return result;
   }
 }
 

@@ -61,33 +61,32 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
     const hydratedToken = await hydrateMobileAuthToken();
 
-    if (hydratedToken) {
-      const currentSession = await fetchMobileCurrentUser();
+    if (!hydratedToken) {
+      const refreshed = await refreshMobileSession();
 
-      if (currentSession.ok) {
-        setCurrentUser(currentSession.data);
-        setStatus("authenticated");
+      if (!refreshed.ok) {
+        setCurrentUser(null);
+        setStatus("guest");
         return;
       }
+
+      setCurrentUser({
+        user: refreshed.data.user,
+        profile: refreshed.data.profile
+      });
+      setStatus("authenticated");
+      return;
     }
 
-    const refreshed = await refreshMobileSession();
+    const currentSession = await fetchMobileCurrentUser();
 
-    if (!refreshed.ok) {
+    if (!currentSession.ok) {
       setCurrentUser(null);
       setStatus("guest");
       return;
     }
 
-    const me = await fetchMobileCurrentUser();
-
-    if (!me.ok) {
-      setCurrentUser(null);
-      setStatus("guest");
-      return;
-    }
-
-    setCurrentUser(me.data);
+    setCurrentUser(currentSession.data);
     setStatus("authenticated");
   }, [clearChallenges]);
 
@@ -157,15 +156,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     };
   }, [currentUser, router, status]);
 
-  const applyAuthenticatedPayload = useCallback(async (fallback: MobileAuthMe): Promise<void> => {
-    const me = await fetchMobileCurrentUser();
-
-    if (!me.ok) {
-      setCurrentUser(fallback);
-    } else {
-      setCurrentUser(me.data);
-    }
-
+  const applyAuthenticatedPayload = useCallback(async (payload: MobileAuthMe): Promise<void> => {
+    setCurrentUser(payload);
     clearChallenges();
     setError(null);
     setStatus("authenticated");
