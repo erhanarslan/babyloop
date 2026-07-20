@@ -58,6 +58,32 @@ describe("notification provider execution service", () => {
     expect(JSON.stringify(log)).not.toMatch(/provider-disabled@example|secret-token|accessToken/iu);
   });
 
+  it("never calls a provider for a draft-only delivery log", async () => {
+    const user = await createUser(app, { email: "delivery-disabled@example.test" });
+    const logId = await createDeliveryLog(user.profile.id, "n8n", {}, false);
+    const fetchImpl = vi.fn();
+
+    const result = await executeNotificationProviderDelivery(app, logId, {
+      env: {
+        N8N_NOTIFICATION_WEBHOOK_ENABLED: "true",
+        N8N_NOTIFICATION_WEBHOOK_URL: "https://n8n.example.test/webhook"
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    });
+
+    expect(result).toMatchObject({
+      status: "skipped",
+      reason: "delivery_disabled"
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getDeliveryLog(logId)).toMatchObject({
+      status: "skipped",
+      skippedReason: "delivery_disabled",
+      deliveryAllowed: false,
+      draftOnly: true
+    });
+  });
+
   it("executes n8n webhook with idempotency and allowlisted payload", async () => {
     const user = await createUser(app, { email: "n8n-provider@example.test" });
     await enablePreference(user.accessToken, "child_reminder", "n8n");
@@ -216,8 +242,8 @@ describe("notification provider execution service", () => {
         idempotencyKey: `marketplace-provider-test:${randomUUID()}`,
         dedupKey: `marketplace-provider-test:${randomUUID()}`,
         frequencyWindowHours: 0,
-        deliveryAllowed: false,
-        draftOnly: true,
+        deliveryAllowed: true,
+        draftOnly: false,
         blockedReasons: [],
         metadata: {
           actionHref: "/conversations/conversation-1",
@@ -316,7 +342,8 @@ describe("notification provider execution service", () => {
   async function createDeliveryLog(
     profileId: string,
     channel: "email" | "push" | "n8n",
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    deliveryAllowed = true
   ): Promise<string> {
     const [row] = await app.db
       .insert(notificationDeliveryLogs)
@@ -330,8 +357,8 @@ describe("notification provider execution service", () => {
         idempotencyKey: `provider-test:${channel}:${randomUUID()}`,
         dedupKey: `provider-test:${randomUUID()}`,
         frequencyWindowHours: 24,
-        deliveryAllowed: false,
-        draftOnly: true,
+        deliveryAllowed,
+        draftOnly: !deliveryAllowed,
         blockedReasons: [],
         metadata: {
           childProfileId: "child-1",

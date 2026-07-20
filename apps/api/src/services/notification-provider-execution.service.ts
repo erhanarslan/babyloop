@@ -27,6 +27,7 @@ export type NotificationProviderExecutionResult = {
   reason:
     | "already_sent"
     | "unsupported_channel"
+    | "delivery_disabled"
     | "preference_disabled"
     | "provider_disabled"
     | "recipient_email_unverified"
@@ -109,6 +110,16 @@ export async function executeNotificationProviderDelivery(
 
   if (row.status === "sent") {
     return result("duplicate", row.id, provider, false, "already_sent");
+  }
+
+  if (!row.deliveryAllowed || row.draftOnly) {
+    await markDeliverySkipped(app, row.id, {
+      provider,
+      reason: "delivery_disabled",
+      now
+    });
+
+    return result("skipped", row.id, provider, false, "delivery_disabled");
   }
 
   const providerConfig = readProviderConfig(provider, env);

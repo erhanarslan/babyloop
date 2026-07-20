@@ -77,6 +77,7 @@ function checkProviderBoundary() {
   mustContain(source, file, "listing_image_authenticity.gemini.v2");
   mustContain(source, file, "enforceListingImageProductPolicy");
   mustContain(source, file, "PROHIBITED_LISTING_PRODUCT_CODES");
+  mustContain(source, file, "prohibitedProductCode !== null");
   mustContain(source, file, "normalizeProviderOutput");
   mustContain(source, file, "normalizeDecision");
   mustContain(source, file, "normalizeConfidence");
@@ -170,6 +171,7 @@ function checkTestCoverageBoundary() {
   mustContain(serviceTest, serviceTestFile, "reject");
   mustContain(serviceTest, serviceTestFile, "GEMINI_LISTING_IMAGE_AUTHENTICITY_MODEL");
   mustContain(serviceTest, serviceTestFile, "GEMINI_API_KEY");
+  mustContain(serviceTest, serviceTestFile, "provider boolean contradicts it");
 
   mustContain(integrationTest, integrationTestFile, "needs_review");
   if (!integrationTest.includes("reject") || !integrationTest.includes("unavailable")) {
@@ -177,6 +179,7 @@ function checkTestCoverageBoundary() {
   }
   mustContain(integrationTest, integrationTestFile, "listing_image_authenticity");
   mustContain(integrationTest, integrationTestFile, "aiModelRuns");
+  mustContain(integrationTest, integrationTestFile, "prohibited product");
 
   mustContain(authConfigTest, authConfigTestFile, "LISTING_IMAGE_AUTHENTICITY_PROVIDER=mock cannot be used in production");
   mustContain(authConfigTest, authConfigTestFile, "LISTING_IMAGE_AUTHENTICITY_PROVIDER=gemini is required in production");

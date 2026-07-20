@@ -6,8 +6,8 @@ This release gate covers backlog items #193-#223. Codex did not run tests in thi
 
 - #193 Notification preference per source/channel storage: DB-backed `notification_preferences` with source/channel allowlists.
 - #194 Notification preference audit trail: DB-backed `notification_preference_audit_events` with redacted reason text and no raw contact fields.
-- #198 Notification delivery provider design gate sonrası sandbox: provider delivery remains disabled by default.
-- #199 Email draft/provider adapter boundary: email remains draft/readiness-only; no sender is enabled.
+- #198 Notification delivery provider design gate sonrası sandbox: provider delivery remains disabled by default and requires explicit environment gates.
+- #199 Email delivery provider: Resend delivery is available only when the provider switch, API key, sender and user preference all allow it.
 - #200 Push token registry design gate: hash-only push token registry/API can exist; native token collection and sender activation remain disabled in this package.
 - #201 Push readiness real mobile integration hazırlığı: mobile has API/model readiness, not native push delivery.
 - #202 n8n webhook contract design: n8n is represented as a disabled channel; no webhook call is enabled.
@@ -35,22 +35,16 @@ This release gate covers backlog items #193-#223. Codex did not run tests in thi
 
 ## Provider / Queue Boundary
 
-The package intentionally does not enable:
+The package intentionally does not enable any external provider by default. It also does not implement:
 
-- Real email send.
-- Real push send or raw push token collection.
-- Real n8n webhook execution.
 - Real SMS send.
 - Real queue worker.
 - Real payment/Iyzico changes.
 - Real production S3/R2 migration.
 
-Notification preference channels are `in_app`, `email`, `push`, and `n8n`. `in_app` may be enabled by preference. `email`, `push`, and `n8n` remain draft/sandbox/readiness-only unless a future provider gate explicitly enables delivery.
+Notification preference channels are `in_app`, `email`, `push`, and `n8n`. `in_app` may be enabled by preference. External delivery remains disabled by default. Email, push, and n8n calls require their explicit env-gated provider configuration plus the applicable user preference and delivery policy.
 
-No real n8n webhook execution.
-No real push send.
-No real email send.
-No real SMS send.
+No external provider call is made with the default configuration. Resend can perform a real email send only after all required gates are enabled; the same fail-closed rule applies to the push and n8n adapters. SMS remains unsupported.
 
 ## Provider Execution Layer
 

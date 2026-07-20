@@ -76,8 +76,8 @@ export function buildNotificationDeliveryLogRecord(
     idempotencyKey: buildNotificationDeliveryIdempotencyKey(input.policyInput, input.policy),
     dedupKey: input.policy.dedupKey,
     frequencyWindowHours: input.policy.frequencyWindowHours,
-    deliveryAllowed: false,
-    draftOnly: true,
+    deliveryAllowed: input.policy.deliveryAllowed,
+    draftOnly: input.policy.draftOnly,
     blockedReasons: input.policy.blockedReasons,
     metadata: sanitizeNotificationDeliveryMetadata(input.metadata ?? {}),
     createdAt: (input.now ?? new Date()).toISOString()

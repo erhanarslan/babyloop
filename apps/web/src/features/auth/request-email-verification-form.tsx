@@ -51,14 +51,20 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
   }
 
   return (
-    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
-      <div className="auth-form-intro">
-        <p className="eyebrow">{dictionary.auth.requestVerificationEyebrow}</p>
-        <h2>{dictionary.auth.requestVerificationTitle}</h2>
-        <p>{dictionary.auth.requestVerificationDescription}</p>
-      </div>
+    <form className="email-verification-request-form" onSubmit={handleSubmit}>
+      <TextInput
+        autoComplete="email"
+        inputMode="email"
+        label={dictionary.common.email}
+        maxLength={320}
+        name="email"
+        placeholder="ornek@eposta.com"
+        required
+        type="email"
+        wide
+      />
 
-      <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
+      <p className="form-note">{dictionary.auth.requestVerificationDescription}</p>
 
       {errorMessage ? (
         <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
@@ -67,7 +73,7 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
       {hasSubmitted ? (
         <Alert
           tone="info"
-          title={dictionary.auth.resetPrepared}
+          title={dictionary.auth.verificationRequestSent}
           message={dictionary.auth.verificationRequestGeneric}
         />
       ) : null}
@@ -82,9 +88,8 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
         </div>
       ) : null}
 
-      <div className="form-actions auth-form-actions">
-        <p className="form-note">{dictionary.auth.resetNoReveal}</p>
-        <Button type="submit" disabled={isSubmitting}>
+      <div className="email-verification-request-actions">
+        <Button className="w-full" type="submit" disabled={isSubmitting}>
           {isSubmitting ? dictionary.auth.preparing : dictionary.auth.requestVerification}
         </Button>
       </div>

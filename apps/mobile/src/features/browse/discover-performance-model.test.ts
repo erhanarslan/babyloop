@@ -13,7 +13,7 @@ describe("discover performance model", () => {
     }));
 
     expect(getDiscoverHeroListings({ activeFilterCount: 0, listings, query: "" })).toHaveLength(10);
-    expect(getDiscoverHeroListings({ activeFilterCount: 1, listings, query: "" })).toBeNull();
-    expect(getDiscoverHeroListings({ activeFilterCount: 0, listings, query: "puset" })).toBeNull();
+    expect(getDiscoverHeroListings({ activeFilterCount: 1, listings, query: "" })).toEqual([]);
+    expect(getDiscoverHeroListings({ activeFilterCount: 0, listings, query: "puset" })).toEqual([]);
   });
 });

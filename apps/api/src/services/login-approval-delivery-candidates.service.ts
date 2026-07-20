@@ -45,7 +45,10 @@ export async function createLoginApprovalPushCandidateLog(
     channel: "push",
     actionHref
   };
-  const policy = evaluateNotificationDeliveryPolicy(policyInput);
+  const providerConfigured = isLoginApprovalPushProviderConfigured();
+  const policy = evaluateNotificationDeliveryPolicy(policyInput, {
+    deliveryEnabled: providerConfigured
+  });
   const createInput: Parameters<typeof createNotificationDeliveryCandidateLog>[1] = {
     profileId: input.profileId,
     policyInput,
@@ -64,7 +67,7 @@ export async function createLoginApprovalPushCandidateLog(
   }
 
   const result = await createNotificationDeliveryCandidateLog(app, createInput);
-  const shouldDispatch = result.created && result.deliveryLogId && isLoginApprovalPushProviderConfigured();
+  const shouldDispatch = result.created && result.deliveryLogId && providerConfigured;
   const dispatch = shouldDispatch
     ? await executeNotificationProviderDelivery(app, result.deliveryLogId!, {
         now: input.now

@@ -22,6 +22,10 @@ describe("HomeFeaturedShowcase", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible"
+    });
   });
 
   it("keeps the selected hero still when reduced motion is preferred", async () => {
@@ -45,5 +49,22 @@ describe("HomeFeaturedShowcase", () => {
     fireEvent.click(screen.getByRole("button", { name: "3. görseli göster" }));
 
     expect(screen.getByRole("img")).toHaveAttribute("src", "/brand/home/home-hero-feeding.png");
+  });
+
+  it("stops automatic image changes while the page is hidden", () => {
+    vi.useFakeTimers();
+    mockMotionPreference(false);
+    render(<HomeFeaturedShowcase />);
+
+    const firstImageSource = screen.getByRole("img").getAttribute("src");
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden"
+    });
+    fireEvent(document, new Event("visibilitychange"));
+    act(() => vi.advanceTimersByTime(7500));
+
+    expect(screen.getByRole("img")).toHaveAttribute("src", firstImageSource);
   });
 });

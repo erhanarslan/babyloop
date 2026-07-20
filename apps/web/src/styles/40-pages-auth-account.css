@@ -122,6 +122,134 @@
   white-space: pre-wrap;
 }
 
+.email-verification-request-page {
+  display: grid;
+  min-height: min(640px, calc(100vh - 13rem));
+  place-items: start center;
+  padding-block: clamp(2rem, 7vw, 5.5rem) !important;
+}
+
+.email-verification-request-card {
+  display: grid;
+  width: min(100%, 35rem);
+  gap: 1.25rem;
+  border-color: rgba(47, 140, 120, 0.2) !important;
+  border-radius: 1.75rem !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(111, 191, 159, 0.14), transparent 33%),
+    radial-gradient(circle at 100% 100%, rgba(255, 175, 146, 0.12), transparent 32%),
+    rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 24px 64px rgba(55, 48, 42, 0.12) !important;
+  padding: clamp(1.4rem, 4vw, 2.25rem);
+}
+
+.email-verification-request-icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-inline: auto;
+  place-items: center;
+  border-radius: 1.15rem;
+  background: rgba(47, 140, 120, 0.12);
+  color: #2f8c78;
+}
+
+.email-verification-request-icon svg {
+  width: 2rem;
+  height: 2rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.email-verification-request-heading {
+  display: grid;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.email-verification-request-heading .eyebrow,
+.email-verification-request-heading h1,
+.email-verification-request-heading p {
+  margin: 0;
+}
+
+.email-verification-request-heading h1 {
+  color: var(--foreground);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.email-verification-request-heading > p:last-child {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.email-verification-request-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.email-verification-request-form > .form-note {
+  margin: -0.2rem 0 0;
+  font-size: 0.84rem;
+}
+
+.email-verification-request-actions {
+  margin-top: 0.15rem;
+}
+
+.email-verification-request-note {
+  margin: 0;
+  border-top: 1px solid rgba(55, 48, 42, 0.09);
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  padding-top: 1rem;
+  text-align: center;
+}
+
+.email-verification-request-skeleton {
+  width: 100%;
+  min-height: 18rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    100deg,
+    rgba(47, 140, 120, 0.06) 20%,
+    rgba(47, 140, 120, 0.14) 45%,
+    rgba(47, 140, 120, 0.06) 70%
+  );
+  background-size: 240% 100%;
+  animation: auth-verification-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes auth-verification-skeleton {
+  to {
+    background-position: -180% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .email-verification-request-skeleton {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .email-verification-request-page {
+    min-height: auto;
+    padding: 1rem 0.75rem 2.5rem !important;
+  }
+
+  .email-verification-request-card {
+    gap: 1rem;
+    border-radius: 1.35rem !important;
+    padding: 1.25rem;
+  }
+}
+
 @media (max-width: 980px) {
   .auth-hero-polished,
   .auth-layout-polished,

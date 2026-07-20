@@ -1,17 +1,15 @@
 # Marketplace + Web + Mobile Product Completion Mega Sprint
 
-Codex did not run tests.
-
 This document is the central release inventory for the marketplace, web functional, mobile functional, and SEO-lite completion sprint. It records what can be counted as a close candidate after local validation, what remains inventory-only, and what stays explicitly deferred.
 
 ## Non-Negotiable Disabled Boundaries
 
-- No real email send
-- No real push send
-- No real n8n webhook execution
+- External providers disabled by default
+- Resend email requires explicit env configuration and user preference
+- No external provider call is made with the default configuration
 - No real queue worker
 - No real payment/Iyzico
-- No real S3/R2 migration
+- No automatic S3/R2 migration; the explicit R2 smoke remains required
 - S22/Maestro real-device smoke deferred
 
 ## Marketplace Core Coverage

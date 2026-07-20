@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "build:deps": "pnpm --filter '@babyloop/api^...' build",
-    "dev": "pnpm build:deps && pnpm build && node dist/server.js",
+    "dev": "pnpm build:deps && pnpm build && node --env-file-if-exists=../../.env.local dist/server.js",
     "rag:ingest": "pnpm exec tsx src/scripts/rag-ingest.ts",
     "child-reminders:process": "pnpm exec tsx src/scripts/process-child-reminders.ts",
     "notifications:process": "pnpm exec tsx src/scripts/process-notification-deliveries.ts",
-    "storage:smoke:r2": "pnpm exec tsx src/scripts/smoke-r2-image-storage.ts",
+    "storage:smoke:r2": "node --env-file-if-exists=../../.env.local --import tsx src/scripts/smoke-r2-image-storage.ts",
     "build": "pnpm build:deps && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run --config vitest.config.ts",
@@ -18,7 +18,7 @@
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit",
     "notifications:smoke:providers": "pnpm exec tsx src/scripts/smoke-notification-provider-flow.ts",
-    "notifications:smoke:marketplace-email": "pnpm exec tsx src/scripts/smoke-marketplace-email-notifications.ts"
+    "notifications:smoke:marketplace-email": "node --env-file-if-exists=../../.env.local --import tsx src/scripts/smoke-marketplace-email-notifications.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

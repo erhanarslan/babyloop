@@ -30,6 +30,7 @@ export function HomeFeaturedShowcase() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRotationPaused, setIsRotationPaused] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   function scrollToLatestListings() {
     document.getElementById("latest-listings")?.scrollIntoView({
@@ -39,7 +40,20 @@ export function HomeFeaturedShowcase() {
   }
 
   useEffect(() => {
-    if (isRotationPaused || prefersReducedMotion) {
+    function handleVisibilityChange() {
+      setIsPageVisible(document.visibilityState === "visible");
+    }
+
+    handleVisibilityChange();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isPageVisible || isRotationPaused || prefersReducedMotion) {
       return;
     }
 
@@ -48,7 +62,7 @@ export function HomeFeaturedShowcase() {
     }, ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [isRotationPaused, prefersReducedMotion]);
+  }, [isPageVisible, isRotationPaused, prefersReducedMotion]);
 
   const activeSlide = showcaseSlides[activeIndex] ?? showcaseSlides[0];
 

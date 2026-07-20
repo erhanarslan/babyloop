@@ -25,6 +25,27 @@ describe("notification delivery policy service", () => {
     expect(result.requirements.idempotencyRequired).toBe(true);
   });
 
+  it("allows delivery only through the explicit policy gate", () => {
+    const input = {
+      profileId: "profile-1",
+      kind: "message_received" as const,
+      sourceType: "conversation" as const,
+      sourceId: "conversation-1",
+      channel: "email" as const,
+      actionHref: "/conversations/conversation-1"
+    };
+
+    expect(evaluateNotificationDeliveryPolicy(input)).toMatchObject({
+      deliveryAllowed: false,
+      draftOnly: true
+    });
+    expect(evaluateNotificationDeliveryPolicy(input, { deliveryEnabled: true })).toMatchObject({
+      deliveryAllowed: true,
+      draftOnly: false,
+      blockedReasons: []
+    });
+  });
+
   it("uses longer frequency windows for child lifecycle cadence", () => {
     const weekly = evaluateNotificationDeliveryPolicy({
       profileId: "profile-1",

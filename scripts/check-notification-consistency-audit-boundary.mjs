@@ -186,8 +186,9 @@ function checkDeliveryReadinessBoundaries() {
   const adminOps = read("apps/api/src/services/admin-notification-ops.service.ts");
 
   for (const token of [
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "options.deliveryEnabled === true",
+    "deliveryAllowed: deliveryEnabled",
+    "draftOnly: !deliveryEnabled",
     "provider_not_configured",
     "frequency_policy_required",
     "dedup_required",
@@ -203,16 +204,17 @@ function checkDeliveryReadinessBoundaries() {
     "status: \"draft_only\"",
     "channel: \"email_draft\"",
     "channel: \"in_app\"",
-    "deliveryAllowed: policy.deliveryAllowed",
-    "draftOnly: policy.draftOnly",
+    "deliveryAllowed: false",
+    "draftOnly: true",
+    "toDraftPolicy",
     "evaluateNotificationDeliveryPolicy"
   ]) {
     mustContain(deliveryDrafts, "apps/api/src/services/notification-delivery-drafts.service.ts", token);
   }
 
   for (const token of [
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "deliveryAllowed: input.policy.deliveryAllowed",
+    "draftOnly: input.policy.draftOnly",
     "idempotencyKey",
     "dedupKey",
     "frequencyWindowHours",
@@ -374,15 +376,13 @@ function checkSurfaceConsistency() {
   const webPreferenceSurface = webPreferenceApi + webPreferencePage;
   const backofficeNotificationSurface = backofficeOps + backofficeOpsTest;
 
-  for (const token of [
-    "draftOnly",
-    "email",
-    "push",
-    "n8n"
-  ]) {
+  for (const token of ["draftOnly", "email", "push", "n8n"]) {
     mustContainCaseInsensitive(mobileSurface, "mobile notification surface", token);
-    mustContainCaseInsensitive(webPreferenceSurface, "web notification preference surface", token);
     mustContainCaseInsensitive(backofficeNotificationSurface, "backoffice notification ops surface", token);
+  }
+
+  for (const token of ["draftOnly", "email"]) {
+    mustContainCaseInsensitive(webPreferenceSurface, "web notification preference surface", token);
   }
 
   mustContainAnyCaseInsensitive(mobileSurface, "mobile notification surface", [

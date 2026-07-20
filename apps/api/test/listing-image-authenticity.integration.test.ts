@@ -1,6 +1,6 @@
 
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -217,6 +217,95 @@ describe("listing image authenticity integration", () => {
     expect(imageRows).toHaveLength(0);
   });
 
+  it("rejects a high-confidence prohibited product before object storage", async () => {
+    configureGeminiAuthenticityProvider();
+    mockGeminiAuthenticityDecision("allow", 0.96, {
+      prohibitedProductCode: "weapon_or_ammunition",
+      prohibitedProductConfidence: 0.93,
+      prohibitedProductDetected: true,
+      reasons: ["A prohibited weapon-like product was detected."]
+    });
+
+    const { currentUser } = await seedSeller("auth-prohibited-reject");
+    const category = await seedCategory("auth-prohibited-reject");
+    const created = await createListing(app, currentUser, buildCreateListingBody(category.id));
+
+    if (created.status !== "created") {
+      throw new Error(`Listing setup failed with status ${created.status}`);
+    }
+
+    const upload = await addListingImage(app, currentUser, {
+      image: await createSafePngImage(),
+      listingId: created.listing.id,
+      originalFilename: "prohibited-product.png",
+      uploadRoot
+    });
+
+    expect(upload).toMatchObject({
+      status: "authenticity_rejected",
+      reason: expect.stringContaining("yasaklı ürün")
+    });
+
+    const imageRows = await app.db
+      .select({ id: listingImages.id })
+      .from(listingImages)
+      .where(eq(listingImages.listingId, created.listing.id));
+
+    expect(imageRows).toHaveLength(0);
+    expect(await readdir(uploadRoot, { recursive: true })).toHaveLength(0);
+  });
+
+  it("stores an uncertain prohibited product as hidden review metadata", async () => {
+    configureGeminiAuthenticityProvider();
+    mockGeminiAuthenticityDecision("allow", 0.74, {
+      prohibitedProductCode: "recalled_or_banned_child_product",
+      prohibitedProductConfidence: 0.64,
+      prohibitedProductDetected: true,
+      reasons: ["The product may be subject to a child-product recall."]
+    });
+
+    const { currentUser } = await seedSeller("auth-prohibited-review");
+    const category = await seedCategory("auth-prohibited-review");
+    const created = await createListing(app, currentUser, buildCreateListingBody(category.id));
+
+    if (created.status !== "created") {
+      throw new Error(`Listing setup failed with status ${created.status}`);
+    }
+
+    const upload = await addListingImage(app, currentUser, {
+      image: await createSafePngImage(),
+      listingId: created.listing.id,
+      originalFilename: "possible-recall.png",
+      uploadRoot
+    });
+
+    expect(upload).toMatchObject({
+      status: "created",
+      image: {
+        reviewStatus: "needs_review"
+      }
+    });
+
+    const adminDetail = await getAdminListingDetail(app, created.listing.id);
+    expect(adminDetail?.images[0]).toMatchObject({
+      reviewStatus: "needs_review",
+      authenticity: {
+        decision: "needs_review",
+        flags: {
+          productPolicy: {
+            action: "manual_review",
+            policyVersion: "babyloop_listing_product_policy.v1",
+            prohibitedProductCode: "recalled_or_banned_child_product",
+            prohibitedProductConfidence: 0.64,
+            prohibitedProductDetected: true
+          }
+        }
+      }
+    });
+
+    expect(await getListingDetail(app, created.listing.id)).toBeNull();
+  });
+
   it("fails closed when the authenticity provider is unavailable and does not insert images", async () => {
     configureGeminiAuthenticityProvider();
 
@@ -357,7 +446,13 @@ function configureGeminiAuthenticityProvider(): void {
 
 function mockGeminiAuthenticityDecision(
   decision: "allow" | "needs_review" | "reject",
-  confidence: number
+  confidence: number,
+  overrides: {
+    prohibitedProductCode?: string | null;
+    prohibitedProductConfidence?: number;
+    prohibitedProductDetected?: boolean;
+    reasons?: string[];
+  } = {}
 ): void {
   vi.stubGlobal(
     "fetch",
@@ -376,6 +471,9 @@ function mockGeminiAuthenticityDecision(
                       isRealProductPhoto: decision !== "reject",
                       isRelevantToListing: decision !== "reject",
                       isStockOrCatalogLike: decision === "needs_review",
+                      prohibitedProductCode: null,
+                      prohibitedProductConfidence: 0,
+                      prohibitedProductDetected: false,
                       detectedObjects: ["stroller"],
                       categoryHints: ["baby gear"],
                       safetyFlags: {
@@ -388,7 +486,8 @@ function mockGeminiAuthenticityDecision(
                         decision === "reject"
                           ? "Image appears generated or unrelated to the physical listing."
                           : "Image requires marketplace authenticity review."
-                      ]
+                      ],
+                      ...overrides
                     })
                   }
                 ]

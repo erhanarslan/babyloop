@@ -137,8 +137,9 @@ function checkApiContract() {
   for (const token of [
     "kind === \"child_reminder\"",
     "return 24;",
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "options.deliveryEnabled === true",
+    "deliveryAllowed: deliveryEnabled",
+    "draftOnly: !deliveryEnabled",
     "consentRequired: true"
   ]) {
     mustContain(policy, policyFile, token);

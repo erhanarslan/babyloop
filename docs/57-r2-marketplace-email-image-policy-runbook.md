@@ -20,9 +20,10 @@ S3_SECRET_ACCESS_KEY=...
 S3_FORCE_PATH_STYLE=true
 ```
 
-After loading the production-like environment, run the temporary write/read/delete
-smoke. The command creates one object under `smoke/r2-connectivity/` and deletes it
-in a `finally` block.
+The API development and smoke commands automatically load the repository-root
+`.env.local` file when it exists. Run the temporary write/read/delete smoke below.
+The command creates one object under `smoke/r2-connectivity/` and deletes it in a
+`finally` block.
 
 ```bash
 IMAGE_STORAGE_R2_SMOKE_ALLOW_WRITE=true \
@@ -73,6 +74,8 @@ pnpm --filter @babyloop/api notifications:smoke:providers
 To test the actual message and listing-favorite email templates against an
 existing, verified BabyLoop account, first enable both email toggles in that
 account's notification settings. Then run the explicit two-email smoke below.
+The command reads the repository-root `.env.local` file automatically when it
+exists.
 It executes only the two candidates it creates and never drains unrelated
 pending notification rows:
 

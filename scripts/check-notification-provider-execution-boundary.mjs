@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 const problems = [];
 
 const requiredFiles = [
+  "apps/api/src/services/notification-email-config.service.ts",
   "apps/api/src/services/notification-provider-execution.service.ts",
   "apps/api/src/services/notification-push-token-registry.service.ts",
   "apps/api/src/scripts/process-notification-deliveries.ts",
@@ -39,6 +40,7 @@ function mustNotContain(source, file, pattern, label) {
 }
 
 if (problems.length === 0) {
+  const emailConfig = read("apps/api/src/services/notification-email-config.service.ts");
   const service = read("apps/api/src/services/notification-provider-execution.service.ts");
   const registry = read("apps/api/src/services/notification-push-token-registry.service.ts");
   const tests = read("apps/api/test/notification-provider-execution.service.test.ts");
@@ -57,10 +59,12 @@ if (problems.length === 0) {
     "executeNotificationProviderDelivery",
     "processPendingNotificationProviderDeliveries",
     "N8N_NOTIFICATION_WEBHOOK_URL",
-    "RESEND_API_KEY",
+    "getNotificationEmailProviderConfig",
     "EXPO_ACCESS_TOKEN",
     "x-idempotency-key",
     "idempotency-key",
+    "!row.deliveryAllowed || row.draftOnly",
+    "delivery_disabled",
     "provider_disabled",
     "recipient_email_unverified",
     "preference_disabled",
@@ -69,6 +73,15 @@ if (problems.length === 0) {
     "sanitizeErrorMessage"
   ]) {
     mustContain(service, "apps/api/src/services/notification-provider-execution.service.ts", token);
+  }
+
+  for (const token of [
+    "NOTIFICATION_EMAIL_ENABLED",
+    "NOTIFICATION_EMAIL_PROVIDER",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL"
+  ]) {
+    mustContain(emailConfig, "apps/api/src/services/notification-email-config.service.ts", token);
   }
 
   for (const token of [
@@ -99,6 +112,7 @@ if (problems.length === 0) {
 
   for (const token of [
     "skips provider execution without env and does not call network",
+    "never calls a provider for a draft-only delivery log",
     "executes n8n webhook with idempotency and allowlisted payload",
     "sends verified Resend email",
     "sends Expo push",
@@ -137,6 +151,7 @@ if (problems.length === 0) {
   mustContain(betaBoundary, "scripts/check-beta-critical-smoke-boundary.mjs", "security:notification-provider-execution");
 
   for (const [file, source] of [
+    ["apps/api/src/services/notification-email-config.service.ts", emailConfig],
     ["apps/api/src/services/notification-provider-execution.service.ts", service],
     ["apps/api/src/services/notification-push-token-registry.service.ts", registry],
     ["apps/api/src/services/admin-notification-ops.service.ts", adminOps]

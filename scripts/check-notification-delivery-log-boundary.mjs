@@ -104,8 +104,8 @@ function checkServiceAndTests() {
     "isNotificationDeliveryWithinFrequencyWindow",
     "canWriteNotificationDeliveryCandidateLog",
     "createNotificationDeliveryCandidateLog",
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "deliveryAllowed: input.policy.deliveryAllowed",
+    "draftOnly: input.policy.draftOnly",
     "frequency_window_active",
     "sanitizeNotificationDeliveryMetadata",
     "isSensitiveNotificationDeliveryMetadataKey",
@@ -131,6 +131,9 @@ function checkServiceAndTests() {
     "deliveryAllowed: false",
     "draftOnly: true",
     "delivery_log_required",
+    "preserves an explicitly enabled provider policy in the candidate log",
+    "deliveryAllowed: true",
+    "draftOnly: false",
     "blocks duplicate candidate writes inside the frequency window",
     "allows candidate writes after the frequency window expires",
     "not.toMatch(/parent@example.com|secret-token|raw body|accessToken|refreshToken|passwordHash|otpCode/iu"
@@ -151,8 +154,9 @@ function checkExistingPolicyBoundary() {
   const ops = read(opsFile);
 
   for (const token of [
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "options.deliveryEnabled === true",
+    "deliveryAllowed: deliveryEnabled",
+    "draftOnly: !deliveryEnabled",
     "delivery_log_required",
     "idempotencyRequired: true",
     "frequencyWindowHours",

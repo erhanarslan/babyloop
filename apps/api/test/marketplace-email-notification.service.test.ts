@@ -65,8 +65,8 @@ describe("marketplace email notification candidates", () => {
       sourceType: "conversation",
       channel: "email",
       status: "candidate",
-      deliveryAllowed: false,
-      draftOnly: true
+      deliveryAllowed: true,
+      draftOnly: false
     });
     expect(rows[0]?.metadata).toMatchObject({
       actionHref: "/conversations/conversation-1",

@@ -384,21 +384,22 @@ function checkP0ScriptsAndDocs() {
   const rootP0 = rootPackage.scripts?.["test:mobile:p0"] ?? "";
   const mobileP0 = mobilePackage.scripts?.["test:p0"] ?? "";
 
-  for (const [file, script] of [
-    ["package.json#test:mobile:p0", rootP0],
-    ["apps/mobile/package.json#test:p0", mobileP0]
+  mustContain(
+    rootP0,
+    "package.json#test:mobile:p0",
+    "pnpm --filter @babyloop/mobile test:p0"
+  );
+
+  for (const token of [
+    "src/features/auth/auth-api.test.ts",
+    "src/features/security/security-model.test.ts",
+    "src/features/auth/auth-sessions-api.test.ts",
+    "src/features/security/mobile-session-model.test.ts",
+    "src/features/security/mobile-login-approval-model.test.ts",
+    "src/features/messages/messages-realtime-model.test.ts"
   ]) {
-    for (const token of [
-      "src/features/auth/auth-api.test.ts",
-      "src/features/security/security-model.test.ts",
-      "src/features/auth/auth-sessions-api.test.ts",
-      "src/features/security/mobile-session-model.test.ts",
-      "src/features/security/mobile-login-approval-model.test.ts",
-      "src/features/messages/messages-realtime-model.test.ts"
-    ]) {
-      if (!script.includes(token)) {
-        problems.push(`${file} must include ${token}.`);
-      }
+    if (!mobileP0.includes(token)) {
+      problems.push(`apps/mobile/package.json#test:p0 must include ${token}.`);
     }
   }
 

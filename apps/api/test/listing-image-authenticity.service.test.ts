@@ -245,6 +245,53 @@ describe("listing image authenticity provider", () => {
     });
   });
 
+  it("treats a valid prohibited-product code as detected when the provider boolean contradicts it", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.LISTING_IMAGE_AUTHENTICITY_PROVIDER = "gemini";
+    process.env.GEMINI_API_KEY = "test-gemini-key";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                decision: "allow",
+                confidence: 0.97,
+                isGeneratedOrIllustration: false,
+                isRealProductPhoto: true,
+                isRelevantToListing: true,
+                isStockOrCatalogLike: false,
+                prohibitedProductCode: "recalled_or_banned_child_product",
+                prohibitedProductConfidence: 0.91,
+                prohibitedProductDetected: false,
+                safetyFlags: {
+                  containsSensitiveChildContent: false
+                },
+                reasons: ["The provider returned contradictory policy fields."]
+              })
+            }]
+          }
+        }]
+      }), { status: 200 })
+    );
+
+    const result = await analyzeListingImageAuthenticity(fakeApp, baseInput);
+
+    expect(result).toMatchObject({
+      status: "completed",
+      decision: "reject",
+      flags: {
+        productPolicy: {
+          action: "reject",
+          prohibitedProductCode: "recalled_or_banned_child_product",
+          prohibitedProductConfidence: 0.91,
+          prohibitedProductDetected: true
+        }
+      }
+    });
+  });
+
   it("times out Gemini provider fail-closed", async () => {
     process.env.NODE_ENV = "production";
     process.env.LISTING_IMAGE_AUTHENTICITY_PROVIDER = "gemini";

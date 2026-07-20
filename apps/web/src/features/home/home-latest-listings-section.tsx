@@ -60,6 +60,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   const { dictionary } = useI18n();
   const prefersReducedMotion = usePrefersReducedMotion();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreAbortControllerRef = useRef<AbortController | null>(null);
 
   const [listings, setListings] = useState<HomeListing[]>([]);
   const [nextOffset, setNextOffset] = useState(0);
@@ -94,7 +95,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   }, []);
 
   const fetchListingBatch = useCallback(
-    async (limit: number, offset: number): Promise<HomeListing[]> => {
+    async (limit: number, offset: number, signal?: AbortSignal): Promise<HomeListing[]> => {
       const params = new URLSearchParams({
         hasImages: "true",
         limit: String(limit),
@@ -109,7 +110,10 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
       const response = await fetch(
         `${apiBaseUrl}/api/v1/listings?${params.toString()}`,
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          ...(signal ? { signal } : {})
+        }
       );
       const body = (await response.json()) as { ok: boolean; data?: ListingsPayload };
 
@@ -154,6 +158,10 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
   useEffect(() => {
     let isActive = true;
+    const controller = new AbortController();
+
+    loadMoreAbortControllerRef.current?.abort();
+    loadMoreAbortControllerRef.current = null;
 
     async function loadInitialListings() {
       setIsInitialLoading(true);
@@ -163,7 +171,11 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
       try {
         const initialListingLimit = getHomeInitialListingLimit(window.innerWidth);
-        const firstListings = await fetchListingBatch(initialListingLimit, 0);
+        const firstListings = await fetchListingBatch(
+          initialListingLimit,
+          0,
+          controller.signal
+        );
 
         if (!isActive) {
           return;
@@ -172,8 +184,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
         setListings(firstListings);
         setNextOffset(firstListings.length);
         setHasMoreRemoteListings(firstListings.length === initialListingLimit);
-      } catch {
-        if (isActive) {
+      } catch (error) {
+        if (isActive && !isAbortError(error)) {
           setHasError(true);
           setListings([]);
           setNextOffset(0);
@@ -190,6 +202,9 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
     return () => {
       isActive = false;
+      controller.abort();
+      loadMoreAbortControllerRef.current?.abort();
+      loadMoreAbortControllerRef.current = null;
     };
   }, [fetchListingBatch]);
 
@@ -212,17 +227,33 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
       setIsLoadingMore(true);
       setHasError(false);
+      loadMoreAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      loadMoreAbortControllerRef.current = controller;
 
       try {
-        const nextListings = await fetchListingBatch(requestedLimit, nextOffset);
+        const nextListings = await fetchListingBatch(
+          requestedLimit,
+          nextOffset,
+          controller.signal
+        );
+
+        if (controller.signal.aborted) {
+          return;
+        }
 
         appendListings(nextListings);
         setNextOffset((currentOffset) => currentOffset + nextListings.length);
         setHasMoreRemoteListings(nextListings.length === requestedLimit);
-      } catch {
-        setHasError(true);
+      } catch (error) {
+        if (!isAbortError(error)) {
+          setHasError(true);
+        }
       } finally {
-        setIsLoadingMore(false);
+        if (loadMoreAbortControllerRef.current === controller) {
+          loadMoreAbortControllerRef.current = null;
+          setIsLoadingMore(false);
+        }
       }
     },
     [
@@ -593,4 +624,8 @@ function toHomeListing(listing: ListingSummary): HomeListing {
     ...listingWithSeller,
     locationCity: listingWithSeller.seller?.locationCity ?? null
   };
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }

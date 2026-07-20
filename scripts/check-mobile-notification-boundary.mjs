@@ -299,8 +299,9 @@ function checkApiDeliveryPolicyBoundary() {
   const savedSearch = read(savedSearchFile);
 
   for (const token of [
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "options.deliveryEnabled === true",
+    "deliveryAllowed: deliveryEnabled",
+    "draftOnly: !deliveryEnabled",
     "delivery_disabled",
     "delivery_log_required",
     "deliveryLogRequired: true",
@@ -317,6 +318,8 @@ function checkApiDeliveryPolicyBoundary() {
     "expect(result.draftOnly).toBe(true)",
     "delivery_disabled",
     "requirements.deliveryLogRequired",
+    "allows delivery only through the explicit policy gate",
+    "deliveryEnabled: true",
     "uses longer frequency windows for child lifecycle cadence",
     "notification_delivery_logs schema",
     "idempotency key for n8n/email hooks"

@@ -87,6 +87,7 @@ const requiredFiles = [
   "packages/database/src/schema/index.ts",
   "packages/database/drizzle/0025_notification_preferences.sql",
   "apps/api/src/schemas/notification-preferences.schemas.ts",
+  "apps/api/src/services/notification-email-config.service.ts",
   "apps/api/src/services/notification-preferences.service.ts",
   "apps/api/src/services/notification-consent-preference-policy.service.ts",
   "apps/api/src/services/notification-delivery-drafts.service.ts",
@@ -99,6 +100,7 @@ const requiredFiles = [
   "apps/api/src/routes/profiles.routes.ts",
   "apps/api/src/services/public-profiles.service.ts",
   "apps/api/test/notification-preferences.routes.test.ts",
+  "apps/api/test/notification-provider-config.service.test.ts",
   "apps/api/test/public-profiles.routes.test.ts",
   "apps/api/test/saved-searches.routes.test.ts",
   "apps/api/test/seller-dashboard.routes.test.ts",
@@ -199,9 +201,13 @@ function checkDocs() {
   }
 
   mustContain(docs, "docs/77-notification-marketplace-core.md", "Codex did not run tests");
-  mustContain(docs, "docs/77-notification-marketplace-core.md", "No real n8n webhook execution");
-  mustContain(docs, "docs/77-notification-marketplace-core.md", "No real push send");
-  mustContain(docs, "docs/77-notification-marketplace-core.md", "No real email send");
+  mustContain(
+    docs,
+    "docs/77-notification-marketplace-core.md",
+    "No external provider call is made with the default configuration"
+  );
+  mustContain(docs, "docs/77-notification-marketplace-core.md", "disabled by default");
+  mustContain(docs, "docs/77-notification-marketplace-core.md", "env-gated");
 }
 
 function checkNotificationPreferences() {
@@ -209,8 +215,10 @@ function checkNotificationPreferences() {
   const migration = read("packages/database/drizzle/0025_notification_preferences.sql");
   const apiSchema = read("apps/api/src/schemas/notification-preferences.schemas.ts");
   const service = read("apps/api/src/services/notification-preferences.service.ts");
+  const providerConfig = read("apps/api/src/services/notification-email-config.service.ts");
   const route = read("apps/api/src/routes/notifications.routes.ts");
   const tests = read("apps/api/test/notification-preferences.routes.test.ts");
+  const providerTests = read("apps/api/test/notification-provider-config.service.test.ts");
 
   for (const token of [
     "notificationPreferences",
@@ -239,13 +247,21 @@ function checkNotificationPreferences() {
   }
 
   mustContain(service, "notification preference service", "redactPrivateText");
-  mustContain(service, "notification preference service", "providerCallAllowed: false");
-  mustContain(service, "notification preference service", "deliveryProvidersEnabled: false");
+  mustContain(service, "notification preference service", "isNotificationEmailProviderConfigured");
+  mustContain(service, "notification preference service", "deliveryProvidersEnabled: anyProviderEnabled");
+  mustContain(service, "notification preference service", "providerCallAllowed");
   mustContain(service, "notification preference service", "isNotificationPreferenceEnabledForDelivery");
+  mustContain(providerConfig, "notification email provider configuration", "NOTIFICATION_EMAIL_ENABLED");
+  mustContain(providerConfig, "notification email provider configuration", "RESEND_API_KEY");
+  mustContain(providerConfig, "notification email provider configuration", "Boolean(apiKey)");
+  mustContain(providerConfig, "notification email provider configuration", "Boolean(fromEmail)");
   mustContain(route, "notification preference route", "/notification-preferences");
   mustContain(tests, "notification preference route tests", "rejects invalid source/channel values and unknown fields");
   mustContain(tests, "notification preference route tests", "redacted audit event");
   mustContain(tests, "notification preference route tests", "providerCallAllowed");
+  mustContain(providerTests, "notification provider configuration tests", "requires every Resend email gate");
+  mustContain(providerTests, "notification provider configuration tests", "deliveryProvidersEnabled: true");
+  mustContain(providerTests, "notification provider configuration tests", "RESEND_API_KEY: \"\"");
 }
 
 function checkProviderSandbox() {

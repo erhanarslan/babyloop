@@ -187,7 +187,7 @@ function checkMobileChildNotebookScreenState() {
   for (const token of [
     "maps reminders without claiming real push delivery",
     "exposes notification settings from child cadence",
-    "provides safe default profile and next reminder date"
+    "calculates the next reminder date without inventing child profile data"
   ]) {
     mustContain(modelTests, modelTestFile, token);
   }

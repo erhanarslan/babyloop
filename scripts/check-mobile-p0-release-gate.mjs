@@ -80,13 +80,11 @@ function checkRootScripts(rootPackage) {
 
   mustContain(security, "package.json#security:mobile-auth", "node scripts/check-mobile-auth-security.mjs");
 
-  mustContain(testP0, "package.json#test:mobile:p0", "pnpm --filter @babyloop/mobile exec jest");
-  mustContain(testP0, "package.json#test:mobile:p0", "--runInBand");
-  mustContain(testP0, "package.json#test:mobile:p0", "--runTestsByPath");
-
-  for (const testFile of p0TestFiles) {
-    mustContain(testP0, "package.json#test:mobile:p0", testFile);
-  }
+  // The root command deliberately delegates to the mobile package so the P0
+  // inventory has one source of truth. Requiring the full Jest command here as
+  // well makes this guard reject the package structure it is meant to protect.
+  mustContain(testP0, "package.json#test:mobile:p0", "pnpm --filter @babyloop/mobile test:p0");
+  mustNotContain(testP0, "package.json#test:mobile:p0", "--runTestsByPath");
 
   for (const forbidden of [
     "test:e2e:mobile",
@@ -119,8 +117,8 @@ function checkSecurityGuard() {
   const file = "scripts/check-mobile-auth-security.mjs";
   const source = read(file);
 
-  // Keep this scoped to auth/security boundary checks. The full P0 test inventory is
-  // validated against package.json#test:mobile:p0 and apps/mobile/package.json#test:p0.
+  // Keep this scoped to auth/security boundary checks. The root command delegates
+  // to the mobile package, whose test:p0 script owns the complete P0 inventory.
   mustContain(source, file, "SecureStore");
   mustContain(source, file, "MFA-required");
   mustContain(source, file, "mobile login must not require mobile approval for itself");

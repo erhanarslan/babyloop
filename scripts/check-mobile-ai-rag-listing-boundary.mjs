@@ -143,9 +143,8 @@ if (!packageJson.scripts?.["release:mobile:p0"]?.includes("security:mobile-ai-ra
   failures.push("release:mobile:p0 must include security:mobile-ai-rag-listing");
 }
 
-if (!packageJson.scripts?.["test:mobile:p0"]?.includes("assistant-display-model.test.ts") ||
-  !packageJson.scripts?.["test:mobile:p0"]?.includes("ai-listing-draft-api.test.ts")) {
-  failures.push("test:mobile:p0 must include assistant and AI listing draft mobile tests");
+if (!packageJson.scripts?.["test:mobile:p0"]?.includes("pnpm --filter @babyloop/mobile test:p0")) {
+  failures.push("test:mobile:p0 must delegate to the mobile package P0 inventory");
 }
 
 const mobilePackageJson = JSON.parse(read("apps/mobile/package.json"));

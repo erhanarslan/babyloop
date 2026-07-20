@@ -95,7 +95,7 @@ function checkAuthenticityAndStorageCoverage() {
 
   for (const token of [
     "stores needs_review authenticity metadata, hides the image publicly, and exposes it to admin review",
-    "expect(publicDetail?.images).toEqual([])",
+    "expect(publicDetail).toBeNull()",
     "expect(adminDetail?.images).toHaveLength(1)",
     "rejects provider-rejected images before storage and database insert",
     "fails closed when the authenticity provider is unavailable and does not insert images",

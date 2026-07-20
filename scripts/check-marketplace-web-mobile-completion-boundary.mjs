@@ -123,6 +123,8 @@ const requiredFiles = [
   "apps/web/src/features/home/home-latest-listings-section.test.tsx",
   "apps/web/src/features/home/home-personalization-feed.tsx",
   "apps/web/src/components/site-header.tsx",
+  "apps/web/src/components/navigation/location-preference-model.ts",
+  "apps/web/src/components/navigation/location-preference-model.test.ts",
   "apps/web/src/components/navigation/mobile-navigation-drawer.tsx",
   "apps/web/src/components/navigation/public-navigation-model.ts",
   "apps/web/src/lib/seo.ts",
@@ -213,14 +215,14 @@ function checkDocs() {
   }
 
   for (const token of [
-    "No real email send",
-    "No real push send",
-    "No real n8n webhook execution",
+    "External providers disabled by default",
+    "Resend email requires explicit env configuration and user preference",
+    "No external provider call is made with the default configuration",
     "No real queue worker",
     "No real payment/Iyzico",
-    "No real S3/R2 migration",
+    "No automatic S3/R2 migration",
     "S22/Maestro real-device smoke deferred",
-    "Codex did not run tests"
+    "Local validation commands"
   ]) {
     mustContain(docs, "docs/78-marketplace-web-mobile-completion.md", token);
   }
@@ -398,12 +400,11 @@ function checkSeoAndSafety() {
   ]);
 
   for (const token of [
-    "No real email send",
-    "No real push send",
-    "No real n8n webhook execution",
+    "External providers disabled by default",
+    "No external provider call is made with the default configuration",
     "No real queue worker",
     "No real payment/Iyzico",
-    "No real S3/R2 migration"
+    "No automatic S3/R2 migration"
   ]) {
     mustContain(providerBoundary, "provider/payment/storage disabled boundary", token);
   }
@@ -415,6 +416,11 @@ function checkNoLeakPatterns() {
     .filter((file) => !isTestFile(file))
     .filter((file) => !file.includes("/test/") && !file.includes("/e2e/"));
   const production = corpus(productionFiles);
+  const locationCookieFile = "apps/web/src/components/navigation/location-selector.tsx";
+  const productionCookieBoundary = corpus(
+    productionFiles.filter((file) => file !== locationCookieFile)
+  );
+  const locationCookieSource = read(locationCookieFile);
 
   mustNotMatch(
     production,
@@ -423,10 +429,21 @@ function checkNoLeakPatterns() {
     "browser/native token persistence outside SecureStore"
   );
   mustNotMatch(
-    production,
+    productionCookieBoundary,
     "production cookie mutation boundary",
     /document\s*\.\s*cookie\s*=/iu,
     "document.cookie assignment"
+  );
+  mustContain(
+    locationCookieSource,
+    "allowlisted marketplace location cookie",
+    "document.cookie = buildLocationPreferenceCookie"
+  );
+  mustNotMatch(
+    locationCookieSource,
+    "allowlisted marketplace location cookie",
+    /(?:accessToken|refreshToken|authorization|password|session)/iu,
+    "authentication or sensitive value"
   );
   mustNotMatch(
     production,

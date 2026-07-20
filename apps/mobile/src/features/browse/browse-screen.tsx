@@ -97,9 +97,7 @@ export function BrowseScreen() {
         query
       });
 
-      if (nextHeroListings) {
-        setHeroListings(nextHeroListings);
-      }
+      setHeroListings(nextHeroListings);
       setStatus(nextListings.length > 0 ? "ready" : "empty");
     } catch (loadError) {
       if (requestId !== listingRequestIdRef.current) {
@@ -201,11 +199,13 @@ export function BrowseScreen() {
         </View>
       }
     >
-      <DiscoverHeroBanner
-        autoAdvanceEnabled={isScreenFocused && !prefersReducedMotion}
-        listings={heroListings}
-        onListingPress={(listingId) => router.push(`/listing/${encodeURIComponent(listingId)}`)}
-      />
+      {!hasSearchOrFilters ? (
+        <DiscoverHeroBanner
+          autoAdvanceEnabled={isScreenFocused && !prefersReducedMotion}
+          listings={heroListings}
+          onListingPress={(listingId) => router.push(`/listing/${encodeURIComponent(listingId)}`)}
+        />
+      ) : null}
 
       <SearchSheet
         appliedQuery={appliedQuery}

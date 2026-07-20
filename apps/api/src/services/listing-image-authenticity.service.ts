@@ -289,6 +289,12 @@ function normalizeProviderOutput(
   const confidence = normalizeConfidence(parsed.confidence);
   const reasons = normalizeStringArray(parsed.reasons).slice(0, 8);
   const safetyFlags = normalizeRecord(parsed.safetyFlags);
+  const prohibitedProductCode = normalizeProhibitedListingProductCode(
+    parsed.prohibitedProductCode
+  );
+  const prohibitedProductConfidence = normalizeConfidence(
+    parsed.prohibitedProductConfidence
+  );
   const productPolicy = enforceListingImageProductPolicy({
     confidence,
     providerDecision: decision,
@@ -296,9 +302,12 @@ function normalizeProviderOutput(
       containsSensitiveChildContent: safetyFlags.containsSensitiveChildContent === true,
       isRealProductPhoto: parsed.isRealProductPhoto === true,
       isRelevantToListing: parsed.isRelevantToListing === true,
-      prohibitedProductCode: normalizeProhibitedListingProductCode(parsed.prohibitedProductCode),
-      prohibitedProductConfidence: normalizeConfidence(parsed.prohibitedProductConfidence),
-      prohibitedProductDetected: parsed.prohibitedProductDetected === true
+      prohibitedProductCode,
+      prohibitedProductConfidence,
+      // A valid policy code is an independent safety signal. This prevents a
+      // contradictory provider boolean from bypassing deterministic policy.
+      prohibitedProductDetected:
+        parsed.prohibitedProductDetected === true || prohibitedProductCode !== null
     }
   });
   const normalizedReasons = productPolicy.reason

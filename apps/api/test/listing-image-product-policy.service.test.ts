@@ -43,6 +43,21 @@ describe("listing image product policy", () => {
     });
   });
 
+  it("keeps a detected prohibited product under review even without a specific code", () => {
+    expect(enforceListingImageProductPolicy({
+      confidence: 0.68,
+      providerDecision: "allow",
+      signals: {
+        ...safeSignals,
+        prohibitedProductConfidence: 0.68,
+        prohibitedProductDetected: true
+      }
+    })).toMatchObject({
+      action: "manual_review",
+      decision: "needs_review"
+    });
+  });
+
   it("rejects high-confidence images that do not show the real listed product", () => {
     expect(enforceListingImageProductPolicy({
       confidence: 0.91,

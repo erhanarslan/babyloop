@@ -52,6 +52,28 @@ describe("notification delivery log service", () => {
     expect(JSON.stringify(log)).not.toMatch(/parent@example.com|secret-token|raw body|accessToken|refreshToken|passwordHash|otpCode/iu);
   });
 
+  it("preserves an explicitly enabled provider policy in the candidate log", () => {
+    const policyInput = {
+      profileId: "profile-1",
+      kind: "message_received",
+      sourceType: "conversation",
+      sourceId: "conversation-1",
+      channel: "email",
+      actionHref: "/conversations/conversation-1"
+    } as const;
+    const policy = evaluateNotificationDeliveryPolicy(policyInput, { deliveryEnabled: true });
+
+    expect(buildNotificationDeliveryLogRecord({
+      profileId: policyInput.profileId,
+      policyInput,
+      policy
+    })).toMatchObject({
+      deliveryAllowed: true,
+      draftOnly: false,
+      blockedReasons: []
+    });
+  });
+
   it("blocks duplicate candidate writes inside the frequency window", () => {
     expect(
       isNotificationDeliveryWithinFrequencyWindow({

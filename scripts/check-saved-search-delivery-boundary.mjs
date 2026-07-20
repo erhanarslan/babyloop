@@ -140,8 +140,9 @@ function checkExistingBoundaries() {
   for (const token of [
     "\"saved_search\"",
     "SAVED_SEARCH_FREQUENCY_WINDOW_HOURS",
-    "deliveryAllowed: false",
-    "draftOnly: true",
+    "options.deliveryEnabled === true",
+    "deliveryAllowed: deliveryEnabled",
+    "draftOnly: !deliveryEnabled",
     "delivery_log_required"
   ]) {
     mustContain(policy, policyFile, token);

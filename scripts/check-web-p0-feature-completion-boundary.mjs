@@ -41,6 +41,12 @@ function requireExcludes(relativePath, snippets) {
   return source;
 }
 
+function requireMissing(relativePath) {
+  if (existsSync(join(root, relativePath))) {
+    failures.push(`${relativePath} must stay removed; security controls belong to the profile section`);
+  }
+}
+
 requireIncludes("apps/web/src/lib/auth-client.ts", [
   "fetchCurrentUserWithoutRefreshPromise",
   "refreshSessionPromise",
@@ -84,20 +90,24 @@ requireExcludes("apps/web/src/features/account/account-profile-page-content.tsx"
   "yakında",
   "disabled coming"
 ]);
-requireIncludes("apps/web/src/features/account/account-security-page-content.tsx", [
-  "id=\"password\"",
-  "id=\"mfa\"",
-  "id=\"sessions\"",
-  "<ChangePasswordForm",
+requireIncludes("apps/web/src/features/account/account-profile-page-content.tsx", [
+  "sectionId === \"security\"",
+  "<SecuritySection",
   "<MfaSettingsPanel",
-  "<SessionManagementPanel"
+  "<SessionManagementPanel",
+  "<AccountDeletionPanel",
+  "href=\"/account/password\""
 ]);
+requireMissing("apps/web/src/features/account/account-security-page-content.tsx");
 requireIncludes("apps/web/src/app/account/security/page.tsx", [
-  "AccountSecurityPageContent",
-  "buildNoIndexMetadata"
+  "LegacyAccountSecurityPage",
+  "redirect(\"/account/profile?section=security\")"
 ]);
 requireIncludes("apps/web/src/app/account/password/page.tsx", [
-  "redirect(\"/account/security#password\")"
+  "redirect(\"/account/profile?section=security&changePassword=1\")"
+]);
+requireExcludes("apps/web/src/components/navigation/public-navigation-model.ts", [
+  "{ href: \"/account/security\""
 ]);
 
 requireIncludes("apps/web/src/features/assistant/api.ts", [

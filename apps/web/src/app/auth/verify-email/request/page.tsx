@@ -1,25 +1,18 @@
 import type { Metadata } from "next";
 import { buildNoIndexMetadata } from "../../../../lib/seo";
 import { SiteShell } from "../../../../components/ui";
-import { AuthLinkNote } from "../../../../features/auth/auth-link-note";
-import { AuthPageShell } from "../../../../features/auth/auth-page-shell";
-import { RequestEmailVerificationForm } from "../../../../features/auth/request-email-verification-form";
+import { EmailVerificationRequestPageContent } from "../../../../features/auth/email-verification-request-page-content";
 import { getApiBaseUrl } from "../../../../lib/api";
-import { AuthSurfaceGuide } from "../../../../features/auth/auth-surface-guide";
 
 export const metadata: Metadata = buildNoIndexMetadata(
-  "Request email verification",
-  "BabyLoop email verification request pages are not indexed."
+  "E-posta doğrulama",
+  "BabyLoop e-posta doğrulama bağlantısı iste."
 );
 
 export default function RequestEmailVerificationPage() {
   return (
     <SiteShell>
-      <AuthSurfaceGuide kind="verify" />
-      <AuthPageShell ariaLabel="Email verification request" kind="requestVerify">
-        <RequestEmailVerificationForm apiBaseUrl={getApiBaseUrl()} />
-        <AuthLinkNote kind="verified" />
-      </AuthPageShell>
+      <EmailVerificationRequestPageContent apiBaseUrl={getApiBaseUrl()} />
     </SiteShell>
   );
 }

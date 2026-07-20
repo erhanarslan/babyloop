@@ -1,18 +1,15 @@
-import { LoadingBlock, PageContainer, PageHeading, SiteShell } from "../../../../components/ui";
+import { Card, PageContainer, SiteShell } from "../../../../components/ui";
 
 export default function VerifyEmailRequestLoading() {
   return (
     <SiteShell>
-      <PageContainer>
-        <PageHeading
-          eyebrow="BabyLoop"
-          title="Loading verification request"
-          description="Preparing email verification controls."
-        />
-        <LoadingBlock
-          title="Loading verification request"
-          message="Preparing email verification controls."
-        />
+      <PageContainer className="email-verification-request-page">
+        <Card as="section" className="email-verification-request-card" aria-live="polite">
+          <div className="email-verification-request-skeleton" aria-hidden="true" />
+          <p className="text-center text-sm text-muted-foreground">
+            E-posta doğrulama alanı hazırlanıyor…
+          </p>
+        </Card>
       </PageContainer>
     </SiteShell>
   );

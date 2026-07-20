@@ -145,4 +145,44 @@ describe("HomeLatestListingsSection", () => {
     expect(await screen.findByText("BabyLoop")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Temiz bebek arabası" })).not.toBeInTheDocument();
   });
+
+  it("aborts a stale listing request when the marketplace city changes", async () => {
+    let firstRequestSignal: AbortSignal | null = null;
+    let requestCount = 0;
+
+    vi.mocked(fetch).mockImplementation((_input, init) => {
+      requestCount += 1;
+
+      if (requestCount === 1) {
+        firstRequestSignal = init?.signal ?? null;
+        return new Promise<Response>(() => undefined);
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({
+          ok: true,
+          data: {
+            listings: [{ ...listing, id: "listing-istanbul" }]
+          }
+        }), { status: 200 })
+      );
+    });
+
+    renderSection();
+
+    await vi.waitFor(() => {
+      expect(firstRequestSignal).not.toBeNull();
+    });
+
+    window.dispatchEvent(new CustomEvent("babyloop-marketplace-location-change", {
+      detail: { city: "istanbul" }
+    }));
+
+    await vi.waitFor(() => {
+      expect(firstRequestSignal?.aborted).toBe(true);
+      expect(requestCount).toBe(2);
+    });
+
+    expect(await screen.findByText("Temiz bebek arabası")).toBeInTheDocument();
+  });
 });
