@@ -1,4 +1,12 @@
+import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import { createApp } from "../app.js";
+import { createRuntimeObservability } from "../services/runtime-observability.service.js";
+import {
+  markRuntimeWorkerCompleted,
+  markRuntimeWorkerFailed,
+  markRuntimeWorkerStarted
+} from "../services/runtime-worker-heartbeat.service.js";
 import {
   processDueChildReminderNotifications,
   type ChildReminderDeliveryChannel,
@@ -6,7 +14,10 @@ import {
 } from "../services/child-reminder-scheduler.service.js";
 
 async function main(): Promise<void> {
-  const app = createApp();
+  const observability = createRuntimeObservability();
+  const app = createApp({ observability });
+  const workerId = buildWorkerId();
+  let heartbeatStarted = false;
   const dryRun = process.env.CHILD_REMINDER_PROCESSOR_DRY_RUN !== "false";
   const limit = readPositiveInteger("CHILD_REMINDER_PROCESSOR_LIMIT", 50);
   const channels = readDeliveryChannels(process.env.CHILD_REMINDER_DELIVERY_CHANNELS);
@@ -14,6 +25,11 @@ async function main(): Promise<void> {
   try {
     await app.ready();
     assertDatabaseConfigured(app);
+    await markRuntimeWorkerStarted(app, {
+      workerName: "child_reminder",
+      workerId
+    });
+    heartbeatStarted = true;
 
     const input: ProcessDueChildRemindersInput = {
       dryRun,
@@ -26,6 +42,20 @@ async function main(): Promise<void> {
 
     const summary = await processDueChildReminderNotifications(app, input);
 
+    await markRuntimeWorkerCompleted(app, {
+      workerName: "child_reminder",
+      workerId,
+      summary: {
+        processed: summary.processed,
+        created: summary.created,
+        skipped: summary.skipped,
+        blocked: summary.blocked,
+        dryRun: summary.dryRun,
+        providerCallsAllowed: summary.providerCallsAllowed,
+        deliveryAllowed: summary.deliveryAllowed
+      }
+    });
+
     console.log(JSON.stringify({
       processed: summary.processed,
       created: summary.created,
@@ -36,9 +66,34 @@ async function main(): Promise<void> {
       providerCallsAllowed: summary.providerCallsAllowed,
       deliveryAllowed: summary.deliveryAllowed
     }, null, 2));
+  } catch (error) {
+    if (heartbeatStarted) {
+      await markRuntimeWorkerFailed(app, {
+        workerName: "child_reminder",
+        workerId,
+        error
+      }).catch(() => undefined);
+    }
+
+    await observability.captureException(error, {
+      event: "child_reminder_worker_failed",
+      workerName: "child_reminder",
+      workerId
+    });
+    throw error;
   } finally {
     await app.close();
   }
+}
+
+function buildWorkerId(): string {
+  const configured = process.env.CHILD_REMINDER_WORKER_ID?.trim();
+
+  if (configured) {
+    return configured.slice(0, 120);
+  }
+
+  return `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`.slice(0, 120);
 }
 
 function readPositiveInteger(name: string, fallback: number): number {

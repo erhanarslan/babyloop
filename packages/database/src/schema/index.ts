@@ -1048,6 +1048,29 @@ export const notificationDeliveryLogs = pgTable(
   ]
 );
 
+export const runtimeWorkerHeartbeats = pgTable(
+  "runtime_worker_heartbeats",
+  {
+    workerName: varchar("worker_name", { length: 80 }).primaryKey(),
+    workerId: varchar("worker_id", { length: 120 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("idle"),
+    lastStartedAt: timestamp("last_started_at", { withTimezone: true }),
+    lastCompletedAt: timestamp("last_completed_at", { withTimezone: true }),
+    lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
+    lastErrorCode: varchar("last_error_code", { length: 80 }),
+    lastErrorMessageRedacted: varchar("last_error_message_redacted", { length: 240 }),
+    lastSummary: jsonb("last_summary").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("runtime_worker_heartbeats_status_heartbeat_idx").on(table.status, table.lastHeartbeatAt),
+    check(
+      "runtime_worker_heartbeats_status_check",
+      sql`${table.status} in ('running', 'idle', 'failed', 'stopping')`
+    )
+  ]
+);
+
 export const notificationPreferences = pgTable(
   "notification_preferences",
   {
@@ -1500,6 +1523,7 @@ export const schema = {
   profiles,
   profileTrustSnapshots,
   reports,
+  runtimeWorkerHeartbeats,
   sessions,
   userSafetyEvents,
   users

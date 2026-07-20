@@ -127,6 +127,9 @@ describe("OpenAPI documentation", () => {
     expect(adminEmailOperation?.requestBody).toBeDefined();
 
     expect(specification.paths["/health"]).toBeDefined();
+    expect(specification.paths["/health/live"]).toBeDefined();
+    expect(specification.paths["/health/ready"]).toBeDefined();
+    expect(specification.paths["/internal/metrics"]).toBeUndefined();
     expect(
       specification.paths[`${API_PREFIX}/meta/capabilities`]
     ).toBeDefined();

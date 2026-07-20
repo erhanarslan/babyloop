@@ -927,3 +927,14 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Sent/failed/skipped final writes require the active claim token and clear all lease fields.
 - [ ] SIGTERM/SIGINT stop new claims and abort the current provider request through the normal retry path.
 - [ ] Backoffice exposes processing count, sanitized worker id and lease timestamps but never claim tokens.
+
+## Runtime readiness and observability gate
+
+- [ ] `pnpm security:runtime-readiness-observability` passes.
+- [ ] `pnpm test:api:readiness` passes against `babyloop_test`.
+- [ ] `GET /health/live` returns `200` without dependency calls.
+- [ ] `GET /health/ready` returns `200` only when every required dependency is available.
+- [ ] A missing required worker heartbeat produces `503` with a safe error code.
+- [ ] `GET /internal/metrics` is disabled or returns `401` without the bearer token.
+- [ ] Error webhook payloads contain no connection string, token, cookie, authorization header, request body, e-mail, user ID, or raw stack.
+- [ ] Database migration `0043_runtime_readiness_observability` is applied in the target environment.

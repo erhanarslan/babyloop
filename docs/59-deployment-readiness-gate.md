@@ -139,3 +139,7 @@ This gate does not deploy, does not create cloud resources, does not enable AWS/
 
 Exact guard wording: staging/prod deploy remains blocked until explicit implementation.
 Exact guard wording: manual approval is required before beta production release.
+
+## Runtime health and observability deployment requirements
+
+Staging and production deployment readiness must configure authenticated metrics, an HTTPS error-reporting sink, worker heartbeat requirements, stale claim policy, and migration `0043_runtime_readiness_observability`. Liveness must not depend on external services; readiness must fail closed for every dependency explicitly marked required.

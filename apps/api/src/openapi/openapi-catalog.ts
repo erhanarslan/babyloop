@@ -222,7 +222,7 @@ export function readRouteMethod(route: unknown): string {
 function resolveRouteTag(path: string): string {
   const relativePath = stripApiPrefix(path);
 
-  if (path === "/health" || relativePath.startsWith("/meta/")) {
+  if (path === "/health" || path.startsWith("/health/") || relativePath.startsWith("/meta/")) {
     return "Sistem";
   }
 

@@ -92,6 +92,8 @@ import { getAssistantChildPersonalizationContext } from "./services/assistant-ch
 import { registerAdminNotificationRoutes } from "./routes/admin-notifications.routes.js";
 import { registerAdminStorageRoutes } from "./routes/admin-storage.routes.js";
 import { registerAdminEmailRoutes } from "./routes/admin-email.routes.js";
+import { RuntimeMetricsRegistry } from "./services/runtime-metrics.service.js";
+import { createRuntimeObservability, type RuntimeObservability } from "./services/runtime-observability.service.js";
 import type {
   AssistantMessageProvider,
   ListingDraftSuggestionProvider,
@@ -114,6 +116,7 @@ type CreateAppOptions = {
   listingDraftSuggestionProvider?: ListingDraftSuggestionProvider | null;
   moderationSummaryProvider?: ModerationSummaryProvider;
   openApi?: OpenApiRuntimeConfig;
+  observability?: RuntimeObservability;
   ragServices?: RagRuntimeServices | null;
 };
 
@@ -121,6 +124,8 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const startedAt = new Date();
   const config = options.config ?? readApiRuntimeConfig();
   const openApi = options.openApi ?? readOpenApiRuntimeConfig();
+  const metrics = new RuntimeMetricsRegistry();
+  const observability = options.observability ?? createRuntimeObservability({ metrics });
 
   assertAuthConfig(config);
 
@@ -214,6 +219,12 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       durationMs
     };
 
+    metrics.recordRequest({
+      method: request.method,
+      route,
+      statusCode: reply.statusCode,
+      durationMs
+    });
     requestTimingStarts.delete(request);
 
     if (isLowNoiseRoute(route)) {
@@ -263,6 +274,14 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     const statusCode = isDatabaseUnavailable ? 503 : getStatusCode(error);
     const message = error instanceof Error ? error.message : "Request failed";
 
+    void observability.captureException(error, {
+      event: "api_request_failed",
+      requestId: request.id,
+      method: request.method,
+      route: getSafeRequestRoute(request),
+      statusCode
+    });
+
     return reply.status(statusCode).send({
       ok: false,
       error: {
@@ -285,6 +304,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   app.register(async (healthApp) => {
     registerHealthRoutes(healthApp, {
       config,
+      metrics,
       startedAt
     });
   });
@@ -636,7 +656,7 @@ function getSafeRequestRoute(request: FastifyRequest): string {
 }
 
 function isLowNoiseRoute(route: string): boolean {
-  return route === "/health";
+  return route === "/health" || route === "/health/live" || route === "/health/ready" || route === "/internal/metrics";
 }
 
 function isDatabaseConnectionError(error: unknown): boolean {

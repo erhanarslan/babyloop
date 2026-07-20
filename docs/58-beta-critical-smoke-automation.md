@@ -204,3 +204,7 @@ Run pnpm security:mobile-auth-otp-session-regression before claiming mobile auth
 This audit covers mfa_required, OTP, refresh, logout, SecureStore, mobile P0 release gate, and API/mobile session regression expectations.
 
 Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refreshToken, do not expose passwordHash, do not expose cookie, and do not expose authorization.
+
+## Runtime readiness and observability coverage
+
+Full beta critical smoke automation includes `security:runtime-readiness-observability`. This validates endpoint separation, bounded dependency probes, worker heartbeat persistence, metrics authentication, error-payload redaction, migration presence, and release wiring. It does not provision or configure an external metrics collector, dashboard, pager, Sentry project, OpenTelemetry collector, or cloud alert policy.

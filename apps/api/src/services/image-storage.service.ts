@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
+import { access, mkdir } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import { optimizeListingImage } from "./image-optimization.service.js";
 import type { SafeImage } from "./image-safety.service.js";
 import {
@@ -101,6 +103,25 @@ export function getImageStorageConfigPreview(env: NodeJS.ProcessEnv = process.en
       optionalEnv(env, "S3_SECRET_ACCESS_KEY")
     )
   };
+}
+
+export async function probeImageStorageReadiness(input: {
+  env?: NodeJS.ProcessEnv;
+  uploadRoot: string;
+}): Promise<{ driver: ImageStorageDriver }> {
+  const config = getImageStorageConfig(input.env);
+
+  if (config.driver === "local") {
+    await mkdir(input.uploadRoot, { recursive: true });
+    await access(input.uploadRoot, fsConstants.R_OK | fsConstants.W_OK);
+    return { driver: "local" };
+  }
+
+  await createS3Client(config).send(new HeadBucketCommand({
+    Bucket: config.bucket
+  }));
+
+  return { driver: "s3" };
 }
 
 export async function storeListingImage(input: {

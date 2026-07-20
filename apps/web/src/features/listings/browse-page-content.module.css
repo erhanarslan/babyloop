@@ -47,45 +47,206 @@
 }
 
 .noResultsCard {
+  position: relative;
   display: grid;
-  gap: 1rem;
+  grid-template-columns: auto minmax(0, 1fr) minmax(15rem, 18rem);
+  align-items: center;
+  gap: 1.25rem;
+  overflow: hidden;
   margin-bottom: 1rem;
-  padding: 1.25rem;
+  border-color: hsl(var(--primary) / 0.16);
+  background:
+    radial-gradient(circle at 8% 15%, hsl(var(--primary) / 0.08), transparent 30%),
+    linear-gradient(135deg, hsl(var(--card) / 0.98), hsl(var(--muted) / 0.52));
+  box-shadow: 0 18px 44px rgba(56, 38, 24, 0.075);
+  padding: 1.4rem;
 }
 
-.noResultsCard h2 {
-  margin: 0.35rem 0 0.45rem;
+.noResultsCard::after {
+  position: absolute;
+  right: -3.5rem;
+  bottom: -5rem;
+  width: 11rem;
+  height: 11rem;
+  border: 1px solid hsl(var(--primary) / 0.1);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.035);
+  content: "";
+  pointer-events: none;
+}
+
+.noResultsVisual {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border: 1px solid hsl(var(--primary) / 0.2);
+  border-radius: 1.35rem;
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--card) / 0.96));
+  box-shadow: inset 0 1px 0 hsl(var(--background) / 0.8);
+  color: hsl(var(--primary));
+}
+
+.noResultsVisual svg {
+  width: 2.35rem;
+  height: 2.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.noResultsCopy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.noResultsCopy h2 {
+  margin: 0.3rem 0 0.4rem;
   color: var(--foreground);
-  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+  line-height: 1.12;
 }
 
-.noResultsCard p {
+.noResultsCopy > p:last-of-type {
+  max-width: 42rem;
+  margin: 0;
   color: var(--muted-foreground);
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
 .noResultsActions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.noResultsActions .noResultsPrimaryAction,
+.noResultsActions .noResultsSecondaryAction,
+.noResultsSellAction {
+  min-height: 2.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 850;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.noResultsActions .noResultsPrimaryAction {
+  border-color: hsl(var(--primary) / 0.9);
+  background: hsl(var(--primary));
+  box-shadow: 0 8px 22px hsl(var(--primary) / 0.18);
+  color: hsl(var(--primary-foreground));
+  padding-inline: 1rem;
+}
+
+.noResultsActions .noResultsSecondaryAction {
+  border-color: hsl(var(--border) / 0.92);
+  background: hsl(var(--card) / 0.92);
+  color: var(--foreground);
+  padding-inline: 1rem;
+}
+
+.noResultsActions .noResultsPrimaryAction:hover,
+.noResultsActions .noResultsSecondaryAction:hover,
+.noResultsSellAction:hover {
+  transform: translateY(-1px);
+}
+
+.noResultsActions .noResultsPrimaryAction:focus-visible,
+.noResultsActions .noResultsSecondaryAction:focus-visible,
+.noResultsSellAction:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.24);
+  outline-offset: 2px;
+}
+
+.noResultsAside {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  border-left: 1px solid hsl(var(--border) / 0.9);
+  padding-left: 1.15rem;
+}
+
+.noResultsAsideLabel {
+  margin: 0 0 0.45rem;
+  color: var(--muted-foreground);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .noResultsTips {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.15rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .noResultsTips li {
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
-  background: rgba(248, 250, 252, 0.86);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+  color: var(--foreground);
+}
+
+.noResultsTips strong,
+.noResultsTips small {
+  display: block;
+}
+
+.noResultsTips strong {
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.noResultsTips small {
+  margin-top: 0.12rem;
   color: var(--muted-foreground);
-  line-height: 1.55;
-  padding: 0.85rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.noResultsTipIndex {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 0.62rem;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.noResultsSellAction {
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 0.5rem;
+  border: 1px solid hsl(var(--border) / 0.88);
+  background: hsl(var(--background) / 0.66);
+  color: var(--foreground);
+  padding-inline: 0.85rem;
+}
+
+.noResultsSellAction span {
+  color: hsl(var(--primary));
+  font-size: 1rem;
 }
 
 .listingCard {
@@ -141,8 +302,21 @@
 }
 
 @media (max-width: 980px) {
+  .noResultsCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .noResultsAside {
+    grid-column: 1 / -1;
+    border-top: 1px solid hsl(var(--border) / 0.9);
+    border-left: 0;
+    padding-top: 0.85rem;
+    padding-left: 0;
+  }
+
   .noResultsTips {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
   }
 
   .resultsSummary {
@@ -156,6 +330,27 @@
 }
 
 @media (max-width: 640px) {
+  .noResultsCard {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.05rem;
+  }
+
+  .noResultsVisual {
+    width: 3.75rem;
+    height: 3.75rem;
+    border-radius: 1.1rem;
+  }
+
+  .noResultsAside {
+    grid-column: auto;
+  }
+
+  .noResultsTips {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
   .resultsActions a,
   .noResultsActions a,
   .cardContext a {

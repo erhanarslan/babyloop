@@ -363,11 +363,21 @@
 }
 
 .active-filter-panel {
-  margin-bottom: 0.9rem;
-  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.active-filter-panel .eyebrow {
+  flex: 0 0 auto;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .filter-chip-list {
+  flex: 1 1 auto;
   gap: 0.45rem;
 }
 

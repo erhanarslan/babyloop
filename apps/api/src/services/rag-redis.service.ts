@@ -44,6 +44,11 @@ export class RagRedisClient {
     return createHash("sha256").update(value).digest("hex");
   }
 
+  async ping(): Promise<boolean> {
+    const value = await this.command(["PING"]);
+    return value === "PONG";
+  }
+
   async get(key: string): Promise<string | null> {
     const value = await this.command(["GET", key]);
     return typeof value === "string" ? value : null;

@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import type { ApiRuntimeConfig } from "../config/env.js";
 import { getImageStorageConfigPreview } from "../services/image-storage.service.js";
+import type { RuntimeMetricsRegistry } from "../services/runtime-metrics.service.js";
+import {
+  evaluateRuntimeReadiness,
+  type RuntimeReadinessResult
+} from "../services/runtime-readiness.service.js";
+
 
 type HealthDependencyStatus = {
   configured: boolean;
@@ -13,6 +19,11 @@ type HealthResponse = {
   environment: string;
   timestamp: string;
   uptimeSeconds: number;
+  endpoints: {
+    liveness: "/health/live";
+    readiness: "/health/ready";
+    metrics: "/internal/metrics" | null;
+  };
   dependencies: {
     auth: HealthDependencyStatus;
     database: HealthDependencyStatus;
@@ -33,9 +44,18 @@ type HealthResponse = {
   };
 };
 
+type LivenessResponse = {
+  ok: true;
+  live: true;
+  service: "babyloop-api";
+  timestamp: string;
+  uptimeSeconds: number;
+};
+
 type RegisterHealthRoutesOptions = {
   config: ApiRuntimeConfig;
   env?: NodeJS.ProcessEnv;
+  metrics: RuntimeMetricsRegistry;
   startedAt: Date;
   version?: string;
 };
@@ -57,6 +77,11 @@ export function registerHealthRoutes(
       environment: normalizeEnvironment(env.NODE_ENV),
       timestamp: new Date().toISOString(),
       uptimeSeconds: getUptimeSeconds(options.startedAt),
+      endpoints: {
+        liveness: "/health/live",
+        readiness: "/health/ready",
+        metrics: isMetricsEnabled(env) ? "/internal/metrics" : null
+      },
       dependencies: {
         auth: {
           configured: Boolean(options.config.authSecret),
@@ -76,6 +101,68 @@ export function registerHealthRoutes(
       },
     };
   });
+
+  app.get<{ Reply: LivenessResponse }>("/health/live", async () => ({
+    ok: true,
+    live: true,
+    service: "babyloop-api",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: getUptimeSeconds(options.startedAt)
+  }));
+
+  app.get("/health/ready", async (_request, reply) => {
+    const readiness = await evaluateRuntimeReadiness(app, {
+      config: options.config,
+      env: options.env ?? process.env
+    });
+
+    options.metrics.recordReadiness(readiness.ready);
+
+    return reply.status(readiness.ready ? 200 : 503).send(toReadinessResponse(readiness));
+  });
+
+  app.get("/internal/metrics", { schema: { hide: true } }, async (request, reply) => {
+    const env = options.env ?? process.env;
+
+    if (!isMetricsEnabled(env)) {
+      return reply.status(404).send({
+        ok: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Metrics endpoint is disabled."
+        }
+      });
+    }
+
+    const configuredToken = env.OBSERVABILITY_METRICS_TOKEN?.trim();
+    const providedToken = readBearerToken(request.headers.authorization);
+
+    if (!configuredToken || !providedToken || !constantTimeTextEqual(configuredToken, providedToken)) {
+      return reply.status(401).send({
+        ok: false,
+        error: {
+          code: "METRICS_AUTH_REQUIRED",
+          message: "A valid metrics bearer token is required."
+        }
+      });
+    }
+
+    return reply
+      .header("content-type", "text/plain; version=0.0.4; charset=utf-8")
+      .header("cache-control", "no-store")
+      .send(options.metrics.renderPrometheus());
+  });
+}
+
+function toReadinessResponse(readiness: RuntimeReadinessResult): Record<string, unknown> {
+  return {
+    ok: readiness.ready,
+    ready: readiness.ready,
+    service: "babyloop-api",
+    checkedAt: readiness.checkedAt,
+    expectedDatabaseMigration: readiness.expectedDatabaseMigration,
+    dependencies: readiness.dependencies
+  };
 }
 
 function getRagDependencyStatus(
@@ -112,4 +199,26 @@ function normalizeEnvironment(value: string | undefined): string {
   const normalized = value?.trim();
 
   return normalized ? normalized : "development";
+}
+
+function isMetricsEnabled(env: NodeJS.ProcessEnv): boolean {
+  return ["1", "true", "yes", "on"].includes((env.OBSERVABILITY_METRICS_ENABLED ?? "false").trim().toLowerCase());
+}
+
+function readBearerToken(value: string | undefined): string | null {
+  const match = value?.match(/^Bearer\s+(.+)$/iu);
+  return match?.[1]?.trim() || null;
+}
+
+function constantTimeTextEqual(expected: string, actual: string): boolean {
+  if (expected.length !== actual.length) {
+    return false;
+  }
+
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    difference |= expected.charCodeAt(index) ^ actual.charCodeAt(index);
+  }
+
+  return difference === 0;
 }

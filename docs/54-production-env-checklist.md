@@ -540,3 +540,24 @@ Production/beta readiness for first-party product analytics requires:
 Product analytics is first-party usage measurement only. It must stay separate from admin/security audit logs and operational observability. Analytics tables must not contain passwords, tokens, cookies, authorization headers, exact IP addresses, raw query strings, message bodies, child note/reminder bodies, assistant prompts, listing descriptions, image base64, signed URLs, raw RAG source text, or provider raw output.
 
 Backoffice analytics should read aggregate metrics by default. Current-state metrics such as verified users and Google-linked users must come from database state (`emailVerifiedAt` and provider/account relations), not only from client-side event counts. Raw events and aggregate retention must remain configurable, and analytics failures must not block user-facing business flows.
+
+## Runtime readiness and observability
+
+Production requires separate liveness and readiness probes:
+
+- `/health/live` for process liveness,
+- `/health/ready` for PostgreSQL, schema, storage, RAG dependency, worker heartbeat, and stale-claim readiness,
+- `/internal/metrics` for bearer-protected Prometheus scraping.
+
+Required production posture:
+
+```text
+OBSERVABILITY_METRICS_ENABLED=true
+OBSERVABILITY_METRICS_TOKEN=<long-random-secret>
+OBSERVABILITY_ERROR_WEBHOOK_URL=https://...
+HEALTH_REQUIRE_NOTIFICATION_WORKER=true
+HEALTH_REQUIRE_CHILD_REMINDER_WORKER=true
+HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS=true
+```
+
+`pnpm security:runtime-readiness-observability` and `pnpm test:api:readiness` must pass. Database migration `0043_runtime_readiness_observability` must be applied before enabling required worker readiness.

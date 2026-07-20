@@ -526,3 +526,12 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Confirm an active processing lease remains owned by its worker.
 - [ ] Confirm an expired processing lease is recovered and reported in the worker summary.
 - [ ] Confirm backoffice shows processing/lease state without claim tokens, provider credentials, recipient data or raw payloads.
+
+## Runtime readiness and observability
+
+- [ ] Runtime readiness and observability guard passes.
+- [ ] Liveness remains healthy during a simulated dependency failure.
+- [ ] Readiness becomes `503` for a missing required worker or unavailable required database.
+- [ ] Worker heartbeat timestamps update after notification and child-reminder processor runs.
+- [ ] Protected metrics reject missing/invalid bearer tokens.
+- [ ] Sanitized error reporting is verified against a staging sink.

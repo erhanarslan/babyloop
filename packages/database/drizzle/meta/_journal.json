@@ -288,6 +288,13 @@
       "when": 1784552400000,
       "tag": "0042_notification_worker_atomic_claim",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1784563200000,
+      "tag": "0043_runtime_readiness_observability",
+      "breakpoints": true
     }
   ]
 }

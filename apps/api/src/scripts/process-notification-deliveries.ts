@@ -2,11 +2,19 @@ import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { createApp } from "../app.js";
 import { processPendingNotificationProviderDeliveries } from "../services/notification-provider-execution.service.js";
+import { createRuntimeObservability } from "../services/runtime-observability.service.js";
+import {
+  markRuntimeWorkerCompleted,
+  markRuntimeWorkerFailed,
+  markRuntimeWorkerStarted
+} from "../services/runtime-worker-heartbeat.service.js";
 
 async function main(): Promise<void> {
-  const app = createApp();
+  const observability = createRuntimeObservability();
+  const app = createApp({ observability });
   const abortController = new AbortController();
   const workerId = buildWorkerId();
+  let heartbeatStarted = false;
   const stop = (signal: NodeJS.Signals) => {
     if (!abortController.signal.aborted) {
       app.log.info({ signal, workerId }, "Notification provider worker shutdown requested.");
@@ -22,6 +30,11 @@ async function main(): Promise<void> {
   try {
     await app.ready();
     assertDatabaseConfigured(app);
+    await markRuntimeWorkerStarted(app, {
+      workerName: "notification_delivery",
+      workerId
+    });
+    heartbeatStarted = true;
 
     const limit = readPositiveInteger(process.env.NOTIFICATION_PROVIDER_PROCESS_LIMIT, 50);
     const claimTtlMs = readPositiveInteger(process.env.NOTIFICATION_PROVIDER_CLAIM_TTL_MS, 5 * 60 * 1000);
@@ -30,6 +43,22 @@ async function main(): Promise<void> {
       claimTtlMs,
       workerId,
       signal: abortController.signal
+    });
+
+    await markRuntimeWorkerCompleted(app, {
+      workerName: "notification_delivery",
+      workerId,
+      summary: {
+        processed: summary.processed,
+        claimed: summary.claimed,
+        duplicates: summary.duplicates,
+        staleRecovered: summary.staleRecovered,
+        sent: summary.sent,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        retryScheduled: summary.retryScheduled,
+        aborted: abortController.signal.aborted
+      }
     });
 
     console.log(JSON.stringify({
@@ -45,6 +74,21 @@ async function main(): Promise<void> {
       providerCallsAllowed: summary.providerCallsAllowed,
       aborted: abortController.signal.aborted
     }));
+  } catch (error) {
+    if (heartbeatStarted) {
+      await markRuntimeWorkerFailed(app, {
+        workerName: "notification_delivery",
+        workerId,
+        error
+      }).catch(() => undefined);
+    }
+
+    await observability.captureException(error, {
+      event: "notification_worker_failed",
+      workerName: "notification_delivery",
+      workerId
+    });
+    throw error;
   } finally {
     process.off("SIGTERM", onSigterm);
     process.off("SIGINT", onSigint);

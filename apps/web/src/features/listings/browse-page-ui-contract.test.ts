@@ -25,6 +25,15 @@ describe("browse page UI contract", () => {
     );
   });
 
+
+  it("renders a compact, action-oriented no-results state", () => {
+    expect(source).toContain("noResultsVisual");
+    expect(source).toContain("noResultsPrimaryAction");
+    expect(source).toContain("noResultsAside");
+    expect(source).toContain("Aramayı sadeleştir");
+    expect(source).toContain("Konumu genişlet");
+  });
+
   it("does not expose the redundant image-only filter", () => {
     expect(source).not.toContain('name="hasImages"');
     expect(source).not.toContain('label: "Sadece görselli"');

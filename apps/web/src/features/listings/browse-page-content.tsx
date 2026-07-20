@@ -466,7 +466,15 @@ function BrowseNoResultsPanel({
 
   return (
     <Card as="section" className={styles.noResultsCard ?? ""}>
-      <div>
+      <div className={styles.noResultsVisual} aria-hidden="true">
+        <svg viewBox="0 0 48 48" role="presentation">
+          <circle cx="21" cy="21" r="10" />
+          <path d="m29 29 8 8" />
+          <path d="M16.5 21h9" />
+        </svg>
+      </div>
+
+      <div className={styles.noResultsCopy}>
         <p className="eyebrow">Sonuç yok</p>
         <h2>
           {hasActiveFilters
@@ -475,21 +483,43 @@ function BrowseNoResultsPanel({
         </h2>
         <p>
           {hasActiveFilters
-            ? `${categoryName ? `${categoryName} içinde ` : ""}Bir filtreyi gevşet veya aramayı daha sonra kullanmak için kaydet.`
+            ? `${categoryName ? `${categoryName} içinde ` : ""}Aramayı sadeleştir, konumu genişlet veya filtreleri temizleyerek tekrar dene.`
             : "Daha geniş kategorilerden başlayabilir veya yeni ilanları takip etmek için arama kaydedebilirsin."}
         </p>
+
+        <div className={styles.noResultsActions}>
+          <Link className={styles.noResultsPrimaryAction} href={clearFiltersHref}>
+            {hasActiveFilters ? "Filtreleri temizle" : "Tüm ilanlar"}
+          </Link>
+          <Link className={styles.noResultsSecondaryAction} href={assistantHref}>
+            Asistana sor
+          </Link>
+        </div>
       </div>
 
-      <div className={styles.noResultsActions}>
-        <Link href={clearFiltersHref}>{hasActiveFilters ? "Filtreleri temizle" : "Tüm ilanlar"}</Link>
-        <Link href={assistantHref}>Asistana sor</Link>
-        <Link href="/sell">İlan ver</Link>
-      </div>
-
-      <ul className={styles.noResultsTips} aria-label="Aramaya devam etme önerileri">
-        <li>Fiyat aralığını genişletmeyi dene.</li>
-        <li>Benzer ihtiyaçlar için aramayı kaydet.</li>
-      </ul>
+      <aside className={styles.noResultsAside} aria-label="Aramaya devam etme önerileri">
+        <p className={styles.noResultsAsideLabel}>Hızlı öneriler</p>
+        <ul className={styles.noResultsTips}>
+          <li>
+            <span className={styles.noResultsTipIndex}>1</span>
+            <span>
+              <strong>Aramayı sadeleştir</strong>
+              <small>Tek kelime veya ürün adıyla yeniden dene.</small>
+            </span>
+          </li>
+          <li>
+            <span className={styles.noResultsTipIndex}>2</span>
+            <span>
+              <strong>Konumu genişlet</strong>
+              <small>Şehir filtresini kaldırarak daha fazla ilan gör.</small>
+            </span>
+          </li>
+        </ul>
+        <Link className={styles.noResultsSellAction} href="/sell">
+          İlan ver
+          <span aria-hidden="true">→</span>
+        </Link>
+      </aside>
     </Card>
   );
 }

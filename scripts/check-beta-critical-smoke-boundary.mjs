@@ -74,6 +74,7 @@ function checkRunner() {
     "security:notification-delivery-log",
     "security:notification-provider-execution",
     "security:notification-worker-atomic-claim",
+    "security:runtime-readiness-observability",
     "security:auth-leaks",
     "security:public-auth-cookie-migration",
     "release:artifacts",

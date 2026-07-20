@@ -22,6 +22,7 @@ if (target !== "local") {
   checkListingImageAuthenticityEnv();
   checkAiProviderEnv();
   checkRagEnv();
+  checkObservabilityEnv();
   checkBackofficePosture();
 } else {
   note("local", "Strict staging/production env validation is skipped for local target.");
@@ -479,6 +480,56 @@ function checkRagEnv() {
   }
 
   ok("rag", "RAG env checks completed.");
+}
+
+function checkObservabilityEnv() {
+  const metricsEnabled = lowerEnv("OBSERVABILITY_METRICS_ENABLED") === "true";
+  const metricsToken = env("OBSERVABILITY_METRICS_TOKEN");
+  const errorWebhookUrl = env("OBSERVABILITY_ERROR_WEBHOOK_URL");
+
+  if (target === "production" && !metricsEnabled) {
+    error("observability", "OBSERVABILITY_METRICS_ENABLED must be true in production.");
+  }
+
+  if (metricsEnabled) {
+    requireEnv("OBSERVABILITY_METRICS_TOKEN", "observability");
+
+    if (metricsToken && metricsToken.length < 32) {
+      error("observability", "OBSERVABILITY_METRICS_TOKEN must be at least 32 characters.");
+    }
+
+    if (metricsToken && /change|example|replace|local|dev/i.test(metricsToken)) {
+      error("observability", "OBSERVABILITY_METRICS_TOKEN looks like a placeholder.");
+    }
+  }
+
+  if (target === "production") {
+    requireEnv("OBSERVABILITY_ERROR_WEBHOOK_URL", "observability");
+    requireEnvValue("HEALTH_REQUIRE_NOTIFICATION_WORKER", "true", "observability");
+    requireEnvValue("HEALTH_REQUIRE_CHILD_REMINDER_WORKER", "true", "observability");
+    requireEnvValue("HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS", "true", "observability");
+  }
+
+  if (errorWebhookUrl) {
+    requireHttpsUrlEnv("OBSERVABILITY_ERROR_WEBHOOK_URL", "observability");
+  }
+
+  const readinessTimeout = numberEnv("HEALTH_READINESS_TIMEOUT_MS");
+  if (readinessTimeout !== null && (readinessTimeout < 500 || readinessTimeout > 10000)) {
+    error("observability", "HEALTH_READINESS_TIMEOUT_MS must be between 500 and 10000 milliseconds.");
+  }
+
+  for (const key of [
+    "NOTIFICATION_WORKER_MAX_STALENESS_SECONDS",
+    "CHILD_REMINDER_WORKER_MAX_STALENESS_SECONDS"
+  ]) {
+    const value = numberEnv(key);
+    if (value !== null && (value < 60 || value > 86400)) {
+      error("observability", `${key} must be between 60 and 86400 seconds.`);
+    }
+  }
+
+  ok("observability", "Runtime readiness and observability env checks completed.");
 }
 
 function checkBackofficePosture() {
