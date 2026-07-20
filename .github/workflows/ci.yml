@@ -1,171 +1,167 @@
-# name: CI
+name: CI
 
-# on:
-#   pull_request:
-#   push:
-#     branches:
-#       - main
-#       - master
+on:
+  workflow_dispatch:
 
-# jobs:
-#   validate:
-#     name: Validate monorepo
-#     runs-on: ubuntu-latest
+jobs:
+  validate:
+    name: Validate monorepo
+    runs-on: ubuntu-latest
 
-#     services:
-#       postgres:
-#         image: postgres:16-alpine
-#         env:
-#           POSTGRES_DB: babyloop_test
-#           POSTGRES_USER: postgres
-#           POSTGRES_PASSWORD: postgres
-#         ports:
-#           - 5432:5432
-#         options: >-
-#           --health-cmd "pg_isready -U postgres -d babyloop_test"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: babyloop_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d babyloop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-#     env:
-#       TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
 
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Setup pnpm
-#         uses: pnpm/action-setup@v4
-#         with:
-#           version: 10.33.0
-#           run_install: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
 
-#       - name: Setup Node
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version-file: .node-version
-#           cache: pnpm
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
 
-#       - name: Install dependencies
-#         run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-#       - name: Release artifact guard
-#         run: pnpm release:artifacts
+      - name: Release artifact guard
+        run: pnpm release:artifacts
 
-#       - name: Deployment readiness local check
-#         run: pnpm deploy:check
+      - name: Deployment readiness local check
+        run: pnpm deploy:check
 
-#       - name: Staging deployment boundary
-#         run: pnpm security:staging-deployment
+      - name: Staging deployment boundary
+        run: pnpm security:staging-deployment
 
-#       - name: Deployment unit tests
-#         run: pnpm test:deploy
+      - name: Deployment unit tests
+        run: pnpm test:deploy
 
-#       - name: Typecheck shared
-#         run: pnpm --filter @babyloop/shared typecheck
+      - name: Typecheck shared
+        run: pnpm --filter @babyloop/shared typecheck
 
-#       - name: Typecheck API
-#         run: pnpm --filter @babyloop/api typecheck
+      - name: Typecheck API
+        run: pnpm --filter @babyloop/api typecheck
 
-#       - name: Typecheck web
-#         run: pnpm --filter @babyloop/web typecheck
+      - name: Typecheck web
+        run: pnpm --filter @babyloop/web typecheck
 
-#       - name: Typecheck workspace
-#         run: pnpm typecheck
+      - name: Typecheck workspace
+        run: pnpm typecheck
 
-#       - name: Shared unit tests
-#         run: pnpm --filter @babyloop/shared test:unit
+      - name: Shared unit tests
+        run: pnpm --filter @babyloop/shared test:unit
 
-#       - name: API integration tests
-#         run: pnpm --filter @babyloop/api test
+      - name: API integration tests
+        run: pnpm --filter @babyloop/api test
 
-#       - name: API release regression bundle
-#         run: pnpm test:api:release
+      - name: API release regression bundle
+        run: pnpm test:api:release
 
-#       - name: Web unit tests
-#         run: pnpm --filter @babyloop/web test
+      - name: Web unit tests
+        run: pnpm --filter @babyloop/web test
 
-#       - name: Web SEO regression tests
-#         run: pnpm test:web:seo
+      - name: Web SEO regression tests
+        run: pnpm test:web:seo
 
-#       - name: Backoffice unit tests
-#         run: pnpm --filter @babyloop/backoffice test
+      - name: Backoffice unit tests
+        run: pnpm --filter @babyloop/backoffice test
 
-#       - name: Mobile unit tests
-#         run: pnpm --filter @babyloop/mobile test
+      - name: Mobile unit tests
+        run: pnpm --filter @babyloop/mobile test
 
-#       - name: Build shared
-#         run: pnpm --filter @babyloop/shared build
+      - name: Build shared
+        run: pnpm --filter @babyloop/shared build
 
-#       - name: Build API
-#         run: pnpm --filter @babyloop/api build
+      - name: Build API
+        run: pnpm --filter @babyloop/api build
 
-#       - name: Build web
-#         run: pnpm --filter @babyloop/web build
+      - name: Build web
+        run: pnpm --filter @babyloop/web build
 
-#       - name: Build workspace
-#         run: pnpm build
+      - name: Build workspace
+        run: pnpm build
 
-#   mobile-p0:
-#     name: Mobile P0 release gate
-#     runs-on: ubuntu-latest
+  mobile-p0:
+    name: Mobile P0 release gate
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Setup pnpm
-#         uses: pnpm/action-setup@v4
-#         with:
-#           version: 10.33.0
-#           run_install: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
 
-#       - name: Setup Node
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version-file: .node-version
-#           cache: pnpm
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
 
-#       - name: Install dependencies
-#         run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-#       - name: Release artifact guard
-#         run: pnpm release:artifacts
+      - name: Release artifact guard
+        run: pnpm release:artifacts
 
-#       - name: Mobile P0 CI parity boundary
-#         run: pnpm security:ci-mobile-p0-parity
+      - name: Mobile P0 CI parity boundary
+        run: pnpm security:ci-mobile-p0-parity
 
-#       - name: Mobile P0 release gate boundary
-#         run: pnpm security:mobile-p0-gate
+      - name: Mobile P0 release gate boundary
+        run: pnpm security:mobile-p0-gate
 
-#       - name: Mobile P0 release gate
-#         run: pnpm release:mobile:p0
+      - name: Mobile P0 release gate
+        run: pnpm release:mobile:p0
 
-#   web-p0:
-#     name: Web P0 release gate
-#     runs-on: ubuntu-latest
+  web-p0:
+    name: Web P0 release gate
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Setup pnpm
-#         uses: pnpm/action-setup@v4
-#         with:
-#           version: 10.33.0
-#           run_install: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
 
-#       - name: Setup Node
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version-file: .node-version
-#           cache: pnpm
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
 
-#       - name: Install dependencies
-#         run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-#       - name: Release artifact guard
-#         run: pnpm release:artifacts
+      - name: Release artifact guard
+        run: pnpm release:artifacts
 
-#       - name: Web P0 release gate
-#         run: pnpm release:web:p0
+      - name: Web P0 release gate
+        run: pnpm release:web:p0
