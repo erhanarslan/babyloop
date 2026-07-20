@@ -78,6 +78,7 @@ function checkRunner() {
     "security:notification-worker-atomic-claim",
     "security:runtime-readiness-observability",
     "security:backup-restore-rollback",
+    "security:staging-deployment",
     "security:legal-public-trust",
     "security:auth-leaks",
     "security:public-auth-cookie-migration",

@@ -71,9 +71,11 @@ if (problems.length === 0) {
 
   const server = read("apps/api/src/server.ts");
   for (const token of [
+    "SIGTERM",
+    "SIGINT",
     "uncaughtException",
     "unhandledRejection",
-    "reportFatalAndExit",
+    "shutdown",
     "api_startup_failed",
     "observability.captureException"
   ]) {

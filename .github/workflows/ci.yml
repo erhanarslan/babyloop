@@ -55,6 +55,12 @@ jobs:
       - name: Deployment readiness local check
         run: pnpm deploy:check
 
+      - name: Staging deployment boundary
+        run: pnpm security:staging-deployment
+
+      - name: Deployment unit tests
+        run: pnpm test:deploy
+
       - name: Typecheck shared
         run: pnpm --filter @babyloop/shared typecheck
 

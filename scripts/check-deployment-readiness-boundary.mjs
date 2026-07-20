@@ -15,6 +15,10 @@ const requiredFiles = [
   "docs/84-legal-kvkk-consent-public-trust.md",
   "scripts/check-backup-restore-rollback-boundary.mjs",
   "scripts/check-legal-public-trust-boundary.mjs",
+  "scripts/check-staging-deployment-boundary.mjs",
+  "docs/85-staging-production-deployment.md",
+  "deploy/compose/docker-compose.runtime.yml",
+  "deploy/docker/Dockerfile",
   "package.json"
 ];
 
@@ -62,6 +66,7 @@ function checkPackageScripts() {
   mustContain(deploymentScript, "package.json#security:deployment-readiness", "node scripts/check-deployment-readiness-boundary.mjs");
   mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:deployment-readiness");
   mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:legal-public-trust");
+  mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:staging-deployment");
 }
 
 function checkBetaSmokeWiring() {
@@ -71,6 +76,8 @@ function checkBetaSmokeWiring() {
   mustContain(runner, "scripts/run-beta-critical-smoke.mjs", "Deployment readiness guard");
   mustContain(runner, "scripts/run-beta-critical-smoke.mjs", "security:deployment-readiness");
   mustContain(boundary, "scripts/check-beta-critical-smoke-boundary.mjs", "security:deployment-readiness");
+  mustContain(runner, "scripts/run-beta-critical-smoke.mjs", "security:staging-deployment");
+  mustContain(boundary, "scripts/check-beta-critical-smoke-boundary.mjs", "security:staging-deployment");
 }
 
 function checkDocs() {
@@ -113,13 +120,13 @@ function checkDocs() {
 
   const mainDoc = read("docs/59-deployment-readiness-gate.md");
   for (const token of [
-    "does not deploy",
     "does not create cloud resources",
-    "does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access",
-    "staging/prod deploy remains blocked until explicit implementation",
+    "deploy/compose/docker-compose.runtime.yml",
+    "scripts/deploy/promote-release.mjs",
+    "digest-pinned",
     "manual approval is required before beta production release"
   ]) {
-    mustContain(mainDoc, "docs/59-deployment-readiness-gate.md", token);
+    mustContainCaseInsensitive(mainDoc, "docs/59-deployment-readiness-gate.md", token);
   }
 }
 

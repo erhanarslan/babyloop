@@ -960,3 +960,7 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - Confirm KVKK notice is not presented as a consent checkbox and optional analytics starts disabled.
 - Confirm staging/production environment variables contain the real operator identity, contact email, application address and public mobile legal-link origin.
 - Legal copy requires qualified legal review before company/payment/provider changes.
+
+## Staging/production deployment gate
+
+Run `pnpm security:staging-deployment` and `pnpm test:deploy`. Before real promotion, validate digest-pinned images and the untracked env file, then use `pnpm deploy:promote`. Migration must remain a separate advisory-lock job. Final evidence includes readiness, worker heartbeat, protected metrics, backup manifest, release manifest and deployment receipt.

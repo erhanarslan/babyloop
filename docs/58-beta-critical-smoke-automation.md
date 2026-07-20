@@ -212,3 +212,5 @@ Full beta critical smoke automation includes `security:runtime-readiness-observa
 ## Legal/KVKK public trust coverage
 
 Full beta critical smoke automation runs `pnpm security:legal-public-trust`. It verifies legal routes, versioned terms acceptance, Google OAuth state-bound acceptance, optional analytics opt-in, mobile legal links and deployment environment requirements. It does not provide legal advice or replace final review by a qualified legal professional.
+
+The beta smoke runner includes `security:staging-deployment`. Network post-deploy checks are intentionally separate and run through `pnpm deploy:smoke` with the real untracked deployment env file.

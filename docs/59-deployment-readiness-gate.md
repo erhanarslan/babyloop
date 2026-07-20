@@ -1,6 +1,6 @@
 # Deployment readiness gate
 
-The deployment readiness gate documents the minimum BabyLoop staging/production readiness requirements. This package is a readiness boundary only: it does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access.
+The deployment readiness gate documents the minimum BabyLoop staging/production requirements. The repository includes an executable provider-neutral Docker deployment path, but it does not create cloud resources or provision managed PostgreSQL, Redis, Qdrant, R2/S3, registry, DNS or TLS accounts.
 
 Guard command:
 
@@ -16,9 +16,7 @@ pnpm beta:critical-smoke
 
 ## Deployment status
 
-Current status: blocked/readiness-only.
-
-Staging/prod deploy remains blocked until explicit implementation and manual approval. Manual approval is required before beta production release.
+Current status: repository deployment implementation complete; real infrastructure provisioning and manual approval remain pending. Manual approval is required before beta production release.
 
 ## Required environment variables
 
@@ -135,10 +133,7 @@ Required before deploy:
 
 ## Non-goals
 
-This gate does not deploy, does not create cloud resources, does not enable AWS/Kubernetes/S3/R2/Redis, does not enable n8n workflow, does not enable push sender, does not enable email sender, does not enable payment, and does not enable production database access.
-
-Exact guard wording: staging/prod deploy remains blocked until explicit implementation.
-Exact guard wording: manual approval is required before beta production release.
+The repository can execute deployment against operator-provided Docker and managed dependencies, but it does not create cloud accounts, DNS records, databases, buckets, Redis/Qdrant instances, provider credentials or legal identity. Manual approval is required before beta production release.
 
 ## Runtime health and observability deployment requirements
 
@@ -156,8 +151,23 @@ pnpm test:ops:backup-restore
 TEST_DATABASE_URL=... pnpm ops:db:restore-smoke
 ```
 
-Production readiness additionally requires an encrypted pre-deploy backup, a checksum-verified replica copy, restore-smoke evidence, immutable release image digests, and a previous release manifest. Database rollback is forward-only: the current schema is retained and older code is allowed only after explicit compatibility review. Provider-specific rollback execution remains blocked until a checked-in deployment adapter is added under `scripts/deploy/adapters/`.
+Production readiness additionally requires an encrypted pre-deploy backup, a checksum-verified replica copy, restore-smoke evidence, immutable release image digests, and a previous release manifest. Database rollback is forward-only: the current schema is retained and older code is allowed only after explicit compatibility review. Docker Compose rollback execution is implemented by the checked-in adapter under `scripts/deploy/adapters/docker-compose.mjs`. Other hosting providers still require their own reviewed adapter.
 
 ## Legal/KVKK release gate
 
 The deployment readiness gate requires the checked-in legal/public-trust boundary, versioned acceptance migration and real staging/production environment variables. It rejects placeholder operator identity, invalid contact email, unusable application address, local mobile web URLs and non-HTTPS public legal-link origins. Run `pnpm security:legal-public-trust` before staging promotion. This technical gate does not replace qualified legal review.
+
+## Executable staging and production deployment implementation
+
+The repository now includes a provider-neutral Docker deployment implementation:
+
+- `deploy/docker/Dockerfile` with API, web and backoffice runtime targets,
+- `deploy/docker-bake.hcl` for multi-platform image planning,
+- `deploy/compose/docker-compose.runtime.yml` for API, web, backoffice, migration and both worker loops,
+- `scripts/deploy/promote-release.mjs` for ordered backup, readiness, manifest, migration, rollout and smoke,
+- `scripts/deploy/adapters/docker-compose.mjs` for manifest-based application rollback,
+- `docs/85-staging-production-deployment.md` as the operator runbook.
+
+All staging and production images must be digest-pinned. Migration is a separate advisory-lock protected job and never runs from API startup. API, web and backoffice containers run unprivileged with read-only filesystems; worker loops prevent overlap and forward termination signals.
+
+This implementation does not create cloud resources. Managed PostgreSQL, Redis, Qdrant, R2/S3, registry, reverse proxy host, DNS and secret-manager entries still require explicit operator provisioning. Manual approval is required before beta production release.

@@ -18,7 +18,8 @@
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit",
     "notifications:smoke:providers": "pnpm exec tsx src/scripts/smoke-notification-provider-flow.ts",
-    "notifications:smoke:marketplace-email": "node --env-file-if-exists=../../.env.local --import tsx src/scripts/smoke-marketplace-email-notifications.ts"
+    "notifications:smoke:marketplace-email": "node --env-file-if-exists=../../.env.local --import tsx src/scripts/smoke-marketplace-email-notifications.ts",
+    "db:migrate:runtime": "node dist/scripts/migrate-database.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

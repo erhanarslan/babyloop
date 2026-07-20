@@ -25,6 +25,7 @@ if (target !== "local") {
   checkRagEnv();
   checkObservabilityEnv();
   checkBackupRestoreEnv();
+  checkDeploymentRuntimeEnv();
   checkBackofficePosture();
 } else {
   note("local", "Strict staging/production env validation is skipped for local target.");
@@ -107,6 +108,15 @@ function checkRequiredFiles() {
     "docs/83-backup-restore-rollback.md",
     "docs/84-legal-kvkk-consent-public-trust.md",
     "scripts/check-legal-public-trust-boundary.mjs",
+    "scripts/check-staging-deployment-boundary.mjs",
+    "scripts/deploy/promote-release.mjs",
+    "scripts/deploy/post-deploy-smoke.mjs",
+    "scripts/deploy/adapters/docker-compose.mjs",
+    "deploy/docker/Dockerfile",
+    "deploy/compose/docker-compose.runtime.yml",
+    "deploy/env/staging.env.example",
+    "deploy/env/production.env.example",
+    "docs/85-staging-production-deployment.md",
     "apps/web/src/features/legal/legal-documents.ts",
     "apps/web/src/features/legal/legal-consent.tsx",
     "packages/database/drizzle/0044_legal_public_trust.sql"
@@ -635,6 +645,24 @@ function checkBackupRestoreEnv() {
   }
 
   ok("backup", "Backup, restore-smoke, and rollback env checks completed.");
+}
+
+function checkDeploymentRuntimeEnv() {
+  requireEnvValue("DEPLOY_ENVIRONMENT", target, "deployment");
+  requireEnvValue("MIGRATION_ENVIRONMENT", target, "deployment");
+
+  for (const key of [
+    "NOTIFICATION_WORKER_INTERVAL_SECONDS",
+    "CHILD_REMINDER_WORKER_INTERVAL_SECONDS",
+    "WORKER_FAILURE_BACKOFF_SECONDS"
+  ]) {
+    const value = numberEnv(key);
+    if (value !== null && (!Number.isInteger(value) || value < 5 || value > 3600)) {
+      error("deployment", `${key} must be an integer between 5 and 3600 seconds.`);
+    }
+  }
+
+  ok("deployment", "Container, worker-loop, and migration job env checks completed.");
 }
 
 function checkBackofficePosture() {

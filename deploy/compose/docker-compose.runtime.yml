@@ -1,0 +1,102 @@
+name: babyloop-${DEPLOY_ENVIRONMENT:-staging}
+
+x-api-runtime: &api-runtime
+  image: ${API_IMAGE:?API_IMAGE must be a digest-pinned image}
+  env_file:
+    - ${DEPLOY_ENV_FILE:?DEPLOY_ENV_FILE is required}
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  stop_grace_period: 30s
+  restart: unless-stopped
+  pull_policy: always
+
+services:
+  migrate:
+    <<: *api-runtime
+    profiles: ["release"]
+    restart: "no"
+    command: ["node", "dist/scripts/migrate-database.js"]
+    environment:
+      MIGRATION_ENVIRONMENT: ${DEPLOY_ENVIRONMENT:?DEPLOY_ENVIRONMENT is required}
+      MIGRATION_CONFIRM: ${MIGRATION_CONFIRM:?MIGRATION_CONFIRM is required}
+
+  api:
+    <<: *api-runtime
+    ports:
+      - "127.0.0.1:${API_BIND_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 6s
+      start_period: 30s
+      retries: 6
+
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE must be a digest-pinned image}
+    pull_policy: always
+    env_file:
+      - ${DEPLOY_ENV_FILE:?DEPLOY_ENV_FILE is required}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /app/apps/web/.next/cache:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 20s
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_BIND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(r.status>=500)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 6s
+      start_period: 30s
+      retries: 6
+
+  backoffice:
+    image: ${BACKOFFICE_IMAGE:?BACKOFFICE_IMAGE must be a digest-pinned image}
+    pull_policy: always
+    env_file:
+      - ${DEPLOY_ENV_FILE:?DEPLOY_ENV_FILE is required}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /app/apps/backoffice/.next/cache:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 20s
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BACKOFFICE_BIND_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/').then(r=>{if(r.status>=500)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 6s
+      start_period: 30s
+      retries: 6
+
+  notification-worker:
+    <<: *api-runtime
+    command: ["node", "scripts/deploy/worker-loop.mjs", "notification"]
+    environment:
+      BABYLOOP_WORKER_INTERVAL_SECONDS: ${NOTIFICATION_WORKER_INTERVAL_SECONDS:-20}
+      BABYLOOP_WORKER_FAILURE_BACKOFF_SECONDS: ${WORKER_FAILURE_BACKOFF_SECONDS:-30}
+
+  child-reminder-worker:
+    <<: *api-runtime
+    command: ["node", "scripts/deploy/worker-loop.mjs", "child-reminder"]
+    environment:
+      BABYLOOP_WORKER_INTERVAL_SECONDS: ${CHILD_REMINDER_WORKER_INTERVAL_SECONDS:-60}
+      BABYLOOP_WORKER_FAILURE_BACKOFF_SECONDS: ${WORKER_FAILURE_BACKOFF_SECONDS:-30}

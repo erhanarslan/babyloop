@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Platform } from "react-native";
+import { Keyboard, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -47,6 +47,20 @@ function TabIcon({
       name={name}
       size={focused ? 24 : 22}
     />
+  );
+}
+
+function SellTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View style={[styles.sellTabIcon, focused ? styles.sellTabIconFocused : null]}>
+      <Ionicons
+        accessibilityElementsHidden
+        color="#ffffff"
+        importantForAccessibility="no"
+        name="add"
+        size={29}
+      />
+    </View>
   );
 }
 
@@ -143,7 +157,8 @@ export default function TabLayout() {
           shadowOpacity: 0.14,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 6 },
-          elevation: 10
+          elevation: 10,
+          overflow: "visible"
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -167,33 +182,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="favorites"
-        options={{
-          title: "Favoriler",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "heart" : "heart-outline"} />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="sell"
-        options={{
-          title: "İlan ver",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "add-circle" : "add-circle-outline"} />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="basket"
-        options={{
-          title: "Sepet",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "basket" : "basket-outline"} />
-          )
-        }}
-      />
-      <Tabs.Screen
         name="messages"
         options={{
           title: "Mesajlar",
@@ -210,12 +198,47 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="sell"
+        options={{
+          title: "İlan ver",
+          tabBarIcon: ({ focused }) => <SellTabIcon focused={focused} />,
+          tabBarIconStyle: {
+            overflow: "visible"
+          },
+          tabBarItemStyle: {
+            overflow: "visible",
+            paddingVertical: 0
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: "900",
+            marginTop: -3
+          }
+        }}
+      />
+      <Tabs.Screen
+        name="basket"
+        options={{
+          title: "Sepetim",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon color={color} focused={focused} name={focused ? "basket" : "basket-outline"} />
+          )
+        }}
+      />
+      <Tabs.Screen
         name="account"
         options={{
-          title: "Hesap",
+          title: "Hesabım",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon color={color} focused={focused} name={focused ? "person-circle" : "person-circle-outline"} />
           )
+        }}
+      />
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          href: null,
+          title: "Favoriler"
         }}
       />
       <Tabs.Screen
@@ -294,3 +317,26 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  sellTabIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 48,
+    height: 48,
+    marginTop: -14,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.24,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 9
+  },
+  sellTabIconFocused: {
+    backgroundColor: colors.primaryDark,
+    transform: [{ scale: 1.06 }]
+  }
+});

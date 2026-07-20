@@ -379,7 +379,7 @@ Production/beta readiness requires `pnpm security:deployment-readiness` and `pnp
 
 Deployment readiness gate covers staging and production environment variables, secrets, database migration, rollback, observability, health checks, CORS/cookie/CSRF environment configuration, and manual go/no-go approval.
 
-This gate does not deploy, does not create cloud resources, and does not enable AWS, Kubernetes, S3/R2, Redis, n8n, push, email, payment, or production database access. Staging/prod deploy remains blocked until explicit implementation.
+The repository includes an executable Docker deployment path but does not create cloud resources. Real staging/production infrastructure, DNS, TLS and provider secrets must be provisioned by the operator.
 
 ## Public auth cookie migration
 
@@ -586,3 +586,7 @@ Production and staging require non-placeholder values for:
 - `EXPO_PUBLIC_WEB_BASE_URL`
 
 Run `pnpm security:legal-public-trust` and the deployment readiness gate. `EXPO_PUBLIC_WEB_BASE_URL` must be HTTPS and point to the public web deployment that hosts legal, data-deletion and support pages. Optional analytics remains disabled until an active user preference is stored.
+
+## Deployment runtime wiring
+
+The deployment readiness gate must be followed by `pnpm security:staging-deployment`. Real untracked environment material is based on `deploy/env/staging.env.example` or `deploy/env/production.env.example`. Release images must be immutable digest-pinned references. Use `scripts/deploy/promote-release.mjs`; do not run migrations from API startup. See `docs/85-staging-production-deployment.md`.

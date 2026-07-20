@@ -1,0 +1,18 @@
+{
+  email {$TLS_CONTACT_EMAIL}
+}
+
+{$WEB_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3000
+}
+
+{$API_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:4000
+}
+
+{$BACKOFFICE_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3001
+}

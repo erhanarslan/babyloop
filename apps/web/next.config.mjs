@@ -7,6 +7,8 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: new URL("../..", import.meta.url).pathname,
   allowedDevOrigins: ["192.168.1.204"],
   async headers() {
     return [

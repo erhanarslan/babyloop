@@ -554,3 +554,13 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - Confirm a new Google account cannot be created without current terms acceptance.
 - Confirm optional analytics is off before choice, stays off after rejection and starts only after explicit acceptance.
 - Confirm real production operator/contact/application address values replace local placeholders.
+
+## Container deployment evidence
+
+- `pnpm security:staging-deployment` passes.
+- Docker Compose config resolves with the real untracked env file and digest-pinned images.
+- Pre-deploy backup and release manifest are recorded.
+- The advisory-lock migration job succeeds before service rollout.
+- `/health/live`, `/health/ready`, public web, backoffice and protected metrics pass after rollout.
+- Notification and child-reminder worker heartbeats are fresh.
+- A checksum-protected deployment receipt exists under `.release/deployments`.
