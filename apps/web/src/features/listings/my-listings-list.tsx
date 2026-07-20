@@ -175,29 +175,79 @@ export function MyListingsList({ apiBaseUrl }: MyListingsListProps) {
       return;
     }
 
+    const refreshDelays = [7_000, 12_000, 20_000, 30_000] as const;
     let active = true;
     let refreshing = false;
+    let delayIndex = 0;
+    let timer: number | null = null;
 
-    const timer = window.setInterval(() => {
+    function clearTimer() {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    }
+
+    function scheduleRefresh(delay: number = refreshDelays[delayIndex] ?? 30_000) {
+      clearTimer();
+      timer = window.setTimeout(
+        () => void refreshPendingListings(),
+        Math.max(0, delay),
+      );
+    }
+
+    async function refreshPendingListings() {
+      if (!active) {
+        return;
+      }
+
+      if (document.visibilityState !== "visible" || !document.hasFocus()) {
+        clearTimer();
+        return;
+      }
+
       if (refreshing) {
+        scheduleRefresh();
         return;
       }
 
       refreshing = true;
-      void fetchMyListings(apiBaseUrl)
-        .then((body) => {
-          if (active && body.ok) {
-            setListings(body.data.listings);
-          }
-        })
-        .finally(() => {
-          refreshing = false;
-        });
-    }, 7_000);
+
+      try {
+        const body = await fetchMyListings(apiBaseUrl);
+
+        if (active && body.ok) {
+          setListings(body.data.listings);
+          delayIndex = 0;
+        } else {
+          delayIndex = Math.min(delayIndex + 1, refreshDelays.length - 1);
+        }
+      } catch {
+        delayIndex = Math.min(delayIndex + 1, refreshDelays.length - 1);
+      } finally {
+        refreshing = false;
+
+        if (active) {
+          scheduleRefresh();
+        }
+      }
+    }
+
+    function handleForeground() {
+      if (document.visibilityState === "visible" && document.hasFocus()) {
+        scheduleRefresh(0);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleForeground);
+    window.addEventListener("focus", handleForeground);
+    scheduleRefresh();
 
     return () => {
       active = false;
-      window.clearInterval(timer);
+      clearTimer();
+      document.removeEventListener("visibilitychange", handleForeground);
+      window.removeEventListener("focus", handleForeground);
     };
   }, [apiBaseUrl, hasPendingPublication]);
 

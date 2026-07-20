@@ -34,7 +34,6 @@ import {
 import {
   getHomeAutoLoadRequestLimit,
   getHomeInitialListingLimit,
-  HOME_AUTO_STOP_LISTING_COUNT,
   HOME_LISTING_BATCH_SIZE,
   HOME_LISTING_SENTINEL_ROOT_MARGIN
 } from "./home-feed-policy";
@@ -61,6 +60,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   const prefersReducedMotion = usePrefersReducedMotion();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreAbortControllerRef = useRef<AbortController | null>(null);
+  const loadMoreInFlightRef = useRef(false);
 
   const [listings, setListings] = useState<HomeListing[]>([]);
   const [nextOffset, setNextOffset] = useState(0);
@@ -68,7 +68,6 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [manualInfiniteEnabled, setManualInfiniteEnabled] = useState(false);
   const [favoriteListingIds, setFavoriteListingIds] = useState<Set<string>>(() => new Set());
   const [pendingFavoriteListingIds, setPendingFavoriteListingIds] = useState<Set<string>>(
     () => new Set()
@@ -100,7 +99,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
         hasImages: "true",
         limit: String(limit),
         offset: String(offset),
-        sort: "newest"
+        sort: "newest",
+        includeTotal: "false"
       });
       const cityQueryValue = getLocationQueryValue(selectedCity);
 
@@ -162,12 +162,12 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
 
     loadMoreAbortControllerRef.current?.abort();
     loadMoreAbortControllerRef.current = null;
+    loadMoreInFlightRef.current = false;
 
     async function loadInitialListings() {
       setIsInitialLoading(true);
       setIsLoadingMore(false);
       setHasError(false);
-      setManualInfiniteEnabled(false);
 
       try {
         const initialListingLimit = getHomeInitialListingLimit(window.innerWidth);
@@ -205,26 +205,24 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
       controller.abort();
       loadMoreAbortControllerRef.current?.abort();
       loadMoreAbortControllerRef.current = null;
+      loadMoreInFlightRef.current = false;
     };
   }, [fetchListingBatch]);
 
   const loadMoreListings = useCallback(
-    async (mode: "auto" | "manual") => {
-      if (isInitialLoading || isLoadingMore || !hasMoreRemoteListings) {
+    async () => {
+      if (
+        isInitialLoading ||
+        isLoadingMore ||
+        loadMoreInFlightRef.current ||
+        !hasMoreRemoteListings
+      ) {
         return;
       }
 
-      const isManualFlow = mode === "manual" || manualInfiniteEnabled;
-      const remainingAutoCapacity = HOME_AUTO_STOP_LISTING_COUNT - listings.length;
+      const requestedLimit = getHomeAutoLoadRequestLimit(listings.length);
 
-      if (!isManualFlow && remainingAutoCapacity <= 0) {
-        return;
-      }
-
-      const requestedLimit = isManualFlow
-        ? HOME_LISTING_BATCH_SIZE
-        : getHomeAutoLoadRequestLimit(listings.length);
-
+      loadMoreInFlightRef.current = true;
       setIsLoadingMore(true);
       setHasError(false);
       loadMoreAbortControllerRef.current?.abort();
@@ -253,6 +251,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
         if (loadMoreAbortControllerRef.current === controller) {
           loadMoreAbortControllerRef.current = null;
           setIsLoadingMore(false);
+          loadMoreInFlightRef.current = false;
         }
       }
     },
@@ -263,7 +262,6 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
       isInitialLoading,
       isLoadingMore,
       listings.length,
-      manualInfiniteEnabled,
       nextOffset
     ]
   );
@@ -287,11 +285,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
           return;
         }
 
-        if (!manualInfiniteEnabled && listings.length >= HOME_AUTO_STOP_LISTING_COUNT) {
-          return;
-        }
-
-        void loadMoreListings(manualInfiniteEnabled ? "manual" : "auto");
+        void loadMoreListings();
       },
       {
         root: null,
@@ -311,20 +305,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
     isLoadingMore,
     listings.length,
     loadMoreListings,
-    manualInfiniteEnabled
   ]);
-
-  const shouldShowManualContinue =
-    !manualInfiniteEnabled &&
-    !isInitialLoading &&
-    !isLoadingMore &&
-    hasMoreRemoteListings &&
-    listings.length >= HOME_AUTO_STOP_LISTING_COUNT;
-
-  function continueAfterAutoStop() {
-    setManualInfiniteEnabled(true);
-    void loadMoreListings("manual");
-  }
 
   function updateFavoriteListingIds(listingId: string, shouldBeFavorited: boolean) {
     setFavoriteListingIds((currentFavoriteListingIds) => {
@@ -462,15 +443,6 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
           {isLoadingMore ? (
             <div className="home-latest-listings-inline-state">
               <span>Diğer ürünler yükleniyor...</span>
-            </div>
-          ) : null}
-
-          {shouldShowManualContinue ? (
-            <div className="home-latest-listings-actions">
-              <button type="button" onClick={continueAfterAutoStop}>
-                Devamını gör
-                <span aria-hidden="true">↓</span>
-              </button>
             </div>
           ) : null}
 

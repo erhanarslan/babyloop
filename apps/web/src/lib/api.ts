@@ -73,8 +73,9 @@ export type CategoriesPayload = {
 export type ListingsPagination = {
   limit: number;
   offset: number;
-  total: number;
+  total: number | null;
   hasNextPage: boolean;
+  nextOffset: number | null;
 };
 
 export type BrowseListingsFilters = {

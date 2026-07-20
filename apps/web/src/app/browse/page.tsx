@@ -12,11 +12,11 @@ import { BrowsePageContent } from "../../features/listings/browse-page-content";
 import {
   fetchApi,
   getApiBaseUrl,
-  type CategoriesPayload,
   type ListingsPagination,
   type ListingsPayload,
   type SearchSuggestionsPayload
 } from "../../lib/api";
+import { fetchBrowseCategories } from "../../features/listings/server-data";
 import {
   buildFilteredBrowseNoIndexMetadata,
   buildPublicPageMetadata
@@ -55,7 +55,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const listingsPath = buildListingsPath(filters);
   const suggestionsPath = buildSearchSuggestionsPath(filters.q);
   const [categoriesResult, listingsResult, suggestionsResult] = await Promise.all([
-    fetchApi<CategoriesPayload>("/api/v1/categories"),
+    fetchBrowseCategories(),
     fetchApi<ListingsPayload>(listingsPath),
     suggestionsPath ? fetchApi<SearchSuggestionsPayload>(suggestionsPath) : Promise.resolve(null)
   ]);
@@ -67,7 +67,8 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     limit: filters.limit,
     offset: filters.offset,
     total: listings.length,
-    hasNextPage: false
+    hasNextPage: false,
+    nextOffset: null
   };
   const pagination = listingsResult.ok
     ? listingsResult.data.pagination ?? fallbackPagination

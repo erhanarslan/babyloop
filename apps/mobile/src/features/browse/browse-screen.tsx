@@ -62,7 +62,8 @@ const emptyPagination = {
   hasNextPage: false,
   limit: DISCOVER_PAGE_SIZE,
   offset: 0,
-  total: 0
+  total: 0,
+  nextOffset: null as number | null
 };
 
 
@@ -72,6 +73,8 @@ export function BrowseScreen() {
   const listingRequestIdRef = useRef(0);
   const listingAbortControllerRef = useRef<AbortController | null>(null);
   const listingsRef = useRef<MobileListingSummary[]>([]);
+  const nextOffsetRef = useRef<number | null>(0);
+  const loadMoreInFlightRef = useRef(false);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [listings, setListings] = useState<MobileListingSummary[]>([]);
   const [heroListings, setHeroListings] = useState<MobileListingSummary[]>([]);
@@ -96,7 +99,20 @@ export function BrowseScreen() {
     offset = 0,
     mode: BrowseLoadMode = "replace"
   ) => {
-    listingAbortControllerRef.current?.abort();
+    if (mode === "append" && loadMoreInFlightRef.current) {
+      return;
+    }
+
+    if (mode !== "append") {
+      listingAbortControllerRef.current?.abort();
+      loadMoreInFlightRef.current = false;
+      setIsLoadingMore(false);
+    }
+
+    if (mode === "append") {
+      loadMoreInFlightRef.current = true;
+    }
+
     const controller = new AbortController();
     listingAbortControllerRef.current = controller;
     const requestId = ++listingRequestIdRef.current;
@@ -116,6 +132,7 @@ export function BrowseScreen() {
         q: query,
         limit: DISCOVER_PAGE_SIZE,
         offset,
+        includeTotal: mode !== "append",
         ...toListingQueryFilters(filters)
       }, {
         signal: controller.signal
@@ -130,8 +147,12 @@ export function BrowseScreen() {
         : page.listings;
 
       listingsRef.current = nextListings;
+      nextOffsetRef.current = page.pagination.nextOffset;
       setListings(nextListings);
-      setPagination(page.pagination);
+      setPagination((currentPagination) => ({
+        ...page.pagination,
+        total: page.pagination.total ?? currentPagination.total
+      }));
 
       if (mode !== "append") {
         setHeroListings(getDiscoverHeroListings({
@@ -154,12 +175,21 @@ export function BrowseScreen() {
       if (mode === "replace") {
         listingsRef.current = [];
         setListings([]);
+        nextOffsetRef.current = 0;
         setPagination(emptyPagination);
         setStatus("error");
       }
 
       setError(loadError instanceof Error ? loadError.message : "İlanlar yüklenemedi.");
     } finally {
+      if (mode === "append") {
+        loadMoreInFlightRef.current = false;
+      }
+
+      if (listingAbortControllerRef.current === controller) {
+        listingAbortControllerRef.current = null;
+      }
+
       if (requestId === listingRequestIdRef.current) {
         setIsLoadingMore(false);
         setIsRefreshing(false);
@@ -237,16 +267,19 @@ export function BrowseScreen() {
   }
 
   function handleLoadMore() {
-    if (status !== "ready" || isLoadingMore || !pagination.hasNextPage) {
+    const nextOffset = nextOffsetRef.current;
+
+    if (
+      status !== "ready" ||
+      isLoadingMore ||
+      loadMoreInFlightRef.current ||
+      !pagination.hasNextPage ||
+      nextOffset === null
+    ) {
       return;
     }
 
-    void loadListings(
-      appliedQuery,
-      appliedFilters,
-      pagination.offset + pagination.limit,
-      "append"
-    );
+    void loadListings(appliedQuery, appliedFilters, nextOffset, "append");
   }
 
   const listHeader = (

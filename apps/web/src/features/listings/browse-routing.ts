@@ -11,8 +11,6 @@ export function resolveBrowseFilters(
   overrides: Partial<BrowseListingsFilters> = {}
 ): BrowseListingsFilters {
   const offset = parsePositiveInteger(readParam(searchParams?.offset), 0);
-  const limit = parsePositiveInteger(readParam(searchParams?.limit), DEFAULT_LISTINGS_LIMIT);
-
   return {
     q: readParam(searchParams?.q).trim(),
     city: readParam(searchParams?.city).trim(),
@@ -23,7 +21,7 @@ export function resolveBrowseFilters(
     priceMax: readParam(searchParams?.priceMax),
     hasImages: readBooleanParam(searchParams?.hasImages, "true"),
     sort: readParam(searchParams?.sort) || "newest",
-    limit: Math.min(Math.max(limit, 1), 50),
+    limit: DEFAULT_LISTINGS_LIMIT,
     offset: Math.min(Math.max(offset, 0), 10000),
     ...overrides
   };

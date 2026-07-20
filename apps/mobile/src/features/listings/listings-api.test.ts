@@ -67,7 +67,8 @@ describe("mobile listings API seller lifecycle", () => {
           limit: 20,
           offset: 20,
           total: 41,
-          hasNextPage: true
+          hasNextPage: true,
+          nextOffset: 21
         }
       }
     });
@@ -82,7 +83,8 @@ describe("mobile listings API seller lifecycle", () => {
       limit: 20,
       offset: 20,
       total: 41,
-      hasNextPage: true
+      hasNextPage: true,
+      nextOffset: 21
     });
     expect(page.listings[0]).toEqual(expect.objectContaining({
       id: "listing-page-2",
@@ -93,6 +95,7 @@ describe("mobile listings API seller lifecycle", () => {
       { signal: undefined }
     );
     expect(buildMobileListingsQuery({ offset: 40 }).get("offset")).toBe("40");
+    expect(buildMobileListingsQuery({ includeTotal: false }).get("includeTotal")).toBe("false");
   });
 
   it("loads authenticated listing viewer state without downloading all favorites", async () => {

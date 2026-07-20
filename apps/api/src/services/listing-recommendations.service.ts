@@ -34,6 +34,7 @@ export async function listListingRecommendations(
   const sameCategoryPage = await listActiveListingsPage(app, {
     categoryId: listing.category.id,
     hasImages: true,
+    includeTotal: false,
     limit: query.limit + 1,
     offset: 0,
     sort: "newest"
@@ -44,6 +45,7 @@ export async function listListingRecommendations(
   if (recommendations.length < query.limit) {
     const fallbackPage = await listActiveListingsPage(app, {
       hasImages: true,
+      includeTotal: false,
       limit: query.limit + 1,
       offset: 0,
       sort: "newest"

@@ -72,6 +72,10 @@ export const listingsQuerySchema = z
     priceMin: optionalPriceQueryParam,
     priceMax: optionalPriceQueryParam,
     hasImages: optionalBooleanQueryParam,
+    includeTotal: z
+      .union([z.literal(""), z.literal("true"), z.literal("false")])
+      .optional()
+      .transform((value) => value !== "false"),
     sort: z.enum(listingSortValues).optional().default("newest"),
     limit: z.coerce.number().int().min(1).max(50).optional().default(20),
     offset: z.coerce.number().int().min(0).max(10000).optional().default(0)

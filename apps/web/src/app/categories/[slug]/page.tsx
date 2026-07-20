@@ -13,11 +13,11 @@ import { BrowsePageContent } from "../../../features/listings/browse-page-conten
 import {
   fetchApi,
   getApiBaseUrl,
-  type CategoriesPayload,
   type ListingsPagination,
   type ListingsPayload,
   type SearchSuggestionsPayload
 } from "../../../lib/api";
+import { fetchBrowseCategories } from "../../../features/listings/server-data";
 import {
   buildCategoryMetadata,
   buildFilteredBrowseNoIndexMetadata,
@@ -38,7 +38,7 @@ export async function generateMetadata({
   searchParams
 }: CategoryPageProps): Promise<Metadata> {
   const slug = decodeURIComponent((await params).slug);
-  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+  const categoriesResult = await fetchBrowseCategories();
   const category = categoriesResult.ok
     ? categoriesResult.data.categories.find((item) => item.slug === slug)
     : null;
@@ -63,7 +63,7 @@ export default async function CategoryPage({
 }: CategoryPageProps) {
   const slug = decodeURIComponent((await params).slug);
   const resolvedSearchParams = await searchParams;
-  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+  const categoriesResult = await fetchBrowseCategories();
   const categories = categoriesResult.ok ? categoriesResult.data.categories : [];
   const category = categories.find((item) => item.slug === slug);
 
@@ -93,7 +93,8 @@ export default async function CategoryPage({
     limit: filters.limit,
     offset: filters.offset,
     total: listings.length,
-    hasNextPage: false
+    hasNextPage: false,
+    nextOffset: null
   };
   const pagination = listingsResult.ok
     ? listingsResult.data.pagination ?? fallbackPagination

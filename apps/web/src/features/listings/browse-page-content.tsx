@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ApiResponse } from "@babyloop/shared";
 import {
   DEFAULT_LOCATION,
   LOCATION_CHANGED_EVENT,
@@ -30,7 +32,7 @@ import { DiscoveryAnalyticsTracker } from "../../features/product-events/discove
 import { recordProductEvent } from "../../features/product-events/api";
 import { RecentlyViewedListings } from "./recently-viewed-listings";
 import { SaveSearchButton } from "../saved-searches/save-search-button";
-import { appendIfPresent } from "./browse-routing";
+import { appendIfPresent, buildListingsPath } from "./browse-routing";
 import {
   formatCategoryName,
   formatListingCondition,
@@ -65,6 +67,9 @@ const SORT_OPTIONS = [
   { labelKey: "priceDesc", value: "price_desc" }
 ] as const;
 
+const BROWSE_PAGE_SIZE = 20;
+const BROWSE_SENTINEL_ROOT_MARGIN = "360px 0px";
+
 type FilterChip = {
   clearsLocation?: boolean;
   href: string;
@@ -83,6 +88,13 @@ export function BrowsePageContent({
   searchSuggestions
 }: BrowsePageContentProps) {
   const { dictionary } = useI18n();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreAbortControllerRef = useRef<AbortController | null>(null);
+  const inFlightOffsetRef = useRef<number | null>(null);
+  const [visibleListings, setVisibleListings] = useState(listings);
+  const [runtimePagination, setRuntimePagination] = useState(pagination);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const categoryTree = buildCategoryTree(categories);
   const orderedCategories = flattenCategoryTree(categoryTree);
   const selectedCategory = categories.find((category) => category.id === filters.categoryId) ?? null;
@@ -92,9 +104,11 @@ export function BrowsePageContent({
     : selectedCategory
       ? formatCategoryName(selectedCategory, dictionary)
       : dictionary.publicPages.browse.title;
-  const hasPreviousPage = pagination.offset > 0;
-  const previousOffset = Math.max(0, pagination.offset - pagination.limit);
-  const nextOffset = pagination.offset + pagination.limit;
+  const nextOffset = runtimePagination.nextOffset ?? (
+    runtimePagination.hasNextPage
+      ? runtimePagination.offset + runtimePagination.limit
+      : null
+  );
   const paginationBasePath = currentCategorySlug
     ? `/categories/${currentCategorySlug}`
     : "/browse";
@@ -111,12 +125,104 @@ export function BrowsePageContent({
     buildBrowseAssistantPrompt(filters, selectedCategory, dictionary)
   );
 
+  useEffect(() => {
+    loadMoreAbortControllerRef.current?.abort();
+    loadMoreAbortControllerRef.current = null;
+    inFlightOffsetRef.current = null;
+    setVisibleListings(listings);
+    setRuntimePagination(pagination);
+    setIsLoadingMore(false);
+    setLoadMoreError(null);
+  }, [filters, listings, pagination]);
+
+  useEffect(() => () => loadMoreAbortControllerRef.current?.abort(), []);
+
+  const loadMoreListings = useCallback(async () => {
+    if (isLoadingMore || nextOffset === null || inFlightOffsetRef.current === nextOffset) {
+      return;
+    }
+
+    inFlightOffsetRef.current = nextOffset;
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    const controller = new AbortController();
+    loadMoreAbortControllerRef.current = controller;
+    const path = buildListingsPath({
+      ...filters,
+      limit: BROWSE_PAGE_SIZE,
+      offset: nextOffset
+    });
+    const separator = path.includes("?") ? "&" : "?";
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}${path}${separator}includeTotal=false`,
+        {
+          cache: "no-store",
+          signal: controller.signal
+        }
+      );
+      const body = (await response.json()) as ApiResponse<{
+        listings: ListingSummary[];
+        pagination: ListingsPagination;
+      }>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error("İlanların devamı yüklenemedi.");
+      }
+
+      setVisibleListings((currentListings) =>
+        mergeUniqueListingSummaries(currentListings, body.data.listings)
+      );
+      setRuntimePagination((currentPagination) => ({
+        ...body.data.pagination,
+        total: body.data.pagination.total ?? currentPagination.total
+      }));
+    } catch (loadError) {
+      if (!(loadError instanceof Error && loadError.name === "AbortError")) {
+        setLoadMoreError("İlanların devamı yüklenemedi. Tekrar deneyebilirsin.");
+      }
+    } finally {
+      if (loadMoreAbortControllerRef.current === controller) {
+        loadMoreAbortControllerRef.current = null;
+        inFlightOffsetRef.current = null;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [apiBaseUrl, filters, isLoadingMore, nextOffset]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+
+    if (!sentinel || nextOffset === null || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMoreListings();
+        }
+      },
+      {
+        root: null,
+        rootMargin: BROWSE_SENTINEL_ROOT_MARGIN,
+        threshold: 0
+      }
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [loadMoreListings, nextOffset]);
+
   return (
     <>
       <DiscoveryAnalyticsTracker
         apiBaseUrl={apiBaseUrl}
         categoryId={filters.categoryId}
-        resultCount={pagination.total}
+        resultCount={pagination.total ?? listings.length}
         searchQuery={searchQuery}
         source={currentCategorySlug ? "category_landing" : "browse"}
       />
@@ -159,7 +265,7 @@ export function BrowsePageContent({
                   {title}
                 </h1>
                 <p className={styles.resultsHelper}>
-                  {pagination.total} ilan · {filters.sort === "newest" ? "En yeni ilanlar önce" : "Seçili sıralama uygulanıyor"}
+                  {runtimePagination.total ?? visibleListings.length} ilan · {filters.sort === "newest" ? "En yeni ilanlar önce" : "Seçili sıralama uygulanıyor"}
                 </p>
               </div>
             </div>
@@ -187,7 +293,7 @@ export function BrowsePageContent({
             </div>
           ) : null}
 
-          {!error && listings.length === 0 ? (
+          {!error && visibleListings.length === 0 ? (
             <BrowseNoResultsPanel
               assistantHref={browseAssistantHref}
               clearFiltersHref={clearFiltersHref}
@@ -197,7 +303,7 @@ export function BrowsePageContent({
           ) : null}
 
           <div className="listing-grid">
-            {listings.map((listing) => (
+            {visibleListings.map((listing) => (
               <ListingCard
                 apiBaseUrl={apiBaseUrl}
                 key={listing.id}
@@ -209,37 +315,55 @@ export function BrowsePageContent({
 
           <RecentlyViewedListings apiBaseUrl={apiBaseUrl} />
 
-          {!error && pagination.total > 0 ? (
-            <nav className="pagination-controls" aria-label="Listing pagination">
-              {hasPreviousPage ? (
-                <Link href={buildBrowseHref(filters, previousOffset, {
-                  basePath: paginationBasePath,
-                  includeCategoryId: !currentCategorySlug
-                })}>
-                  ‹
-                </Link>
-              ) : (
-                <span className="muted">‹</span>
-              )}
-              <span className="muted">
-                {Math.floor(pagination.offset / pagination.limit) + 1}. sayfa
-              </span>
-              {pagination.hasNextPage ? (
-                <Link href={buildBrowseHref(filters, nextOffset, {
-                  basePath: paginationBasePath,
-                  includeCategoryId: !currentCategorySlug
-                })}>
-                  ›
-                </Link>
-              ) : (
-                <span className="muted">›</span>
-              )}
-            </nav>
+          {!error && visibleListings.length > 0 ? (
+            <div className={styles.infiniteScrollFooter}>
+              <div ref={sentinelRef} className={styles.infiniteScrollSentinel} aria-hidden="true" />
+              {isLoadingMore ? (
+                <p className="muted" role="status">20 ilan daha yükleniyor...</p>
+              ) : null}
+              {loadMoreError ? (
+                <div className={styles.loadMoreError} role="alert">
+                  <span>{loadMoreError}</span>
+                  <button type="button" onClick={() => void loadMoreListings()}>Tekrar dene</button>
+                </div>
+              ) : null}
+              {runtimePagination.hasNextPage && !isLoadingMore ? (
+                <button
+                  className={styles.loadMoreButton}
+                  type="button"
+                  onClick={() => void loadMoreListings()}
+                >
+                  20 ilan daha göster
+                </button>
+              ) : null}
+              {!runtimePagination.hasNextPage && !isLoadingMore ? (
+                <p className="muted" role="status">
+                  {runtimePagination.total !== null
+                    ? `${runtimePagination.total} ilanın tamamı gösterildi.`
+                    : "Tüm ilanlar gösterildi."}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </PageContainer>
     </>
   );
+}
+
+function mergeUniqueListingSummaries(
+  currentListings: ListingSummary[],
+  incomingListings: ListingSummary[]
+): ListingSummary[] {
+  const listingsById = new Map(
+    currentListings.map((listing) => [listing.id, listing])
+  );
+
+  for (const listing of incomingListings) {
+    listingsById.set(listing.id, listing);
+  }
+
+  return [...listingsById.values()];
 }
 
 function BrowseFilterSidebar({
@@ -439,7 +563,7 @@ function CategoryLandingHero({
       <aside className="category-landing-metric-grid" aria-label="Kategori pazar özeti">
         <div className="category-landing-metric">
           <span>Eşleşen ilan</span>
-          <strong>{pagination.total}</strong>
+          <strong>{pagination.total ?? 0}</strong>
         </div>
         <div className="category-landing-metric">
           <span>{dictionary.publicPages.browse.activeFilters}</span>

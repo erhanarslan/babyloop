@@ -44,7 +44,7 @@ describe("browse routing", () => {
       priceMax: "5000",
       hasImages: "true",
       sort: "price_asc",
-      limit: 50,
+      limit: DEFAULT_LISTINGS_LIMIT,
       offset: 0
     });
   });

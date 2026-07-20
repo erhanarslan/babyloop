@@ -66,6 +66,7 @@ export type FetchMobileListingsParams = {
   offset?: number;
   priceMax?: string;
   priceMin?: string;
+  includeTotal?: boolean;
 };
 
 
@@ -75,7 +76,8 @@ export type MobileListingsPage = {
     hasNextPage: boolean;
     limit: number;
     offset: number;
-    total: number;
+    total: number | null;
+    nextOffset: number | null;
   };
 };
 
@@ -129,6 +131,10 @@ export function buildMobileListingsQuery(params: FetchMobileListingsParams = {})
   setTrimmedQueryParam(query, "listingType", params.listingType);
   setTrimmedQueryParam(query, "priceMin", params.priceMin);
   setTrimmedQueryParam(query, "priceMax", params.priceMax);
+
+  if (params.includeTotal === false) {
+    query.set("includeTotal", "false");
+  }
 
   return query;
 }
@@ -318,12 +324,18 @@ function extractMobileListingsPagination(
   const pagination = isRecord(root) && isRecord(root.pagination) ? root.pagination : {};
   const limit = pickNumber(pagination, ["limit"]) ?? params.limit ?? 20;
   const offset = pickNumber(pagination, ["offset"]) ?? params.offset ?? 0;
-  const total = pickNumber(pagination, ["total"]) ?? offset + extractListingArray(payload).length;
+  const total = pickNumber(pagination, ["total"]);
+  const listingCount = extractListingArray(payload).length;
   const hasNextPage = typeof pagination.hasNextPage === "boolean"
     ? pagination.hasNextPage
-    : offset + extractListingArray(payload).length < total;
+    : total !== null
+      ? offset + listingCount < total
+      : listingCount === limit;
+  const nextOffset = pickNumber(pagination, ["nextOffset"]) ?? (
+    hasNextPage ? offset + listingCount : null
+  );
 
-  return { hasNextPage, limit, offset, total };
+  return { hasNextPage, limit, nextOffset, offset, total };
 }
 
 function normalizeMobileListingViewerState(value: unknown): MobileListingDetail["viewerState"] {

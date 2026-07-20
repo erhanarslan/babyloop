@@ -29,6 +29,7 @@ type NormalizedActiveListingQuery = {
   priceMin?: string;
   priceMax?: string;
   hasImages?: boolean;
+  includeTotal: boolean;
   sort: ListingsQuery["sort"];
   limit: number;
   offset: number;
@@ -347,6 +348,7 @@ function normalizeActiveListingQuery(query: ActiveListingQueryInput): Normalized
   if (typeof query === "string") {
     return {
       q: query,
+      includeTotal: true,
       sort: "newest",
       limit: LISTING_LIMIT,
       offset: 0
@@ -364,6 +366,7 @@ function normalizeActiveListingQuery(query: ActiveListingQueryInput): Normalized
     ...(query?.priceMin ? { priceMin: query.priceMin } : {}),
     ...(query?.priceMax ? { priceMax: query.priceMax } : {}),
     ...(query?.hasImages !== undefined ? { hasImages: query.hasImages } : {}),
+    includeTotal: query?.includeTotal ?? true,
     sort: query?.sort ?? "newest",
     limit: query?.limit ?? LISTING_LIMIT,
     offset: query?.offset ?? 0
@@ -413,18 +416,18 @@ function buildActiveListingWhere(options: NormalizedActiveListingQuery) {
 
 function buildActiveListingOrderBy(sort: ListingsQuery["sort"]) {
   if (sort === "oldest") {
-    return [asc(listings.createdAt)];
+    return [asc(listings.createdAt), asc(listings.id)];
   }
 
   if (sort === "price_asc") {
-    return [asc(listings.priceAmount), desc(listings.createdAt)];
+    return [asc(listings.priceAmount), desc(listings.createdAt), desc(listings.id)];
   }
 
   if (sort === "price_desc") {
-    return [desc(listings.priceAmount), desc(listings.createdAt)];
+    return [desc(listings.priceAmount), desc(listings.createdAt), desc(listings.id)];
   }
 
-  return [desc(listings.createdAt)];
+  return [desc(listings.createdAt), desc(listings.id)];
 }
 
 function getCreatedSinceDate(value: NonNullable<NormalizedActiveListingQuery["createdSince"]>): Date {

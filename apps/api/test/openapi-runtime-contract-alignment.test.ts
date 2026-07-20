@@ -117,6 +117,7 @@ describe("OpenAPI runtime contract alignment", () => {
     expect(record(properties.q).maxLength).toBe(120);
     expect(record(properties.search).maxLength).toBe(120);
     expect(record(properties.limit).maximum).toBe(50);
+    expect(record(properties.includeTotal).default).toBe(true);
   });
 
   it("matches mock checkout and AI price request bodies", () => {

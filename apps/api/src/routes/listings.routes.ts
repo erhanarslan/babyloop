@@ -54,8 +54,9 @@ type ListingsResponse = ApiResponse<{
   pagination: {
     limit: number;
     offset: number;
-    total: number;
+    total: number | null;
     hasNextPage: boolean;
+    nextOffset: number | null;
   };
 }>;
 

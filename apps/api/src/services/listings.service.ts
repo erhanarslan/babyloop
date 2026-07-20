@@ -146,8 +146,9 @@ export async function createListing(
 export type ListingPaginationResponse = {
   limit: number;
   offset: number;
-  total: number;
+  total: number | null;
   hasNextPage: boolean;
+  nextOffset: number | null;
 };
 
 export type ListActiveListingsPageResponse = {
@@ -167,10 +168,32 @@ export async function listActiveListingsPage(
   app: FastifyInstance,
   query: ListingsQuery
 ): Promise<ListActiveListingsPageResponse> {
-  const [rows, total] = await Promise.all([
-    selectActiveListingRows(app, query),
-    countActiveListingRows(app, query)
-  ]);
+  if (query.includeTotal) {
+    const [rows, total] = await Promise.all([
+      selectActiveListingRows(app, query),
+      countActiveListingRows(app, query)
+    ]);
+    const listings = await mapListingRows(app, rows);
+    const hasNextPage = query.offset + rows.length < total;
+
+    return {
+      listings,
+      pagination: {
+        limit: query.limit,
+        offset: query.offset,
+        total,
+        hasNextPage,
+        nextOffset: hasNextPage ? query.offset + rows.length : null
+      }
+    };
+  }
+
+  const rowsWithSentinel = await selectActiveListingRows(app, {
+    ...query,
+    limit: query.limit + 1
+  });
+  const hasNextPage = rowsWithSentinel.length > query.limit;
+  const rows = hasNextPage ? rowsWithSentinel.slice(0, query.limit) : rowsWithSentinel;
   const listings = await mapListingRows(app, rows);
 
   return {
@@ -178,8 +201,9 @@ export async function listActiveListingsPage(
     pagination: {
       limit: query.limit,
       offset: query.offset,
-      total,
-      hasNextPage: query.offset + rows.length < total
+      total: null,
+      hasNextPage,
+      nextOffset: hasNextPage ? query.offset + rows.length : null
     }
   };
 }

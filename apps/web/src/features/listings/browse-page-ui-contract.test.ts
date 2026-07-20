@@ -38,4 +38,13 @@ describe("browse page UI contract", () => {
     expect(source).not.toContain('name="hasImages"');
     expect(source).not.toContain('label: "Sadece görselli"');
   });
+  it("loads the full result set in guarded 20-item infinite-scroll pages", () => {
+    expect(source).toContain("const BROWSE_PAGE_SIZE = 20");
+    expect(source).toContain("new IntersectionObserver");
+    expect(source).toContain("inFlightOffsetRef.current === nextOffset");
+    expect(source).toContain("includeTotal=false");
+    expect(source).toContain("20 ilan daha göster");
+    expect(source).not.toContain('className="pagination-controls"');
+  });
+
 });

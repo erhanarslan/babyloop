@@ -18,6 +18,24 @@ describe("listings schemas", () => {
     expect(result.data.limit).toBe(20);
     expect(result.data.offset).toBe(0);
     expect(result.data.sort).toBe("newest");
+    expect(result.data.includeTotal).toBe(true);
+  });
+
+  it("allows later infinite-scroll pages to skip the exact total count", () => {
+    const result = listingsQuerySchema.safeParse({
+      includeTotal: "false",
+      limit: "20",
+      offset: "20"
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.includeTotal).toBe(false);
+    expect(result.data.limit).toBe(20);
+    expect(result.data.offset).toBe(20);
   });
 
   it("accepts supported listing filters", () => {

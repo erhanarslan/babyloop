@@ -1478,6 +1478,12 @@ function registerQueryContracts(): void {
       priceMin: decimalStringSchema("1000"),
       priceMax: decimalStringSchema("7000"),
       hasImages: booleanSchema(true),
+      includeTotal: {
+        type: "boolean",
+        default: true,
+        example: true,
+        description: "İlk sayfada tam toplamı döndürür. Infinite-scroll devam sayfaları COUNT sorgusunu atlamak için false gönderebilir."
+      },
       createdSince: enumSchema(["today", "last_7_days"]),
       sort: enumSchema(["newest", "oldest", "price_asc", "price_desc"], {
         defaultValue: "newest",

@@ -2,25 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   getHomeAutoLoadRequestLimit,
   getHomeInitialListingLimit,
-  HOME_AUTO_STOP_LISTING_COUNT,
-  HOME_LISTING_SENTINEL_ROOT_MARGIN
+  HOME_INITIAL_LISTING_LIMIT,
+  HOME_LISTING_BATCH_SIZE
 } from "./home-feed-policy";
 
 describe("home feed policy", () => {
-  it("loads one visible row for desktop, tablet, and mobile", () => {
-    expect(getHomeInitialListingLimit(1440)).toBe(4);
-    expect(getHomeInitialListingLimit(1024)).toBe(2);
-    expect(getHomeInitialListingLimit(390)).toBe(2);
+  it("uses 20 listing pages on every viewport", () => {
+    expect(HOME_INITIAL_LISTING_LIMIT).toBe(20);
+    expect(HOME_LISTING_BATCH_SIZE).toBe(20);
+    expect(getHomeInitialListingLimit(390)).toBe(20);
+    expect(getHomeInitialListingLimit(1440)).toBe(20);
   });
 
-  it("stops automatic loading at exactly 50 listings", () => {
-    expect(HOME_AUTO_STOP_LISTING_COUNT).toBe(50);
-    expect(getHomeAutoLoadRequestLimit(34)).toBe(16);
-    expect(getHomeAutoLoadRequestLimit(48)).toBe(2);
-    expect(getHomeAutoLoadRequestLimit(50)).toBe(0);
-  });
-
-  it("does not prefetch several screens before the sentinel is near", () => {
-    expect(HOME_LISTING_SENTINEL_ROOT_MARGIN).toBe("180px 0px");
+  it("keeps loading in 20 item batches without an artificial auto stop", () => {
+    expect(getHomeAutoLoadRequestLimit(0)).toBe(20);
+    expect(getHomeAutoLoadRequestLimit(200)).toBe(20);
   });
 });

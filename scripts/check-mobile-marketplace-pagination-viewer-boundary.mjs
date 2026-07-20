@@ -34,7 +34,9 @@ mustContain(virtualizedScreenPath, "windowSize={7}");
 mustContain(browsePath, "MobileVirtualizedScreen");
 mustContain(browsePath, "fetchMobileListingsPage");
 mustContain(browsePath, "new AbortController()");
-mustContain(browsePath, "pagination.offset + pagination.limit");
+mustContain(browsePath, "loadMoreInFlightRef.current");
+mustContain(browsePath, "nextOffsetRef.current");
+mustContain(browsePath, "includeTotal: mode !== \"append\"");
 mustContain(browsePath, "onEndReached={handleLoadMore}");
 mustNotContain(browsePath, "listings.map(");
 
