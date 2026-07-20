@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 type JsonSchema = Record<string, unknown>;
 
 type RouteContract = {
@@ -171,9 +172,20 @@ function registerCoreBodyContracts(): void {
           example: "İstanbul",
           maxLength: 120,
           nullable: true
-        })
+        }),
+        termsAccepted: {
+          type: "boolean",
+          const: true,
+          description: "Kullanım Koşulları'nın aktif kullanıcı eylemiyle kabul edildiğini gösterir."
+        },
+        termsVersion: {
+          type: "string",
+          const: CURRENT_TERMS_VERSION,
+          example: CURRENT_TERMS_VERSION,
+          description: "Kabul edilen Kullanım Koşulları sürümü."
+        }
       },
-      ["email", "password", "displayName"],
+      ["email", "password", "displayName", "termsAccepted", "termsVersion"],
       {
         description: "Yeni BabyLoop kullanıcı hesabı oluşturur."
       }

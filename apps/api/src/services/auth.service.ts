@@ -1,6 +1,7 @@
 import {
   authAccounts,
   emailVerificationTokens,
+  legalAcceptances,
   mfaOtpChallenges,
   passwordResetTokens,
   profiles,
@@ -8,7 +9,13 @@ import {
   users
 } from "@babyloop/database/schema";
 import type { Database } from "@babyloop/database";
-import type { ApiFailure, ApiResponse, ApiSuccess } from "@babyloop/shared";
+import {
+  CURRENT_TERMS_VERSION,
+  type LegalAcceptanceSource,
+  type ApiFailure,
+  type ApiResponse,
+  type ApiSuccess
+} from "@babyloop/shared";
 import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { CurrentUser } from "../plugins/auth.plugin.js";
@@ -186,6 +193,26 @@ type EmailDeliveryOptions = {
   webAppUrl: string;
 };
 
+type RegisterOptions = EmailDeliveryOptions & {
+  legalAcceptanceSource: Extract<LegalAcceptanceSource, "web_password" | "mobile_password">;
+};
+
+type GoogleLegalTermsAcceptance = {
+  source: "google_oauth";
+  termsVersion: string;
+};
+
+export class GoogleLegalTermsRequiredError extends Error {
+  constructor() {
+    super("Current BabyLoop terms must be accepted before creating a Google account.");
+    this.name = "GoogleLegalTermsRequiredError";
+  }
+}
+
+export function isGoogleLegalTermsRequiredError(error: unknown): error is GoogleLegalTermsRequiredError {
+  return error instanceof GoogleLegalTermsRequiredError;
+}
+
 type LoginOptions = EmailDeliveryOptions & {
   requestMeta?: AuthSessionRequestMeta;
   requireMobileLoginApproval?: boolean;
@@ -212,7 +239,7 @@ type RefreshAuthSessionResult =
 export async function registerUser(
   app: FastifyInstance,
   body: RegisterBody,
-  options: EmailDeliveryOptions
+  options: RegisterOptions
 ): Promise<
   | { status: "created"; response: AuthSuccess; devEmailVerificationToken: string }
   | { status: "duplicate"; response: ApiFailure }
@@ -273,6 +300,13 @@ export async function registerUser(
       await tx.insert(emailVerificationTokens).values({
         expiresAt: createEmailVerificationTokenExpiresAt(),
         tokenHash: hashEmailVerificationToken(emailVerificationToken),
+        userId: createdUser.id
+      });
+
+      await tx.insert(legalAcceptances).values({
+        documentType: "terms",
+        documentVersion: body.termsVersion,
+        source: options.legalAcceptanceSource,
         userId: createdUser.id
       });
 
@@ -540,7 +574,8 @@ export async function updateMfaPreference(
 
 export async function authenticateGoogleUser(
   app: FastifyInstance,
-  googleProfile: GoogleUserInfo
+  googleProfile: GoogleUserInfo,
+  options: { legalTermsAcceptance?: GoogleLegalTermsAcceptance } = {}
 ): Promise<AuthSuccess> {
   const email = normalizeGoogleOAuthEmail(googleProfile);
   const providerAccountId = googleProfile.sub;
@@ -623,6 +658,13 @@ export async function authenticateGoogleUser(
       };
     }
 
+    if (
+      !options.legalTermsAcceptance ||
+      options.legalTermsAcceptance.termsVersion !== CURRENT_TERMS_VERSION
+    ) {
+      throw new GoogleLegalTermsRequiredError();
+    }
+
     const unusablePasswordHash = await hashPassword(createRefreshToken());
 
     const [createdUser] = await tx
@@ -651,6 +693,13 @@ export async function authenticateGoogleUser(
       emailVerifiedAt: new Date(),
       provider: "google",
       providerAccountId,
+      userId: createdUser.id
+    });
+
+    await tx.insert(legalAcceptances).values({
+      documentType: "terms",
+      documentVersion: options.legalTermsAcceptance.termsVersion,
+      source: options.legalTermsAcceptance.source,
       userId: createdUser.id
     });
 

@@ -4,7 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@babyloop/database/schema": fileURLToPath(new URL("../../packages/database/src/schema/index.ts", import.meta.url))
+      "@babyloop/database/schema": fileURLToPath(new URL("../../packages/database/src/schema/index.ts", import.meta.url)),
+      "@babyloop/shared": fileURLToPath(new URL("../../packages/shared/src/index.ts", import.meta.url))
     }
   },
   test: {

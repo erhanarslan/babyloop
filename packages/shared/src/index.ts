@@ -54,3 +54,13 @@ export {
   type AnalyticsPlatform,
   type AnalyticsProperty
 } from "./analytics-events.js";
+
+export {
+  CURRENT_TERMS_VERSION,
+  LEGAL_ACCEPTANCE_DOCUMENT_TYPES,
+  LEGAL_ACCEPTANCE_SOURCES,
+  LEGAL_DOCUMENT_VERSIONS,
+  type LegalAcceptanceDocumentType,
+  type LegalAcceptanceSource,
+  type LegalDocumentKey
+} from "./legal.js";

@@ -575,3 +575,14 @@ HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS=true
 - `RELEASE_BACKUP_MANIFEST_PATH` identifies the verified pre-deploy backup manifest.
 - `RELEASE_DATABASE_FORWARD_COMPATIBLE` is explicitly reviewed for each migration-bearing release.
 - Real backup artifacts, manifests, restore receipts, age private identities, and release manifests are not committed.
+
+## Legal/KVKK public trust environment variables
+
+Production and staging require non-placeholder values for:
+
+- `NEXT_PUBLIC_LEGAL_OPERATOR_NAME`
+- `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL`
+- `NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS`
+- `EXPO_PUBLIC_WEB_BASE_URL`
+
+Run `pnpm security:legal-public-trust` and the deployment readiness gate. `EXPO_PUBLIC_WEB_BASE_URL` must be HTTPS and point to the public web deployment that hosts legal, data-deletion and support pages. Optional analytics remains disabled until an active user preference is stored.

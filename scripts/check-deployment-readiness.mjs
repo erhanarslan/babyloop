@@ -13,6 +13,7 @@ checkRequiredFiles();
 if (target !== "local") {
   checkCoreRuntimeEnv();
   checkClientRuntimeEnv();
+  checkLegalPublicTrustEnv();
   checkCorsAndUrls();
   checkAuthRuntimeEnv();
   checkGoogleOAuthEnv();
@@ -103,7 +104,12 @@ function checkRequiredFiles() {
     "scripts/ops/postgres-restore-smoke.mjs",
     "scripts/ops/release-manifest.mjs",
     "scripts/ops/release-rollback.mjs",
-    "docs/83-backup-restore-rollback.md"
+    "docs/83-backup-restore-rollback.md",
+    "docs/84-legal-kvkk-consent-public-trust.md",
+    "scripts/check-legal-public-trust-boundary.mjs",
+    "apps/web/src/features/legal/legal-documents.ts",
+    "apps/web/src/features/legal/legal-consent.tsx",
+    "packages/database/drizzle/0044_legal_public_trust.sql"
   ];
 
   for (const file of requiredFiles) {
@@ -173,6 +179,51 @@ function checkClientRuntimeEnv() {
   requireHttpsUrlEnv("NEXT_PUBLIC_SITE_URL", "web");
 
   ok("web", "Client runtime env checks completed.");
+}
+
+function checkLegalPublicTrustEnv() {
+  requireEnv("NEXT_PUBLIC_LEGAL_OPERATOR_NAME", "legal");
+  requireEnv("NEXT_PUBLIC_LEGAL_CONTACT_EMAIL", "legal");
+  requireEnv("NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS", "legal");
+  requireEnv("EXPO_PUBLIC_WEB_BASE_URL", "legal");
+
+  const operatorName = env("NEXT_PUBLIC_LEGAL_OPERATOR_NAME");
+  const contactEmail = env("NEXT_PUBLIC_LEGAL_CONTACT_EMAIL");
+  const contactAddress = env("NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS");
+
+  for (const [key, value] of [
+    ["NEXT_PUBLIC_LEGAL_OPERATOR_NAME", operatorName],
+    ["NEXT_PUBLIC_LEGAL_CONTACT_EMAIL", contactEmail],
+    ["NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS", contactAddress]
+  ]) {
+    if (value && /placeholder|not[- ]?configured|local development|local geliştirme|replace|example|invalid\.local/i.test(value)) {
+      error("legal", `${key} still looks like a placeholder.`);
+    }
+  }
+
+  if (operatorName && operatorName.length < 3) {
+    error("legal", "NEXT_PUBLIC_LEGAL_OPERATOR_NAME is too short.");
+  }
+
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(contactEmail)) {
+    error("legal", "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL must be a valid public contact email.");
+  }
+
+  if (contactAddress && contactAddress.length < 12) {
+    error("legal", "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS must contain a usable application/contact address.");
+  }
+
+  rejectLocalUrlEnv("EXPO_PUBLIC_WEB_BASE_URL", "legal");
+  requireHttpsUrlEnv("EXPO_PUBLIC_WEB_BASE_URL", "legal");
+
+  const siteUrl = env("NEXT_PUBLIC_SITE_URL");
+  const mobileWebUrl = env("EXPO_PUBLIC_WEB_BASE_URL");
+
+  if (siteUrl && mobileWebUrl && stripTrailingSlash(siteUrl) !== stripTrailingSlash(mobileWebUrl)) {
+    warn("legal", "EXPO_PUBLIC_WEB_BASE_URL differs from NEXT_PUBLIC_SITE_URL. Confirm mobile legal links target the public web deployment.");
+  }
+
+  ok("legal", "Legal/KVKK operator and public-link env checks completed.");
 }
 
 function checkCorsAndUrls() {

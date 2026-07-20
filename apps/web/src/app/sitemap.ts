@@ -40,7 +40,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.6
-    }
+    },
+    ...[
+      "/legal/privacy",
+      "/legal/kvkk",
+      "/legal/terms",
+      "/legal/cookies",
+      "/legal/ai-notice",
+      "/legal/marketplace",
+      "/legal/data-deletion",
+      "/support/contact"
+    ].map((path) => ({
+      url: buildCanonicalUrl(path),
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.35
+    }))
   ];
 
   const categoryRoutes: MetadataRoute.Sitemap = categoriesResult.ok

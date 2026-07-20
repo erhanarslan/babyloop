@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import { users } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
 import type { TestApp } from "./app.js";
@@ -49,7 +50,9 @@ export async function createUser(
       displayName: overrides.displayName ?? `User ${sequence}`,
       email,
       locationCity: overrides.locationCity ?? "Istanbul",
-      password
+      password,
+      termsAccepted: true,
+      termsVersion: CURRENT_TERMS_VERSION
     }
   });
 

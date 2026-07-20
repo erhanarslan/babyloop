@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import {
   aiModelRuns,
   authAccounts,
@@ -6,6 +7,7 @@ import {
   favorites,
   listingImages,
   listings,
+  legalAcceptances,
   loginApprovalChallenges,
   mfaOtpChallenges,
   passwordResetTokens,
@@ -36,7 +38,11 @@ import {
 } from "../src/utils/public-csrf.js";
 import { hashEmailVerificationToken } from "../src/utils/email-verification-token.js";
 import { hashMfaOtpCode } from "../src/utils/mfa-otp.js";
-import { GOOGLE_OAUTH_STATE_COOKIE_NAME, type GoogleUserInfo } from "../src/services/google-oauth.service.js";
+import {
+  GOOGLE_OAUTH_STATE_COOKIE_NAME,
+  GOOGLE_OAUTH_TERMS_COOKIE_NAME,
+  type GoogleUserInfo
+} from "../src/services/google-oauth.service.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
 import { authHeader, createUser, loginUser } from "./helpers/auth.js";
@@ -66,7 +72,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Ada Parent",
         email: "  ADA@Example.COM  ",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -90,6 +98,62 @@ describe("auth API", () => {
     expect(response.body).not.toContain("auth_accounts");
     expect(response.body).not.toContain("providerAccountId");
     expect(response.body).not.toContain("provider_account_id");
+
+    const acceptanceRows = await app.db
+      .select({
+        documentType: legalAcceptances.documentType,
+        documentVersion: legalAcceptances.documentVersion,
+        source: legalAcceptances.source
+      })
+      .from(legalAcceptances)
+      .where(eq(legalAcceptances.userId, response.json().data.user.id));
+
+    expect(acceptanceRows).toEqual([{
+      documentType: "terms",
+      documentVersion: CURRENT_TERMS_VERSION,
+      source: "web_password"
+    }]);
+  });
+
+  it("rejects registration without explicit current terms acceptance", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Terms Missing",
+        email: "terms-missing@example.com",
+        password: "Password123!"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "terms-missing@example.com"));
+    expect(userRows).toHaveLength(0);
+  });
+
+  it("records mobile password registration acceptance separately", async () => {
+    const response = await app.inject({
+      headers: { "x-babyloop-client": "mobile" },
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Mobile Parent",
+        email: "mobile-terms@example.com",
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    const acceptanceRows = await app.db
+      .select({ source: legalAcceptances.source })
+      .from(legalAcceptances)
+      .where(eq(legalAcceptances.userId, response.json().data.user.id));
+    expect(acceptanceRows).toEqual([{ source: "mobile_password" }]);
   });
 
   it("trims and normalizes registered email", async () => {
@@ -99,7 +163,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Email Normalized",
         email: "  Mixed.Case@Example.COM  ",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -114,7 +180,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Account Linked",
         email: "  Account.Linked@Example.COM  ",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -152,7 +220,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Needs Verification",
         email: "needs-verification@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -183,7 +253,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Delivery Verification",
         email: "delivery-verification@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -206,7 +278,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Verify Me",
         email: "verify-me@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
     const registerBody = register.json();
@@ -314,7 +388,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Consumed Verification",
         email: "consumed-verification@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
     const token = register.json().data.devEmailVerificationToken;
@@ -455,7 +531,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Session Parent",
         email: "session-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -933,7 +1011,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Register Cookie Parent",
         email: "register-cookie-session@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       },
       url: "/api/v1/auth/register"
     });
@@ -1032,7 +1112,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Refresh Cookie Parent",
         email: "refresh-cookie-session@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       },
       url: "/api/v1/auth/register"
     });
@@ -1733,7 +1815,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Refresh Parent",
         email: "refresh-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1777,7 +1861,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Rotated Parent",
         email: "rotated-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1832,7 +1918,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Revoked Parent",
         email: "revoked-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1870,7 +1958,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Expired Parent",
         email: "expired-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1931,7 +2021,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Cookie Logout Parent",
         email: "cookie-logout-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1963,7 +2055,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Revoked Logout Parent",
         email: "revoked-logout-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -1998,7 +2092,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Refresh After Logout Parent",
         email: "refresh-after-logout-parent@example.com",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -2402,6 +2498,29 @@ describe("auth API", () => {
     expect(stateCookie).toContain("SameSite=Lax");
     expect(stateCookie).toContain("Path=/api/v1/auth/google");
     expect(getCookieValue(stateCookie)).toBe(redirectUrl.searchParams.get("state"));
+    expect(getSetCookieHeaders(response).find((cookie) => cookie.startsWith(`${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=`)))
+      .toContain("Max-Age=0");
+  });
+
+  it("google start binds current terms acceptance to the generated OAuth state", async () => {
+    await useGoogleOAuthTestApp({});
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/auth/google/start?termsAccepted=true&termsVersion=${CURRENT_TERMS_VERSION}`
+    });
+
+    expect(response.statusCode).toBe(302);
+    const redirectUrl = new URL(String(response.headers.location));
+    const state = redirectUrl.searchParams.get("state");
+    const termsCookie = getSetCookieHeaders(response)
+      .find((cookie) => cookie.startsWith(`${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=`));
+
+    expect(state).toEqual(expect.any(String));
+    expect(termsCookie).toContain("HttpOnly");
+    expect(decodeURIComponent(getCookieValue(termsCookie ?? ""))).toBe(
+      `${state}.${CURRENT_TERMS_VERSION}`
+    );
   });
 
   it("google start returns a controlled unavailable error when Google OAuth is not configured", async () => {
@@ -2486,7 +2605,7 @@ describe("auth API", () => {
 
     const response = await app.inject({
       headers: {
-        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-new`
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-new; ${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=state-new.${CURRENT_TERMS_VERSION}`
       },
       method: "GET",
       url: "/api/v1/auth/google/callback?state=state-new&code=new-user-code"
@@ -2535,6 +2654,14 @@ describe("auth API", () => {
       .select({ id: sessions.id })
       .from(sessions)
       .where(eq(sessions.userId, userRow!.id));
+    const acceptanceRows = await app.db
+      .select({
+        documentType: legalAcceptances.documentType,
+        documentVersion: legalAcceptances.documentVersion,
+        source: legalAcceptances.source
+      })
+      .from(legalAcceptances)
+      .where(eq(legalAcceptances.userId, userRow!.id));
 
     expect(profileRows).toEqual([
       {
@@ -2551,6 +2678,40 @@ describe("auth API", () => {
       }
     ]);
     expect(sessionRows).toHaveLength(1);
+    expect(acceptanceRows).toEqual([{
+      documentType: "terms",
+      documentVersion: CURRENT_TERMS_VERSION,
+      source: "google_oauth"
+    }]);
+  });
+
+  it("google callback refuses a new Google account without current terms acceptance", async () => {
+    await useGoogleOAuthTestApp({
+      "terms-required-code": {
+        email: "terms.required@example.com",
+        email_verified: true,
+        name: "Terms Required",
+        sub: "google-sub-terms-required"
+      }
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-terms-required`
+      },
+      method: "GET",
+      url: "/api/v1/auth/google/callback?state=state-terms-required&code=terms-required-code"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/register?error=legal_terms_required"
+    );
+    const userRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "terms.required@example.com"));
+    expect(userRows).toHaveLength(0);
   });
 
   it("google callback rejects unverified Google emails without creating a user", async () => {
@@ -2656,7 +2817,11 @@ describe("auth API", () => {
     for (const code of ["first-code", "second-code"]) {
       const response = await app.inject({
         headers: {
-          cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-${code}`
+          cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-${code}${
+            code === "first-code"
+              ? `; ${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=state-${code}.${CURRENT_TERMS_VERSION}`
+              : ""
+          }`
         },
         method: "GET",
         url: `/api/v1/auth/google/callback?state=state-${code}&code=${code}`
@@ -2785,7 +2950,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Rollback Candidate",
         email: conflictEmail,
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -2846,7 +3013,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Invalid Email",
         email: "not-an-email",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -2866,7 +3035,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Short Password",
         email: "short-password@example.com",
-        password: "short"
+        password: "short",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -2890,7 +3061,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Duplicate",
         email: user.user.email,
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -2936,7 +3109,9 @@ describe("auth API", () => {
       payload: {
         displayName: "Duplicate Normalized",
         email: " parent@example.COM ",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 
@@ -3736,7 +3911,9 @@ describe("auth API", () => {
           email: "dev-token-register-guard@example.com",
           password: "Password123!",
           displayName: "Dev Token Guard",
-          locationCity: "İstanbul"
+          locationCity: "İstanbul",
+          termsAccepted: true,
+          termsVersion: CURRENT_TERMS_VERSION
         }
       });
 
@@ -3804,7 +3981,9 @@ describe("auth API", () => {
           email: "dev-token-register-enabled@example.com",
           password: "Password123!",
           displayName: "Dev Token Enabled",
-          locationCity: "İstanbul"
+          locationCity: "İstanbul",
+          termsAccepted: true,
+          termsVersion: CURRENT_TERMS_VERSION
         }
       });
 

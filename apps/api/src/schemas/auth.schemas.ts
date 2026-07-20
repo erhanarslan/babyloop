@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import { z } from "zod";
 
 import { validatePlainText } from "../services/text-safety.service.js";
@@ -9,7 +10,9 @@ export const registerBodySchema = z
     email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
     password: z.string().min(8).max(128),
     displayName: plainTextField({ maxLength: 120, minLength: 2 }),
-    locationCity: optionalPlainTextField({ maxLength: 120 })
+    locationCity: optionalPlainTextField({ maxLength: 120 }),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(CURRENT_TERMS_VERSION)
   })
   .strict();
 

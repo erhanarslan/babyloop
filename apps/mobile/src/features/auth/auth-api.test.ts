@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import {
   approveMobileLoginApproval,
   changeMobilePassword,
@@ -50,6 +51,41 @@ describe("mobile auth API MFA flow", () => {
     storedTokens.length = 0;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     clearMobileAuthToken();
+  });
+
+  it("sends the current terms version and mobile source on registration", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockApiResponse(201, {
+        ok: true,
+        data: {
+          accessToken: "registered-mobile-token",
+          user: { id: "user-register", email: "register@example.com", role: "user" },
+          profile: { id: "profile-register", displayName: "Parent", locationCity: "İstanbul" }
+        }
+      })
+    );
+
+    await submitMobileAuthRequest("register", {
+      displayName: "Parent",
+      email: "register@example.com",
+      locationCity: "İstanbul",
+      password: "Password123!",
+      termsAccepted: true,
+      termsVersion: CURRENT_TERMS_VERSION
+    });
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(url).toBe("https://api.babyloop.test/api/v1/auth/register");
+    expect(headers.get("x-babyloop-client")).toBe("mobile");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      displayName: "Parent",
+      email: "register@example.com",
+      locationCity: "İstanbul",
+      password: "Password123!",
+      termsAccepted: true,
+      termsVersion: CURRENT_TERMS_VERSION
+    });
   });
 
   it("keeps MFA challenge unauthenticated until OTP is verified", async () => {

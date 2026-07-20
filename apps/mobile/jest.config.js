@@ -7,6 +7,7 @@ module.exports = {
   moduleNameMapper: {
     "^@babyloop/shared$": "<rootDir>/../../packages/shared/src/index.ts",
     "^\\./analytics-events\\.js$": "<rootDir>/../../packages/shared/src/analytics-events.ts",
+    "^\\./legal\\.js$": "<rootDir>/../../packages/shared/src/legal.ts",
     "^\\./message-moderation\\.js$": "<rootDir>/../../packages/shared/src/message-moderation.ts",
     "^\\./realtime\\.js$": "<rootDir>/../../packages/shared/src/realtime.ts"
   },

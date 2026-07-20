@@ -545,3 +545,12 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] The production release manifest references a verified encrypted backup.
 - [ ] A checksum-verified previous release manifest exists as the rollback target.
 - [ ] The rollback plan uses immutable image digests and no down migration.
+
+## Legal/KVKK and consent
+
+- Full beta critical smoke automation includes `pnpm security:legal-public-trust`.
+- Open every `/legal/*` route and `/support/contact` from footer and mobile legal center.
+- Register once on web and once on mobile; confirm current terms version is recorded with the correct source.
+- Confirm a new Google account cannot be created without current terms acceptance.
+- Confirm optional analytics is off before choice, stays off after rejection and starts only after explicit acceptance.
+- Confirm real production operator/contact/application address values replace local placeholders.

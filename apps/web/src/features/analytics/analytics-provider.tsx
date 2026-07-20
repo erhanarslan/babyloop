@@ -13,12 +13,14 @@ import {
 import { createRandomId, WebAnalyticsClient } from "./analytics-client";
 import { AnalyticsContext, type AnalyticsContextValue } from "./use-analytics";
 import { AUTH_CHANGED_EVENT, AUTH_SESSION_ENDED_EVENT } from "../../lib/auth-client";
+import { useLegalConsent } from "../legal/legal-consent";
 
 const ANONYMOUS_ID_KEY = "babyloop.analytics.anonymousId";
 const SESSION_STATE_KEY = "babyloop.analytics.session";
 const HEARTBEAT_MS = 15_000;
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
+  const { analyticsEnabled } = useLegalConsent();
   const pathname = usePathname() || "/";
   const [sessionState, setSessionState] = useState<WebAnalyticsSessionState | null>(null);
   const clientRef = useRef<WebAnalyticsClient | null>(null);
@@ -28,13 +30,22 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<WebAnalyticsSessionState | null>(sessionState);
 
   useEffect(() => {
+    if (!analyticsEnabled) {
+      clientRef.current = null;
+      setSessionState(null);
+      lastPageViewRef.current = null;
+      window.localStorage.removeItem(ANONYMOUS_ID_KEY);
+      window.sessionStorage.removeItem(SESSION_STATE_KEY);
+      return;
+    }
+
     const nextSession = loadOrCreateSession();
     setSessionState(nextSession);
     clientRef.current = new WebAnalyticsClient({
       anonymousId: nextSession.anonymousId,
       getSessionId: () => sessionRef.current?.sessionId ?? nextSession.sessionId
     });
-  }, []);
+  }, [analyticsEnabled]);
 
   useEffect(() => {
     sessionRef.current = sessionState;
@@ -42,6 +53,10 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     pathnameRef.current = pathname;
+
+    if (!analyticsEnabled) {
+      return;
+    }
     const client = clientRef.current;
 
     if (!client) {
@@ -55,9 +70,13 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       client.trackPageView(pathname);
       void client.flush();
     }
-  }, [pathname]);
+  }, [analyticsEnabled, pathname]);
 
   useEffect(() => {
+    if (!analyticsEnabled) {
+      return;
+    }
+
     const interval = window.setInterval(() => {
       const client = clientRef.current;
 
@@ -84,9 +103,13 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearInterval(interval);
     };
-  }, []);
+  }, [analyticsEnabled]);
 
   useEffect(() => {
+    if (!analyticsEnabled) {
+      return;
+    }
+
     const flushCurrentRoute = () => {
       const client = clientRef.current;
 
@@ -143,7 +166,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(AUTH_SESSION_ENDED_EVENT, handleAuthEnded);
       window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     };
-  }, []);
+  }, [analyticsEnabled]);
 
   const contextValue = useMemo<AnalyticsContextValue>(() => ({
     track: (input) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ApiResponse } from "@babyloop/shared";
+import { CURRENT_TERMS_VERSION, type ApiResponse } from "@babyloop/shared";
 import { authFetch, type AuthMe, type AuthPayload } from "../../lib/auth-client";
 
 export type AuthMode = "login" | "register";
@@ -10,6 +10,8 @@ type AuthRequest = {
   password: string;
   displayName?: string;
   locationCity?: string;
+  termsAccepted?: true;
+  termsVersion?: typeof CURRENT_TERMS_VERSION;
 };
 
 export type PasswordResetRequestPayload = {
@@ -156,8 +158,18 @@ export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<
   return response.json() as Promise<ApiResponse<AuthMe>>;
 }
 
-export async function startGoogleLogin(apiBaseUrl: string): Promise<ApiResponse<{ started: true }>> {
-  const startUrl = `${apiBaseUrl}/api/v1/auth/google/start`;
+export async function startGoogleLogin(
+  apiBaseUrl: string,
+  legal?: { termsAccepted: true; termsVersion: typeof CURRENT_TERMS_VERSION }
+): Promise<ApiResponse<{ started: true }>> {
+  const url = new URL(`${apiBaseUrl}/api/v1/auth/google/start`);
+
+  if (legal) {
+    url.searchParams.set("termsAccepted", "true");
+    url.searchParams.set("termsVersion", legal.termsVersion);
+  }
+
+  const startUrl = url.toString();
   const response = await fetch(startUrl, {
     credentials: "include",
     redirect: "manual"

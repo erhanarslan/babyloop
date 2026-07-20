@@ -12,7 +12,9 @@ const requiredFiles = [
   "docs/55-beta-critical-smoke-checklist.md",
   "docs/58-beta-critical-smoke-automation.md",
   "docs/83-backup-restore-rollback.md",
+  "docs/84-legal-kvkk-consent-public-trust.md",
   "scripts/check-backup-restore-rollback-boundary.mjs",
+  "scripts/check-legal-public-trust-boundary.mjs",
   "package.json"
 ];
 
@@ -59,6 +61,7 @@ function checkPackageScripts() {
 
   mustContain(deploymentScript, "package.json#security:deployment-readiness", "node scripts/check-deployment-readiness-boundary.mjs");
   mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:deployment-readiness");
+  mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:legal-public-trust");
 }
 
 function checkBetaSmokeWiring() {
@@ -95,6 +98,17 @@ function checkDocs() {
   const backupDoc = read("docs/83-backup-restore-rollback.md");
   for (const token of ["SHA-256", "restore smoke", "no down migration", "manual go/no-go"]) {
     mustContainCaseInsensitive(backupDoc, "docs/83-backup-restore-rollback.md", token);
+  }
+
+  const legalDoc = read("docs/84-legal-kvkk-consent-public-trust.md");
+  for (const token of [
+    "NEXT_PUBLIC_LEGAL_OPERATOR_NAME",
+    "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL",
+    "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS",
+    "EXPO_PUBLIC_WEB_BASE_URL",
+    "pnpm security:legal-public-trust"
+  ]) {
+    mustContain(legalDoc, "docs/84-legal-kvkk-consent-public-trust.md", token);
   }
 
   const mainDoc = read("docs/59-deployment-readiness-gate.md");

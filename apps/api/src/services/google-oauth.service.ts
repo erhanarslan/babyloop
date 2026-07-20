@@ -1,6 +1,8 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import { randomBytes } from "node:crypto";
 
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "babyloop_google_oauth_state";
+export const GOOGLE_OAUTH_TERMS_COOKIE_NAME = "babyloop_google_oauth_terms";
 export const GOOGLE_OAUTH_STATE_COOKIE_PATH = "/api/v1/auth/google";
 export const GOOGLE_OAUTH_STATE_TTL_SECONDS = 60 * 10;
 
@@ -25,6 +27,12 @@ export type GoogleUserInfo = {
   email_verified?: boolean;
   name?: string;
   picture?: string;
+};
+
+
+export type GoogleOAuthTermsAcceptance = {
+  state: string;
+  termsVersion: string;
 };
 
 export type GoogleOAuthClient = {
@@ -126,6 +134,63 @@ export function serializeGoogleOAuthStateCookie(state: string): string {
     `Expires=${expiresAt.toUTCString()}`,
     ...secureCookieFlag()
   ].join("; ");
+}
+
+export function serializeGoogleOAuthTermsCookie(state: string, termsVersion: string): string {
+  if (termsVersion !== CURRENT_TERMS_VERSION) {
+    throw new Error("Unsupported Google OAuth terms version.");
+  }
+
+  const expiresAt = new Date(Date.now() + GOOGLE_OAUTH_STATE_TTL_SECONDS * 1000);
+  const value = `${state}.${termsVersion}`;
+
+  return [
+    `${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=${encodeURIComponent(value)}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    `Path=${GOOGLE_OAUTH_STATE_COOKIE_PATH}`,
+    `Max-Age=${GOOGLE_OAUTH_STATE_TTL_SECONDS}`,
+    `Expires=${expiresAt.toUTCString()}`,
+    ...secureCookieFlag()
+  ].join("; ");
+}
+
+export function serializeExpiredGoogleOAuthTermsCookie(): string {
+  return [
+    `${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=`,
+    "HttpOnly",
+    "SameSite=Lax",
+    `Path=${GOOGLE_OAUTH_STATE_COOKIE_PATH}`,
+    "Max-Age=0",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    ...secureCookieFlag()
+  ].join("; ");
+}
+
+export function readGoogleOAuthTermsCookie(
+  cookieHeader: string | string[] | undefined,
+  expectedState: string
+): GoogleOAuthTermsAcceptance | null {
+  const raw = readCookieValue(cookieHeader, GOOGLE_OAUTH_TERMS_COOKIE_NAME);
+
+  if (!raw) {
+    return null;
+  }
+
+  const separatorIndex = raw.lastIndexOf(".");
+
+  if (separatorIndex < 1) {
+    return null;
+  }
+
+  const state = raw.slice(0, separatorIndex);
+  const termsVersion = raw.slice(separatorIndex + 1);
+
+  if (state !== expectedState || termsVersion !== CURRENT_TERMS_VERSION) {
+    return null;
+  }
+
+  return { state, termsVersion };
 }
 
 export function serializeExpiredGoogleOAuthStateCookie(): string {

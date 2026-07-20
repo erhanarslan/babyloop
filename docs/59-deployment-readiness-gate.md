@@ -157,3 +157,7 @@ TEST_DATABASE_URL=... pnpm ops:db:restore-smoke
 ```
 
 Production readiness additionally requires an encrypted pre-deploy backup, a checksum-verified replica copy, restore-smoke evidence, immutable release image digests, and a previous release manifest. Database rollback is forward-only: the current schema is retained and older code is allowed only after explicit compatibility review. Provider-specific rollback execution remains blocked until a checked-in deployment adapter is added under `scripts/deploy/adapters/`.
+
+## Legal/KVKK release gate
+
+The deployment readiness gate requires the checked-in legal/public-trust boundary, versioned acceptance migration and real staging/production environment variables. It rejects placeholder operator identity, invalid contact email, unusable application address, local mobile web URLs and non-HTTPS public legal-link origins. Run `pnpm security:legal-public-trust` before staging promotion. This technical gate does not replace qualified legal review.

@@ -62,6 +62,12 @@ const accountShortcuts = [
     icon: "sparkles-outline",
     title: "BabyLoop Asistan",
     description: "Ürün seçimi ve güvenli alışveriş kontrol listeleri."
+  },
+  {
+    href: "/legal",
+    icon: "document-text-outline",
+    title: "Yasal ve veri hakları",
+    description: "KVKK, gizlilik, koşullar ve hesap silme."
   }
 ] as const;
 

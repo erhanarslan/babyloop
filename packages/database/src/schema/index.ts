@@ -206,6 +206,35 @@ export const users = pgTable(
   ]
 );
 
+export const legalAcceptances = pgTable(
+  "legal_acceptances",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    documentType: varchar("document_type", { length: 40 }).notNull(),
+    documentVersion: varchar("document_version", { length: 40 }).notNull(),
+    source: varchar("source", { length: 40 }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("legal_acceptances_user_document_version_unique").on(
+      table.userId,
+      table.documentType,
+      table.documentVersion
+    ),
+    index("legal_acceptances_user_id_idx").on(table.userId),
+    index("legal_acceptances_accepted_at_idx").on(table.acceptedAt),
+    check("legal_acceptances_document_type_check", sql`${table.documentType} in ('terms')`),
+    check(
+      "legal_acceptances_source_check",
+      sql`${table.source} in ('web_password', 'mobile_password', 'google_oauth')`
+    )
+  ]
+);
+
 export const profiles = pgTable(
   "profiles",
   {

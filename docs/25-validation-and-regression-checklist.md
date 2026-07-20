@@ -951,3 +951,12 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 - [ ] Rollback keeps the current schema; no down migration is executed.
 - [ ] Forward schema compatibility is reviewed before rolling older code onto a newer migration.
 - [ ] Backup, restore-smoke, rollback plan, owner, and manual go/no-go evidence are retained.
+
+## Legal/KVKK public trust gate
+
+- Run `pnpm security:legal-public-trust`.
+- Run `TEST_DATABASE_URL=... pnpm test:api:legal` and verify versioned acceptance rows for web, mobile and new Google accounts.
+- Run `pnpm test:web:legal` and `pnpm test:mobile:legal`.
+- Confirm KVKK notice is not presented as a consent checkbox and optional analytics starts disabled.
+- Confirm staging/production environment variables contain the real operator identity, contact email, application address and public mobile legal-link origin.
+- Legal copy requires qualified legal review before company/payment/provider changes.

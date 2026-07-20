@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import { getApiBaseUrl } from "../../config/api";
 import {
   clearStoredMobileAuthToken,
@@ -171,6 +172,8 @@ export type MobileAuthRequest = {
   password: string;
   displayName?: string;
   locationCity?: string;
+  termsAccepted?: true;
+  termsVersion?: typeof CURRENT_TERMS_VERSION;
 };
 
 export type MobileMfaPreferenceRequest = {

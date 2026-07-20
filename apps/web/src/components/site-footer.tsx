@@ -1,10 +1,12 @@
 "use client";
 
 import { ProtectedActionLink } from "../features/auth/protected-action-link";
+import { useLegalConsent } from "../features/legal/legal-consent";
 import { useI18n } from "../lib/i18n/i18n-provider";
 
 export function SiteFooter() {
   const { dictionary } = useI18n();
+  const { openPreferences } = useLegalConsent();
 
   const footerGroups = [
     {
@@ -28,9 +30,21 @@ export function SiteFooter() {
     {
       links: [
         { href: "/guides", label: dictionary.home.safetyEyebrow },
-        { href: "/browse", label: dictionary.common.browseMarketplace }
+        { href: "/support/contact", label: "İletişim ve destek" },
+        { href: "/legal/data-deletion", label: "Hesap ve veri silme" }
       ],
       title: dictionary.footer.support
+    },
+    {
+      links: [
+        { href: "/legal/kvkk", label: "KVKK Aydınlatma Metni" },
+        { href: "/legal/privacy", label: "Gizlilik Politikası" },
+        { href: "/legal/terms", label: "Kullanım Koşulları" },
+        { href: "/legal/cookies", label: "Çerez Politikası" },
+        { href: "/legal/ai-notice", label: "Yapay zekâ bildirimi" },
+        { href: "/legal/marketplace", label: "Pazaryeri güvenliği" }
+      ],
+      title: "Yasal ve güven"
     }
   ];
 
@@ -56,6 +70,11 @@ export function SiteFooter() {
                   {link.label}
                 </ProtectedActionLink>
               ))}
+              {group.title === "Yasal ve güven" ? (
+                <button className="footer-link-button" type="button" onClick={openPreferences}>
+                  Çerez tercihleri
+                </button>
+              ) : null}
             </nav>
           ))}
         </div>

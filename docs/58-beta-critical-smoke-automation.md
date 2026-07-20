@@ -208,3 +208,7 @@ Mobile OTP/MFA/session surfaces do not expose accessToken, do not expose refresh
 ## Runtime readiness and observability coverage
 
 Full beta critical smoke automation includes `security:runtime-readiness-observability`. This validates endpoint separation, bounded dependency probes, worker heartbeat persistence, metrics authentication, error-payload redaction, migration presence, and release wiring. It does not provision or configure an external metrics collector, dashboard, pager, Sentry project, OpenTelemetry collector, or cloud alert policy.
+
+## Legal/KVKK public trust coverage
+
+Full beta critical smoke automation runs `pnpm security:legal-public-trust`. It verifies legal routes, versioned terms acceptance, Google OAuth state-bound acceptance, optional analytics opt-in, mobile legal links and deployment environment requirements. It does not provide legal advice or replace final review by a qualified legal professional.

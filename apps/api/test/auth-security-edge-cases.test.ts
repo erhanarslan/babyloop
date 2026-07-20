@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import {
   emailVerificationTokens,
   mfaOtpChallenges,
@@ -148,7 +149,9 @@ describe("auth security edge cases", () => {
         displayName: "Verify Once",
         email: "verify-once@example.com",
         locationCity: "İstanbul",
-        password: "Password123!"
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       },
       url: "/api/v1/auth/register"
     });

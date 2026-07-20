@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
   RouteShorthandOptions
 } from "fastify";
-import type { ApiFailure } from "@babyloop/shared";
+import { CURRENT_TERMS_VERSION, type ApiFailure } from "@babyloop/shared";
 import {
   accountDeletionConfirmSchema,
   accountDeletionRequestSchema,
@@ -33,6 +33,7 @@ import {
   createAuthSession,
   getMfaStatus,
   invalidAuthRequest,
+  isGoogleLegalTermsRequiredError,
   loginUser,
   refreshAuthSession,
   registerUser,
@@ -92,8 +93,11 @@ import {
   generateOAuthState,
   isGoogleOAuthConfigured,
   readGoogleOAuthStateCookie,
+  readGoogleOAuthTermsCookie,
   serializeExpiredGoogleOAuthStateCookie,
+  serializeExpiredGoogleOAuthTermsCookie,
   serializeGoogleOAuthStateCookie,
+  serializeGoogleOAuthTermsCookie,
   type GoogleOAuthClient,
   type GoogleOAuthConfig
 } from "../services/google-oauth.service.js";
@@ -237,8 +241,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(400).send(invalidAuthRequest());
       }
 
+      const clientType = resolveAuthClientType(request);
       const result = await registerUser(app, parsedBody.data, {
         emailDelivery: options.emailDelivery,
+        legalAcceptanceSource: clientType === "mobile" ? "mobile_password" : "web_password",
         webAppUrl: options.webAppUrl
       });
 
@@ -1233,15 +1239,24 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     }
   );
 
-  app.get("/auth/google/start", async (_request, reply) => {
+  app.get<{ Querystring: Record<string, unknown> }>("/auth/google/start", async (request, reply) => {
     if (!isGoogleOAuthConfigured(options.googleOAuth)) {
       return reply.status(503).send(googleOAuthUnavailableResponse());
     }
 
     const state = generateOAuthState();
     const authorizationUrl = buildGoogleAuthorizationUrl(options.googleOAuth, state);
+    const termsAccepted = readQueryStringValue(request.query.termsAccepted) === "true";
+    const termsVersion = readQueryStringValue(request.query.termsVersion);
+    const cookies = [serializeGoogleOAuthStateCookie(state)];
 
-    reply.header("set-cookie", serializeGoogleOAuthStateCookie(state));
+    if (termsAccepted && termsVersion === CURRENT_TERMS_VERSION) {
+      cookies.push(serializeGoogleOAuthTermsCookie(state, termsVersion));
+    } else {
+      cookies.push(serializeExpiredGoogleOAuthTermsCookie());
+    }
+
+    reply.header("set-cookie", cookies);
 
     return redirect(reply, authorizationUrl);
   });
@@ -1268,7 +1283,17 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
       }
 
-      const result = await authenticateGoogleUser(app, googleProfile);
+      const legalTermsCookie = readGoogleOAuthTermsCookie(request.headers.cookie, cookieState);
+      const result = await authenticateGoogleUser(app, googleProfile, {
+        ...(legalTermsCookie
+          ? {
+              legalTermsAcceptance: {
+                source: "google_oauth" as const,
+                termsVersion: legalTermsCookie.termsVersion
+              }
+            }
+          : {})
+      });
       const session = await createAuthSession(
         app,
         result.data.user.id,
@@ -1284,11 +1309,16 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
           maxAgeSeconds: options.authTokenTtlSeconds
         }),
         serializePublicCsrfCookie(createPublicCsrfToken()),
-        serializeExpiredGoogleOAuthStateCookie()
+        serializeExpiredGoogleOAuthStateCookie(),
+        serializeExpiredGoogleOAuthTermsCookie()
       ]);
 
       return redirect(reply, buildGoogleAuthSuccessRedirect(options.googleOAuth.webAppUrl));
     } catch (error) {
+      if (isGoogleLegalTermsRequiredError(error)) {
+        return redirectToGoogleTermsRequired(reply, options.googleOAuth.webAppUrl);
+      }
+
       request.log.warn({ error }, "Google OAuth callback failed.");
       return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
     }
@@ -1429,12 +1459,26 @@ function readQueryStringValue(value: unknown): string | null {
 }
 
 function redirectToGoogleAuthFailure(reply: FastifyReply, webAppUrl: string): void {
-  reply.header("set-cookie", serializeExpiredGoogleOAuthStateCookie());
+  reply.header("set-cookie", [
+    serializeExpiredGoogleOAuthStateCookie(),
+    serializeExpiredGoogleOAuthTermsCookie()
+  ]);
   return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_failed`);
 }
 
+function redirectToGoogleTermsRequired(reply: FastifyReply, webAppUrl: string): void {
+  reply.header("set-cookie", [
+    serializeExpiredGoogleOAuthStateCookie(),
+    serializeExpiredGoogleOAuthTermsCookie()
+  ]);
+  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/register?error=legal_terms_required`);
+}
+
 function redirectToGoogleAuthUnavailable(reply: FastifyReply, webAppUrl: string): void {
-  reply.header("set-cookie", serializeExpiredGoogleOAuthStateCookie());
+  reply.header("set-cookie", [
+    serializeExpiredGoogleOAuthStateCookie(),
+    serializeExpiredGoogleOAuthTermsCookie()
+  ]);
   return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_unavailable`);
 }
 

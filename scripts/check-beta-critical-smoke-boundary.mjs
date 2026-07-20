@@ -9,6 +9,8 @@ const requiredFiles = [
   "docs/25-validation-and-regression-checklist.md",
   "docs/54-production-env-checklist.md",
   "docs/55-beta-critical-smoke-checklist.md",
+  "docs/84-legal-kvkk-consent-public-trust.md",
+  "scripts/check-legal-public-trust-boundary.mjs",
   "package.json"
 ];
 
@@ -76,6 +78,7 @@ function checkRunner() {
     "security:notification-worker-atomic-claim",
     "security:runtime-readiness-observability",
     "security:backup-restore-rollback",
+    "security:legal-public-trust",
     "security:auth-leaks",
     "security:public-auth-cookie-migration",
     "release:artifacts",
@@ -123,6 +126,7 @@ function checkPackageScripts() {
   mustContain(betaSmoke, "package.json#beta:critical-smoke", "node scripts/run-beta-critical-smoke.mjs");
   mustContain(securitySmoke, "package.json#security:beta-critical-smoke", "node scripts/check-beta-critical-smoke-boundary.mjs");
   mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:beta-critical-smoke");
+  mustContain(apiSecurity, "package.json#test:api:security", "pnpm security:legal-public-trust");
   mustContain(mobileP0Boundary, "package.json#security:mobile-p0-gate", "node scripts/check-mobile-p0-release-gate.mjs");
   mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm security:mobile-auth");
   mustContain(mobileP0, "package.json#release:mobile:p0", "pnpm security:mobile-notifications");

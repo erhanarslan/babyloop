@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import { notificationDeliveryLogs, users } from "@babyloop/database/schema";
 import { desc, eq } from "drizzle-orm";
 import { createApp } from "../app.js";
@@ -48,7 +49,9 @@ async function main(): Promise<void> {
         displayName: "Notification Smoke",
         email,
         locationCity: "Istanbul",
-        password
+        password,
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION
       }
     });
 

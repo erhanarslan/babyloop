@@ -1,5 +1,6 @@
 "use client";
 
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
@@ -49,6 +50,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const [approvalSecondsLeft, setApprovalSecondsLeft] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const isRegister = mode === "register";
 
   useEffect(() => {
@@ -143,7 +145,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       return;
     }
 
-    const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister);
+    const payload = buildAuthPayload(new FormData(event.currentTarget), isRegister, termsAccepted);
 
     if (!payload) {
       setErrorMessage(dictionary.auth.requiredFields);
@@ -283,12 +285,22 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <Button
           type="button"
           variant="secondary"
-          disabled={isSubmitting || isGoogleRedirecting || Boolean(loginApproval)}
+          disabled={
+            isSubmitting ||
+            isGoogleRedirecting ||
+            Boolean(loginApproval) ||
+            (isRegister && !termsAccepted)
+          }
           onClick={async () => {
             setErrorMessage(null);
             setIsGoogleRedirecting(true);
             try {
-              const response = await startGoogleLogin(apiBaseUrl);
+              const response = await startGoogleLogin(
+                apiBaseUrl,
+                isRegister && termsAccepted
+                  ? { termsAccepted: true, termsVersion: CURRENT_TERMS_VERSION }
+                  : undefined
+              );
 
               if (!response.ok) {
                 setErrorMessage(
@@ -299,7 +311,12 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
                 setIsGoogleRedirecting(false);
               }
             } catch {
-              window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+              const fallback = new URL(`${apiBaseUrl}/api/v1/auth/google/start`);
+              if (isRegister && termsAccepted) {
+                fallback.searchParams.set("termsAccepted", "true");
+                fallback.searchParams.set("termsVersion", CURRENT_TERMS_VERSION);
+              }
+              window.location.assign(fallback.toString());
             }
           }}
         >
@@ -342,6 +359,29 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       ) : (
         <AuthFields mode={mode} />
       )}
+
+      {isRegister ? (
+        <section className="auth-legal-notice" aria-label="Kayıt sözleşmesi ve KVKK bilgilendirmesi">
+          <p>
+            Hesap bilgilerin; kayıt, güvenlik, pazaryeri ve destek amaçlarıyla işlenir. Ayrıntılar için
+            {" "}<Link href="/legal/kvkk" target="_blank">KVKK Aydınlatma Metni</Link> ve
+            {" "}<Link href="/legal/privacy" target="_blank">Gizlilik Politikası</Link> sayfalarını inceleyebilirsin.
+            Bu bilgilendirme açık rıza talebi değildir.
+          </p>
+          <label className="auth-terms-checkbox">
+            <input
+              checked={termsAccepted}
+              name="termsAccepted"
+              type="checkbox"
+              onChange={(event) => setTermsAccepted(event.target.checked)}
+            />
+            <span>
+              <Link href="/legal/terms" target="_blank">Kullanım Koşulları</Link>&apos;nı
+              (sürüm {CURRENT_TERMS_VERSION}) okudum ve kabul ediyorum.
+            </span>
+          </label>
+        </section>
+      ) : null}
 
       <div className="auth-security-summary" aria-label="Auth security summary">
         <div>
@@ -407,6 +447,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
             !isHydrated ||
             isSubmitting ||
             Boolean(loginApproval) ||
+            (isRegister && !termsAccepted) ||
             (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))
           }
         >
@@ -460,20 +501,26 @@ function GoogleIcon() {
   );
 }
 
-function buildAuthPayload(formData: FormData, isRegister: boolean) {
+function buildAuthPayload(formData: FormData, isRegister: boolean, termsAccepted: boolean) {
   const email = getString(formData, "email");
   const password = getString(formData, "password");
   const displayName = getString(formData, "displayName");
   const locationCity = getString(formData, "locationCity");
 
-  if (!email || !password || (isRegister && !displayName)) {
+  if (!email || !password || (isRegister && (!displayName || !termsAccepted))) {
     return null;
   }
 
   return {
     email,
     password,
-    ...(isRegister ? { displayName } : {}),
+    ...(isRegister
+      ? {
+          displayName,
+          termsAccepted: true as const,
+          termsVersion: CURRENT_TERMS_VERSION
+        }
+      : {}),
     ...(isRegister && locationCity ? { locationCity } : {})
   };
 }
