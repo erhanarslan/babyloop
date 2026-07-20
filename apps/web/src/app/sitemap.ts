@@ -7,13 +7,16 @@ import {
 } from "../lib/api";
 import { buildCanonicalUrl } from "../lib/seo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const [categoriesResult, listingsResult] = await Promise.all([
-    fetchApi<CategoriesPayload>("/api/v1/categories"),
-    fetchApi<ListingsPayload>("/api/v1/listings?limit=50&sort=newest&hasImages=true")
+    fetchApi<CategoriesPayload>("/api/v1/categories", { revalidate: 300 }),
+    fetchApi<ListingsPayload>(
+      "/api/v1/listings?limit=50&sort=newest&hasImages=true&imageLimit=1",
+      { revalidate: 300 }
+    )
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [

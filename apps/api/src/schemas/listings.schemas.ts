@@ -76,6 +76,7 @@ export const listingsQuerySchema = z
       .union([z.literal(""), z.literal("true"), z.literal("false")])
       .optional()
       .transform((value) => value !== "false"),
+    imageLimit: z.coerce.number().int().min(1).max(3).optional().default(3),
     sort: z.enum(listingSortValues).optional().default("newest"),
     limit: z.coerce.number().int().min(1).max(50).optional().default(20),
     offset: z.coerce.number().int().min(0).max(10000).optional().default(0)

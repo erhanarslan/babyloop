@@ -333,7 +333,9 @@ function ListingDetailGallery({
             alt={`Ürün görseli: ${listing.title}`}
             className="block h-full w-full object-cover"
             decoding="async"
+            fetchPriority="high"
             loading="eager"
+            sizes="(max-width: 768px) 100vw, 720px"
             onError={() => setSelectedImageFailed(true)}
             src={visibleSelectedImageUrl}
           />
@@ -421,6 +423,7 @@ function ListingDetailThumbnail({ imageUrl }: { imageUrl: string | null }) {
       className="block h-full w-full object-cover"
       decoding="async"
       loading="lazy"
+      sizes="96px"
       onError={() => setImageFailed(true)}
       src={imageUrl}
     />
@@ -457,7 +460,7 @@ function SellerCard({ listing }: { listing: ListingDetailPayload["listing"] }) {
     >
       <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 text-base font-black text-primary" aria-hidden="true">
         {avatarUrl ? (
-          <img className="h-full w-full object-cover" src={avatarUrl} alt="" />
+          <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" sizes="48px" src={avatarUrl} />
         ) : (
           <span>{listing.seller.displayName.slice(0, 1).toUpperCase()}</span>
         )}

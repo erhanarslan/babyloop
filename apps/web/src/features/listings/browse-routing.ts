@@ -50,6 +50,7 @@ export function buildListingsPath(filters: BrowseListingsFilters): string {
   appendIfPresent(params, "priceMax", filters.priceMax);
   appendIfPresent(params, "hasImages", filters.hasImages);
   appendIfPresent(params, "sort", filters.sort);
+  params.set("imageLimit", "3");
   params.set("limit", String(filters.limit));
   params.set("offset", String(filters.offset));
 

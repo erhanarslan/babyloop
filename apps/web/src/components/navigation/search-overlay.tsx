@@ -59,6 +59,7 @@ export function SearchOverlay({
       try {
         const params = new URLSearchParams({
           hasImages: "true",
+          imageLimit: "1",
           limit: "5",
           offset: "0",
           q: sanitizedQuery,

@@ -60,6 +60,7 @@ describe("browse routing", () => {
 
     expect(path).toContain("q=oto+koltu%C4%9Fu");
     expect(path).toContain("hasImages=true");
+    expect(path).toContain("imageLimit=3");
     expect(path).toContain("sort=newest");
     expect(path).not.toContain("internalUserId");
     expect(path).not.toContain("user-secret");

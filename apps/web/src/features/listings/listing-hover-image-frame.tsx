@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import { usePageVisibility } from "../../lib/use-page-visibility";
 import { ListingImageFrame } from "./listing-image-frame";
 
 type ListingPreviewImage = {
@@ -21,7 +22,7 @@ type ListingHoverImageFrameProps = {
 const HOVER_IMAGE_INTERVAL_MS = 1200;
 const MAX_HOVER_PREVIEW_IMAGES = 3;
 
-export function ListingHoverImageFrame({
+export const ListingHoverImageFrame = memo(function ListingHoverImageFrame({
   alt,
   apiBaseUrl,
   className = "",
@@ -29,6 +30,7 @@ export function ListingHoverImageFrame({
   images
 }: ListingHoverImageFrameProps) {
   const previewImages = useMemo(() => normalizePreviewImages(images), [images]);
+  const isPageVisible = usePageVisibility();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
@@ -38,7 +40,7 @@ export function ListingHoverImageFrame({
   }, [previewImages]);
 
   useEffect(() => {
-    if (!isHovering || previewImages.length <= 1) {
+    if (!isPageVisible || !isHovering || previewImages.length <= 1) {
       return;
     }
 
@@ -49,7 +51,7 @@ export function ListingHoverImageFrame({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isHovering, previewImages.length]);
+  }, [isHovering, isPageVisible, previewImages.length]);
 
   function handleMouseEnter() {
     if (previewImages.length <= 1) {
@@ -77,6 +79,7 @@ export function ListingHoverImageFrame({
         apiBaseUrl={apiBaseUrl}
         className={className}
         fallbackLabel={fallbackLabel}
+        sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 320px"
         url={activeImage?.url ?? null}
       />
 
@@ -92,7 +95,7 @@ export function ListingHoverImageFrame({
       ) : null}
     </div>
   );
-}
+});
 
 function normalizePreviewImages(
   images: ListingPreviewImage[] | null | undefined

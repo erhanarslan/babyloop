@@ -15,7 +15,7 @@ type CategoriesResponse = ApiResponse<{
 }>;
 
 export function registerCategoryRoutes(app: FastifyInstance): void {
-  app.get<{ Reply: CategoriesResponse }>("/categories", async () => {
+  app.get<{ Reply: CategoriesResponse }>("/categories", async (_request, reply) => {
     const rows = await app.db
       .select({
         id: productCategories.id,
@@ -25,6 +25,8 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
       })
       .from(productCategories)
       .orderBy(asc(productCategories.name));
+
+    reply.header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
 
     return {
       ok: true,

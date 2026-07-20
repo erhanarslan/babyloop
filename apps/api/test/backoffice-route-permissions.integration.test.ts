@@ -15,7 +15,9 @@ describe("backoffice route permission matrix", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it("keeps listing review routes behind listing_review permission", async () => {

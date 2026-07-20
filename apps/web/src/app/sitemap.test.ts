@@ -36,7 +36,7 @@ describe("web sitemap route", () => {
         } as any;
       }
 
-      if (path === "/api/v1/listings?limit=50&sort=newest&hasImages=true") {
+      if (path === "/api/v1/listings?limit=50&sort=newest&hasImages=true&imageLimit=1") {
         return {
           ok: true,
           data: {
@@ -91,8 +91,11 @@ describe("web sitemap route", () => {
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
-    expect(fetchApi).toHaveBeenCalledWith("/api/v1/categories");
-    expect(fetchApi).toHaveBeenCalledWith("/api/v1/listings?limit=50&sort=newest&hasImages=true");
+    expect(fetchApi).toHaveBeenCalledWith("/api/v1/categories", { revalidate: 300 });
+    expect(fetchApi).toHaveBeenCalledWith(
+      "/api/v1/listings?limit=50&sort=newest&hasImages=true&imageLimit=1",
+      { revalidate: 300 }
+    );
 
     expect(urls).toEqual(expect.arrayContaining([
       "https://babyloop.test/",

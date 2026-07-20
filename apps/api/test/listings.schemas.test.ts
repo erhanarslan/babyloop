@@ -19,6 +19,7 @@ describe("listings schemas", () => {
     expect(result.data.offset).toBe(0);
     expect(result.data.sort).toBe("newest");
     expect(result.data.includeTotal).toBe(true);
+    expect(result.data.imageLimit).toBe(3);
   });
 
   it("allows later infinite-scroll pages to skip the exact total count", () => {
@@ -47,6 +48,7 @@ describe("listings schemas", () => {
       createdSince: "last_7_days",
       listingType: "sale",
       sort: "price_asc",
+      imageLimit: "1",
       limit: "12",
       offset: "24"
     });
@@ -59,6 +61,7 @@ describe("listings schemas", () => {
     expect(result.data.q).toBe("stroller");
     expect(result.data.city).toBe("İstanbul");
     expect(result.data.createdSince).toBe("last_7_days");
+    expect(result.data.imageLimit).toBe(1);
     expect(result.data.limit).toBe(12);
     expect(result.data.offset).toBe(24);
   });
@@ -89,6 +92,7 @@ describe("listings schemas", () => {
 
   it("rejects invalid pagination values", () => {
     const result = listingsQuerySchema.safeParse({
+      imageLimit: "4",
       limit: "1000",
       offset: "-1"
     });

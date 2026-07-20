@@ -16,6 +16,7 @@ import type {
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { usePageVisibility } from "../../lib/use-page-visibility";
 import { usePrefersReducedMotion } from "../../lib/use-prefers-reduced-motion";
 import {
   DEFAULT_LOCATION,
@@ -58,6 +59,7 @@ const IMAGE_HOVER_INTERVAL_MS = 1500;
 export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSectionProps) {
   const { dictionary } = useI18n();
   const prefersReducedMotion = usePrefersReducedMotion();
+  const isPageVisible = usePageVisibility();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreAbortControllerRef = useRef<AbortController | null>(null);
   const loadMoreInFlightRef = useRef(false);
@@ -100,7 +102,8 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
         limit: String(limit),
         offset: String(offset),
         sort: "newest",
-        includeTotal: "false"
+        includeTotal: "false",
+        imageLimit: "3"
       });
       const cityQueryValue = getLocationQueryValue(selectedCity);
 
@@ -432,6 +435,7 @@ export function HomeLatestListingsSection({ apiBaseUrl }: HomeLatestListingsSect
                 isFavorited={favoriteListingIds.has(listing.id)}
                 key={listing.id}
                 listing={listing}
+                isPageVisible={isPageVisible}
                 prefersReducedMotion={prefersReducedMotion}
                 onFavoriteToggle={handleFavoriteToggle}
               />
@@ -485,6 +489,7 @@ type HomeProductCardProps = {
   isFavoritePending: boolean;
   isFavorited: boolean;
   listing: HomeListing;
+  isPageVisible: boolean;
   prefersReducedMotion: boolean;
   onFavoriteToggle: (listingId: string, isFavorited: boolean) => void | Promise<void>;
 };
@@ -495,6 +500,7 @@ function HomeProductCard({
   isFavoritePending,
   isFavorited,
   listing,
+  isPageVisible,
   prefersReducedMotion,
   onFavoriteToggle
 }: HomeProductCardProps) {
@@ -503,7 +509,7 @@ function HomeProductCard({
   const [isHovering, setIsHovering] = useState(false);
 
   useEffect(() => {
-    if (prefersReducedMotion || !isHovering || images.length <= 1) {
+    if (!isPageVisible || prefersReducedMotion || !isHovering || images.length <= 1) {
       return;
     }
 
@@ -514,7 +520,7 @@ function HomeProductCard({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [images.length, isHovering, prefersReducedMotion]);
+  }, [images.length, isHovering, isPageVisible, prefersReducedMotion]);
 
   function handleMouseEnter() {
     if (prefersReducedMotion || images.length <= 1) {
@@ -558,6 +564,7 @@ function HomeProductCard({
           apiBaseUrl={apiBaseUrl}
           className="home-product-card-image"
           fallbackLabel="BabyLoop"
+          sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 280px"
           url={images[activeImageIndex]?.url ?? null}
         />
 
@@ -594,7 +601,7 @@ function toHomeListing(listing: ListingSummary): HomeListing {
 
   return {
     ...listingWithSeller,
-    locationCity: listingWithSeller.seller?.locationCity ?? null
+    locationCity: listingWithSeller.locationCity ?? listingWithSeller.seller?.locationCity ?? null
   };
 }
 

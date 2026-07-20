@@ -15,14 +15,52 @@ export type MobileCategory = {
   parentId: string | null;
 };
 
-export async function fetchMobileCategories(): Promise<MobileCategory[]> {
-  const result = await apiGet<unknown>("/api/v1/categories");
+const MOBILE_CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000;
 
-  if (!result.ok) {
-    throw new Error(result.error);
+let mobileCategoryCache: { expiresAt: number; value: MobileCategory[] } | null = null;
+let mobileCategoryRequest: Promise<MobileCategory[]> | null = null;
+
+export async function fetchMobileCategories(options: { forceRefresh?: boolean } = {}): Promise<MobileCategory[]> {
+  const now = Date.now();
+
+  if (!options.forceRefresh && mobileCategoryCache && mobileCategoryCache.expiresAt > now) {
+    return mobileCategoryCache.value;
   }
 
-  return extractCategoryArray(result.data).map(normalizeCategory).filter(isMobileCategory);
+  if (!options.forceRefresh && mobileCategoryRequest) {
+    return mobileCategoryRequest;
+  }
+
+  const request = (async () => {
+    const result = await apiGet<unknown>("/api/v1/categories");
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    const value = extractCategoryArray(result.data).map(normalizeCategory).filter(isMobileCategory);
+    mobileCategoryCache = {
+      expiresAt: Date.now() + MOBILE_CATEGORY_CACHE_TTL_MS,
+      value
+    };
+
+    return value;
+  })();
+
+  mobileCategoryRequest = request;
+
+  try {
+    return await request;
+  } finally {
+    if (mobileCategoryRequest === request) {
+      mobileCategoryRequest = null;
+    }
+  }
+}
+
+export function resetMobileCategoryCacheForTests(): void {
+  mobileCategoryCache = null;
+  mobileCategoryRequest = null;
 }
 
 

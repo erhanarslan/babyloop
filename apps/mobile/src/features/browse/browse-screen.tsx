@@ -1,7 +1,16 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ListRenderItem
+} from "react-native";
 
 import { MobileVirtualizedScreen } from "../../ui/mobile-virtualized-screen";
 import {
@@ -282,6 +291,15 @@ export function BrowseScreen() {
     void loadListings(appliedQuery, appliedFilters, nextOffset, "append");
   }
 
+  const handleOpenListing = useCallback((listingId: string) => {
+    router.push(`/listing/${encodeURIComponent(listingId)}`);
+  }, [router]);
+  const keyExtractor = useCallback((listing: MobileListingSummary) => listing.id, []);
+  const renderListing = useCallback<ListRenderItem<MobileListingSummary>>(
+    ({ item }) => <BrowseListingRow listing={item} onOpenListing={handleOpenListing} />,
+    [handleOpenListing]
+  );
+
   const listHeader = (
     <>
       {!hasSearchOrFilters ? (
@@ -377,10 +395,13 @@ export function BrowseScreen() {
           </Pressable>
         </View>
       }
-      keyExtractor={(listing) => listing.id}
+      initialNumToRender={4}
+      keyboardAvoiding={false}
+      keyExtractor={keyExtractor}
       listEmpty={listEmpty}
       listFooter={listFooter}
       listHeader={listHeader}
+      maxToRenderPerBatch={4}
       onEndReached={handleLoadMore}
       onRefresh={() => void loadListings(appliedQuery, appliedFilters, 0, "refresh")}
       overlay={
@@ -406,30 +427,47 @@ export function BrowseScreen() {
         </>
       }
       refreshing={isRefreshing}
-      renderItem={({ item: listing }) => (
-        <MobileListingCard
-          accessibilityLabel={`İlanı aç: ${listing.title}`}
-          chips={buildMobileListingChips({
-            conditionText: listing.conditionText,
-            listingTypeText: listing.listingTypeText,
-            statusText: listing.statusText
-          })}
-          footerText={formatMobileListingAgeRange(
-            listing.recommendedAgeMinMonths,
-            listing.recommendedAgeMaxMonths
-          )}
-          imageUrl={listing.imageUrl}
-          locationText={listing.locationText}
-          onPress={() => router.push(`/listing/${encodeURIComponent(listing.id)}`)}
-          priceText={listing.priceText}
-          title={listing.title}
-          variant="vertical"
-        />
-      )}
+      renderItem={renderListing}
       title="Keşfet"
+      updateCellsBatchingPeriod={50}
+      windowSize={5}
     />
   );
 }
+
+
+const BrowseListingRow = memo(function BrowseListingRow({
+  listing,
+  onOpenListing
+}: {
+  listing: MobileListingSummary;
+  onOpenListing: (listingId: string) => void;
+}) {
+  const handlePress = useCallback(() => {
+    onOpenListing(listing.id);
+  }, [listing.id, onOpenListing]);
+
+  return (
+    <MobileListingCard
+      accessibilityLabel={`İlanı aç: ${listing.title}`}
+      chips={buildMobileListingChips({
+        conditionText: listing.conditionText,
+        listingTypeText: listing.listingTypeText,
+        statusText: listing.statusText
+      })}
+      footerText={formatMobileListingAgeRange(
+        listing.recommendedAgeMinMonths,
+        listing.recommendedAgeMaxMonths
+      )}
+      imageUrl={listing.imageUrl}
+      locationText={listing.locationText}
+      onPress={handlePress}
+      priceText={listing.priceText}
+      title={listing.title}
+      variant="vertical"
+    />
+  );
+});
 
 function mergeUniqueListings(
   current: MobileListingSummary[],

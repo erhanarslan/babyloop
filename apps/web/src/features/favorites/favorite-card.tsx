@@ -42,7 +42,9 @@ export function FavoriteCard({
           <img
             alt=""
             className="h-full w-full object-cover"
+            decoding="async"
             loading="lazy"
+            sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 320px"
             src={imageUrl}
           />
         ) : (

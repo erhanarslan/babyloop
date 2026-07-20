@@ -130,11 +130,23 @@ export function getApiBaseUrl(): string {
   ).replace(/\/$/, "");
 }
 
-export async function fetchApi<TData>(path: string): Promise<ApiResponse<TData>> {
+export type FetchApiOptions = {
+  cache?: RequestCache;
+  revalidate?: number;
+};
+
+export async function fetchApi<TData>(
+  path: string,
+  options: FetchApiOptions = {}
+): Promise<ApiResponse<TData>> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
-      cache: "no-store"
-    });
+    const requestOptions = options.revalidate !== undefined
+      ? {
+          cache: "force-cache" as const,
+          next: { revalidate: Math.max(0, Math.trunc(options.revalidate)) }
+        }
+      : { cache: options.cache ?? "no-store" };
+    const response = await fetch(`${getApiBaseUrl()}${path}`, requestOptions);
     const body = (await response.json()) as ApiResponse<TData>;
 
     if (!response.ok && body.ok) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePageVisibility } from "../../lib/use-page-visibility";
 import { usePrefersReducedMotion } from "../../lib/use-prefers-reduced-motion";
 
 const ROTATION_INTERVAL_MS = 2500;
@@ -30,7 +31,7 @@ export function HomeFeaturedShowcase() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRotationPaused, setIsRotationPaused] = useState(false);
-  const [isPageVisible, setIsPageVisible] = useState(true);
+  const isPageVisible = usePageVisibility();
 
   function scrollToLatestListings() {
     document.getElementById("latest-listings")?.scrollIntoView({
@@ -38,19 +39,6 @@ export function HomeFeaturedShowcase() {
       block: "start"
     });
   }
-
-  useEffect(() => {
-    function handleVisibilityChange() {
-      setIsPageVisible(document.visibilityState === "visible");
-    }
-
-    handleVisibilityChange();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
 
   useEffect(() => {
     if (!isPageVisible || isRotationPaused || prefersReducedMotion) {

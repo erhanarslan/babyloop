@@ -19,26 +19,26 @@ export function getTestDatabaseUrl(): string {
 
 export async function resetTestDatabase(): Promise<void> {
   const databaseUrl = getTestDatabaseUrl();
-  const resetClient = createDatabaseClient({ databaseUrl });
+  const client = createDatabaseClient({
+    databaseUrl,
+    pool: {
+      connectionTimeoutMillis: 10_000,
+      max: 1
+    }
+  });
 
   try {
-    await resetClient.pool.query(
+    await client.pool.query("SET lock_timeout = '15s'; SET statement_timeout = '60s';");
+    await client.pool.query(
       "DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
     );
-  } finally {
-    await resetClient.close();
-  }
-
-  const migrationClient = createDatabaseClient({ databaseUrl });
-
-  try {
-    await migrate(migrationClient.db, {
+    await migrate(client.db, {
       migrationsFolder: resolve(
         dirname(fileURLToPath(import.meta.url)),
         "../../../../packages/database/drizzle"
       )
     });
   } finally {
-    await migrationClient.close();
+    await client.close();
   }
 }

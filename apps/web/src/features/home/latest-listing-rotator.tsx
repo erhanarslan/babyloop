@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ListingsPayload, ListingSummary } from "../../lib/api";
 import { useI18n } from "../../lib/i18n/i18n-provider";
+import { usePageVisibility } from "../../lib/use-page-visibility";
 import { ListingImageFrame } from "../listings/listing-image-frame";
 import {
   formatListingCondition,
@@ -24,7 +25,7 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isPageVisible, setIsPageVisible] = useState(true);
+  const isPageVisible = usePageVisibility();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -44,19 +45,6 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
 
 
   useEffect(() => {
-    function handleVisibilityChange() {
-      setIsPageVisible(document.visibilityState === "visible");
-    }
-
-    handleVisibilityChange();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
     let isActive = true;
     const controller = new AbortController();
 
@@ -65,7 +53,7 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
       setHasError(false);
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/listings?limit=3&sort=newest&hasImages=true`, {
+        const response = await fetch(`${apiBaseUrl}/api/v1/listings?limit=3&sort=newest&hasImages=true&imageLimit=1`, {
           cache: "no-store",
           signal: controller.signal
         });
@@ -163,6 +151,9 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
               apiBaseUrl={apiBaseUrl}
               className="latest-listing-image"
               fallbackLabel="BabyLoop"
+              fetchPriority="high"
+              loading="eager"
+              sizes="(max-width: 640px) 92vw, 420px"
               url={activeListing.firstImage?.url ?? null}
             />
             <div className="latest-listing-card-body">
@@ -191,6 +182,7 @@ export function LatestListingRotator({ apiBaseUrl }: LatestListingRotatorProps) 
                   apiBaseUrl={apiBaseUrl}
                   className="latest-listing-thumb"
                   fallbackLabel="BabyLoop"
+                  sizes="96px"
                   url={listing.firstImage?.url ?? null}
                 />
                 <span>{listing.title}</span>

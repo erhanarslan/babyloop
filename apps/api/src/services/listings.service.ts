@@ -173,7 +173,7 @@ export async function listActiveListingsPage(
       selectActiveListingRows(app, query),
       countActiveListingRows(app, query)
     ]);
-    const listings = await mapListingRows(app, rows);
+    const listings = await mapListingRows(app, rows, query.imageLimit);
     const hasNextPage = query.offset + rows.length < total;
 
     return {
@@ -194,7 +194,7 @@ export async function listActiveListingsPage(
   });
   const hasNextPage = rowsWithSentinel.length > query.limit;
   const rows = hasNextPage ? rowsWithSentinel.slice(0, query.limit) : rowsWithSentinel;
-  const listings = await mapListingRows(app, rows);
+  const listings = await mapListingRows(app, rows, query.imageLimit);
 
   return {
     listings,
@@ -827,11 +827,12 @@ async function mapListingRows(
     publicationReviewReason: string | null;
     title: string;
     sellerLocationCity?: string | null;
-  }>
+  }>,
+  maxImagesPerListing = 5
 ): Promise<ListingSummaryResponse[]> {
   const listingIds = rows.map((row) => row.id);
   const [imagesByListingId, favoriteCounts] = await Promise.all([
-    getPublicListingImagesByListingIds(app, listingIds),
+    getPublicListingImagesByListingIds(app, listingIds, maxImagesPerListing),
     getFavoriteCounts(app, listingIds)
   ]);
 

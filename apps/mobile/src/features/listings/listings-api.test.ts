@@ -91,10 +91,11 @@ describe("mobile listings API seller lifecycle", () => {
       title: "Sayfalı ilan"
     }));
     expect(apiGetMock).toHaveBeenCalledWith(
-      "/api/v1/listings?limit=20&offset=20&sort=newest&q=oyuncak",
+      "/api/v1/listings?imageLimit=1&limit=20&offset=20&sort=newest&q=oyuncak",
       { signal: undefined }
     );
     expect(buildMobileListingsQuery({ offset: 40 }).get("offset")).toBe("40");
+    expect(buildMobileListingsQuery().get("imageLimit")).toBe("1");
     expect(buildMobileListingsQuery({ includeTotal: false }).get("includeTotal")).toBe("false");
   });
 

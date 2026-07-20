@@ -246,11 +246,14 @@ export async function selectListingSummaryRow(app: FastifyInstance, id: string) 
 
 export async function getPublicListingImagesByListingIds(
   app: FastifyInstance,
-  listingIds: string[]
+  listingIds: string[],
+  maxImagesPerListing = 5
 ): Promise<Map<string, ListingImageResponse[]>> {
   if (listingIds.length === 0) {
     return new Map();
   }
+
+  const normalizedImageLimit = Math.min(Math.max(Math.trunc(maxImagesPerListing), 1), 5);
 
   const imageRows = await app.db
     .select({
@@ -273,7 +276,7 @@ export async function getPublicListingImagesByListingIds(
   for (const image of imageRows) {
     const images = imagesByListingId.get(image.listingId) ?? [];
 
-    if (images.length >= 5) {
+    if (images.length >= normalizedImageLimit) {
       continue;
     }
 

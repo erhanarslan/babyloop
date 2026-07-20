@@ -87,9 +87,12 @@ describe("SearchOverlay", () => {
       expect(fetch).toHaveBeenCalledWith(
         [
           "http://api.test/api/v1/listings",
-          "hasImages=true&limit=5&offset=0&q=puset&sort=newest&city=%C4%B0stanbul"
+          "hasImages=true&imageLimit=1&limit=5&offset=0&q=puset&sort=newest&city=%C4%B0stanbul"
         ].join("?"),
-        expect.objectContaining({ cache: "no-store" })
+        expect.objectContaining({
+          cache: "no-store",
+          signal: expect.any(AbortSignal)
+        })
       );
     });
     expect(await screen.findByText("Temiz bebek arabası")).toBeInTheDocument();

@@ -31,6 +31,10 @@ type MobileVirtualizedScreenProps<TItem> = {
   overlay?: ReactNode;
   hasTabBar?: boolean;
   keyboardAvoiding?: boolean;
+  initialNumToRender?: number;
+  maxToRenderPerBatch?: number;
+  updateCellsBatchingPeriod?: number;
+  windowSize?: number;
   onEndReached?: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -41,7 +45,9 @@ export function MobileVirtualizedScreen<TItem>({
   eyebrow,
   hasTabBar = true,
   headerAction,
+  initialNumToRender = 6,
   keyboardAvoiding = true,
+  maxToRenderPerBatch = 6,
   keyExtractor,
   listEmpty,
   listFooter,
@@ -52,7 +58,9 @@ export function MobileVirtualizedScreen<TItem>({
   refreshing = false,
   renderItem,
   subtitle,
-  title
+  title,
+  updateCellsBatchingPeriod = 40,
+  windowSize = 7
 }: MobileVirtualizedScreenProps<TItem>) {
   const insets = useSafeAreaInsets();
   const androidNavigationVisibility = useAndroidNavigationBarVisibility() ?? "hidden";
@@ -96,7 +104,7 @@ export function MobileVirtualizedScreen<TItem>({
         <FlatList
           contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
           data={data}
-          initialNumToRender={6}
+          initialNumToRender={initialNumToRender}
           ItemSeparatorComponent={ListItemSeparator}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
@@ -104,7 +112,7 @@ export function MobileVirtualizedScreen<TItem>({
           ListEmptyComponent={toListElement(listEmpty)}
           ListFooterComponent={toListElement(listFooter)}
           ListHeaderComponent={header}
-          maxToRenderPerBatch={6}
+          maxToRenderPerBatch={maxToRenderPerBatch}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.35}
           onRefresh={onRefresh}
@@ -113,8 +121,8 @@ export function MobileVirtualizedScreen<TItem>({
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
           style={styles.list}
-          updateCellsBatchingPeriod={40}
-          windowSize={7}
+          updateCellsBatchingPeriod={updateCellsBatchingPeriod}
+          windowSize={windowSize}
         />
 
         {overlay}

@@ -12,7 +12,7 @@ export const metadata: Metadata = buildNoIndexMetadata(
 );
 
 export default async function SellPage() {
-  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories");
+  const categoriesResult = await fetchApi<CategoriesPayload>("/api/v1/categories", { revalidate: 300 });
   const categories = categoriesResult.ok ? categoriesResult.data.categories : [];
   const error = categoriesResult.ok ? null : categoriesResult.error;
 

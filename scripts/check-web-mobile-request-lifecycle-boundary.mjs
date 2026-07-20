@@ -8,6 +8,7 @@ const requiredFiles = [
   "apps/web/src/features/auth/auth-action-prompt-modal.tsx",
   "apps/web/src/components/site-header.tsx",
   "apps/web/src/features/home/latest-listing-rotator.tsx",
+  "apps/web/src/lib/use-page-visibility.ts",
   "apps/web/src/features/cart/api.ts",
   "apps/mobile/src/features/auth/auth-api.ts",
   "apps/mobile/src/features/messages/conversation-list-store.tsx",
@@ -48,8 +49,16 @@ if (problems.length === 0) {
   const rotator = read("apps/web/src/features/home/latest-listing-rotator.tsx");
   requireTokens("apps/web/src/features/home/latest-listing-rotator.tsx", rotator, [
     "new AbortController()",
-    "document.visibilityState",
+    "usePageVisibility",
     "!isPageVisible"
+  ]);
+
+  const pageVisibility = read("apps/web/src/lib/use-page-visibility.ts");
+  requireTokens("apps/web/src/lib/use-page-visibility.ts", pageVisibility, [
+    "document.visibilityState",
+    "visibilitychange",
+    "useSyncExternalStore",
+    "listeners.size === 0"
   ]);
   forbidTokens("apps/web/src/features/home/latest-listing-rotator.tsx", rotator, ["enrichListingWithCity", "/api/v1/listings/${listing.id}"]);
 

@@ -1484,6 +1484,12 @@ function registerQueryContracts(): void {
         example: true,
         description: "İlk sayfada tam toplamı döndürür. Infinite-scroll devam sayfaları COUNT sorgusunu atlamak için false gönderebilir."
       },
+      imageLimit: integerSchema({
+        defaultValue: 3,
+        example: 1,
+        maximum: 3,
+        minimum: 1
+      }),
       createdSince: enumSchema(["today", "last_7_days"]),
       sort: enumSchema(["newest", "oldest", "price_asc", "price_desc"], {
         defaultValue: "newest",

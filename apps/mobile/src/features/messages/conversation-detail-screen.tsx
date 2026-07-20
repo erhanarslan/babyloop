@@ -1,17 +1,18 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
+  FlatList,
   Keyboard,
   KeyboardAvoidingView,
   type KeyboardEvent,
   type LayoutChangeEvent,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
+  type ListRenderItem
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -52,7 +53,7 @@ export function ConversationDetailScreen() {
   const authSession = useAuthSession();
   const currentProfileId = authSession.currentUser?.profile.id ?? null;
   const conversationId = typeof params.conversationId === "string" ? params.conversationId : "";
-  const scrollViewRef = useRef<ScrollView>(null);
+  const messageListRef = useRef<FlatList<MobileConversationMessage>>(null);
   const hideResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardHeightRef = useRef(0);
   const keyboardSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,10 +95,20 @@ export function ConversationDetailScreen() {
     conversationId,
     sending
   });
+  const renderMessage = useCallback<ListRenderItem<MobileConversationMessage>>(
+    ({ item }) => (
+      <ConversationMessageBubble
+        currentProfileId={currentProfileId}
+        message={item}
+      />
+    ),
+    [currentProfileId]
+  );
+  const messageKeyExtractor = useCallback((message: MobileConversationMessage) => message.id, []);
 
   const scrollToBottom = useCallback((animated = true) => {
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollToEnd({ animated });
+      messageListRef.current?.scrollToEnd({ animated });
     });
   }, []);
 
@@ -437,51 +448,32 @@ export function ConversationDetailScreen() {
           </View>
         ) : null}
 
-        <ScrollView
+        <FlatList
           contentContainerStyle={[styles.messageList, { paddingBottom: messageListBottomPadding }]}
-          onContentSizeChange={() => scrollToBottom(false)}
-          onLayout={() => scrollToBottom(false)}
+          data={messages}
+          initialNumToRender={20}
+          keyExtractor={messageKeyExtractor}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
-          ref={scrollViewRef}
+          ListEmptyComponent={
+            status === "ready" ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.stateTitle}>Henüz mesaj yok</Text>
+                <Text style={styles.stateText}>İlanla ilgili ilk sorunu yazabilirsin.</Text>
+              </View>
+            ) : null
+          }
+          maxToRenderPerBatch={12}
+          onContentSizeChange={() => scrollToBottom(false)}
+          onLayout={() => scrollToBottom(false)}
+          ref={messageListRef}
+          removeClippedSubviews={Platform.OS === "android"}
+          renderItem={renderMessage}
           showsVerticalScrollIndicator={false}
           style={styles.messagesScroll}
-        >
-          {messages.length === 0 && status === "ready" ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.stateTitle}>Henüz mesaj yok</Text>
-              <Text style={styles.stateText}>İlanla ilgili ilk sorunu yazabilirsin.</Text>
-            </View>
-          ) : null}
-
-          {messages.map((message) => {
-            const own = message.senderProfileId === currentProfileId;
-
-            return (
-              <View
-                key={message.id}
-                style={[
-                  styles.messageBubble,
-                  own ? styles.messageBubbleOwn : styles.messageBubbleOther
-                ]}
-              >
-                {!own && message.senderDisplayName ? (
-                  <Text style={styles.senderName}>{message.senderDisplayName}</Text>
-                ) : null}
-
-                <Text style={[styles.messageText, own ? styles.messageTextOwn : styles.messageTextOther]}>
-                  {message.body}
-                </Text>
-
-                {message.createdAt ? (
-                  <Text style={[styles.messageMeta, own ? styles.messageMetaOwn : null]}>
-                    {formatDate(message.createdAt)}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
-        </ScrollView>
+          updateCellsBatchingPeriod={40}
+          windowSize={9}
+        />
 
         <View style={[styles.composer, { bottom: composerBottomOffset }]}>
           {error && status === "ready" ? <Text style={styles.inlineError}>{error}</Text> : null}
@@ -532,6 +524,40 @@ export function ConversationDetailScreen() {
     </View>
   );
 }
+
+
+const ConversationMessageBubble = memo(function ConversationMessageBubble({
+  currentProfileId,
+  message
+}: {
+  currentProfileId: string | null;
+  message: MobileConversationMessage;
+}) {
+  const own = message.senderProfileId === currentProfileId;
+
+  return (
+    <View
+      style={[
+        styles.messageBubble,
+        own ? styles.messageBubbleOwn : styles.messageBubbleOther
+      ]}
+    >
+      {!own && message.senderDisplayName ? (
+        <Text style={styles.senderName}>{message.senderDisplayName}</Text>
+      ) : null}
+
+      <Text style={[styles.messageText, own ? styles.messageTextOwn : styles.messageTextOther]}>
+        {message.body}
+      </Text>
+
+      {message.createdAt ? (
+        <Text style={[styles.messageMeta, own ? styles.messageMetaOwn : null]}>
+          {formatDate(message.createdAt)}
+        </Text>
+      ) : null}
+    </View>
+  );
+});
 
 function formatDate(value: string): string {
   const date = new Date(value);

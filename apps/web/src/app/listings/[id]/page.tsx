@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { SiteShell } from "../../../components/ui";
 import {
@@ -21,6 +22,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const fetchPublicListingDetail = cache((id: string) =>
+  fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`)
+);
+
 type ListingDetailPageProps = {
   params: Promise<{
     id: string;
@@ -29,7 +34,7 @@ type ListingDetailPageProps = {
 
 export async function generateMetadata({ params }: ListingDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const result = await fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`);
+  const result = await fetchPublicListingDetail(id);
 
   if (!result.ok) {
     return buildNoIndexMetadata(
@@ -43,7 +48,7 @@ export async function generateMetadata({ params }: ListingDetailPageProps): Prom
 
 export default async function ListingDetailPage({ params }: ListingDetailPageProps) {
   const { id } = await params;
-  const result = await fetchApi<ListingDetailPayload>(`/api/v1/listings/${id}`);
+  const result = await fetchPublicListingDetail(id);
 
   if (!result.ok) {
     if (result.error.code === "NOT_FOUND") {

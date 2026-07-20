@@ -1,20 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 type ListingImageFrameProps = {
   alt: string;
   apiBaseUrl?: string;
   className?: string;
   fallbackLabel?: string;
+  fetchPriority?: "high" | "low" | "auto";
+  loading?: "eager" | "lazy";
+  sizes?: string;
   url: string | null;
 };
 
-export function ListingImageFrame({
+export const ListingImageFrame = memo(function ListingImageFrame({
   alt,
   apiBaseUrl,
   className = "",
   fallbackLabel = "Görsel yok",
+  fetchPriority = "auto",
+  loading = "lazy",
+  sizes,
   url
 }: ListingImageFrameProps) {
   const [hasError, setHasError] = useState(false);
@@ -37,13 +43,15 @@ export function ListingImageFrame({
       <img
         src={safeUrl}
         alt={alt}
-        loading="lazy"
         decoding="async"
+        fetchPriority={fetchPriority}
+        loading={loading}
+        sizes={sizes}
         onError={() => setHasError(true)}
       />
     </div>
   );
-}
+});
 
 function getSafeImageUrl(url: string | null, apiBaseUrl?: string): string | null {
   if (!url) {

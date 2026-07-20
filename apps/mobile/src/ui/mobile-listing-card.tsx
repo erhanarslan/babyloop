@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { ReactNode } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { memo, type ReactNode } from "react";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { MobileCard, MobileChip } from "./mobile-primitives";
 import type { MobileListingCardChip } from "./mobile-listing-card-model";
@@ -22,7 +22,7 @@ type MobileListingCardProps = {
   variant?: "horizontal" | "vertical";
 };
 
-export function MobileListingCard({
+export const MobileListingCard = memo(function MobileListingCard({
   accessibilityLabel,
   actions,
   chips = [],
@@ -42,6 +42,9 @@ export function MobileListingCard({
         {imageUrl ? (
           <Image
             accessibilityLabel={imageLabel}
+            fadeDuration={0}
+            progressiveRenderingEnabled={Platform.OS === "android"}
+            resizeMethod={Platform.OS === "android" ? "resize" : "auto"}
             resizeMode="cover"
             source={{ cache: "force-cache", uri: imageUrl }}
             style={variant === "vertical" ? styles.verticalImage : styles.horizontalImage}
@@ -124,7 +127,7 @@ export function MobileListingCard({
       {content}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

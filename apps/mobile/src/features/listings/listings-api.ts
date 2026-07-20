@@ -67,6 +67,7 @@ export type FetchMobileListingsParams = {
   priceMax?: string;
   priceMin?: string;
   includeTotal?: boolean;
+  imageLimit?: number;
 };
 
 
@@ -118,6 +119,7 @@ export async function fetchMobileListingsPage(
 
 export function buildMobileListingsQuery(params: FetchMobileListingsParams = {}): URLSearchParams {
   const query = new URLSearchParams({
+    imageLimit: String(params.imageLimit ?? 1),
     limit: String(params.limit ?? 20),
     offset: String(params.offset ?? 0),
     sort: "newest"

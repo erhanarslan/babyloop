@@ -80,6 +80,18 @@ afterAll(() => {
 });
 
 describe("listings API", () => {
+  it("marks stable category reference data as cacheable", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/categories"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe(
+      "public, max-age=300, stale-while-revalidate=3600"
+    );
+  });
+
   it("publicly lists active listings", async () => {
     const seller = await createUser(app);
     const listing = await createListing(app, seller.accessToken);
@@ -97,6 +109,50 @@ describe("listings API", () => {
         })
       ])
     );
+  });
+
+  it("limits public list image descriptors without affecting listing detail galleries", async () => {
+    const seller = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+
+    await app.db.insert(listingImages).values([
+      {
+        listingId: listing.id,
+        reviewStatus: "approved",
+        sortOrder: 1,
+        url: `https://cdn.example.test/${listing.id}/preview-2.png`
+      },
+      {
+        listingId: listing.id,
+        reviewStatus: "approved",
+        sortOrder: 2,
+        url: `https://cdn.example.test/${listing.id}/preview-3.png`
+      },
+      {
+        listingId: listing.id,
+        reviewStatus: "approved",
+        sortOrder: 3,
+        url: `https://cdn.example.test/${listing.id}/preview-4.png`
+      }
+    ]);
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/listings?imageLimit=1"
+    });
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/listings/${listing.id}`
+    });
+    const listed = listResponse
+      .json()
+      .data.listings.find((item: { id: string }) => item.id === listing.id);
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listed.images).toHaveLength(1);
+    expect(listed.firstImage).toEqual(listed.images[0]);
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json().data.listing.images).toHaveLength(4);
   });
 
   it("searches active listings by title", async () => {

@@ -1,5 +1,10 @@
+import { apiGet } from "../../api/client";
 import { mobileAuthFetch } from "../auth/auth-api";
-import { createMobileListing } from "./sell-api";
+import {
+  createMobileListing,
+  fetchMobileCategories,
+  resetMobileCategoryCacheForTests
+} from "./sell-api";
 
 jest.mock("../../api/client", () => ({
   apiGet: jest.fn(),
@@ -12,10 +17,36 @@ jest.mock("../auth/auth-api", () => ({
 }));
 
 const mobileAuthFetchMock = mobileAuthFetch as jest.MockedFunction<typeof mobileAuthFetch>;
+const apiGetMock = apiGet as jest.MockedFunction<typeof apiGet>;
 
 describe("mobile sell API", () => {
   beforeEach(() => {
     mobileAuthFetchMock.mockReset();
+    apiGetMock.mockReset();
+    resetMobileCategoryCacheForTests();
+  });
+
+
+  it("coalesces category requests and reuses the short-lived category cache", async () => {
+    apiGetMock.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        categories: [
+          { id: "category-1", name: "Bebek Arabaları", parentId: null, slug: "bebek-arabalari" }
+        ]
+      }
+    });
+
+    const [first, second] = await Promise.all([
+      fetchMobileCategories(),
+      fetchMobileCategories()
+    ]);
+    const cached = await fetchMobileCategories();
+
+    expect(first).toEqual(second);
+    expect(cached).toEqual(first);
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(apiGetMock).toHaveBeenCalledWith("/api/v1/categories");
   });
 
   it("sends and preserves a paired recommended age range", async () => {
