@@ -114,3 +114,9 @@ Rollback never runs a down migration. It keeps the current schema and refuses an
 ## Final external work
 
 The repository implementation does not provision a hosting account, managed PostgreSQL, Redis, Qdrant, R2 bucket, DNS records or legal operator identity. Those real resources must be created and their secrets loaded before the first staging promotion. The Galaxy S22 release checklist and final staging GO/NO-GO remain mandatory.
+
+## Release candidate acceptance evidence
+
+Deployment smoke artık yalnızca endpoint availability kontrolü değildir. API listing/category sözleşmelerini, web/backoffice/legal yüzeylerini, güvenlik header'larını, response byte büyüklüklerini ve p50/p95 sürelerini ölçerek checksum korumalı `deployment_acceptance` kanıtı yazar.
+
+Production promotion öncesinde aynı Git SHA için staging acceptance, restore-smoke, Galaxy S22 ve gerçek provider evidence dosyalarından `pnpm release:go-no-go` ile production GO receipt üretilmelidir. `PRODUCTION_GO_NO_GO_RECEIPT_PATH` doğrulanmadan production backup, migration veya rollout başlamaz. Ayrıntılı akış `docs/89-release-candidate-acceptance-go-no-go.md` dosyasındadır.

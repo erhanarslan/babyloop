@@ -177,3 +177,7 @@ Before production go/no-go, retain:
 - migration compatibility review,
 - post-deploy health and smoke output,
 - named release owner and manual go/no-go record.
+
+## Checksum-protected restore evidence
+
+Restore smoke artık `restore_smoke` türünde Git SHA ve migration head bağlı bir evidence dosyası ile `.sha256` üretir. Production GO/NO-GO yalnızca staging acceptance ile aynı Git SHA'ya ait ve geçerlilik süresi dolmamış restore evidence kabul eder. `RESTORE_SMOKE_EVIDENCE_PATH` ile kalıcı evidence konumu belirlenir.

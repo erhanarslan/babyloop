@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "provider_release_evidence",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "environment": "staging",
+  "checks": {
+    "postgresReadWrite": false,
+    "backupReplica": false,
+    "emailDelivery": false,
+    "imageStorageUploadReadDelete": false,
+    "pushDelivery": false,
+    "qdrantRetrieval": false,
+    "redisConnectivity": false,
+    "analyticsIngest": false,
+    "notificationWorkerHeartbeat": false,
+    "childReminderWorkerHeartbeat": false,
+    "errorWebhook": false
+  },
+  "notes": "Set true only after the real staging provider smoke is observed and recorded."
+}

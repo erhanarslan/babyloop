@@ -111,12 +111,19 @@ function checkRequiredFiles() {
     "scripts/check-staging-deployment-boundary.mjs",
     "scripts/deploy/promote-release.mjs",
     "scripts/deploy/post-deploy-smoke.mjs",
+    "scripts/deploy/release-evidence-lib.mjs",
+    "scripts/deploy/sign-manual-evidence.mjs",
+    "scripts/deploy/verify-release-evidence.mjs",
+    "scripts/deploy/release-go-no-go.mjs",
     "scripts/deploy/adapters/docker-compose.mjs",
     "deploy/docker/Dockerfile",
     "deploy/compose/docker-compose.runtime.yml",
     "deploy/env/staging.env.example",
     "deploy/env/production.env.example",
     "docs/85-staging-production-deployment.md",
+    "docs/89-release-candidate-acceptance-go-no-go.md",
+    "deploy/evidence/mobile-release-evidence.example.json",
+    "deploy/evidence/provider-release-evidence.example.json",
     "apps/web/src/features/legal/legal-documents.ts",
     "apps/web/src/features/legal/legal-consent.tsx",
     "packages/database/drizzle/0044_legal_public_trust.sql"
@@ -650,6 +657,30 @@ function checkBackupRestoreEnv() {
 function checkDeploymentRuntimeEnv() {
   requireEnvValue("DEPLOY_ENVIRONMENT", target, "deployment");
   requireEnvValue("MIGRATION_ENVIRONMENT", target, "deployment");
+
+  const acceptanceSamples = numberEnv("DEPLOY_ACCEPTANCE_SAMPLES");
+  const acceptanceP95 = numberEnv("DEPLOY_ACCEPTANCE_MAX_P95_MS");
+  const acceptanceHtmlBytes = numberEnv("DEPLOY_ACCEPTANCE_MAX_HTML_BYTES");
+  const acceptanceJsonBytes = numberEnv("DEPLOY_ACCEPTANCE_MAX_JSON_BYTES");
+  const goNoGoMaxAgeHours = numberEnv("GO_NO_GO_MAX_AGE_HOURS");
+
+  for (const [key, value, minimum, maximum] of [
+    ["DEPLOY_ACCEPTANCE_SAMPLES", acceptanceSamples, 1, 10],
+    ["DEPLOY_ACCEPTANCE_MAX_P95_MS", acceptanceP95, 250, 30000],
+    ["DEPLOY_ACCEPTANCE_MAX_HTML_BYTES", acceptanceHtmlBytes, 10000, 10000000],
+    ["DEPLOY_ACCEPTANCE_MAX_JSON_BYTES", acceptanceJsonBytes, 1000, 5000000],
+    ["GO_NO_GO_MAX_AGE_HOURS", goNoGoMaxAgeHours, 1, 168]
+  ]) {
+    if (value === null || !Number.isInteger(value) || value < minimum || value > maximum) {
+      error("deployment", `${key} must be an integer between ${minimum} and ${maximum}.`);
+    }
+  }
+
+  requireEnv("DEPLOY_ACCEPTANCE_EVIDENCE_PATH", "deployment");
+  if (target === "production") {
+    requireEnvValue("DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE", "true", "deployment");
+    requireEnv("PRODUCTION_GO_NO_GO_RECEIPT_PATH", "deployment");
+  }
 
   for (const key of [
     "NOTIFICATION_WORKER_INTERVAL_SECONDS",

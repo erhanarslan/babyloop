@@ -37,6 +37,19 @@ const commandEnv = mergedEnvironment(loaded.values, {
 
 await runCommand("docker", ["compose", "--env-file", loaded.path, "-f", composeFile, "config", "--quiet"], { env: commandEnv });
 
+if (environment === "production") {
+  const gitResult = await runCommand("git", ["rev-parse", "HEAD"], { capture: true, env: commandEnv });
+  const gitSha = gitResult.stdout.trim();
+  const goNoGoPath = required(commandEnv.PRODUCTION_GO_NO_GO_RECEIPT_PATH, "PRODUCTION_GO_NO_GO_RECEIPT_PATH");
+  await runCommand(process.execPath, [
+    "scripts/deploy/verify-release-evidence.mjs",
+    `--path=${goNoGoPath}`,
+    "--kind=production_go_no_go",
+    `--git-sha=${gitSha}`,
+    `--max-age-hours=${commandEnv.GO_NO_GO_MAX_AGE_HOURS || "72"}`
+  ], { env: commandEnv });
+}
+
 const backupResult = await runCommand(process.execPath, ["scripts/ops/postgres-backup.mjs"], { capture: true, env: commandEnv });
 const backup = JSON.parse(backupResult.stdout);
 const readinessEnv = {
@@ -59,7 +72,10 @@ const releaseManifest = JSON.parse(manifestResult.stdout);
 
 await runCommand("docker", ["compose", "--env-file", loaded.path, "-f", composeFile, "--profile", "release", "run", "--rm", "migrate"], { env: commandEnv });
 await runCommand("docker", ["compose", "--env-file", loaded.path, "-f", composeFile, "up", "-d", "--remove-orphans", "api", "web", "backoffice", "notification-worker", "child-reminder-worker"], { env: commandEnv });
-const smokeResult = await runCommand(process.execPath, ["scripts/deploy/post-deploy-smoke.mjs"], { capture: true, env: commandEnv });
+const smokeResult = await runCommand(process.execPath, ["scripts/deploy/post-deploy-smoke.mjs"], {
+  capture: true,
+  env: { ...commandEnv, DEPLOY_RELEASE_MANIFEST_PATH: releaseManifest.manifestPath }
+});
 const smoke = JSON.parse(smokeResult.stdout);
 
 const receiptPath = resolve(process.env.DEPLOY_RECEIPT_PATH || `.release/deployments/${environment}-${timestampForFile()}.json`);

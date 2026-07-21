@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "kind": "mobile_release_evidence",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "device": "Samsung Galaxy S22",
+  "osVersion": "REPLACE_WITH_ANDROID_VERSION",
+  "buildId": "REPLACE_WITH_EAS_OR_APK_BUILD_ID",
+  "tester": "REPLACE_WITH_TESTER_NAME",
+  "checks": {
+    "coldStart": false,
+    "passwordLogin": false,
+    "mfaOtp": false,
+    "loginApprovalPush": false,
+    "sessionRevocation": false,
+    "listingBrowsePagination": false,
+    "listingCreateEditImages": false,
+    "favorites": false,
+    "messagingRealtime": false,
+    "notificationReadState": false,
+    "childNotebookReminder": false,
+    "assistantSafety": false,
+    "basketCheckoutSimulation": false,
+    "backgroundForegroundRecovery": false,
+    "longScrollMemory": false
+  },
+  "notes": "Replace every placeholder and set a check to true only after observing it on the stated build and device."
+}

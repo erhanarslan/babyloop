@@ -590,3 +590,7 @@ Run `pnpm security:legal-public-trust` and the deployment readiness gate. `EXPO_
 ## Deployment runtime wiring
 
 The deployment readiness gate must be followed by `pnpm security:staging-deployment`. Real untracked environment material is based on `deploy/env/staging.env.example` or `deploy/env/production.env.example`. Release images must be immutable digest-pinned references. Use `scripts/deploy/promote-release.mjs`; do not run migrations from API startup. See `docs/85-staging-production-deployment.md`.
+
+## Release candidate acceptance and GO/NO-GO
+
+Staging ve production env dosyalarında deployment acceptance örnek sayısı, p95/response-size eşikleri ve evidence yolu tanımlanmalıdır. Production için `DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE=true` ve checksum korumalı `PRODUCTION_GO_NO_GO_RECEIPT_PATH` zorunludur. GO receipt aynı Git SHA için staging acceptance, restore smoke, Galaxy S22 ve provider smoke evidence dosyalarından üretilir.

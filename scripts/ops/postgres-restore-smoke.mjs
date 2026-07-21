@@ -1,14 +1,17 @@
 #!/usr/bin/env node
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   createPgEnvironment,
   deriveDatabaseUrl,
   parsePostgresUrl,
   runCommand,
-  sanitizeFileSegment
+  sanitizeFileSegment,
+  timestampForFile
 } from "./postgres-ops-lib.mjs";
+import { writeJsonReceipt } from "../deploy/deployment-lib.mjs";
+import { RELEASE_EVIDENCE_SCHEMA_VERSION } from "../deploy/release-evidence-lib.mjs";
 
 const sourceUrl = process.env.TEST_DATABASE_URL;
 if (!sourceUrl) {
@@ -65,11 +68,27 @@ try {
     quiet: true
   });
 
-  process.stdout.write(`${JSON.stringify({
+  const gitSha = await resolveGitSha();
+  const migrationHead = await resolveMigrationHead();
+  const createdAt = new Date().toISOString();
+  const evidencePath = resolve((process.env.RESTORE_SMOKE_EVIDENCE_PATH || process.env.BACKUP_RESTORE_SMOKE_EVIDENCE)
+    || `.release/evidence/restore-smoke-${timestampForFile(new Date(createdAt))}-${gitSha.slice(0, 12)}.json`);
+  const evidence = {
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "restore_smoke",
+    status: "passed",
+    createdAt,
+    gitSha,
+    migrationHead,
     backupChecksum: backupResult.sha256,
     sourceDatabase: source.databaseName,
-    status: "passed",
     targetDatabase: targetDatabaseName
+  };
+  const receipt = await writeJsonReceipt(evidencePath, evidence);
+  process.stdout.write(`${JSON.stringify({
+    ...evidence,
+    evidencePath: receipt.path,
+    checksum: receipt.checksum
   }, null, 2)}\n`);
 } catch (error) {
   fail(error instanceof Error ? error.message : "Restore smoke failed.");
@@ -81,6 +100,18 @@ try {
     }).catch(() => undefined);
   }
   await rm(workDirectory, { force: true, recursive: true });
+}
+
+async function resolveGitSha() {
+  const result = await runCommand("git", ["rev-parse", "HEAD"], { quiet: true });
+  const value = result.stdout.trim();
+  if (!/^[a-f0-9]{40}$/u.test(value)) throw new Error("Unable to resolve a full git SHA for restore evidence.");
+  return value;
+}
+
+async function resolveMigrationHead() {
+  const journal = JSON.parse(await readFile("packages/database/drizzle/meta/_journal.json", "utf8"));
+  return journal.entries?.at(-1)?.tag || "unknown";
 }
 
 function fail(message) {

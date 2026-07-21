@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-import { assertEnvironment, loadEnvFile, required } from "./deployment-lib.mjs";
+import { Buffer } from "node:buffer";
+import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
+import { readReleaseManifest } from "../ops/release-ops-lib.mjs";
+import { assertEnvironment, loadEnvFile, required, runCommand, timestampForFile, writeJsonReceipt } from "./deployment-lib.mjs";
+import { RELEASE_EVIDENCE_SCHEMA_VERSION, summarizeSamples } from "./release-evidence-lib.mjs";
 
 const envFile = required(process.env.DEPLOY_ENV_FILE, "DEPLOY_ENV_FILE");
 const { values } = await loadEnvFile(envFile);
@@ -10,16 +15,112 @@ const backofficeUrl = stripTrailingSlash(process.env.DEPLOY_BACKOFFICE_URL || va
 const metricsToken = process.env.OBSERVABILITY_METRICS_TOKEN || values.OBSERVABILITY_METRICS_TOKEN;
 const attempts = readInteger("DEPLOY_SMOKE_ATTEMPTS", 18, 1, 60);
 const delayMs = readInteger("DEPLOY_SMOKE_DELAY_MS", 5000, 500, 30000);
-const timeoutMs = readInteger("DEPLOY_SMOKE_TIMEOUT_MS", 6000, 500, 20000);
+const timeoutMs = readInteger("DEPLOY_SMOKE_TIMEOUT_MS", 8000, 500, 30000);
+const sampleCount = readInteger("DEPLOY_ACCEPTANCE_SAMPLES", 3, 1, 10);
+const maxP95Ms = readInteger("DEPLOY_ACCEPTANCE_MAX_P95_MS", environment === "production" ? 2500 : 4000, 250, 30000);
+const maxHtmlBytes = readInteger("DEPLOY_ACCEPTANCE_MAX_HTML_BYTES", 2_000_000, 10_000, 10_000_000);
+const maxJsonBytes = readInteger("DEPLOY_ACCEPTANCE_MAX_JSON_BYTES", 750_000, 1_000, 5_000_000);
+const enforcePerformance = readBoolean("DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE", environment === "production");
 
 for (const [name, value] of [["api", apiUrl], ["web", webUrl], ["backoffice", backofficeUrl]]) {
   if (!value || !value.startsWith("https://")) throw new Error(`${name} smoke URL must use HTTPS.`);
 }
 
-await waitFor("api-liveness", `${apiUrl}/health/live`, { attempts, delayMs, timeoutMs, validate: (body) => body?.live === true });
-await waitFor("api-readiness", `${apiUrl}/health/ready`, { attempts, delayMs, timeoutMs, validate: (body) => body?.ready === true });
-await waitFor("web", webUrl, { attempts, delayMs, timeoutMs, parseJson: false });
-await waitFor("backoffice", backofficeUrl, { attempts, delayMs, timeoutMs, parseJson: false });
+const release = await resolveRelease();
+const probes = {};
+const warnings = [];
+
+await waitFor("api-liveness", `${apiUrl}/health/live`, {
+  attempts,
+  delayMs,
+  timeoutMs,
+  parseJson: true,
+  validate: ({ body }) => body?.live === true
+});
+await waitFor("api-readiness", `${apiUrl}/health/ready`, {
+  attempts,
+  delayMs,
+  timeoutMs,
+  parseJson: true,
+  validate: ({ body }) => body?.ready === true
+});
+
+const performanceProbes = [
+  {
+    name: "api-liveness",
+    url: `${apiUrl}/health/live`,
+    kind: "json",
+    validate: ({ body }) => body?.live === true
+  },
+  {
+    name: "api-readiness",
+    url: `${apiUrl}/health/ready`,
+    kind: "json",
+    validate: ({ body }) => body?.ready === true
+  },
+  {
+    name: "api-categories",
+    url: `${apiUrl}/api/v1/categories`,
+    kind: "json",
+    validate: ({ body, headers }) => body?.ok === true && Array.isArray(body?.data?.categories)
+      && String(headers["cache-control"] || "").includes("max-age=300")
+  },
+  {
+    name: "api-listings",
+    url: `${apiUrl}/api/v1/listings?hasImages=true&imageLimit=1&includeTotal=false&limit=20&offset=0&sort=newest`,
+    kind: "json",
+    validate: ({ body }) => body?.ok === true && Array.isArray(body?.data?.listings)
+      && body?.data?.pagination?.total === null
+  },
+  {
+    name: "web-home",
+    url: webUrl,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"]
+  },
+  {
+    name: "web-browse",
+    url: `${webUrl}/browse`,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"]
+  },
+  {
+    name: "backoffice",
+    url: backofficeUrl,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"]
+  }
+];
+
+for (const definition of performanceProbes) {
+  probes[definition.name] = await sampleProbe(definition, sampleCount);
+  const byteLimit = definition.kind === "html" ? maxHtmlBytes : maxJsonBytes;
+  if (probes[definition.name].summary.p95Ms > maxP95Ms) {
+    warnings.push(`${definition.name} p95 ${probes[definition.name].summary.p95Ms}ms exceeds ${maxP95Ms}ms.`);
+  }
+  if (probes[definition.name].summary.maxBytes > byteLimit) {
+    warnings.push(`${definition.name} response ${probes[definition.name].summary.maxBytes} bytes exceeds ${byteLimit}.`);
+  }
+}
+
+const contractProbes = [
+  ["web-privacy", `${webUrl}/legal/privacy`],
+  ["web-kvkk", `${webUrl}/legal/kvkk`],
+  ["web-terms", `${webUrl}/legal/terms`],
+  ["web-cookies", `${webUrl}/legal/cookies`],
+  ["web-ai-notice", `${webUrl}/legal/ai-notice`],
+  ["web-marketplace", `${webUrl}/legal/marketplace`],
+  ["web-data-deletion", `${webUrl}/legal/data-deletion`],
+  ["web-support", `${webUrl}/support/contact`]
+];
+for (const [name, url] of contractProbes) {
+  probes[name] = await sampleProbe({
+    name,
+    url,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"]
+  }, 1);
+}
 
 if (metricsToken) {
   const metrics = await request(`${apiUrl}/internal/metrics`, {
@@ -28,26 +129,119 @@ if (metricsToken) {
     parseJson: false
   });
   if (!metrics.text.includes("babyloop_")) throw new Error("Metrics endpoint returned no BabyLoop metrics.");
+  probes.metrics = {
+    samples: [publicSample(metrics)],
+    summary: summarizeSamples([metrics]),
+    url: `${apiUrl}/internal/metrics`
+  };
 }
 
-process.stdout.write(`${JSON.stringify({
+if (warnings.length > 0 && enforcePerformance) {
+  throw new Error(`Deployment acceptance performance thresholds failed:\n- ${warnings.join("\n- ")}`);
+}
+
+const createdAt = new Date().toISOString();
+const evidencePath = resolve(process.env.DEPLOY_ACCEPTANCE_EVIDENCE_PATH
+  || `.release/evidence/${environment}-acceptance-${timestampForFile(new Date(createdAt))}.json`);
+const evidence = {
+  schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+  kind: "deployment_acceptance",
+  status: "passed",
+  createdAt,
   environment,
-  ok: true,
-  checkedAt: new Date().toISOString(),
+  gitSha: release.gitSha,
+  release,
   endpoints: { api: apiUrl, web: webUrl, backoffice: backofficeUrl },
-  metricsChecked: Boolean(metricsToken)
+  thresholds: {
+    enforcePerformance,
+    maxHtmlBytes,
+    maxJsonBytes,
+    maxP95Ms,
+    sampleCount
+  },
+  metricsChecked: Boolean(metricsToken),
+  probes,
+  warnings
+};
+
+
+const receipt = await writeJsonReceipt(evidencePath, evidence);
+process.stdout.write(`${JSON.stringify({
+  ok: true,
+  environment,
+  evidencePath: receipt.path,
+  checksum: receipt.checksum,
+  gitSha: release.gitSha,
+  releaseId: release.releaseId,
+  warnings
 }, null, 2)}\n`);
+
+async function resolveRelease() {
+  const manifestPath = process.env.DEPLOY_RELEASE_MANIFEST_PATH;
+  if (manifestPath) {
+    const { manifest } = await readReleaseManifest(manifestPath, { requireChecksum: true });
+    return {
+      manifestPath: resolve(manifestPath),
+      releaseId: manifest.releaseId,
+      gitSha: manifest.gitSha,
+      migrationHead: manifest.database.migrationHead
+    };
+  }
+  const gitSha = process.env.RELEASE_GIT_SHA || (await readGitHead());
+  return {
+    manifestPath: null,
+    releaseId: `${environment}-standalone-${gitSha.slice(0, 12)}`,
+    gitSha,
+    migrationHead: "unknown"
+  };
+}
+
+async function readGitHead() {
+  const result = await runCommand("git", ["rev-parse", "HEAD"], { capture: true });
+  const value = result.stdout.trim();
+  if (!/^[a-f0-9]{40}$/u.test(value)) throw new Error("Unable to resolve git SHA for deployment acceptance.");
+  return value;
+}
+
+async function sampleProbe(definition, count) {
+  const samples = [];
+  for (let index = 0; index < count; index += 1) {
+    const result = await request(definition.url, {
+      timeoutMs,
+      parseJson: definition.kind === "json"
+    });
+    if (definition.validate && !definition.validate(result)) {
+      throw new Error(`${definition.name} response contract failed.`);
+    }
+    for (const header of definition.requiredHeaders || []) {
+      if (!result.headers[header]) throw new Error(`${definition.name} is missing ${header}.`);
+    }
+    const contentType = result.headers["content-type"] || "";
+    if (definition.kind === "json" && !contentType.includes("application/json")) {
+      throw new Error(`${definition.name} did not return application/json.`);
+    }
+    if (definition.kind === "html" && !contentType.includes("text/html")) {
+      throw new Error(`${definition.name} did not return text/html.`);
+    }
+    samples.push(result);
+  }
+  return {
+    url: definition.url,
+    samples: samples.map(publicSample),
+    summary: summarizeSamples(samples)
+  };
+}
 
 async function waitFor(name, url, options) {
   let lastError;
   for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
     try {
       const result = await request(url, options);
-      if (options.validate && !options.validate(result.body)) throw new Error(`${name} response contract failed.`);
+      if (options.validate && !options.validate(result)) throw new Error(`${name} response contract failed.`);
       return result;
     } catch (error) {
       lastError = error;
-      if (attempt < options.attempts) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+      if (attempt < options.attempts) await new Promise((resolvePromise) => setTimeout(resolvePromise, options.delayMs));
     }
   }
   throw new Error(`${name} smoke failed after ${options.attempts} attempts: ${lastError instanceof Error ? lastError.message : "unknown"}`);
@@ -56,24 +250,60 @@ async function waitFor(name, url, options) {
 async function request(url, options) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs);
+  const startedAt = performance.now();
   try {
-    const response = await fetch(url, { headers: options.headers, redirect: "manual", signal: controller.signal });
-    if (response.status >= 500 || response.status === 401 || response.status === 403 || response.status === 404) {
-      throw new Error(`${url} returned ${response.status}.`);
-    }
+    const response = await fetch(url, {
+      headers: options.headers,
+      redirect: "follow",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`${url} returned ${response.status}.`);
     const text = await response.text();
     let body = null;
     if (options.parseJson !== false) {
       try { body = JSON.parse(text); } catch { throw new Error(`${url} did not return JSON.`); }
     }
-    return { body, status: response.status, text };
+    return {
+      body,
+      bytes: Buffer.byteLength(text),
+      durationMs: performance.now() - startedAt,
+      finalUrl: response.url,
+      headers: Object.fromEntries(response.headers.entries()),
+      status: response.status,
+      text
+    };
   } finally {
     clearTimeout(timer);
   }
+}
+
+function publicSample(result) {
+  return {
+    bytes: result.bytes,
+    durationMs: Math.round(result.durationMs * 100) / 100,
+    finalUrl: result.finalUrl,
+    status: result.status,
+    headers: pickHeaders(result.headers)
+  };
+}
+
+function pickHeaders(headers) {
+  const result = {};
+  for (const key of ["cache-control", "content-security-policy", "content-type", "etag", "strict-transport-security", "x-content-type-options"]) {
+    if (headers[key]) result[key] = headers[key];
+  }
+  return result;
 }
 
 function stripTrailingSlash(value) { return String(value || "").trim().replace(/\/+$/u, ""); }
 function readInteger(name, fallback, minimum, maximum) {
   const parsed = Number.parseInt(process.env[name] ?? "", 10);
   return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
+}
+function readBoolean(name, fallback) {
+  const value = String(process.env[name] ?? "").trim().toLowerCase();
+  if (!value) return fallback;
+  if (["1", "true", "yes"].includes(value)) return true;
+  if (["0", "false", "no"].includes(value)) return false;
+  throw new Error(`${name} must be true or false.`);
 }
