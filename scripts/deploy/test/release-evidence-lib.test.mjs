@@ -6,6 +6,7 @@ import test from "node:test";
 import { writeJsonReceipt } from "../deployment-lib.mjs";
 import {
   MOBILE_RELEASE_CHECKS,
+  PROVIDER_PROBE_CHECKS,
   PROVIDER_RELEASE_CHECKS,
   RELEASE_EVIDENCE_SCHEMA_VERSION,
   assertEvidence,
@@ -89,6 +90,74 @@ test("accepts complete mobile and provider manual evidence", () => {
     environment: "staging",
     checks: Object.fromEntries(PROVIDER_RELEASE_CHECKS.map((name) => [name, true]))
   }).kind, "provider_release_evidence");
+});
+
+
+test("accepts runtime audit, staging bootstrap and live provider probe evidence", () => {
+  assert.equal(assertEvidence({
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "container_image_manifest",
+    status: "ready",
+    createdAt: new Date().toISOString(),
+    gitSha,
+    environment: "staging",
+    images: {
+      api: `ghcr.io/example/api@sha256:${"a".repeat(64)}`,
+      web: `ghcr.io/example/web@sha256:${"b".repeat(64)}`,
+      backoffice: `ghcr.io/example/backoffice@sha256:${"c".repeat(64)}`
+    }
+  }).kind, "container_image_manifest");
+
+  assert.equal(assertEvidence({
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "runtime_env_audit",
+    status: "passed",
+    createdAt: new Date().toISOString(),
+    gitSha,
+    environment: "staging",
+    contractSha256: "c".repeat(64),
+    sourceEnvFile: "staging.runtime.env",
+    keyCount: 80,
+    secretKeyCount: 12,
+    configuredProviders: ["s3-r2"],
+    publicOrigins: ["https://staging.babyloop.test"],
+    warnings: []
+  }).kind, "runtime_env_audit");
+
+  assert.equal(assertEvidence({
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "staging_bootstrap_plan",
+    status: "ready",
+    createdAt: new Date().toISOString(),
+    gitSha,
+    environment: "staging",
+    runtimeEnvAudit: { path: "/tmp/audit.json", sha256: "d".repeat(64) },
+    imageManifest: { path: "/tmp/images.json", sha256: "9".repeat(64) },
+    images: {
+      api: `ghcr.io/example/api@sha256:${"a".repeat(64)}`,
+      web: `ghcr.io/example/web@sha256:${"b".repeat(64)}`,
+      backoffice: `ghcr.io/example/backoffice@sha256:${"c".repeat(64)}`
+    },
+    domains: {
+      web: "staging.babyloop.test",
+      api: "api.staging.babyloop.test",
+      backoffice: "admin.staging.babyloop.test"
+    },
+    composeSha256: "e".repeat(64),
+    proxySha256: "f".repeat(64)
+  }).kind, "staging_bootstrap_plan");
+
+  assert.equal(assertEvidence({
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "provider_probe_evidence",
+    status: "passed",
+    mode: "live",
+    createdAt: new Date().toISOString(),
+    gitSha,
+    environment: "staging",
+    checks: Object.fromEntries(PROVIDER_PROBE_CHECKS.map((name) => [name, true])),
+    results: {}
+  }).kind, "provider_probe_evidence");
 });
 
 function deploymentAcceptance(overrides = {}) {

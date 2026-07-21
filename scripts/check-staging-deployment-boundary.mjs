@@ -9,12 +9,24 @@ const requiredFiles = [
   "deploy/compose/docker-compose.runtime.yml",
   "deploy/env/staging.env.example",
   "deploy/env/production.env.example",
+  "deploy/env/staging.release.env.example",
+  "deploy/env/runtime-env.contract.json",
   "deploy/proxy/Caddyfile.example",
   "scripts/deploy/deployment-lib.mjs",
   "scripts/deploy/worker-loop.mjs",
   "scripts/deploy/post-deploy-smoke.mjs",
   "scripts/deploy/promote-release.mjs",
   "scripts/deploy/adapters/docker-compose.mjs",
+  "scripts/deploy/assemble-image-manifest.mjs",
+  "scripts/deploy/runtime-env-lib.mjs",
+  "scripts/deploy/audit-runtime-env.mjs",
+  "scripts/deploy/check-runtime-env-readiness.mjs",
+  "scripts/deploy/create-staging-bootstrap-plan.mjs",
+  "scripts/deploy/execute-staging-deploy.mjs",
+  "scripts/deploy/provider-probe.mjs",
+  "scripts/deploy/render-compose-plan.mjs",
+  "scripts/check-manual-workflow-triggers.mjs",
+  "scripts/check-deployment-command-safety.mjs",
   "apps/api/src/scripts/migrate-database.ts",
   "docs/85-staging-production-deployment.md"
 ];
@@ -58,10 +70,19 @@ if (problems.length === 0) {
     "dist/scripts/migrate-database.js",
     "worker-loop.mjs",
     "/health/ready",
-    "stop_grace_period"
+    "stop_grace_period",
+    "pids_limit:",
+    "max-size: \"10m\"",
+    "API_BIND_ADDRESS",
+    "DEPLOY_GIT_SHA"
   ];
   for (const token of composeTokens) must("deploy/compose/docker-compose.runtime.yml", token);
+  must("deploy/compose/docker-compose.runtime.yml", "MIGRATION_CONFIRM: ${MIGRATION_CONFIRM:-}");
+  mustNot("deploy/compose/docker-compose.runtime.yml", "MIGRATION_CONFIRM is required");
   mustNot("deploy/compose/docker-compose.runtime.yml", ":latest");
+  for (const token of ["loadEnvFile", "DEPLOY_ENV_FILE: loaded.path", "MIGRATION_CONFIRM: \"\"", "\"config\", \"--quiet\""]) {
+    must("scripts/deploy/render-compose-plan.mjs", token);
+  }
 
   for (const file of ["deploy/env/staging.env.example", "deploy/env/production.env.example"]) {
     for (const token of [
@@ -76,6 +97,13 @@ if (problems.length === 0) {
   }
 
   for (const token of [
+    "Strict-Transport-Security",
+    "X-Content-Type-Options",
+    "X-Robots-Tag",
+    "output stdout"
+  ]) must("deploy/proxy/Caddyfile.example", token);
+
+  for (const token of [
     "postgres-backup.mjs",
     "check-deployment-readiness.mjs",
     "release-manifest.mjs",
@@ -87,6 +115,9 @@ if (problems.length === 0) {
   for (const token of ["SIGTERM", "shell: false", "worker_loop_cycle_completed"]) {
     must("scripts/deploy/worker-loop.mjs", token);
   }
+
+  must("scripts/deploy/promote-release.mjs", "MIGRATION_CONFIRM: `APPLY_${environment.toUpperCase()}`");
+  must("apps/api/src/scripts/migrate-database.ts", "if (process.env.MIGRATION_CONFIRM !== expected)");
 
   for (const token of [
     "pg_advisory_lock",
@@ -106,6 +137,12 @@ if (problems.length === 0) {
   must("apps/backoffice/next.config.mjs", "NEXT_PUBLIC_API_BASE_URL");
   must(".github/workflows/container-images.yml", "docker/build-push-action@v6");
   must(".github/workflows/container-images.yml", "steps.build.outputs.digest");
+  must(".github/workflows/container-images.yml", "actions/upload-artifact@v4");
+  must(".github/workflows/container-images.yml", "assemble-image-manifest.mjs");
+  must("scripts/check-manual-workflow-triggers.mjs", "workflow_dispatch");
+  must("scripts/check-manual-workflow-triggers.mjs", "disallowed top-level trigger(s)");
+  must("scripts/check-deployment-command-safety.mjs", "stripJavaScriptNonCode");
+  must("scripts/check-deployment-command-safety.mjs", "inspectShellSource");
   mustAppearInOrder("scripts/deploy/promote-release.mjs", [
     'runCommand("docker", ["compose"',
     '"scripts/ops/postgres-backup.mjs"',
@@ -121,7 +158,14 @@ if (problems.length === 0) {
     "scripts/deploy/deployment-lib.mjs",
     "scripts/deploy/promote-release.mjs",
     "scripts/deploy/adapters/docker-compose.mjs",
-    "scripts/deploy/worker-loop.mjs"
+    "scripts/deploy/worker-loop.mjs",
+    "scripts/deploy/assemble-image-manifest.mjs",
+    "scripts/deploy/runtime-env-lib.mjs",
+    "scripts/deploy/audit-runtime-env.mjs",
+    "scripts/deploy/create-staging-bootstrap-plan.mjs",
+    "scripts/deploy/execute-staging-deploy.mjs",
+    "scripts/deploy/provider-probe.mjs",
+    "scripts/deploy/render-compose-plan.mjs"
   ]) {
     mustNot(file, "shell: true");
   }
@@ -133,7 +177,17 @@ if (problems.length === 0) {
     "test:deploy",
     "deploy:promote",
     "deploy:smoke",
-    "deploy:images:plan"
+    "deploy:compose:plan",
+    "deploy:images:plan",
+    "deploy:images:manifest",
+    "deploy:runtime-env:audit",
+    "deploy:runtime-env:readiness",
+    "deploy:staging:plan",
+    "deploy:staging:execute",
+    "deploy:providers:probe",
+    "security:staging-bootstrap",
+    "security:manual-workflows",
+    "security:deployment-command-safety"
   ]) {
     if (!scripts[name]) problems.push(`package.json is missing ${name}.`);
   }

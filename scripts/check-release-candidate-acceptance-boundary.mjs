@@ -11,6 +11,17 @@ const requiredFiles = [
   "scripts/deploy/test/release-go-no-go.test.mjs",
   "deploy/evidence/mobile-release-evidence.example.json",
   "deploy/evidence/provider-release-evidence.example.json",
+  "deploy/evidence/container-image-manifest.example.json",
+  "deploy/evidence/runtime-env-audit.example.json",
+  "deploy/evidence/staging-bootstrap-plan.example.json",
+  "deploy/evidence/provider-probe-evidence.example.json",
+  "scripts/deploy/assemble-image-manifest.mjs",
+  "scripts/deploy/runtime-env-lib.mjs",
+  "scripts/deploy/audit-runtime-env.mjs",
+  "scripts/deploy/check-runtime-env-readiness.mjs",
+  "scripts/deploy/create-staging-bootstrap-plan.mjs",
+  "scripts/deploy/provider-probe.mjs",
+  "scripts/check-deployment-command-safety.mjs",
   "scripts/release-candidate-preflight.sh",
   "docs/89-release-candidate-acceptance-go-no-go.md"
 ];
@@ -51,6 +62,9 @@ if (problems.length === 0) {
   ]) must("scripts/deploy/post-deploy-smoke.mjs", token);
 
   for (const token of [
+    "GO_NO_GO_RUNTIME_ENV_AUDIT_PATH",
+    "GO_NO_GO_BOOTSTRAP_PLAN_PATH",
+    "GO_NO_GO_PROVIDER_PROBE_PATH",
     "GO_NO_GO_STAGING_ACCEPTANCE_PATH",
     "GO_NO_GO_RESTORE_SMOKE_PATH",
     "GO_NO_GO_MOBILE_EVIDENCE_PATH",
@@ -88,11 +102,19 @@ if (problems.length === 0) {
       "DEPLOY_ACCEPTANCE_MAX_HTML_BYTES=",
       "DEPLOY_ACCEPTANCE_MAX_JSON_BYTES=",
       "DEPLOY_ACCEPTANCE_EVIDENCE_PATH=",
-      "GO_NO_GO_MAX_AGE_HOURS="
+      "GO_NO_GO_MAX_AGE_HOURS=",
+      "RUNTIME_ENV_AUDIT_EVIDENCE_PATH=",
+      "PROVIDER_PROBE_EVIDENCE_PATH="
     ]) must(file, token);
   }
   must("deploy/env/production.env.example", "DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE=true");
   must("deploy/env/production.env.example", "PRODUCTION_GO_NO_GO_RECEIPT_PATH=");
+  must("deploy/env/staging.env.example", "STAGING_BOOTSTRAP_PLAN_PATH=");
+  for (const token of [
+    "GO_NO_GO_RUNTIME_ENV_AUDIT_PATH=",
+    "GO_NO_GO_BOOTSTRAP_PLAN_PATH=",
+    "GO_NO_GO_PROVIDER_PROBE_PATH="
+  ]) must("deploy/env/production.env.example", token);
 
   const packageData = JSON.parse(read("package.json"));
   for (const name of [
@@ -102,7 +124,13 @@ if (problems.length === 0) {
     "release:go-no-go",
     "test:release-evidence",
     "security:release-candidate-acceptance",
-    "release:candidate:preflight"
+    "release:candidate:preflight",
+    "deploy:images:manifest",
+    "deploy:runtime-env:audit",
+    "deploy:runtime-env:readiness",
+    "deploy:staging:plan",
+    "deploy:providers:probe",
+    "security:staging-bootstrap"
   ]) {
     if (!packageData.scripts?.[name]) problems.push(`package.json is missing ${name}.`);
   }
@@ -111,15 +139,21 @@ if (problems.length === 0) {
   }
 
   must(".github/workflows/ci.yml", "workflow_dispatch:");
-  mustNot(".github/workflows/ci.yml", "pull_request:");
-  mustNot(".github/workflows/ci.yml", "push:");
+  must("scripts/check-manual-workflow-triggers.mjs", "workflow_dispatch");
+  must("scripts/check-manual-workflow-triggers.mjs", "disallowed top-level trigger(s)");
+  must("scripts/check-deployment-command-safety.mjs", "shell execution with shell: true");
 
   for (const file of [
     "scripts/deploy/release-evidence-lib.mjs",
     "scripts/deploy/post-deploy-smoke.mjs",
     "scripts/deploy/sign-manual-evidence.mjs",
     "scripts/deploy/verify-release-evidence.mjs",
-    "scripts/deploy/release-go-no-go.mjs"
+    "scripts/deploy/release-go-no-go.mjs",
+    "scripts/deploy/assemble-image-manifest.mjs",
+    "scripts/deploy/runtime-env-lib.mjs",
+    "scripts/deploy/audit-runtime-env.mjs",
+    "scripts/deploy/create-staging-bootstrap-plan.mjs",
+    "scripts/deploy/provider-probe.mjs"
   ]) mustNot(file, "shell: true");
 }
 

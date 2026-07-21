@@ -48,6 +48,12 @@ jobs:
       - name: Release artifact guard
         run: pnpm release:artifacts
 
+      - name: Manual workflow trigger guard
+        run: pnpm security:manual-workflows
+
+      - name: Deployment command safety guard
+        run: pnpm security:deployment-command-safety
+
       - name: Deployment readiness local check
         run: pnpm deploy:check
 

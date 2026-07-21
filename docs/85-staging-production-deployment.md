@@ -36,6 +36,8 @@ Copy one example outside the repository and replace every placeholder:
 
 The real env file must remain untracked and be readable only by the deployment account. Secrets should come from the hosting provider secret manager or a root-owned mounted file. `MIGRATION_CONFIRM` is intentionally absent from stored env files; the promotion process injects it only for the one-shot migration job.
 
+`docker compose config` and staging dry-run planning may therefore render the migration service with an empty confirmation value. This does not authorize a migration: `migrate-database.ts` still fails closed unless the executing promotion process injects the exact `APPLY_STAGING` or `APPLY_PRODUCTION` value.
+
 Before promotion:
 
 ```bash
@@ -120,3 +122,8 @@ The repository implementation does not provision a hosting account, managed Post
 Deployment smoke artık yalnızca endpoint availability kontrolü değildir. API listing/category sözleşmelerini, web/backoffice/legal yüzeylerini, güvenlik header'larını, response byte büyüklüklerini ve p50/p95 sürelerini ölçerek checksum korumalı `deployment_acceptance` kanıtı yazar.
 
 Production promotion öncesinde aynı Git SHA için staging acceptance, restore-smoke, Galaxy S22 ve gerçek provider evidence dosyalarından `pnpm release:go-no-go` ile production GO receipt üretilmelidir. `PRODUCTION_GO_NO_GO_RECEIPT_PATH` doğrulanmadan production backup, migration veya rollout başlamaz. Ayrıntılı akış `docs/89-release-candidate-acceptance-go-no-go.md` dosyasındadır.
+
+
+## Patch 21 staging bootstrap
+
+The executable staging sequence is now documented in `docs/90-staging-bootstrap-provider-readiness.md`. Use separate runtime and release env files, generate a checksum-bound runtime audit and bootstrap plan, and run the live provider probe before production GO/NO-GO.

@@ -137,3 +137,8 @@ Bu komut deployment/backup/legal/acceptance guard'larını, evidence unit testle
 ## CI durumu
 
 `.github/workflows/ci.yml` yalnızca `workflow_dispatch` ile çalışır. Bu paket push veya pull request tetikleyicisi eklemez. GitHub Actions kotası yalnızca kullanıcı manuel release gate başlattığında tüketilir.
+
+
+## Patch 21 additional evidence
+
+The GO/NO-GO receipt now also requires `runtime_env_audit`, `staging_bootstrap_plan`, and `provider_probe_evidence` inputs. These inputs prove that the exact runtime configuration, immutable image digests, domain topology, Compose/Caddy configuration and live provider integrations were validated for the same Git SHA before production promotion.

@@ -594,3 +594,8 @@ The deployment readiness gate must be followed by `pnpm security:staging-deploym
 ## Release candidate acceptance and GO/NO-GO
 
 Staging ve production env dosyalarında deployment acceptance örnek sayısı, p95/response-size eşikleri ve evidence yolu tanımlanmalıdır. Production için `DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE=true` ve checksum korumalı `PRODUCTION_GO_NO_GO_RECEIPT_PATH` zorunludur. GO receipt aynı Git SHA için staging acceptance, restore smoke, Galaxy S22 ve provider smoke evidence dosyalarından üretilir.
+
+
+## Runtime env audit and staging plan
+
+Before staging or production promotion, run the machine-readable contract in `deploy/env/runtime-env.contract.json` through `pnpm deploy:runtime-env:audit`. Real env files must be outside git and mode `600`. Production GO additionally requires a staging bootstrap plan and live provider probe evidence for the same Git SHA.

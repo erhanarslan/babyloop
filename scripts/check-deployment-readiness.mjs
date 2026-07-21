@@ -19,6 +19,7 @@ if (target !== "local") {
   checkGoogleOAuthEnv();
   checkEmailEnv();
   checkNotificationEmailEnv();
+  checkNotificationPushEnv();
   checkImageStorageEnv();
   checkListingImageAuthenticityEnv();
   checkAiProviderEnv();
@@ -120,10 +121,24 @@ function checkRequiredFiles() {
     "deploy/compose/docker-compose.runtime.yml",
     "deploy/env/staging.env.example",
     "deploy/env/production.env.example",
+    "deploy/env/staging.release.env.example",
+    "deploy/env/runtime-env.contract.json",
     "docs/85-staging-production-deployment.md",
     "docs/89-release-candidate-acceptance-go-no-go.md",
     "deploy/evidence/mobile-release-evidence.example.json",
     "deploy/evidence/provider-release-evidence.example.json",
+    "deploy/evidence/container-image-manifest.example.json",
+    "deploy/evidence/runtime-env-audit.example.json",
+    "deploy/evidence/staging-bootstrap-plan.example.json",
+    "deploy/evidence/provider-probe-evidence.example.json",
+    "scripts/deploy/assemble-image-manifest.mjs",
+    "scripts/deploy/runtime-env-lib.mjs",
+    "scripts/deploy/audit-runtime-env.mjs",
+  "scripts/deploy/check-runtime-env-readiness.mjs",
+    "scripts/deploy/create-staging-bootstrap-plan.mjs",
+    "scripts/deploy/execute-staging-deploy.mjs",
+    "scripts/deploy/provider-probe.mjs",
+    "scripts/check-staging-bootstrap-boundary.mjs",
     "apps/web/src/features/legal/legal-documents.ts",
     "apps/web/src/features/legal/legal-consent.tsx",
     "packages/database/drizzle/0044_legal_public_trust.sql"
@@ -383,6 +398,39 @@ function checkNotificationEmailEnv() {
   }
 
   ok("notification-email", "Marketplace notification email env checks completed.");
+}
+
+function checkNotificationPushEnv() {
+  const enabled = lowerEnv("NOTIFICATION_PUSH_ENABLED") === "true";
+  const provider = lowerEnv("PUSH_PROVIDER") || "expo";
+
+  if (target === "production" && !enabled) {
+    error("notification-push", "NOTIFICATION_PUSH_ENABLED must be true for production mobile delivery.");
+  }
+
+  if (!enabled) {
+    warn("notification-push", "Push delivery is disabled.");
+    ok("notification-push", "Disabled notification push configuration checked.");
+    return;
+  }
+
+  if (provider !== "expo") {
+    error("notification-push", "PUSH_PROVIDER must be expo for the current implementation.");
+  }
+
+  requireEnv("EXPO_ACCESS_TOKEN", "notification-push");
+  requireEnv("PUSH_TOKEN_ENCRYPTION_KEY", "notification-push");
+
+  const encryptionKey = env("PUSH_TOKEN_ENCRYPTION_KEY");
+  if (encryptionKey && encryptionKey.length < 32) {
+    error("notification-push", "PUSH_TOKEN_ENCRYPTION_KEY must be at least 32 characters.");
+  }
+
+  if (env("EXPO_PUSH_API_BASE_URL")) {
+    requireHttpsUrlEnv("EXPO_PUSH_API_BASE_URL", "notification-push");
+  }
+
+  ok("notification-push", "Expo push provider env checks completed.");
 }
 
 function checkImageStorageEnv() {
@@ -677,9 +725,25 @@ function checkDeploymentRuntimeEnv() {
   }
 
   requireEnv("DEPLOY_ACCEPTANCE_EVIDENCE_PATH", "deployment");
+  requireEnv("RUNTIME_ENV_AUDIT_EVIDENCE_PATH", "deployment");
+  requireEnv("PROVIDER_PROBE_EVIDENCE_PATH", "deployment");
+  if (target === "staging") {
+    requireEnv("STAGING_BOOTSTRAP_PLAN_PATH", "deployment");
+  }
   if (target === "production") {
     requireEnvValue("DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE", "true", "deployment");
     requireEnv("PRODUCTION_GO_NO_GO_RECEIPT_PATH", "deployment");
+    for (const key of [
+      "GO_NO_GO_RUNTIME_ENV_AUDIT_PATH",
+      "GO_NO_GO_BOOTSTRAP_PLAN_PATH",
+      "GO_NO_GO_PROVIDER_PROBE_PATH",
+      "GO_NO_GO_STAGING_ACCEPTANCE_PATH",
+      "GO_NO_GO_RESTORE_SMOKE_PATH",
+      "GO_NO_GO_MOBILE_EVIDENCE_PATH",
+      "GO_NO_GO_PROVIDER_EVIDENCE_PATH"
+    ]) {
+      requireEnv(key, "deployment");
+    }
   }
 
   for (const key of [

@@ -37,6 +37,19 @@ const commandEnv = mergedEnvironment(loaded.values, {
 
 await runCommand("docker", ["compose", "--env-file", loaded.path, "-f", composeFile, "config", "--quiet"], { env: commandEnv });
 
+if (environment === "staging") {
+  const gitResult = await runCommand("git", ["rev-parse", "HEAD"], { capture: true, env: commandEnv });
+  const gitSha = gitResult.stdout.trim();
+  const bootstrapPlanPath = required(commandEnv.STAGING_BOOTSTRAP_PLAN_PATH, "STAGING_BOOTSTRAP_PLAN_PATH");
+  await runCommand(process.execPath, [
+    "scripts/deploy/verify-release-evidence.mjs",
+    `--path=${bootstrapPlanPath}`,
+    "--kind=staging_bootstrap_plan",
+    `--git-sha=${gitSha}`,
+    `--max-age-hours=${commandEnv.GO_NO_GO_MAX_AGE_HOURS || "72"}`
+  ], { env: commandEnv });
+}
+
 if (environment === "production") {
   const gitResult = await runCommand("git", ["rev-parse", "HEAD"], { capture: true, env: commandEnv });
   const gitSha = gitResult.stdout.trim();

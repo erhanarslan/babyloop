@@ -2,17 +2,36 @@
   email {$TLS_CONTACT_EMAIL}
 }
 
+(common_security_headers) {
+  header {
+    -Server
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Cross-Origin-Opener-Policy "same-origin"
+  }
+  log {
+    output stdout
+    format json
+  }
+}
+
 {$WEB_DOMAIN} {
+  import common_security_headers
   encode zstd gzip
-  reverse_proxy 127.0.0.1:3000
+  reverse_proxy {$WEB_UPSTREAM_HOST:127.0.0.1}:{$WEB_BIND_PORT:3000}
 }
 
 {$API_DOMAIN} {
+  import common_security_headers
   encode zstd gzip
-  reverse_proxy 127.0.0.1:4000
+  reverse_proxy {$API_UPSTREAM_HOST:127.0.0.1}:{$API_BIND_PORT:4000}
 }
 
 {$BACKOFFICE_DOMAIN} {
+  import common_security_headers
+  header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
   encode zstd gzip
-  reverse_proxy 127.0.0.1:3001
+  reverse_proxy {$BACKOFFICE_UPSTREAM_HOST:127.0.0.1}:{$BACKOFFICE_BIND_PORT:3001}
 }

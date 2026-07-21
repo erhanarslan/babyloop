@@ -5,6 +5,30 @@ import { RELEASE_EVIDENCE_SCHEMA_VERSION, readChecksummedEvidence } from "./rele
 
 const gitSha = process.env.GO_NO_GO_GIT_SHA || (await gitHead());
 const maxAgeHours = parsePositiveNumber(process.env.GO_NO_GO_MAX_AGE_HOURS, 72);
+const runtimeEnvAudit = await readChecksummedEvidence(requiredEnv("GO_NO_GO_RUNTIME_ENV_AUDIT_PATH"), {
+  kind: "runtime_env_audit",
+  gitSha,
+  maxAgeHours
+});
+if (runtimeEnvAudit.evidence.environment !== "staging") {
+  throw new Error("GO_NO_GO_RUNTIME_ENV_AUDIT_PATH must point to staging runtime env audit evidence.");
+}
+const bootstrapPlan = await readChecksummedEvidence(requiredEnv("GO_NO_GO_BOOTSTRAP_PLAN_PATH"), {
+  kind: "staging_bootstrap_plan",
+  gitSha,
+  maxAgeHours
+});
+const providerProbe = await readChecksummedEvidence(requiredEnv("GO_NO_GO_PROVIDER_PROBE_PATH"), {
+  kind: "provider_probe_evidence",
+  gitSha,
+  maxAgeHours
+});
+if (providerProbe.evidence.environment !== "staging") {
+  throw new Error("GO_NO_GO_PROVIDER_PROBE_PATH must point to staging provider probe evidence.");
+}
+if (bootstrapPlan.evidence.runtimeEnvAudit.sha256 !== runtimeEnvAudit.sha256) {
+  throw new Error("Staging bootstrap plan does not reference the supplied runtime env audit checksum.");
+}
 const stagingAcceptance = await readChecksummedEvidence(requiredEnv("GO_NO_GO_STAGING_ACCEPTANCE_PATH"), {
   kind: "deployment_acceptance",
   gitSha,
@@ -31,6 +55,9 @@ const providers = await readChecksummedEvidence(requiredEnv("GO_NO_GO_PROVIDER_E
 if (providers.evidence.environment !== "staging") {
   throw new Error("Provider release evidence must be collected against staging before production GO.");
 }
+if (providerProbe.evidence.environment !== providers.evidence.environment) {
+  throw new Error("Automated provider probe and manual provider evidence environments do not match.");
+}
 
 const createdAt = new Date().toISOString();
 const outputPath = resolve(process.env.GO_NO_GO_OUTPUT_PATH
@@ -44,6 +71,9 @@ const evidence = {
   gitSha,
   maxAgeHours,
   inputs: {
+    runtimeEnvAudit: summarize(runtimeEnvAudit),
+    bootstrapPlan: summarize(bootstrapPlan),
+    providerProbe: summarize(providerProbe),
     stagingAcceptance: summarize(stagingAcceptance),
     restoreSmoke: summarize(restoreSmoke),
     mobile: summarize(mobile),

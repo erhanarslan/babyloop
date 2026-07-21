@@ -74,3 +74,61 @@ jobs:
 
       - name: Record immutable image
         run: echo "ghcr.io/${{ github.repository_owner }}/babyloop-${{ matrix.target }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write image digest metadata
+        run: |
+          mkdir -p image-digest
+          cat > "image-digest/${{ matrix.target }}.json" <<JSON
+          {
+            "target": "${{ matrix.target }}",
+            "image": "ghcr.io/${{ github.repository_owner }}/babyloop-${{ matrix.target }}",
+            "digest": "${{ steps.build.outputs.digest }}",
+            "gitSha": "${{ github.sha }}",
+            "environment": "${{ inputs.environment }}"
+          }
+          JSON
+
+      - name: Upload image digest metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: babyloop-image-${{ matrix.target }}-${{ github.sha }}
+          path: image-digest/${{ matrix.target }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  manifest:
+    name: Assemble immutable image manifest
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Download image digest metadata
+        uses: actions/download-artifact@v4
+        with:
+          pattern: babyloop-image-*-${{ github.sha }}
+          merge-multiple: true
+          path: image-digests
+
+      - name: Assemble checksum-protected image manifest
+        env:
+          IMAGE_MANIFEST_INPUT_DIR: image-digests
+          IMAGE_MANIFEST_ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_MANIFEST_GIT_SHA: ${{ github.sha }}
+          IMAGE_MANIFEST_OUTPUT_PATH: container-image-manifest.json
+        run: node scripts/deploy/assemble-image-manifest.mjs
+
+      - name: Upload immutable image manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: babyloop-container-image-manifest-${{ inputs.environment }}-${{ github.sha }}
+          path: |
+            container-image-manifest.json
+            container-image-manifest.json.sha256
+          if-no-files-found: error
+          retention-days: 14

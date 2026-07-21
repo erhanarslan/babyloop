@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "container_image_manifest",
+  "status": "ready",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "environment": "staging",
+  "images": {
+    "api": "ghcr.io/example/babyloop-api@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "web": "ghcr.io/example/babyloop-web@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "backoffice": "ghcr.io/example/babyloop-backoffice@sha256:REPLACE_WITH_64_HEX_DIGEST"
+  }
+}

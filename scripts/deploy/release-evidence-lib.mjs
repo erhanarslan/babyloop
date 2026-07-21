@@ -20,6 +20,19 @@ export const MOBILE_RELEASE_CHECKS = [
   "backgroundForegroundRecovery",
   "longScrollMemory"
 ];
+export const PROVIDER_PROBE_CHECKS = [
+  "apiReadiness",
+  "databaseReadiness",
+  "storageReadiness",
+  "qdrantReadiness",
+  "redisReadiness",
+  "notificationWorkerReadiness",
+  "childReminderWorkerReadiness",
+  "r2RoundTrip",
+  "notificationDelivery",
+  "ragAcceptance",
+  "analyticsDatabase"
+];
 export const PROVIDER_RELEASE_CHECKS = [
   "postgresReadWrite",
   "backupReplica",
@@ -100,6 +113,64 @@ export function assertEvidence(value, expectedKind) {
         throw new Error("Mobile evidence device, osVersion, buildId, and tester are required.");
       }
       break;
+    case "container_image_manifest":
+      if (value.status !== "ready") throw new Error("Container image manifest is not ready.");
+      if (!["staging", "production"].includes(value.environment)) {
+        throw new Error("Container image manifest environment must be staging or production.");
+      }
+      for (const name of ["api", "web", "backoffice"]) {
+        if (typeof value.images?.[name] !== "string"
+          || !/^[^\s]+@sha256:[a-f0-9]{64}$/u.test(value.images[name])) {
+          throw new Error(`Container image manifest ${name} image is invalid.`);
+        }
+      }
+      break;
+    case "runtime_env_audit":
+      if (value.status !== "passed") throw new Error("Runtime env audit did not pass.");
+      if (!["staging", "production"].includes(value.environment)) {
+        throw new Error("Runtime env audit environment must be staging or production.");
+      }
+      if (!/^[a-f0-9]{64}$/u.test(value.contractSha256 || "")) {
+        throw new Error("Runtime env audit contractSha256 is invalid.");
+      }
+      if (!value.sourceEnvFile || !Number.isInteger(value.keyCount) || !Number.isInteger(value.secretKeyCount)) {
+        throw new Error("Runtime env audit metadata is incomplete.");
+      }
+      break;
+    case "staging_bootstrap_plan":
+      if (value.status !== "ready" || value.environment !== "staging") {
+        throw new Error("Staging bootstrap plan must be ready for staging.");
+      }
+      if (!value.runtimeEnvAudit || !/^[a-f0-9]{64}$/u.test(value.runtimeEnvAudit.sha256 || "")) {
+        throw new Error("Staging bootstrap plan runtime env audit reference is invalid.");
+      }
+      if (!value.imageManifest || !/^[a-f0-9]{64}$/u.test(value.imageManifest.sha256 || "")) {
+        throw new Error("Staging bootstrap plan image manifest reference is invalid.");
+      }
+      for (const name of ["api", "web", "backoffice"]) {
+        if (typeof value.images?.[name] !== "string" || !value.images[name].includes("@sha256:")) {
+          throw new Error(`Staging bootstrap image ${name} is invalid.`);
+        }
+      }
+      for (const name of ["web", "api", "backoffice"]) {
+        if (typeof value.domains?.[name] !== "string" || !value.domains[name]) {
+          throw new Error(`Staging bootstrap domain ${name} is invalid.`);
+        }
+      }
+      if (!/^[a-f0-9]{64}$/u.test(value.composeSha256 || "")
+        || !/^[a-f0-9]{64}$/u.test(value.proxySha256 || "")) {
+        throw new Error("Staging bootstrap compose/proxy checksum is invalid.");
+      }
+      break;
+    case "provider_probe_evidence":
+      if (value.status !== "passed" || value.mode !== "live") {
+        throw new Error("Provider probe evidence must be a passed live run.");
+      }
+      if (!["staging", "production"].includes(value.environment)) {
+        throw new Error("Provider probe environment must be staging or production.");
+      }
+      assertChecks(value.checks, PROVIDER_PROBE_CHECKS, "provider probe");
+      break;
     case "provider_release_evidence":
       assertChecks(value.checks, PROVIDER_RELEASE_CHECKS, "provider");
       if (!value.environment || !["staging", "production"].includes(value.environment)) {
@@ -111,7 +182,15 @@ export function assertEvidence(value, expectedKind) {
         throw new Error("Production go/no-go evidence must contain decision=GO for production.");
       }
       if (!value.inputs || typeof value.inputs !== "object") throw new Error("Production go/no-go inputs are missing.");
-      for (const name of ["stagingAcceptance", "restoreSmoke", "mobile", "providers"]) {
+      for (const name of [
+        "runtimeEnvAudit",
+        "bootstrapPlan",
+        "providerProbe",
+        "stagingAcceptance",
+        "restoreSmoke",
+        "mobile",
+        "providers"
+      ]) {
         const input = value.inputs[name];
         if (!input || typeof input.path !== "string" || typeof input.kind !== "string"
           || typeof input.createdAt !== "string" || !/^[a-f0-9]{64}$/u.test(input.sha256 || "")) {

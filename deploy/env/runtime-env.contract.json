@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "secretKeys": [
+    "AUTH_SECRET",
+    "DATABASE_URL",
+    "EXPO_ACCESS_TOKEN",
+    "GEMINI_API_KEY",
+    "GOOGLE_CLIENT_SECRET",
+    "N8N_NOTIFICATION_WEBHOOK_BEARER_TOKEN",
+    "N8N_NOTIFICATION_WEBHOOK_SECRET",
+    "OBSERVABILITY_ERROR_WEBHOOK_TOKEN",
+    "OBSERVABILITY_METRICS_TOKEN",
+    "OPENAI_API_KEY",
+    "PUSH_TOKEN_ENCRYPTION_KEY",
+    "RAG_QDRANT_API_KEY",
+    "RAG_REDIS_URL",
+    "RESEND_API_KEY",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "SMTP_PASS",
+    "SMTP_USER"
+  ],
+  "required": [
+    "DEPLOY_ENVIRONMENT",
+    "NODE_ENV",
+    "DATABASE_URL",
+    "AUTH_SECRET",
+    "ALLOW_AUTH_UNAVAILABLE",
+    "WEB_APP_URL",
+    "CORS_ORIGINS",
+    "NEXT_PUBLIC_API_BASE_URL",
+    "BABYLOOP_API_BASE_URL",
+    "NEXT_PUBLIC_SITE_URL",
+    "BABYLOOP_SITE_URL",
+    "NEXT_PUBLIC_BACKOFFICE_BASE_URL",
+    "EXPO_PUBLIC_WEB_BASE_URL",
+    "NEXT_PUBLIC_LEGAL_OPERATOR_NAME",
+    "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL",
+    "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS",
+    "IMAGE_STORAGE_DRIVER",
+    "RAG_ENABLED",
+    "OBSERVABILITY_METRICS_ENABLED",
+    "OBSERVABILITY_METRICS_TOKEN",
+    "HEALTH_REQUIRE_NOTIFICATION_WORKER",
+    "HEALTH_REQUIRE_CHILD_REMINDER_WORKER",
+    "HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS",
+    "NOTIFICATION_PROVIDER_WORKER_ID",
+    "CHILD_REMINDER_WORKER_ID",
+    "BACKUP_ENVIRONMENT",
+    "BACKUP_OUTPUT_DIR",
+    "BACKUP_REPLICA_DIR",
+    "BACKUP_ENCRYPTION_MODE",
+    "BACKUP_RETENTION_DAYS",
+    "BACKUP_RETENTION_COUNT",
+    "MIGRATION_ENVIRONMENT"
+  ],
+  "httpsUrlKeys": [
+    "WEB_APP_URL",
+    "NEXT_PUBLIC_API_BASE_URL",
+    "BABYLOOP_API_BASE_URL",
+    "NEXT_PUBLIC_SITE_URL",
+    "BABYLOOP_SITE_URL",
+    "NEXT_PUBLIC_BACKOFFICE_BASE_URL",
+    "EXPO_PUBLIC_WEB_BASE_URL",
+    "IMAGE_STORAGE_PUBLIC_BASE_URL",
+    "S3_ENDPOINT",
+    "RAG_QDRANT_URL",
+    "OBSERVABILITY_ERROR_WEBHOOK_URL",
+    "RESEND_API_BASE_URL",
+    "EXPO_PUSH_API_BASE_URL",
+    "N8N_NOTIFICATION_WEBHOOK_URL"
+  ],
+  "conditional": [
+    {
+      "when": {
+        "key": "IMAGE_STORAGE_DRIVER",
+        "equals": "s3"
+      },
+      "require": [
+        "IMAGE_STORAGE_PUBLIC_BASE_URL",
+        "S3_ENDPOINT",
+        "S3_REGION",
+        "S3_BUCKET",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY"
+      ]
+    },
+    {
+      "when": {
+        "key": "RAG_ENABLED",
+        "equals": "true"
+      },
+      "require": [
+        "RAG_VECTOR_STORE",
+        "RAG_QDRANT_URL",
+        "RAG_QDRANT_COLLECTION",
+        "RAG_QDRANT_VECTOR_SIZE",
+        "RAG_EMBEDDING_PROVIDER",
+        "RAG_EMBEDDING_MODEL",
+        "RAG_CHAT_PROVIDER",
+        "RAG_CHAT_MODEL",
+        "RAG_REQUIRE_SOURCES"
+      ]
+    },
+    {
+      "when": {
+        "key": "RAG_REDIS_ENABLED",
+        "equals": "true"
+      },
+      "require": [
+        "RAG_REDIS_URL",
+        "RAG_CACHE_BACKEND",
+        "RAG_USAGE_LIMITS_BACKEND",
+        "RAG_METRICS_BACKEND"
+      ]
+    },
+    {
+      "when": {
+        "key": "EMAIL_SEND_ENABLED",
+        "equals": "true"
+      },
+      "require": [
+        "EMAIL_DELIVERY_MODE",
+        "EMAIL_PROVIDER",
+        "EMAIL_FROM"
+      ]
+    },
+    {
+      "when": {
+        "key": "EMAIL_PROVIDER",
+        "equals": "resend"
+      },
+      "require": [
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL"
+      ]
+    },
+    {
+      "when": {
+        "key": "NOTIFICATION_EMAIL_ENABLED",
+        "equals": "true"
+      },
+      "require": [
+        "NOTIFICATION_EMAIL_PROVIDER",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL"
+      ]
+    },
+    {
+      "when": {
+        "key": "NOTIFICATION_PUSH_ENABLED",
+        "equals": "true"
+      },
+      "require": [
+        "PUSH_PROVIDER",
+        "EXPO_ACCESS_TOKEN",
+        "PUSH_TOKEN_ENCRYPTION_KEY"
+      ]
+    },
+    {
+      "when": {
+        "key": "BACKUP_ENCRYPTION_MODE",
+        "equals": "age"
+      },
+      "require": [
+        "BACKUP_AGE_RECIPIENT"
+      ]
+    }
+  ]
+}

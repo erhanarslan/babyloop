@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "kind": "staging_bootstrap_plan",
+  "status": "ready",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "environment": "staging",
+  "runtimeEnvAudit": {
+    "path": "/var/lib/babyloop/evidence/staging-runtime-env-audit.json",
+    "sha256": "REPLACE_WITH_64_CHARACTER_SHA256"
+  },
+  "images": {
+    "api": "ghcr.io/example/babyloop-api@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "web": "ghcr.io/example/babyloop-web@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "backoffice": "ghcr.io/example/babyloop-backoffice@sha256:REPLACE_WITH_64_HEX_DIGEST"
+  },
+  "domains": {
+    "web": "staging.babyloop.example",
+    "api": "api.staging.babyloop.example",
+    "backoffice": "admin.staging.babyloop.example"
+  },
+  "composeSha256": "REPLACE_WITH_64_CHARACTER_SHA256",
+  "proxySha256": "REPLACE_WITH_64_CHARACTER_SHA256",
+  "imageManifest": {
+    "path": "/var/lib/babyloop/evidence/container-image-manifest-staging.json",
+    "sha256": "REPLACE_WITH_64_CHARACTER_SHA256"
+  }
+}

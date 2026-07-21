@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "provider_probe_evidence",
+  "status": "passed",
+  "mode": "live",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "environment": "staging",
+  "checks": {
+    "apiReadiness": false,
+    "databaseReadiness": false,
+    "storageReadiness": false,
+    "qdrantReadiness": false,
+    "redisReadiness": false,
+    "notificationWorkerReadiness": false,
+    "childReminderWorkerReadiness": false,
+    "r2RoundTrip": false,
+    "notificationDelivery": false,
+    "ragAcceptance": false,
+    "analyticsDatabase": false
+  },
+  "results": {},
+  "notes": "Generated only by the explicit live provider probe. Never hand-edit a signed evidence file."
+}

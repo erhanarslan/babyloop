@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "runtime_env_audit",
+  "status": "passed",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "gitSha": "REPLACE_WITH_40_CHARACTER_GIT_SHA",
+  "environment": "staging",
+  "contractSha256": "REPLACE_WITH_64_CHARACTER_SHA256",
+  "sourceEnvFile": "staging.runtime.env",
+  "keyCount": 0,
+  "secretKeyCount": 0,
+  "configuredProviders": [],
+  "publicOrigins": [],
+  "warnings": []
+}
