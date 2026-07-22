@@ -43,14 +43,32 @@ describe("auth runtime config", () => {
     expect(config.authSecret).toBeUndefined();
   });
 
-  it("does not require partial Google OAuth config for normal startup", () => {
+  it("rejects partial Google OAuth config instead of silently disabling the provider", () => {
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        GOOGLE_CLIENT_ID: "local-client-id"
+      })
+    ).toThrow("Google OAuth configuration is partial");
+  });
+
+  it("accepts a complete Google OAuth web-server configuration", () => {
     const config = readApiRuntimeConfig({
       AUTH_SECRET: validSecret,
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
-      GOOGLE_CLIENT_ID: "local-client-id"
+      GOOGLE_CLIENT_ID: "1234567890-example.apps.googleusercontent.com",
+      GOOGLE_CLIENT_SECRET: "safe-test-google-client-secret",
+      GOOGLE_REDIRECT_URI: "https://api.example.test/api/v1/auth/google/callback",
+      WEB_APP_URL: "https://example.test"
     });
 
-    expect(config.googleOAuth).toBeUndefined();
+    expect(config.googleOAuth).toEqual({
+      clientId: "1234567890-example.apps.googleusercontent.com",
+      clientSecret: "safe-test-google-client-secret",
+      redirectUri: "https://api.example.test/api/v1/auth/google/callback",
+      webAppUrl: "https://example.test"
+    });
   });
 
   it("uses the mock AI moderation summary provider by default", () => {

@@ -5,6 +5,7 @@ export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "babyloop_google_oauth_state";
 export const GOOGLE_OAUTH_TERMS_COOKIE_NAME = "babyloop_google_oauth_terms";
 export const GOOGLE_OAUTH_STATE_COOKIE_PATH = "/api/v1/auth/google";
 export const GOOGLE_OAUTH_STATE_TTL_SECONDS = 60 * 10;
+export const GOOGLE_OAUTH_PROVIDER_TIMEOUT_MS = 10_000;
 
 const GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -76,7 +77,9 @@ export async function exchangeCodeForTokens(
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: {
-      "content-type": "application/x-www-form-urlencoded"
+      "cache-control": "no-store",
+      "content-type": "application/x-www-form-urlencoded",
+      pragma: "no-cache"
     },
     body: new URLSearchParams({
       client_id: config.clientId,
@@ -84,7 +87,8 @@ export async function exchangeCodeForTokens(
       code,
       grant_type: "authorization_code",
       redirect_uri: config.redirectUri
-    })
+    }),
+    signal: AbortSignal.timeout(GOOGLE_OAUTH_PROVIDER_TIMEOUT_MS)
   });
 
   if (!response.ok) {
@@ -105,8 +109,12 @@ export async function exchangeCodeForTokens(
 export async function fetchUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   const response = await fetch(GOOGLE_USERINFO_URL, {
     headers: {
-      authorization: `Bearer ${accessToken}`
-    }
+      accept: "application/json",
+      authorization: `Bearer ${accessToken}`,
+      "cache-control": "no-store",
+      pragma: "no-cache"
+    },
+    signal: AbortSignal.timeout(GOOGLE_OAUTH_PROVIDER_TIMEOUT_MS)
   });
 
   if (!response.ok) {

@@ -312,18 +312,58 @@ function checkAuthRuntimeEnv() {
 
 function checkGoogleOAuthEnv() {
   const keys = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"];
-  const configured = keys.filter((key) => Boolean(env(key)));
 
-  if (configured.length > 0 && configured.length < keys.length) {
-    error("oauth", `Google OAuth is partially configured. Missing: ${keys.filter((key) => !env(key)).join(", ")}`);
+  for (const key of keys) {
+    requireEnv(key, "oauth");
   }
 
-  if (env("GOOGLE_REDIRECT_URI")) {
+  const clientId = env("GOOGLE_CLIENT_ID");
+  const clientSecret = env("GOOGLE_CLIENT_SECRET");
+  const redirectUri = env("GOOGLE_REDIRECT_URI");
+  const publicApiBaseUrl = env("NEXT_PUBLIC_API_BASE_URL");
+  const webAppUrl = env("WEB_APP_URL");
+  const publicSiteUrl = env("NEXT_PUBLIC_SITE_URL");
+
+  if (clientId && !clientId.endsWith(".apps.googleusercontent.com")) {
+    error("oauth", "GOOGLE_CLIENT_ID must be a Google Web application OAuth client id.");
+  }
+
+  if (clientSecret && (
+    clientSecret.length < 16
+    || /change|example|replace|local|dev|placeholder/i.test(clientSecret)
+  )) {
+    error("oauth", "GOOGLE_CLIENT_SECRET is too short or looks like a placeholder.");
+  }
+
+  if (redirectUri) {
     rejectLocalUrlEnv("GOOGLE_REDIRECT_URI", "oauth");
     requireHttpsUrlEnv("GOOGLE_REDIRECT_URI", "oauth");
   }
 
-  ok("oauth", "Google OAuth env checks completed.");
+  if (redirectUri && publicApiBaseUrl) {
+    const expectedRedirectUri =
+      `${stripTrailingSlash(publicApiBaseUrl)}/api/v1/auth/google/callback`;
+
+    if (redirectUri !== expectedRedirectUri) {
+      error(
+        "oauth",
+        `GOOGLE_REDIRECT_URI must exactly match the deployed API callback. Expected: ${expectedRedirectUri}`
+      );
+    }
+  }
+
+  if (
+    webAppUrl
+    && publicSiteUrl
+    && stripTrailingSlash(webAppUrl) !== stripTrailingSlash(publicSiteUrl)
+  ) {
+    error(
+      "oauth",
+      "WEB_APP_URL must match NEXT_PUBLIC_SITE_URL so OAuth callback redirects return to the deployed public web origin."
+    );
+  }
+
+  ok("oauth", "Google OAuth env and exact redirect checks completed.");
 }
 
 function checkEmailEnv() {

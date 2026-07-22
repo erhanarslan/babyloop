@@ -68,9 +68,12 @@ for (const target of ["staging", "production"]) {
       EMAIL_FROM: "no-reply@babyloop.app",
       RESEND_API_KEY: "safe-fixture-resend-key",
       RESEND_FROM_EMAIL: "no-reply@babyloop.app",
-      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_ID: "1234567890-example.apps.googleusercontent.com",
       GOOGLE_CLIENT_SECRET: "safe-fixture-google-secret",
-      GOOGLE_REDIRECT_URI: `https://api.${target}.babyloop.app/api/v1/auth/google/callback`,
+      GOOGLE_REDIRECT_URI:
+        target === "staging"
+          ? "https://api.staging.babyloop.example/api/v1/auth/google/callback"
+          : "https://api.babyloop.example/api/v1/auth/google/callback",
       EXPO_ACCESS_TOKEN: "safe-fixture-expo-token",
       PUSH_TOKEN_ENCRYPTION_KEY: "p".repeat(48),
       ...(target === "production"

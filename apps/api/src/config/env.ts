@@ -516,27 +516,77 @@ function readEmailDeliveryMode(value: string | undefined): "noop" | "provider" {
 
 function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | undefined {
   const values = {
-    clientId: env.GOOGLE_CLIENT_ID,
-    clientSecret: env.GOOGLE_CLIENT_SECRET,
-    redirectUri: env.GOOGLE_REDIRECT_URI,
-    webAppUrl: env.WEB_APP_URL
+    clientId: env.GOOGLE_CLIENT_ID?.trim() || "",
+    clientSecret: env.GOOGLE_CLIENT_SECRET?.trim() || "",
+    redirectUri: env.GOOGLE_REDIRECT_URI?.trim() || "",
+    webAppUrl: env.WEB_APP_URL?.trim() || ""
   };
-  const providedValues = Object.values(values).filter(Boolean);
+  const entries = Object.entries(values);
+  const providedValues = entries.filter(([, value]) => Boolean(value));
 
   if (providedValues.length === 0) {
     return undefined;
   }
 
-  if (providedValues.length !== Object.values(values).length) {
-    return undefined;
+  if (providedValues.length !== entries.length) {
+    const missing = entries
+      .filter(([, value]) => !value)
+      .map(([key]) => key)
+      .join(", ");
+
+    throw new Error(
+      `Google OAuth configuration is partial. Missing: ${missing}.`
+    );
+  }
+
+  const redirectUrl = readGoogleOAuthUrl(
+    values.redirectUri,
+    "GOOGLE_REDIRECT_URI"
+  );
+  const webAppUrl = readGoogleOAuthUrl(values.webAppUrl, "WEB_APP_URL");
+
+  if (
+    redirectUrl.pathname !== "/api/v1/auth/google/callback"
+    || redirectUrl.search
+    || redirectUrl.hash
+    || redirectUrl.username
+    || redirectUrl.password
+  ) {
+    throw new Error(
+      "GOOGLE_REDIRECT_URI must end exactly with /api/v1/auth/google/callback and must not contain credentials, query, or hash."
+    );
+  }
+
+  if (webAppUrl.search || webAppUrl.hash || webAppUrl.username || webAppUrl.password) {
+    throw new Error(
+      "WEB_APP_URL must not contain credentials, query, or hash when Google OAuth is configured."
+    );
+  }
+
+  if (env.NODE_ENV === "production") {
+    if (redirectUrl.protocol !== "https:") {
+      throw new Error("GOOGLE_REDIRECT_URI must use HTTPS in production.");
+    }
+
+    if (webAppUrl.protocol !== "https:") {
+      throw new Error("WEB_APP_URL must use HTTPS in production.");
+    }
   }
 
   return {
-    clientId: values.clientId!,
-    clientSecret: values.clientSecret!,
-    redirectUri: values.redirectUri!,
-    webAppUrl: values.webAppUrl!.replace(/\/$/, "")
+    clientId: values.clientId,
+    clientSecret: values.clientSecret,
+    redirectUri: redirectUrl.toString(),
+    webAppUrl: webAppUrl.toString().replace(/\/$/, "")
   };
+}
+
+function readGoogleOAuthUrl(value: string, name: string): URL {
+  try {
+    return new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid absolute URL.`);
+  }
 }
 
 function readWebAppUrl(value: string | undefined): string {
