@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "region": "europe-west1",
+  "schedulerRegion": "europe-west1",
+  "repository": "babyloop-images",
+  "projects": {
+    "staging": "babyloop-staging",
+    "production": "babyloop-production"
+  },
+  "requiredApis": [
+    "artifactregistry.googleapis.com",
+    "run.googleapis.com",
+    "secretmanager.googleapis.com",
+    "cloudscheduler.googleapis.com",
+    "iam.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "serviceusage.googleapis.com",
+    "logging.googleapis.com"
+  ],
+  "serviceAccounts": {
+    "api": "babyloop-api-runtime",
+    "web": "babyloop-web-runtime",
+    "backoffice": "babyloop-backoffice-runtime",
+    "jobs": "babyloop-jobs-runtime",
+    "scheduler": "babyloop-scheduler-invoker"
+  },
+  "services": {
+    "api": {
+      "name": "babyloop-api",
+      "image": "api",
+      "cpu": "1",
+      "memory": "1Gi",
+      "concurrency": 40,
+      "timeout": "3600s",
+      "minInstances": 0,
+      "maxInstances": 1,
+      "public": true
+    },
+    "web": {
+      "name": "babyloop-web",
+      "image": "web",
+      "cpu": "1",
+      "memory": "512Mi",
+      "concurrency": 80,
+      "timeout": "300s",
+      "minInstances": 0,
+      "maxInstances": 1,
+      "public": true
+    },
+    "backoffice": {
+      "name": "babyloop-backoffice",
+      "image": "backoffice",
+      "cpu": "1",
+      "memory": "512Mi",
+      "concurrency": 40,
+      "timeout": "300s",
+      "minInstances": 0,
+      "maxInstances": 1,
+      "public": true
+    }
+  },
+  "jobs": {
+    "migrate": {
+      "name": "babyloop-migrate",
+      "script": "dist/scripts/migrate-database.js",
+      "memory": "512Mi",
+      "cpu": "1",
+      "timeout": "900s",
+      "maxRetries": 0
+    },
+    "notification": {
+      "name": "babyloop-notification-worker",
+      "script": "dist/scripts/process-notification-deliveries.js",
+      "memory": "512Mi",
+      "cpu": "1",
+      "timeout": "300s",
+      "maxRetries": 1,
+      "schedule": "*/5 * * * *"
+    },
+    "childReminder": {
+      "name": "babyloop-child-reminder-worker",
+      "script": "dist/scripts/process-child-reminders.js",
+      "memory": "512Mi",
+      "cpu": "1",
+      "timeout": "300s",
+      "maxRetries": 1,
+      "schedule": "*/5 * * * *"
+    }
+  },
+  "timezone": "Europe/Istanbul",
+  "secretPrefix": "babyloop",
+  "artifactDirectory": ".babyloop-gcp"
+}

@@ -27,6 +27,8 @@ const requiredFiles = [
   "scripts/deploy/render-compose-plan.mjs",
   "scripts/check-manual-workflow-triggers.mjs",
   "scripts/check-deployment-command-safety.mjs",
+  "scripts/check-gcp-cloud-run-boundary.mjs",
+  "deploy/gcp/cloud-run.contract.json",
   "apps/api/src/scripts/migrate-database.ts",
   "docs/85-staging-production-deployment.md"
 ];
@@ -187,7 +189,8 @@ if (problems.length === 0) {
     "deploy:providers:probe",
     "security:staging-bootstrap",
     "security:manual-workflows",
-    "security:deployment-command-safety"
+    "security:deployment-command-safety",
+    "security:gcp-cloud-run"
   ]) {
     if (!scripts[name]) problems.push(`package.json is missing ${name}.`);
   }

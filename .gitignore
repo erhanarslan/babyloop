@@ -354,3 +354,6 @@ babyloop-*.zip
 *firebase*service*account*.json
 *adminsdk*.json
 service-account*.json
+
+# Local Google Cloud deployment receipts and generated env manifests
+.babyloop-gcp/
