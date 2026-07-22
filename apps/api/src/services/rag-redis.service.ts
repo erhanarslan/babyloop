@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { Socket } from "node:net";
+import { connect as connectTls } from "node:tls";
 
 export type RagRedisStatus = {
   enabled: boolean;
@@ -104,16 +105,14 @@ export class RagRedisClient {
       throw new Error("Redis is disabled.");
     }
 
-    const host = this.redisUrl.hostname;
-    const port = Number(this.redisUrl.port || "6379");
     const password = this.redisUrl.password ? decodeURIComponent(this.redisUrl.password) : "";
     const username = this.redisUrl.username ? decodeURIComponent(this.redisUrl.username) : "";
     const db = this.redisUrl.pathname.replace(/^\//u, "");
-    const socket = new Socket();
+    let socket: Socket | null = null;
     let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
 
     try {
-      await connectSocket(socket, host, port, this.connectTimeoutMs);
+      socket = await connectSocket(this.redisUrl, this.connectTimeoutMs);
       this.connected = true;
 
       if (password) {
@@ -144,7 +143,7 @@ export class RagRedisClient {
       this.connected = false;
       throw error;
     } finally {
-      socket.destroy();
+      socket?.destroy();
     }
   }
 }
@@ -155,20 +154,92 @@ function sanitizeKeyPart(value: string): string {
   return value.trim().toLocaleLowerCase("tr").replace(/[^a-z0-9:_-]+/giu, "-").replace(/^-|-$/gu, "").slice(0, 120) || "empty";
 }
 
-function connectSocket(socket: Socket, host: string, port: number, timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error("Redis connection timed out."));
-    }, timeoutMs);
+export type RagRedisTransport = {
+  protocol: "redis:" | "rediss:";
+  host: string;
+  port: number;
+  secure: boolean;
+};
 
-    socket.once("error", (error) => {
-      clearTimeout(timer);
+export function resolveRedisTransport(redisUrl: URL): RagRedisTransport {
+  if (redisUrl.protocol !== "redis:" && redisUrl.protocol !== "rediss:") {
+    throw new Error(`Unsupported Redis protocol: ${redisUrl.protocol}`);
+  }
+
+  if (!redisUrl.hostname) {
+    throw new Error("Redis host is required.");
+  }
+
+  const port = Number(redisUrl.port || "6379");
+
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("Redis port is invalid.");
+  }
+
+  return {
+    protocol: redisUrl.protocol,
+    host: redisUrl.hostname,
+    port,
+    secure: redisUrl.protocol === "rediss:"
+  };
+}
+
+function connectSocket(redisUrl: URL, timeoutMs: number): Promise<Socket> {
+  const transport = resolveRedisTransport(redisUrl);
+
+  return new Promise((resolve, reject) => {
+    let socket: Socket | null = null;
+    let timer: NodeJS.Timeout | null = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      socket?.off("error", onError);
+    };
+
+    const onConnect = () => {
+      if (settled || !socket) return;
+      settled = true;
+      cleanup();
+      resolve(socket);
+    };
+
+    const onError = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      socket?.destroy();
       reject(error);
-    });
-    socket.connect(port, host, () => {
-      clearTimeout(timer);
-      resolve();
-    });
+    };
+
+    try {
+      if (transport.secure) {
+        socket = connectTls(
+          {
+            host: transport.host,
+            port: transport.port,
+            servername: transport.host,
+            rejectUnauthorized: true
+          },
+          onConnect
+        );
+      } else {
+        socket = new Socket();
+        socket.once("connect", onConnect);
+        socket.connect(transport.port, transport.host);
+      }
+
+      socket.once("error", onError);
+      timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        socket?.destroy();
+        reject(new Error("Redis connection timed out."));
+      }, timeoutMs);
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }
 
