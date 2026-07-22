@@ -216,19 +216,30 @@ function checkClientRuntimeEnv() {
 function checkLegalPublicTrustEnv() {
   requireEnv("NEXT_PUBLIC_LEGAL_OPERATOR_NAME", "legal");
   requireEnv("NEXT_PUBLIC_LEGAL_CONTACT_EMAIL", "legal");
-  requireEnv("NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS", "legal");
+  requireEnv("NEXT_PUBLIC_LEGAL_RELEASE_MODE", "legal");
+  requireEnv("NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED", "legal");
+  requireEnv("NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION", "legal");
   requireEnv("EXPO_PUBLIC_WEB_BASE_URL", "legal");
 
   const operatorName = env("NEXT_PUBLIC_LEGAL_OPERATOR_NAME");
   const contactEmail = env("NEXT_PUBLIC_LEGAL_CONTACT_EMAIL");
+  const releaseMode = env("NEXT_PUBLIC_LEGAL_RELEASE_MODE");
+  const commercialActivityRaw = env("NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED");
+  const publicLocation = env("NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION");
   const contactAddress = env("NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS");
 
   for (const [key, value] of [
     ["NEXT_PUBLIC_LEGAL_OPERATOR_NAME", operatorName],
     ["NEXT_PUBLIC_LEGAL_CONTACT_EMAIL", contactEmail],
+    ["NEXT_PUBLIC_LEGAL_RELEASE_MODE", releaseMode],
+    ["NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED", commercialActivityRaw],
+    ["NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION", publicLocation],
     ["NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS", contactAddress]
   ]) {
-    if (value && /placeholder|not[- ]?configured|local development|local geliştirme|replace|example|invalid\.local/i.test(value)) {
+    if (
+      value &&
+      /placeholder|not[- ]?configured|local development|local geliştirme|replace|example|invalid\.local/i.test(value)
+    ) {
       error("legal", `${key} still looks like a placeholder.`);
     }
   }
@@ -241,8 +252,53 @@ function checkLegalPublicTrustEnv() {
     error("legal", "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL must be a valid public contact email.");
   }
 
-  if (contactAddress && contactAddress.length < 12) {
-    error("legal", "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS must contain a usable application/contact address.");
+  const allowedReleaseModes = new Set(["non_commercial_beta", "commercial_public"]);
+
+  if (releaseMode && !allowedReleaseModes.has(releaseMode)) {
+    error(
+      "legal",
+      'NEXT_PUBLIC_LEGAL_RELEASE_MODE must be "non_commercial_beta" or "commercial_public".'
+    );
+  }
+
+  if (commercialActivityRaw && !["true", "false"].includes(commercialActivityRaw)) {
+    error(
+      "legal",
+      'NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED must be exactly "true" or "false".'
+    );
+  }
+
+  const commercialActivityEnabled = commercialActivityRaw === "true";
+
+  if (publicLocation && publicLocation.length < 4) {
+    error(
+      "legal",
+      "NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION must contain a usable public city/country."
+    );
+  }
+
+  if (releaseMode === "non_commercial_beta" && commercialActivityEnabled) {
+    error(
+      "legal",
+      "non_commercial_beta cannot enable commercial activity or real payment collection."
+    );
+  }
+
+  if (releaseMode === "commercial_public" && !commercialActivityEnabled) {
+    error(
+      "legal",
+      "commercial_public requires NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED=true."
+    );
+  }
+
+  if (
+    commercialActivityEnabled &&
+    (!contactAddress || contactAddress.length < 12)
+  ) {
+    error(
+      "legal",
+      "Commercial public mode requires a usable public contact address."
+    );
   }
 
   rejectLocalUrlEnv("EXPO_PUBLIC_WEB_BASE_URL", "legal");
@@ -251,11 +307,23 @@ function checkLegalPublicTrustEnv() {
   const siteUrl = env("NEXT_PUBLIC_SITE_URL");
   const mobileWebUrl = env("EXPO_PUBLIC_WEB_BASE_URL");
 
-  if (siteUrl && mobileWebUrl && stripTrailingSlash(siteUrl) !== stripTrailingSlash(mobileWebUrl)) {
-    warn("legal", "EXPO_PUBLIC_WEB_BASE_URL differs from NEXT_PUBLIC_SITE_URL. Confirm mobile legal links target the public web deployment.");
+  if (
+    siteUrl &&
+    mobileWebUrl &&
+    stripTrailingSlash(siteUrl) !== stripTrailingSlash(mobileWebUrl)
+  ) {
+    warn(
+      "legal",
+      "EXPO_PUBLIC_WEB_BASE_URL differs from NEXT_PUBLIC_SITE_URL. Confirm mobile legal links target the public web deployment."
+    );
   }
 
-  ok("legal", "Legal/KVKK operator and public-link env checks completed.");
+  ok(
+    "legal",
+    commercialActivityEnabled
+      ? "Commercial legal/KVKK operator and public-link env checks completed."
+      : "Non-commercial beta legal/KVKK identity, contact, and public-location checks completed."
+  );
 }
 
 function checkCorsAndUrls() {

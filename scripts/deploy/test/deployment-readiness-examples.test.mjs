@@ -16,7 +16,9 @@ const requiredExampleKeys = [
   "EXPO_PUBLIC_WEB_BASE_URL",
   "NEXT_PUBLIC_LEGAL_OPERATOR_NAME",
   "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL",
-  "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS",
+  "NEXT_PUBLIC_LEGAL_RELEASE_MODE",
+  "NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED",
+  "NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION",
   "IMAGE_STORAGE_DRIVER",
   "S3_ENDPOINT",
   "S3_BUCKET",
@@ -51,9 +53,12 @@ for (const target of ["staging", "production"]) {
       ...loaded.values,
       DATABASE_URL: `postgresql://user:password@db.babyloop.app:5432/babyloop_${target}?sslmode=require`,
       AUTH_SECRET: "a".repeat(48),
-      NEXT_PUBLIC_LEGAL_OPERATOR_NAME: "BabyLoop Teknoloji",
+      NEXT_PUBLIC_LEGAL_OPERATOR_NAME: "Erhan Arslan",
       NEXT_PUBLIC_LEGAL_CONTACT_EMAIL: "legal@babyloop.app",
-      NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS: "Ataşehir İstanbul Türkiye başvuru adresi",
+      NEXT_PUBLIC_LEGAL_RELEASE_MODE: "non_commercial_beta",
+      NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED: "false",
+      NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION: "İstanbul, Türkiye",
+      NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS: "",
       S3_ENDPOINT: "https://account.r2.cloudflarestorage.com",
       S3_BUCKET: `babyloop-${target}`,
       S3_ACCESS_KEY_ID: "safe-fixture-access-key",
@@ -95,3 +100,55 @@ for (const target of ["staging", "production"]) {
     assert.doesNotMatch(result.stdout, /❌/u);
   });
 }
+
+
+test("commercial public readiness fails closed without a public contact address", async () => {
+  const loaded = await loadEnvFile("deploy/env/staging.env.example");
+  const fixture = {
+    ...loaded.values,
+    DATABASE_URL: "postgresql://user:password@db.babyloop.app:5432/babyloop_staging?sslmode=require",
+    AUTH_SECRET: "a".repeat(48),
+    NEXT_PUBLIC_LEGAL_OPERATOR_NAME: "BabyLoop Teknoloji AŞ",
+    NEXT_PUBLIC_LEGAL_CONTACT_EMAIL: "legal@babyloop.app",
+    NEXT_PUBLIC_LEGAL_RELEASE_MODE: "commercial_public",
+    NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED: "true",
+    NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION: "İstanbul, Türkiye",
+    NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS: "",
+    S3_ENDPOINT: "https://account.r2.cloudflarestorage.com",
+    S3_BUCKET: "babyloop-staging",
+    S3_ACCESS_KEY_ID: "safe-fixture-access-key",
+    S3_SECRET_ACCESS_KEY: "safe-fixture-secret-key",
+    RAG_QDRANT_URL: "https://qdrant.babyloop.app",
+    RAG_QDRANT_API_KEY: "safe-fixture-qdrant-key",
+    RAG_REDIS_URL: "rediss://user:password@redis.babyloop.app:6380",
+    GEMINI_API_KEY: "safe-fixture-gemini-key",
+    OBSERVABILITY_METRICS_TOKEN: "m".repeat(48),
+    OBSERVABILITY_ERROR_WEBHOOK_URL: "https://errors.babyloop.app/hook",
+    BACKUP_AGE_RECIPIENT: `age1${"q".repeat(58)}`,
+    EMAIL_FROM: "no-reply@babyloop.app",
+    RESEND_API_KEY: "safe-fixture-resend-key",
+    RESEND_FROM_EMAIL: "no-reply@babyloop.app",
+    GOOGLE_CLIENT_ID: "1234567890-example.apps.googleusercontent.com",
+    GOOGLE_CLIENT_SECRET: "safe-fixture-google-secret",
+    GOOGLE_REDIRECT_URI: "https://api.staging.babyloop.example/api/v1/auth/google/callback",
+    EXPO_ACCESS_TOKEN: "safe-fixture-expo-token",
+    PUSH_TOKEN_ENCRYPTION_KEY: "p".repeat(48)
+  };
+
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/check-deployment-readiness.mjs", "--target=staging"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: { ...process.env, ...fixture },
+      shell: false
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(
+    `${result.stdout}\n${result.stderr}`,
+    /Commercial public mode requires a usable public contact address/u
+  );
+});

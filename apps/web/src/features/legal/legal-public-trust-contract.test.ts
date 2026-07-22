@@ -52,6 +52,9 @@ describe("legal, KVKK and consent public trust contract", () => {
 
     expect(config).toContain("NEXT_PUBLIC_LEGAL_OPERATOR_NAME");
     expect(config).toContain("NEXT_PUBLIC_LEGAL_CONTACT_EMAIL");
+    expect(config).toContain("NEXT_PUBLIC_LEGAL_RELEASE_MODE");
+    expect(config).toContain("NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED");
+    expect(config).toContain("NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION");
     expect(config).toContain("NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS");
     expect(deployment).toContain("checkLegalPublicTrustEnv");
     expect(deployment).toContain("EXPO_PUBLIC_WEB_BASE_URL");

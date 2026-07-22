@@ -64,3 +64,23 @@ pnpm test:mobile:legal
 ```
 
 Migration testte ve lokal development ortamında standart migrator ile uygulanır. Production migration, staging kanıtı, backup ve release go/no-go sonrasında çalıştırılır.
+
+
+## Non-commercial beta operator posture
+
+BabyLoop may be released with `NEXT_PUBLIC_LEGAL_RELEASE_MODE=non_commercial_beta`
+while `NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED=false`.
+
+In this posture:
+
+- the real natural-person data-controller/operator identity and a public contact
+  email remain mandatory;
+- `NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION` publishes only a city/country-level
+  location;
+- a residence or full postal address is not forced into the public UI;
+- real payment collection and commercial public launch remain disabled;
+- `NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS` becomes mandatory before switching to
+  `commercial_public`.
+
+This gate is an operational fail-closed boundary, not a substitute for review
+by a qualified Turkish privacy/e-commerce lawyer before commercial launch.

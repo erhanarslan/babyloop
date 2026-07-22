@@ -43,7 +43,7 @@ test("rejects placeholder values and insecure runtime env permissions", async ()
   try {
     const envPath = join(directory, "staging.runtime.env");
     await writeFile(envPath, runtimeEnvFixture().replace(
-      "BabyLoop Teknoloji AŞ",
+      "Erhan Arslan",
       "REPLACE_WITH_OPERATOR_NAME"
     ), "utf8");
     await chmod(envPath, 0o644);
@@ -97,9 +97,11 @@ function runtimeEnvFixture() {
     "BABYLOOP_SITE_URL=https://staging.babyloop.test",
     "NEXT_PUBLIC_BACKOFFICE_BASE_URL=https://admin.staging.babyloop.test",
     "EXPO_PUBLIC_WEB_BASE_URL=https://staging.babyloop.test",
-    "NEXT_PUBLIC_LEGAL_OPERATOR_NAME=BabyLoop Teknoloji AŞ",
+    "NEXT_PUBLIC_LEGAL_OPERATOR_NAME=Erhan Arslan",
     "NEXT_PUBLIC_LEGAL_CONTACT_EMAIL=legal@babyloop.test",
-    "NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS=Ataşehir İstanbul Türkiye başvuru adresi",
+    "NEXT_PUBLIC_LEGAL_RELEASE_MODE=non_commercial_beta",
+    "NEXT_PUBLIC_LEGAL_COMMERCIAL_ACTIVITY_ENABLED=false",
+    "NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION=İstanbul, Türkiye",
     "IMAGE_STORAGE_DRIVER=s3",
     "IMAGE_STORAGE_PUBLIC_BASE_URL=https://cdn.staging.babyloop.test",
     "S3_ENDPOINT=https://account.r2.cloudflarestorage.com",
