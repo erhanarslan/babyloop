@@ -39,18 +39,44 @@ export function parsePostgresUrl(rawValue, label = "database URL") {
 
 export function createPgEnvironment(rawUrl, baseEnv = process.env) {
   const parsed = parsePostgresUrl(rawUrl);
-  const env = {
-    ...baseEnv,
-    PGDATABASE: parsed.databaseName,
-    PGHOST: parsed.host,
-    PGPORT: parsed.port,
-    PGUSER: parsed.user
-  };
+  const env = { ...baseEnv };
+
+  const inheritedConnectionKeys = [
+    "PGHOST",
+    "PGHOSTADDR",
+    "PGPORT",
+    "PGDATABASE",
+    "PGUSER",
+    "PGPASSWORD",
+    "PGPASSFILE",
+    "PGSERVICE",
+    "PGSERVICEFILE",
+    "PGSSLMODE",
+    "PGREQUIRESSL",
+    "PGSSLROOTCERT",
+    "PGSSLCRL",
+    "PGSSLCRLDIR",
+    "PGSSLCERT",
+    "PGSSLKEY",
+    "PGSSLSNI",
+    "PGCHANNELBINDING",
+    "PGCONNECT_TIMEOUT",
+    "PGAPPNAME",
+    "PGOPTIONS",
+    "PGTARGETSESSIONATTRS"
+  ];
+
+  for (const key of inheritedConnectionKeys) {
+    delete env[key];
+  }
+
+  env.PGDATABASE = parsed.databaseName;
+  env.PGHOST = parsed.host;
+  env.PGPORT = parsed.port;
+  env.PGUSER = parsed.user;
 
   if (parsed.password) {
     env.PGPASSWORD = parsed.password;
-  } else {
-    delete env.PGPASSWORD;
   }
 
   const connectionParameterEnvMap = [
