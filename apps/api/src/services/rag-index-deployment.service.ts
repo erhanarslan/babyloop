@@ -11,7 +11,11 @@ import {
   RagKnowledgeGovernanceService
 } from "./rag-knowledge-governance.service.js";
 import { loadRagDocuments } from "./rag-markdown-loader.service.js";
-import { QdrantVectorStore, type QdrantAliasSummary } from "./rag-qdrant-vector-store.service.js";
+import {
+  QdrantVectorStore,
+  RAG_QDRANT_FILTER_PAYLOAD_INDEXES,
+  type QdrantAliasSummary
+} from "./rag-qdrant-vector-store.service.js";
 import { policyFromAnswerOwner, RagSearchService } from "./rag-search.service.js";
 import { decideRagSafety } from "./rag-safety.service.js";
 import type { RagChunk, RagCollectionInfo } from "./rag.types.js";
@@ -215,6 +219,15 @@ export async function validateCandidateCollection(options: {
   }
 
   const info = await options.vectorStore.getNamedCollectionInfo(options.collectionName);
+  const payloadSchema = await options.vectorStore.getNamedCollectionPayloadSchema(
+    options.collectionName
+  );
+
+  for (const fieldName of RAG_QDRANT_FILTER_PAYLOAD_INDEXES) {
+    if (!isKeywordPayloadIndex(payloadSchema[fieldName])) {
+      errors.push(`keyword payload index ${fieldName} is missing`);
+    }
+  }
 
   if (info.status !== "green") {
     errors.push(`collection status is ${info.status}`);
@@ -420,6 +433,23 @@ export async function runRagLiveAcceptance(options: {
     passed: cases.every((testCase) => testCase.passed),
     cases
   };
+}
+
+function isKeywordPayloadIndex(value: unknown): boolean {
+  if (value === "keyword") {
+    return true;
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as {
+    data_type?: unknown;
+    dataType?: unknown;
+  };
+
+  return (record.data_type ?? record.dataType) === "keyword";
 }
 
 function buildValidationSummary(input: {

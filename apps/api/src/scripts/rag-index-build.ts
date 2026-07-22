@@ -37,6 +37,8 @@ async function main(): Promise<void> {
     await vectorStore.createNamedCollection(targetCollection);
   }
 
+  await vectorStore.ensureSearchPayloadIndexes(targetCollection);
+
   const prepared = await prepareRagIndex({
     embeddingModel: config.rag.embeddingModel,
     indexVersion: targetCollection,

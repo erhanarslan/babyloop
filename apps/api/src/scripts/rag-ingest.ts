@@ -60,6 +60,7 @@ async function main(): Promise<void> {
   });
 
   await vectorStore.ensureCollection();
+  await vectorStore.ensureSearchPayloadIndexes();
 
   const embeddedChunks = [];
   const errors: string[] = [];

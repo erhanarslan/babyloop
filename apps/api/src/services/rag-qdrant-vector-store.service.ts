@@ -18,6 +18,15 @@ export type QdrantVectorStoreOptions = {
   vectorSize: number;
 };
 
+export const RAG_QDRANT_FILTER_PAYLOAD_INDEXES = [
+  "answerOwner",
+  "topic",
+  "sourcePath"
+] as const;
+
+export type RagQdrantFilterPayloadIndex =
+  typeof RAG_QDRANT_FILTER_PAYLOAD_INDEXES[number];
+
 type QdrantSearchPoint = {
   score?: unknown;
   payload?: unknown;
@@ -218,6 +227,57 @@ export class QdrantVectorStore implements RagVectorStore {
 
   async countNamedCollectionPoints(collectionName: string): Promise<number> {
     return (await this.getNamedCollectionInfo(collectionName)).pointsCount;
+  }
+
+  async ensureSearchPayloadIndexes(
+    collectionName: string = this.collectionName
+  ): Promise<void> {
+    for (const fieldName of RAG_QDRANT_FILTER_PAYLOAD_INDEXES) {
+      const response = await this.request(
+        `/collections/${encodeURIComponent(collectionName)}/index?wait=true`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            field_name: fieldName,
+            field_schema: "keyword"
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Qdrant payload index create failed for ${fieldName} with status ${response.status}.`
+        );
+      }
+    }
+  }
+
+  async getNamedCollectionPayloadSchema(
+    collectionName: string
+  ): Promise<Record<string, unknown>> {
+    const response = await this.request(
+      `/collections/${encodeURIComponent(collectionName)}`,
+      {
+        method: "GET"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Qdrant collection payload schema read failed with status ${response.status}.`
+      );
+    }
+
+    const payload = await response.json() as {
+      result?: {
+        payload_schema?: unknown;
+      };
+    };
+    const payloadSchema = payload.result?.payload_schema;
+
+    return typeof payloadSchema === "object" && payloadSchema !== null
+      ? payloadSchema as Record<string, unknown>
+      : {};
   }
 
   async upsertChunks(chunks: Array<RagChunk & { embedding: number[] }>): Promise<void> {
