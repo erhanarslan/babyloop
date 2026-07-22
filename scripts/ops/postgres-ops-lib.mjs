@@ -53,8 +53,23 @@ export function createPgEnvironment(rawUrl, baseEnv = process.env) {
     delete env.PGPASSWORD;
   }
 
-  if (parsed.sslMode) {
-    env.PGSSLMODE = parsed.sslMode;
+  const connectionParameterEnvMap = [
+    ["sslmode", "PGSSLMODE"],
+    ["channel_binding", "PGCHANNELBINDING"],
+    ["connect_timeout", "PGCONNECT_TIMEOUT"],
+    ["sslrootcert", "PGSSLROOTCERT"],
+    ["sslcert", "PGSSLCERT"],
+    ["sslkey", "PGSSLKEY"],
+    ["application_name", "PGAPPNAME"],
+    ["options", "PGOPTIONS"]
+  ];
+
+  for (const [queryKey, envKey] of connectionParameterEnvMap) {
+    const value = parsed.url.searchParams.get(queryKey);
+
+    if (value) {
+      env[envKey] = value;
+    }
   }
 
   return env;
@@ -164,12 +179,44 @@ export async function queryScalar(databaseUrl, sql) {
 }
 
 export async function collectDatabaseFingerprint(databaseUrl) {
-  const [publicTableCount, publicColumnCount, migrationCount, serverVersionNum] = await Promise.all([
-    queryScalar(databaseUrl, "select count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';"),
-    queryScalar(databaseUrl, "select count(*) from information_schema.columns where table_schema = 'public';"),
-    queryScalar(databaseUrl, "select case when to_regclass('drizzle.__drizzle_migrations') is null then 0 else (select count(*) from drizzle.__drizzle_migrations) end;"),
+  const [
+    publicTableCount,
+    publicColumnCount,
+    migrationRelation,
+    serverVersionNum
+  ] = await Promise.all([
+    queryScalar(
+      databaseUrl,
+      "select count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';"
+    ),
+    queryScalar(
+      databaseUrl,
+      "select count(*) from information_schema.columns where table_schema = 'public';"
+    ),
+    queryScalar(
+      databaseUrl,
+      `select case
+        when to_regclass('drizzle.__drizzle_migrations') is not null then 'drizzle'
+        when to_regclass('public.__drizzle_migrations') is not null then 'public'
+        else ''
+      end;`
+    ),
     queryScalar(databaseUrl, "show server_version_num;")
   ]);
+
+  let migrationCount = "0";
+
+  if (migrationRelation === "drizzle") {
+    migrationCount = await queryScalar(
+      databaseUrl,
+      "select count(*) from drizzle.__drizzle_migrations;"
+    );
+  } else if (migrationRelation === "public") {
+    migrationCount = await queryScalar(
+      databaseUrl,
+      "select count(*) from public.__drizzle_migrations;"
+    );
+  }
 
   return {
     migrationCount: Number(migrationCount),
