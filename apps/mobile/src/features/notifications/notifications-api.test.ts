@@ -262,8 +262,8 @@ describe("mobile notifications API", () => {
           token: {
             id: "66666666-6666-4666-8666-666666666666",
             platform: "expo",
-            tokenHashPrefix: "abcdef123456",
-            redactedToken: "sha256:abcdef12...",
+            tokenHashPrefix: "000000000000",
+            redactedToken: "sha256:00000000...",
             deviceLabel: "Galaxy S22",
             lastSeenAt: "2030-01-01T00:00:00.000Z",
             revokedAt: null,

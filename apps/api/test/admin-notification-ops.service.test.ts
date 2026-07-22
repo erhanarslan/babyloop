@@ -30,7 +30,7 @@ describe("admin notification ops service", () => {
         status: "candidate",
         provider: null,
         providerStatus: null,
-        idempotencyKey: "secret-idempotency-key-1",
+        idempotencyKey: "aaa",
         dedupKey: "secret-dedup-key-1",
         frequencyWindowHours: 24,
         deliveryAllowed: false,
@@ -57,7 +57,7 @@ describe("admin notification ops service", () => {
         nextAttemptAt: new Date("2030-01-01T10:05:00.000Z"),
         lastErrorCode: "resend_500",
         lastErrorMessageRedacted: "provider failed for [redacted-email]",
-        idempotencyKey: "secret-idempotency-key-2",
+        idempotencyKey: "bbb",
         dedupKey: "secret-dedup-key-2",
         frequencyWindowHours: 24,
         deliveryAllowed: false,
@@ -81,7 +81,7 @@ describe("admin notification ops service", () => {
         claimedAt: new Date("2030-01-01T10:01:00.000Z"),
         claimExpiresAt: new Date("2030-01-01T10:06:00.000Z"),
         workerId: "notification-worker-1",
-        idempotencyKey: "secret-idempotency-key-3",
+        idempotencyKey: "ccc",
         dedupKey: "secret-dedup-key-3",
         frequencyWindowHours: 1,
         deliveryAllowed: true,
@@ -171,7 +171,7 @@ describe("admin notification ops service", () => {
         })
       ])
     );
-    expect(serialized).not.toMatch(/parent@example|ops-preview-user@example|secret-idempotency|secret-dedup|secret-token|session-cookie|Bearer secret|raw-sensitive-payload-from-metadata/iu);
+    expect(serialized).not.toMatch(/parent@example|ops-preview-user@example|aaa|bbb|ccc|secret-dedup|secret-token|session-cookie|Bearer secret|raw-sensitive-payload-from-metadata/iu);
     expect(serialized).not.toMatch(/secret-claim-token|secret-device-token/iu);
     expect(preview.warning).toContain("Email, push, n8n, queue veya in-app notification gönderimi yapmaz");
   });
