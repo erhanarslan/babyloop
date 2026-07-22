@@ -195,7 +195,7 @@ describe("auth runtime config", () => {
       qdrantCollection: "babyloop_rag_test",
       qdrantVectorSize: 3072,
       embeddingProvider: "gemini",
-      embeddingModel: "gemini-embedding-001",
+      embeddingModel: "gemini-embedding-2",
       chatProvider: "gemini",
       chatModel: "gemini-2.5-flash",
       maxSourcesPerDocument: 2,
@@ -211,6 +211,28 @@ describe("auth runtime config", () => {
         RAG_ENABLED: "true"
       })
     ).toThrow("GEMINI_API_KEY is required");
+  });
+
+  it("rejects retired RAG embedding models and non-3072 vectors", () => {
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        GEMINI_API_KEY: "gemini-test-key",
+        RAG_ENABLED: "true",
+        RAG_EMBEDDING_MODEL: "gemini-embedding-001"
+      })
+    ).toThrow("Use gemini-embedding-2 and perform a full blue-green reindex");
+
+    expect(() =>
+      readApiRuntimeConfig({
+        AUTH_SECRET: validSecret,
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test",
+        GEMINI_API_KEY: "gemini-test-key",
+        RAG_ENABLED: "true",
+        RAG_QDRANT_VECTOR_SIZE: "768"
+      })
+    ).toThrow("RAG_QDRANT_VECTOR_SIZE must be 3072");
   });
 
   it("allows moderation summaries to be explicitly unavailable", () => {

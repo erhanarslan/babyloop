@@ -37,6 +37,7 @@ export type GeminiEmbeddingOptions = {
   endpoint?: string;
   fetch?: FetchLike;
   model: string;
+  outputDimension: number;
   text: string;
 };
 
@@ -44,7 +45,7 @@ const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com";
 
 export async function generateGeminiJson(options: GeminiGenerateJsonOptions): Promise<unknown> {
   const apiKey = options.apiKey.trim();
-  const model = options.model.trim();
+  const model = normalizeGeminiModelName(options.model);
 
   if (!apiKey) {
     throw new Error("Gemini provider requires GEMINI_API_KEY.");
@@ -118,8 +119,9 @@ export function dataUrlToGeminiInlineData(dataUrl: string): GeminiPart | null {
 
 export async function generateGeminiEmbedding(options: GeminiEmbeddingOptions): Promise<number[]> {
   const apiKey = options.apiKey.trim();
-  const model = options.model.trim();
+  const model = normalizeGeminiModelName(options.model);
   const text = options.text.trim();
+  const outputDimension = options.outputDimension;
 
   if (!apiKey) {
     throw new Error("Gemini embedding provider requires GEMINI_API_KEY.");
@@ -133,6 +135,10 @@ export async function generateGeminiEmbedding(options: GeminiEmbeddingOptions): 
     throw new Error("Gemini embedding provider requires non-empty text.");
   }
 
+  if (!Number.isInteger(outputDimension) || outputDimension <= 0) {
+    throw new Error("Gemini embedding output dimension must be a positive integer.");
+  }
+
   const endpoint = (options.endpoint?.trim() || DEFAULT_GEMINI_ENDPOINT).replace(/\/$/, "");
   const fetchFn = options.fetch ?? getDefaultFetch();
   const response = await fetchFn(
@@ -144,9 +150,11 @@ export async function generateGeminiEmbedding(options: GeminiEmbeddingOptions): 
         "x-goog-api-key": apiKey
       },
       body: JSON.stringify({
+        model: `models/${model}`,
         content: {
           parts: [{ text }]
-        }
+        },
+        output_dimensionality: outputDimension
       })
     }
   );
@@ -162,7 +170,17 @@ export async function generateGeminiEmbedding(options: GeminiEmbeddingOptions): 
     throw new Error("Gemini embedding response did not include vector values.");
   }
 
+  if (values.length !== outputDimension) {
+    throw new Error(
+      `Gemini embedding response dimension ${values.length} does not match requested dimension ${outputDimension}.`
+    );
+  }
+
   return values;
+}
+
+function normalizeGeminiModelName(value: string): string {
+  return value.trim().replace(/^models\//u, "");
 }
 
 function getDefaultFetch(): FetchLike {

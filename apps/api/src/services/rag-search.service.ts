@@ -83,6 +83,7 @@ export class RagSearchService {
     }
 
     const embedding = await this.embeddingProvider.embedText({
+      purpose: "query",
       text: queryAnalysis.retrievalQuery
     });
 

@@ -1,4 +1,4 @@
-import { GeminiEmbeddingProvider } from "@babyloop/ai-core";
+import { GeminiEmbeddingProvider, type EmbeddingInput } from "@babyloop/ai-core";
 import { readApiRuntimeConfig } from "../config/env.js";
 import {
   assertCandidateCollectionName,
@@ -50,6 +50,7 @@ async function main(): Promise<void> {
   const embeddingProvider = new GeminiEmbeddingProvider({
     apiKey: config.rag.geminiApiKey,
     model: config.rag.embeddingModel,
+    outputDimension: config.rag.qdrantVectorSize,
     ...(config.rag.geminiEndpoint ? { endpoint: config.rag.geminiEndpoint } : {})
   });
   const embedDelayMs = readNonNegativeIntegerFromEnv("RAG_INGEST_EMBED_DELAY_MS", DEFAULT_EMBED_DELAY_MS);
@@ -59,7 +60,11 @@ async function main(): Promise<void> {
 
   for (const chunk of prepared.chunks) {
     try {
-      const embedding = await embedTextWithRetry(embeddingProvider, chunk.text, {
+      const embedding = await embedTextWithRetry(embeddingProvider, {
+        purpose: "document",
+        text: chunk.text,
+        ...(chunk.metadata.documentTitle ? { title: chunk.metadata.documentTitle } : {})
+      }, {
         delayMs: embedDelayMs,
         maxRetries: maxEmbedRetries
       });
@@ -107,7 +112,7 @@ type GeminiEmbeddingResult = Awaited<ReturnType<GeminiEmbeddingProvider["embedTe
 
 async function embedTextWithRetry(
   embeddingProvider: GeminiEmbeddingProvider,
-  text: string,
+  input: EmbeddingInput,
   options: {
     delayMs: number;
     maxRetries: number;
@@ -117,7 +122,7 @@ async function embedTextWithRetry(
 
   for (let attempt = 1; attempt <= options.maxRetries; attempt += 1) {
     try {
-      return await embeddingProvider.embedText({ text });
+      return await embeddingProvider.embedText(input);
     } catch (error) {
       lastError = error;
 

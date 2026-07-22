@@ -113,7 +113,7 @@ function runtimeEnvFixture() {
     "RAG_QDRANT_COLLECTION=babyloop_rag_active",
     "RAG_QDRANT_VECTOR_SIZE=3072",
     "RAG_EMBEDDING_PROVIDER=gemini",
-    "RAG_EMBEDDING_MODEL=gemini-embedding-001",
+    "RAG_EMBEDDING_MODEL=gemini-embedding-2",
     "RAG_CHAT_PROVIDER=gemini",
     "RAG_CHAT_MODEL=gemini-2.5-flash",
     "RAG_REQUIRE_SOURCES=true",

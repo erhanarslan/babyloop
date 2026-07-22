@@ -569,9 +569,9 @@ function checkRagEnv() {
   requireEnvValue("RAG_VECTOR_STORE", "qdrant", "rag");
   requireEnv("RAG_QDRANT_URL", "rag");
   requireEnv("RAG_QDRANT_COLLECTION", "rag");
-  requireEnv("RAG_QDRANT_VECTOR_SIZE", "rag");
-  requireEnv("RAG_EMBEDDING_PROVIDER", "rag");
-  requireEnv("RAG_EMBEDDING_MODEL", "rag");
+  requireEnvValue("RAG_QDRANT_VECTOR_SIZE", "3072", "rag");
+  requireEnvValue("RAG_EMBEDDING_PROVIDER", "gemini", "rag");
+  requireEnvValue("RAG_EMBEDDING_MODEL", "gemini-embedding-2", "rag");
   requireEnv("RAG_CHAT_PROVIDER", "rag");
   requireEnv("RAG_CHAT_MODEL", "rag");
 

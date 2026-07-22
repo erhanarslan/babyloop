@@ -326,6 +326,7 @@ export async function runRagLiveAcceptance(options: {
   const embeddingProvider = new GeminiEmbeddingProvider({
     apiKey: options.config.geminiApiKey,
     model: options.config.embeddingModel,
+    outputDimension: options.config.qdrantVectorSize,
     ...(options.config.geminiEndpoint ? { endpoint: options.config.geminiEndpoint } : {})
   });
   const searchService = new RagSearchService({

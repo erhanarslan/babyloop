@@ -74,7 +74,7 @@ describe("admin rag schemas", () => {
       },
       config: {
         embeddingProvider: "gemini",
-        embeddingModel: "gemini-embedding-001",
+        embeddingModel: "gemini-embedding-2",
         chatProvider: "gemini",
         chatModel: "gemini-2.5-flash",
         minScore: 0.72,

@@ -76,7 +76,7 @@ describe("rag search service", () => {
   });
 
   it("uses normalized retrieval query for dense embedding", async () => {
-    const embeddedTexts: string[] = [];
+    const embeddedInputs: Array<{ purpose: string; text: string }> = [];
     const vectorStore: RagVectorStore = {
       async ensureCollection() {},
       async upsertChunks() {},
@@ -100,7 +100,7 @@ describe("rag search service", () => {
       embeddingProvider: {
         providerName: "mock-embedding",
         async embedText(input) {
-          embeddedTexts.push(input.text);
+          embeddedInputs.push({ purpose: input.purpose, text: input.text });
 
           return {
             embedding: [0.1, 0.2, 0.3],
@@ -118,8 +118,9 @@ describe("rag search service", () => {
 
     await service.search("bebek arabasi alirken nelere bakmaliyim");
 
-    expect(embeddedTexts[0]).toContain("bebek arabası");
-    expect(embeddedTexts[0]).toContain("stroller-safety");
+    expect(embeddedInputs[0]?.purpose).toBe("query");
+    expect(embeddedInputs[0]?.text).toContain("bebek arabası");
+    expect(embeddedInputs[0]?.text).toContain("stroller-safety");
   });
 
   it("returns no sources for irrelevant high-score dense results", async () => {

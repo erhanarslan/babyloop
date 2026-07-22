@@ -35,6 +35,7 @@ export function createRagRuntimeServices(config: RagRuntimeConfig): RagRuntimeSe
   const embeddingProvider = new GeminiEmbeddingProvider({
     apiKey: config.geminiApiKey,
     model: config.embeddingModel,
+    outputDimension: config.qdrantVectorSize,
     ...(config.geminiEndpoint ? { endpoint: config.geminiEndpoint } : {})
   });
   const answerProvider = new GeminiRagGroundedAnswerProvider({

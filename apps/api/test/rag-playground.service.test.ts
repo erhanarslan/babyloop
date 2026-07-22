@@ -15,7 +15,7 @@ const config: Extract<RagRuntimeConfig, { enabled: true }> = {
   dailyGuestLimit: 20,
   dailyUserLimit: 100,
   duplicatePenalty: 0.05,
-  embeddingModel: "gemini-embedding-001",
+  embeddingModel: "gemini-embedding-2",
   embeddingProvider: "gemini",
   evalHistoryMaxRuns: 20,
   geminiApiKey: "test",

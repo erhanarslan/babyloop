@@ -55,6 +55,7 @@ export {
 } from "./gemini-moderation-summary-provider.js";
 export {
   GeminiEmbeddingProvider,
+  formatGeminiEmbeddingInput,
   type GeminiEmbeddingProviderOptions
 } from "./gemini-embedding-provider.js";
 export {

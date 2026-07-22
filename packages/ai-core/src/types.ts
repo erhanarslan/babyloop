@@ -60,9 +60,16 @@ export type AssistantMessageProvider = {
   answerMessage(input: AssistantMessageInput): Promise<AssistantMessageOutput>;
 };
 
-export type EmbeddingInput = {
-  text: string;
-};
+export type EmbeddingInput =
+  | {
+      purpose: "query";
+      text: string;
+    }
+  | {
+      purpose: "document";
+      text: string;
+      title?: string;
+    };
 
 export type EmbeddingOutput = {
   embedding: number[];

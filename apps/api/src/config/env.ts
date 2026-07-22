@@ -386,6 +386,24 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
   const chatProvider = (env.RAG_CHAT_PROVIDER ?? "gemini").trim().toLowerCase();
   const qdrantApiKey = env.RAG_QDRANT_API_KEY?.trim();
   const geminiEndpoint = readGeminiEndpoint(env);
+  const embeddingModel = (env.RAG_EMBEDDING_MODEL?.trim() || "gemini-embedding-2")
+    .replace(/^models\//u, "");
+  const qdrantVectorSize = readPositiveInteger(env.RAG_QDRANT_VECTOR_SIZE, 3072);
+  const retiredEmbeddingModels = new Set([
+    "embedding-001",
+    "gemini-embedding-001",
+    "text-embedding-004"
+  ]);
+
+  if (retiredEmbeddingModels.has(embeddingModel)) {
+    throw new Error(
+      `RAG_EMBEDDING_MODEL=${embeddingModel} is retired. Use gemini-embedding-2 and perform a full blue-green reindex.`
+    );
+  }
+
+  if (qdrantVectorSize !== 3072) {
+    throw new Error("RAG_QDRANT_VECTOR_SIZE must be 3072 for the BabyLoop Gemini Embedding 2 index.");
+  }
 
   if (vectorStore !== "qdrant") {
     throw new Error("RAG_VECTOR_STORE must be qdrant.");
@@ -405,9 +423,9 @@ function readRagConfig(env: NodeJS.ProcessEnv): RagRuntimeConfig {
     qdrantUrl: env.RAG_QDRANT_URL?.trim() || "http://localhost:6333",
     ...(qdrantApiKey ? { qdrantApiKey } : {}),
     qdrantCollection: env.RAG_QDRANT_COLLECTION?.trim() || "babyloop_rag",
-    qdrantVectorSize: readPositiveInteger(env.RAG_QDRANT_VECTOR_SIZE, 3072),
+    qdrantVectorSize,
     embeddingProvider: "gemini",
-    embeddingModel: env.RAG_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+    embeddingModel,
     indexVersion: env.RAG_INDEX_VERSION?.trim() || env.RAG_QDRANT_COLLECTION?.trim() || "babyloop_rag",
     chatProvider: "gemini",
     chatModel: env.RAG_CHAT_MODEL?.trim() || "gemini-2.5-flash",

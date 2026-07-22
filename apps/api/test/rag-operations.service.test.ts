@@ -14,7 +14,7 @@ const config: RagRuntimeConfig = {
   chatProvider: "gemini",
   dailyGuestLimit: 20,
   dailyUserLimit: 100,
-  embeddingModel: "gemini-embedding-001",
+  embeddingModel: "gemini-embedding-2",
   embeddingProvider: "gemini",
   geminiApiKey: "test",
   governanceTextPreviewChars: 280,
@@ -78,7 +78,7 @@ describe("rag operations service", () => {
     expect(health.enabled).toBe(true);
     expect(health.qdrant.pointsCount).toBe(42);
     expect(health.docs.documentCount).toBeGreaterThanOrEqual(20);
-    expect(health.config.embeddingModel).toBe("gemini-embedding-001");
+    expect(health.config.embeddingModel).toBe("gemini-embedding-2");
     expect(JSON.stringify(health)).not.toContain("test");
   });
 

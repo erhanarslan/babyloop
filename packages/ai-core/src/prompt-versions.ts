@@ -8,7 +8,7 @@ export const ASSISTANT_MESSAGE_GEMINI_PROMPT_VERSION = "assistant_message.gemini
 
 export const RAG_GROUNDED_ANSWER_GEMINI_PROMPT_VERSION = "rag_grounded_answer.gemini.v1" as const;
 
-export const RAG_EMBEDDING_GEMINI_PROMPT_VERSION = "rag_embedding.gemini.v1" as const;
+export const RAG_EMBEDDING_GEMINI_PROMPT_VERSION = "rag_embedding.gemini_embedding_2.asymmetric.v1" as const;
 
 export const LISTING_DRAFT_SUGGESTION_PROMPT_VERSION = "listing_draft_suggestion.mock.v1" as const;
 
