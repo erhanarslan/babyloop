@@ -1,0 +1,8 @@
+# Historical findings reviewed as non-secret test fixtures or the restricted Firebase Android client key.
+beb3569821c979030bbab9fcb2e780143c88b29d:apps/api/test/admin-notification-ops.service.test.ts:generic-api-key:84
+bdc6c0ee14cfd8ae4bead0f9e993aca050d1aeea:apps/mobile/google-services.json:generic-api-key:18
+2b70f7ab18dbcec08858ef418ac28a9e7eb2f295:apps/mobile/src/features/notifications/mobile-push-registration.test.ts:generic-api-key:30
+2b70f7ab18dbcec08858ef418ac28a9e7eb2f295:apps/mobile/src/features/notifications/mobile-push-registration.test.ts:generic-api-key:51
+702b9f08f62648a00e68e1ff495ede00e0e32739:apps/mobile/src/features/notifications/notifications-api.test.ts:generic-api-key:263
+af251f91e591d30221dab9ed130a8187ab168b9f:apps/api/test/admin-notification-ops.service.test.ts:generic-api-key:31
+af251f91e591d30221dab9ed130a8187ab168b9f:apps/api/test/admin-notification-ops.service.test.ts:generic-api-key:50

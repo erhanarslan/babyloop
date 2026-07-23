@@ -14,8 +14,7 @@
       "bundleIdentifier": "com.babyloop.mobile"
     },
     "android": {
-      "package": "com.babyloop.mobile",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.babyloop.mobile"
     },
     "web": {
       "bundler": "metro"

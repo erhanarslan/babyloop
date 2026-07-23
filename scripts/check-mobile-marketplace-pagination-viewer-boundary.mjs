@@ -29,7 +29,8 @@ const listingsServicePath = "apps/api/src/services/listings.service.ts";
 
 mustContain(virtualizedScreenPath, "<FlatList");
 mustContain(virtualizedScreenPath, "removeClippedSubviews");
-mustContain(virtualizedScreenPath, "windowSize={7}");
+mustContain(virtualizedScreenPath, "windowSize = 7");
+mustContain(virtualizedScreenPath, "windowSize={windowSize}");
 
 mustContain(browsePath, "MobileVirtualizedScreen");
 mustContain(browsePath, "fetchMobileListingsPage");

@@ -29,7 +29,7 @@ describe("mobile push registration", () => {
         token: {
           id: "token-id",
           platform: "expo",
-          tokenHashPrefix: "abcdef123456",
+          tokenHashPrefix: "000000000000",
           deviceLabel: "Galaxy S22"
         }
       }
@@ -50,7 +50,7 @@ describe("mobile push registration", () => {
 
     expect(result).toEqual({
       status: "registered",
-      tokenHashPrefix: "abcdef123456"
+      tokenHashPrefix: "000000000000"
     });
     expect(notifications.setNotificationHandler).toHaveBeenCalled();
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(

@@ -22,38 +22,43 @@ jobs:
           push: true
 `;
 
-  assert.deepEqual(extractWorkflowTriggers(source, "container-images.yml"), [
-    "workflow_dispatch"
-  ]);
-  assert.deepEqual(assertManualWorkflowSource(source, "container-images.yml"), [
-    "workflow_dispatch"
-  ]);
+  assert.deepEqual(
+    extractWorkflowTriggers(source, "container-images.yml"),
+    ["workflow_dispatch"]
+  );
+  assert.deepEqual(
+    assertManualWorkflowSource(source, "container-images.yml"),
+    ["workflow_dispatch"]
+  );
 });
 
-test("rejects top-level push and pull_request triggers", () => {
+test("accepts governed top-level push and pull_request triggers", () => {
   const source = `name: CI
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
+    branches: [dev, staging, master]
 `;
 
-  assert.throws(
-    () => assertManualWorkflowSource(source, "ci.yml"),
-    /disallowed top-level trigger\(s\): push, pull_request/
+  assert.deepEqual(
+    assertManualWorkflowSource(source, "ci.yml"),
+    ["workflow_dispatch", "push", "pull_request"]
   );
 });
 
-test("accepts inline manual-only trigger syntax", () => {
+test("accepts inline workflow_dispatch trigger syntax", () => {
   assert.deepEqual(
-    assertManualWorkflowSource("name: CI\non: [workflow_dispatch]\njobs: {}\n"),
+    assertManualWorkflowSource(
+      "name: CI\non: [workflow_dispatch]\njobs: {}\n"
+    ),
     ["workflow_dispatch"]
   );
 });
 
-test("rejects schedule and workflow_call even when workflow_dispatch exists", () => {
+test("accepts schedule but rejects unsupported workflow_call", () => {
   const source = `name: Release
 on:
   workflow_dispatch:
@@ -64,6 +69,20 @@ on:
 
   assert.throws(
     () => assertManualWorkflowSource(source, "release.yml"),
-    /schedule, workflow_call/
+    /unsupported trigger\(s\): workflow_call/
+  );
+});
+
+test("rejects pull_request_target because it exposes a privileged event surface", () => {
+  const source = `name: Unsafe
+on:
+  pull_request_target:
+    branches: [master]
+jobs: {}
+`;
+
+  assert.throws(
+    () => assertManualWorkflowSource(source, "unsafe.yml"),
+    /unsupported trigger\(s\): pull_request_target/
   );
 });
