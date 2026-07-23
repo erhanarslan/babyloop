@@ -79,7 +79,7 @@
     "deploy:providers:plan": "node scripts/deploy/provider-probe.mjs --mode=plan",
     "deploy:providers:probe": "node scripts/deploy/provider-probe.mjs --mode=live",
     "security:staging-bootstrap": "node scripts/check-staging-bootstrap-boundary.mjs",
-    "security:manual-workflows": "node scripts/check-manual-workflow-triggers.mjs",
+    "security:manual-workflows": "pnpm security:workflow-governance",
     "security:deployment-command-safety": "node scripts/check-deployment-command-safety.mjs",
     "test:staging-bootstrap": "node --test scripts/deploy/test/image-manifest.test.mjs scripts/deploy/test/runtime-env-lib.test.mjs scripts/deploy/test/staging-bootstrap-plan.test.mjs",
     "ci:e2e:release": "bash scripts/ci-release-e2e.sh",
@@ -192,7 +192,10 @@
     "gcp:cloud-run:iam:audit": "node scripts/gcp/audit-cloud-run-iam.mjs",
     "gcp:cloud-run:iam:repair": "node scripts/gcp/repair-cloud-run-iam.mjs",
     "test:gcp:cloud-run": "node --test scripts/gcp/test/*.test.mjs",
-    "security:gcp-cloud-run": "node scripts/check-gcp-cloud-run-boundary.mjs"
+    "security:gcp-cloud-run": "node scripts/check-gcp-cloud-run-boundary.mjs",
+    "security:workflow-governance": "node scripts/check-manual-workflow-triggers.mjs",
+    "dev:infra:ci": "docker compose -f docker-compose.ci.yml up -d --wait",
+    "dev:infra:ci:down": "docker compose -f docker-compose.ci.yml down -v"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

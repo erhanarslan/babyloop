@@ -1,0 +1,110 @@
+name: Production gate
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    name: Production release gate
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: babyloop_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d babyloop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      ALLOW_AUTH_UNAVAILABLE: "false"
+      EMAIL_DELIVERY_MODE: noop
+      EMAIL_PROVIDER: mock
+      EMAIL_SEND_ENABLED: "false"
+      IMAGE_STORAGE_DRIVER: local
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: mock
+      ASSISTANT_PROVIDER: mock
+      AI_LISTING_DRAFT_PROVIDER: mock
+      AI_MODERATION_SUMMARY_PROVIDER: mock
+      RAG_ENABLED: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate CI-only authentication secret
+        shell: bash
+        run: |
+          printf 'AUTH_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Release artifact guard
+        run: pnpm release:artifacts
+
+      - name: Workflow governance guard
+        run: pnpm security:manual-workflows
+
+      - name: Deployment command safety guard
+        run: pnpm security:deployment-command-safety
+
+      - name: Deployment tests
+        run: pnpm test:deploy
+
+      - name: Cloud Run contract tests
+        run: pnpm test:gcp:cloud-run
+
+      - name: Production readiness
+        run: pnpm deploy:check:production
+
+      - name: Full release E2E
+        run: pnpm ci:e2e:release
+
+      - name: Upload E2E diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-e2e-${{ github.sha }}
+          path: |
+            .e2e-results
+            apps/web/playwright-report
+            apps/backoffice/playwright-report
+            apps/web/test-results
+            apps/backoffice/test-results
+          if-no-files-found: ignore
+          retention-days: 14

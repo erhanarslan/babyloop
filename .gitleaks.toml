@@ -1,0 +1,10 @@
+title = "BabyLoop secret scanning policy"
+minVersion = "8.25.0"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Firebase Android client API key is public client configuration and is restricted in Google Cloud by package name and production signing certificate."
+targetRules = ["gcp-api-key", "generic-api-key"]
+paths = ["^apps/mobile/google-services\\.json$"]

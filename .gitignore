@@ -357,3 +357,5 @@ service-account*.json
 
 # Local Google Cloud deployment receipts and generated env manifests
 .babyloop-gcp/
+
+apps/mobile/google-services.json

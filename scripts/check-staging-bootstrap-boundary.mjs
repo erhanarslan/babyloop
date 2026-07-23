@@ -70,7 +70,7 @@ for (const file of [
 mustContain(
   "scripts/check-manual-workflow-triggers.mjs",
   safeRead("scripts/check-manual-workflow-triggers.mjs"),
-  "disallowed top-level trigger(s)"
+  "unsupported trigger(s)"
 );
 
 if (errors.length > 0) {

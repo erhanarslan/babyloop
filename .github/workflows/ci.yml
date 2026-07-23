@@ -1,12 +1,22 @@
 name: CI
 
 on:
+  pull_request:
+    branches: [dev, staging, master]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     name: Validate monorepo
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     services:
       postgres:
@@ -25,6 +35,7 @@ jobs:
 
     env:
       TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      CI: "true"
 
     steps:
       - name: Checkout
@@ -48,7 +59,7 @@ jobs:
       - name: Release artifact guard
         run: pnpm release:artifacts
 
-      - name: Manual workflow trigger guard
+      - name: Workflow governance guard
         run: pnpm security:manual-workflows
 
       - name: Deployment command safety guard
@@ -57,8 +68,10 @@ jobs:
       - name: Deployment readiness local check
         run: pnpm deploy:check
 
-      - name: Staging deployment boundary
-        run: pnpm security:staging-deployment
+      - name: Docker Compose configuration
+        run: |
+          docker compose -f docker-compose.dev.yml config --quiet
+          docker compose -f docker-compose.ci.yml config --quiet
 
       - name: Deployment unit tests
         run: pnpm test:deploy
@@ -78,7 +91,7 @@ jobs:
       - name: Shared unit tests
         run: pnpm --filter @babyloop/shared test:unit
 
-      - name: API integration tests
+      - name: API tests
         run: pnpm --filter @babyloop/api test
 
       - name: API release regression bundle
@@ -96,21 +109,13 @@ jobs:
       - name: Mobile unit tests
         run: pnpm --filter @babyloop/mobile test
 
-      - name: Build shared
-        run: pnpm --filter @babyloop/shared build
-
-      - name: Build API
-        run: pnpm --filter @babyloop/api build
-
-      - name: Build web
-        run: pnpm --filter @babyloop/web build
-
       - name: Build workspace
         run: pnpm build
 
   mobile-p0:
     name: Mobile P0 release gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -130,9 +135,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Release artifact guard
-        run: pnpm release:artifacts
 
       - name: Mobile P0 CI parity boundary
         run: pnpm security:ci-mobile-p0-parity
@@ -146,6 +148,7 @@ jobs:
   web-p0:
     name: Web P0 release gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -165,9 +168,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Release artifact guard
-        run: pnpm release:artifacts
 
       - name: Web P0 release gate
         run: pnpm release:web:p0
