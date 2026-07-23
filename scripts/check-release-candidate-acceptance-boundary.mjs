@@ -140,7 +140,7 @@ if (problems.length === 0) {
 
   must(".github/workflows/ci.yml", "workflow_dispatch:");
   must("scripts/check-manual-workflow-triggers.mjs", "workflow_dispatch");
-  must("scripts/check-manual-workflow-triggers.mjs", "disallowed top-level trigger(s)");
+  must("scripts/check-manual-workflow-triggers.mjs", "unsupported trigger(s)");
   must("scripts/check-deployment-command-safety.mjs", "shell execution with shell: true");
 
   for (const file of [

@@ -51,44 +51,44 @@ jobs:
       RAG_ENABLED: "false"
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-- name: Checkout
-  uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
 
-- name: Setup pnpm
-  uses: pnpm/action-setup@v4
-  with:
-    version: 10.33.0
-    run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
 
-- name: Setup Node
-  uses: actions/setup-node@v4
-  with:
-    node-version-file: .node-version
-    cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-- name: Install dependencies
-  run: pnpm install --frozen-lockfile
+      - name: Generate CI-only authentication secret
+        shell: bash
+        run: |
+          printf 'AUTH_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
-- name: Generate CI-only authentication secret
-  shell: bash
-  run: |
-    printf 'AUTH_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Release artifact guard
+        run: pnpm release:artifacts
 
-- name: Release artifact guard
-  run: pnpm release:artifacts
+      - name: Workflow governance guard
+        run: pnpm security:manual-workflows
 
-- name: Workflow governance guard
-  run: pnpm security:manual-workflows
+      - name: Deployment command safety guard
+        run: pnpm security:deployment-command-safety
 
-- name: Deployment command safety guard
-  run: pnpm security:deployment-command-safety
+      - name: Deployment tests
+        run: pnpm test:deploy
 
-- name: Deployment tests
-  run: pnpm test:deploy
+      - name: Cloud Run contract tests
+        run: pnpm test:gcp:cloud-run
 
-- name: Cloud Run contract tests
-  run: pnpm test:gcp:cloud-run
       - name: Staging readiness
         run: pnpm deploy:check:staging
 

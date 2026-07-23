@@ -142,7 +142,7 @@ if (problems.length === 0) {
   must(".github/workflows/container-images.yml", "actions/upload-artifact@v4");
   must(".github/workflows/container-images.yml", "assemble-image-manifest.mjs");
   must("scripts/check-manual-workflow-triggers.mjs", "workflow_dispatch");
-  must("scripts/check-manual-workflow-triggers.mjs", "disallowed top-level trigger(s)");
+  must("scripts/check-manual-workflow-triggers.mjs", "unsupported trigger(s)");
   must("scripts/check-deployment-command-safety.mjs", "stripJavaScriptNonCode");
   must("scripts/check-deployment-command-safety.mjs", "inspectShellSource");
   mustAppearInOrder("scripts/deploy/promote-release.mjs", [
