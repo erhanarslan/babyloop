@@ -278,6 +278,7 @@ jobs:
             ${{ env.BACKUP_OUTPUT_DIR }}
           if-no-files-found: error
           retention-days: 30
+          include-hidden-files: true
 
       - name: Deployment summary
         if: always()
