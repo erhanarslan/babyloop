@@ -39,8 +39,6 @@ jobs:
       GCP_DEPLOY_CONFIRM: DEPLOY_STAGING
       GCP_MIGRATION_CONFIRM: APPLY_STAGING
       BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
-      BACKUP_OUTPUT_DIR: ${{ runner.temp }}/babyloop-backups/staging
-      BACKUP_REPLICA_DIR: ""
 
     steps:
       - name: Guard staging source
@@ -55,6 +53,16 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Prepare backup directories
+        run: |
+          set -euo pipefail
+          backup_output_dir="$RUNNER_TEMP/babyloop-backups/staging"
+          mkdir -p "$backup_output_dir"
+          {
+            echo "BACKUP_OUTPUT_DIR=$backup_output_dir"
+            echo "BACKUP_REPLICA_DIR="
+          } >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -119,9 +127,11 @@ jobs:
         run: |
           set -euo pipefail
           manifest=".release/gcp/staging/cloud-run-image-manifest.json"
-          echo "api=$(jq -r '.images.api' "$manifest")" >> "$GITHUB_OUTPUT"
-          echo "web=$(jq -r '.images.web' "$manifest")" >> "$GITHUB_OUTPUT"
-          echo "backoffice=$(jq -r '.images.backoffice' "$manifest")" >> "$GITHUB_OUTPUT"
+          {
+            echo "api=$(jq -r '.images.api' "$manifest")"
+            echo "web=$(jq -r '.images.web' "$manifest")"
+            echo "backoffice=$(jq -r '.images.backoffice' "$manifest")"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Report API image vulnerabilities
         uses: aquasecurity/trivy-action@0.36.0
@@ -259,7 +269,7 @@ jobs:
           name: staging-release-${{ github.sha }}
           path: |
             .release
-            ${{ runner.temp }}/babyloop-backups/staging
+            ${{ env.BACKUP_OUTPUT_DIR }}
           if-no-files-found: error
           retention-days: 30
 
