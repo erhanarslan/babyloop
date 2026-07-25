@@ -4,6 +4,8 @@ const problems = [];
 const requiredFiles = [
   ".dockerignore",
   ".github/workflows/container-images.yml",
+  ".github/workflows/deploy-staging.yml",
+  ".github/workflows/promote-production.yml",
   "deploy/docker/Dockerfile",
   "deploy/docker-bake.hcl",
   "deploy/compose/docker-compose.runtime.yml",
@@ -15,8 +17,10 @@ const requiredFiles = [
   "scripts/deploy/deployment-lib.mjs",
   "scripts/deploy/worker-loop.mjs",
   "scripts/deploy/post-deploy-smoke.mjs",
+  "scripts/deploy/run-environment-smoke.mjs",
   "scripts/deploy/promote-release.mjs",
   "scripts/deploy/adapters/docker-compose.mjs",
+  "scripts/deploy/adapters/gcp-cloud-run.mjs",
   "scripts/deploy/assemble-image-manifest.mjs",
   "scripts/deploy/runtime-env-lib.mjs",
   "scripts/deploy/audit-runtime-env.mjs",
@@ -28,6 +32,7 @@ const requiredFiles = [
   "scripts/check-manual-workflow-triggers.mjs",
   "scripts/check-deployment-command-safety.mjs",
   "scripts/check-gcp-cloud-run-boundary.mjs",
+  "scripts/ops/database-release-safety.mjs",
   "deploy/gcp/cloud-run.contract.json",
   "apps/api/src/scripts/migrate-database.ts",
   "docs/85-staging-production-deployment.md"
@@ -137,12 +142,30 @@ if (problems.length === 0) {
   must("apps/web/next.config.mjs", 'output: "standalone"');
   must("apps/backoffice/next.config.mjs", 'output: "standalone"');
   must("apps/backoffice/next.config.mjs", "NEXT_PUBLIC_API_BASE_URL");
-  must(".github/workflows/container-images.yml", "docker/build-push-action@v6");
+  must(".github/workflows/container-images.yml", "docker/build-push-action@v7");
   must(".github/workflows/container-images.yml", "steps.build.outputs.digest");
   must(".github/workflows/container-images.yml", "actions/upload-artifact@v4");
   must(".github/workflows/container-images.yml", "assemble-image-manifest.mjs");
+  must(".github/workflows/container-images.yml", "Report immutable image vulnerabilities");
+  must(".github/workflows/container-images.yml", "Enforce critical vulnerability policy");
   must("scripts/check-manual-workflow-triggers.mjs", "workflow_dispatch");
-  must("scripts/check-manual-workflow-triggers.mjs", "disallowed top-level trigger(s)");
+  must("scripts/check-manual-workflow-triggers.mjs", "WORKFLOW_POLICIES");
+  must(".github/workflows/ci.yml", "pull_request:");
+  for (const target of ["shared", "api", "web", "backoffice"]) {
+    must(".github/workflows/ci.yml", `pnpm --filter @babyloop/${target} build`);
+  }
+  mustNot(".github/workflows/ci.yml", "run: pnpm build");
+  mustNot(".github/workflows/ci.yml", "pnpm --filter @babyloop/mobile build");
+  must(".github/workflows/deploy-staging.yml", "branches: [staging]");
+  must(".github/workflows/deploy-staging.yml", "group: deploy-staging");
+  must(".github/workflows/deploy-staging.yml", "cancel-in-progress: true");
+  must(".github/workflows/deploy-staging.yml", 'test "$GITHUB_REF" = "refs/heads/staging"');
+  must(".github/workflows/deploy-staging.yml", "Report API image vulnerabilities");
+  must(".github/workflows/deploy-staging.yml", "Enforce API critical vulnerability policy");
+  must(".github/workflows/promote-production.yml", "branches: [master]");
+  must(".github/workflows/promote-production.yml", "Resolve promoted immutable images");
+  must(".github/workflows/promote-production.yml", "Enforce API critical vulnerability policy");
+  mustNot(".github/workflows/promote-production.yml", "docker/build-push-action");
   must("scripts/check-deployment-command-safety.mjs", "stripJavaScriptNonCode");
   must("scripts/check-deployment-command-safety.mjs", "inspectShellSource");
   mustAppearInOrder("scripts/deploy/promote-release.mjs", [

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   assertManualWorkflowSource,
+  assertReleaseWorkflowSource,
   extractWorkflowTriggers
 } from "../../check-manual-workflow-triggers.mjs";
 
@@ -65,5 +66,39 @@ on:
   assert.throws(
     () => assertManualWorkflowSource(source, "release.yml"),
     /schedule, workflow_call/
+  );
+});
+
+test("accepts PR CI only for staging and master", () => {
+  const source = `name: CI
+on:
+  pull_request:
+    branches: [staging, master]
+  workflow_call:
+  workflow_dispatch:
+jobs: {}
+`;
+  assert.deepEqual(assertReleaseWorkflowSource(source, "ci.yml"), [
+    "pull_request",
+    "workflow_call",
+    "workflow_dispatch"
+  ]);
+});
+
+test("accepts protected staging push deployment and rejects an untracked workflow", () => {
+  const source = `name: Deploy staging
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+jobs: {}
+`;
+  assert.deepEqual(assertReleaseWorkflowSource(source, "deploy-staging.yml"), [
+    "push",
+    "workflow_dispatch"
+  ]);
+  assert.throws(
+    () => assertReleaseWorkflowSource(source, "unknown.yml"),
+    /no explicit release trigger policy/
   );
 });

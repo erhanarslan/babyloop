@@ -47,6 +47,7 @@ async function main() {
 
   for (const target of ["api", "web", "backoffice"]) {
     const tag = `${repository}/babyloop-${target}:${gitSha}`;
+    const environmentTag = `${repository}/babyloop-${target}:${environment}`;
     const metadataPath = resolve(root, `${target}-build-metadata.json`);
     const args = [
       "buildx", "build", ".",
@@ -54,10 +55,13 @@ async function main() {
       `--target=${target}`,
       "--platform=linux/amd64",
       `--tag=${tag}`,
+      `--tag=${environmentTag}`,
       "--push",
       `--metadata-file=${metadataPath}`,
-      "--provenance=mode=min",
-      "--sbom=true"
+      "--provenance=mode=max",
+      "--sbom=true",
+      `--cache-from=type=registry,ref=${repository}/babyloop-${target}:buildcache`,
+      `--cache-to=type=registry,ref=${repository}/babyloop-${target}:buildcache,mode=max`
     ];
     if (target !== "api") {
       args.push(`--build-arg=NEXT_PUBLIC_API_BASE_URL=${values.NEXT_PUBLIC_API_BASE_URL}`);
@@ -91,7 +95,7 @@ async function main() {
     contractSha256: sha256,
     platform: "linux/amd64",
     images,
-    attestations: { provenance: "mode=min", sbom: true }
+    attestations: { provenance: "mode=max", sbom: true }
   });
   console.log(JSON.stringify({ ok: true, environment, project: context.project, gitSha, manifest: manifest.path, images }, null, 2));
 }

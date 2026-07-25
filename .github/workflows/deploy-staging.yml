@@ -1,0 +1,277 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Cloud Run staging
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    env:
+      DEPLOY_ENVIRONMENT: staging
+      EXPECTED_DATABASE_NAME: ${{ vars.EXPECTED_DATABASE_NAME }}
+      OTHER_ENV_DATABASE_FINGERPRINT: ${{ vars.OTHER_ENV_DATABASE_FINGERPRINT }}
+      OTHER_ENV_QDRANT_API_KEY_SHA256: ${{ vars.OTHER_ENV_QDRANT_API_KEY_SHA256 }}
+      MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM: ${{ vars.MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM }}
+      GCP_BUILD_CONFIRM: BUILD_STAGING
+      GCP_SECRET_IMPORT_CONFIRM: SECRET_IMPORT_STAGING
+      GCP_DEPLOY_CONFIRM: DEPLOY_STAGING
+      GCP_MIGRATION_CONFIRM: APPLY_STAGING
+      BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
+      BACKUP_OUTPUT_DIR: ${{ runner.temp }}/babyloop-backups/staging
+      BACKUP_REPLICA_DIR: ""
+
+    steps:
+      - name: Guard staging source
+        run: |
+          set -euo pipefail
+          case "$GITHUB_EVENT_NAME" in
+            push|workflow_dispatch)
+              test "$GITHUB_REF" = "refs/heads/staging"
+              ;;
+            *)
+              echo "Unsupported staging deployment event: $GITHUB_EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Pin gcloud context
+        run: |
+          set -euo pipefail
+          gcloud config set project babyloop-staging
+          gcloud config set run/region europe-west1
+
+      - name: Materialize protected runtime contract
+        env:
+          RUNTIME_ENV_FILE: ${{ secrets.RUNTIME_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          test -n "$RUNTIME_ENV_FILE"
+          runtime_path="$RUNNER_TEMP/babyloop-staging.env"
+          printf '%s\n' "$RUNTIME_ENV_FILE" > "$runtime_path"
+          chmod 600 "$runtime_path"
+          echo "DEPLOY_ENV_FILE=$runtime_path" >> "$GITHUB_ENV"
+
+      - name: Audit runtime contract
+        run: pnpm deploy:runtime-env:audit -- --target=staging --env-file="$DEPLOY_ENV_FILE"
+
+      - name: Import pinned Secret Manager versions
+        run: pnpm gcp:cloud-run:secrets -- --environment=staging --env-file="$DEPLOY_ENV_FILE"
+
+      - name: Build immutable Artifact Registry images
+        run: pnpm gcp:cloud-run:build -- --environment=staging --env-file="$DEPLOY_ENV_FILE"
+
+      - name: Resolve immutable images
+        id: images
+        run: |
+          set -euo pipefail
+          manifest=".release/gcp/staging/cloud-run-image-manifest.json"
+          echo "api=$(jq -r '.images.api' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "web=$(jq -r '.images.web' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "backoffice=$(jq -r '.images.backoffice' "$manifest")" >> "$GITHUB_OUTPUT"
+
+      - name: Report API image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.api }}
+          format: sarif
+          output: .release/gcp/staging/api-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Report web image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.web }}
+          format: sarif
+          output: .release/gcp/staging/web-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Report backoffice image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.backoffice }}
+          format: sarif
+          output: .release/gcp/staging/backoffice-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Summarize staging vulnerability policy
+        run: |
+          {
+            echo "### Staging image vulnerability policy"
+            echo
+            echo "- Environment: \`staging\`"
+            echo "- API digest: \`${{ steps.images.outputs.api }}\`"
+            echo "- Web digest: \`${{ steps.images.outputs.web }}\`"
+            echo "- Backoffice digest: \`${{ steps.images.outputs.backoffice }}\`"
+            echo "- HIGH and CRITICAL findings are preserved in SARIF artifacts."
+            echo "- HIGH findings are non-blocking; CRITICAL findings block deployment."
+            echo "- Reporting scans completed against the digest-pinned images above."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce API critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.api }}
+          format: table
+          output: .release/gcp/staging/api-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Enforce web critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.web }}
+          format: table
+          output: .release/gcp/staging/web-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Enforce backoffice critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.backoffice }}
+          format: table
+          output: .release/gcp/staging/backoffice-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Capture previous Cloud Run revisions
+        run: |
+          set -euo pipefail
+          mkdir -p .release/rollback
+          : > .release/rollback/staging-previous-revisions.env
+          for service in api web backoffice; do
+            revision="$(gcloud run services describe "babyloop-$service" --project=babyloop-staging --region=europe-west1 --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)"
+            printf '%s=%s\n' "$service" "$revision" >> .release/rollback/staging-previous-revisions.env
+          done
+
+      - name: Database preflight
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=preflight
+
+      - name: Verified pre-migration backup
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/postgres-backup.mjs
+
+      - name: Deploy migration job only
+        run: pnpm gcp:cloud-run:deploy -- --environment=staging --phase=migration
+
+      - name: Execute migration
+        run: pnpm gcp:cloud-run:migrate -- --environment=staging
+
+      - name: Database postflight
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=postflight
+
+      - name: Deploy services and workers
+        run: pnpm gcp:cloud-run:deploy -- --environment=staging --phase=services
+
+      - name: Staging smoke
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/deploy/run-environment-smoke.mjs staging
+
+      - name: Record immutable deployment metadata
+        run: |
+          set -euo pipefail
+          {
+            echo "### Immutable images"
+            for target in api web backoffice; do
+              image="$(jq -r ".images.$target" .release/gcp/staging/cloud-run-image-manifest.json)"
+              echo "- ${target}: \`${image}\`"
+            done
+            echo "- Migration: passed"
+            echo "- Smoke: passed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back Cloud Run traffic after failure
+        if: failure()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          while IFS='=' read -r service revision; do
+            test -n "$revision" || continue
+            gcloud run services update-traffic "babyloop-$service" --project=babyloop-staging --region=europe-west1 --to-revisions="$revision=100"
+          done < .release/rollback/staging-previous-revisions.env
+          echo "Database schema was not rolled back; use a forward fix or the verified backup." > .release/rollback/staging-database-forward-fix.txt
+
+      - name: Upload deployment, migration, scan and rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-release-${{ github.sha }}
+          path: |
+            .release
+            ${{ runner.temp }}/babyloop-backups/staging
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          {
+            echo "## Staging deployment"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Environment: \`staging\`"
+            echo "- Result: \`${{ job.status }}\`"
+            echo "- Images are digest-pinned in the uploaded Cloud Run manifest."
+            echo "- Migration, smoke, scans and rollback inputs are in the staging-release artifact."
+          } >> "$GITHUB_STEP_SUMMARY"

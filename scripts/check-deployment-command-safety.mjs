@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 export const JAVASCRIPT_EXECUTION_FILES = Object.freeze([
   "scripts/deploy/adapters/docker-compose.mjs",
+  "scripts/deploy/adapters/gcp-cloud-run.mjs",
   "scripts/deploy/assemble-image-manifest.mjs",
   "scripts/deploy/audit-runtime-env.mjs",
   "scripts/deploy/check-runtime-env-readiness.mjs",
@@ -12,6 +13,7 @@ export const JAVASCRIPT_EXECUTION_FILES = Object.freeze([
   "scripts/deploy/deployment-lib.mjs",
   "scripts/deploy/execute-staging-deploy.mjs",
   "scripts/deploy/post-deploy-smoke.mjs",
+  "scripts/deploy/run-environment-smoke.mjs",
   "scripts/deploy/promote-release.mjs",
   "scripts/deploy/provider-probe.mjs",
   "scripts/deploy/release-evidence-lib.mjs",
@@ -31,6 +33,8 @@ export const JAVASCRIPT_EXECUTION_FILES = Object.freeze([
   "scripts/gcp/deploy-cloud-run.mjs",
   "scripts/gcp/execute-cloud-run-migration.mjs",
   "scripts/gcp/map-cloud-run-domains.mjs",
+  "scripts/gcp/promote-cloud-run-images.mjs",
+  "scripts/ops/database-release-safety.mjs",
   "scripts/ops/postgres-backup.mjs",
   "scripts/ops/postgres-ops-lib.mjs",
   "scripts/ops/postgres-restore-smoke.mjs",

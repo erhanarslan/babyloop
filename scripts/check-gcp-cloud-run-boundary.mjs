@@ -12,6 +12,7 @@ const required = [
   "scripts/gcp/build-cloud-run-images.mjs",
   "scripts/gcp/deploy-cloud-run.mjs",
   "scripts/gcp/execute-cloud-run-migration.mjs",
+  "scripts/gcp/promote-cloud-run-images.mjs",
   "scripts/gcp/map-cloud-run-domains.mjs",
   "scripts/gcp/cloud-run-iam-lib.mjs",
   "scripts/gcp/audit-cloud-run-iam.mjs",
@@ -45,6 +46,7 @@ if (problems.length === 0) {
     "scripts/gcp/build-cloud-run-images.mjs": ["linux/amd64", "containerimage.digest", "--sbom=true", "assertConfirmation(\"build\""],
     "scripts/gcp/deploy-cloud-run.mjs": ["--min-instances=", "--max-instances=", "--set-secrets=", "migrationExecuted: false", "assertConfirmation(\"deploy\"", "jobs", "add-iam-policy-binding"],
     "scripts/gcp/execute-cloud-run-migration.mjs": ["GCP_MIGRATION_CONFIRM", "--wait"],
+    "scripts/gcp/promote-cloud-run-images.mjs": ["GCP_PROMOTE_CONFIRM", "sourceProject", "digestPreserved"],
     "scripts/gcp/map-cloud-run-domains.mjs": ["assertConfirmation(\"domain-map\"", "list-user-verified", "domain-mappings"]
   })) for (const token of tokens) must(file, token);
 
@@ -82,6 +84,7 @@ if (problems.length === 0) {
   for (const name of [
     "gcp:cloud-run:plan", "gcp:cloud-run:bootstrap", "gcp:cloud-run:secrets",
     "gcp:cloud-run:build", "gcp:cloud-run:deploy", "gcp:cloud-run:migrate",
+    "gcp:cloud-run:promote-images",
     "gcp:cloud-run:domains", "gcp:cloud-run:iam:audit",
     "gcp:cloud-run:iam:repair", "test:gcp:cloud-run",
     "security:gcp-cloud-run"

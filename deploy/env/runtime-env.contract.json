@@ -111,6 +111,7 @@
       },
       "require": [
         "RAG_REDIS_URL",
+        "RAG_REDIS_KEY_PREFIX",
         "RAG_CACHE_BACKEND",
         "RAG_USAGE_LIMITS_BACKEND",
         "RAG_METRICS_BACKEND"
