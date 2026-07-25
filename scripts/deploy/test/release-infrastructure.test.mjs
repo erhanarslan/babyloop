@@ -130,7 +130,7 @@ test("image scans report HIGH findings but block CRITICAL findings on immutable 
   ]);
 
   for (const source of [containerImages, staging, production]) {
-    assert.match(source, /aquasecurity\/trivy-action@0\.36\.0/u);
+    assert.match(source, /aquasecurity\/trivy-action@v0\.36\.0/u);
     assert.match(source, /severity: HIGH,CRITICAL\n\s+ignore-unfixed: false\n\s+exit-code: "0"/u);
     assert.match(source, /severity: CRITICAL\n\s+ignore-unfixed: false\n\s+exit-code: "1"/u);
   }
