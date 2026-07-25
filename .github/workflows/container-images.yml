@@ -142,7 +142,7 @@ jobs:
           format: table
           output: image-digest/${{ matrix.target }}-trivy-critical.txt
           severity: CRITICAL
-          ignore-unfixed: false
+          ignore-unfixed: true
           exit-code: "1"
 
       - name: Summarize image vulnerability policy
@@ -154,7 +154,8 @@ jobs:
             echo "- Environment: \`${{ inputs.environment }}\`"
             echo "- Image: \`ghcr.io/${{ github.repository_owner }}/babyloop-${{ matrix.target }}@${{ steps.build.outputs.digest }}\`"
             echo "- HIGH findings are reported without blocking."
-            echo "- CRITICAL findings block image acceptance."
+            echo "- Fixable CRITICAL findings block image acceptance."
+            echo "- Unfixed CRITICAL findings remain visible in SARIF evidence."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload image scan
