@@ -122,7 +122,7 @@ test("CI builds the database workspace package before fresh migration regression
   });
 });
 
-test("image scans report HIGH findings but block CRITICAL findings on immutable digests", async () => {
+test("image scans report all findings but block fixable CRITICAL findings on immutable digests", async () => {
   const [containerImages, staging, production] = await Promise.all([
     readWorkflow("container-images.yml"),
     readWorkflow("deploy-staging.yml"),
@@ -132,7 +132,7 @@ test("image scans report HIGH findings but block CRITICAL findings on immutable 
   for (const source of [containerImages, staging, production]) {
     assert.match(source, /aquasecurity\/trivy-action@v0\.36\.0/u);
     assert.match(source, /severity: HIGH,CRITICAL\n\s+ignore-unfixed: false\n\s+exit-code: "0"/u);
-    assert.match(source, /severity: CRITICAL\n\s+ignore-unfixed: false\n\s+exit-code: "1"/u);
+    assert.match(source, /severity: CRITICAL\n\s+ignore-unfixed: true\n\s+exit-code: "1"/u);
   }
   assert.match(containerImages, /@\$\{\{ steps\.build\.outputs\.digest \}\}/u);
   assert.match(staging, /image-ref: \$\{\{ steps\.images\.outputs\.api \}\}/u);
