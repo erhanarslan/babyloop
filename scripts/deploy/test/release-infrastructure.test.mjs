@@ -101,6 +101,27 @@ test("CI builds release packages as distinct diagnostic steps without mobile", a
   assert.doesNotMatch(ci, /pnpm --filter @babyloop\/mobile build/u);
 });
 
+test("CI builds the database workspace package before fresh migration regression", async () => {
+  const [ci, databasePackageSource, migrationTest] = await Promise.all([
+    readWorkflow("ci.yml"),
+    readFile("packages/database/package.json", "utf8"),
+    readFile("apps/api/test/fresh-migration-chain.test.ts", "utf8")
+  ]);
+  const databaseBuild = "name: Build database package\n        run: pnpm --filter @babyloop/database build";
+  const freshMigration = "name: Fresh migration regression\n        run: pnpm test:api:fresh-migrations";
+
+  assert.ok(ci.indexOf(databaseBuild) >= 0);
+  assert.ok(ci.indexOf(databaseBuild) < ci.indexOf(freshMigration));
+  assert.match(migrationTest, /from "@babyloop\/database"/u);
+  assert.doesNotMatch(migrationTest, /packages\/database\/(?:src|dist)/u);
+
+  const databasePackage = JSON.parse(databasePackageSource);
+  assert.deepEqual(databasePackage.exports["."], {
+    types: "./dist/index.d.ts",
+    import: "./dist/index.js"
+  });
+});
+
 test("image scans report HIGH findings but block CRITICAL findings on immutable digests", async () => {
   const [containerImages, staging, production] = await Promise.all([
     readWorkflow("container-images.yml"),

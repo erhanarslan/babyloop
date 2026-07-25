@@ -111,6 +111,9 @@ jobs:
           pnpm test:gcp:cloud-run
           pnpm test:ops:backup-restore
 
+      - name: Build database package
+        run: pnpm --filter @babyloop/database build
+
       - name: Fresh migration regression
         run: pnpm test:api:fresh-migrations
 
@@ -161,6 +164,7 @@ jobs:
             apps/api/coverage
             apps/web/coverage
             apps/backoffice/coverage
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
 
