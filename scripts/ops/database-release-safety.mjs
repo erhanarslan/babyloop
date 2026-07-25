@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { timestampForFile, writeJsonReceipt } from "../deploy/deployment-lib.mjs";
+import { formatDatabaseError } from "./database-error-format.mjs";
 
 const requireFromDatabase = createRequire(resolve("packages/database/package.json"));
 const { Client } = requireFromDatabase("pg");
@@ -115,7 +116,7 @@ try {
     checksum: receipt.checksum
   }, null, 2)}\n`);
 } catch (error) {
-  fail(error instanceof Error ? error.message : String(error));
+  fail(formatDatabaseError(error, databaseUrl));
 } finally {
   await client.end().catch(() => undefined);
 }
