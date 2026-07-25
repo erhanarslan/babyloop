@@ -294,6 +294,7 @@ jobs:
             ${{ env.BACKUP_REPLICA_DIR }}
           if-no-files-found: error
           retention-days: 90
+          include-hidden-files: true
 
       - name: Deployment summary
         if: always()
