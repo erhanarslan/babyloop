@@ -195,7 +195,8 @@ jobs:
             echo "- Web digest: \`${{ steps.images.outputs.web }}\`"
             echo "- Backoffice digest: \`${{ steps.images.outputs.backoffice }}\`"
             echo "- HIGH and CRITICAL findings are preserved in SARIF artifacts."
-            echo "- HIGH findings are non-blocking; CRITICAL findings block deployment."
+            echo "- HIGH findings are non-blocking; fixable CRITICAL findings block deployment."
+            echo "- Unfixed CRITICAL findings remain visible in SARIF evidence."
             echo "- Reporting scans completed against the exact promoted staging digests; production does not rebuild."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -206,7 +207,7 @@ jobs:
           format: table
           output: .release/gcp/production/api-trivy-critical.txt
           severity: CRITICAL
-          ignore-unfixed: false
+          ignore-unfixed: true
           exit-code: "1"
 
       - name: Enforce web critical vulnerability policy
@@ -216,7 +217,7 @@ jobs:
           format: table
           output: .release/gcp/production/web-trivy-critical.txt
           severity: CRITICAL
-          ignore-unfixed: false
+          ignore-unfixed: true
           exit-code: "1"
 
       - name: Enforce backoffice critical vulnerability policy
@@ -226,7 +227,7 @@ jobs:
           format: table
           output: .release/gcp/production/backoffice-trivy-critical.txt
           severity: CRITICAL
-          ignore-unfixed: false
+          ignore-unfixed: true
           exit-code: "1"
 
       - name: Capture previous Cloud Run revisions

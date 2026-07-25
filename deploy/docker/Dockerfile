@@ -14,6 +14,20 @@ RUN npm install --global "corepack@${COREPACK_VERSION}" \
     && corepack install --global "pnpm@${PNPM_VERSION}"
 WORKDIR /workspace
 
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+RUN rm -rf \
+      /usr/local/lib/node_modules/npm \
+      /usr/local/lib/node_modules/corepack \
+      /opt/yarn-v1.22.22 \
+    && rm -f \
+      /usr/local/bin/npm \
+      /usr/local/bin/npx \
+      /usr/local/bin/corepack \
+      /usr/local/bin/pnpm \
+      /usr/local/bin/pnpx \
+      /usr/local/bin/yarn \
+      /usr/local/bin/yarnpkg
+
 FROM base AS builder
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
@@ -28,7 +42,7 @@ RUN pnpm --filter @babyloop/api build \
     && cp -R packages/database/drizzle/. /out/api/migrations/ \
     && cp scripts/deploy/worker-loop.mjs /out/api/scripts/deploy/worker-loop.mjs
 
-FROM node:${NODE_VERSION}-bookworm-slim AS api
+FROM runtime AS api
 ENV NODE_ENV=production
 ENV API_HOST=0.0.0.0
 ENV PORT=4000
@@ -64,7 +78,7 @@ ENV NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION=${NEXT_PUBLIC_LEGAL_PUBLIC_LOCATION}
 ENV NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS=${NEXT_PUBLIC_LEGAL_CONTACT_ADDRESS}
 RUN pnpm --filter @babyloop/web build
 
-FROM node:${NODE_VERSION}-bookworm-slim AS web
+FROM runtime AS web
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
@@ -83,7 +97,7 @@ ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 RUN pnpm --filter @babyloop/backoffice build
 
-FROM node:${NODE_VERSION}-bookworm-slim AS backoffice
+FROM runtime AS backoffice
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3001
