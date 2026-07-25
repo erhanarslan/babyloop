@@ -30,10 +30,10 @@ if (!databaseUrl) {
 if (!["none", "age"].includes(encryptionMode)) {
   fail("BACKUP_ENCRYPTION_MODE must be none or age.");
 }
+if (["staging", "production"].includes(environment) && encryptionMode !== "age") {
+  fail(`${environment} backups require BACKUP_ENCRYPTION_MODE=age.`);
+}
 if (environment === "production") {
-  if (encryptionMode !== "age") {
-    fail("Production backups require BACKUP_ENCRYPTION_MODE=age.");
-  }
   if (!replicaDirectory) {
     fail("Production backups require BACKUP_REPLICA_DIR on a separate persistent volume or mounted backup sink.");
   }

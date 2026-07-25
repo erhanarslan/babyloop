@@ -1,10 +1,34 @@
 #!/usr/bin/env node
 import { readdir, readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { extname, resolve } from "node:path";
+import { basename, extname, resolve } from "node:path";
 
 const WORKFLOW_DIRECTORY = ".github/workflows";
-const ALLOWED_TRIGGERS = new Set(["workflow_dispatch"]);
+const WORKFLOW_POLICIES = Object.freeze({
+  "ci.yml": {
+    required: ["pull_request", "workflow_call", "workflow_dispatch"],
+    allowed: ["pull_request", "workflow_call", "workflow_dispatch"],
+    branches: ["staging", "master"]
+  },
+  "container-images.yml": {
+    required: ["workflow_call", "workflow_dispatch"],
+    allowed: ["workflow_call", "workflow_dispatch"]
+  },
+  "deploy-staging.yml": {
+    required: ["push", "workflow_dispatch"],
+    allowed: ["push", "workflow_dispatch"],
+    branches: ["staging"]
+  },
+  "promote-production.yml": {
+    required: ["push", "workflow_dispatch"],
+    allowed: ["push", "workflow_dispatch"],
+    branches: ["master"]
+  },
+  "release-e2e.yml": {
+    required: ["workflow_dispatch"],
+    allowed: ["workflow_dispatch"]
+  }
+});
 
 export function extractWorkflowTriggers(source, file = "<workflow>") {
   const lines = source.replace(/^\uFEFF/u, "").split(/\r?\n/u);
@@ -49,7 +73,7 @@ export function extractWorkflowTriggers(source, file = "<workflow>") {
 
 export function assertManualWorkflowSource(source, file = "<workflow>") {
   const triggers = extractWorkflowTriggers(source, file);
-  const disallowed = triggers.filter((trigger) => !ALLOWED_TRIGGERS.has(trigger));
+  const disallowed = triggers.filter((trigger) => trigger !== "workflow_dispatch");
 
   if (disallowed.length > 0) {
     throw new Error(
@@ -64,7 +88,28 @@ export function assertManualWorkflowSource(source, file = "<workflow>") {
   return triggers;
 }
 
-export async function checkManualWorkflowDirectory(
+export function assertReleaseWorkflowSource(source, file = "<workflow>") {
+  const name = basename(file);
+  const policy = WORKFLOW_POLICIES[name];
+  if (!policy) throw new Error(`${name} has no explicit release trigger policy.`);
+  const triggers = extractWorkflowTriggers(source, file);
+  const disallowed = triggers.filter((trigger) => !policy.allowed.includes(trigger));
+  const missing = policy.required.filter((trigger) => !triggers.includes(trigger));
+  if (disallowed.length > 0) {
+    throw new Error(`${file} has disallowed top-level trigger(s): ${disallowed.join(", ")}.`);
+  }
+  if (missing.length > 0) {
+    throw new Error(`${file} is missing required top-level trigger(s): ${missing.join(", ")}.`);
+  }
+  for (const branch of policy.branches || []) {
+    if (!new RegExp(`branches:\\s*\\[[^\\]]*\\b${branch}\\b[^\\]]*\\]`, "u").test(source)) {
+      throw new Error(`${file} must restrict its automatic trigger to branch ${branch}.`);
+    }
+  }
+  return triggers;
+}
+
+export async function checkReleaseWorkflowDirectory(
   directory = WORKFLOW_DIRECTORY
 ) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -85,7 +130,7 @@ export async function checkManualWorkflowDirectory(
   for (const name of workflowFiles) {
     const file = resolve(directory, name);
     const source = await readFile(file, "utf8");
-    const triggers = assertManualWorkflowSource(source, file);
+    const triggers = assertReleaseWorkflowSource(source, file);
     checked.push({ file, triggers });
   }
 
@@ -134,14 +179,14 @@ const invokedPath = process.argv[1]
 
 if (invokedPath === import.meta.url) {
   try {
-    const checked = await checkManualWorkflowDirectory(
+    const checked = await checkReleaseWorkflowDirectory(
       process.env.WORKFLOW_DIRECTORY || WORKFLOW_DIRECTORY
     );
     console.log(
-      `Manual workflow trigger guard passed for ${checked.length} workflow file(s).`
+      `Release workflow trigger guard passed for ${checked.length} workflow file(s).`
     );
   } catch (error) {
-    console.error("Manual workflow trigger guard failed:");
+    console.error("Release workflow trigger guard failed:");
     console.error(`- ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }

@@ -147,6 +147,10 @@ async function upsertScheduler({ key, config, context, contract, environment }) 
 
 async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
+  const phase = parseFlag("phase") || "all";
+  if (!["all", "migration", "services"].includes(phase)) {
+    throw new Error("--phase must be all, migration, or services.");
+  }
   const manifestPath = parseFlag("image-manifest") || resolve(artifactRoot((await loadCloudRunContract()).contract, environment), "cloud-run-image-manifest.json");
   const secretManifestPath = parseFlag("secret-manifest") || resolve(artifactRoot((await loadCloudRunContract()).contract, environment), "secret-manifest.json");
   const { contract, sha256 } = await loadCloudRunContract();
@@ -157,8 +161,12 @@ async function main() {
   if (secrets.environment !== environment || secrets.project !== context.project) throw new Error("Secret manifest environment/project mismatch.");
   if (images.contractSha256 !== sha256) throw new Error("Image manifest uses a different Cloud Run contract.");
   const gitResult = await run("git", ["rev-parse", "HEAD"], { capture: true });
-  const gitSha = assertFullGitSha(gitResult.stdout.trim());
-  if (images.gitSha !== gitSha) throw new Error(`Image manifest gitSha ${images.gitSha} does not match current HEAD ${gitSha}.`);
+  const headGitSha = assertFullGitSha(gitResult.stdout.trim());
+  const gitSha = assertFullGitSha(process.env.RELEASE_SOURCE_GIT_SHA || headGitSha, "RELEASE_SOURCE_GIT_SHA");
+  if (images.gitSha !== gitSha) throw new Error(`Image manifest gitSha ${images.gitSha} does not match release source ${gitSha}.`);
+  if (gitSha !== headGitSha) {
+    await run("git", ["diff", "--quiet", gitSha, headGitSha]);
+  }
   for (const key of ["api", "web", "backoffice"]) assertDigestImage(images.images[key], `${key} image`);
   const secretBindings = secretFlag(secrets);
   const envFile = resolve(secrets.nonSecretEnvFile);
@@ -167,11 +175,15 @@ async function main() {
   await writeFile(migrationEnvFile, `${apiEnvSource}MIGRATION_CONFIRM: ${JSON.stringify(`APPLY_${environment.toUpperCase()}`)}\n`, { mode: 0o600 });
 
   const urls = {};
-  urls.api = await deployService({ config: contract.services.api, role: "api", image: images.images.api, environment, context, contract, envFile, secrets: secretBindings });
-  urls.web = await deployService({ config: contract.services.web, role: "web", image: images.images.web, environment, context, contract, envFile, secrets: "" });
-  urls.backoffice = await deployService({ config: contract.services.backoffice, role: "backoffice", image: images.images.backoffice, environment, context, contract, envFile, secrets: "" });
+  if (phase !== "migration") {
+    urls.api = await deployService({ config: contract.services.api, role: "api", image: images.images.api, environment, context, contract, envFile, secrets: secretBindings });
+    urls.web = await deployService({ config: contract.services.web, role: "web", image: images.images.web, environment, context, contract, envFile, secrets: "" });
+    urls.backoffice = await deployService({ config: contract.services.backoffice, role: "backoffice", image: images.images.backoffice, environment, context, contract, envFile, secrets: "" });
+  }
 
   for (const [key, config] of Object.entries(contract.jobs)) {
+    if (phase === "migration" && key !== "migrate") continue;
+    if (phase === "services" && key === "migrate") continue;
     await deployJob({ config, key, image: images.images.api, environment, context, contract, envFile, secrets: secretBindings, migrationEnvFile });
     if (config.schedule) {
       await grantSchedulerJobInvocation({ config, context, contract });
@@ -179,7 +191,7 @@ async function main() {
     }
   }
 
-  const receipt = await writeJson(resolve(artifactRoot(contract, environment), "cloud-run-deployment.json"), {
+  const receipt = await writeJson(resolve(artifactRoot(contract, environment), `cloud-run-deployment-${phase}.json`), {
     schemaVersion: 1,
     kind: "gcp_cloud_run_deployment",
     status: "deployed",
@@ -188,6 +200,8 @@ async function main() {
     project: context.project,
     region: contract.region,
     gitSha,
+    headGitSha,
+    phase,
     imageManifest: resolve(manifestPath),
     secretManifest: resolve(secretManifestPath),
     urls,
@@ -196,7 +210,7 @@ async function main() {
     costGuard: Object.fromEntries(Object.entries(contract.services).map(([key, value]) => [key, { minInstances: value.minInstances, maxInstances: value.maxInstances, cpu: value.cpu, memory: value.memory }])),
     migrationExecuted: false
   });
-  console.log(JSON.stringify({ ok: true, environment, project: context.project, urls, receipt: receipt.path, migrationExecuted: false }, null, 2));
+  console.log(JSON.stringify({ ok: true, environment, project: context.project, phase, urls, receipt: receipt.path, migrationExecuted: false }, null, 2));
 }
 
 main().catch((error) => {

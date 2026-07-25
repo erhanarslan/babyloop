@@ -1,0 +1,317 @@
+name: Promote production
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full staging SHA already deployed and accepted
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Cloud Run production
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      DEPLOY_ENVIRONMENT: production
+      EXPECTED_DATABASE_NAME: ${{ vars.EXPECTED_DATABASE_NAME }}
+      OTHER_ENV_DATABASE_FINGERPRINT: ${{ vars.OTHER_ENV_DATABASE_FINGERPRINT }}
+      OTHER_ENV_QDRANT_API_KEY_SHA256: ${{ vars.OTHER_ENV_QDRANT_API_KEY_SHA256 }}
+      MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM: ${{ vars.MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM }}
+      GCP_SECRET_IMPORT_CONFIRM: SECRET_IMPORT_PRODUCTION
+      GCP_DEPLOY_CONFIRM: DEPLOY_PRODUCTION
+      GCP_MIGRATION_CONFIRM: APPLY_PRODUCTION
+      GCP_PROMOTE_CONFIRM: PROMOTE_STAGING_TO_PRODUCTION
+      BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
+      BACKUP_OUTPUT_DIR: ${{ runner.temp }}/babyloop-backups/production
+      BACKUP_REPLICA_DIR: ${{ runner.temp }}/babyloop-backups/production-replica
+
+    steps:
+      - name: Guard production source
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/master"
+          test "${{ vars.PRODUCTION_RELEASE_APPROVED }}" = "true"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve verified staging SHA
+        id: source
+        env:
+          DISPATCH_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin staging --no-tags
+          if [ -n "$DISPATCH_SOURCE_SHA" ]; then
+            source_sha="$DISPATCH_SOURCE_SHA"
+          elif git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
+            source_sha="$(git rev-parse HEAD^2)"
+          else
+            source_sha="$(git rev-parse HEAD)"
+          fi
+          test "$(printf '%s' "$source_sha" | wc -c | tr -d ' ')" = "40"
+          git merge-base --is-ancestor "$source_sha" origin/staging
+          git diff --quiet "$source_sha" HEAD
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_SOURCE_GIT_SHA=$source_sha" >> "$GITHUB_ENV"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Pin gcloud context
+        run: |
+          set -euo pipefail
+          gcloud config set project babyloop-production
+          gcloud config set run/region europe-west1
+
+      - name: Materialize protected runtime contract
+        env:
+          RUNTIME_ENV_FILE: ${{ secrets.RUNTIME_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          test -n "$RUNTIME_ENV_FILE"
+          runtime_path="$RUNNER_TEMP/babyloop-production.env"
+          printf '%s\n' "$RUNTIME_ENV_FILE" > "$runtime_path"
+          chmod 600 "$runtime_path"
+          echo "DEPLOY_ENV_FILE=$runtime_path" >> "$GITHUB_ENV"
+
+      - name: Audit runtime contract
+        run: pnpm deploy:runtime-env:audit -- --target=production --env-file="$DEPLOY_ENV_FILE"
+
+      - name: Import pinned Secret Manager versions
+        run: pnpm gcp:cloud-run:secrets -- --environment=production --env-file="$DEPLOY_ENV_FILE"
+
+      - name: Promote exact staging image digests
+        run: pnpm gcp:cloud-run:promote-images -- --environment=production --source-environment=staging --git-sha="${{ steps.source.outputs.sha }}"
+
+      - name: Configure Artifact Registry authentication
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Resolve promoted immutable images
+        id: images
+        run: |
+          set -euo pipefail
+          manifest=".release/gcp/production/cloud-run-image-manifest.json"
+          for target in api web backoffice; do
+            image="$(jq -r ".images.$target" "$manifest")"
+            case "$image" in
+              *@sha256:*) ;;
+              *) echo "$target image is not digest-pinned" >&2; exit 1 ;;
+            esac
+            echo "$target=$image" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Report API image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.api }}
+          format: sarif
+          output: .release/gcp/production/api-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Report web image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.web }}
+          format: sarif
+          output: .release/gcp/production/web-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Report backoffice image vulnerabilities
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.backoffice }}
+          format: sarif
+          output: .release/gcp/production/backoffice-trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Summarize production vulnerability policy
+        run: |
+          {
+            echo "### Production image vulnerability policy"
+            echo
+            echo "- Environment: \`production\`"
+            echo "- API digest: \`${{ steps.images.outputs.api }}\`"
+            echo "- Web digest: \`${{ steps.images.outputs.web }}\`"
+            echo "- Backoffice digest: \`${{ steps.images.outputs.backoffice }}\`"
+            echo "- HIGH and CRITICAL findings are preserved in SARIF artifacts."
+            echo "- HIGH findings are non-blocking; CRITICAL findings block deployment."
+            echo "- Reporting scans completed against the exact promoted staging digests; production does not rebuild."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce API critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.api }}
+          format: table
+          output: .release/gcp/production/api-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Enforce web critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.web }}
+          format: table
+          output: .release/gcp/production/web-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Enforce backoffice critical vulnerability policy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ steps.images.outputs.backoffice }}
+          format: table
+          output: .release/gcp/production/backoffice-trivy-critical.txt
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+
+      - name: Capture previous Cloud Run revisions
+        run: |
+          set -euo pipefail
+          mkdir -p .release/rollback
+          : > .release/rollback/production-previous-revisions.env
+          for service in api web backoffice; do
+            revision="$(gcloud run services describe "babyloop-$service" --project=babyloop-production --region=europe-west1 --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)"
+            printf '%s=%s\n' "$service" "$revision" >> .release/rollback/production-previous-revisions.env
+          done
+
+      - name: Production database preflight
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=preflight
+
+      - name: Mandatory encrypted backup
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/postgres-backup.mjs
+
+      - name: Deploy migration job only
+        run: pnpm gcp:cloud-run:deploy -- --environment=production --phase=migration
+
+      - name: Execute production migration
+        run: pnpm gcp:cloud-run:migrate -- --environment=production
+
+      - name: Production database postflight
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=postflight
+
+      - name: Deploy production services and workers
+        run: pnpm gcp:cloud-run:deploy -- --environment=production --phase=services
+
+      - name: Production smoke
+        run: node --env-file="$DEPLOY_ENV_FILE" scripts/deploy/run-environment-smoke.mjs production
+
+      - name: Record immutable deployment metadata
+        run: |
+          set -euo pipefail
+          {
+            echo "### Promoted immutable images"
+            for target in api web backoffice; do
+              image="$(jq -r ".images.$target" .release/gcp/production/cloud-run-image-manifest.json)"
+              echo "- ${target}: \`${image}\`"
+            done
+            echo "- Migration: passed"
+            echo "- Smoke: passed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back Cloud Run traffic after failure
+        if: failure()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          while IFS='=' read -r service revision; do
+            test -n "$revision" || continue
+            gcloud run services update-traffic "babyloop-$service" --project=babyloop-production --region=europe-west1 --to-revisions="$revision=100"
+          done < .release/rollback/production-previous-revisions.env
+          echo "Database schema was not rolled back; use a forward fix or restore the verified backup after incident approval." > .release/rollback/production-database-forward-fix.txt
+
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ steps.source.outputs.sha }}
+          path: |
+            .release
+            ${{ runner.temp }}/babyloop-backups/production-replica
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          {
+            echo "## Production deployment"
+            echo
+            echo "- Master commit: \`${GITHUB_SHA}\`"
+            echo "- Promoted staging commit: \`${{ steps.source.outputs.sha }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+            echo "- Images were promoted by digest without rebuild."
+            echo "- Backup, migration, smoke and rollback evidence are in the production-release artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: GitHub release
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Create dated release tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="babyloop-v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" --repo="$GITHUB_REPOSITORY" --target="$GITHUB_SHA" --generate-notes --title="$tag"
+          echo "Created release \`$tag\`." >> "$GITHUB_STEP_SUMMARY"

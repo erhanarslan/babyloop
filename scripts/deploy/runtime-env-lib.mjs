@@ -157,6 +157,18 @@ function checkValues(values, contract, context, errors, warnings) {
   if (values.RAG_REDIS_ENABLED === "true" && values.RAG_REDIS_URL && !values.RAG_REDIS_URL.startsWith("rediss://")) {
     errors.push("RAG_REDIS_URL must use rediss:// outside local development.");
   }
+  if (values.RAG_REDIS_ENABLED === "true") {
+    const expectedPrefix = `babyloop:${context.target}:rag`;
+    if (values.RAG_REDIS_KEY_PREFIX !== expectedPrefix) {
+      errors.push(`RAG_REDIS_KEY_PREFIX must equal ${expectedPrefix}.`);
+    }
+  }
+  if (values.RAG_ENABLED === "true") {
+    const collection = String(values.RAG_QDRANT_COLLECTION || "").toLowerCase();
+    if (!collection.includes(context.target)) {
+      errors.push(`RAG_QDRANT_COLLECTION must include ${context.target} for environment isolation.`);
+    }
+  }
   if (values.RAG_REQUIRE_SOURCES !== "true" && values.RAG_ENABLED === "true") {
     errors.push("RAG_REQUIRE_SOURCES must be true when RAG is enabled.");
   }

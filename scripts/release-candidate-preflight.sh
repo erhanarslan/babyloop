@@ -49,11 +49,11 @@ fi
 pnpm release:artifacts
 git diff --check
 
-printf '%s\n' '7/7 Manual CI posture'
-grep -Fq 'workflow_dispatch:' .github/workflows/ci.yml
-if grep -Eq '^[[:space:]]+(push|pull_request):' .github/workflows/ci.yml; then
-  echo 'CI must remain manual until the release gate is deliberately executed.' >&2
-  exit 1
-fi
+printf '%s\n' '7/7 Protected release workflow posture'
+grep -Fq 'pull_request:' .github/workflows/ci.yml
+grep -Fq 'branches: [staging, master]' .github/workflows/ci.yml
+grep -Fq 'branches: [staging]' .github/workflows/deploy-staging.yml
+grep -Fq 'branches: [master]' .github/workflows/promote-production.yml
+pnpm security:manual-workflows
 
 echo 'BabyLoop release candidate local preflight passed.'

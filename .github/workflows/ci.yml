@@ -1,13 +1,27 @@
 name: CI
 
 on:
+  pull_request:
+    branches: [staging, master]
+  workflow_call:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
-    name: Validate monorepo
+    name: Release gate
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16-alpine
@@ -19,16 +33,31 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d babyloop_test"
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
-
+          --health-retries 10
     env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_ci
       TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/babyloop_test
+      AUTH_SECRET: babyloop_ci_auth_secret_only_not_for_runtime_123456789
+      ALLOW_AUTH_UNAVAILABLE: "false"
+      EMAIL_DELIVERY_MODE: noop
+      EMAIL_PROVIDER: mock
+      EMAIL_SEND_ENABLED: "false"
+      IMAGE_STORAGE_DRIVER: local
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: mock
+      ASSISTANT_PROVIDER: mock
+      AI_LISTING_DRAFT_PROVIDER: mock
+      AI_MODERATION_SUMMARY_PROVIDER: mock
+      RAG_ENABLED: "false"
+      TURBO_CONCURRENCY: "2"
+      VITEST_MAX_THREADS: "2"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -45,129 +74,115 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Release artifact guard
-        run: pnpm release:artifacts
+      - name: Create isolated application database
+        env:
+          PGPASSWORD: postgres
+        run: createdb --host=127.0.0.1 --username=postgres babyloop_ci
 
-      - name: Manual workflow trigger guard
-        run: pnpm security:manual-workflows
+      - name: Verify database isolation
+        run: |
+          set -euo pipefail
+          test "$DATABASE_URL" != "$TEST_DATABASE_URL"
+          test "${DATABASE_URL##*/}" = "babyloop_ci"
+          test "${TEST_DATABASE_URL##*/}" = "babyloop_test"
 
-      - name: Deployment command safety guard
-        run: pnpm security:deployment-command-safety
+      - name: Repository and release guards
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PR_BASE_SHA" ]; then
+            git diff --check "$PR_BASE_SHA"...HEAD
+          else
+            git diff --check HEAD^ HEAD
+          fi
+          pnpm release:artifacts
+          pnpm security:manual-workflows
+          pnpm security:deployment-command-safety
+          pnpm security:staging-deployment
+          pnpm security:gcp-cloud-run
+          pnpm security:backup-restore-rollback
+          pnpm deploy:check
 
-      - name: Deployment readiness local check
-        run: pnpm deploy:check
+      - name: Deployment contract tests
+        run: |
+          set -euo pipefail
+          pnpm test:deploy
+          pnpm test:gcp:cloud-run
+          pnpm test:ops:backup-restore
 
-      - name: Staging deployment boundary
-        run: pnpm security:staging-deployment
+      - name: Fresh migration regression
+        run: pnpm test:api:fresh-migrations
 
-      - name: Deployment unit tests
-        run: pnpm test:deploy
-
-      - name: Typecheck shared
-        run: pnpm --filter @babyloop/shared typecheck
-
-      - name: Typecheck API
-        run: pnpm --filter @babyloop/api typecheck
-
-      - name: Typecheck web
-        run: pnpm --filter @babyloop/web typecheck
-
-      - name: Typecheck workspace
+      - name: Typecheck
         run: pnpm typecheck
 
-      - name: Shared unit tests
-        run: pnpm --filter @babyloop/shared test:unit
+      - name: Deterministic unit and release tests
+        run: |
+          set -euo pipefail
+          pnpm --filter @babyloop/shared test:unit
+          pnpm test:api:release
+          pnpm --filter @babyloop/web test
+          pnpm --filter @babyloop/backoffice test
+          pnpm --filter @babyloop/mobile test
 
-      - name: API integration tests
-        run: pnpm --filter @babyloop/api test
-
-      - name: API release regression bundle
-        run: pnpm test:api:release
-
-      - name: Web unit tests
-        run: pnpm --filter @babyloop/web test
-
-      - name: Web SEO regression tests
-        run: pnpm test:web:seo
-
-      - name: Backoffice unit tests
-        run: pnpm --filter @babyloop/backoffice test
-
-      - name: Mobile unit tests
-        run: pnpm --filter @babyloop/mobile test
-
-      - name: Build shared
+      - name: Build shared package
         run: pnpm --filter @babyloop/shared build
 
-      - name: Build API
+      - name: Build API package
         run: pnpm --filter @babyloop/api build
 
-      - name: Build web
+      - name: Build web package
         run: pnpm --filter @babyloop/web build
 
-      - name: Build workspace
-        run: pnpm build
+      - name: Build backoffice package
+        run: pnpm --filter @babyloop/backoffice build
 
-  mobile-p0:
-    name: Mobile P0 release gate
-    runs-on: ubuntu-latest
+      - name: Write CI result
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-results
+          {
+            echo "workflow=${GITHUB_WORKFLOW}"
+            echo "sha=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "status=${{ job.status }}"
+          } > .ci-results/release-gate.txt
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Upload test and build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          version: 10.33.0
-          run_install: false
+          name: ci-release-gate-${{ github.sha }}
+          path: |
+            .ci-results
+            .e2e-results
+            apps/api/coverage
+            apps/web/coverage
+            apps/backoffice/coverage
+          if-no-files-found: ignore
+          retention-days: 14
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
+      - name: Critical failure summary
+        if: failure()
+        run: |
+          {
+            echo "## Release gate failed"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Ref: \`${GITHUB_REF}\`"
+            echo "- Production provider calls were disabled; this run used local/fake providers."
+            echo "- Inspect the first failed step and the ci-release-gate artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Release artifact guard
-        run: pnpm release:artifacts
-
-      - name: Mobile P0 CI parity boundary
-        run: pnpm security:ci-mobile-p0-parity
-
-      - name: Mobile P0 release gate boundary
-        run: pnpm security:mobile-p0-gate
-
-      - name: Mobile P0 release gate
-        run: pnpm release:mobile:p0
-
-  web-p0:
-    name: Web P0 release gate
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-          run_install: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Release artifact guard
-        run: pnpm release:artifacts
-
-      - name: Web P0 release gate
-        run: pnpm release:web:p0
+      - name: Success summary
+        if: success()
+        run: |
+          {
+            echo "## Release gate passed"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Database and test database were isolated."
+            echo "- Fresh migrations, release guards, tests, typecheck and builds passed."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -43,6 +43,13 @@ await waitFor("api-readiness", `${apiUrl}/health/ready`, {
   timeoutMs,
   parseJson: true,
   validate: ({ body }) => body?.ready === true
+    && body?.dependencies?.database?.status === "ready"
+    && body?.dependencies?.schema?.status === "ready"
+    && body?.dependencies?.storage?.status === "ready"
+    && (!values.RAG_ENABLED || values.RAG_ENABLED !== "true"
+      || body?.dependencies?.ragVectorStore?.status === "ready")
+    && (!values.RAG_REDIS_ENABLED || values.RAG_REDIS_ENABLED !== "true"
+      || body?.dependencies?.ragRedis?.status === "ready")
 });
 
 const performanceProbes = [
@@ -57,6 +64,20 @@ const performanceProbes = [
     url: `${apiUrl}/health/ready`,
     kind: "json",
     validate: ({ body }) => body?.ready === true
+  },
+  {
+    name: "api-openapi",
+    url: `${apiUrl}/docs/json`,
+    kind: "json",
+    validate: ({ body }) => String(body?.openapi || "").startsWith("3.")
+  },
+  {
+    name: "api-capabilities",
+    url: `${apiUrl}/api/v1/meta/capabilities`,
+    kind: "json",
+    validate: ({ body }) => body?.ok === true
+      && body?.data?.modules?.marketplace === true
+      && body?.data?.modules?.analytics === true
   },
   {
     name: "api-categories",
@@ -79,14 +100,20 @@ const performanceProbes = [
     requiredHeaders: ["content-security-policy", "x-content-type-options"]
   },
   {
+    name: "web-login",
+    url: `${webUrl}/login`,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"]
+  },
+  {
     name: "web-browse",
     url: `${webUrl}/browse`,
     kind: "html",
     requiredHeaders: ["content-security-policy", "x-content-type-options"]
   },
   {
-    name: "backoffice",
-    url: backofficeUrl,
+    name: "backoffice-login",
+    url: `${backofficeUrl}/login`,
     kind: "html",
     requiredHeaders: ["content-security-policy", "x-content-type-options"]
   }
@@ -160,6 +187,15 @@ const evidence = {
     sampleCount
   },
   metricsChecked: Boolean(metricsToken),
+  operationalPolicy: {
+    analyticsIngestReady: true,
+    emailDeliveryMode: values.EMAIL_DELIVERY_MODE || "unset",
+    emailProvider: values.EMAIL_PROVIDER || "unset",
+    providerCallsAllowed: values.PROVIDER_CALLS_ALLOWED === "true",
+    ragCollection: values.RAG_ENABLED === "true" ? values.RAG_QDRANT_COLLECTION : null,
+    redisKeyPrefix: values.RAG_REDIS_ENABLED === "true" ? values.RAG_REDIS_KEY_PREFIX : null,
+    storageDriver: values.IMAGE_STORAGE_DRIVER || "unset"
+  },
   probes,
   warnings
 };
