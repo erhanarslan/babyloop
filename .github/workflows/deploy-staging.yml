@@ -134,7 +134,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Report API image vulnerabilities
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.api }}
           format: sarif
@@ -144,7 +144,7 @@ jobs:
           exit-code: "0"
 
       - name: Report web image vulnerabilities
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.web }}
           format: sarif
@@ -154,7 +154,7 @@ jobs:
           exit-code: "0"
 
       - name: Report backoffice image vulnerabilities
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.backoffice }}
           format: sarif
@@ -178,7 +178,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce API critical vulnerability policy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.api }}
           format: table
@@ -188,7 +188,7 @@ jobs:
           exit-code: "1"
 
       - name: Enforce web critical vulnerability policy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.web }}
           format: table
@@ -198,7 +198,7 @@ jobs:
           exit-code: "1"
 
       - name: Enforce backoffice critical vulnerability policy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.backoffice }}
           format: table
