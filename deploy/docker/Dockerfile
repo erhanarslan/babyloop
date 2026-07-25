@@ -2,12 +2,16 @@
 
 ARG NODE_VERSION=22.13.1
 ARG PNPM_VERSION=10.33.0
+ARG COREPACK_VERSION=0.35.0
 
 FROM node:${NODE_VERSION}-bookworm-slim AS base
 ARG PNPM_VERSION
+ARG COREPACK_VERSION
 ENV PNPM_HOME=/pnpm
 ENV PATH=${PNPM_HOME}:${PATH}
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN npm install --global "corepack@${COREPACK_VERSION}" \
+    && corepack enable \
+    && corepack install --global "pnpm@${PNPM_VERSION}"
 WORKDIR /workspace
 
 FROM base AS builder
