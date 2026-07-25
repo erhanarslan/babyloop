@@ -44,8 +44,6 @@ jobs:
       GCP_MIGRATION_CONFIRM: APPLY_PRODUCTION
       GCP_PROMOTE_CONFIRM: PROMOTE_STAGING_TO_PRODUCTION
       BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
-      BACKUP_OUTPUT_DIR: ${{ runner.temp }}/babyloop-backups/production
-      BACKUP_REPLICA_DIR: ${{ runner.temp }}/babyloop-backups/production-replica
 
     steps:
       - name: Guard production source
@@ -53,6 +51,17 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/master"
           test "${{ vars.PRODUCTION_RELEASE_APPROVED }}" = "true"
+
+      - name: Prepare backup directories
+        run: |
+          set -euo pipefail
+          backup_output_dir="$RUNNER_TEMP/babyloop-backups/production"
+          backup_replica_dir="$RUNNER_TEMP/babyloop-backups/production-replica"
+          mkdir -p "$backup_output_dir" "$backup_replica_dir"
+          {
+            echo "BACKUP_OUTPUT_DIR=$backup_output_dir"
+            echo "BACKUP_REPLICA_DIR=$backup_replica_dir"
+          } >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -282,7 +291,7 @@ jobs:
           name: production-release-${{ steps.source.outputs.sha }}
           path: |
             .release
-            ${{ runner.temp }}/babyloop-backups/production-replica
+            ${{ env.BACKUP_REPLICA_DIR }}
           if-no-files-found: error
           retention-days: 90
 
