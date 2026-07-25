@@ -1,4 +1,4 @@
-CREATE TYPE "public"."listing_image_review_status" AS ENUM('approved', 'rejected');--> statement-breakpoint
+CREATE TYPE "public"."listing_image_review_status" AS ENUM('approved', 'rejected', 'pending', 'needs_review');--> statement-breakpoint
 ALTER TABLE "listing_images" ADD COLUMN "review_status" "listing_image_review_status" DEFAULT 'approved' NOT NULL;--> statement-breakpoint
 ALTER TABLE "listing_images" ADD COLUMN "reviewed_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "listing_images" ADD COLUMN "reviewed_by_profile_id" uuid;--> statement-breakpoint
