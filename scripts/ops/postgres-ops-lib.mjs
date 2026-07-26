@@ -98,6 +98,13 @@ export function createPgEnvironment(rawUrl, baseEnv = process.env) {
     }
   }
 
+  // node-postgres and libpq interpret sslrootcert=system differently.
+  // Keep it out of DATABASE_URL, but use the operating system CA store
+  // for psql/pg_dump when certificate and hostname verification is enabled.
+  if (env.PGSSLMODE === "verify-full" && !env.PGSSLROOTCERT) {
+    env.PGSSLROOTCERT = "system";
+  }
+
   return env;
 }
 
