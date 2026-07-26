@@ -4,23 +4,17 @@ import test from "node:test";
 import {
   normalizeGcpLabelValue,
 } from "../../gcp/cloud-run-lib.mjs";
+import {
+  validateCloudRunDeploymentContract,
+} from "../../gcp/deploy-cloud-run.mjs";
 
 const VALID_GCP_LABEL_VALUE = /^[a-z0-9_-]{1,63}$/u;
 
 test("Cloud Run component labels normalize every contract key", async () => {
-  const [
-    contractSource,
-    deploySource,
-  ] = await Promise.all([
-    readFile(
-      "deploy/gcp/cloud-run.contract.json",
-      "utf8",
-    ),
-    readFile(
-      "scripts/gcp/deploy-cloud-run.mjs",
-      "utf8",
-    ),
-  ]);
+  const contractSource = await readFile(
+    "deploy/gcp/cloud-run.contract.json",
+    "utf8",
+  );
 
   const contract = JSON.parse(contractSource);
 
@@ -49,13 +43,34 @@ test("Cloud Run component labels normalize every contract key", async () => {
     );
   }
 
-  assert.match(
-    deploySource,
-    /component=\$\{normalizeGcpLabelValue\(role\)\}/u,
+  assert.equal(
+    Object.keys(
+      validateCloudRunDeploymentContract(
+        contract,
+        "staging",
+      ).componentLabels,
+    ).length,
+    componentKeys.length,
   );
+});
 
-  assert.match(
-    deploySource,
-    /component=\$\{normalizeGcpLabelValue\(key\)\}/u,
+test("Cloud Run contract rejects normalized component label collisions", async () => {
+  const contract = JSON.parse(
+    await readFile(
+      "deploy/gcp/cloud-run.contract.json",
+      "utf8",
+    ),
+  );
+  contract.jobs["child--reminder"] = {
+    ...contract.jobs.childReminder,
+    name: "babyloop-child-reminder-collision",
+  };
+
+  assert.throws(
+    () => validateCloudRunDeploymentContract(
+      contract,
+      "staging",
+    ),
+    /component label collision.*childReminder.*child--reminder.*child-reminder/iu,
   );
 });

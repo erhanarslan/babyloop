@@ -11,21 +11,13 @@ import {
   assertEnvironment,
   assertGcloudContext,
   gcloud,
+  gcloudResourceExists,
   loadCloudRunContract,
   parseFlag,
   safeMessage,
   serviceAccountEmail,
   writeJson
 } from "./cloud-run-lib.mjs";
-
-async function exists(args) {
-  try {
-    await gcloud(args, { capture: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
@@ -35,10 +27,13 @@ async function main() {
 
   await gcloud(["services", "enable", ...contract.requiredApis, `--project=${context.project}`]);
 
-  const repositoryExists = await exists([
-    "artifacts", "repositories", "describe", contract.repository,
-    `--location=${contract.region}`, `--project=${context.project}`
-  ]);
+  const repositoryExists = await gcloudResourceExists(
+    [
+      "artifacts", "repositories", "describe", contract.repository,
+      `--location=${contract.region}`, `--project=${context.project}`
+    ],
+    { resource: `Artifact Registry repository ${contract.repository}` }
+  );
   if (!repositoryExists) {
     await gcloud([
       "artifacts", "repositories", "create", contract.repository,
@@ -52,7 +47,10 @@ async function main() {
   const createdAccounts = [];
   for (const [role, id] of Object.entries(contract.serviceAccounts)) {
     const email = serviceAccountEmail(contract, role, context.project);
-    const accountExists = await exists(["iam", "service-accounts", "describe", email, `--project=${context.project}`]);
+    const accountExists = await gcloudResourceExists(
+      ["iam", "service-accounts", "describe", email, `--project=${context.project}`],
+      { resource: `service account ${email}` }
+    );
     if (!accountExists) {
       await gcloud([
         "iam", "service-accounts", "create", id,

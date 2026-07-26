@@ -131,6 +131,52 @@ export async function gcloud(args, options = {}) {
   return run("gcloud", [...args, "--quiet"], options);
 }
 
+export function isGcloudNotFoundError(error) {
+  const message = safeMessage(error);
+  return /(?:^|\b)NOT_FOUND(?:\b|:)|(?:^|\b)(?:code|status(?: code)?)\s*[:=]?\s*404(?:\b|$)/iu.test(message);
+}
+
+export async function gcloudResourceExists(
+  args,
+  {
+    execute = gcloud,
+    resource = "GCP resource"
+  } = {}
+) {
+  try {
+    await execute(args, { capture: true });
+    return true;
+  } catch (error) {
+    if (isGcloudNotFoundError(error)) return false;
+    throw new Error(
+      `${resource} existence check failed: ${safeMessage(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+export async function gcloudJsonResource(
+  args,
+  {
+    execute = gcloud,
+    resource = "GCP resource"
+  } = {}
+) {
+  try {
+    const result = await execute(
+      [...args, "--format=json"],
+      { capture: true }
+    );
+    return JSON.parse(result.stdout || "null");
+  } catch (error) {
+    if (isGcloudNotFoundError(error)) return null;
+    throw new Error(
+      `${resource} describe failed: ${safeMessage(error)}`,
+      { cause: error }
+    );
+  }
+}
+
 export async function readJsonCommand(command, args) {
   const result = await run(command, args, { capture: true });
   return JSON.parse(result.stdout || "null");

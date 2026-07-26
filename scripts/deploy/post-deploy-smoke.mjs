@@ -3,7 +3,16 @@ import { Buffer } from "node:buffer";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { readReleaseManifest } from "../ops/release-ops-lib.mjs";
-import { assertEnvironment, loadEnvFile, required, runCommand, timestampForFile, writeJsonReceipt } from "./deployment-lib.mjs";
+import {
+  assessDeploymentReadiness,
+  assertEnvironment,
+  loadEnvFile,
+  readJsonReceipt,
+  required,
+  runCommand,
+  timestampForFile,
+  writeJsonReceipt
+} from "./deployment-lib.mjs";
 import { RELEASE_EVIDENCE_SCHEMA_VERSION, summarizeSamples } from "./release-evidence-lib.mjs";
 
 const envFile = required(process.env.DEPLOY_ENV_FILE, "DEPLOY_ENV_FILE");
@@ -21,6 +30,12 @@ const maxP95Ms = readInteger("DEPLOY_ACCEPTANCE_MAX_P95_MS", environment === "pr
 const maxHtmlBytes = readInteger("DEPLOY_ACCEPTANCE_MAX_HTML_BYTES", 2_000_000, 10_000, 10_000_000);
 const maxJsonBytes = readInteger("DEPLOY_ACCEPTANCE_MAX_JSON_BYTES", 750_000, 1_000, 5_000_000);
 const enforcePerformance = readBoolean("DEPLOY_ACCEPTANCE_ENFORCE_PERFORMANCE", environment === "production");
+const workerBootstrapGraceSeconds = readInteger(
+  "DEPLOY_WORKER_BOOTSTRAP_GRACE_SECONDS",
+  environment === "staging" ? 360 : 0,
+  0,
+  900
+);
 
 for (const [name, value] of [["api", apiUrl], ["web", webUrl], ["backoffice", backofficeUrl]]) {
   if (!value || !value.startsWith("https://")) throw new Error(`${name} smoke URL must use HTTPS.`);
@@ -29,6 +44,46 @@ for (const [name, value] of [["api", apiUrl], ["web", webUrl], ["backoffice", ba
 const release = await resolveRelease();
 const probes = {};
 const warnings = [];
+const cloudRunDeploymentReceiptPath = resolve(
+  process.env.DEPLOY_CLOUD_RUN_RECEIPT_PATH
+    || `.release/gcp/${environment}/cloud-run-deployment-services.json`
+);
+const cloudRunDeploymentReceipt = await readJsonReceipt(
+  cloudRunDeploymentReceiptPath,
+  { optional: true }
+);
+let workerBootstrap = {
+  active: false,
+  blockingDependencies: [],
+  deploymentReceiptPath: cloudRunDeploymentReceipt ? cloudRunDeploymentReceiptPath : null
+};
+
+function validateApiReadiness({ body }) {
+  const coreReady = body?.dependencies?.database?.status === "ready"
+    && body?.dependencies?.schema?.status === "ready"
+    && body?.dependencies?.storage?.status === "ready"
+    && (!values.RAG_ENABLED || values.RAG_ENABLED !== "true"
+      || body?.dependencies?.ragVectorStore?.status === "ready")
+    && (!values.RAG_REDIS_ENABLED || values.RAG_REDIS_ENABLED !== "true"
+      || body?.dependencies?.ragRedis?.status === "ready");
+  if (!coreReady) return false;
+
+  const assessment = assessDeploymentReadiness(body, {
+    bootstrapGraceSeconds: workerBootstrapGraceSeconds,
+    deploymentReceipt: cloudRunDeploymentReceipt,
+    environment
+  });
+  if (assessment.bootstrapGrace) {
+    workerBootstrap = {
+      active: true,
+      blockingDependencies: assessment.blockingDependencies,
+      deploymentReceiptPath: cloudRunDeploymentReceiptPath,
+      graceAgeSeconds: assessment.graceAgeSeconds,
+      graceExpiresAt: assessment.graceExpiresAt
+    };
+  }
+  return assessment.ready;
+}
 
 await waitFor("api-liveness", `${apiUrl}/health/live`, {
   attempts,
@@ -39,18 +94,17 @@ await waitFor("api-liveness", `${apiUrl}/health/live`, {
 });
 await waitFor("api-readiness", `${apiUrl}/health/ready`, {
   attempts,
+  acceptedStatuses: [200, 503],
   delayMs,
   timeoutMs,
   parseJson: true,
-  validate: ({ body }) => body?.ready === true
-    && body?.dependencies?.database?.status === "ready"
-    && body?.dependencies?.schema?.status === "ready"
-    && body?.dependencies?.storage?.status === "ready"
-    && (!values.RAG_ENABLED || values.RAG_ENABLED !== "true"
-      || body?.dependencies?.ragVectorStore?.status === "ready")
-    && (!values.RAG_REDIS_ENABLED || values.RAG_REDIS_ENABLED !== "true"
-      || body?.dependencies?.ragRedis?.status === "ready")
+  validate: validateApiReadiness
 });
+if (workerBootstrap.active) {
+  warnings.push(
+    `Worker heartbeat bootstrap grace is active for ${workerBootstrap.blockingDependencies.join(", ")} until ${workerBootstrap.graceExpiresAt}.`
+  );
+}
 
 const performanceProbes = [
   {
@@ -63,7 +117,8 @@ const performanceProbes = [
     name: "api-readiness",
     url: `${apiUrl}/health/ready`,
     kind: "json",
-    validate: ({ body }) => body?.ready === true
+    acceptedStatuses: [200, 503],
+    validate: validateApiReadiness
   },
   {
     name: "api-openapi",
@@ -196,6 +251,7 @@ const evidence = {
     redisKeyPrefix: values.RAG_REDIS_ENABLED === "true" ? values.RAG_REDIS_KEY_PREFIX : null,
     storageDriver: values.IMAGE_STORAGE_DRIVER || "unset"
   },
+  workerBootstrap,
   probes,
   warnings
 };
@@ -244,6 +300,7 @@ async function sampleProbe(definition, count) {
   for (let index = 0; index < count; index += 1) {
     const result = await request(definition.url, {
       timeoutMs,
+      acceptedStatuses: definition.acceptedStatuses,
       parseJson: definition.kind === "json"
     });
     if (definition.validate && !definition.validate(result)) {
@@ -293,7 +350,9 @@ async function request(url, options) {
       redirect: "follow",
       signal: controller.signal
     });
-    if (!response.ok) throw new Error(`${url} returned ${response.status}.`);
+    if (!response.ok && !options.acceptedStatuses?.includes(response.status)) {
+      throw new Error(`${url} returned ${response.status}.`);
+    }
     const text = await response.text();
     let body = null;
     if (options.parseJson !== false) {
