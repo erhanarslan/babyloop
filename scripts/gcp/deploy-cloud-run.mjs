@@ -21,6 +21,9 @@ import {
   serviceAccountEmail,
   writeJson
 } from "./cloud-run-lib.mjs";
+import {
+  stripCloudRunJobReservedEnv
+} from "./cloud-run-job-env-lib.mjs";
 
 async function readProtectedJson(path) {
   const resolved = resolve(path);
@@ -72,7 +75,7 @@ async function deployService({ config, role, image, environment, context, contra
   return result.stdout.trim();
 }
 
-async function deployJob({ config, key, image, environment, context, contract, envFile, secrets, migrationEnvFile }) {
+async function deployJob({ config, key, image, environment, context, contract, jobEnvFile, secrets, migrationEnvFile }) {
   const args = [
     "run", "jobs", "deploy", config.name,
     `--image=${image}`,
@@ -87,7 +90,7 @@ async function deployJob({ config, key, image, environment, context, contract, e
     "--command=node",
     `--args=${config.script}`,
     `--labels=application=babyloop,environment=${environment},component=${key}`,
-    `--env-vars-file=${key === "migrate" ? migrationEnvFile : envFile}`
+    `--env-vars-file=${key === "migrate" ? migrationEnvFile : jobEnvFile}`
   ];
   if (secrets) args.push(`--set-secrets=${secrets}`);
   await gcloud(args);
@@ -170,9 +173,29 @@ async function main() {
   for (const key of ["api", "web", "backoffice"]) assertDigestImage(images.images[key], `${key} image`);
   const secretBindings = secretFlag(secrets);
   const envFile = resolve(secrets.nonSecretEnvFile);
-  const migrationEnvFile = resolve(artifactRoot(contract, environment), "migration-runtime.env.yaml");
+  const jobEnvFile = resolve(
+    artifactRoot(contract, environment),
+    "job-runtime.env.yaml"
+  );
+  const migrationEnvFile = resolve(
+    artifactRoot(contract, environment),
+    "migration-runtime.env.yaml"
+  );
   const apiEnvSource = await readFile(envFile, "utf8");
-  await writeFile(migrationEnvFile, `${apiEnvSource}MIGRATION_CONFIRM: ${JSON.stringify(`APPLY_${environment.toUpperCase()}`)}\n`, { mode: 0o600 });
+  const jobEnvSource = stripCloudRunJobReservedEnv(
+    apiEnvSource
+  );
+
+  await Promise.all([
+    writeFile(jobEnvFile, jobEnvSource, { mode: 0o600 }),
+    writeFile(
+      migrationEnvFile,
+      `${jobEnvSource}MIGRATION_CONFIRM: ${JSON.stringify(
+        `APPLY_${environment.toUpperCase()}`
+      )}\n`,
+      { mode: 0o600 }
+    )
+  ]);
 
   const urls = {};
   if (phase !== "migration") {
@@ -184,7 +207,7 @@ async function main() {
   for (const [key, config] of Object.entries(contract.jobs)) {
     if (phase === "migration" && key !== "migrate") continue;
     if (phase === "services" && key === "migrate") continue;
-    await deployJob({ config, key, image: images.images.api, environment, context, contract, envFile, secrets: secretBindings, migrationEnvFile });
+    await deployJob({ config, key, image: images.images.api, environment, context, contract, jobEnvFile, secrets: secretBindings, migrationEnvFile });
     if (config.schedule) {
       await grantSchedulerJobInvocation({ config, context, contract });
       await upsertScheduler({ key, config, context, contract, environment });
