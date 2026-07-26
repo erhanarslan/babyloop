@@ -15,6 +15,7 @@ import {
   assertGcloudContext,
   gcloud,
   loadCloudRunContract,
+  normalizeGcpLabelValue,
   parseFlag,
   run,
   safeMessage,
@@ -58,7 +59,7 @@ async function deployService({ config, role, image, environment, context, contra
     `--timeout=${config.timeout}`,
     `--min-instances=${config.minInstances}`,
     `--max-instances=${config.maxInstances}`,
-    `--labels=application=babyloop,environment=${environment},component=${role}`,
+    `--labels=application=babyloop,environment=${environment},component=${normalizeGcpLabelValue(role)}`,
     "--allow-unauthenticated"
   ];
   if (role === "api") {
@@ -89,7 +90,7 @@ async function deployJob({ config, key, image, environment, context, contract, j
     `--task-timeout=${config.timeout}`,
     "--command=node",
     `--args=${config.script}`,
-    `--labels=application=babyloop,environment=${environment},component=${key}`,
+    `--labels=application=babyloop,environment=${environment},component=${normalizeGcpLabelValue(key)}`,
     `--env-vars-file=${key === "migrate" ? migrationEnvFile : jobEnvFile}`
   ];
   if (secrets) args.push(`--set-secrets=${secrets}`);
