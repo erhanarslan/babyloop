@@ -5,6 +5,9 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { timestampForFile, writeJsonReceipt } from "../deploy/deployment-lib.mjs";
 import { formatDatabaseError } from "./database-error-format.mjs";
+import {
+  DATABASE_RELEASE_CRITICAL_TABLES
+} from "./database-release-contract.mjs";
 
 const requireFromDatabase = createRequire(resolve("packages/database/package.json"));
 const { Client } = requireFromDatabase("pg");
@@ -69,7 +72,7 @@ try {
     if (journal.appliedCount !== checkedIn.count) {
       fail(`Post-migration journal count ${journal.appliedCount} does not match checked-in count ${checkedIn.count}.`);
     }
-    for (const table of ["profiles", "listings", "listing_images", "auth_sessions"]) {
+    for (const table of DATABASE_RELEASE_CRITICAL_TABLES) {
       if (!schema.criticalTables.includes(table)) fail(`Critical table ${table} is missing after migration.`);
     }
     for (const label of ["pending", "approved", "needs_review", "rejected"]) {
@@ -157,7 +160,7 @@ async function schemaState(connection) {
     where table_schema = 'public'
       and table_name = any($1::text[])
     order by table_name
-  `, [["profiles", "listings", "listing_images", "auth_sessions"]]);
+  `, [DATABASE_RELEASE_CRITICAL_TABLES]);
   const indexes = await connection.query(`
     select count(*)::integer as count
     from pg_indexes
