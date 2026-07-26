@@ -6,6 +6,7 @@ import {
   assertEnvironment,
   assertGcloudContext,
   gcloud,
+  gcloudResourceExists,
   loadCloudRunContract,
   parseFlag,
   safeMessage,
@@ -18,25 +19,6 @@ import {
   scheduledJobEntries,
   schedulerMember
 } from "./cloud-run-iam-lib.mjs";
-
-async function jobExists(name, contract, project) {
-  try {
-    await gcloud(
-      [
-        "run",
-        "jobs",
-        "describe",
-        name,
-        `--region=${contract.region}`,
-        `--project=${project}`
-      ],
-      { capture: true }
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
@@ -80,7 +62,17 @@ async function main() {
 
   const jobBindings = {};
   for (const [key, config] of scheduledJobEntries(contract)) {
-    const exists = await jobExists(config.name, contract, context.project);
+    const exists = await gcloudResourceExists(
+      [
+        "run",
+        "jobs",
+        "describe",
+        config.name,
+        `--region=${contract.region}`,
+        `--project=${context.project}`
+      ],
+      { resource: `Cloud Run job ${config.name}` }
+    );
     if (exists) {
       await gcloud([
         "run",

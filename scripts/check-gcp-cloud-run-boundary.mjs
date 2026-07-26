@@ -17,6 +17,7 @@ const required = [
   "scripts/gcp/cloud-run-iam-lib.mjs",
   "scripts/gcp/audit-cloud-run-iam.mjs",
   "scripts/gcp/repair-cloud-run-iam.mjs",
+  "scripts/deploy/test/cloud-run-deploy-behavior.test.mjs",
   "scripts/gcp/test/cloud-run-iam.test.mjs",
   "scripts/gcp/test/cloud-run-lib.test.mjs",
   "scripts/gcp/test/cloud-run-contract.test.mjs",
@@ -44,7 +45,7 @@ if (problems.length === 0) {
     "scripts/gcp/bootstrap-cloud-run.mjs": ["GCP_BOOTSTRAP_CONFIRM", "remove-iam-policy-binding", "repository-format=docker"],
     "scripts/gcp/import-runtime-env.mjs": ["assertConfirmation(\"secret-import\"", "secretAccessor", "--data-file=-", "secretBindings"],
     "scripts/gcp/build-cloud-run-images.mjs": ["linux/amd64", "containerimage.digest", "--sbom=true", "assertConfirmation(\"build\""],
-    "scripts/gcp/deploy-cloud-run.mjs": ["--min-instances=", "--max-instances=", "--set-secrets=", "migrationExecuted: false", "assertConfirmation(\"deploy\"", "jobs", "add-iam-policy-binding"],
+    "scripts/gcp/deploy-cloud-run.mjs": ["--min-instances=", "--max-instances=", "--set-secrets=", "migrationExecuted: false", "assertConfirmation(\"deploy\"", "jobs", "add-iam-policy-binding", "--update-headers=Content-Type=application/json", "validateCloudRunDeploymentContract", "schedulerExists", "verifyScheduledJobInfrastructure", "scheduledInfrastructure"],
     "scripts/gcp/execute-cloud-run-migration.mjs": ["GCP_MIGRATION_CONFIRM", "--wait"],
     "scripts/gcp/promote-cloud-run-images.mjs": ["GCP_PROMOTE_CONFIRM", "sourceProject", "digestPreserved"],
     "scripts/gcp/map-cloud-run-domains.mjs": ["assertConfirmation(\"domain-map\"", "list-user-verified", "domain-mappings"]
@@ -58,6 +59,15 @@ if (problems.length === 0) {
     "scripts/gcp/deploy-cloud-run.mjs",
     "grantSchedulerJobInvocation"
   );
+  for (const token of [
+    "buildJobExecutionArgs",
+    "executeScheduledJob",
+    "executeScheduledJobOperation",
+    '"jobs", "execute"',
+    "post-deploy verification"
+  ]) {
+    mustNot("scripts/gcp/deploy-cloud-run.mjs", token);
+  }
   must(
     "scripts/gcp/repair-cloud-run-iam.mjs",
     'assertConfirmation("iam-repair"'
@@ -66,6 +76,15 @@ if (problems.length === 0) {
     "scripts/gcp/audit-cloud-run-iam.mjs",
     "projectWideInvoker"
   );
+  for (const file of [
+    "scripts/gcp/bootstrap-cloud-run.mjs",
+    "scripts/gcp/import-runtime-env.mjs",
+    "scripts/gcp/audit-cloud-run-iam.mjs",
+    "scripts/gcp/repair-cloud-run-iam.mjs"
+  ]) {
+    must(file, "gcloudResourceExists");
+  }
+  must("scripts/gcp/plan-cloud-run.mjs", "gcloudJsonResource");
 
   for (const file of required.filter((file) => file.endsWith(".mjs"))) {
     mustNot(file, "shell: true");

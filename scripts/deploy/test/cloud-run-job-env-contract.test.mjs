@@ -1,48 +1,50 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  stripCloudRunJobReservedEnv,
-} from "../../gcp/cloud-run-job-env-lib.mjs";
+  buildCloudRunEnvSources,
+} from "../../gcp/deploy-cloud-run.mjs";
 
-test("Cloud Run services and jobs exclude the reserved PORT environment variable", async () => {
-  const output = stripCloudRunJobReservedEnv(
+test("Cloud Run services and jobs exclude platform-reserved environment variables", () => {
+  const { runtimeEnvSource, migrationEnvSource } = buildCloudRunEnvSources(
     [
       'NODE_ENV: "production"',
       'PORT: "4000"',
+      'K_SERVICE: "forbidden-service"',
+      'K_REVISION: "forbidden-revision"',
+      'K_CONFIGURATION: "forbidden-configuration"',
+      'CLOUD_RUN_JOB: "forbidden-job"',
+      'CLOUD_RUN_EXECUTION: "forbidden-execution"',
+      'CLOUD_RUN_TASK_INDEX: "0"',
+      'CLOUD_RUN_TASK_ATTEMPT: "0"',
+      'CLOUD_RUN_TASK_COUNT: "1"',
+      'X_GOOGLE_INTERNAL: "forbidden"',
       'API_HOST: "0.0.0.0"',
       'PORTAL_URL: "https://example.test"',
       "",
     ].join("\n"),
+    "staging",
   );
 
-  assert.doesNotMatch(output, /^PORT\s*:/mu);
-  assert.match(output, /^NODE_ENV\s*:/mu);
-  assert.match(output, /^API_HOST\s*:/mu);
-  assert.match(output, /^PORTAL_URL\s*:/mu);
-
-  const deploySource = await readFile(
-    "scripts/gcp/deploy-cloud-run.mjs",
-    "utf8",
-  );
-
-  assert.match(
-    deploySource,
-    /job-runtime\.env\.yaml/u,
-  );
-
-  assert.match(
-    deploySource,
-    /stripCloudRunJobReservedEnv\s*\(\s*apiEnvSource\s*\)/u,
-  );
-
-  assert.match(
-    deploySource,
-    /key === "migrate" \? migrationEnvFile : jobEnvFile/u,
-  );
-
-  assert.match(
-    deploySource,
-    /urls\.api = await deployService\(\{[\s\S]{0,500}envFile: jobEnvFile[\s\S]{0,200}secrets: secretBindings/u,
-  );
+  assert.doesNotMatch(runtimeEnvSource, /^PORT\s*:/mu);
+  for (const name of [
+    "K_SERVICE",
+    "K_REVISION",
+    "K_CONFIGURATION",
+    "CLOUD_RUN_JOB",
+    "CLOUD_RUN_EXECUTION",
+    "CLOUD_RUN_TASK_INDEX",
+    "CLOUD_RUN_TASK_ATTEMPT",
+    "CLOUD_RUN_TASK_COUNT",
+    "X_GOOGLE_INTERNAL",
+  ]) {
+    assert.doesNotMatch(
+      runtimeEnvSource,
+      new RegExp(`^${name}\\s*:`, "mu"),
+    );
+  }
+  assert.match(runtimeEnvSource, /^NODE_ENV\s*:/mu);
+  assert.match(runtimeEnvSource, /^API_HOST\s*:/mu);
+  assert.match(runtimeEnvSource, /^PORTAL_URL\s*:/mu);
+  assert.doesNotMatch(runtimeEnvSource, /^MIGRATION_CONFIRM\s*:/mu);
+  assert.match(migrationEnvSource, /^MIGRATION_CONFIRM: "APPLY_STAGING"$/mu);
 });

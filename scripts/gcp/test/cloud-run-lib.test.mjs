@@ -9,6 +9,7 @@ import {
   assertEnvironment,
   confirmationValue,
   expectedProject,
+  gcloudJsonResource,
   loadCloudRunContract,
   secretId,
   serviceAccountEmail,
@@ -57,4 +58,41 @@ test("env yaml writes quoted values without shell evaluation", async () => {
   const source = await readFile(path, "utf8");
   assert.match(source, /SAFE: "\$\(touch \/tmp\/never\)"/);
   assert.match(source, /URL: "https:\/\/example.test"/);
+});
+
+test("JSON resource lookup hides only NOT_FOUND and preserves operational failures", async () => {
+  assert.equal(
+    await gcloudJsonResource(
+      ["scheduler", "jobs", "describe", "missing"],
+      {
+        execute: async () => {
+          throw new Error("NOT_FOUND: Job not found");
+        },
+        resource: "Cloud Scheduler job missing"
+      }
+    ),
+    null
+  );
+  await assert.rejects(
+    gcloudJsonResource(
+      ["scheduler", "jobs", "describe", "protected"],
+      {
+        execute: async () => {
+          throw new Error("PERMISSION_DENIED: cloudscheduler.jobs.get");
+        },
+        resource: "Cloud Scheduler job protected"
+      }
+    ),
+    /Cloud Scheduler job protected describe failed.*PERMISSION_DENIED/u
+  );
+  assert.deepEqual(
+    await gcloudJsonResource(
+      ["run", "jobs", "describe", "present"],
+      {
+        execute: async () => ({ stdout: '{"name":"present"}' }),
+        resource: "Cloud Run job present"
+      }
+    ),
+    { name: "present" }
+  );
 });

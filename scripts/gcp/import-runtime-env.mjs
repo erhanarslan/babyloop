@@ -8,6 +8,7 @@ import {
   assertEnvironment,
   assertGcloudContext,
   gcloud,
+  gcloudResourceExists,
   loadCloudRunContract,
   parseFlag,
   safeMessage,
@@ -22,15 +23,6 @@ const EXCLUDED_RUNTIME_KEYS = new Set([
   "STAGING_BOOTSTRAP_PLAN_PATH", "PROVIDER_PROBE_EVIDENCE_PATH", "BACKUP_OUTPUT_DIR",
   "BACKUP_REPLICA_DIR", "BACKUP_RESTORE_SMOKE_EVIDENCE", "PRODUCTION_GO_NO_GO_RECEIPT_PATH"
 ]);
-
-async function secretExists(id, project) {
-  try {
-    await gcloud(["secrets", "describe", id, `--project=${project}`], { capture: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
@@ -55,7 +47,10 @@ async function main() {
       continue;
     }
     const id = secretId(contract, key);
-    if (!(await secretExists(id, context.project))) {
+    if (!(await gcloudResourceExists(
+      ["secrets", "describe", id, `--project=${context.project}`],
+      { resource: `Secret Manager secret ${id}` }
+    ))) {
       await gcloud([
         "secrets", "create", id,
         "--replication-policy=automatic",

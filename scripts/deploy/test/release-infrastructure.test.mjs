@@ -55,7 +55,10 @@ test("environment smoke target fails closed and full smoke inventory is present"
   assert.notEqual(invalid.status, 0);
   assert.match(invalid.stderr, /staging or production/u);
 
-  const source = await readFile("scripts/deploy/post-deploy-smoke.mjs", "utf8");
+  const [source, deploymentLib] = await Promise.all([
+    readFile("scripts/deploy/post-deploy-smoke.mjs", "utf8"),
+    readFile("scripts/deploy/deployment-lib.mjs", "utf8")
+  ]);
   for (const token of [
     "api-openapi",
     "api-capabilities",
@@ -64,10 +67,13 @@ test("environment smoke target fails closed and full smoke inventory is present"
     "backoffice-login",
     "ragVectorStore",
     "ragRedis",
+    "DEPLOY_WORKER_BOOTSTRAP_GRACE_SECONDS",
     "operationalPolicy"
   ]) {
     assert.match(source, new RegExp(token, "u"));
   }
+  assert.match(deploymentLib, /scheduledInfrastructure/u);
+  assert.match(deploymentLib, /latestCreatedExecution === null/u);
 });
 
 test("staging merges automatically run the reusable CI gate before deployment", async () => {
@@ -85,6 +91,19 @@ test("staging merges automatically run the reusable CI gate before deployment", 
   assert.match(staging, /needs: ci/u);
   assert.match(staging, /push\|workflow_dispatch/u);
   assert.match(staging, /test "\$GITHUB_REF" = "refs\/heads\/staging"/u);
+
+  const orderedSteps = [
+    "Database postflight",
+    "Deploy services and workers",
+    "Staging smoke",
+    "Record immutable deployment metadata"
+  ];
+  let cursor = -1;
+  for (const step of orderedSteps) {
+    const index = staging.indexOf(`name: ${step}`, cursor + 1);
+    assert.ok(index > cursor, `${step} must appear in deployment order`);
+    cursor = index;
+  }
 });
 
 test("CI builds release packages as distinct diagnostic steps without mobile", async () => {

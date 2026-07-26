@@ -99,6 +99,109 @@ export async function writeJsonReceipt(path, value) {
   return { checksum, path: resolvedPath };
 }
 
+export async function readJsonReceipt(path, { optional = false } = {}) {
+  const resolvedPath = resolve(path);
+  let content;
+  try {
+    content = await readFile(resolvedPath, "utf8");
+  } catch (error) {
+    if (optional && error && typeof error === "object" && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+  const checksumLine = await readFile(`${resolvedPath}.sha256`, "utf8");
+
+  const [expected, checksumFile] = checksumLine.trim().split(/\s+/u);
+  const actual = createHash("sha256").update(content).digest("hex");
+  if (expected !== actual || checksumFile !== basename(resolvedPath)) {
+    throw new Error(`Receipt checksum verification failed: ${resolvedPath}`);
+  }
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    throw new Error(`Receipt contains malformed JSON: ${resolvedPath}`, { cause: error });
+  }
+}
+
+const WORKER_DEPLOYMENT_KEYS = {
+  notificationWorker: "notification",
+  childReminderWorker: "childReminder"
+};
+
+export function assessDeploymentReadiness(
+  readiness,
+  {
+    bootstrapGraceSeconds,
+    deploymentReceipt,
+    environment,
+    now = new Date()
+  }
+) {
+  const dependencies = readiness?.dependencies;
+  if (!dependencies || typeof dependencies !== "object") {
+    return { ready: false, bootstrapGrace: false, blockingDependencies: ["response"] };
+  }
+
+  const blockingDependencies = Object.entries(dependencies)
+    .filter(([, dependency]) => dependency?.required === true
+      && !["ready", "degraded"].includes(dependency?.status))
+    .map(([name]) => name);
+
+  if (readiness.ready === true && blockingDependencies.length === 0) {
+    return { ready: true, bootstrapGrace: false, blockingDependencies: [] };
+  }
+
+  const receiptCreatedAt = new Date(deploymentReceipt?.createdAt ?? "");
+  const ageSeconds = (now.getTime() - receiptCreatedAt.getTime()) / 1000;
+  const receiptEligible = environment === "staging"
+    && bootstrapGraceSeconds > 0
+    && deploymentReceipt?.kind === "gcp_cloud_run_deployment"
+    && deploymentReceipt?.status === "deployed"
+    && deploymentReceipt?.environment === environment
+    && ["all", "services"].includes(deploymentReceipt?.phase)
+    && Number.isFinite(ageSeconds)
+    && ageSeconds >= -30
+    && ageSeconds <= bootstrapGraceSeconds;
+
+  const workersEligible = blockingDependencies.length > 0
+    && blockingDependencies.every((dependencyName) => {
+      const deploymentKey = WORKER_DEPLOYMENT_KEYS[dependencyName];
+      const dependency = dependencies[dependencyName];
+      const infrastructure = deploymentReceipt?.scheduledInfrastructure?.[deploymentKey];
+      return Boolean(
+        deploymentKey
+        && dependency?.code === "WORKER_HEARTBEAT_MISSING"
+        && infrastructure?.job?.exists === true
+        && infrastructure.job.latestCreatedExecution === null
+        && infrastructure.job.executionObservation === "no_execution_observed_during_deployment_verification"
+        && infrastructure?.scheduler?.exists === true
+        && infrastructure.scheduler.enabledVerified === true
+        && infrastructure.scheduler.scheduleVerified === true
+        && infrastructure.scheduler.timeZoneVerified === true
+        && infrastructure.scheduler.httpMethodVerified === true
+        && infrastructure.scheduler.uriVerified === true
+        && infrastructure.scheduler.oauthServiceAccountVerified === true
+        && infrastructure?.iam?.jobScoped === true
+        && infrastructure.iam.verified === true
+      );
+    });
+
+  if (receiptEligible && workersEligible) {
+    return {
+      ready: true,
+      bootstrapGrace: true,
+      blockingDependencies,
+      graceAgeSeconds: Math.max(0, Math.floor(ageSeconds)),
+      graceExpiresAt: new Date(
+        receiptCreatedAt.getTime() + bootstrapGraceSeconds * 1000
+      ).toISOString()
+    };
+  }
+
+  return { ready: false, bootstrapGrace: false, blockingDependencies };
+}
+
 export function timestampForFile(date = new Date()) {
   return date.toISOString().replace(/[-:]/gu, "").replace(/\.\d{3}Z$/u, "Z");
 }
