@@ -161,8 +161,8 @@ function parsePositiveInteger(value, fallback) {
 }
 
 async function resolveGitSha() {
-  if (process.env.RELEASE_GIT_SHA) {
-    return process.env.RELEASE_GIT_SHA;
+  if (process.env.RELEASE_SOURCE_GIT_SHA || process.env.RELEASE_GIT_SHA) {
+    return process.env.RELEASE_SOURCE_GIT_SHA || process.env.RELEASE_GIT_SHA;
   }
   try {
     const result = await runCommand("git", ["rev-parse", "HEAD"], { quiet: true });

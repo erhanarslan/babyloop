@@ -99,12 +99,18 @@ async function deployService(options) {
   );
   const result = await withOperation(
     `Cloud Run service ${config.name} URL resolution`,
-    () => gcloud([
-      "run", "services", "describe", config.name,
-      `--region=${contract.region}`, `--project=${context.project}`, "--format=value(status.url)"
-    ], { capture: true })
+    () => gcloud(buildServiceDescribeArgs(options), { capture: true })
   );
   return result.stdout.trim();
+}
+
+export function buildServiceDescribeArgs({ config, context, contract }) {
+  return [
+    "run", "services", "describe", config.name,
+    `--region=${contract.region}`,
+    `--project=${context.project}`,
+    "--format=value(status.url)"
+  ];
 }
 
 export function buildJobDeployArgs({ config, key, image, environment, context, contract, jobEnvFile, secrets, migrationEnvFile }) {

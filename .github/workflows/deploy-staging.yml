@@ -39,6 +39,7 @@ jobs:
       GCP_DEPLOY_CONFIRM: DEPLOY_STAGING
       GCP_MIGRATION_CONFIRM: APPLY_STAGING
       BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
+      DEPLOY_RELEASE_CONTRACT_PATH: .release/gcp/staging/resolved-release-contract.json
 
     steps:
       - name: Guard staging source
@@ -72,8 +73,7 @@ jobs:
       - name: Prepare release evidence directories
         run: |
           set -euo pipefail
-          mkdir -p .release/rollback .release/gcp/staging
-          : > .release/rollback/staging-previous-revisions.env
+          mkdir -p .release/evidence .release/gcp/staging
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -127,7 +127,10 @@ jobs:
           echo "DEPLOY_ENV_FILE=$runtime_path" >> "$GITHUB_ENV"
 
       - name: Audit runtime contract
-        run: pnpm deploy:runtime-env:audit -- --target=staging --env-file="$DEPLOY_ENV_FILE"
+        run: pnpm deploy:runtime-env:audit -- --target=staging --env-file="$DEPLOY_ENV_FILE" --output=.release/gcp/staging/runtime-env-audit.json
+
+      - name: Staging release rehearsal preflight
+        run: pnpm deploy:rehearse:staging -- --env-file="$DEPLOY_ENV_FILE" --live-read-only=true
 
       - name: Import pinned Secret Manager versions
         run: pnpm gcp:cloud-run:secrets -- --environment=staging --env-file="$DEPLOY_ENV_FILE"
@@ -222,16 +225,11 @@ jobs:
           exit-code: "1"
 
       - name: Capture previous Cloud Run revisions
-        run: |
-          set -euo pipefail
-          mkdir -p .release/rollback
-          : > .release/rollback/staging-previous-revisions.env
-          for service in api web backoffice; do
-            revision="$(gcloud run services describe "babyloop-$service" --project=babyloop-staging --region=europe-west1 --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)"
-            printf '%s=%s\n' "$service" "$revision" >> .release/rollback/staging-previous-revisions.env
-          done
+        run: node scripts/deploy/capture-cloud-run-rollback.mjs --environment=staging
 
       - name: Database preflight
+        env:
+          DATABASE_RELEASE_EVIDENCE_PATH: .release/gcp/staging/database-preflight.json
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=preflight
 
       - name: Verified pre-migration backup
@@ -244,37 +242,29 @@ jobs:
         run: pnpm gcp:cloud-run:migrate -- --environment=staging
 
       - name: Database postflight
+        env:
+          DATABASE_RELEASE_EVIDENCE_PATH: .release/gcp/staging/database-postflight.json
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=postflight
+
+      - name: Mark service mutation boundary
+        run: touch .release/gcp/staging/services-mutation-started
 
       - name: Deploy services and workers
         run: pnpm gcp:cloud-run:deploy -- --environment=staging --phase=services
+
+      - name: Resolve release contract
+        run: pnpm deploy:release-contract -- --environment=staging --env-file="$DEPLOY_ENV_FILE"
 
       - name: Staging smoke
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/deploy/run-environment-smoke.mjs staging
 
       - name: Record immutable deployment metadata
-        run: |
-          set -euo pipefail
-          {
-            echo "### Immutable images"
-            for target in api web backoffice; do
-              image="$(jq -r ".images.$target" .release/gcp/staging/cloud-run-image-manifest.json)"
-              echo "- ${target}: \`${image}\`"
-            done
-            echo "- Migration: passed"
-            echo "- Smoke: passed"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: pnpm deploy:release-metadata
 
       - name: Roll back Cloud Run traffic after failure
         if: failure()
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          while IFS='=' read -r service revision; do
-            test -n "$revision" || continue
-            gcloud run services update-traffic "babyloop-$service" --project=babyloop-staging --region=europe-west1 --to-revisions="$revision=100"
-          done < .release/rollback/staging-previous-revisions.env
-          echo "Database schema was not rolled back; use a forward fix or the verified backup." > .release/rollback/staging-database-forward-fix.txt
+        run: pnpm deploy:release-rollback -- --environment=staging
 
       - name: Upload deployment, migration, scan and rollback evidence
         if: always()
@@ -290,13 +280,6 @@ jobs:
 
       - name: Deployment summary
         if: always()
-        run: |
-          {
-            echo "## Staging deployment"
-            echo
-            echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Environment: \`staging\`"
-            echo "- Result: \`${{ job.status }}\`"
-            echo "- Images are digest-pinned in the uploaded Cloud Run manifest."
-            echo "- Migration, smoke, scans and rollback inputs are in the staging-release artifact."
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DEPLOY_JOB_STATUS: ${{ job.status }}
+        run: node scripts/deploy/write-release-summary.mjs

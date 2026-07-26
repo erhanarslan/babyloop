@@ -181,6 +181,13 @@ function checkValues(values, contract, context, errors, warnings) {
   if (values.HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS !== "true") {
     errors.push("HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS must be true.");
   }
+  const requirePublicSurfaces = String(values.DEPLOY_REQUIRE_PUBLIC_SURFACES || "").trim().toLowerCase();
+  if (requirePublicSurfaces && !["true", "false"].includes(requirePublicSurfaces)) {
+    errors.push("DEPLOY_REQUIRE_PUBLIC_SURFACES must be true or false.");
+  }
+  if (context.target === "production" && requirePublicSurfaces !== "true") {
+    errors.push("DEPLOY_REQUIRE_PUBLIC_SURFACES must be true in production.");
+  }
 
   for (const key of contract.httpsUrlKeys || []) {
     const value = String(values[key] || "").trim();

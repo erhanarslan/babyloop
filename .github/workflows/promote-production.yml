@@ -43,7 +43,9 @@ jobs:
       GCP_DEPLOY_CONFIRM: DEPLOY_PRODUCTION
       GCP_MIGRATION_CONFIRM: APPLY_PRODUCTION
       GCP_PROMOTE_CONFIRM: PROMOTE_STAGING_TO_PRODUCTION
+      GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM: ${{ vars.GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM }}
       BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
+      DEPLOY_RELEASE_CONTRACT_PATH: .release/gcp/production/resolved-release-contract.json
 
     steps:
       - name: Guard production source
@@ -103,6 +105,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install backup encryption tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends age
+          age --version
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
@@ -130,7 +139,10 @@ jobs:
           echo "DEPLOY_ENV_FILE=$runtime_path" >> "$GITHUB_ENV"
 
       - name: Audit runtime contract
-        run: pnpm deploy:runtime-env:audit -- --target=production --env-file="$DEPLOY_ENV_FILE"
+        run: pnpm deploy:runtime-env:audit -- --target=production --env-file="$DEPLOY_ENV_FILE" --output=.release/gcp/production/runtime-env-audit.json
+
+      - name: Production release rehearsal preflight
+        run: pnpm deploy:rehearse:production -- --env-file="$DEPLOY_ENV_FILE" --live-read-only=true
 
       - name: Import pinned Secret Manager versions
         run: pnpm gcp:cloud-run:secrets -- --environment=production --env-file="$DEPLOY_ENV_FILE"
@@ -231,16 +243,11 @@ jobs:
           exit-code: "1"
 
       - name: Capture previous Cloud Run revisions
-        run: |
-          set -euo pipefail
-          mkdir -p .release/rollback
-          : > .release/rollback/production-previous-revisions.env
-          for service in api web backoffice; do
-            revision="$(gcloud run services describe "babyloop-$service" --project=babyloop-production --region=europe-west1 --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)"
-            printf '%s=%s\n' "$service" "$revision" >> .release/rollback/production-previous-revisions.env
-          done
+        run: node scripts/deploy/capture-cloud-run-rollback.mjs --environment=production
 
       - name: Production database preflight
+        env:
+          DATABASE_RELEASE_EVIDENCE_PATH: .release/gcp/production/database-preflight.json
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=preflight
 
       - name: Mandatory encrypted backup
@@ -253,37 +260,29 @@ jobs:
         run: pnpm gcp:cloud-run:migrate -- --environment=production
 
       - name: Production database postflight
+        env:
+          DATABASE_RELEASE_EVIDENCE_PATH: .release/gcp/production/database-postflight.json
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/ops/database-release-safety.mjs --phase=postflight
+
+      - name: Mark service mutation boundary
+        run: touch .release/gcp/production/services-mutation-started
 
       - name: Deploy production services and workers
         run: pnpm gcp:cloud-run:deploy -- --environment=production --phase=services
+
+      - name: Resolve release contract
+        run: pnpm deploy:release-contract -- --environment=production --env-file="$DEPLOY_ENV_FILE"
 
       - name: Production smoke
         run: node --env-file="$DEPLOY_ENV_FILE" scripts/deploy/run-environment-smoke.mjs production
 
       - name: Record immutable deployment metadata
-        run: |
-          set -euo pipefail
-          {
-            echo "### Promoted immutable images"
-            for target in api web backoffice; do
-              image="$(jq -r ".images.$target" .release/gcp/production/cloud-run-image-manifest.json)"
-              echo "- ${target}: \`${image}\`"
-            done
-            echo "- Migration: passed"
-            echo "- Smoke: passed"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: pnpm deploy:release-metadata
 
       - name: Roll back Cloud Run traffic after failure
         if: failure()
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          while IFS='=' read -r service revision; do
-            test -n "$revision" || continue
-            gcloud run services update-traffic "babyloop-$service" --project=babyloop-production --region=europe-west1 --to-revisions="$revision=100"
-          done < .release/rollback/production-previous-revisions.env
-          echo "Database schema was not rolled back; use a forward fix or restore the verified backup after incident approval." > .release/rollback/production-database-forward-fix.txt
+        run: pnpm deploy:release-rollback -- --environment=production
 
       - name: Upload production evidence
         if: always()
@@ -299,16 +298,9 @@ jobs:
 
       - name: Deployment summary
         if: always()
-        run: |
-          {
-            echo "## Production deployment"
-            echo
-            echo "- Master commit: \`${GITHUB_SHA}\`"
-            echo "- Promoted staging commit: \`${{ steps.source.outputs.sha }}\`"
-            echo "- Result: \`${{ job.status }}\`"
-            echo "- Images were promoted by digest without rebuild."
-            echo "- Backup, migration, smoke and rollback evidence are in the production-release artifact."
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DEPLOY_JOB_STATUS: ${{ job.status }}
+        run: node scripts/deploy/write-release-summary.mjs
 
   release:
     name: GitHub release
