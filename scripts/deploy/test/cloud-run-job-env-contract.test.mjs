@@ -5,7 +5,7 @@ import {
   stripCloudRunJobReservedEnv,
 } from "../../gcp/cloud-run-job-env-lib.mjs";
 
-test("Cloud Run jobs exclude the reserved PORT environment variable", async () => {
+test("Cloud Run services and jobs exclude the reserved PORT environment variable", async () => {
   const output = stripCloudRunJobReservedEnv(
     [
       'NODE_ENV: "production"',
@@ -39,5 +39,10 @@ test("Cloud Run jobs exclude the reserved PORT environment variable", async () =
   assert.match(
     deploySource,
     /key === "migrate" \? migrationEnvFile : jobEnvFile/u,
+  );
+
+  assert.match(
+    deploySource,
+    /urls\.api = await deployService\(\{[\s\S]{0,500}envFile: jobEnvFile[\s\S]{0,200}secrets: secretBindings/u,
   );
 });

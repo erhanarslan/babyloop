@@ -199,7 +199,16 @@ async function main() {
 
   const urls = {};
   if (phase !== "migration") {
-    urls.api = await deployService({ config: contract.services.api, role: "api", image: images.images.api, environment, context, contract, envFile, secrets: secretBindings });
+    urls.api = await deployService({
+      config: contract.services.api,
+      role: "api",
+      image: images.images.api,
+      environment,
+      context,
+      contract,
+      envFile: jobEnvFile,
+      secrets: secretBindings
+    });
     urls.web = await deployService({ config: contract.services.web, role: "web", image: images.images.web, environment, context, contract, envFile, secrets: "" });
     urls.backoffice = await deployService({ config: contract.services.backoffice, role: "backoffice", image: images.images.backoffice, environment, context, contract, envFile, secrets: "" });
   }
