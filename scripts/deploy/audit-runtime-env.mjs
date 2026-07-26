@@ -11,7 +11,7 @@ const audit = await auditRuntimeEnv({
   allowExample: readArg("--allow-example") === "true",
   allowInsecurePermissions: process.env.RUNTIME_ENV_AUDIT_ALLOW_INSECURE_PERMISSIONS === "true"
 });
-const gitSha = process.env.DEPLOY_GIT_SHA || await gitHead();
+const gitSha = process.env.RELEASE_SOURCE_GIT_SHA || process.env.DEPLOY_GIT_SHA || await gitHead();
 const outputPath = resolve(
   readArg("--output")
   || process.env.RUNTIME_ENV_AUDIT_EVIDENCE_PATH

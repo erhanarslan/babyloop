@@ -93,8 +93,13 @@ test("staging merges automatically run the reusable CI gate before deployment", 
   assert.match(staging, /test "\$GITHUB_REF" = "refs\/heads\/staging"/u);
 
   const orderedSteps = [
+    "Audit runtime contract",
+    "Staging release rehearsal preflight",
+    "Import pinned Secret Manager versions",
+    "Build immutable Artifact Registry images",
     "Database postflight",
     "Deploy services and workers",
+    "Resolve release contract",
     "Staging smoke",
     "Record immutable deployment metadata"
   ];
@@ -104,6 +109,43 @@ test("staging merges automatically run the reusable CI gate before deployment", 
     assert.ok(index > cursor, `${step} must appear in deployment order`);
     cursor = index;
   }
+});
+
+test("production rehearsal precedes mutation and promotes the exact verified staging SHA", async () => {
+  const production = await readWorkflow("promote-production.yml");
+  const orderedSteps = [
+    "Resolve verified staging SHA",
+    "Audit runtime contract",
+    "Production release rehearsal preflight",
+    "Import pinned Secret Manager versions",
+    "Promote exact staging image digests",
+    "Production database preflight",
+    "Mandatory encrypted backup",
+    "Deploy migration job only",
+    "Execute production migration",
+    "Production database postflight",
+    "Deploy production services and workers",
+    "Resolve release contract",
+    "Production smoke",
+    "Record immutable deployment metadata"
+  ];
+  let cursor = -1;
+  for (const step of orderedSteps) {
+    const index = production.indexOf(`name: ${step}`, cursor + 1);
+    assert.ok(index > cursor, `${step} must appear in production deployment order`);
+    cursor = index;
+  }
+  assert.match(production, /RELEASE_SOURCE_GIT_SHA=\$source_sha/u);
+  assert.match(production, /--source-environment=staging --git-sha="\$\{\{ steps\.source\.outputs\.sha \}\}"/u);
+  assert.match(production, /deploy:rehearse:production/u);
+  assert.match(production, /scripts\/deploy\/write-release-summary\.mjs/u);
+});
+
+test("database rehearsal preflight enforces a read-only PostgreSQL session", async () => {
+  const source = await readFile("scripts/ops/database-release-safety.mjs", "utf8");
+  assert.match(source, /default_transaction_read_only=on/u);
+  assert.match(source, /show transaction_read_only/u);
+  assert.match(source, /transactionReadOnlyVerified/u);
 });
 
 test("CI builds release packages as distinct diagnostic steps without mobile", async () => {

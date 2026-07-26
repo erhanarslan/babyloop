@@ -70,6 +70,16 @@ pnpm gcp:cloud-run:migrate -- --environment=staging
 
 Production uses the same sequence with the production gcloud configuration and production confirmation values.
 
+## Release rehearsal and smoke targets
+
+`pnpm deploy:rehearse:staging` and `pnpm deploy:rehearse:production` run their environment-specific twenty-stage release contracts without executing a Cloud mutation. In CI, `--live-read-only=true` routes every gcloud call through an exact command-path allowlist and records the executed read-only paths. It also checks the active project, APIs, repository, service accounts, Secret Manager visibility, current Cloud Run/Scheduler/IAM state, exact rollback traffic distribution, installed gcloud help surface, DNS, TLS, and reachability. Checks that can only be proven after a mutation are reported as `unverifiedMutationOnly` rather than treated as verified.
+
+An absent staging service is recorded explicitly as an allowed initial-bootstrap state with no invented rollback revision. An absent production service fails closed unless the protected environment variable `GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM` equals `ALLOW_INITIAL_SERVICE_BOOTSTRAP_PRODUCTION`.
+
+After migration and service deployment, `resolved-release-contract.json` binds the image digests, exact service URLs, canonical public origins, scheduled jobs, Scheduler read-back, job-scoped IAM, migration/database receipts, backup, runtime/secret receipts, smoke policy, and rollback snapshot under one checksum.
+
+Deployment smoke always uses the checksum-verified `cloud-run-deployment-services.json` URLs and fails closed if the receipt is missing, corrupt, or differs from the Cloud Run service read-back. Canonical public origins are a separate surface: optional-with-warning by default in staging, required when staging explicitly sets `DEPLOY_REQUIRE_PUBLIC_SURFACES=true`, and always required in production. Production never receives worker bootstrap grace.
+
 ## Domain mapping
 
 Cloud Run domain mapping is Preview in `europe-west1`. It can be used without Cloudflare by adding the returned DNS records at the domain registrar. It is not the long-term recommended Google option, so retain the `run.app` endpoints and migrate to a global external Application Load Balancer when traffic/revenue justifies its fixed cost.

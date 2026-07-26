@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { timestampForFile, writeJsonReceipt } from "../deploy/deployment-lib.mjs";
+import { runCommand, timestampForFile, writeJsonReceipt } from "../deploy/deployment-lib.mjs";
 import { formatDatabaseError } from "./database-error-format.mjs";
 import {
   DATABASE_RELEASE_CRITICAL_TABLES
@@ -38,11 +38,18 @@ const client = new Client({
   connectionString: databaseUrl,
   application_name: `babyloop-release-${phase}-${environment}`,
   connectionTimeoutMillis: 10_000,
-  statement_timeout: 30_000
+  statement_timeout: 30_000,
+  options: phase === "preflight" ? "-c default_transaction_read_only=on" : undefined
 });
 
 try {
   await client.connect();
+  const accessMode = phase === "preflight"
+    ? (await client.query("show transaction_read_only")).rows[0]?.transaction_read_only
+    : "off";
+  if (phase === "preflight" && accessMode !== "on") {
+    fail("Database preflight connection is not transaction read-only.");
+  }
   const identity = (await client.query(`
     select current_database() as database_name,
            current_user as database_user,
@@ -83,6 +90,7 @@ try {
   }
 
   const createdAt = new Date().toISOString();
+  const gitSha = await resolveGitSha();
   const outputPath = resolve(
     process.env.DATABASE_RELEASE_EVIDENCE_PATH
       || `.release/evidence/${environment}-database-${phase}-${timestampForFile(new Date(createdAt))}.json`
@@ -93,7 +101,10 @@ try {
     status: "passed",
     createdAt,
     environment,
+    gitSha,
     database: {
+      accessMode: phase === "preflight" ? "read_only" : "read_write",
+      transactionReadOnlyVerified: phase === "preflight" ? accessMode === "on" : false,
       name: identity.database_name,
       user: identity.database_user,
       schema: identity.current_schema,
@@ -122,6 +133,22 @@ try {
   fail(formatDatabaseError(error, databaseUrl));
 } finally {
   await client.end().catch(() => undefined);
+}
+
+async function resolveGitSha() {
+  const configured = String(process.env.RELEASE_SOURCE_GIT_SHA || process.env.GITHUB_SHA || "").trim();
+  if (configured) {
+    if (!/^[a-f0-9]{40}$/u.test(configured)) fail("Release git SHA must be a full lowercase SHA.");
+    return configured;
+  }
+  const { stdout } = await runCommand(
+    "git",
+    ["rev-parse", "HEAD"],
+    { capture: true }
+  );
+  const value = stdout.trim();
+  if (!/^[a-f0-9]{40}$/u.test(value)) fail("Unable to resolve release git SHA.");
+  return value;
 }
 
 async function migrationJournalState(connection) {

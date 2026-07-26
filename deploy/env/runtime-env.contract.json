@@ -20,6 +20,10 @@
     "SMTP_PASS",
     "SMTP_USER"
   ],
+  "optional": [
+    "DEPLOY_REQUIRE_PUBLIC_SURFACES",
+    "GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM"
+  ],
   "required": [
     "DEPLOY_ENVIRONMENT",
     "NODE_ENV",
