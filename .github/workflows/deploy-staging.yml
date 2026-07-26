@@ -90,6 +90,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install backup encryption tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends age
+          age --version
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
