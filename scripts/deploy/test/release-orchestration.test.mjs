@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -32,6 +32,14 @@ import {
 } from "../capture-cloud-run-rollback.mjs";
 import { rollbackCloudRunRelease } from "../rollback-cloud-run-release.mjs";
 import { findBackupManifest } from "../resolve-release-contract.mjs";
+import {
+  API_DEPLOYMENT_SMOKE_ENDPOINTS,
+  BACKOFFICE_DEPLOYMENT_SMOKE_ENDPOINTS,
+  planOpenApiProbe,
+  readRuntimeCapabilities,
+  validateOpenApiProbeResponse,
+  WEB_DEPLOYMENT_SMOKE_ENDPOINTS
+} from "../deployment-smoke-contract.mjs";
 import {
   buildSchedulerArgs,
   buildSchedulerDescribeArgs,
@@ -72,6 +80,92 @@ test("public surface policy is optional by default in staging and mandatory in p
     requirePublicSurfaces: false
   });
   assert.equal(targets.policy.publicRequired, true);
+});
+
+test("capabilities disable OpenAPI without a request or warning and preserve skipped evidence", () => {
+  const capabilities = readRuntimeCapabilities({
+    ok: true,
+    data: {
+      docs: { enabled: false, accessMode: "readonly" },
+      modules: { marketplace: true, analytics: true }
+    }
+  });
+  const plan = planOpenApiProbe(capabilities);
+  assert.equal(plan.request, false);
+  assert.deepEqual(plan.evidence, {
+    status: "skipped",
+    reason: "runtime_docs_disabled",
+    required: false
+  });
+  assert.equal(plan.outcome.status, "skipped_runtime_disabled");
+});
+
+test("enabled OpenAPI requires HTTP 200, application/json and a valid OpenAPI 3 document", () => {
+  const capabilities = readRuntimeCapabilities({
+    ok: true,
+    data: {
+      docs: { enabled: true, accessMode: "readonly" },
+      modules: { marketplace: true, analytics: true }
+    }
+  });
+  assert.equal(planOpenApiProbe(capabilities).request, true);
+  assert.equal(validateOpenApiProbeResponse({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: { openapi: "3.0.3" }
+  }), true);
+  assert.throws(() => validateOpenApiProbeResponse({
+    status: 404,
+    contentType: "application/json",
+    body: { openapi: "3.0.3" }
+  }), /HTTP 404/u);
+  for (const status of [401, 403]) {
+    assert.throws(() => validateOpenApiProbeResponse({
+      status,
+      contentType: "application/json",
+      body: { openapi: "3.0.3" }
+    }), new RegExp(`HTTP ${status}`, "u"));
+  }
+  assert.throws(() => validateOpenApiProbeResponse({
+    status: 200,
+    contentType: "application/json",
+    body: "{malformed"
+  }), /valid OpenAPI 3 document/u);
+});
+
+test("malformed or incomplete capabilities docs fields fail closed", () => {
+  for (const body of [
+    { ok: true, data: { docs: {}, modules: { marketplace: true, analytics: true } } },
+    { ok: true, data: { docs: { enabled: false }, modules: { marketplace: true, analytics: true } } },
+    { ok: true, data: { docs: { enabled: false, accessMode: "write" }, modules: { marketplace: true, analytics: true } } },
+    { ok: true, data: { docs: { enabled: false, accessMode: "readonly" }, modules: { marketplace: false, analytics: true } } }
+  ]) assert.throws(() => readRuntimeCapabilities(body), /capabilities response/u);
+});
+
+test("shared smoke route contract maps to real web and backoffice route files", async () => {
+  const directWebRoutes = new Map([
+    ["/", "apps/web/src/app/page.tsx"],
+    ["/login", "apps/web/src/app/login/page.tsx"],
+    ["/browse", "apps/web/src/app/browse/page.tsx"],
+    ["/support/contact", "apps/web/src/app/support/contact/page.tsx"]
+  ]);
+  const legalSource = await readFile("apps/web/src/features/legal/legal-documents.ts", "utf8");
+  await access("apps/web/src/app/legal/[slug]/page.tsx");
+  for (const endpoint of WEB_DEPLOYMENT_SMOKE_ENDPOINTS) {
+    if (endpoint.path.startsWith("/legal/")) {
+      assert.match(legalSource, new RegExp(`"${endpoint.path.slice("/legal/".length)}"`, "u"));
+    } else {
+      await access(directWebRoutes.get(endpoint.path));
+    }
+  }
+  assert.deepEqual(BACKOFFICE_DEPLOYMENT_SMOKE_ENDPOINTS, [{
+    name: "backoffice-login",
+    path: "/login"
+  }]);
+  await access("apps/backoffice/src/app/login/page.tsx");
+  assert.ok(API_DEPLOYMENT_SMOKE_ENDPOINTS.some(({ name, conditional }) => (
+    name === "api-openapi" && conditional === "capabilities.docs.enabled"
+  )));
 });
 
 test("performance enforcement does not promote optional staging public warnings to blockers", () => {
@@ -405,6 +499,12 @@ test("resolved contract binds receipts, migration SHA, scheduler/IAM state, and 
   assert.equal(resolved.schedulers.notification.exactConfigurationVerified, true);
   assert.equal(resolved.schedulers.notification.jobScopedIam.verified, true);
   assert.equal(resolved.migration.gitSha, SHA);
+  assert.equal(resolved.probes.required.includes("api-openapi"), false);
+  assert.deepEqual(resolved.probes.conditional, [{
+    name: "api-openapi",
+    condition: "capabilities.docs.enabled",
+    endpoint: "/docs/json"
+  }]);
   assert.deepEqual(resolved.rollback.services.api.traffic, [{
     revisionName: "babyloop-api-00001-abc",
     percent: 100

@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { basename, resolve } from "node:path";
+import { API_DEPLOYMENT_SMOKE_ENDPOINTS } from "./deployment-smoke-contract.mjs";
 
 export const RELEASE_CONTRACT_SCHEMA_VERSION = 1;
+const OPENAPI_SMOKE_ENDPOINT = API_DEPLOYMENT_SMOKE_ENDPOINTS.find(
+  ({ name }) => name === "api-openapi"
+);
+if (!OPENAPI_SMOKE_ENDPOINT) throw new Error("Deployment smoke route contract is missing api-openapi.");
 
 export const RELEASE_STAGES = Object.freeze([
   "runtime-audit",
@@ -366,6 +371,16 @@ export function validateResolvedReleaseContract(contract, environment) {
   if (contract.environment === "production" && contract.backup?.replicaVerified !== true) {
     throw new Error("Production resolved release contract requires a byte-verified backup replica.");
   }
+  if (contract.probes?.required?.includes("api-openapi")) {
+    throw new Error("Resolved release contract must not require api-openapi unconditionally.");
+  }
+  const conditionalOpenApi = contract.probes?.conditional?.find(({ name }) => name === "api-openapi");
+  if (
+    conditionalOpenApi?.condition !== "capabilities.docs.enabled"
+    || conditionalOpenApi?.endpoint !== OPENAPI_SMOKE_ENDPOINT.path
+  ) {
+    throw new Error("Resolved release contract conditional api-openapi probe is invalid.");
+  }
   return contract;
 }
 
@@ -490,7 +505,6 @@ export function assembleResolvedReleaseContract({
       required: [
         "api-liveness",
         "api-readiness",
-        "api-openapi",
         "api-capabilities",
         "api-categories",
         "api-listings",
@@ -500,6 +514,11 @@ export function assembleResolvedReleaseContract({
         "backoffice-login",
         "web-legal-surfaces"
       ],
+      conditional: [{
+        name: "api-openapi",
+        condition: "capabilities.docs.enabled",
+        endpoint: OPENAPI_SMOKE_ENDPOINT.path
+      }],
       public: {
         required: requirePublic,
         names: ["public-api-liveness", "public-web-home", "public-backoffice-login"]

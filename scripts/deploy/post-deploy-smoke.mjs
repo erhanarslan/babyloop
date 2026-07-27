@@ -12,6 +12,16 @@ import {
 } from "./deployment-lib.mjs";
 import { RELEASE_EVIDENCE_SCHEMA_VERSION, summarizeSamples } from "./release-evidence-lib.mjs";
 import {
+  API_DEPLOYMENT_SMOKE_ENDPOINTS,
+  BACKOFFICE_DEPLOYMENT_SMOKE_ENDPOINTS,
+  failedOpenApiOutcome,
+  passedOpenApiOutcome,
+  planOpenApiProbe,
+  readRuntimeCapabilities,
+  validateOpenApiProbeResponse,
+  WEB_DEPLOYMENT_SMOKE_ENDPOINTS
+} from "./deployment-smoke-contract.mjs";
+import {
   classifyProbeError,
   evaluateSmokeWarningPolicy,
   formatProbeFailure,
@@ -62,6 +72,18 @@ const probes = { deployment: {}, public: {} };
 const performanceWarnings = [];
 const optionalPublicSurfaceWarnings = [];
 const workerBootstrapWarnings = [];
+const createdAt = new Date().toISOString();
+const evidencePath = resolve(
+  releaseContract.artifacts?.smokeEvidence?.path
+    || process.env.DEPLOY_ACCEPTANCE_EVIDENCE_PATH
+    || `.release/evidence/${environment}-acceptance-${timestampForFile(new Date(createdAt))}.json`
+);
+let runtimeCapabilities = null;
+let openApiOutcome = {
+  status: "not_checked",
+  enabled: null,
+  accessMode: "unknown"
+};
 let workerBootstrap = {
   active: false,
   blockingDependencies: [],
@@ -93,7 +115,7 @@ function validateApiReadiness({ body }) {
   return assessment.ready;
 }
 
-await waitFor("deployment-api-liveness", `${apiUrl}/health/live`, {
+await waitFor("deployment-api-liveness", endpointUrl(apiUrl, apiEndpoint("api-liveness")), {
   attempts,
   delayMs,
   timeoutMs,
@@ -102,7 +124,7 @@ await waitFor("deployment-api-liveness", `${apiUrl}/health/live`, {
   publicContract: releaseContract.services.api.public === true,
   validate: ({ body }) => body?.live === true
 });
-await waitFor("deployment-api-readiness", `${apiUrl}/health/ready`, {
+await waitFor("deployment-api-readiness", endpointUrl(apiUrl, apiEndpoint("api-readiness")), {
   attempts,
   acceptedStatuses: [200, 503],
   delayMs,
@@ -118,58 +140,113 @@ if (workerBootstrap.active) {
   );
 }
 
-const deploymentProbes = [
-  jsonProbe("api-liveness", `${apiUrl}/health/live`, ({ body }) => body?.live === true, { publicContract: true }),
-  jsonProbe("api-readiness", `${apiUrl}/health/ready`, validateApiReadiness, {
+const initialDeploymentProbes = [
+  jsonProbe("api-liveness", endpointUrl(apiUrl, apiEndpoint("api-liveness")), ({ body }) => body?.live === true, { publicContract: true }),
+  jsonProbe("api-readiness", endpointUrl(apiUrl, apiEndpoint("api-readiness")), validateApiReadiness, {
     acceptedStatuses: [200, 503],
     publicContract: true
   }),
-  jsonProbe("api-openapi", `${apiUrl}/docs/json`, ({ body }) => String(body?.openapi || "").startsWith("3."), { publicContract: true }),
-  jsonProbe("api-capabilities", `${apiUrl}/api/v1/meta/capabilities`, ({ body }) => body?.ok === true
-    && body?.data?.modules?.marketplace === true
-    && body?.data?.modules?.analytics === true, { publicContract: true }),
-  jsonProbe("api-categories", `${apiUrl}/api/v1/categories`, ({ body, headers }) => body?.ok === true
+];
+
+for (const definition of initialDeploymentProbes) {
+  probes.deployment[definition.name] = await sampleProbe(definition, sampleCount);
+  recordThresholdWarnings(definition, probes.deployment[definition.name]);
+}
+
+const capabilitiesDefinition = jsonProbe(
+  "api-capabilities",
+  endpointUrl(apiUrl, apiEndpoint("api-capabilities")),
+  ({ body }) => {
+    try {
+      runtimeCapabilities = readRuntimeCapabilities(body);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { publicContract: true }
+);
+probes.deployment[capabilitiesDefinition.name] = await sampleProbe(capabilitiesDefinition, sampleCount);
+recordThresholdWarnings(capabilitiesDefinition, probes.deployment[capabilitiesDefinition.name]);
+
+const openApiPlan = planOpenApiProbe(runtimeCapabilities);
+openApiOutcome = openApiPlan.outcome;
+if (!openApiPlan.request) {
+  probes.deployment["api-openapi"] = openApiPlan.evidence;
+} else {
+  const definition = jsonProbe(
+    "api-openapi",
+    endpointUrl(apiUrl, apiEndpoint("api-openapi")),
+    ({ body, headers, status }) => validateOpenApiProbeResponse({
+      status,
+      contentType: headers["content-type"],
+      body
+    }),
+    { publicContract: true }
+  );
+  try {
+    const openApiEvidence = await sampleProbe(definition, sampleCount);
+    probes.deployment[definition.name] = {
+      ...openApiEvidence,
+      status: "passed",
+      required: true
+    };
+    openApiOutcome = passedOpenApiOutcome(runtimeCapabilities);
+    recordThresholdWarnings(definition, openApiEvidence);
+  } catch (error) {
+    openApiOutcome = failedOpenApiOutcome(runtimeCapabilities);
+    probes.deployment[definition.name] = {
+      status: "failed",
+      required: true,
+      diagnostic: error?.diagnostic || classifyProbeError(error, {
+        probe: definition.name,
+        url: definition.url
+      })
+    };
+    await writeOpenApiFailureEvidence(error);
+    throw error;
+  }
+}
+
+const remainingDeploymentProbes = [
+  jsonProbe("api-categories", endpointUrl(apiUrl, apiEndpoint("api-categories")), ({ body, headers }) => body?.ok === true
     && Array.isArray(body?.data?.categories)
     && String(headers["cache-control"] || "").includes("max-age=300"), { publicContract: true }),
   jsonProbe(
     "api-listings",
-    `${apiUrl}/api/v1/listings?hasImages=true&imageLimit=1&includeTotal=false&limit=20&offset=0&sort=newest`,
+    endpointUrl(apiUrl, apiEndpoint("api-listings")),
     ({ body }) => body?.ok === true
       && Array.isArray(body?.data?.listings)
       && body?.data?.pagination?.total === null,
     { publicContract: true }
   ),
-  htmlProbe("web-home", webUrl, { publicContract: releaseContract.services.web.public === true }),
-  htmlProbe("web-login", `${webUrl}/login`, { publicContract: releaseContract.services.web.public === true }),
-  htmlProbe("web-browse", `${webUrl}/browse`, { publicContract: releaseContract.services.web.public === true }),
-  htmlProbe("backoffice-login", `${backofficeUrl}/login`, {
+  ...WEB_DEPLOYMENT_SMOKE_ENDPOINTS
+    .filter(({ name }) => new Set(["web-home", "web-login", "web-browse"]).has(name))
+    .map((endpoint) => htmlProbe(endpoint.name, endpointUrl(webUrl, endpoint), {
+      publicContract: releaseContract.services.web.public === true
+    })),
+  htmlProbe("backoffice-login", endpointUrl(backofficeUrl, backofficeEndpoint("backoffice-login")), {
     publicContract: releaseContract.services.backoffice.public === true
   })
 ];
 
-for (const definition of deploymentProbes) {
+for (const definition of remainingDeploymentProbes) {
   probes.deployment[definition.name] = await sampleProbe(definition, sampleCount);
   recordThresholdWarnings(definition, probes.deployment[definition.name]);
 }
 
-for (const [name, path] of [
-  ["web-privacy", "/legal/privacy"],
-  ["web-kvkk", "/legal/kvkk"],
-  ["web-terms", "/legal/terms"],
-  ["web-cookies", "/legal/cookies"],
-  ["web-ai-notice", "/legal/ai-notice"],
-  ["web-marketplace", "/legal/marketplace"],
-  ["web-data-deletion", "/legal/data-deletion"],
-  ["web-support", "/support/contact"]
-]) {
-  const definition = htmlProbe(name, `${webUrl}${path}`, {
+for (const endpoint of WEB_DEPLOYMENT_SMOKE_ENDPOINTS.filter(
+  ({ name }) => !new Set(["web-home", "web-login", "web-browse"]).has(name)
+)) {
+  const definition = htmlProbe(endpoint.name, endpointUrl(webUrl, endpoint), {
     publicContract: releaseContract.services.web.public === true
   });
-  probes.deployment[name] = await sampleProbe(definition, 1);
+  probes.deployment[endpoint.name] = await sampleProbe(definition, 1);
 }
 
 if (metricsToken) {
-  const metrics = await request("deployment-api-metrics", `${apiUrl}/internal/metrics`, {
+  const metricsUrl = endpointUrl(apiUrl, apiEndpoint("api-metrics"));
+  const metrics = await request("deployment-api-metrics", metricsUrl, {
     headers: { authorization: `Bearer ${metricsToken}` },
     timeoutMs,
     maxBytes: maxJsonBytes,
@@ -177,13 +254,13 @@ if (metricsToken) {
     publicContract: true
   });
   if (!metrics.text.includes("babyloop_")) {
-    throw probeFailure("deployment-api-metrics", `${apiUrl}/internal/metrics`, {
+    throw probeFailure("deployment-api-metrics", metricsUrl, {
       errorClass: "response_validation",
       attempt: 1,
       elapsedMs: metrics.durationMs
     });
   }
-  probes.deployment.metrics = probeEvidence(`${apiUrl}/internal/metrics`, [metrics]);
+  probes.deployment.metrics = probeEvidence(metricsUrl, [metrics]);
 }
 
 await runPublicSurfaceProbes();
@@ -201,12 +278,6 @@ if (warningPolicy.blockers.length > 0) {
 }
 const warnings = warningPolicy.warnings;
 
-const createdAt = new Date().toISOString();
-const evidencePath = resolve(
-  releaseContract.artifacts?.smokeEvidence?.path
-    || process.env.DEPLOY_ACCEPTANCE_EVIDENCE_PATH
-    || `.release/evidence/${environment}-acceptance-${timestampForFile(new Date(createdAt))}.json`
-);
 const evidence = {
   schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
   kind: "deployment_acceptance",
@@ -242,6 +313,8 @@ const evidence = {
     storageDriver: process.env.IMAGE_STORAGE_DRIVER || "unset"
   },
   workerBootstrap,
+  runtimeCapabilities,
+  openApi: openApiOutcome,
   acceptance: warningPolicy.acceptance,
   probes,
   performanceWarnings,
@@ -263,9 +336,9 @@ process.stdout.write(`${JSON.stringify({
 
 async function runPublicSurfaceProbes() {
   const definitions = [
-    jsonProbe("public-api-liveness", `${targets.public.api}/health/live`, ({ body }) => body?.live === true, { role: "api" }),
-    htmlProbe("public-web-home", targets.public.web, { role: "web" }),
-    htmlProbe("public-backoffice-login", `${targets.public.backoffice}/login`, { role: "backoffice" })
+    jsonProbe("public-api-liveness", endpointUrl(targets.public.api, apiEndpoint("api-liveness")), ({ body }) => body?.live === true, { role: "api" }),
+    htmlProbe("public-web-home", endpointUrl(targets.public.web, webEndpoint("web-home")), { role: "web" }),
+    htmlProbe("public-backoffice-login", endpointUrl(targets.public.backoffice, backofficeEndpoint("backoffice-login")), { role: "backoffice" })
   ];
   for (const definition of definitions) {
     if (targets.duplicateRoles.includes(definition.role)) {
@@ -289,6 +362,69 @@ async function runPublicSurfaceProbes() {
       optionalPublicSurfaceWarnings.push(`Optional public surface unavailable: ${formatProbeFailure(diagnostic)}`);
     }
   }
+}
+
+function apiEndpoint(name) {
+  return requiredEndpoint(API_DEPLOYMENT_SMOKE_ENDPOINTS, name);
+}
+
+function webEndpoint(name) {
+  return requiredEndpoint(WEB_DEPLOYMENT_SMOKE_ENDPOINTS, name);
+}
+
+function backofficeEndpoint(name) {
+  return requiredEndpoint(BACKOFFICE_DEPLOYMENT_SMOKE_ENDPOINTS, name);
+}
+
+function requiredEndpoint(collection, name) {
+  const endpoint = collection.find((candidate) => candidate.name === name);
+  if (!endpoint) throw new Error(`Deployment smoke endpoint contract is missing ${name}.`);
+  return endpoint;
+}
+
+function endpointUrl(origin, endpoint) {
+  const base = `${origin}${endpoint.path === "/" ? "" : endpoint.path}`;
+  return endpoint.query ? `${base}?${endpoint.query}` : base;
+}
+
+async function writeOpenApiFailureEvidence(error) {
+  const diagnostic = error?.diagnostic || classifyProbeError(error, {
+    probe: "api-openapi",
+    url: endpointUrl(apiUrl, apiEndpoint("api-openapi"))
+  });
+  await writeJsonReceipt(evidencePath, {
+    schemaVersion: RELEASE_EVIDENCE_SCHEMA_VERSION,
+    kind: "deployment_acceptance",
+    status: "failed",
+    createdAt,
+    environment,
+    gitSha: releaseContract.gitSha,
+    releaseContract: {
+      path: releaseContractPath,
+      checksum: await checksumFromSidecar(releaseContractPath)
+    },
+    endpoints: {
+      deployment: targets.deployment,
+      public: targets.public,
+      deduplicatedRoles: targets.duplicateRoles
+    },
+    smokePolicy: targets.policy,
+    runtimeCapabilities,
+    openApi: openApiOutcome,
+    probes,
+    failure: {
+      probe: "api-openapi",
+      diagnostic
+    },
+    performanceWarnings,
+    optionalPublicSurfaceWarnings,
+    workerBootstrapWarnings,
+    warnings: [
+      ...performanceWarnings,
+      ...optionalPublicSurfaceWarnings,
+      ...workerBootstrapWarnings
+    ]
+  });
 }
 
 function jsonProbe(name, url, validate, extra = {}) {
@@ -325,7 +461,13 @@ async function sampleProbe(definition, count) {
       parseJson: definition.kind === "json",
       publicContract: definition.publicContract
     });
-    if (definition.validate && !definition.validate(result)) {
+    let valid = true;
+    try {
+      valid = definition.validate ? definition.validate(result) : true;
+    } catch {
+      valid = false;
+    }
+    if (!valid) {
       throw probeFailure(definition.name, definition.url, {
         errorClass: "response_validation",
         attempt: index + 1,

@@ -10,6 +10,7 @@ export const JAVASCRIPT_EXECUTION_FILES = Object.freeze([
   "scripts/deploy/audit-runtime-env.mjs",
   "scripts/deploy/check-runtime-env-readiness.mjs",
   "scripts/deploy/create-staging-bootstrap-plan.mjs",
+  "scripts/deploy/deployment-smoke-contract.mjs",
   "scripts/deploy/deployment-lib.mjs",
   "scripts/deploy/execute-staging-deploy.mjs",
   "scripts/deploy/post-deploy-smoke.mjs",

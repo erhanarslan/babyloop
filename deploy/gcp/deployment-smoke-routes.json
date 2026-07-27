@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "api": [
+    { "name": "api-liveness", "path": "/health/live" },
+    { "name": "api-readiness", "path": "/health/ready" },
+    { "name": "api-capabilities", "path": "/api/v1/meta/capabilities" },
+    {
+      "name": "api-openapi",
+      "path": "/docs/json",
+      "conditional": "capabilities.docs.enabled"
+    },
+    { "name": "api-categories", "path": "/api/v1/categories" },
+    {
+      "name": "api-listings",
+      "path": "/api/v1/listings",
+      "query": "hasImages=true&imageLimit=1&includeTotal=false&limit=20&offset=0&sort=newest"
+    },
+    { "name": "api-metrics", "path": "/internal/metrics", "conditional": "metrics_token_present" }
+  ],
+  "web": [
+    { "name": "web-home", "path": "/" },
+    { "name": "web-login", "path": "/login" },
+    { "name": "web-browse", "path": "/browse" },
+    { "name": "web-privacy", "path": "/legal/privacy" },
+    { "name": "web-kvkk", "path": "/legal/kvkk" },
+    { "name": "web-terms", "path": "/legal/terms" },
+    { "name": "web-cookies", "path": "/legal/cookies" },
+    { "name": "web-ai-notice", "path": "/legal/ai-notice" },
+    { "name": "web-marketplace", "path": "/legal/marketplace" },
+    { "name": "web-data-deletion", "path": "/legal/data-deletion" },
+    { "name": "web-support", "path": "/support/contact" }
+  ],
+  "backoffice": [
+    { "name": "backoffice-login", "path": "/login" }
+  ]
+}
