@@ -1,8 +1,12 @@
 import { API_PREFIX } from "@babyloop/config";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { readApiRuntimeConfig } from "../src/config/env.js";
-import type { OpenApiRuntimeConfig } from "../src/plugins/openapi.plugin.js";
+import {
+  readOpenApiRuntimeConfig,
+  type OpenApiRuntimeConfig
+} from "../src/plugins/openapi.plugin.js";
 
 const apps: ReturnType<typeof createApp>[] = [];
 
@@ -11,6 +15,81 @@ afterEach(async () => {
 });
 
 describe("OpenAPI documentation", () => {
+  it("defaults production documentation to disabled and readonly when API_DOCS_ENABLED is unset", () => {
+    expect(readOpenApiRuntimeConfig({ NODE_ENV: "production" })).toEqual({
+      enabled: false,
+      accessMode: "readonly",
+      routePrefix: "/docs"
+    });
+  });
+
+  it("reports disabled docs through production-like capabilities without registering /docs/json", async () => {
+    const app = createProductionLikeTestApp(readOpenApiRuntimeConfig({
+      NODE_ENV: "production"
+    }));
+    await app.ready();
+
+    const capabilities = await app.inject({
+      method: "GET",
+      url: `${API_PREFIX}/meta/capabilities`
+    });
+    const docs = await app.inject({ method: "GET", url: "/docs/json" });
+
+    expect(capabilities.statusCode).toBe(200);
+    expect(capabilities.json().data.docs).toEqual({
+      enabled: false,
+      accessMode: "readonly"
+    });
+    expect(capabilities.json().data.modules).toMatchObject({
+      marketplace: true,
+      analytics: true
+    });
+    expect(docs.statusCode).toBe(404);
+  });
+
+  it("serves valid OpenAPI JSON when production-like capabilities report readonly docs enabled", async () => {
+    const app = createProductionLikeTestApp(readOpenApiRuntimeConfig({
+      NODE_ENV: "production",
+      API_DOCS_ENABLED: "true",
+      API_DOCS_ACCESS_MODE: "interactive"
+    }));
+    await app.ready();
+
+    const capabilities = await app.inject({
+      method: "GET",
+      url: `${API_PREFIX}/meta/capabilities`
+    });
+    const docs = await app.inject({ method: "GET", url: "/docs/json" });
+
+    expect(capabilities.json().data.docs).toEqual({
+      enabled: true,
+      accessMode: "readonly"
+    });
+    expect(docs.statusCode).toBe(200);
+    expect(docs.headers["content-type"]).toContain("application/json");
+    expect(docs.json().openapi).toMatch(/^3\./u);
+  });
+
+  it("registers every API path in the shared deployment smoke route contract", async () => {
+    const app = createProductionLikeTestApp({
+      enabled: true,
+      accessMode: "readonly",
+      routePrefix: "/docs"
+    });
+    await app.ready();
+    const contract = JSON.parse(readFileSync(
+      new URL("../../../deploy/gcp/deployment-smoke-routes.json", import.meta.url),
+      "utf8"
+    )) as { api: Array<{ name: string; path: string }> };
+
+    for (const endpoint of contract.api) {
+      expect(
+        app.hasRoute({ method: "GET", url: endpoint.path }),
+        `${endpoint.name} ${endpoint.path} must be registered`
+      ).toBe(true);
+    }
+  });
+
   it("serves Swagger UI and OpenAPI JSON when enabled", async () => {
     const app = createTestApp({
       enabled: true,
@@ -265,5 +344,20 @@ function createTestApp(openApi: OpenApiRuntimeConfig) {
 
   apps.push(app);
 
+  return app;
+}
+
+function createProductionLikeTestApp(openApi: OpenApiRuntimeConfig) {
+  const app = createApp({
+    config: readApiRuntimeConfig({
+      // Exercise the production OpenAPI decision without enabling production-only
+      // provider requirements or background workers in an in-process route test.
+      NODE_ENV: "test",
+      DATABASE_URL: "postgresql://contract:contract@127.0.0.1:1/babyloop_production",
+      AUTH_SECRET: "production-like-contract-secret-32-characters"
+    }),
+    openApi
+  });
+  apps.push(app);
   return app;
 }

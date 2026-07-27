@@ -13,6 +13,17 @@ const contractReceipt = await safeOptionalReceipt(contractPath);
 const metadataReceipt = await safeOptionalReceipt(metadataPath);
 const contract = contractReceipt.value;
 const metadata = metadataReceipt.value;
+const smokeReceipt = contract?.artifacts?.smokeEvidence?.path
+  ? await safeOptionalReceipt(contract.artifacts.smokeEvidence.path)
+  : { state: "not_produced", value: null };
+const openApiStatus = metadata?.openApi?.status
+  || smokeReceipt.value?.openApi?.status
+  || (smokeReceipt.state === "unreadable" ? "unreadable" : "not completed");
+const exactDeploymentSmokeStatus = metadata
+  ? "passed"
+  : smokeReceipt.value?.status === "failed"
+    ? "failed"
+    : "not completed";
 const summaryPath = process.env.GITHUB_STEP_SUMMARY;
 const publicAcceptance = String(
   metadata?.acceptance?.publicAcceptance
@@ -27,7 +38,8 @@ const lines = [
   `- Release SHA: \`${contract?.gitSha || process.env.GITHUB_SHA || "unresolved"}\``,
   `- Smoke/metadata: \`${metadata?.status || receiptLabel(metadataReceipt, "not completed")}\``,
   `- Infrastructure deployment: \`${metadata ? "passed" : "not completed"}\``,
-  `- Exact run.app deployment smoke: \`${metadata ? "passed" : "not completed"}\``,
+  `- Exact run.app deployment smoke: \`${exactDeploymentSmokeStatus}\``,
+  `- OpenAPI probe: \`${openApiStatus.replaceAll("_", " ")}\``,
   `- Canonical public surfaces: \`${String(metadata?.acceptance?.canonicalPublicSurfaces || "unavailable / warning").replaceAll("_", " / ")}\``,
   `- Public ${environment} acceptance: \`${publicAcceptance.replaceAll("_", " ")}\``,
   "- Database schema rollback is never automatic.",

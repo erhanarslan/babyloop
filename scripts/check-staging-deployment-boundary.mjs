@@ -15,6 +15,7 @@ const requiredFiles = [
   "deploy/env/runtime-env.contract.json",
   "deploy/proxy/Caddyfile.example",
   "scripts/deploy/deployment-lib.mjs",
+  "scripts/deploy/deployment-smoke-contract.mjs",
   "scripts/deploy/worker-loop.mjs",
   "scripts/deploy/post-deploy-smoke.mjs",
   "scripts/deploy/release-orchestration-lib.mjs",
@@ -41,6 +42,7 @@ const requiredFiles = [
   "scripts/check-gcp-cloud-run-boundary.mjs",
   "scripts/ops/database-release-safety.mjs",
   "deploy/gcp/cloud-run.contract.json",
+  "deploy/gcp/deployment-smoke-routes.json",
   "apps/api/src/scripts/migrate-database.ts",
   "docs/85-staging-production-deployment.md"
 ];

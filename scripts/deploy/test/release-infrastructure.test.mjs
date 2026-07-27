@@ -55,9 +55,10 @@ test("environment smoke target fails closed and full smoke inventory is present"
   assert.notEqual(invalid.status, 0);
   assert.match(invalid.stderr, /staging or production/u);
 
-  const [source, deploymentLib] = await Promise.all([
+  const [source, deploymentLib, smokeContract] = await Promise.all([
     readFile("scripts/deploy/post-deploy-smoke.mjs", "utf8"),
-    readFile("scripts/deploy/deployment-lib.mjs", "utf8")
+    readFile("scripts/deploy/deployment-lib.mjs", "utf8"),
+    readFile("scripts/deploy/deployment-smoke-contract.mjs", "utf8")
   ]);
   for (const token of [
     "api-openapi",
@@ -74,6 +75,9 @@ test("environment smoke target fails closed and full smoke inventory is present"
   }
   assert.match(deploymentLib, /scheduledInfrastructure/u);
   assert.match(deploymentLib, /latestCreatedExecution === null/u);
+  assert.ok(source.indexOf("capabilitiesDefinition") < source.indexOf("planOpenApiProbe(runtimeCapabilities)"));
+  assert.match(smokeContract, /runtime_docs_disabled/u);
+  assert.doesNotMatch(source, /acceptedStatuses:\s*\[200,\s*404\]/u);
 });
 
 test("staging merges automatically run the reusable CI gate before deployment", async () => {

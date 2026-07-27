@@ -19,6 +19,7 @@ if (!new Set(["passed", "passed_with_warnings"]).has(smoke.status)) {
   throw new Error("Smoke evidence is not successful.");
 }
 const smokeChecksum = await checksumFromSidecar(smokePath);
+const openApi = validateOpenApiOutcome(smoke.openApi);
 await validateArtifactInventory(contract);
 
 const metadata = {
@@ -37,6 +38,7 @@ const metadata = {
   smoke: { path: smokePath, checksum: smokeChecksum, status: smoke.status },
   releaseContract: { path: contractPath, checksum: await checksumFromSidecar(contractPath) },
   acceptance: smoke.acceptance || null,
+  openApi,
   warningCategories: {
     performance: smoke.performanceWarnings?.length || 0,
     optionalPublicSurfaces: smoke.optionalPublicSurfaceWarnings?.length || 0,
@@ -54,6 +56,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `- Release contract: \`${contractPath}\``,
     `- Git SHA: \`${contract.gitSha}\``,
     `- Smoke status: \`${metadata.status}\``,
+    `- OpenAPI probe: \`${metadata.openApi.status}\``,
     ...Object.entries(contract.images).map(([key, image]) => `- ${key}: \`${image}\``),
     `- Migration: \`${contract.migration.status}\``,
     `- Artifact inventory: \`verified\``
@@ -85,4 +88,15 @@ async function validateArtifactInventory(value) {
 
 async function checksumFromSidecar(path) {
   return (await readFile(`${path}.sha256`, "utf8")).trim().split(/\s+/u)[0];
+}
+
+function validateOpenApiOutcome(value) {
+  if (!new Set(["passed", "skipped_runtime_disabled", "failed"]).has(value?.status)) {
+    throw new Error("Smoke evidence OpenAPI outcome is missing or invalid.");
+  }
+  return {
+    status: value.status,
+    enabled: value.enabled === true,
+    accessMode: String(value.accessMode || "unknown")
+  };
 }
