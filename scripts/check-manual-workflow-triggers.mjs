@@ -27,8 +27,10 @@ const CONTRACTS = new Map([
     requiredTokens: [
       "branches: [staging]",
       "environment: staging",
-      "github.ref == 'refs/heads/staging'"
-    ]
+      "github.ref == 'refs/heads/staging'",
+      "run: pnpm deploy:check"
+    ],
+    forbiddenTokens: ["run: pnpm deploy:check:staging"]
   }],
   ["production.yml", {
     requiredTriggers: ["push", "workflow_dispatch"],
@@ -36,8 +38,10 @@ const CONTRACTS = new Map([
     requiredTokens: [
       "branches: [master]",
       "environment: production",
-      "github.ref == 'refs/heads/master'"
-    ]
+      "github.ref == 'refs/heads/master'",
+      "run: pnpm deploy:check"
+    ],
+    forbiddenTokens: ["run: pnpm deploy:check:production"]
   }],
   ["security.yml", {
     requiredTriggers: ["pull_request", "push", "schedule", "workflow_dispatch"],
@@ -157,6 +161,13 @@ export async function checkManualWorkflowDirectory(
         if (!source.includes(token)) {
           throw new Error(
             `${file} must contain ${JSON.stringify(token)}.`
+          );
+        }
+      }
+      for (const token of contract.forbiddenTokens ?? []) {
+        if (source.includes(token)) {
+          throw new Error(
+            `${file} must not contain ${JSON.stringify(token)}.`
           );
         }
       }

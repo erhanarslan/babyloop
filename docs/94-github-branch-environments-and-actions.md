@@ -33,6 +33,11 @@ public tutulur. Gizli değerler hiçbir zaman bu dosyalara yazılmaz.
 - `Security`: PR, protected branch push, haftalık zamanlama ve manuel çağrıda çalışır.
 - `Staging gate`: yalnız `staging` push/manuel çağrıda staging environment ile çalışır.
 - `Production gate`: yalnız `master` push/manuel çağrıda production environment ile çalışır.
+- Push ile çalışan staging/production gate'leri yalnız CI-safe lokal readiness
+  (`pnpm deploy:check`) yürütür.
+- Strict target readiness (`deploy:check:staging` / `deploy:check:production`),
+  target runtime env, backup ve release evidence yüklendikten sonra guarded
+  promotion akışı içinde çalıştırılır.
 - `Container images` ve `Release E2E`: mevcut manuel operasyon araçlarıdır;
   otomatik deployment kurulana kadar korunur.
 
