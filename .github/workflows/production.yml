@@ -89,8 +89,8 @@ jobs:
       - name: Cloud Run contract tests
         run: pnpm test:gcp:cloud-run
 
-      - name: Production readiness
-        run: pnpm deploy:check:production
+      - name: CI-safe deployment readiness
+        run: pnpm deploy:check
 
       - name: Full release E2E
         run: pnpm ci:e2e:release
