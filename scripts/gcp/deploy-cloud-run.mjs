@@ -24,6 +24,7 @@ import {
   run,
   safeMessage,
   serviceAccountEmail,
+  validateDeploymentTopology,
   writeJson
 } from "./cloud-run-lib.mjs";
 import {
@@ -494,6 +495,7 @@ function assertDuration(value, label) {
 
 export function validateCloudRunDeploymentContract(contract, environment) {
   assertEnvironment(environment);
+  validateDeploymentTopology(contract);
   if (!REGION_NAME.test(contract.region) || !REGION_NAME.test(contract.schedulerRegion)) {
     throw new Error("Cloud Run and Scheduler regions must be valid GCP region names.");
   }
@@ -603,10 +605,20 @@ async function main() {
   validateCloudRunDeploymentContract(contract, environment);
   const plan = deploymentPlan(contract, phase);
   assertConfirmation("deploy", environment);
-  const context = await assertGcloudContext(contract, environment);
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
   const [images, secrets] = await Promise.all([readProtectedJson(manifestPath), readProtectedJson(secretManifestPath)]);
   if (images.environment !== environment || images.project !== context.project) throw new Error("Image manifest environment/project mismatch.");
   if (secrets.environment !== environment || secrets.project !== context.project) throw new Error("Secret manifest environment/project mismatch.");
+  if (
+    environment === "production"
+    && (
+      images.identifierContinuity?.verified !== true
+      || secrets.identifierContinuity?.verified !== true
+      || images.identifierContinuity.inventorySha256 !== secrets.identifierContinuity.inventorySha256
+    )
+  ) {
+    throw new Error("Production build and runtime import must be bound to the same verified current runtime identifier inventory.");
+  }
   if (images.contractSha256 !== sha256) throw new Error("Image manifest uses a different Cloud Run contract.");
   const gitResult = await run("git", ["rev-parse", "HEAD"], { capture: true });
   const headGitSha = assertFullGitSha(gitResult.stdout.trim());

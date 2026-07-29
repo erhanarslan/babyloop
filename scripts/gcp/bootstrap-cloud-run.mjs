@@ -23,7 +23,7 @@ async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
   const { contract, sha256 } = await loadCloudRunContract();
   assertConfirmation("bootstrap", environment);
-  const context = await assertGcloudContext(contract, environment);
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
 
   await gcloud(["services", "enable", ...contract.requiredApis, `--project=${context.project}`]);
 

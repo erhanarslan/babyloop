@@ -166,15 +166,27 @@ if (problems.length === 0) {
   mustNot(".github/workflows/ci.yml", "run: pnpm build");
   mustNot(".github/workflows/ci.yml", "pnpm --filter @babyloop/mobile build");
   must(".github/workflows/deploy-staging.yml", "branches: [staging]");
-  must(".github/workflows/deploy-staging.yml", "group: deploy-staging");
+  must(".github/workflows/deploy-staging.yml", "group: validate-staging");
   must(".github/workflows/deploy-staging.yml", "cancel-in-progress: true");
   must(".github/workflows/deploy-staging.yml", 'test "$GITHUB_REF" = "refs/heads/staging"');
-  must(".github/workflows/deploy-staging.yml", "Report API image vulnerabilities");
-  must(".github/workflows/deploy-staging.yml", "Enforce API critical vulnerability policy");
+  must(".github/workflows/deploy-staging.yml", "Static staging release rehearsal");
+  for (const token of [
+    "google-github-actions/auth",
+    "gcp:cloud-run:secrets",
+    "gcp:cloud-run:build",
+    "gcp:cloud-run:deploy",
+    "gcp:cloud-run:migrate",
+    "postgres-backup.mjs"
+  ]) mustNot(".github/workflows/deploy-staging.yml", token);
   must(".github/workflows/promote-production.yml", "branches: [master]");
-  must(".github/workflows/promote-production.yml", "Resolve promoted immutable images");
+  must(".github/workflows/promote-production.yml", "GCP_PROJECT_ID: babyloop-staging");
+  must(".github/workflows/promote-production.yml", "Resolve immutable production images");
+  must(".github/workflows/promote-production.yml", "Build immutable production images");
   must(".github/workflows/promote-production.yml", "Enforce API critical vulnerability policy");
+  mustNot(".github/workflows/promote-production.yml", "source-environment");
+  mustNot(".github/workflows/promote-production.yml", "promote-images");
   mustNot(".github/workflows/promote-production.yml", "docker/build-push-action");
+  must("deploy/env/runtime-env.contract.json", "DEPLOY_TOPOLOGY");
   must("scripts/check-deployment-command-safety.mjs", "stripJavaScriptNonCode");
   must("scripts/check-deployment-command-safety.mjs", "inspectShellSource");
   mustAppearInOrder("scripts/deploy/promote-release.mjs", [

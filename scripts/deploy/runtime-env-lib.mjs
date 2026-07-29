@@ -133,6 +133,9 @@ function checkConditionals(values, contract, errors) {
 }
 
 function checkValues(values, contract, context, errors, warnings) {
+  if (values.DEPLOY_TOPOLOGY !== "single_environment") {
+    errors.push("DEPLOY_TOPOLOGY must equal single_environment.");
+  }
   if (values.DEPLOY_ENVIRONMENT && values.DEPLOY_ENVIRONMENT !== context.target) {
     errors.push(`DEPLOY_ENVIRONMENT must equal ${context.target}.`);
   }
@@ -157,18 +160,9 @@ function checkValues(values, contract, context, errors, warnings) {
   if (values.RAG_REDIS_ENABLED === "true" && values.RAG_REDIS_URL && !values.RAG_REDIS_URL.startsWith("rediss://")) {
     errors.push("RAG_REDIS_URL must use rediss:// outside local development.");
   }
-  if (values.RAG_REDIS_ENABLED === "true") {
-    const expectedPrefix = `babyloop:${context.target}:rag`;
-    if (values.RAG_REDIS_KEY_PREFIX !== expectedPrefix) {
-      errors.push(`RAG_REDIS_KEY_PREFIX must equal ${expectedPrefix}.`);
-    }
-  }
-  if (values.RAG_ENABLED === "true") {
-    const collection = String(values.RAG_QDRANT_COLLECTION || "").toLowerCase();
-    if (!collection.includes(context.target)) {
-      errors.push(`RAG_QDRANT_COLLECTION must include ${context.target} for environment isolation.`);
-    }
-  }
+  // The single physical environment must retain its existing provider identifiers.
+  // Cross-environment naming is intentionally enforced by the continuity inventory,
+  // not by requiring a new environment word in collection, prefix, or worker IDs.
   if (values.RAG_REQUIRE_SOURCES !== "true" && values.RAG_ENABLED === "true") {
     errors.push("RAG_REQUIRE_SOURCES must be true when RAG is enabled.");
   }
@@ -202,8 +196,28 @@ function checkValues(values, contract, context, errors, warnings) {
   }
 
   if (context.target === "production") {
-    for (const key of ["WEB_APP_URL", "NEXT_PUBLIC_API_BASE_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BACKOFFICE_BASE_URL"]) {
-      if (/staging/iu.test(String(values[key] || ""))) errors.push(`${key} must not point at staging in production.`);
+    const exactProductionValues = {
+      WEB_APP_URL: "https://babyloop.com.tr",
+      NEXT_PUBLIC_SITE_URL: "https://babyloop.com.tr",
+      BABYLOOP_SITE_URL: "https://babyloop.com.tr",
+      EXPO_PUBLIC_WEB_BASE_URL: "https://babyloop.com.tr",
+      NEXT_PUBLIC_API_BASE_URL: "https://api.babyloop.com.tr",
+      BABYLOOP_API_BASE_URL: "https://api.babyloop.com.tr",
+      NEXT_PUBLIC_BACKOFFICE_BASE_URL: "https://admin.babyloop.com.tr",
+      GOOGLE_REDIRECT_URI: "https://api.babyloop.com.tr/api/v1/auth/google/callback",
+      OBSERVABILITY_ENVIRONMENT: "production",
+      BACKUP_ENVIRONMENT: "production",
+      MIGRATION_ENVIRONMENT: "production",
+      DEPLOY_ENVIRONMENT: "production",
+      DEPLOY_REQUIRE_PUBLIC_SURFACES: "true"
+    };
+    for (const [key, expected] of Object.entries(exactProductionValues)) {
+      if (values[key] !== expected) errors.push(`${key} must equal ${expected} in production.`);
+    }
+    const cors = String(values.CORS_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean);
+    const expectedCors = ["https://babyloop.com.tr", "https://admin.babyloop.com.tr"];
+    if (cors.length !== expectedCors.length || expectedCors.some((origin) => !cors.includes(origin))) {
+      errors.push(`CORS_ORIGINS must contain exactly ${expectedCors.join(",")} in production.`);
     }
   }
 }

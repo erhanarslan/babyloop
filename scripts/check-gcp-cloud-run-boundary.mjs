@@ -1,27 +1,30 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
+import { findRetiredProjectReferences } from "./gcp/retired-project-guard.mjs";
 
 const problems = [];
 const required = [
   "deploy/gcp/cloud-run.contract.json",
   "deploy/gcp/README.md",
   "scripts/gcp/cloud-run-lib.mjs",
+  "scripts/gcp/retired-project-guard.mjs",
   "scripts/gcp/plan-cloud-run.mjs",
   "scripts/gcp/bootstrap-cloud-run.mjs",
   "scripts/gcp/import-runtime-env.mjs",
   "scripts/gcp/build-cloud-run-images.mjs",
   "scripts/gcp/deploy-cloud-run.mjs",
   "scripts/gcp/execute-cloud-run-migration.mjs",
-  "scripts/gcp/promote-cloud-run-images.mjs",
   "scripts/gcp/map-cloud-run-domains.mjs",
   "scripts/gcp/cloud-run-iam-lib.mjs",
   "scripts/gcp/audit-cloud-run-iam.mjs",
   "scripts/gcp/repair-cloud-run-iam.mjs",
   "scripts/deploy/test/cloud-run-deploy-behavior.test.mjs",
+  "scripts/deploy/runtime-identifier-continuity.mjs",
   "scripts/gcp/test/cloud-run-iam.test.mjs",
   "scripts/gcp/test/cloud-run-lib.test.mjs",
   "scripts/gcp/test/cloud-run-contract.test.mjs",
-  "docs/93-gcp-cloud-run-deployment.md"
+  "docs/93-gcp-cloud-run-deployment.md",
+  "docs/deployment/single-production-environment-migration.md"
 ];
 for (const file of required) if (!existsSync(file)) problems.push(`Missing GCP Cloud Run file: ${file}`);
 const read = (file) => readFileSync(file, "utf8");
@@ -30,8 +33,9 @@ const mustNot = (file, token) => { if (read(file).includes(token)) problems.push
 
 if (problems.length === 0) {
   const contract = JSON.parse(read("deploy/gcp/cloud-run.contract.json"));
-  if (contract.projects.staging !== "babyloop-staging") problems.push("Staging project ID must be babyloop-staging.");
-  if (contract.projects.production !== "babyloop-production") problems.push("Production project ID must be babyloop-production.");
+  if (contract.topology !== "single_environment") problems.push("Deployment topology must be single_environment.");
+  if (contract.environments.staging.deployable !== false) problems.push("Staging must be CI/rehearsal-only.");
+  if (contract.environments.production.projectId !== "babyloop-staging") problems.push("Production must target the approved physical project.");
   if (contract.region !== "europe-west1") problems.push("Cloud Run region must remain europe-west1.");
   for (const [name, service] of Object.entries(contract.services)) {
     if (service.minInstances !== 0) problems.push(`${name} must scale to zero.`);
@@ -44,10 +48,9 @@ if (problems.length === 0) {
   for (const [file, tokens] of Object.entries({
     "scripts/gcp/bootstrap-cloud-run.mjs": ["GCP_BOOTSTRAP_CONFIRM", "remove-iam-policy-binding", "repository-format=docker"],
     "scripts/gcp/import-runtime-env.mjs": ["assertConfirmation(\"secret-import\"", "secretAccessor", "--data-file=-", "secretBindings"],
-    "scripts/gcp/build-cloud-run-images.mjs": ["linux/amd64", "containerimage.digest", "--sbom=true", "assertConfirmation(\"build\""],
-    "scripts/gcp/deploy-cloud-run.mjs": ["--min-instances=", "--max-instances=", "--set-secrets=", "migrationExecuted: false", "assertConfirmation(\"deploy\"", "jobs", "add-iam-policy-binding", "--update-headers=Content-Type=application/json", "validateCloudRunDeploymentContract", "schedulerExists", "verifyScheduledJobInfrastructure", "scheduledInfrastructure"],
+    "scripts/gcp/build-cloud-run-images.mjs": ["linux/amd64", "containerimage.digest", "--sbom=true", "assertConfirmation(\"build\"", "auditRuntimeEnv", "verifyRuntimeIdentifierContinuity"],
+    "scripts/gcp/deploy-cloud-run.mjs": ["--min-instances=", "--max-instances=", "--set-secrets=", "migrationExecuted: false", "assertConfirmation(\"deploy\"", "jobs", "add-iam-policy-binding", "--update-headers=Content-Type=application/json", "validateCloudRunDeploymentContract", "schedulerExists", "verifyScheduledJobInfrastructure", "scheduledInfrastructure", "identifierContinuity.inventorySha256"],
     "scripts/gcp/execute-cloud-run-migration.mjs": ["GCP_MIGRATION_CONFIRM", "--wait"],
-    "scripts/gcp/promote-cloud-run-images.mjs": ["GCP_PROMOTE_CONFIRM", "sourceProject", "digestPreserved"],
     "scripts/gcp/map-cloud-run-domains.mjs": ["assertConfirmation(\"domain-map\"", "list-user-verified", "domain-mappings"]
   })) for (const token of tokens) must(file, token);
 
@@ -103,11 +106,14 @@ if (problems.length === 0) {
   for (const name of [
     "gcp:cloud-run:plan", "gcp:cloud-run:bootstrap", "gcp:cloud-run:secrets",
     "gcp:cloud-run:build", "gcp:cloud-run:deploy", "gcp:cloud-run:migrate",
-    "gcp:cloud-run:promote-images",
     "gcp:cloud-run:domains", "gcp:cloud-run:iam:audit",
     "gcp:cloud-run:iam:repair", "test:gcp:cloud-run",
     "security:gcp-cloud-run"
   ]) if (!scripts[name]) problems.push(`package.json is missing ${name}.`);
+
+  for (const file of findRetiredProjectReferences()) {
+    problems.push(`${file} contains an active reference to the retired GCP project.`);
+  }
 }
 
 if (problems.length) {

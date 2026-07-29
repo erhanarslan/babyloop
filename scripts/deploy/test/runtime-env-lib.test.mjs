@@ -85,6 +85,7 @@ test("rejects mismatched public origins and local Redis transport", async () => 
 function runtimeEnvFixture() {
   return [
     "DEPLOY_ENVIRONMENT=staging",
+    "DEPLOY_TOPOLOGY=single_environment",
     "NODE_ENV=production",
     "DATABASE_URL=postgresql://user:password@db.staging.babyloop.test:5432/babyloop?sslmode=require",
     `AUTH_SECRET=${"s".repeat(48)}`,

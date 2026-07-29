@@ -1,94 +1,82 @@
-# Google Cloud Run deployment target
+# Google Cloud Run single-production deployment
 
-## Fixed project boundary
+## Physical and logical boundary
 
-| Environment | Project | Region | Active gcloud configuration |
-|---|---|---|---|
-| staging | `babyloop-staging` | `europe-west1` | `babyloop-staging` |
-| production | `babyloop-production` | `europe-west1` | `babyloop-production` |
+BabyLoop has one physical GCP deployment environment. The logical `production` environment maps to project `babyloop-staging`, region `europe-west1`, and Artifact Registry repository `babyloop-images`. Logical `staging` is `deployable=false` and exists only for CI and static/read-only rehearsal.
 
-The scripts refuse to mutate resources when the active gcloud project does not match the requested environment. Billing must be enabled and an authenticated account must be active.
+The production resource names remain unchanged:
 
-## Cost boundary
+- services: `babyloop-api`, `babyloop-web`, `babyloop-backoffice`;
+- jobs: `babyloop-migrate`, `babyloop-notification-worker`, `babyloop-child-reminder-worker`;
+- schedulers: `babyloop-notification-worker-schedule`, `babyloop-child-reminder-worker-schedule`.
 
-All three initial Cloud Run services use `min-instances=0` and `max-instances=1`. API uses 1 vCPU/1 GiB; web and backoffice use 1 vCPU/512 MiB. Notification and child-reminder processing run every five minutes as Cloud Run Jobs rather than continuously running workers. The migration job has no schedule and zero retries.
+Every mutating GCP script validates all of these invariants before proceeding:
 
-The Google Cloud budget remains an alert, not a spending cap. Cloud Run scaling limits are the runtime cost guard.
+- `DEPLOY_TOPOLOGY=single_environment`;
+- logical environment is `production`;
+- physical project is `babyloop-staging`;
+- GitHub ref is exactly `refs/heads/master`, or a local invocation is on branch `master`;
+- the worktree has no staged, unstaged, or untracked files;
+- active gcloud project and region match the contract.
 
-## Security boundary
+## Release behavior
 
-- separate runtime service accounts for API, web, backoffice, jobs, and Scheduler;
-- no service-account JSON keys;
-- authenticated Cloud Scheduler invocation of private Cloud Run Jobs;
-- Scheduler receives `roles/run.invoker` only on the scheduled notification and reminder job resources; no project-wide Cloud Run invoker grant is retained;
-- the migration job is never granted to the Scheduler identity;
-- runtime secrets imported through stdin into Secret Manager;
-- secret values are never written to receipts or terminal output;
-- secret versions are pinned in `secret-manifest.json`;
-- Linux/AMD64 images are stored in regional Artifact Registry and deployed by digest;
-- image build enables minimal provenance and SBOM attestations;
-- every mutation requires an environment-specific confirmation token;
-- migration is a separate explicitly confirmed job execution.
+`deploy-staging.yml` performs the reusable CI gate, static release rehearsal and contract/security checks. It has no Google authentication, database backup, migration, image build, Secret Manager, Cloud Run, Job or Scheduler mutation step.
 
-## Order of operations
+`promote-production.yml` runs from `master` behind the protected GitHub `production` environment. It audits the production runtime file, performs a live read-only rehearsal, imports pinned secret versions, builds immutable images in the single registry, scans digest-pinned images, captures current traffic, performs database preflight/backup/migration/postflight, deploys the existing resources, runs mandatory public smoke, records immutable evidence and rolls traffic back on a failed rollout.
 
-```bash
-# 1. Read-only plan
-pnpm gcp:cloud-run:plan -- --environment=staging
+Existing services are described by their unchanged names before mutation. A returned snapshot is `existing` and `exact_traffic_restorable`, whether traffic is 100% on one revision or split across revisions. Initial-bootstrap confirmation is considered only when the physical service genuinely returns `NOT_FOUND`; logical production being newly introduced does not imply an absent service.
 
-# 2. APIs, Artifact Registry, identities
-GCP_BOOTSTRAP_CONFIRM=BOOTSTRAP_STAGING \
-pnpm gcp:cloud-run:bootstrap -- --environment=staging
+## Runtime and database policy
 
-# 2a. Remove legacy project-wide Scheduler invoker access
-GCP_IAM_REPAIR_CONFIRM=IAM_REPAIR_STAGING \
-pnpm gcp:cloud-run:iam:repair -- --environment=staging
+The production runtime contract requires:
 
-# 2b. Read-only IAM verification
-pnpm gcp:cloud-run:iam:audit -- --environment=staging
+- `WEB_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `BABYLOOP_SITE_URL`, and `EXPO_PUBLIC_WEB_BASE_URL`: `https://babyloop.com.tr`;
+- `NEXT_PUBLIC_API_BASE_URL` and `BABYLOOP_API_BASE_URL`: `https://api.babyloop.com.tr`;
+- `NEXT_PUBLIC_BACKOFFICE_BASE_URL`: `https://admin.babyloop.com.tr`;
+- `CORS_ORIGINS`: exactly `https://babyloop.com.tr,https://admin.babyloop.com.tr`;
+- `GOOGLE_REDIRECT_URI`: `https://api.babyloop.com.tr/api/v1/auth/google/callback`;
+- production environment markers and mandatory public smoke;
+- `DEPLOY_TOPOLOGY=single_environment`.
 
-# 3. After the provider-backed runtime env passes the existing audit
-GCP_SECRET_IMPORT_CONFIRM=SECRET_IMPORT_STAGING \
-pnpm gcp:cloud-run:secrets -- \
-  --environment=staging \
-  --env-file="$HOME/.babyloop/env/staging.runtime.env"
+The topology removes cross-environment database/Qdrant comparison inputs. It does not weaken `EXPECTED_DATABASE_NAME`, reserved database rejection, read-only preflight, encrypted backup with byte-verified replica, migration-chain checks, destructive SQL review, or critical-table postflight. Destructive migration confirmation remains unset during a normal release.
 
-# 4. Build immutable images locally and push to Artifact Registry
-GCP_BUILD_CONFIRM=BUILD_STAGING \
-pnpm gcp:cloud-run:build -- \
-  --environment=staging \
-  --env-file="$HOME/.babyloop/env/staging.runtime.env"
+The production audit also requires a checksum-protected inventory of the non-secret identifiers currently used by the sole physical runtime. Qdrant collection, Redis prefix, worker IDs, S3 bucket/endpoint and the other listed provider endpoints may retain neutral or historical names; they do not need the word `production`. A changed identifier requires `ALLOW_PROVIDER_IDENTIFIER_MIGRATION_PRODUCTION`. A worker-ID change additionally requires checksum-protected, passed controlled-worker verification evidence. Neither the deploy patch nor the workflow executes a business worker to manufacture that evidence. Missing inventory fails closed, and secret values are neither inventoried nor compared.
 
-# 5. Deploy services and jobs; migration is not executed
-GCP_DEPLOY_CONFIRM=DEPLOY_STAGING \
-pnpm gcp:cloud-run:deploy -- --environment=staging
+## Domain cutover runbook
 
-# 6. Explicit one-shot migration
-GCP_MIGRATION_CONFIRM=APPLY_STAGING \
-pnpm gcp:cloud-run:migrate -- --environment=staging
-```
+Domain mapping changes are deliberately outside the workflow. The first cutover order is exact:
 
-Production uses the same sequence with the production gcloud configuration and production confirmation values.
+1. Merge the single-environment patch from its topic branch into `staging`.
+2. Wait for the staging validation workflow to pass.
+3. Prepare the GitHub `production` Environment variables and secrets.
+4. Verify WIF/IAM for the `production` Environment and `promote-production.yml`.
+5. Prepare the production runtime contract, but do not deploy it.
+6. Pre-create production domain mappings on the existing services: `babyloop.com.tr` → `babyloop-web`, `api.babyloop.com.tr` → `babyloop-api`, and `admin.babyloop.com.tr` → `babyloop-backoffice`.
+7. Add the returned Cloudflare DNS-only records.
+8. Wait until all three managed certificates report `True`.
+9. Verify that all production domains return HTTP/TLS responses from the existing services.
+10. Add `https://api.babyloop.com.tr/api/v1/auth/google/callback` to the Google OAuth client.
+11. Merge the `staging` → `master` release PR.
+12. Let the production workflow deploy the production configuration.
+13. Require mandatory production smoke to pass.
+14. Only then remove the `staging.*` mappings and DNS records.
 
-## Release rehearsal and smoke targets
+The production workflow's live read-only rehearsal deliberately treats step 9 as a prerequisite. It cannot pass before the public production domains are reachable, and the workflow never creates, updates, or deletes domain mappings.
 
-`pnpm deploy:rehearse:staging` and `pnpm deploy:rehearse:production` run their environment-specific twenty-stage release contracts without executing a Cloud mutation. In CI, `--live-read-only=true` routes every gcloud call through an exact command-path allowlist and records the executed read-only paths. It also checks the active project, APIs, repository, service accounts, Secret Manager visibility, current Cloud Run/Scheduler/IAM state, exact rollback traffic distribution, installed gcloud help surface, DNS, TLS, and reachability. Checks that can only be proven after a mutation are reported as `unverifiedMutationOnly` rather than treated as verified.
+The checked-in patch never creates or deletes a domain mapping.
 
-An absent staging service is recorded explicitly as an allowed initial-bootstrap state with no invented rollback revision. An absent production service fails closed unless the protected environment variable `GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM` equals `ALLOW_INITIAL_SERVICE_BOOTSTRAP_PRODUCTION`.
+## Artifact Registry cleanup policy
 
-After migration and service deployment, `resolved-release-contract.json` binds the image digests, exact service URLs, canonical public origins, scheduled jobs, Scheduler read-back, job-scoped IAM, migration/database receipts, backup, runtime/secret receipts, smoke policy, and rollback snapshot under one checksum.
+No live image deletion is automated by the release workflow. Operators must first produce a read-only inventory, resolve every tag to its digest, and reconcile it against:
 
-Deployment smoke always uses the checksum-verified `cloud-run-deployment-services.json` URLs and fails closed if the receipt is missing, corrupt, or differs from the Cloud Run service read-back. Canonical public origins are a separate surface: optional-with-warning by default in staging, required when staging explicitly sets `DEPLOY_REQUIRE_PUBLIC_SURFACES=true`, and always required in production. Production never receives worker bootstrap grace.
+- digests used by every current service/job revision;
+- digests referenced by the rollback snapshot;
+- the most recent successful release manifests (retain at least the last 10 releases);
+- active `buildcache` references.
 
-## Domain mapping
+Only old untagged digests and old SHA-tagged release digests outside every protected set may become candidates. The first pass is always list/dry-run and records each candidate digest, its resolved tags, age, cross-references to service/job revisions and release manifests, and the reason it is unused. Deletion is a separate operator action and requires exact `DELETE_UNUSED_ARTIFACTS_PRODUCTION` confirmation. Missing confirmation, incomplete inventory, an unresolved tag/revision/job, missing rollback or recent-release evidence, or uncertainty about build cache means zero deletion.
 
-Cloud Run domain mapping is Preview in `europe-west1`. It can be used without Cloudflare by adding the returned DNS records at the domain registrar. It is not the long-term recommended Google option, so retain the `run.app` endpoints and migrate to a global external Application Load Balancer when traffic/revenue justifies its fixed cost.
+## Cost and security boundaries
 
-```bash
-GCP_DOMAIN_MAP_CONFIRM=DOMAIN_MAP_STAGING \
-pnpm gcp:cloud-run:domains -- \
-  --environment=staging \
-  --base-domain=babyloop.com.tr
-```
-
-The command first requires the base domain to be verified in Google Search Console and writes the exact registrar DNS records to a checksum-protected local receipt.
+Services retain `min-instances=0`, `max-instances=1`; notification/reminder jobs retain the bounded five-minute schedules. Scheduler has job-scoped `roles/run.invoker`, migration is never scheduled, service-account keys are forbidden, secrets are passed through stdin and pinned by version, and images are deployed by digest with SBOM/provenance evidence. Production worker bootstrap grace remains zero.

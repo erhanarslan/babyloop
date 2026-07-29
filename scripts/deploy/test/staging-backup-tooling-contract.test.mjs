@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("staging installs age before encrypted database backup", async () => {
+test("production installs age before encrypted database backup", async () => {
   const workflow = await readFile(
-    ".github/workflows/deploy-staging.yml",
+    ".github/workflows/promote-production.yml",
     "utf8",
   );
 
@@ -13,19 +13,19 @@ test("staging installs age before encrypted database backup", async () => {
   );
 
   const backupIndex = workflow.indexOf(
-    "- name: Verified pre-migration backup",
+    "- name: Mandatory encrypted backup",
   );
 
   assert.notEqual(
     installIndex,
     -1,
-    "staging workflow must install age",
+    "production workflow must install age",
   );
 
   assert.notEqual(
     backupIndex,
     -1,
-    "staging workflow must contain verified backup",
+    "production workflow must contain verified backup",
   );
 
   assert.ok(

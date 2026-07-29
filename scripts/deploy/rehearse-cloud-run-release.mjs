@@ -66,32 +66,21 @@ const WORKFLOW_CONTRACTS = Object.freeze({
   staging: {
     path: ".github/workflows/deploy-staging.yml",
     orderedSteps: [
-      "Materialize protected runtime contract",
-      "Audit runtime contract",
-      "Staging release rehearsal preflight",
-      "Import pinned Secret Manager versions",
-      "Build immutable Artifact Registry images",
-      "Capture previous Cloud Run revisions",
-      "Database preflight",
-      "Verified pre-migration backup",
-      "Deploy migration job only",
-      "Execute migration",
-      "Database postflight",
-      "Deploy services and workers",
-      "Resolve release contract",
-      "Staging smoke",
-      "Record immutable deployment metadata"
+      "Guard staging validation source",
+      "Static staging release rehearsal",
+      "Validate deployment boundaries",
+      "Upload validation evidence"
     ]
   },
   production: {
     path: ".github/workflows/promote-production.yml",
     orderedSteps: [
-      "Resolve verified staging SHA",
       "Materialize protected runtime contract",
       "Audit runtime contract",
       "Production release rehearsal preflight",
       "Import pinned Secret Manager versions",
-      "Promote exact staging image digests",
+      "Build immutable production images",
+      "Resolve immutable production images",
       "Capture previous Cloud Run revisions",
       "Production database preflight",
       "Mandatory encrypted backup",
@@ -244,7 +233,9 @@ export async function rehearseCloudRunRelease(options = {}) {
     }
     return { warnings: required ? [] : live.publicSurfaceErrors };
   };
-  checks["deployment-metadata"] = async () => assertWorkflowToken(workflow, "deploy:release-metadata");
+  checks["deployment-metadata"] = async () => environment === "production"
+    ? assertWorkflowToken(workflow, "deploy:release-metadata")
+    : { unverifiedMutationOnly: "Staging validation does not write deployment metadata." };
   checks["artifact-inventory"] = async () => {
     for (const token of [".release", "if-no-files-found: error", "include-hidden-files: true"]) {
       assertWorkflowToken(workflow, token);
@@ -258,7 +249,9 @@ export async function rehearseCloudRunRelease(options = {}) {
       unverifiedMutationOnly: "Previous revision availability requires live read-only service descriptions."
     };
   };
-  checks["deployment-summary"] = async () => assertWorkflowToken(workflow, "scripts/deploy/write-release-summary.mjs");
+  checks["deployment-summary"] = async () => environment === "production"
+    ? assertWorkflowToken(workflow, "scripts/deploy/write-release-summary.mjs")
+    : { unverifiedMutationOnly: "Staging validation publishes rehearsal evidence only." };
 
   const result = await runReleaseStageChecks(checks);
   result.blockers.push(...live.blockers);
@@ -577,8 +570,9 @@ function assertWorkflowOrder(source, environment) {
   }
   if (environment === "production") {
     for (const token of [
-      "RELEASE_SOURCE_GIT_SHA=$source_sha",
-      '--source-environment=staging --git-sha="${{ steps.source.outputs.sha }}"',
+      "GCP_PROJECT_ID: babyloop-staging",
+      "DEPLOY_TOPOLOGY: ${{ vars.DEPLOY_TOPOLOGY }}",
+      "gcp:cloud-run:build",
       "scripts/deploy/write-release-summary.mjs"
     ]) assertWorkflowToken(source, token);
   }
@@ -589,11 +583,15 @@ function assertWorkflowActions(source, environment) {
     "actions/checkout@v4",
     "pnpm/action-setup@v4",
     "actions/setup-node@v4",
-    "google-github-actions/auth@v3",
-    "google-github-actions/setup-gcloud@v3",
     "actions/upload-artifact@v4"
   ]) assertWorkflowToken(source, token);
-  if (environment === "staging") assertWorkflowToken(source, "docker/setup-buildx-action@v4");
+  if (environment === "production") {
+    for (const token of [
+      "google-github-actions/auth@v3",
+      "google-github-actions/setup-gcloud@v3",
+      "docker/setup-buildx-action@v4"
+    ]) assertWorkflowToken(source, token);
+  }
   if (!source.includes("runs-on: ubuntu-latest")) throw new Error(`${environment} workflow runner is not pinned to ubuntu-latest.`);
 }
 

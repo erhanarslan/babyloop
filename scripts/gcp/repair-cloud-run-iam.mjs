@@ -24,7 +24,7 @@ async function main() {
   const environment = assertEnvironment(parseFlag("environment"));
   const { contract, sha256 } = await loadCloudRunContract();
   assertConfirmation("iam-repair", environment);
-  const context = await assertGcloudContext(contract, environment);
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
   const schedulerEmail = serviceAccountEmail(
     contract,
     "scheduler",

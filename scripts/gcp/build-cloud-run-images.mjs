@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadEnvFile } from "../deploy/deployment-lib.mjs";
+import { pathToFileURL } from "node:url";
+import { auditRuntimeEnv } from "../deploy/runtime-env-lib.mjs";
+import { verifyRuntimeIdentifierContinuity } from "../deploy/runtime-identifier-continuity.mjs";
 import {
   artifactRoot,
   assertConfirmation,
@@ -33,8 +35,12 @@ async function main() {
   if (!envFile) throw new Error("--env-file is required.");
   const { contract, sha256 } = await loadCloudRunContract();
   assertConfirmation("build", environment);
-  const context = await assertGcloudContext(contract, environment);
-  const { values } = await loadEnvFile(envFile);
+  const { audit, identifierContinuity } = await validateImageBuildRuntime({
+    environment,
+    envFile
+  });
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
+  const values = audit.values;
   for (const key of PUBLIC_BUILD_KEYS) if (!String(values[key] || "").trim()) throw new Error(`${key} is required for image build.`);
   const gitResult = await run("git", ["rev-parse", "HEAD"], { capture: true });
   const gitSha = assertFullGitSha(gitResult.stdout.trim());
@@ -93,6 +99,7 @@ async function main() {
     region: contract.region,
     gitSha,
     contractSha256: sha256,
+    identifierContinuity,
     platform: "linux/amd64",
     images,
     attestations: { provenance: "mode=max", sbom: true }
@@ -100,7 +107,24 @@ async function main() {
   console.log(JSON.stringify({ ok: true, environment, project: context.project, gitSha, manifest: manifest.path, images }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ ok: false, error: safeMessage(error) }));
-  process.exitCode = 1;
-});
+export async function validateImageBuildRuntime({
+  environment,
+  envFile,
+  audit = auditRuntimeEnv,
+  verifyContinuity = verifyRuntimeIdentifierContinuity
+}) {
+  const normalizedEnvironment = assertEnvironment(environment);
+  if (normalizedEnvironment !== "production") {
+    throw new Error("Image mutation is allowed only for production.");
+  }
+  const runtimeAudit = await audit({ target: "production", envFile });
+  const identifierContinuity = await verifyContinuity({ audit: runtimeAudit });
+  return { audit: runtimeAudit, identifierContinuity };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main().catch((error) => {
+    console.error(JSON.stringify({ ok: false, error: safeMessage(error) }));
+    process.exitCode = 1;
+  });
+}

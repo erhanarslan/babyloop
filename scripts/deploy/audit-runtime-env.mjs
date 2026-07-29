@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { auditRuntimeEnv, publicAuditView } from "./runtime-env-lib.mjs";
+import { verifyRuntimeIdentifierContinuity } from "./runtime-identifier-continuity.mjs";
 import { required, runCommand, timestampForFile, writeJsonReceipt } from "./deployment-lib.mjs";
 
 const envFile = resolve(readArg("--env-file") || required(process.env.DEPLOY_ENV_FILE, "DEPLOY_ENV_FILE"));
@@ -11,20 +12,27 @@ const audit = await auditRuntimeEnv({
   allowExample: readArg("--allow-example") === "true",
   allowInsecurePermissions: process.env.RUNTIME_ENV_AUDIT_ALLOW_INSECURE_PERMISSIONS === "true"
 });
+const identifierContinuity = audit.environment === "production"
+  ? await verifyRuntimeIdentifierContinuity({ audit })
+  : null;
 const gitSha = process.env.RELEASE_SOURCE_GIT_SHA || process.env.DEPLOY_GIT_SHA || await gitHead();
 const outputPath = resolve(
   readArg("--output")
   || process.env.RUNTIME_ENV_AUDIT_EVIDENCE_PATH
   || `.release/evidence/${audit.environment}-runtime-env-audit-${timestampForFile()}-${gitSha.slice(0, 12)}.json`
 );
-const receipt = await writeJsonReceipt(outputPath, publicAuditView(audit, gitSha));
+const receipt = await writeJsonReceipt(outputPath, {
+  ...publicAuditView(audit, gitSha),
+  identifierContinuity
+});
 process.stdout.write(`${JSON.stringify({
   ok: true,
   environment: audit.environment,
   outputPath: receipt.path,
   checksum: receipt.checksum,
   configuredProviders: audit.configuredProviders,
-  warnings: audit.warnings
+  warnings: audit.warnings,
+  identifierContinuity
 }, null, 2)}\n`);
 
 async function gitHead() {

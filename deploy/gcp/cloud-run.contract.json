@@ -1,11 +1,32 @@
 {
   "schemaVersion": 1,
+  "topology": "single_environment",
   "region": "europe-west1",
   "schedulerRegion": "europe-west1",
   "repository": "babyloop-images",
   "projects": {
     "staging": "babyloop-staging",
-    "production": "babyloop-production"
+    "production": "babyloop-staging"
+  },
+  "environments": {
+    "staging": {
+      "logicalEnvironment": "staging",
+      "deployable": false,
+      "mode": "ci_rehearsal_only",
+      "projectId": "babyloop-staging"
+    },
+    "production": {
+      "logicalEnvironment": "production",
+      "deployable": true,
+      "projectId": "babyloop-staging",
+      "region": "europe-west1",
+      "artifactRepository": "babyloop-images",
+      "publicDomains": {
+        "web": "https://babyloop.com.tr",
+        "api": "https://api.babyloop.com.tr",
+        "backoffice": "https://admin.babyloop.com.tr"
+      }
+    }
   },
   "requiredApis": [
     "artifactregistry.googleapis.com",
