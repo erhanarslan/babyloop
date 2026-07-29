@@ -62,17 +62,44 @@ test.describe("seller dashboard flow", () => {
 
     await page.goto("/account/seller", { waitUntil: "domcontentloaded" });
 
+    const visibleSellerDashboards = page.locator(
+      '[aria-label="Satıcı paneli"]:visible',
+    );
+
+    await expect(visibleSellerDashboards).toHaveCount(1);
+
+    const sellerDashboard = visibleSellerDashboards.first();
+
     await expect(page).toHaveURL(/\/account\/seller$/, { timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "Satıcı paneli", exact: true })).toBeVisible({
+    await expect(sellerDashboard.getByRole("heading", { name: "Satıcı paneli", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("İlanlarını ve temel satıcı sinyallerini takip et.", { exact: true })).toBeVisible();
+    const sellerDashboardIntro = sellerDashboard
+      .locator("p:visible")
+      .filter({
+        hasText: "İlanlarını ve temel satıcı sinyallerini takip et.",
+      });
 
-    const summaryRegion = page.getByLabel("Satıcı özeti");
+    await expect(sellerDashboardIntro).toHaveCount(1);
+    await expect(sellerDashboardIntro).toBeVisible();
+    await expect(sellerDashboard.getByRole("button", { name: "Özet", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(sellerDashboard.getByRole("button", { name: "İlan performansı", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await expect(sellerDashboard.getByRole("link", { name: "İlan ver", exact: true })).toHaveAttribute(
+      "href",
+      "/sell",
+    );
+
+    const summaryRegion = sellerDashboard.getByLabel("Satıcı özeti");
 
     await expect(summaryRegion).toBeVisible({ timeout: 15_000 });
     await expectMetricCard(summaryRegion, "Aktif ilan", "2");
-    await expectMetricCard(summaryRegion, "Gelen mesaj", "4");
+    await expectMetricCard(summaryRegion, "İletişim talebi", "4");
     await expectMetricCard(summaryRegion, "Toplam favori", "8");
     await expectMetricCard(summaryRegion, "Satıldı / rezerve", "2");
 
@@ -84,9 +111,9 @@ test.describe("seller dashboard flow", () => {
 
     await expectNoSellerDashboardSensitiveLeak(page);
 
-    await page.getByRole("button", { name: "İlan performansı", exact: true }).click();
+    await sellerDashboard.getByRole("button", { name: "İlan performansı", exact: true }).click();
 
-    const performanceRegion = page.getByLabel("İlan performansı");
+    const performanceRegion = sellerDashboard.getByLabel("İlan performansı");
 
     await expect(performanceRegion).toBeVisible({ timeout: 15_000 });
 
@@ -110,7 +137,7 @@ test.describe("seller dashboard flow", () => {
     await expect(topListingCard).toContainText("18");
     await expect(topListingCard).toContainText("Tıklama");
     await expect(topListingCard).toContainText("12");
-    await expect(topListingCard).toContainText("Mesaj niyeti");
+    await expect(topListingCard).toContainText("İletişim talebi");
     await expect(topListingCard).toContainText("3");
     await expect(topListingCard.getByRole("link", { name: "Yönet", exact: true })).toHaveAttribute(
       "href",
@@ -122,24 +149,6 @@ test.describe("seller dashboard flow", () => {
     );
 
     await expect(lowerListingCard).toContainText("Rezerve");
-
-    await expectNoSellerDashboardSensitiveLeak(page);
-
-    await page.getByRole("button", { name: "Mesajlar", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Mesajlar", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Mesajlara git", exact: true })).toHaveAttribute(
-      "href",
-      "/conversations",
-    );
-
-    await page.getByRole("button", { name: "Favoriler", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Favoriler", exact: true })).toBeVisible();
-    await expect(page.getByText("İlanların toplam 8 kez favorilere eklendi.", { exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Favorileri aç", exact: true })).toHaveAttribute("href", "/favorites");
-
-    await page.getByRole("button", { name: "Ayarlar", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Ayarlar", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "İlanlarımı aç", exact: true })).toHaveAttribute("href", "/my-listings");
 
     await expectNoSellerDashboardSensitiveLeak(page);
   });

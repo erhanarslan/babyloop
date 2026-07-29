@@ -31,7 +31,7 @@ import {
   markAllNotificationsRead,
   type Notification
 } from "../features/notifications/api";
-import { CART_CHANGED_EVENT, fetchCartSummary } from "../features/cart/api";
+import { useHeaderCartSummary } from "../features/cart/use-header-cart-summary";
 import {
   buildNotificationSummary,
   sortNotifications
@@ -69,7 +69,7 @@ export function SiteHeader() {
   const [isMarkingNotificationsRead, setIsMarkingNotificationsRead] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [cartItemCount, setCartItemCount] = useState(0);
+  const cartItemCount = useHeaderCartSummary(apiBaseUrl, currentAuth?.user.id ?? null);
   const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { openAuthPrompt } = useAuthPrompt();
@@ -186,7 +186,6 @@ export function SiteHeader() {
       setUnreadNotificationCount(0);
       setHeaderNotifications([]);
       setNotificationMessage(null);
-      setCartItemCount(0);
       return;
     }
 
@@ -283,37 +282,6 @@ export function SiteHeader() {
       socket.off(REALTIME_EVENTS.notificationReadAll, handleNotificationReadAll);
       socket.off(REALTIME_EVENTS.notificationUnreadCountUpdated, handleUnreadCountUpdated);
       socket.io.off("reconnect", loadUnreadCount);
-    };
-  }, [apiBaseUrl, currentAuth]);
-
-  useEffect(() => {
-    if (!currentAuth) {
-      setCartItemCount(0);
-      return;
-    }
-
-    let isActive = true;
-
-    async function loadCartCount() {
-      try {
-        const body = await fetchCartSummary(apiBaseUrl);
-
-        if (isActive && body.ok) {
-          setCartItemCount(body.data.summary.itemCount);
-        }
-      } catch {
-        if (isActive) {
-          setCartItemCount(0);
-        }
-      }
-    }
-
-    void loadCartCount();
-    window.addEventListener(CART_CHANGED_EVENT, loadCartCount);
-
-    return () => {
-      isActive = false;
-      window.removeEventListener(CART_CHANGED_EVENT, loadCartCount);
     };
   }, [apiBaseUrl, currentAuth]);
 

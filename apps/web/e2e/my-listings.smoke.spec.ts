@@ -74,10 +74,9 @@ test.describe("my listings flow", () => {
       await expect(listingCard.locator('[data-listing-status-label="active"]')).toBeVisible();
       await expect(listingCard).toContainText(listingTitle);
       await expect(listingCard).toContainText("Favori: 0");
-      await expect(listingCard.getByRole("link", { name: /Detay|View details/i })).toHaveAttribute(
-        "href",
-        `/listings/${listing.id}`,
-      );
+      const listingDetailLink = listingCard.locator(`a[href="/listings/${listing.id}"]`).first();
+      await expect(listingDetailLink).toBeVisible();
+      await expect(listingDetailLink).toHaveAttribute("href", `/listings/${listing.id}`);
 
       await changeListingStatusFromUi(page, listingCard, 0);
       await expectMyListingStatus(sellerApi, {
@@ -116,7 +115,7 @@ test.describe("my listings flow", () => {
         timeout: 15_000,
       });
 
-      await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="all"]').click();
+      await page.locator('[data-status-filter="all"]').click();
       await expect(listingCard).toBeVisible({ timeout: 15_000 });
 
       // Active actions are ordered as reserved, sold, archived. Choosing index 1 marks it sold.
@@ -130,7 +129,7 @@ test.describe("my listings flow", () => {
         timeout: 15_000,
       });
       await expect(listingCard.locator('[data-listing-status-label="sold"]')).toBeVisible();
-      await expect(listingCard.getByText("Yayında değil", { exact: true })).toBeVisible();
+      await expect(listingCard.getByText("Satıldı", { exact: true })).toBeVisible();
 
       await page.locator('nav[aria-label="İlan durumu"] [data-status-filter="completed"]').click();
       await expect(listingCard).toBeVisible({ timeout: 15_000 });
@@ -252,6 +251,7 @@ async function changeListingStatusFromUi(page: Page, listingCard: Locator, statu
 
   const statusAction = menu.locator('button[role="menuitem"][data-listing-status-action]').nth(statusActionIndex);
   await expect(statusAction).toBeVisible({ timeout: 15_000 });
+  await statusAction.scrollIntoViewIfNeeded();
   await expectStatusActionInViewport(page, statusAction);
 
   const statusResponsePromise = page.waitForResponse((response) => {

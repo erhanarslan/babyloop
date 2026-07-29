@@ -160,9 +160,9 @@ test.describe("backoffice listing image review", () => {
     });
 
     await page.goto("/listings", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Show review queue", exact: true }).click();
+    await filterNeedsReviewImages(page);
 
-    await expect(page.getByText("No listings found", { exact: true })).toBeVisible({
+    await expect(page.getByText("İlan bulunamadı", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator(`[data-admin-listing-id="${state.listing.id}"]`)).toHaveCount(0);
@@ -210,9 +210,9 @@ test.describe("backoffice listing image review", () => {
     });
 
     await page.goto("/listings", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Show review queue", exact: true }).click();
+    await filterNeedsReviewImages(page);
 
-    await expect(page.getByText("No listings found", { exact: true })).toBeVisible({
+    await expect(page.getByText("İlan bulunamadı", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator(`[data-admin-listing-id="${state.listing.id}"]`)).toHaveCount(0);
@@ -295,28 +295,44 @@ test.describe("backoffice listing image review", () => {
 async function openReviewQueue(page: Page, state: MockState): Promise<void> {
   await page.goto("/listings", { waitUntil: "domcontentloaded" });
 
-  await expect(page.getByRole("heading", { name: "Listings", exact: true })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toBeVisible({
     timeout: 15_000,
   });
 
-  await expect(page.getByText("Image review queue", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Show review queue", exact: true }).click();
-
-  await expect(page.getByText("Image review queue active", { exact: true })).toBeVisible({
-    timeout: 15_000,
-  });
+  await filterNeedsReviewImages(page);
 
   const listingCard = page.locator(`[data-admin-listing-id="${state.listing.id}"]`);
   await expect(listingCard).toBeVisible({ timeout: 15_000 });
   await expect(listingCard).toHaveAttribute("data-admin-primary-image-review-status", "needs_review");
-  await expect(listingCard.getByText("Needs review image", { exact: true })).toBeVisible();
+  await expect(listingCard.getByText("Görsel incelemesi", { exact: true })).toBeVisible();
   await expectNoImageReviewPrivateLeak(page);
+}
+
+async function filterNeedsReviewImages(page: Page): Promise<void> {
+  const filters = page.locator("form.filter-panel");
+
+  await filters.getByLabel("Görsel inceleme").selectOption("needs_review");
+
+  const filteredListingsResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/v1/admin/listings" &&
+      url.searchParams.get("imageReviewStatus") === "needs_review" &&
+      response.request().method() === "GET"
+    );
+  });
+
+  await filters.getByRole("button", { name: "Filtreleri uygula", exact: true }).click();
+
+  const filteredListingsResponse = await filteredListingsResponsePromise;
+  expect(filteredListingsResponse.ok(), await filteredListingsResponse.text()).toBe(true);
 }
 
 async function openListingImageReview(page: Page, state: MockState) {
   const listingCard = page.locator(`[data-admin-listing-id="${state.listing.id}"]`);
 
-  await listingCard.getByRole("link", { name: "Review images", exact: true }).click();
+  await listingCard.getByRole("link", { name: "İncelemeyi aç", exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`/listings/${state.listing.id}$`), {
     timeout: 15_000,
@@ -413,6 +429,21 @@ async function installBackofficeMocks(page: Page, state: MockState): Promise<voi
       await route.fulfill({
         status: 204,
         headers: getCorsHeaders(route),
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/v1/admin/listings/publication-settings" && method === "GET") {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          settings: {
+            adminReviewEnabled: false,
+            autoPublishDelaySeconds: 30,
+            updatedByProfileId: null,
+            updatedAt: "2026-01-01T10:00:00.000Z",
+          },
+        },
       });
       return;
     }

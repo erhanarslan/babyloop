@@ -89,22 +89,22 @@ test.describe("backoffice AI operations", () => {
 
     await page.goto("/ai-ops", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "AI operations health", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "AI çalışma sağlığı", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByLabel("AI ops summary")).toBeVisible();
-    await expect(page.getByText("Runs 24h", { exact: true })).toBeVisible();
-    await expect(page.getByText("Provider / model breakdown", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("AI operasyon özeti")).toBeVisible();
+    await expect(page.getByText("Çalıştırma 24s", { exact: true })).toBeVisible();
+    await expect(page.getByText("Provider / model kırılımı", { exact: true })).toBeVisible();
 
     const recentRuns = page.locator("section.profile-detail-card.wide");
 
-    await expect(recentRuns.getByRole("heading", { name: "Recent safe AI runs", exact: true })).toBeVisible();
+    await expect(recentRuns.getByRole("heading", { name: "Son güvenli AI çalıştırmaları", exact: true })).toBeVisible();
     await expect(recentRuns.getByText("openai-responses", { exact: true })).toBeVisible();
     await expect(
       recentRuns.getByText("gpt-4.1-mini · moderation_summary.openai.v1", { exact: true }),
     ).toBeVisible();
-    await expect(recentRuns.getByText(`Run ${MODERATION_RUN_ID}`, { exact: false })).toBeVisible();
-    await expect(recentRuns.getByRole("link", { name: "Open related case", exact: true })).toHaveAttribute(
+    await expect(recentRuns.getByText(`Çalıştırma ${MODERATION_RUN_ID}`, { exact: false })).toBeVisible();
+    await expect(recentRuns.getByRole("link", { name: "İlgili vakaya git", exact: true })).toHaveAttribute(
       "href",
       "/moderation/mod-case-aiops-e2e-1",
     );
@@ -116,9 +116,9 @@ test.describe("backoffice AI operations", () => {
 
     const filters = page.locator("form.filter-panel");
 
-    await filters.getByLabel("Feature").selectOption("listing_image_authenticity");
-    await filters.getByLabel("Search").fill(LISTING_ID);
-    await filters.getByLabel("Status").selectOption("success");
+    await filters.getByLabel("Özellik").selectOption("listing_image_authenticity");
+    await filters.getByLabel("Arama").fill(LISTING_ID);
+    await filters.getByLabel("Durum").selectOption("success");
 
     const filteredRunsResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -132,7 +132,7 @@ test.describe("backoffice AI operations", () => {
       );
     });
 
-    await filters.getByRole("button", { name: "Apply filters", exact: true }).click();
+    await filters.getByRole("button", { name: "Filtrele", exact: true }).click();
 
     const filteredRunsResponse = await filteredRunsResponsePromise;
     expect(filteredRunsResponse.ok(), await filteredRunsResponse.text()).toBe(true);
@@ -151,11 +151,11 @@ test.describe("backoffice AI operations", () => {
     await expect(
       recentRuns.getByText("gemini-2.5-flash · listing_image_authenticity.gemini.v1", { exact: true }),
     ).toBeVisible();
-    await expect(recentRuns.getByText(`Run ${IMAGE_RUN_ID}`, { exact: false })).toBeVisible();
-    await expect(recentRuns.getByText("confidence 0.73 · risk 0.18", { exact: true })).toBeVisible();
+    await expect(recentRuns.getByText(`Çalıştırma ${IMAGE_RUN_ID}`, { exact: false })).toBeVisible();
+    await expect(recentRuns.getByText("güven 0.73 · risk 0.18", { exact: true })).toBeVisible();
 
     await expect(recentRuns.getByText("openai-responses", { exact: true })).toHaveCount(0);
-    await expect(recentRuns.getByText("No AI runs match these filters.", { exact: true })).toHaveCount(0);
+    await expect(recentRuns.getByText("Bu filtrelerle eşleşen AI çalıştırması yok.", { exact: true })).toHaveCount(0);
 
     await expect(page.getByText(RAW_PROMPT, { exact: true })).toHaveCount(0);
     await expect(page.getByText(RAW_OUTPUT, { exact: true })).toHaveCount(0);
