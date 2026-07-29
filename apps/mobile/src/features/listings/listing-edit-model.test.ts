@@ -113,6 +113,7 @@ function editableListing(): MobileEditableListingDetail {
     editableImages: [],
     favoriteCount: 0,
     id: "listing-1",
+    isDemo: false,
     imageUrl: null,
     imageUrls: [],
     listingType: "sale",

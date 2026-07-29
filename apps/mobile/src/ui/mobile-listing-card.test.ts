@@ -41,4 +41,10 @@ describe("mobile listing card helpers", () => {
       }
     ]);
   });
+
+  it("puts an explicit demo badge on every demo card model", () => {
+    expect(buildMobileListingChips({ isDemo: true })).toEqual([
+      { label: "Demo ilan", tone: "warning" }
+    ]);
+  });
 });

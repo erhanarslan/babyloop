@@ -115,6 +115,22 @@ describe("messaging API", () => {
     });
   });
 
+  it("rejects demo listings at the backend messaging boundary", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    await app.db.update(listings).set({
+      isDemo: true,
+      demoSeedKey: "test:demo-message",
+      demoSeedVersion: "test.v1"
+    }).where(eq(listings.id, listing.id));
+
+    const response = await createConversation(app, buyer.accessToken, listing.id);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("DEMO_LISTING_MESSAGING_DISABLED");
+  });
+
   it("rejects invalid conversation listingId and extra profile fields", async () => {
     const buyer = await createUser(app);
     const invalidListingId = await app.inject({

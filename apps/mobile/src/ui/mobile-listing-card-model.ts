@@ -4,6 +4,7 @@ export type MobileListingCardChip = {
 };
 
 export function buildMobileListingChips(input: {
+  isDemo?: boolean;
   statusText?: string | null;
   listingTypeText?: string | null;
   conditionText?: string | null;
@@ -13,6 +14,7 @@ export function buildMobileListingChips(input: {
   const conditionText = normalizeOptionalLabel(input.conditionText, "Durum belirtilmedi");
 
   const chips: Array<MobileListingCardChip | null> = [
+    input.isDemo ? { label: "Demo ilan", tone: "warning" } : null,
     statusText ? { label: statusText, tone: getStatusChipTone(statusText) } : null,
     listingTypeText ? { label: listingTypeText, tone: "primary" } : null,
     conditionText ? { label: conditionText } : null

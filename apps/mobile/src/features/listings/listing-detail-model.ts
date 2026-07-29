@@ -7,10 +7,21 @@ export type MobileListingDetailActionState = {
 };
 
 export function getMobileListingDetailActionState(input: {
+  isDemo?: boolean;
   isOwnListing: boolean;
   listingType: string | null | undefined;
   status: string | null | undefined;
 }): MobileListingDetailActionState {
+  if (input.isDemo) {
+    return {
+      canAddToCart: false,
+      canFavorite: true,
+      canMessageSeller: false,
+      notice: "Demo ilanlarda satış ve mesajlaşma kapalıdır.",
+      statusTone: "warning"
+    };
+  }
+
   if (input.isOwnListing) {
     return {
       canAddToCart: false,

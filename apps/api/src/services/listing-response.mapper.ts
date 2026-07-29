@@ -40,6 +40,7 @@ export type PriceResponse = {
 
 export type ListingSummaryResponse = {
   id: string;
+  isDemo: boolean;
   title: string;
   price: PriceResponse;
   favoriteCount: number;
@@ -77,6 +78,7 @@ export type ListingDetailResponse = ListingSummaryResponse & {
 
 export function mapListingSummary(value: {
   id: string;
+  isDemo?: boolean;
   title: string;
   priceAmount: string | null;
   currency: string;
@@ -98,6 +100,7 @@ export function mapListingSummary(value: {
 }): ListingSummaryResponse {
   return {
     id: value.id,
+    isDemo: value.isDemo ?? false,
     title: value.title,
     price: buildPrice(value.priceAmount, value.currency),
     favoriteCount: value.favoriteCount ?? 0,

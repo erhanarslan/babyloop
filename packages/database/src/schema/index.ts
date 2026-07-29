@@ -198,6 +198,9 @@ export const users = pgTable(
     mobileLoginApprovalEnabled: boolean("mobile_login_approval_enabled").notNull().default(false),
     passwordHash: text("password_hash").notNull(),
     role: varchar("role", { length: 40 }).notNull().default("user"),
+    isDemoSystemAccount: boolean("is_demo_system_account").notNull().default(false),
+    loginDisabled: boolean("login_disabled").notNull().default(false),
+    providerDeliveryDisabled: boolean("provider_delivery_disabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -250,6 +253,7 @@ export const profiles = pgTable(
       (): AnyPgColumn => profiles.id,
       { onDelete: "set null" }
     ),
+    isDemoSystemProfile: boolean("is_demo_system_profile").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -564,6 +568,9 @@ export const listings = pgTable(
     condition: listingConditionEnum("condition").notNull(),
     recommendedAgeMinMonths: integer("recommended_age_min_months"),
     recommendedAgeMaxMonths: integer("recommended_age_max_months"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    demoSeedKey: varchar("demo_seed_key", { length: 160 }),
+    demoSeedVersion: varchar("demo_seed_version", { length: 80 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -577,6 +584,17 @@ export const listings = pgTable(
       table.recommendedAgeMinMonths,
       table.recommendedAgeMaxMonths,
       table.publishedAt
+    ),
+    uniqueIndex("listings_demo_seed_key_unique")
+      .on(table.demoSeedKey)
+      .where(sql`${table.demoSeedKey} is not null`),
+    check(
+      "listings_demo_seed_metadata_check",
+      sql`(
+        (${table.isDemo} = false and ${table.demoSeedKey} is null and ${table.demoSeedVersion} is null)
+        or
+        (${table.isDemo} = true and ${table.demoSeedKey} is not null and ${table.demoSeedVersion} is not null)
+      )`
     ),
     check(
       "listings_recommended_age_range_check",

@@ -816,6 +816,7 @@ async function mapListingRows(
     createdAt: Date;
     currency: string;
     id: string;
+    isDemo: boolean;
     listingType: string;
     priceAmount: string | null;
     recommendedAgeMinMonths: number | null;

@@ -65,6 +65,7 @@ export function ListingDetailScreen() {
   const isOwnListing = Boolean(listing?.viewerState.isOwner);
   const actionState = listing
     ? getMobileListingDetailActionState({
+        isDemo: listing.isDemo,
         isOwnListing,
         listingType: listing.listingType,
         status: listing.status
@@ -383,6 +384,7 @@ export function ListingDetailScreen() {
           </View>
 
           <View style={styles.metaChips}>
+            {listing.isDemo ? <MobileChip tone="warning">Demo ilan</MobileChip> : null}
             <MobileChip tone={actionState.statusTone}>{listing.statusText}</MobileChip>
             <MobileChip tone="primary">{listing.listingTypeText}</MobileChip>
             {listing.conditionText ? <MobileChip>{listing.conditionText}</MobileChip> : null}
@@ -397,6 +399,14 @@ export function ListingDetailScreen() {
           {actionState.notice ? (
             <MobileCard style={styles.noticeCard}>
               <Text style={styles.noticeText}>{actionState.notice}</Text>
+            </MobileCard>
+          ) : null}
+
+          {listing.isDemo ? (
+            <MobileCard style={styles.noticeCard}>
+              <Text style={styles.noticeText}>
+                Bu sayfa tanıtım amaçlı demo ilan içerir. Ürün satılık değildir ve satıcıyla iletişim kurulamaz.
+              </Text>
             </MobileCard>
           ) : null}
 

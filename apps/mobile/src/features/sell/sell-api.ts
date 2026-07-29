@@ -144,6 +144,7 @@ export async function createMobileListing(
 
   return {
     id,
+    isDemo: false,
     title,
     priceText,
     locationText: "Konum belirtilmedi",

@@ -2112,6 +2112,35 @@ function registerExactResponseContracts(): void {
   setExactResponses("GET", "/me/listings", ["200", "401", "503"]);
   setExactResponses("GET", "/me/listings/:id", ["200", "400", "401", "403", "404", "500", "503"]);
   setExactResponses("GET", "/listings/:id", ["200", "400", "404", "503"]);
+  const publicListingDemoMarker = objectSchema(
+    { isDemo: booleanSchema(false) },
+    ["isDemo"],
+    { additionalProperties: true }
+  );
+  setExactResponseSchema(
+    "GET",
+    "/listings",
+    "200",
+    successEnvelopeWithDataSchema(
+      "Yayınlanmış ilanları explicit demo işaretiyle döndürür.",
+      objectSchema(
+        { listings: { type: "array", items: publicListingDemoMarker } },
+        ["listings"],
+        { additionalProperties: true }
+      )
+    )
+  );
+  for (const path of ["/listings/:id", "/me/listings/:id"] as const) {
+    setExactResponseSchema(
+      "GET",
+      path,
+      "200",
+      successEnvelopeWithDataSchema(
+        "İlanı explicit demo işaretiyle döndürür; internal seed anahtarları public sözleşmede yer almaz.",
+        objectSchema({ listing: publicListingDemoMarker }, ["listing"], { additionalProperties: true })
+      )
+    );
+  }
   setExactResponsesForPaths("PATCH", [
     "/listings/:id",
     "/listings/:id/status",
@@ -2129,7 +2158,7 @@ function registerExactResponseContracts(): void {
   setExactResponses("DELETE", "/cart", ["200", "401", "403", "503"]);
   setExactResponses("POST", "/checkout/mock-iyzico", ["200", "400", "401", "402", "403", "409", "500", "503"]);
 
-  setExactResponses("POST", "/conversations", ["200", "201", "400", "401", "403", "500", "503"]);
+  setExactResponses("POST", "/conversations", ["200", "201", "400", "401", "403", "409", "500", "503"]);
   setExactResponses("GET", "/conversations", ["200", "401", "503"]);
   setExactResponsesForPaths("GET", [
     "/conversations/:id",

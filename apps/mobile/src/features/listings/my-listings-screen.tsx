@@ -408,6 +408,7 @@ function MyListingCard({
       <MobileListingCard
         accessibilityLabel={`İlanı aç: ${listing.title}`}
         chips={buildMobileListingChips({
+          isDemo: listing.isDemo,
           conditionText: listing.conditionText,
           listingTypeText: listing.listingTypeText,
           statusText: listing.statusText

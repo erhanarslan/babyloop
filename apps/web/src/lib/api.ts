@@ -25,6 +25,7 @@ export type ListingPublicationState =
 
 export type ListingSummary = {
   id: string;
+  isDemo: boolean;
   title: string;
   price: {
     amount: string;

@@ -101,6 +101,16 @@ export function registerMessagingRoutes(app: FastifyInstance): void {
         });
       }
 
+      if (result.status === "demo_listing") {
+        return reply.status(409).send({
+          ok: false,
+          error: {
+            code: "DEMO_LISTING_MESSAGING_DISABLED",
+            message: "Demo listings cannot receive messages."
+          }
+        });
+      }
+
       if (result.status === "profile_blocked") {
         return reply.status(403).send(profileBlockedResponse());
       }

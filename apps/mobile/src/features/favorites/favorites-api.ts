@@ -1,6 +1,7 @@
 import { formatMobileListingStatus, formatMobileListingType } from "../listings/listing-labels";
 export type MobileFavoriteListing = {
   id: string;
+  isDemo: boolean;
   title: string;
   city?: string | null;
   priceAmount?: string | null;
@@ -26,6 +27,7 @@ export type MobileFavoritesApiClient = {
 
 type RawMobileFavoriteListing = {
   id?: unknown;
+  isDemo?: unknown;
   listingId?: unknown;
   title?: unknown;
   city?: unknown;
@@ -282,6 +284,7 @@ function normalizeFavoriteListing(value: unknown): MobileFavoriteListing | null 
 
   const normalized: MobileFavoriteListing = {
     id,
+    isDemo: listing.isDemo === true,
     title,
     imageUrl: normalizeImageUrl(listing),
     conditionText: normalizeConditionText(listing),

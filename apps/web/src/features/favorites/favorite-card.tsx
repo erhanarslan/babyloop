@@ -12,6 +12,7 @@ import {
   formatListingStatus,
   formatListingType
 } from "../listings/listing-display";
+import { DemoListingBadge } from "../listings/demo-listing-badge";
 
 type FavoriteCardProps = {
   apiBaseUrl: string;
@@ -55,6 +56,7 @@ export function FavoriteCard({
       </div>
 
       <div className="listing-card-body gap-3">
+        <DemoListingBadge isDemo={favorite.isDemo} />
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="listing-meta truncate">{categoryName}</p>

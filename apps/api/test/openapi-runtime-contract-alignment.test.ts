@@ -409,7 +409,7 @@ describe("OpenAPI runtime contract alignment", () => {
       Object.keys(
         record(contract("POST", "/api/v1/conversations").response)
       ).sort()
-    ).toEqual(["200", "201", "400", "401", "403", "500", "503"]);
+    ).toEqual(["200", "201", "400", "401", "403", "409", "500", "503"]);
   });
 
   it("keeps public share-link POST unauthenticated in the contract", () => {

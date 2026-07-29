@@ -27,6 +27,7 @@ import { getLocationQueryValue } from "../../components/navigation/public-naviga
 import { AuthActionPromptModal } from "../auth/auth-action-prompt-modal";
 import { fetchFavorites, saveFavorite } from "../favorites/api";
 import { ListingImageFrame } from "../listings/listing-image-frame";
+import { DemoListingBadge } from "../listings/demo-listing-badge";
 import {
   formatListingCondition,
   formatListingPrice,
@@ -569,6 +570,7 @@ function HomeProductCard({
         />
 
         <div className="home-product-card-body">
+          <DemoListingBadge isDemo={listing.isDemo} />
           <div>
             <strong>{formatListingPrice(listing.price, dictionary)}</strong>
             <h3>{listing.title}</h3>

@@ -9,6 +9,9 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:seed": "pnpm build && node dist/seed.js",
+    "demo:seed:production:plan": "pnpm build && node dist/production-demo-seed.js --plan",
+    "demo:seed:production": "pnpm build && node dist/production-demo-seed.js --apply",
+    "test:production-demo": "pnpm build && node --test test/production-demo-catalog.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "exports": {
@@ -19,6 +22,10 @@
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "import": "./dist/schema/index.js"
+    },
+    "./production-demo-product-sources": {
+      "types": "./dist/production-demo-product-sources.d.ts",
+      "import": "./dist/production-demo-product-sources.js"
     }
   },
   "dependencies": {

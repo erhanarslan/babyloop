@@ -91,6 +91,7 @@ type CartRow = {
   currency: string;
   status: string;
   publicationState: string;
+  isDemo: boolean;
   hasApprovedImage: boolean;
   listingType: string;
   condition: string;
@@ -144,7 +145,7 @@ export async function addCartItem(
   listingId: string
 ): Promise<
   | { status: "added" | "already_exists"; cart: CartResponse }
-  | { status: "not_found" | "own_listing" | "listing_unavailable" }
+  | { status: "not_found" | "own_listing" | "listing_unavailable" | "demo_listing" }
 > {
   const listing = await selectCartListing(app, listingId);
 
@@ -154,6 +155,10 @@ export async function addCartItem(
 
   if (listing.sellerProfileId === currentUser.profile.id) {
     return { status: "own_listing" };
+  }
+
+  if (listing.isDemo) {
+    return { status: "demo_listing" };
   }
 
   if (
@@ -280,12 +285,16 @@ export async function checkoutCartWithMockIyzico(
 ): Promise<
   | { status: "paid"; checkout: MockCheckoutResponse }
   | { status: "payment_failed"; cart: CartResponse }
-  | { status: "empty_cart" | "listing_unavailable" | "unsupported_listing_type" }
+  | { status: "empty_cart" | "listing_unavailable" | "unsupported_listing_type" | "demo_listing" }
 > {
   const rows = await selectCartRows(app, currentUser.profile.id);
 
   if (rows.length === 0) {
     return { status: "empty_cart" };
+  }
+
+  if (rows.some((row) => row.isDemo)) {
+    return { status: "demo_listing" };
   }
 
   if (
@@ -352,6 +361,7 @@ export async function checkoutCartWithMockIyzico(
           inArray(listings.id, listingIds),
           eq(listings.status, "active"),
           eq(listings.publicationState, "published"),
+          eq(listings.isDemo, false),
           sql`exists (
             select 1
             from ${listingImages}
@@ -459,13 +469,15 @@ async function selectCartListing(
   sellerProfileId: string;
   status: string;
   publicationState: string;
+  isDemo: boolean;
   hasApprovedImage: boolean;
 } | null> {
   const [row] = await app.db
     .select({
       sellerProfileId: listings.sellerProfileId,
       status: listings.status,
-      publicationState: listings.publicationState
+      publicationState: listings.publicationState,
+      isDemo: listings.isDemo
     })
     .from(listings)
     .where(eq(listings.id, listingId))
@@ -501,6 +513,7 @@ async function selectCartRows(
       currency: listings.currency,
       status: listings.status,
       publicationState: listings.publicationState,
+      isDemo: listings.isDemo,
       listingType: listings.listingType,
       condition: listings.condition,
       categoryId: productCategories.id,

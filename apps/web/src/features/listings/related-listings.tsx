@@ -11,6 +11,7 @@ import type {
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { recordProductEvent } from "../../features/product-events/api";
 import { ListingImageFrame } from "./listing-image-frame";
+import { DemoListingBadge } from "./demo-listing-badge";
 import {
   formatCategoryName,
   formatListingCondition,
@@ -113,6 +114,7 @@ export function RelatedListings({ apiBaseUrl, listingId }: RelatedListingsProps)
             />
             <div className="related-listing-body">
               <div className="listing-card-badges">
+                <DemoListingBadge isDemo={listing.isDemo} />
                 <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
                 <Badge tone="success">{formatListingType(listing.listingType, dictionary)}</Badge>
               </div>

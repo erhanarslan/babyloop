@@ -89,7 +89,7 @@ export async function createOrGetConversation(
   body: CreateConversationBody
 ): Promise<
   | { status: "created" | "existing"; conversation: ConversationSummaryResponse }
-  | { status: "invalid_listing" | "cannot_message_self" | "profile_blocked" | "profile_not_allowed" }
+  | { status: "invalid_listing" | "cannot_message_self" | "profile_blocked" | "profile_not_allowed" | "demo_listing" }
 > {
   const safetyStatus = await getProfileSafetyStatus(app, currentUser.profile.id);
 
@@ -101,6 +101,10 @@ export async function createOrGetConversation(
 
   if (!listing) {
     return { status: "invalid_listing" };
+  }
+
+  if (listing.isDemo) {
+    return { status: "demo_listing" };
   }
 
   if (listing.sellerProfileId === currentUser.profile.id) {
@@ -451,11 +455,12 @@ const conversationSummarySelection = {
 async function getListingForConversation(
   app: FastifyInstance,
   listingId: string
-): Promise<{ id: string; sellerProfileId: string } | null> {
+): Promise<{ id: string; sellerProfileId: string; isDemo: boolean } | null> {
   const [listing] = await app.db
     .select({
       id: listings.id,
-      sellerProfileId: listings.sellerProfileId
+      sellerProfileId: listings.sellerProfileId,
+      isDemo: listings.isDemo
     })
     .from(listings)
     .innerJoin(profiles, eq(listings.sellerProfileId, profiles.id))
