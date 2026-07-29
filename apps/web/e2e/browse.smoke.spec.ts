@@ -165,7 +165,8 @@ async function assertBrowseFormFiltersListing(
 ): Promise<void> {
   await page.goto("/browse?sort=newest", { waitUntil: "domcontentloaded" });
 
-  const filtersPanel = page.getByLabel("Filtreler");
+  const filtersPanel = page.locator('aside[aria-label="Filtreler"]:visible');
+  await expect(filtersPanel).toHaveCount(1);
   await expect(filtersPanel).toBeVisible({ timeout: 15_000 });
 
   await filtersPanel.locator('input[name="q"]').fill(input.query);
@@ -194,23 +195,24 @@ async function assertBrowseFormFiltersListing(
   expect(browseUrl.searchParams.get("priceMax")).toBe("7000");
   expect(browseUrl.searchParams.get("sort")).toBe("price_desc");
 
-  const listingCard = page.locator("article.listing-card").filter({
+  const listingCard = page.locator("article.listing-card:visible").filter({
     hasText: input.listingTitle,
   });
 
   await expect(listingCard).toBeVisible({ timeout: 15_000 });
   await expect(listingCard.locator(`a[href="/listings/${input.listingId}"]`)).toBeVisible();
-  await expect(listingCard).toContainText(/6500(?:\.00)? TRY/);
+  await expect(listingCard.getByText("₺6.500", { exact: true })).toBeVisible();
 
-  const activeFilters = page.getByLabel("Active browse filters");
+  const activeFilters = page.locator('[aria-label="Active browse filters"]:visible');
+  await expect(activeFilters).toHaveCount(1);
   await expect(activeFilters).toBeVisible();
-  await expect(activeFilters).toContainText(`Search: ${input.query}`);
-  await expect(activeFilters).toContainText("Category:");
-  await expect(activeFilters).toContainText("Type:");
-  await expect(activeFilters).toContainText("Condition:");
-  await expect(activeFilters).toContainText("Min: 6000");
-  await expect(activeFilters).toContainText("Max: 7000");
-  await expect(activeFilters).toContainText("Sort:");
+  await expect(activeFilters).toContainText(`Arama: ${input.query}`);
+  await expect(activeFilters).toContainText("Kategori:");
+  await expect(activeFilters).toContainText("İlan tipi:");
+  await expect(activeFilters).toContainText("Durum:");
+  await expect(activeFilters).toContainText("En az: 6000");
+  await expect(activeFilters).toContainText("En çok: 7000");
+  await expect(activeFilters).toContainText("Sıralama:");
 
   await expectNoBrowseSensitiveLeak(page, {
     sellerAccessToken: input.sellerAccessToken,
@@ -249,11 +251,15 @@ async function assertCategoryLandingKeepsFilters(
   expect(categoryUrl.searchParams.get("priceMax")).toBe("7000");
   expect(categoryUrl.searchParams.get("sort")).toBe("price_desc");
 
-  await expect(page.locator(".category-landing-hero")).toBeVisible({
+  const categoryHero = page.locator(".category-landing-hero:visible");
+  await expect(categoryHero).toHaveCount(1);
+  await expect(categoryHero).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByLabel("Filtreler").locator('select[name="categoryId"]')).toHaveCount(0);
-  await expect(page.locator("article.listing-card").filter({ hasText: input.listingTitle })).toBeVisible({
+  const filtersPanel = page.locator('aside[aria-label="Filtreler"]:visible');
+  await expect(filtersPanel).toHaveCount(1);
+  await expect(filtersPanel.locator('select[name="categoryId"]')).toHaveCount(0);
+  await expect(page.locator("article.listing-card:visible").filter({ hasText: input.listingTitle })).toBeVisible({
     timeout: 15_000,
   });
 
@@ -279,15 +285,15 @@ async function assertPriceAscendingSort(
     { waitUntil: "domcontentloaded" },
   );
 
-  const cards = page.locator("article.listing-card");
+  const cards = page.locator("article.listing-card:visible");
   const affordableCard = cards.filter({ hasText: input.affordableTitle });
   const expensiveCard = cards.filter({ hasText: input.expensiveTitle });
 
   await expect(affordableCard).toBeVisible({ timeout: 15_000 });
   await expect(expensiveCard).toBeVisible({ timeout: 15_000 });
 
-  await expect(affordableCard).toContainText(/1000(?:\.00)? TRY/);
-  await expect(expensiveCard).toContainText(/9000(?:\.00)? TRY/);
+  await expect(affordableCard.getByText("₺1.000", { exact: true })).toBeVisible();
+  await expect(expensiveCard.getByText("₺9.000", { exact: true })).toBeVisible();
 
   const affordableIndex = await cards.evaluateAll((items, title) => {
     return items.findIndex((item) => item.textContent?.includes(String(title)));
@@ -324,16 +330,16 @@ async function assertNoResultsReset(
   await expect(main).toContainText("Sonuç yok");
   await expect(main).toContainText("Bu filtrelerle ilan bulunamadı");
 
-  const activeFilters = page.getByLabel("Active browse filters");
+  const activeFilters = page.locator('[aria-label="Active browse filters"]:visible');
+  await expect(activeFilters).toHaveCount(1);
   await expect(activeFilters).toBeVisible();
-  await expect(activeFilters).toContainText(`Search: ${impossibleQuery}`);
-  await expect(activeFilters).toContainText("Category:");
-  await expect(activeFilters).toContainText("Type:");
-  await expect(activeFilters).toContainText("Condition:");
-  await expect(activeFilters).toContainText("Min: 999999");
-  await expect(activeFilters).toContainText("Max: 1000000");
-  await expect(activeFilters).toContainText("Images only");
-  await expect(activeFilters).toContainText("Sort:");
+  await expect(activeFilters).toContainText(`Arama: ${impossibleQuery}`);
+  await expect(activeFilters).toContainText("Kategori:");
+  await expect(activeFilters).toContainText("İlan tipi:");
+  await expect(activeFilters).toContainText("Durum:");
+  await expect(activeFilters).toContainText("En az: 999999");
+  await expect(activeFilters).toContainText("En çok: 1000000");
+  await expect(activeFilters).toContainText("Sıralama:");
 
   await expect(main.getByRole("link", { name: "Filtreleri temizle", exact: true })).toHaveAttribute(
     "href",

@@ -68,7 +68,8 @@ test.describe("listing detail page", () => {
         timeout: 15_000,
       });
 
-      await expect(main).toContainText(/6500(?:\.00)? TRY/);
+      const listingSummary = main.getByLabel("İlan özeti");
+      await expect(listingSummary.getByText("₺6.500", { exact: true })).toBeVisible();
       await expect(main).toContainText("İstanbul");
       await expect(main).toContainText("Web E2E testi için oluşturulan güvenli marketplace ilanı.");
       await expect(main).toContainText("Kategori");
@@ -76,8 +77,12 @@ test.describe("listing detail page", () => {
       await expect(main).toContainText("Durum");
       await expect(main).toContainText("İlan");
 
-      await expect(page.getByAltText(`Ürün görseli: ${listingTitle}`)).toHaveCount(0);
-      await expect(page.getByText("Ürün görseli yok", { exact: true })).toBeVisible();
+      const fixtureImage = page.getByAltText(`Ürün görseli: ${listingTitle}`);
+      await expect(fixtureImage).toBeVisible();
+      await expect(fixtureImage).toHaveAttribute(
+        "src",
+        /brand%2Fhome%2Fhome-hero-travel\.png|brand\/home\/home-hero-travel\.png/,
+      );
 
       await expect(main).toContainText(sellerDisplayName);
       await expect(main).toContainText("BabyLoop içinde mesajlaş");

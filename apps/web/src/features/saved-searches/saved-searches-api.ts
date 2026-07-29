@@ -1,4 +1,5 @@
-import { marketplaceJson } from "../marketplace/api-client";
+import type { ApiResponse } from "@babyloop/shared";
+import { authFetch } from "../../lib/auth-client";
 import type { SavedSearchDraft, SavedSearchFilters } from "./saved-searches-model";
 
 export type SavedSearch = {
@@ -73,18 +74,22 @@ export function normalizeSavedSearchPayload(payload: unknown): SavedSearch | nul
   };
 }
 
-export async function listSavedSearches(): Promise<SavedSearch[]> {
-  const payload = await marketplaceJson<SavedSearchListResponse | unknown[]>(
+export async function listSavedSearches(apiBaseUrl: string): Promise<SavedSearch[]> {
+  const payload = await savedSearchJson<SavedSearchListResponse | unknown[]>(
+    apiBaseUrl,
     "/api/v1/saved-searches"
   );
 
   return normalizeSavedSearchListPayload(payload);
 }
 
-export async function createSavedSearch(draft: SavedSearchDraft): Promise<SavedSearch> {
-  const payload = await marketplaceJson<
+export async function createSavedSearch(
+  apiBaseUrl: string,
+  draft: SavedSearchDraft
+): Promise<SavedSearch> {
+  const payload = await savedSearchJson<
     { savedSearch?: unknown; item?: unknown } | unknown
-  >("/api/v1/saved-searches", {
+  >(apiBaseUrl, "/api/v1/saved-searches", {
     method: "POST",
     body: JSON.stringify(draft)
   });
@@ -102,10 +107,28 @@ export async function createSavedSearch(draft: SavedSearchDraft): Promise<SavedS
   return savedSearch;
 }
 
-export async function deleteSavedSearch(savedSearchId: string): Promise<void> {
-  await marketplaceJson(`/api/v1/saved-searches/${encodeURIComponent(savedSearchId)}`, {
+export async function deleteSavedSearch(
+  apiBaseUrl: string,
+  savedSearchId: string
+): Promise<void> {
+  await savedSearchJson(apiBaseUrl, `/api/v1/saved-searches/${encodeURIComponent(savedSearchId)}`, {
     method: "DELETE"
   });
+}
+
+async function savedSearchJson<T>(
+  apiBaseUrl: string,
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  const response = await authFetch(apiBaseUrl, path, init);
+  const payload = await response.json() as ApiResponse<T>;
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? "Saved search request failed." : payload.error.message);
+  }
+
+  return payload.data;
 }
 
 function isSavedSearch(value: SavedSearch | null): value is SavedSearch {

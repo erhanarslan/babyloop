@@ -1,4 +1,7 @@
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { expect, type APIRequestContext, type Page, type Route } from "@playwright/test";
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 
 export type ApiResponse<TData> =
   | {
@@ -81,6 +84,32 @@ export const FULL_FLOW_ENABLED = process.env.WEB_E2E_FULL_FLOW === "1";
 
 export const E2E_PASSWORD = "Password12345!";
 
+type VerifiedUserInput = {
+  displayName: string;
+  email: string;
+  locationCity: string;
+  password: string;
+};
+
+export function buildVerifiedUserRegistrationPayload(input: VerifiedUserInput) {
+  return {
+    displayName: input.displayName,
+    email: input.email,
+    locationCity: input.locationCity,
+    password: input.password,
+    termsAccepted: true as const,
+    termsVersion: CURRENT_TERMS_VERSION,
+  };
+}
+
+export function assertEmailVerificationConfirmed(result: {
+  emailVerified?: boolean;
+}): void {
+  if (result.emailVerified !== true) {
+    throw new Error("Web E2E email verification did not return emailVerified=true.");
+  }
+}
+
 export async function assertApiIsAvailable(api: APIRequestContext): Promise<void> {
   try {
     const response = await api.get("/health");
@@ -108,15 +137,10 @@ export async function fetchFirstCategoryId(api: APIRequestContext): Promise<stri
 
 export async function createVerifiedUser(
   api: APIRequestContext,
-  input: {
-    displayName: string;
-    email: string;
-    locationCity: string;
-    password: string;
-  },
+  input: VerifiedUserInput,
 ): Promise<AuthPayload> {
   const registerResponse = await api.post("/api/v1/auth/register", {
-    data: input,
+    data: buildVerifiedUserRegistrationPayload(input),
   });
 
   expect(registerResponse.ok(), await safeResponseText(registerResponse)).toBe(true);
@@ -128,10 +152,12 @@ export async function createVerifiedUser(
     throw new Error("Registration failed.");
   }
 
-  if (registerBody.data.devEmailVerificationToken) {
+  const verificationToken = requireDevEmailVerificationToken(registerBody.data);
+
+  if (verificationToken) {
     const verificationResponse = await api.post("/api/v1/auth/email-verification/confirm", {
       data: {
-        token: registerBody.data.devEmailVerificationToken,
+        token: verificationToken,
       },
     });
 
@@ -141,6 +167,12 @@ export async function createVerifiedUser(
       emailVerified: true;
     }>;
     expect(verificationBody.ok).toBe(true);
+
+    if (!verificationBody.ok) {
+      throw new Error("Web E2E email verification failed.");
+    }
+
+    assertEmailVerificationConfirmed(verificationBody.data);
   }
 
   return registerBody.data;
@@ -186,7 +218,76 @@ export async function createListing(
     throw new Error("Listing setup failed.");
   }
 
-  return body.data.listing;
+  const publication = await publishListingFixture(body.data.listing.id);
+
+  if (publication.status !== "active" || publication.publicationState !== "published") {
+    throw new Error("Web E2E listing publication returned an unexpected lifecycle state.");
+  }
+
+  return {
+    ...body.data.listing,
+    status: publication.status,
+  };
+}
+
+export function requireDevEmailVerificationToken(
+  auth: Pick<AuthPayload, "devEmailVerificationToken">,
+  fullFlowEnabled = FULL_FLOW_ENABLED,
+): string | undefined {
+  const token = auth.devEmailVerificationToken;
+
+  if (fullFlowEnabled && !token) {
+    throw new Error(
+      "Full-flow Web E2E requires devEmailVerificationToken; ensure BABYLOOP_EXPOSE_DEV_AUTH_TOKENS=1 and NODE_ENV=development.",
+    );
+  }
+
+  return token;
+}
+
+type E2EPublicationSummary = {
+  listingId: string;
+  publicationState: "published";
+  status: "active";
+};
+
+async function publishListingFixture(listingId: string): Promise<E2EPublicationSummary> {
+  const workspaceRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+  const scriptPath = fileURLToPath(
+    new URL("../../../../packages/database/dist/e2e-publish-listing.js", import.meta.url),
+  );
+  const stdout = await new Promise<string>((resolve, reject) => {
+    execFile(
+      process.execPath,
+      [scriptPath, listingId],
+      {
+        cwd: workspaceRoot,
+        env: process.env,
+        maxBuffer: 1024 * 1024,
+        shell: false,
+      },
+      (error, output) => {
+        if (error) {
+          reject(new Error(`Guarded Web E2E listing publication failed for ${listingId}.`));
+          return;
+        }
+        resolve(output);
+      },
+    );
+  });
+
+  let summary: E2EPublicationSummary;
+  try {
+    summary = JSON.parse(stdout.trim()) as E2EPublicationSummary;
+  } catch {
+    throw new Error(`Guarded Web E2E listing publication returned invalid JSON for ${listingId}.`);
+  }
+
+  if (summary.listingId !== listingId) {
+    throw new Error("Guarded Web E2E listing publication returned the wrong listing ID.");
+  }
+
+  return summary;
 }
 
 export async function updateListingStatus(

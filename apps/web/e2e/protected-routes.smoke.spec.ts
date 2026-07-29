@@ -15,7 +15,7 @@ test.describe("protected public routes", () => {
   test("guest user is redirected away from protected marketplace pages", async ({ page }) => {
     test.setTimeout(45_000);
 
-    await installGuestAuthRoutes(page);
+    const requests = await installGuestAuthRoutes(page);
 
     for (const protectedPath of PROTECTED_PUBLIC_PATHS) {
       await page.goto(protectedPath, { waitUntil: "domcontentloaded" });
@@ -25,11 +25,26 @@ test.describe("protected public routes", () => {
       await expect(page.locator(".market-account-trigger")).toHaveCount(0);
     }
 
+    await page.waitForTimeout(500);
+    expect(requests.savedSearches).toBe(0);
+    expect(requests.cartSummary).toBeLessThanOrEqual(1);
+    expect(requests.csrf).toBe(0);
+
     await expectNoProtectedRouteSensitiveLeak(page);
   });
 });
 
-async function installGuestAuthRoutes(page: Page): Promise<void> {
+async function installGuestAuthRoutes(page: Page): Promise<{
+  cartSummary: number;
+  csrf: number;
+  savedSearches: number;
+}> {
+  const requests = {
+    cartSummary: 0,
+    csrf: 0,
+    savedSearches: 0,
+  };
+
   await page.route("**/api/v1/**", async (route) => {
     if (await fulfillOptions(route)) {
       return;
@@ -40,6 +55,7 @@ async function installGuestAuthRoutes(page: Page): Promise<void> {
     const method = request.method().toUpperCase();
 
     if (method === "GET" && pathEndsWith(url, "/api/v1/auth/csrf")) {
+      requests.csrf += 1;
       await fulfillJson(route, {
         ok: true,
         data: {
@@ -47,6 +63,14 @@ async function installGuestAuthRoutes(page: Page): Promise<void> {
         },
       });
       return;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/api/v1/cart/summary")) {
+      requests.cartSummary += 1;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/api/v1/saved-searches")) {
+      requests.savedSearches += 1;
     }
 
     if (
@@ -89,6 +113,8 @@ async function installGuestAuthRoutes(page: Page): Promise<void> {
       401,
     );
   });
+
+  return requests;
 }
 
 async function expectNoProtectedRouteSensitiveLeak(page: Page): Promise<void> {

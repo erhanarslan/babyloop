@@ -131,7 +131,8 @@ test.describe("public account operations", () => {
     await expect(page.locator(".market-notifications-trigger")).not.toContainText("3", {
       timeout: 15_000,
     });
-    await expect(page.locator(".market-notifications-trigger")).toHaveText("Bildirimler");
+    await expect(page.locator(".market-notifications-trigger")).toHaveAttribute("aria-label", "Bildirimler");
+    await expect(page.locator(".market-notifications-trigger")).toHaveAttribute("title", "Bildirimler");
     await expect(page.getByRole("button", { name: "Tümünü okundu işaretle", exact: true })).toBeDisabled();
     await expect(recentList.getByText("Okunmadı", { exact: true })).toHaveCount(0);
     await expect(recentList.getByText("Okundu", { exact: true })).toHaveCount(3);
@@ -139,7 +140,7 @@ test.describe("public account operations", () => {
     await expectNoAccountOpsSensitiveLeak(page);
   });
 
-  test("saved searches can toggle notifications, delete entries, and expose only safe filter details", async ({
+  test("saved searches expose safe filters, notification settings, and two-step deletion", async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -150,10 +151,18 @@ test.describe("public account operations", () => {
 
     await page.goto("/account/saved-searches", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "Kayıtlı aramalar", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Kayıtlı aramalarım", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Kaydettiğin aramaları buradan yönet.", { exact: true })).toBeVisible();
+    const savedSearchIntro = page
+      .getByRole("main")
+      .locator("p:visible")
+      .filter({
+        hasText: "Burada kayıtlarını yeniden açabilir",
+      });
+
+    await expect(savedSearchIntro).toHaveCount(1);
+    await expect(savedSearchIntro).toBeVisible();
 
     const savedSearchCard = page.locator("article").filter({
       has: page.getByRole("heading", { name: "Bebek arabası takip", exact: true }),
@@ -162,12 +171,11 @@ test.describe("public account operations", () => {
     await expect(savedSearchCard).toBeVisible();
     await expect(savedSearchCard.getByText("Bildirim kapalı", { exact: true })).toBeVisible();
     await expect(savedSearchCard.getByText("Arama: bebek arabası", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("Tip: sale", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("Durum: good", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("En az: 1000", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("En çok: 5000", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("Sadece görselli", { exact: true })).toBeVisible();
-    await expect(savedSearchCard.getByText("Sıralama: price asc", { exact: true })).toBeVisible();
+    await expect(savedSearchCard.getByText("İlan tipi: Satılık", { exact: true })).toBeVisible();
+    await expect(savedSearchCard.getByText("Durum: İyi", { exact: true })).toBeVisible();
+    await expect(savedSearchCard.getByText("En az: 1.000", { exact: true })).toBeVisible();
+    await expect(savedSearchCard.getByText("En çok: 5.000", { exact: true })).toBeVisible();
+    await expect(savedSearchCard.getByText("Sıralama: Fiyat: düşükten yükseğe", { exact: true })).toBeVisible();
     const openSearchHref = await savedSearchCard
       .getByRole("link", { name: "Aramayı aç", exact: true })
       .getAttribute("href");
@@ -183,39 +191,27 @@ test.describe("public account operations", () => {
     expect(openSearchUrl.searchParams.get("condition")).toBe("good");
     expect(openSearchUrl.searchParams.get("priceMin")).toBe("1000");
     expect(openSearchUrl.searchParams.get("priceMax")).toBe("5000");
-    expect(openSearchUrl.searchParams.get("hasImages")).toBe("true");
+    expect(openSearchUrl.searchParams.has("hasImages")).toBe(false);
     expect(openSearchUrl.searchParams.get("sort")).toBe("price_asc");
 
+    await expect(savedSearchCard.getByRole("link", { name: "Bildirim ayarları", exact: true })).toHaveAttribute(
+      "href",
+      "/account/notification-preferences",
+    );
+
     await expectNoAccountOpsSensitiveLeak(page);
-
-    const toggleResponsePromise = page.waitForResponse((response) => {
-      return (
-        response.url().includes(`/api/v1/saved-searches/${SAVED_SEARCH_ID}/notifications`) &&
-        response.request().method() === "PATCH"
-      );
-    });
-
-    await savedSearchCard.getByRole("button", { name: "Bildirimleri aç", exact: true }).click();
-
-    const toggleResponse = await toggleResponsePromise;
-    expect(toggleResponse.ok(), await toggleResponse.text()).toBe(true);
-    expect(state.savedSearchNotificationRequests).toEqual([
-      {
-        id: SAVED_SEARCH_ID,
-        notificationsEnabled: true,
-      },
-    ]);
-
-    await expect(savedSearchCard.getByText("Bildirim açık", { exact: true })).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(savedSearchCard.getByRole("button", { name: "Bildirimleri kapat", exact: true })).toBeVisible();
+    expect(state.savedSearchNotificationRequests).toEqual([]);
 
     const deleteCard = page.locator("article").filter({
       has: page.getByRole("heading", { name: "Silinecek kayıtlı arama", exact: true }),
     });
 
     await expect(deleteCard).toBeVisible();
+
+    await deleteCard.getByRole("button", { name: "Sil", exact: true }).click();
+    await expect(deleteCard.getByText("Bu kayıt silinsin mi?", { exact: true })).toBeVisible();
+    await expect(deleteCard.getByRole("button", { name: "Vazgeç", exact: true })).toBeVisible();
+    expect(state.savedSearchDeleteRequests).toEqual([]);
 
     const deleteResponsePromise = page.waitForResponse((response) => {
       return (
@@ -224,7 +220,7 @@ test.describe("public account operations", () => {
       );
     });
 
-    await deleteCard.getByRole("button", { name: "Sil", exact: true }).click();
+    await deleteCard.getByRole("button", { name: "Silmeyi onayla", exact: true }).click();
 
     const deleteResponse = await deleteResponsePromise;
     expect(deleteResponse.ok(), await deleteResponse.text()).toBe(true);
@@ -232,13 +228,7 @@ test.describe("public account operations", () => {
 
     await expect(deleteCard).toHaveCount(0);
 
-    await page.getByRole("button", { name: /^Bildirim açık/ }).click();
     await expect(savedSearchCard).toBeVisible();
-    await expect(page.getByText("Bu filtrede arama yok", { exact: true })).toHaveCount(0);
-
-    await page.getByRole("button", { name: /^Bildirim kapalı/ }).click();
-    await expect(savedSearchCard).toHaveCount(0);
-    await expect(page.getByText("Bu filtrede arama yok", { exact: true })).toBeVisible();
 
     await expectNoAccountOpsSensitiveLeak(page);
   });
@@ -282,45 +272,74 @@ test.describe("public account operations", () => {
     await accountRegion.getByRole("button", { name: /Güvenlik/ }).click();
     await expect(accountRegion.getByRole("heading", { name: "Güvenlik", exact: true })).toBeVisible();
 
-    await expect(accountRegion.getByRole("link", { name: /Güvenlik ve şifre/ })).toHaveAttribute(
+    await expect(accountRegion.getByRole("link", { name: /Şifre Hesap şifreni güncelle/ })).toHaveAttribute(
       "href",
       "/account/password",
     );
-    await expect(accountRegion.getByText("OTP / MFA", { exact: true })).toBeVisible();
-    await expect(accountRegion.getByText("Mobil onay", { exact: true })).toBeVisible();
-    await expect(accountRegion.getByText("Güvenilir cihazlar", { exact: true })).toBeVisible();
+    await expect(accountRegion.getByRole("heading", { name: "İki adımlı doğrulama", exact: true })).toBeVisible();
+    await expect(accountRegion.getByRole("heading", { name: "Aktif oturumlar", exact: true })).toBeVisible();
+    await expect(accountRegion.getByRole("heading", { name: "Tüm oturumları kapat", exact: true })).toBeVisible();
 
     await expectNoAccountOpsSensitiveLeak(page);
 
     await page.goto("/account/password", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "Güvenlik ve şifre", exact: true })).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByRole("heading", { name: "Şifreni güncelle", exact: true })).toBeVisible();
+    await expect
+      .poll(() => {
+        const currentUrl = new URL(page.url());
 
-    const passwordUpdateForm = page.locator("form").filter({
-      has: page.getByRole("heading", { name: "Şifreni güncelle", exact: true }),
-    });
+        return {
+          changePassword: currentUrl.searchParams.get("changePassword"),
+          pathname: currentUrl.pathname,
+          section: currentUrl.searchParams.get("section"),
+        };
+      }, { timeout: 15_000 })
+      .toEqual({
+        changePassword: "1",
+        pathname: "/account/profile",
+        section: "security",
+      });
+
+    const passwordDialog = page.getByRole("dialog", { name: "Şifreyi değiştir" });
+    await expect(passwordDialog).toBeVisible();
+
+    const passwordUpdateForm = passwordDialog.locator(
+      'form:has(input[name="currentPassword"]):has(input[name="newPassword"]):has(input[name="confirmPassword"])',
+    );
+    await expect(passwordUpdateForm).toHaveCount(1);
     await expect(passwordUpdateForm).toBeVisible();
 
-    await passwordUpdateForm.locator('input[name="currentPassword"]').fill("CurrentPassword123!");
-    await passwordUpdateForm.locator('input[name="newPassword"]').fill("NewPassword123!");
-    await passwordUpdateForm.locator('input[name="confirmPassword"]').fill("DifferentPassword123!");
+    const currentPasswordInput = passwordUpdateForm.locator('input[name="currentPassword"]');
+    const newPasswordInput = passwordUpdateForm.locator('input[name="newPassword"]');
+    const confirmPasswordInput = passwordUpdateForm.locator('input[name="confirmPassword"]');
 
-    await page.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
+    await expect(passwordUpdateForm.getByText("Mevcut şifre", { exact: true })).toBeVisible();
+    await expect(passwordUpdateForm.getByText("Yeni şifre", { exact: true })).toBeVisible();
+    await expect(passwordUpdateForm.getByText("Yeni şifre tekrar", { exact: true })).toBeVisible();
+    await expect(currentPasswordInput).toHaveAttribute("name", "currentPassword");
+    await expect(newPasswordInput).toHaveAttribute("name", "newPassword");
+    await expect(confirmPasswordInput).toHaveAttribute("name", "confirmPassword");
+
+    await currentPasswordInput.fill("CurrentPassword123!");
+    await newPasswordInput.fill("NewPassword123!");
+    await confirmPasswordInput.fill("DifferentPassword123!");
+
+    await passwordUpdateForm.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
 
     await page.waitForTimeout(300);
-    await expect(page).toHaveURL(/\/account\/password$/);
+    const invalidPasswordUrl = new URL(page.url());
+    expect(invalidPasswordUrl.pathname).toBe("/account/profile");
+    expect(invalidPasswordUrl.searchParams.get("section")).toBe("security");
+    expect(invalidPasswordUrl.searchParams.get("changePassword")).toBe("1");
     expect(state.passwordChangeRequests).toEqual([]);
 
     const passwordForm = passwordUpdateForm;
 
-    await passwordForm.locator('input[name="confirmPassword"]').fill("NewPassword123!");
+    await confirmPasswordInput.fill("NewPassword123!");
 
-    await expect(passwordForm.locator('input[name="currentPassword"]')).toHaveValue("CurrentPassword123!");
-    await expect(passwordForm.locator('input[name="newPassword"]')).toHaveValue("NewPassword123!");
-    await expect(passwordForm.locator('input[name="confirmPassword"]')).toHaveValue("NewPassword123!");
+    await expect(currentPasswordInput).toHaveValue("CurrentPassword123!");
+    await expect(newPasswordInput).toHaveValue("NewPassword123!");
+    await expect(confirmPasswordInput).toHaveValue("NewPassword123!");
 
     const passwordResponsePromise = page.waitForResponse((response) => {
       return (
@@ -328,7 +347,6 @@ test.describe("public account operations", () => {
         response.request().method() === "POST"
       );
     });
-
     await passwordForm.getByRole("button", { name: /Şifreyi değiştir|Change password/i }).click();
 
     const passwordResponse = await passwordResponsePromise;
@@ -340,9 +358,10 @@ test.describe("public account operations", () => {
       },
     ]);
 
-    await expect(page).toHaveURL(/\/login\?passwordChanged=1$/, {
+    await expect(page).toHaveURL(/\/$/, {
       timeout: 15_000,
     });
+    await expect(page.getByRole("dialog", { name: "Şifren değişti, yeniden giriş yap" })).toBeVisible();
 
     await expectNoAccountOpsSensitiveLeak(page);
     await expect(page.getByText("CurrentPassword123!", { exact: true })).toHaveCount(0);
@@ -395,6 +414,28 @@ async function installAccountOpsMocks(page: Page, state: MockState): Promise<voi
         ok: true,
         data: {
           csrfToken: "public-account-ops-e2e-csrf",
+        },
+      });
+      return;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/api/v1/auth/mfa/status")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          delivery: "email",
+          method: "email_otp",
+          mfaEnabled: false,
+        },
+      });
+      return;
+    }
+
+    if (method === "GET" && pathEndsWith(url, "/api/v1/auth/sessions")) {
+      await fulfillJson(route, {
+        ok: true,
+        data: {
+          sessions: [],
         },
       });
       return;

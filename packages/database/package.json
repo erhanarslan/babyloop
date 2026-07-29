@@ -9,6 +9,8 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:seed": "pnpm build && node dist/seed.js",
+    "e2e:publish-listing": "pnpm build && node dist/e2e-publish-listing.js",
+    "test:e2e-publish-listing": "pnpm build && node --test test/e2e-publish-listing.test.mjs",
     "demo:seed:production:plan": "pnpm build && node dist/production-demo-seed.js --plan",
     "demo:seed:production": "pnpm build && node dist/production-demo-seed.js --apply",
     "test:production-demo": "pnpm build && node --test test/production-demo-catalog.test.mjs",

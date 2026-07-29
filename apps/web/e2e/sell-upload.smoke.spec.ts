@@ -43,6 +43,33 @@ type BrowserMockOptions = {
   failImageUpload?: boolean;
 };
 
+type MockListing = {
+  id: string;
+  isDemo: false;
+  title: string;
+  price: { amount: string; currency: string };
+  favoriteCount: number;
+  status: "draft";
+  publicationState: "awaiting_images" | "scheduled" | "ai_review";
+  publishAfter: string | null;
+  publishedAt: string | null;
+  publicationReviewReason: string | null;
+  listingType: string;
+  condition: string;
+  recommendedAgeMinMonths: number | null;
+  recommendedAgeMaxMonths: number | null;
+  category: { id: string; name: string; slug: string };
+  firstImage: { id: string; url: string; sortOrder: number; reviewStatus: ListingImageReviewStatus } | null;
+  images: Array<{ id: string; url: string; sortOrder: number; reviewStatus: ListingImageReviewStatus }>;
+  locationCity: string | null;
+  createdAt: string;
+};
+
+type BrowserMockState = {
+  listing: MockListing | null;
+  listingRequests: unknown[];
+};
+
 const RAW_ACCESS_TOKEN_SENTINEL = "RAW_ACCESS_TOKEN_SELL_UPLOAD_E2E_SHOULD_NOT_RENDER";
 const RAW_IMAGE_BINARY_SENTINEL = "RAW_IMAGE_BINARY_SELL_UPLOAD_E2E_SHOULD_NOT_RENDER";
 const RAW_EMAIL_SENTINEL = "raw-sell-upload-e2e@babyloop.test";
@@ -76,7 +103,7 @@ test.describe("sell listing upload flow", () => {
       await assertApiIsAvailable(api);
       await assertCategoriesExist(api);
 
-      const listingRequests = await installMockSellerInBrowser(page, {
+      const mockState = await installMockSellerInBrowser(page, {
         imageUploadStatus: "approved",
       });
 
@@ -113,12 +140,18 @@ test.describe("sell listing upload flow", () => {
 
       await page.getByRole("button", { name: "İlanı oluştur" }).click();
 
-      await expect(page).toHaveURL(/\/listings\/[a-zA-Z0-9-]+$/, {
+      await expect(page).toHaveURL(/\/my-listings$/, {
         timeout: 30_000,
       });
-      await expect(page.getByRole("main")).toBeVisible();
+      expect(new URL(page.url()).searchParams.has("publication")).toBe(false);
 
-      expect(listingRequests).toEqual([
+      const listingCard = page.locator('[data-listing-id="listing-sell-upload-mock-create-e2e"]');
+      await expect(listingCard).toContainText("Web E2E temiz bebek arabası");
+      await expect(listingCard).toHaveAttribute("data-listing-status", "draft");
+      await expect(listingCard).toHaveAttribute("data-listing-publication-state", "scheduled");
+      await expect(page.getByText("İlanın onay sürecinde", { exact: true }).first()).toBeVisible();
+
+      expect(mockState.listingRequests).toEqual([
         expect.objectContaining({
           condition: "good",
           currency: "TRY",
@@ -155,7 +188,7 @@ test.describe("sell listing upload flow", () => {
       await assertApiIsAvailable(api);
       await assertCategoriesExist(api);
 
-      const listingRequests = await installMockSellerInBrowser(page, {
+      const mockState = await installMockSellerInBrowser(page, {
         imageUploadStatus: "needs_review",
       });
 
@@ -179,12 +212,18 @@ test.describe("sell listing upload flow", () => {
 
       await page.getByRole("button", { name: "İlanı oluştur" }).click();
 
-      await expect(page).toHaveURL(/\/listings\/[a-zA-Z0-9-]+\?imageReview=needs_review$/, {
+      await expect(page).toHaveURL(/\/my-listings$/, {
         timeout: 30_000,
       });
-      await expect(page.getByRole("main")).toBeVisible();
+      expect(new URL(page.url()).searchParams.has("publication")).toBe(false);
 
-      expect(listingRequests).toEqual([
+      const listingCard = page.locator('[data-listing-id="listing-sell-upload-mock-create-e2e"]');
+      await expect(listingCard).toContainText("Web E2E inceleme bekleyen bebek arabası");
+      await expect(listingCard).toHaveAttribute("data-listing-status", "draft");
+      await expect(listingCard).toHaveAttribute("data-listing-publication-state", "ai_review");
+      await expect(page.getByText("İlanın onay sürecinde", { exact: true }).first()).toBeVisible();
+
+      expect(mockState.listingRequests).toEqual([
         expect.objectContaining({
           title: "Web E2E inceleme bekleyen bebek arabası",
         }),
@@ -334,9 +373,12 @@ function createMockSellerAuthPayload(): ApiResponse<AuthPayload> {
 async function installMockSellerInBrowser(
   page: Page,
   options: BrowserMockOptions = {},
-): Promise<unknown[]> {
+): Promise<BrowserMockState> {
   const loginBody = createMockSellerAuthPayload();
-  const listingRequests: unknown[] = [];
+  const state: BrowserMockState = {
+    listing: null,
+    listingRequests: [],
+  };
 
   await page.route("**/api/v1/auth/refresh", async (route) => {
     await fulfillAuthResponse(route, loginBody);
@@ -348,7 +390,7 @@ async function installMockSellerInBrowser(
 
   await page.route("**/api/v1/listings", async (route) => {
     if (route.request().method().toUpperCase() === "POST") {
-      await fulfillMockListingCreate(route, listingRequests);
+      await fulfillMockListingCreate(route, state);
       return;
     }
 
@@ -358,7 +400,42 @@ async function installMockSellerInBrowser(
   });
 
   await page.route("**/api/v1/listings/*/images", async (route) => {
-    await fulfillListingImageUpload(route, options);
+    await fulfillListingImageUpload(route, state, options);
+  });
+
+  await page.route("**/api/v1/me/listings", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: getCorsHeaders(route),
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          listings: state.listing ? [state.listing] : [],
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/cart/summary", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: getCorsHeaders(route),
+      body: JSON.stringify({
+        ok: true,
+        data: { summary: { itemCount: 0, unavailableItemCount: 0 } },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/notifications/unread-count", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: getCorsHeaders(route),
+      body: JSON.stringify({ ok: true, data: { count: 0 } }),
+    });
   });
 
   await page.route("http://localhost:4000/**", async (route) => {
@@ -370,12 +447,48 @@ async function installMockSellerInBrowser(
     }
 
     if (url.endsWith("/api/v1/listings") && route.request().method().toUpperCase() === "POST") {
-      await fulfillMockListingCreate(route, listingRequests);
+      await fulfillMockListingCreate(route, state);
       return;
     }
 
     if (isListingImageUploadRequest(route)) {
-      await fulfillListingImageUpload(route, options);
+      await fulfillListingImageUpload(route, state, options);
+      return;
+    }
+
+    if (url.endsWith("/api/v1/me/listings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: getCorsHeaders(route),
+        body: JSON.stringify({
+          ok: true,
+          data: { listings: state.listing ? [state.listing] : [] },
+        }),
+      });
+      return;
+    }
+
+    if (url.endsWith("/api/v1/cart/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: getCorsHeaders(route),
+        body: JSON.stringify({
+          ok: true,
+          data: { summary: { itemCount: 0, unavailableItemCount: 0 } },
+        }),
+      });
+      return;
+    }
+
+    if (url.endsWith("/api/v1/notifications/unread-count")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: getCorsHeaders(route),
+        body: JSON.stringify({ ok: true, data: { count: 0 } }),
+      });
       return;
     }
 
@@ -386,13 +499,13 @@ async function installMockSellerInBrowser(
 
   await page.goto("/browse?sort=newest");
 
-  return listingRequests;
+  return state;
 }
 
 
 async function fulfillMockListingCreate(
   route: Route,
-  listingRequests: unknown[],
+  state: BrowserMockState,
 ): Promise<void> {
   const requestBody = (await route.request().postDataJSON()) as {
     categoryId?: string;
@@ -405,10 +518,39 @@ async function fulfillMockListingCreate(
     city?: string;
   };
 
-  listingRequests.push(requestBody);
+  state.listingRequests.push(requestBody);
 
   const listingId = "listing-sell-upload-mock-create-e2e";
   const now = "2026-01-01T00:00:00.000Z";
+
+  state.listing = {
+    id: listingId,
+    isDemo: false,
+    title: requestBody.title ?? "Web E2E mocked listing",
+    price: {
+      amount: requestBody.priceAmount ?? "6500",
+      currency: requestBody.currency ?? "TRY",
+    },
+    favoriteCount: 0,
+    status: "draft",
+    publicationState: "awaiting_images",
+    publishAfter: null,
+    publishedAt: null,
+    publicationReviewReason: null,
+    listingType: requestBody.listingType ?? "sale",
+    condition: requestBody.condition ?? "good",
+    recommendedAgeMinMonths: null,
+    recommendedAgeMaxMonths: null,
+    category: {
+      id: requestBody.categoryId ?? "category-sell-upload-mock-e2e",
+      name: "Bebek Arabası & Seyahat",
+      slug: "bebek-arabasi-seyahat",
+    },
+    firstImage: null,
+    images: [],
+    locationCity: requestBody.city ?? "İstanbul",
+    createdAt: now,
+  };
 
   await route.fulfill({
     status: 201,
@@ -417,24 +559,7 @@ async function fulfillMockListingCreate(
     body: JSON.stringify({
       ok: true,
       data: {
-        listing: {
-          id: listingId,
-          title: requestBody.title ?? "Web E2E mocked listing",
-          description: requestBody.description ?? null,
-          status: "active",
-          listingType: requestBody.listingType ?? "sale",
-          condition: requestBody.condition ?? "good",
-          categoryId: requestBody.categoryId ?? "category-sell-upload-mock-e2e",
-          city: requestBody.city ?? "İstanbul",
-          price: {
-            amount: requestBody.priceAmount ?? "6500",
-            currency: requestBody.currency ?? "TRY",
-          },
-          primaryImage: null,
-          images: [],
-          createdAt: now,
-          updatedAt: now,
-        },
+        listing: state.listing,
       },
     }),
   });
@@ -455,6 +580,7 @@ async function fulfillAuthResponse(
 
 async function fulfillListingImageUpload(
   route: Route,
+  state: BrowserMockState,
   options: BrowserMockOptions = {},
 ): Promise<void> {
   const method = route.request().method().toUpperCase();
@@ -490,6 +616,23 @@ async function fulfillListingImageUpload(
     return;
   }
 
+  const reviewStatus = options.imageUploadStatus ?? "approved";
+  const image = {
+    id: `web-e2e-image-${Date.now()}`,
+    url: "/favicon.ico",
+    sortOrder: 0,
+    reviewStatus,
+  };
+
+  if (state.listing) {
+    state.listing = {
+      ...state.listing,
+      publicationState: reviewStatus === "approved" ? "scheduled" : "ai_review",
+      firstImage: image,
+      images: [image],
+    };
+  }
+
   await route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -497,12 +640,7 @@ async function fulfillListingImageUpload(
     body: JSON.stringify({
       ok: true,
       data: {
-        image: {
-          id: `web-e2e-image-${Date.now()}`,
-          url: "/favicon.ico",
-          sortOrder: 0,
-          reviewStatus: options.imageUploadStatus ?? "approved",
-        },
+        image,
       },
     }),
   });

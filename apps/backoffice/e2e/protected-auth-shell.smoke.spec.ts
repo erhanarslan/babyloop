@@ -43,7 +43,7 @@ const protectedRoutes: ProtectedRoute[] = [
   },
   {
     path: "/listings",
-    heading: "Listings",
+    heading: "İlan inceleme",
   },
   {
     path: "/moderation",
@@ -59,11 +59,11 @@ const protectedRoutes: ProtectedRoute[] = [
   },
   {
     path: "/ai-ops",
-    heading: "AI operations health",
+    heading: "AI çalışma sağlığı",
   },
   {
     path: "/conversations",
-    heading: "Messages",
+    heading: "Mesaj incelemeleri",
   },
 ];
 
@@ -75,7 +75,7 @@ const failureRoutes: FailureRoute[] = [
   },
   {
     path: "/listings",
-    heading: "Listings",
+    heading: "İlan inceleme",
     failingPathname: "/admin/listings",
   },
   {
@@ -95,12 +95,12 @@ const failureRoutes: FailureRoute[] = [
   },
   {
     path: "/ai-ops",
-    heading: "AI operations health",
+    heading: "AI çalışma sağlığı",
     failingPathname: "/admin/ai-ops/summary",
   },
   {
     path: "/conversations",
-    heading: "Messages",
+    heading: "Mesaj incelemeleri",
     failingPathname: "/admin/conversations",
   },
 ];
@@ -142,14 +142,14 @@ test.describe("backoffice protected auth shell", () => {
     for (const route of protectedRoutes) {
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
 
-      await expect(page.getByRole("heading", { name: "Sign in required", exact: true })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Giriş gerekli", exact: true })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(page.getByText("Backoffice access required", { exact: true })).toBeVisible();
+      await expect(page.getByText("Backoffice erişimi gerekli", { exact: true })).toBeVisible();
       await expect(
-        page.getByText("You need to sign in before accessing BabyLoop Backoffice.", { exact: true }),
+        page.getByText("BabyLoop Backoffice’e erişmeden önce giriş yapmalısın.", { exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute(
+      await expect(page.getByRole("link", { name: "Giriş yap", exact: true })).toHaveAttribute(
         "href",
         "/login",
       );
@@ -170,12 +170,12 @@ test.describe("backoffice protected auth shell", () => {
 
       await expect(
         page.getByRole("heading", {
-          name: "You do not have backoffice access",
+          name: "Backoffice erişimin yok",
           exact: true,
         }),
       ).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByText("Access denied", { exact: true })).toBeVisible();
-      await expect(page.getByText("Current role:")).toBeVisible();
+      await expect(page.getByText("Erişim reddedildi", { exact: true })).toBeVisible();
+      await expect(page.getByText("Mevcut rol:")).toBeVisible();
       await expect(page.locator(".auth-state-card").getByText("user", { exact: true })).toBeVisible();
 
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toHaveCount(0);
@@ -188,19 +188,19 @@ test.describe("backoffice protected auth shell", () => {
 
     await page.goto("/listings", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "Access check failed", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Erişim kontrolü başarısız", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Could not verify your backoffice session. Try again.", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Listings", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Backoffice oturumun doğrulanamadı. Tekrar dene.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await page.getByRole("button", { name: "Tekrar dene", exact: true }).click();
 
     await expectBackofficeShell(page);
-    await expect(page.getByRole("heading", { name: "Listings", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole("heading", { name: "Access check failed", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Erişim kontrolü başarısız", exact: true })).toHaveCount(0);
   });
 
   test("admin can open protected backoffice route shells", async ({ page }) => {
@@ -214,10 +214,10 @@ test.describe("backoffice protected auth shell", () => {
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(page.getByRole("heading", { name: "Sign in required", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Giriş gerekli", exact: true })).toHaveCount(0);
       await expect(
         page.getByRole("heading", {
-          name: "You do not have backoffice access",
+          name: "Backoffice erişimin yok",
           exact: true,
         }),
       ).toHaveCount(0);
@@ -257,26 +257,26 @@ test.describe("backoffice protected auth shell", () => {
 
 async function expectBackofficeShell(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Backoffice", exact: true })).toBeVisible();
-  await expect(page.getByText("Operations Console", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Backoffice status")).toHaveText("Foundation ready");
+  await expect(page.getByText("Operasyon Konsolu", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Backoffice status")).toHaveText("Hazır");
 
   const navigation = page.getByRole("complementary", { name: "Backoffice navigation" });
 
   await expect(navigation).toBeVisible();
-  await expect(navigation.getByRole("link", { name: /Dashboard/ })).toHaveAttribute("href", "/");
-  await expect(navigation.getByRole("link", { name: /Moderation/ })).toHaveAttribute(
+  await expect(navigation.getByRole("link", { name: "Genel Bakış", exact: true }).first()).toHaveAttribute("href", "/");
+  await expect(navigation.getByRole("link", { name: "Moderasyon Vakaları", exact: true })).toHaveAttribute(
     "href",
     "/moderation",
   );
-  await expect(navigation.getByRole("link", { name: /Listings/ })).toHaveAttribute(
+  await expect(navigation.getByRole("link", { name: "İlanlar", exact: true })).toHaveAttribute(
     "href",
     "/listings",
   );
-  await expect(navigation.getByRole("link", { name: /Profiles/ })).toHaveAttribute(
+  await expect(navigation.getByRole("link", { name: "Profiller", exact: true })).toHaveAttribute(
     "href",
     "/profiles",
   );
-  await expect(navigation.getByRole("link", { name: /AI Tools/ })).toHaveAttribute(
+  await expect(navigation.getByRole("link", { name: "AI Operasyonları", exact: true })).toHaveAttribute(
     "href",
     "/ai-ops",
   );

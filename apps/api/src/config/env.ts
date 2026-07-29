@@ -515,20 +515,25 @@ function readEmailDeliveryMode(value: string | undefined): "noop" | "provider" {
 }
 
 function readGoogleOAuthConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig | undefined {
-  const values = {
+  const googleValues = {
     clientId: env.GOOGLE_CLIENT_ID?.trim() || "",
     clientSecret: env.GOOGLE_CLIENT_SECRET?.trim() || "",
-    redirectUri: env.GOOGLE_REDIRECT_URI?.trim() || "",
-    webAppUrl: env.WEB_APP_URL?.trim() || ""
+    redirectUri: env.GOOGLE_REDIRECT_URI?.trim() || ""
   };
-  const entries = Object.entries(values);
-  const providedValues = entries.filter(([, value]) => Boolean(value));
+  const googleEntries = Object.entries(googleValues);
+  const providedGoogleValues = googleEntries.filter(([, value]) => Boolean(value));
 
-  if (providedValues.length === 0) {
+  if (providedGoogleValues.length === 0) {
     return undefined;
   }
 
-  if (providedValues.length !== entries.length) {
+  const values = {
+    ...googleValues,
+    webAppUrl: env.WEB_APP_URL?.trim() || ""
+  };
+  const entries = Object.entries(values);
+
+  if (providedGoogleValues.length !== googleEntries.length || !values.webAppUrl) {
     const missing = entries
       .filter(([, value]) => !value)
       .map(([key]) => key)

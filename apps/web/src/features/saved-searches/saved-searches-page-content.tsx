@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useProtectedRoute } from "../../lib/use-protected-route";
 
 import {
   deleteSavedSearch,
@@ -12,31 +13,45 @@ import type { SavedSearchFilters } from "./saved-searches-model";
 
 type LoadState = "loading" | "ready" | "error";
 
-export function SavedSearchesPageContent(
-  _props: { apiBaseUrl?: string } = {}
-) {
+export function SavedSearchesPageContent({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [items, setItems] = useState<SavedSearch[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const clearProtectedState = useCallback(() => {
+    setItems([]);
+    setErrorMessage(null);
+    setDeleteCandidateId(null);
+    setDeletingId(null);
+    setLoadState("ready");
+  }, []);
+  const { isAuthenticated, isCheckingAuth } = useProtectedRoute({
+    apiBaseUrl,
+    onUnauthenticated: clearProtectedState,
+    redirectTo: "/"
+  });
 
   const loadItems = useCallback(async () => {
     setLoadState("loading");
     setErrorMessage(null);
 
     try {
-      setItems(await listSavedSearches());
+      setItems(await listSavedSearches(apiBaseUrl));
       setLoadState("ready");
     } catch {
       setErrorMessage("Kayıtlı aramalar şu anda yüklenemiyor.");
       setLoadState("error");
     }
-  }, []);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
+    if (isCheckingAuth || !isAuthenticated) {
+      return;
+    }
+
     void loadItems();
-  }, [loadItems]);
+  }, [isAuthenticated, isCheckingAuth, loadItems]);
 
   const notificationEnabledCount = useMemo(
     () => items.filter((item) => item.notificationEnabled).length,
@@ -48,7 +63,7 @@ export function SavedSearchesPageContent(
     setErrorMessage(null);
 
     try {
-      await deleteSavedSearch(savedSearchId);
+      await deleteSavedSearch(apiBaseUrl, savedSearchId);
       setItems((currentItems) =>
         currentItems.filter((item) => item.id !== savedSearchId)
       );
