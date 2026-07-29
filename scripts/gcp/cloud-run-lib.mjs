@@ -17,6 +17,7 @@ export async function loadCloudRunContract(path = CONTRACT_PATH) {
   for (const key of ["region", "schedulerRegion", "repository", "projects", "services", "jobs", "serviceAccounts"]) {
     if (!contract[key]) throw new Error(`Cloud Run contract is missing ${key}.`);
   }
+  validateDeploymentTopology(contract);
   return { contract, path: resolved, sha256: createHash("sha256").update(source).digest("hex") };
 }
 
@@ -32,9 +33,100 @@ export function assertEnvironment(value) {
 }
 
 export function expectedProject(contract, environment) {
-  const project = contract.projects[environment];
+  const normalizedEnvironment = assertEnvironment(environment);
+  const project = contract.environments?.[normalizedEnvironment]?.projectId
+    || contract.projects[normalizedEnvironment];
   if (!project) throw new Error(`No project is configured for ${environment}.`);
+  if (contract.projects[normalizedEnvironment] !== project) {
+    throw new Error(`Project mappings disagree for ${normalizedEnvironment}.`);
+  }
   return project;
+}
+
+export function validateDeploymentTopology(contract) {
+  if (contract?.topology !== "single_environment") {
+    throw new Error("Cloud Run contract topology must be single_environment.");
+  }
+  if (contract.region !== "europe-west1" || contract.schedulerRegion !== "europe-west1") {
+    throw new Error("Single-environment Cloud Run and Scheduler regions must be europe-west1.");
+  }
+  const staging = contract.environments?.staging;
+  const production = contract.environments?.production;
+  if (staging?.deployable !== false) {
+    throw new Error("Staging must be CI/rehearsal-only and deployable=false.");
+  }
+  if (
+    production?.deployable !== true
+    || production.projectId !== "babyloop-staging"
+    || production.region !== contract.region
+    || production.artifactRepository !== contract.repository
+  ) {
+    throw new Error("Production must deploy to the approved single physical project and repository.");
+  }
+  const expectedDomains = {
+    web: "https://babyloop.com.tr",
+    api: "https://api.babyloop.com.tr",
+    backoffice: "https://admin.babyloop.com.tr"
+  };
+  if (JSON.stringify(production.publicDomains) !== JSON.stringify(expectedDomains)) {
+    throw new Error("Production public domains do not match the single-environment contract.");
+  }
+  return contract;
+}
+
+export async function assertMutationTarget(contract, environment, options = {}) {
+  const env = options.env || process.env;
+  const normalizedEnvironment = assertEnvironment(environment);
+  validateDeploymentTopology(contract);
+  if (env.DEPLOY_TOPOLOGY !== "single_environment") {
+    throw new Error("DEPLOY_TOPOLOGY must equal single_environment before GCP mutation.");
+  }
+  const target = contract.environments[normalizedEnvironment];
+  const project = expectedProject(contract, normalizedEnvironment);
+  if (normalizedEnvironment !== "production" || target.deployable !== true) {
+    throw new Error("GCP mutation is allowed only for logical environment production.");
+  }
+  if (project !== "babyloop-staging") {
+    throw new Error("GCP mutation target is not the approved physical production project.");
+  }
+  const githubEnvironment = env.GITHUB_ACTIONS === "true"
+    || Object.hasOwn(env, "GITHUB_REF");
+  if (githubEnvironment) {
+    if (env.GITHUB_REF !== "refs/heads/master") {
+      throw new Error("GitHub GCP mutation is allowed only from refs/heads/master.");
+    }
+  } else {
+    const branch = await resolveInjectedValue(
+      options.resolveLocalBranch || defaultLocalBranch
+    );
+    if (branch !== "master") {
+      throw new Error("Local GCP mutation is allowed only from branch master.");
+    }
+  }
+  const worktreeStatus = await resolveInjectedValue(
+    options.resolveWorktreeStatus || defaultWorktreeStatus
+  );
+  if (worktreeStatus.trim()) {
+    throw new Error("GCP mutation requires a clean worktree with no staged, unstaged, or untracked files.");
+  }
+  return { environment: normalizedEnvironment, project };
+}
+
+async function defaultLocalBranch() {
+  return run("git", ["branch", "--show-current"], { capture: true });
+}
+
+async function defaultWorktreeStatus() {
+  return run(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all"],
+    { capture: true }
+  );
+}
+
+async function resolveInjectedValue(resolver) {
+  const result = await resolver();
+  return String(result?.stdout ?? result ?? "").trim();
 }
 
 export function assertFullGitSha(value, name = "gitSha") {
@@ -183,22 +275,26 @@ export async function readJsonCommand(command, args) {
 }
 
 export async function assertGcloudContext(contract, environment, options = {}) {
+  if (options.mutation === true) {
+    await assertMutationTarget(contract, environment, options);
+  }
   const project = expectedProject(contract, environment);
-  const accountResult = await gcloud(["auth", "list", "--filter=status:ACTIVE", "--format=value(account)"], { capture: true });
+  const execute = options.execute || gcloud;
+  const accountResult = await execute(["auth", "list", "--filter=status:ACTIVE", "--format=value(account)"], { capture: true });
   const account = accountResult.stdout.trim();
   if (!account) throw new Error("gcloud has no active authenticated account.");
-  const projectResult = await gcloud(["config", "get-value", "project"], { capture: true });
+  const projectResult = await execute(["config", "get-value", "project"], { capture: true });
   const activeProject = projectResult.stdout.trim();
   if (activeProject !== project) throw new Error(`Active gcloud project must be ${project}; found ${activeProject || "none"}.`);
-  const billing = await gcloud(["billing", "projects", "describe", project, "--format=json"], { capture: true });
+  const billing = await execute(["billing", "projects", "describe", project, "--format=json"], { capture: true });
   const billingData = JSON.parse(billing.stdout);
   if (billingData.billingEnabled !== true) throw new Error(`Billing is not enabled for ${project}.`);
   if (options.requireRegion !== false) {
-    const regionResult = await gcloud(["config", "get-value", "run/region"], { capture: true });
+    const regionResult = await execute(["config", "get-value", "run/region"], { capture: true });
     const activeRegion = regionResult.stdout.trim();
     if (activeRegion !== contract.region) throw new Error(`Active run/region must be ${contract.region}; found ${activeRegion || "none"}.`);
   }
-  return { account, project, projectNumber: String((await gcloud(["projects", "describe", project, "--format=value(projectNumber)"], { capture: true })).stdout).trim() };
+  return { account, project, projectNumber: String((await execute(["projects", "describe", project, "--format=value(projectNumber)"], { capture: true })).stdout).trim() };
 }
 
 export async function writeJson(path, value) {

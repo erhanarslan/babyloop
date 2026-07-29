@@ -454,6 +454,28 @@ test("production live rehearsal fails closed for an absent service without boots
   assert.equal(rehearsal.evidence.mutationCommandsExecuted, false);
 });
 
+test("production live rehearsal blocks before mutation when a public cutover domain is unavailable", async () => {
+  const { contract } = await loadCloudRunContract();
+  const rehearsal = await rehearseCloudRunRelease({
+    environment: "production",
+    envFile: "deploy/env/production.env.example",
+    allowExample: true,
+    liveReadOnly: true,
+    execute: fakeLiveGcloud(contract, "production"),
+    fetchImpl: async (url) => {
+      if (new URL(url).hostname === "babyloop.com.tr") {
+        const error = new Error("domain unavailable");
+        error.code = "ENOTFOUND";
+        throw error;
+      }
+      return { ok: true, status: 200 };
+    }
+  });
+  assert.equal(rehearsal.result.ok, false);
+  assert.match(rehearsal.result.blockers.join("\n"), /public.*web.*ENOTFOUND|web.*ENOTFOUND/iu);
+  assert.equal(rehearsal.evidence.mutationCommandsExecuted, false);
+});
+
 test("resolved contract binds receipts, migration SHA, scheduler/IAM state, and rollback inputs", async () => {
   const { contract, sha256 } = await loadCloudRunContract();
   const references = Object.fromEntries([
@@ -802,12 +824,12 @@ test("deployment summary treats missing or corrupt optional receipts as non-fata
 
 test("workflow metadata, artifact inventory, rollback, and summary consume resolved release artifacts", async () => {
   const [workflow, metadata, smoke] = await Promise.all([
-    readFile(".github/workflows/deploy-staging.yml", "utf8"),
+    readFile(".github/workflows/promote-production.yml", "utf8"),
     readFile("scripts/deploy/record-release-metadata.mjs", "utf8"),
     readFile("scripts/deploy/post-deploy-smoke.mjs", "utf8")
   ]);
   for (const token of [
-    "Staging release rehearsal preflight",
+    "Production release rehearsal preflight",
     "Resolve release contract",
     "deploy:release-metadata",
     "deploy:release-rollback",

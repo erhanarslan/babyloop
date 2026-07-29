@@ -1,14 +1,9 @@
-name: Promote production
+name: Deploy production
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      source_sha:
-        description: Full staging SHA already deployed and accepted
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -19,7 +14,7 @@ defaults:
     shell: bash
 
 concurrency:
-  group: promote-production
+  group: deploy-production
   cancel-in-progress: false
 
 jobs:
@@ -35,17 +30,18 @@ jobs:
     environment: production
     env:
       DEPLOY_ENVIRONMENT: production
+      DEPLOY_TOPOLOGY: ${{ vars.DEPLOY_TOPOLOGY }}
+      GCP_PROJECT_ID: babyloop-staging
       EXPECTED_DATABASE_NAME: ${{ vars.EXPECTED_DATABASE_NAME }}
-      OTHER_ENV_DATABASE_FINGERPRINT: ${{ vars.OTHER_ENV_DATABASE_FINGERPRINT }}
-      OTHER_ENV_QDRANT_API_KEY_SHA256: ${{ vars.OTHER_ENV_QDRANT_API_KEY_SHA256 }}
-      MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM: ${{ vars.MIGRATION_ALLOW_DESTRUCTIVE_CONFIRM }}
+      GCP_BUILD_CONFIRM: BUILD_PRODUCTION
       GCP_SECRET_IMPORT_CONFIRM: SECRET_IMPORT_PRODUCTION
       GCP_DEPLOY_CONFIRM: DEPLOY_PRODUCTION
       GCP_MIGRATION_CONFIRM: APPLY_PRODUCTION
-      GCP_PROMOTE_CONFIRM: PROMOTE_STAGING_TO_PRODUCTION
-      GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM: ${{ vars.GCP_INITIAL_SERVICE_BOOTSTRAP_CONFIRM }}
       BABYLOOP_GCP_ARTIFACT_ROOT: .release/gcp
       DEPLOY_RELEASE_CONTRACT_PATH: .release/gcp/production/resolved-release-contract.json
+      CURRENT_RUNTIME_IDENTIFIER_INVENTORY_JSON: ${{ vars.CURRENT_RUNTIME_IDENTIFIER_INVENTORY_JSON }}
+      PROVIDER_IDENTIFIER_MIGRATION_CONFIRM: ${{ vars.PROVIDER_IDENTIFIER_MIGRATION_CONFIRM }}
+      WORKER_IDENTIFIER_MIGRATION_EVIDENCE_JSON: ${{ vars.WORKER_IDENTIFIER_MIGRATION_EVIDENCE_JSON }}
 
     steps:
       - name: Guard production source
@@ -53,6 +49,12 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/master"
           test "${{ vars.PRODUCTION_RELEASE_APPROVED }}" = "true"
+          test "$DEPLOY_TOPOLOGY" = "single_environment"
+          test "$GCP_PROJECT_ID" = "babyloop-staging"
+          test -n "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
+          test -n "${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}"
+          test -n "$EXPECTED_DATABASE_NAME"
+          test -n "$CURRENT_RUNTIME_IDENTIFIER_INVENTORY_JSON"
 
       - name: Prepare backup directories
         run: |
@@ -69,26 +71,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Resolve verified staging SHA
-        id: source
-        env:
-          DISPATCH_SOURCE_SHA: ${{ inputs.source_sha }}
-        run: |
-          set -euo pipefail
-          git fetch origin staging --no-tags
-          if [ -n "$DISPATCH_SOURCE_SHA" ]; then
-            source_sha="$DISPATCH_SOURCE_SHA"
-          elif git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
-            source_sha="$(git rev-parse HEAD^2)"
-          else
-            source_sha="$(git rev-parse HEAD)"
-          fi
-          test "$(printf '%s' "$source_sha" | wc -c | tr -d ' ')" = "40"
-          git merge-base --is-ancestor "$source_sha" origin/staging
-          git diff --quiet "$source_sha" HEAD
-          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_SOURCE_GIT_SHA=$source_sha" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -121,10 +103,13 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Pin gcloud context
         run: |
           set -euo pipefail
-          gcloud config set project babyloop-production
+          gcloud config set project "$GCP_PROJECT_ID"
           gcloud config set run/region europe-west1
 
       - name: Materialize protected runtime contract
@@ -133,10 +118,26 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$RUNTIME_ENV_FILE"
-          runtime_path="$RUNNER_TEMP/babyloop-production.env"
+          runtime_path="$RUNNER_TEMP/babyloop-runtime-production.env"
           printf '%s\n' "$RUNTIME_ENV_FILE" > "$runtime_path"
           chmod 600 "$runtime_path"
-          echo "DEPLOY_ENV_FILE=$runtime_path" >> "$GITHUB_ENV"
+          inventory_path="$RUNNER_TEMP/babyloop-current-runtime-identifiers.json"
+          printf '%s\n' "$CURRENT_RUNTIME_IDENTIFIER_INVENTORY_JSON" > "$inventory_path"
+          chmod 600 "$inventory_path"
+          inventory_checksum="$(sha256sum "$inventory_path" | awk '{print $1}')"
+          printf '%s  %s\n' "$inventory_checksum" "$(basename "$inventory_path")" > "$inventory_path.sha256"
+          {
+            echo "DEPLOY_ENV_FILE=$runtime_path"
+            echo "CURRENT_RUNTIME_IDENTIFIER_INVENTORY_PATH=$inventory_path"
+          } >> "$GITHUB_ENV"
+          if [ -n "$WORKER_IDENTIFIER_MIGRATION_EVIDENCE_JSON" ]; then
+            worker_evidence_path="$RUNNER_TEMP/babyloop-worker-identifier-migration-evidence.json"
+            printf '%s\n' "$WORKER_IDENTIFIER_MIGRATION_EVIDENCE_JSON" > "$worker_evidence_path"
+            chmod 600 "$worker_evidence_path"
+            worker_evidence_checksum="$(sha256sum "$worker_evidence_path" | awk '{print $1}')"
+            printf '%s  %s\n' "$worker_evidence_checksum" "$(basename "$worker_evidence_path")" > "$worker_evidence_path.sha256"
+            echo "WORKER_IDENTIFIER_MIGRATION_EVIDENCE_PATH=$worker_evidence_path" >> "$GITHUB_ENV"
+          fi
 
       - name: Audit runtime contract
         run: pnpm deploy:runtime-env:audit -- --target=production --env-file="$DEPLOY_ENV_FILE" --output=.release/gcp/production/runtime-env-audit.json
@@ -147,13 +148,10 @@ jobs:
       - name: Import pinned Secret Manager versions
         run: pnpm gcp:cloud-run:secrets -- --environment=production --env-file="$DEPLOY_ENV_FILE"
 
-      - name: Promote exact staging image digests
-        run: pnpm gcp:cloud-run:promote-images -- --environment=production --source-environment=staging --git-sha="${{ steps.source.outputs.sha }}"
+      - name: Build immutable production images
+        run: pnpm gcp:cloud-run:build -- --environment=production --env-file="$DEPLOY_ENV_FILE"
 
-      - name: Configure Artifact Registry authentication
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
-
-      - name: Resolve promoted immutable images
+      - name: Resolve immutable production images
         id: images
         run: |
           set -euo pipefail
@@ -209,7 +207,7 @@ jobs:
             echo "- HIGH and CRITICAL findings are preserved in SARIF artifacts."
             echo "- HIGH findings are non-blocking; fixable CRITICAL findings block deployment."
             echo "- Unfixed CRITICAL findings remain visible in SARIF evidence."
-            echo "- Reporting scans completed against the exact promoted staging digests; production does not rebuild."
+            echo "- Reporting scans completed against immutable digests built in the single production registry."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce API critical vulnerability policy
@@ -288,7 +286,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: production-release-${{ steps.source.outputs.sha }}
+          name: production-release-${{ github.sha }}
           path: |
             .release
             ${{ env.BACKUP_REPLICA_DIR }}

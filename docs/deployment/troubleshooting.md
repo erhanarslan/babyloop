@@ -2,7 +2,7 @@
 
 ## GitHub shows `no runs found`
 
-Historically all workflows were `workflow_dispatch` only, so pushes and PRs produced no runs. The current contract runs `CI` on PRs to `staging`/`master`, `Deploy staging` on pushes to `staging`, and `Promote production` on pushes to `master`. If no run appears now:
+Historically all workflows were `workflow_dispatch` only, so pushes and PRs produced no runs. The current contract runs `CI` on PRs to `staging`/`master`, `Validate staging` on pushes to `staging`, and `Deploy production` on pushes to `master`. If no run appears now:
 
 1. confirm the workflow files exist on the target branch;
 2. confirm Actions is enabled for the repository;
@@ -22,9 +22,8 @@ Historically all workflows were `workflow_dispatch` only, so pushes and PRs prod
 
 - Verify WIF subject restrictions include this repository, workflow and Environment.
 - Verify `GCP_DEPLOY_SERVICE_ACCOUNT` belongs to the matching project.
-- The scripts require active project `babyloop-staging`/`babyloop-production` and region `europe-west1`.
-- Production image resolution requires the production deployer to read the staging Artifact Registry repository.
-- Production runtime image pull failures require cross-project Artifact Registry reader permission for the appropriate Cloud Run service agent/runtime identity.
+- All mutations require logical `production`, active project `babyloop-staging`, region `europe-west1`, and `master` when running in GitHub.
+- Production image build and runtime pulls use the same regional Artifact Registry repository; cross-project promotion is not supported.
 - Billing inspection errors mean the deployer lacks the read-only permission used by the context guard; they do not justify skipping the guard.
 
 ## Migration failure

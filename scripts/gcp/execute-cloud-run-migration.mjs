@@ -20,7 +20,7 @@ async function main() {
   const { contract } = await loadCloudRunContract();
   const expected = `APPLY_${environment.toUpperCase()}`;
   if (process.env.GCP_MIGRATION_CONFIRM !== expected) throw new Error(`GCP_MIGRATION_CONFIRM must equal ${expected}.`);
-  const context = await assertGcloudContext(contract, environment);
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
   const execution = await gcloud(buildMigrationExecutionArgs({ contract, context }), { capture: true });
   const root = artifactRoot(contract, environment);
   const sourceGitSha = assertFullGitSha(

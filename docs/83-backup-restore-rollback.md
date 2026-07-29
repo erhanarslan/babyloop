@@ -90,8 +90,8 @@ Record the successful output as `BACKUP_RESTORE_SMOKE_EVIDENCE` for the release 
 Restore to a new or empty database:
 
 ```bash
-RESTORE_ARTIFACT_PATH="/secure/backups/babyloop-production-....dump.age" \
-RESTORE_MANIFEST_PATH="/secure/backups/babyloop-production-....dump.age.manifest.json" \
+RESTORE_ARTIFACT_PATH="/secure/backups/babyloop-primary-....dump.age" \
+RESTORE_MANIFEST_PATH="/secure/backups/babyloop-primary-....dump.age.manifest.json" \
 RESTORE_DATABASE_URL="postgresql://.../babyloop_restore_target" \
 RESTORE_ENVIRONMENT=staging \
 RESTORE_CONFIRM=RESTORE_DATABASE \

@@ -78,7 +78,7 @@ for (const target of ["staging", "production"]) {
       GOOGLE_REDIRECT_URI:
         target === "staging"
           ? "https://api.staging.babyloop.example/api/v1/auth/google/callback"
-          : "https://api.babyloop.example/api/v1/auth/google/callback",
+          : "https://api.babyloop.com.tr/api/v1/auth/google/callback",
       EXPO_ACCESS_TOKEN: "safe-fixture-expo-token",
       PUSH_TOKEN_ENCRYPTION_KEY: "p".repeat(48),
       ...(target === "production"

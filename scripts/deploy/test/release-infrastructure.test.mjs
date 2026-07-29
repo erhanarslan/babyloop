@@ -8,7 +8,7 @@ async function readWorkflow(name) {
   return readFile(`.github/workflows/${name}`, "utf8");
 }
 
-test("staging and production example contracts preserve shared-provider isolation", async () => {
+test("runtime examples declare the single-environment topology", async () => {
   for (const environment of ["staging", "production"]) {
     const audit = await auditRuntimeEnv({
       envFile: `deploy/env/${environment}.env.example`,
@@ -16,15 +16,14 @@ test("staging and production example contracts preserve shared-provider isolatio
       allowExample: true
     });
     assert.equal(
-      audit.values.RAG_REDIS_KEY_PREFIX,
-      `babyloop:${environment}:rag`
+      audit.values.DEPLOY_TOPOLOGY,
+      "single_environment"
     );
-    assert.match(audit.values.RAG_QDRANT_COLLECTION, new RegExp(environment, "u"));
   }
 });
 
-test("database safety refuses identical staging and production targets before connecting", () => {
-  const databaseUrl = "postgresql://user:password@db.invalid/babyloop_staging";
+test("single-environment database safety does not require cross-environment fingerprints", () => {
+  const databaseUrl = "postgresql://user:password@127.0.0.1:1/babyloop_primary";
   const result = spawnSync(process.execPath, [
     "scripts/ops/database-release-safety.mjs",
     "--phase=preflight"
@@ -34,13 +33,13 @@ test("database safety refuses identical staging and production targets before co
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
-      OTHER_ENV_DATABASE_URL: databaseUrl,
-      EXPECTED_DATABASE_NAME: "babyloop_staging",
-      MIGRATION_ENVIRONMENT: "staging"
+      DEPLOY_TOPOLOGY: "single_environment",
+      EXPECTED_DATABASE_NAME: "babyloop_primary",
+      MIGRATION_ENVIRONMENT: "production"
     }
   });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /must not equal OTHER_ENV_DATABASE_URL/u);
+  assert.doesNotMatch(result.stderr, /OTHER_ENV_DATABASE_FINGERPRINT|OTHER_ENV_QDRANT_API_KEY_SHA256/u);
   assert.doesNotMatch(result.stderr, /password/u);
 });
 
@@ -80,7 +79,7 @@ test("environment smoke target fails closed and full smoke inventory is present"
   assert.doesNotMatch(source, /acceptedStatuses:\s*\[200,\s*404\]/u);
 });
 
-test("staging merges automatically run the reusable CI gate before deployment", async () => {
+test("staging pushes run CI and static rehearsal without any GCP mutation surface", async () => {
   const [ci, staging] = await Promise.all([
     readWorkflow("ci.yml"),
     readWorkflow("deploy-staging.yml")
@@ -89,40 +88,35 @@ test("staging merges automatically run the reusable CI gate before deployment", 
   assert.match(ci, /^  pull_request:\n    branches: \[staging, master\]$/mu);
   assert.doesNotMatch(ci, /^  push:/mu);
   assert.match(staging, /^  push:\n    branches: \[staging\]$/mu);
-  assert.match(staging, /group: deploy-staging/u);
+  assert.match(staging, /group: validate-staging/u);
   assert.match(staging, /cancel-in-progress: true/u);
   assert.match(staging, /uses: \.\/\.github\/workflows\/ci\.yml/u);
   assert.match(staging, /needs: ci/u);
-  assert.match(staging, /push\|workflow_dispatch/u);
   assert.match(staging, /test "\$GITHUB_REF" = "refs\/heads\/staging"/u);
-
-  const orderedSteps = [
-    "Audit runtime contract",
-    "Staging release rehearsal preflight",
-    "Import pinned Secret Manager versions",
-    "Build immutable Artifact Registry images",
-    "Database postflight",
-    "Deploy services and workers",
-    "Resolve release contract",
-    "Staging smoke",
-    "Record immutable deployment metadata"
-  ];
-  let cursor = -1;
-  for (const step of orderedSteps) {
-    const index = staging.indexOf(`name: ${step}`, cursor + 1);
-    assert.ok(index > cursor, `${step} must appear in deployment order`);
-    cursor = index;
+  assert.match(staging, /Static staging release rehearsal/u);
+  for (const forbidden of [
+    "google-github-actions/auth",
+    "gcp:cloud-run:secrets",
+    "gcp:cloud-run:build",
+    "gcp:cloud-run:deploy",
+    "gcp:cloud-run:migrate",
+    "postgres-backup",
+    "scheduler jobs",
+    "run jobs execute"
+  ]) {
+    assert.doesNotMatch(staging, new RegExp(forbidden, "u"));
   }
 });
 
-test("production rehearsal precedes mutation and promotes the exact verified staging SHA", async () => {
+test("production deploys master to the single physical project without cross-project promotion", async () => {
   const production = await readWorkflow("promote-production.yml");
   const orderedSteps = [
-    "Resolve verified staging SHA",
+    "Materialize protected runtime contract",
     "Audit runtime contract",
     "Production release rehearsal preflight",
     "Import pinned Secret Manager versions",
-    "Promote exact staging image digests",
+    "Build immutable production images",
+    "Resolve immutable production images",
     "Production database preflight",
     "Mandatory encrypted backup",
     "Deploy migration job only",
@@ -139,8 +133,10 @@ test("production rehearsal precedes mutation and promotes the exact verified sta
     assert.ok(index > cursor, `${step} must appear in production deployment order`);
     cursor = index;
   }
-  assert.match(production, /RELEASE_SOURCE_GIT_SHA=\$source_sha/u);
-  assert.match(production, /--source-environment=staging --git-sha="\$\{\{ steps\.source\.outputs\.sha \}\}"/u);
+  assert.match(production, /environment: production/u);
+  assert.match(production, /GCP_PROJECT_ID: babyloop-staging/u);
+  assert.match(production, /DEPLOY_TOPOLOGY: \$\{\{ vars\.DEPLOY_TOPOLOGY \}\}/u);
+  assert.doesNotMatch(production, /source-environment|promote-images|Resolve verified staging SHA/u);
   assert.match(production, /deploy:rehearse:production/u);
   assert.match(production, /scripts\/deploy\/write-release-summary\.mjs/u);
 });
@@ -194,15 +190,15 @@ test("image scans report all findings but block fixable CRITICAL findings on imm
     readWorkflow("promote-production.yml")
   ]);
 
-  for (const source of [containerImages, staging, production]) {
+  for (const source of [containerImages, production]) {
     assert.match(source, /aquasecurity\/trivy-action@v0\.36\.0/u);
     assert.match(source, /severity: HIGH,CRITICAL\n\s+ignore-unfixed: false\n\s+exit-code: "0"/u);
     assert.match(source, /severity: CRITICAL\n\s+ignore-unfixed: true\n\s+exit-code: "1"/u);
   }
   assert.match(containerImages, /@\$\{\{ steps\.build\.outputs\.digest \}\}/u);
-  assert.match(staging, /image-ref: \$\{\{ steps\.images\.outputs\.api \}\}/u);
-  assert.match(production, /Resolve promoted immutable images/u);
+  assert.doesNotMatch(staging, /aquasecurity\/trivy-action|image-ref:/u);
+  assert.match(production, /Resolve immutable production images/u);
   assert.match(production, /\*@sha256:\*/u);
-  assert.match(production, /Promote exact staging image digests/u);
-  assert.doesNotMatch(production, /docker\/build-push-action|gcp:cloud-run:build/u);
+  assert.match(production, /gcp:cloud-run:build/u);
+  assert.doesNotMatch(production, /Promote exact staging image digests|source-environment/u);
 });

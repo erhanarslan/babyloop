@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import { loadEnvFile } from "../deploy/deployment-lib.mjs";
 import { auditRuntimeEnv, isSecretKey, loadRuntimeEnvContract } from "../deploy/runtime-env-lib.mjs";
+import { verifyRuntimeIdentifierContinuity } from "../deploy/runtime-identifier-continuity.mjs";
 import {
   artifactRoot,
   assertConfirmation,
@@ -30,8 +31,11 @@ async function main() {
   if (!envFile) throw new Error("--env-file is required.");
   const { contract } = await loadCloudRunContract();
   assertConfirmation("secret-import", environment);
-  const context = await assertGcloudContext(contract, environment);
-  await auditRuntimeEnv({ target: environment, envFile });
+  const audit = await auditRuntimeEnv({ target: environment, envFile });
+  const identifierContinuity = environment === "production"
+    ? await verifyRuntimeIdentifierContinuity({ audit })
+    : null;
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
   const [{ values }, runtimeContractResult] = await Promise.all([
     loadEnvFile(envFile),
     loadRuntimeEnvContract()
@@ -95,6 +99,7 @@ async function main() {
     environment,
     project: context.project,
     sourceEnvFile: resolve(envFile),
+    identifierContinuity,
     secretBindings,
     secretVersions,
     nonSecretEnvFile: envYaml

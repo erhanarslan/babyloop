@@ -18,7 +18,7 @@ async function main() {
   if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/u.test(baseDomain)) throw new Error("--base-domain must be a valid domain.");
   const { contract } = await loadCloudRunContract();
   assertConfirmation("domain-map", environment);
-  const context = await assertGcloudContext(contract, environment);
+  const context = await assertGcloudContext(contract, environment, { mutation: true });
   const domains = environment === "production"
     ? { web: baseDomain, api: `api.${baseDomain}`, backoffice: `admin.${baseDomain}` }
     : { web: `staging.${baseDomain}`, api: `api.staging.${baseDomain}`, backoffice: `admin.staging.${baseDomain}` };

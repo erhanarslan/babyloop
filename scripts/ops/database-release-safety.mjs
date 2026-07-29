@@ -13,12 +13,14 @@ const requireFromDatabase = createRequire(resolve("packages/database/package.jso
 const { Client } = requireFromDatabase("pg");
 const phase = readArg("--phase") || "preflight";
 const environment = String(process.env.MIGRATION_ENVIRONMENT || "").trim().toLowerCase();
+const topology = required("DEPLOY_TOPOLOGY");
 const databaseUrl = required("DATABASE_URL");
 const expectedName = required("EXPECTED_DATABASE_NAME");
 const allowedPhases = new Set(["preflight", "postflight"]);
 
 if (!allowedPhases.has(phase)) fail("--phase must be preflight or postflight.");
 if (!["staging", "production"].includes(environment)) fail("MIGRATION_ENVIRONMENT must be staging or production.");
+if (topology !== "single_environment") fail("DEPLOY_TOPOLOGY must equal single_environment.");
 assertDifferentDatabaseUrls();
 assertQdrantCredentialIsolation();
 
@@ -29,9 +31,6 @@ if (urlDatabaseName !== expectedName) {
 }
 if (/(^|[_-])(postgres|template0|template1)([_-]|$)/iu.test(expectedName)) {
   fail(`Refusing release operations against reserved database ${expectedName}.`);
-}
-if (!expectedName.toLowerCase().includes(environment)) {
-  fail(`EXPECTED_DATABASE_NAME must include ${environment} to prove environment isolation.`);
 }
 
 const client = new Client({
@@ -214,6 +213,7 @@ async function schemaState(connection) {
 }
 
 function assertDifferentDatabaseUrls() {
+  if (topology === "single_environment") return;
   const other = String(process.env.OTHER_ENV_DATABASE_URL || "").trim();
   const otherFingerprint = String(process.env.OTHER_ENV_DATABASE_FINGERPRINT || "").trim();
   if (!other && !/^[a-f0-9]{64}$/u.test(otherFingerprint)) {
@@ -243,6 +243,7 @@ function databaseTargetFingerprint(value) {
 }
 
 function assertQdrantCredentialIsolation() {
+  if (topology === "single_environment") return;
   if (process.env.RAG_ENABLED !== "true") return;
   const apiKey = required("RAG_QDRANT_API_KEY");
   const otherHash = String(process.env.OTHER_ENV_QDRANT_API_KEY_SHA256 || "").trim();

@@ -41,7 +41,6 @@ export const JAVASCRIPT_EXECUTION_FILES = Object.freeze([
   "scripts/gcp/deploy-cloud-run.mjs",
   "scripts/gcp/execute-cloud-run-migration.mjs",
   "scripts/gcp/map-cloud-run-domains.mjs",
-  "scripts/gcp/promote-cloud-run-images.mjs",
   "scripts/ops/database-release-safety.mjs",
   "scripts/ops/postgres-backup.mjs",
   "scripts/ops/postgres-ops-lib.mjs",
