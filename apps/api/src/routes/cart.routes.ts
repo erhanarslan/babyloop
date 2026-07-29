@@ -95,6 +95,16 @@ export function registerCartRoutes(app: FastifyInstance): void {
       });
     }
 
+    if (result.status === "demo_listing") {
+      return reply.status(409).send({
+        ok: false,
+        error: {
+          code: "DEMO_LISTING_COMMERCE_DISABLED",
+          message: "Demo listings cannot be added to cart or purchased."
+        }
+      });
+    }
+
     if (result.status === "added" || result.status === "already_exists") {
       if (result.status === "added") {
         void trackServerAnalyticsEvent(app, {
@@ -212,6 +222,16 @@ export function registerCartRoutes(app: FastifyInstance): void {
           error: {
             code: "CART_LISTING_UNAVAILABLE",
             message: "One or more listings are no longer available."
+          }
+        });
+      }
+
+      if (result.status === "demo_listing") {
+        return reply.status(409).send({
+          ok: false,
+          error: {
+            code: "DEMO_LISTING_COMMERCE_DISABLED",
+            message: "Demo listings cannot be purchased."
           }
         });
       }

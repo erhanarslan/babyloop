@@ -40,14 +40,16 @@ describe("admin analytics routes", () => {
     const googleUser = await createUser(app, {
       email: "analytics-google@example.test"
     });
+    const occurredAt = new Date(Date.now() - 60_000);
+    const analyticsDate = occurredAt.toISOString().slice(0, 10);
 
     await app.db
       .update(users)
-      .set({ emailVerifiedAt: new Date("2026-07-16T09:00:00.000Z") })
+      .set({ emailVerifiedAt: occurredAt })
       .where(eq(users.id, googleUser.user.id));
     await app.db.insert(authAccounts).values({
       email: googleUser.user.email,
-      emailVerifiedAt: new Date("2026-07-16T09:00:00.000Z"),
+      emailVerifiedAt: occurredAt,
       provider: "google",
       providerAccountId: "google-analytics-user",
       userId: googleUser.user.id
@@ -60,7 +62,7 @@ describe("admin analytics routes", () => {
         eventId: "admin-analytics-event-1",
         eventName: "page_viewed",
         eventVersion: 1,
-        occurredAt: "2026-07-16T10:00:00.000Z",
+        occurredAt: occurredAt.toISOString(),
         platform: "web",
         sessionId: "session-admin-analytics",
         properties: {
@@ -69,12 +71,12 @@ describe("admin analytics routes", () => {
         }
       }]
     });
-    await rollupAnalyticsDay(app, "2026-07-16", "web");
+    await rollupAnalyticsDay(app, analyticsDate, "web");
 
     const response = await app.inject({
       headers: authHeader(admin.accessToken),
       method: "GET",
-      url: "/api/v1/admin/analytics/overview?from=2026-07-16&to=2026-07-16&platform=web"
+      url: `/api/v1/admin/analytics/overview?from=${analyticsDate}&to=${analyticsDate}&platform=web`
     });
 
     expect(response.statusCode).toBe(200);

@@ -20,6 +20,7 @@ export type MobileListingCreatedSinceFilter = "today" | "last_7_days";
 
 export type MobileListingSummary = {
   id: string;
+  isDemo: boolean;
   title: string;
   priceText: string;
   locationText: string;
@@ -259,6 +260,7 @@ export function normalizeMobileListingSummary(value: unknown): MobileListingSumm
 
   return {
     id,
+    isDemo: record.isDemo === true,
     title,
     priceText,
     locationText,

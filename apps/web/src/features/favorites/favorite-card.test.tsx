@@ -51,6 +51,7 @@ vi.mock("../listings/listing-display", () => ({
 function createFavorite(overrides: Partial<FavoriteListing> = {}): FavoriteListing {
   return {
     id: "30000000-0000-4000-8000-000000001001",
+    isDemo: false,
     title: "Travel sistem bebek arabası",
     price: {
       amount: "1250.00",

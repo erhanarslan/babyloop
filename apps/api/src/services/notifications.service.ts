@@ -1,4 +1,4 @@
-import { notifications, profiles } from "@babyloop/database/schema";
+import { notifications, profiles, users } from "@babyloop/database/schema";
 import type { RealtimeNotification, RealtimeNotificationType } from "@babyloop/shared";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -40,6 +40,17 @@ export async function createNotification(
   input: CreateNotificationInput
 ): Promise<NotificationResponse | null> {
   if (input.actorProfileId && input.actorProfileId === input.recipientProfileId) {
+    return null;
+  }
+
+  const [deliveryTarget] = await app.db
+    .select({ providerDeliveryDisabled: users.providerDeliveryDisabled })
+    .from(profiles)
+    .leftJoin(users, eq(users.id, profiles.userId))
+    .where(eq(profiles.id, input.recipientProfileId))
+    .limit(1);
+
+  if (deliveryTarget?.providerDeliveryDisabled) {
     return null;
   }
 

@@ -4,6 +4,21 @@ import {
 } from "./listing-detail-model";
 
 describe("mobile listing detail model", () => {
+  it("keeps favorite but disables commerce and messaging for demo listings", () => {
+    expect(getMobileListingDetailActionState({
+      isDemo: true,
+      isOwnListing: false,
+      listingType: "sale",
+      status: "active"
+    })).toEqual({
+      canAddToCart: false,
+      canFavorite: true,
+      canMessageSeller: false,
+      notice: "Demo ilanlarda satış ve mesajlaşma kapalıdır.",
+      statusTone: "warning"
+    });
+  });
+
   it("allows buyer actions for active listings and blocks cart for donations", () => {
     expect(getMobileListingDetailActionState({
       isOwnListing: false,

@@ -23,7 +23,8 @@ describe("product analytics service", () => {
   });
 
   it("rolls up daily overview idempotently", async () => {
-    const occurredAt = new Date("2026-07-16T10:00:00.000Z");
+    const occurredAt = new Date(Date.now() - 60_000);
+    const analyticsDate = occurredAt.toISOString().slice(0, 10);
 
     const result = await ingestAnalyticsBatch(app, {
       currentUser: null,
@@ -44,13 +45,13 @@ describe("product analytics service", () => {
 
     expect(result.accepted).toBe(3);
 
-    await rollupAnalyticsDay(app, "2026-07-16", "web");
-    await rollupAnalyticsDay(app, "2026-07-16", "web");
+    await rollupAnalyticsDay(app, analyticsDate, "web");
+    await rollupAnalyticsDay(app, analyticsDate, "web");
 
     const [row] = await app.db
       .select()
       .from(analyticsDailyOverview)
-      .where(eq(analyticsDailyOverview.date, "2026-07-16"));
+      .where(eq(analyticsDailyOverview.date, analyticsDate));
 
     expect(row).toMatchObject({
       engagedMs: 15000,

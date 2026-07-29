@@ -40,6 +40,7 @@ import {
   formatListingType
 } from "./listing-display";
 import styles from "./browse-page-content.module.css";
+import { DemoListingBadge } from "./demo-listing-badge";
 
 type BrowsePageContentProps = {
   apiBaseUrl: string;
@@ -733,6 +734,7 @@ function ListingCard({
       />
       <div className="listing-card-body babyloop-listing-card-body">
         <div className="listing-card-badges babyloop-listing-card-badges">
+          <DemoListingBadge isDemo={listing.isDemo} />
           <Badge>{formatCategoryName(listing.category, dictionary)}</Badge>
           <Badge tone={listing.listingType === "donation" ? "warning" : "success"}>
             {formatListingType(listing.price ? listing.listingType : "donation", dictionary)}

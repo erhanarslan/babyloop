@@ -16,6 +16,7 @@ import { getOrRefreshAuthToken } from "../../lib/auth-client";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { RecentlyViewedTracker } from "./recently-viewed-tracker";
 import { ListingShareButton } from "./listing-share-button";
+import { DemoListingBadge } from "./demo-listing-badge";
 import { formatListingAgeRange } from "./listing-age-range";
 import {
   formatCategoryName,
@@ -113,6 +114,13 @@ export function ListingDetailContent({
         message={dictionary.listings.imageNeedsReviewBody}
       />
 
+      {listing.isDemo ? (
+        <Alert
+          title="Demo ilan"
+          message="Bu sayfa tanıtım amaçlı demo ilan içerir. Ürün satılık değildir ve satıcıyla iletişim kurulamaz."
+        />
+      ) : null}
+
       <div className="listing-detail-p0-grid">
         <section className="listing-detail-p0-gallery-card" aria-label={dictionary.listings.imageGalleryAriaLabel}>
           <ListingDetailGallery
@@ -123,6 +131,7 @@ export function ListingDetailContent({
 
         <aside className="listing-detail-p0-panel" aria-label="İlan özeti">
           <div className="listing-detail-p0-badges">
+            <DemoListingBadge isDemo={listing.isDemo} />
             <Badge>{categoryName}</Badge>
             <Badge>{listingType}</Badge>
             <Badge>{condition}</Badge>
@@ -203,14 +212,18 @@ export function ListingDetailContent({
           {canShowBuyerActions ? (
             <div className="listing-detail-p0-actions">
               <div className="listing-detail-p0-primary-actions">
-                <MessageSellerButton
-                  apiBaseUrl={apiBaseUrl}
-                  categoryId={listing.category.id}
-                  listingId={listing.id}
-                  sellerProfileId={listing.seller.id}
-                />
+                {listing.isDemo ? (
+                  <p role="note">Demo ilanlarda satış ve mesajlaşma kapalıdır.</p>
+                ) : (
+                  <MessageSellerButton
+                    apiBaseUrl={apiBaseUrl}
+                    categoryId={listing.category.id}
+                    listingId={listing.id}
+                    sellerProfileId={listing.seller.id}
+                  />
+                )}
 
-                {canAddToCart ? (
+                {!listing.isDemo && canAddToCart ? (
                   <AddToCartButton
                     apiBaseUrl={apiBaseUrl}
                     isAuthenticated={currentUser.status === "known"}

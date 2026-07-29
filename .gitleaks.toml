@@ -8,3 +8,13 @@ useDefault = true
 description = "Firebase Android client API key is public client configuration and is restricted in Google Cloud by package name and production signing certificate."
 targetRules = ["gcp-api-key", "generic-api-key"]
 paths = ["^apps/mobile/google-services\\.json$"]
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Allow deterministic demo asset and catalog identifiers only on their JSON lines."
+  condition = "AND"
+  regexTarget = "line"
+  paths = ['''^assets/demo-listings/asset-rights-manifest\.json$''']
+  regexes = ['''^\s*"(assetKey|catalogKey)"\s*:\s*"[a-z0-9][a-z0-9-]*",?\s*$''']

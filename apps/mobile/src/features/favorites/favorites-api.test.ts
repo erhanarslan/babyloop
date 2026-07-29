@@ -47,6 +47,7 @@ describe("favorites api", () => {
     expect(favorites).toEqual([
       {
         id: "listing-1",
+        isDemo: false,
         title: "Bebek arabası",
         imageUrl: null,
         conditionText: null,

@@ -6,6 +6,7 @@ import { Card } from "../../components/ui";
 import type { RecentlyViewedListing } from "./recently-viewed-storage";
 import { getRecentlyViewedListings } from "./recently-viewed-storage";
 import { ListingImageFrame } from "./listing-image-frame";
+import { DemoListingBadge } from "./demo-listing-badge";
 import { formatListingPrice } from "./listing-display";
 import { useI18n } from "../../lib/i18n/i18n-provider";
 import { recordProductEvent } from "../../features/product-events/api";
@@ -77,6 +78,7 @@ export function RecentlyViewedListings({
                 url={listing.firstImage?.url ?? null}
               />
               <div className="recently-viewed-body babyloop-recently-viewed-body">
+                <DemoListingBadge isDemo={listing.isDemo} />
                 <h3>{listing.title}</h3>
                 <strong>{formatListingPrice(listing.price, dictionary)}</strong>
                 <span>{dictionary.common.viewDetails}</span>

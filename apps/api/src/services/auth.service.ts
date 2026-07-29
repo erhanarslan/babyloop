@@ -617,7 +617,7 @@ export async function authenticateGoogleUser(
       })
       .from(users)
       .leftJoin(profiles, eq(profiles.userId, users.id))
-      .where(eq(users.email, email))
+      .where(and(eq(users.email, email), eq(users.loginDisabled, false)))
       .limit(1);
 
     if (existingUser) {
@@ -1576,7 +1576,7 @@ async function findUserByEmail(app: FastifyInstance, email: string) {
   const [user] = await app.db
     .select({ id: users.id, emailVerifiedAt: users.emailVerifiedAt })
     .from(users)
-    .where(eq(users.email, email))
+    .where(and(eq(users.email, email), eq(users.loginDisabled, false)))
     .limit(1);
 
   return user ?? null;
@@ -1598,7 +1598,7 @@ async function findUserWithProfileByEmail(app: FastifyInstance, email: string) {
     })
     .from(users)
     .innerJoin(profiles, eq(profiles.userId, users.id))
-    .where(eq(users.email, email))
+    .where(and(eq(users.email, email), eq(users.loginDisabled, false)))
     .limit(1);
 
   return user ?? null;
@@ -1625,7 +1625,8 @@ async function findUserWithProfileByAuthAccount(
     .where(
       and(
         eq(authAccounts.provider, provider),
-        eq(authAccounts.providerAccountId, providerAccountId)
+        eq(authAccounts.providerAccountId, providerAccountId),
+        eq(users.loginDisabled, false)
       )
     )
     .limit(1);

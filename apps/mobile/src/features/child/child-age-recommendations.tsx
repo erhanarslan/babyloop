@@ -48,6 +48,7 @@ export function ChildAgeRecommendations({ group, status }: ChildAgeRecommendatio
             <MobileListingCard
               accessibilityLabel={`Yaşa uygun ilanı aç: ${listing.title}`}
               chips={buildMobileListingChips({
+                isDemo: listing.isDemo,
                 conditionText: listing.conditionText,
                 listingTypeText: listing.listingTypeText,
                 statusText: listing.statusText

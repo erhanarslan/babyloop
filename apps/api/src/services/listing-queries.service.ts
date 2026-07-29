@@ -61,6 +61,7 @@ export async function selectActiveListingRows(
   return app.db
     .select({
       id: listings.id,
+      isDemo: listings.isDemo,
       title: listings.title,
       priceAmount: listings.priceAmount,
       currency: listings.currency,
@@ -110,6 +111,7 @@ export async function selectListingsBySellerProfileId(app: FastifyInstance, sell
   return app.db
     .select({
       id: listings.id,
+      isDemo: listings.isDemo,
       title: listings.title,
       priceAmount: listings.priceAmount,
       currency: listings.currency,
@@ -138,6 +140,7 @@ export async function selectListingDetailRow(app: FastifyInstance, id: string) {
   const [row] = await app.db
     .select({
       id: listings.id,
+      isDemo: listings.isDemo,
       title: listings.title,
       description: listings.description,
       priceAmount: listings.priceAmount,
@@ -187,6 +190,7 @@ export async function selectListingOwnerRow(app: FastifyInstance, id: string) {
   const [row] = await app.db
     .select({
       id: listings.id,
+      isDemo: listings.isDemo,
       sellerProfileId: listings.sellerProfileId,
       status: listings.status,
       publicationState: listings.publicationState,
@@ -219,6 +223,7 @@ export async function selectListingSummaryRow(app: FastifyInstance, id: string) 
   const [row] = await app.db
     .select({
       id: listings.id,
+      isDemo: listings.isDemo,
       title: listings.title,
       priceAmount: listings.priceAmount,
       currency: listings.currency,

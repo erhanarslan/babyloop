@@ -151,6 +151,27 @@ describe("cart and mock iyzico checkout API", () => {
     expect(response.json().error.code).toBe("CANNOT_ADD_OWN_LISTING_TO_CART");
   });
 
+  it("rejects demo listings at the backend commerce boundary", async () => {
+    const seller = await createUser(app);
+    const buyer = await createUser(app);
+    const listing = await createListing(app, seller.accessToken);
+    await app.db.update(listings).set({
+      isDemo: true,
+      demoSeedKey: "test:demo-cart",
+      demoSeedVersion: "test.v1"
+    }).where(eq(listings.id, listing.id));
+
+    const response = await app.inject({
+      headers: authHeader(buyer.accessToken),
+      method: "POST",
+      url: "/api/v1/cart/items",
+      payload: { listingId: listing.id }
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("DEMO_LISTING_COMMERCE_DISABLED");
+  });
+
   it("rejects archived or sold listings for cart", async () => {
     const seller = await createUser(app);
     const buyer = await createUser(app);

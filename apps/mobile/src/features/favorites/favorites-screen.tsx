@@ -137,6 +137,7 @@ export function FavoritesScreen() {
               </>
             }
             chips={buildMobileListingChips({
+              isDemo: favorite.isDemo,
               conditionText: favorite.conditionText,
               listingTypeText: favorite.listingTypeText,
               statusText: favorite.statusText
