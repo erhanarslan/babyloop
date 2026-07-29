@@ -10,6 +10,7 @@ const requiredFiles = [
   "apps/web/src/features/home/latest-listing-rotator.tsx",
   "apps/web/src/lib/use-page-visibility.ts",
   "apps/web/src/features/cart/api.ts",
+  "apps/web/src/features/cart/use-header-cart-summary.ts",
   "apps/mobile/src/features/auth/auth-api.ts",
   "apps/mobile/src/features/messages/conversation-list-store.tsx",
   "apps/api/src/routes/cart.routes.ts",
@@ -43,8 +44,26 @@ if (problems.length === 0) {
   }
 
   const header = read("apps/web/src/components/site-header.tsx");
-  requireTokens("apps/web/src/components/site-header.tsx", header, ["fetchCartSummary", "body.data.summary.itemCount"]);
-  forbidTokens("apps/web/src/components/site-header.tsx", header, ["fetchCart(apiBaseUrl)"]);
+  requireTokens("apps/web/src/components/site-header.tsx", header, [
+    'import { useHeaderCartSummary } from "../features/cart/use-header-cart-summary";',
+    "useHeaderCartSummary(apiBaseUrl, currentAuth?.user.id ?? null)"
+  ]);
+  forbidTokens("apps/web/src/components/site-header.tsx", header, [
+    "fetchCart(apiBaseUrl)",
+    "fetchCartSummary(",
+    "body.data.summary.itemCount"
+  ]);
+
+  const headerCartSummary = read("apps/web/src/features/cart/use-header-cart-summary.ts");
+  requireTokens("apps/web/src/features/cart/use-header-cart-summary.ts", headerCartSummary, [
+    "if (!authenticatedUserId)",
+    "fetchCartSummary(apiBaseUrl)",
+    "body.data.summary.itemCount",
+    "let isActive = true",
+    "isActive = false",
+    "window.addEventListener(CART_CHANGED_EVENT, loadCartCount)",
+    "window.removeEventListener(CART_CHANGED_EVENT, loadCartCount)"
+  ]);
 
   const rotator = read("apps/web/src/features/home/latest-listing-rotator.tsx");
   requireTokens("apps/web/src/features/home/latest-listing-rotator.tsx", rotator, [
