@@ -1,13 +1,18 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_VERSION=22.13.1
+ARG NODE_VERSION=22.23.2
+ARG COREPACK_VERSION=0.35.0
 ARG PNPM_VERSION=10.33.0
 
 FROM node:${NODE_VERSION}-bookworm-slim AS base
+ARG COREPACK_VERSION
 ARG PNPM_VERSION
 ENV PNPM_HOME=/pnpm
 ENV PATH=${PNPM_HOME}:${PATH}
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+RUN npm install --global corepack@${COREPACK_VERSION} \
+    && corepack enable \
+    && corepack install --global pnpm@${PNPM_VERSION} \
+    && test "$(pnpm --version)" = "${PNPM_VERSION}"
 WORKDIR /workspace
 
 FROM base AS builder
