@@ -102,11 +102,30 @@ export function isLoginApprovalCompletePendingPayload(
 
 export type AuthSubmitPayload = AuthPayload | LoginApprovalRequiredPayload | MfaRequiredPayload;
 
+export type AuthSubmitResponse = ApiResponse<AuthSubmitPayload> & {
+  httpStatus: number;
+  retryAfterSeconds: number | null;
+};
+
+const authMutationFlights = new Map<string, Promise<unknown>>();
+
 export async function submitAuthRequest(
   apiBaseUrl: string,
   mode: AuthMode,
   payload: AuthRequest
-): Promise<ApiResponse<AuthSubmitPayload>> {
+): Promise<AuthSubmitResponse> {
+  return runAuthMutationSingleFlight(
+    `${apiBaseUrl}/api/v1/auth/${mode}`,
+    payload,
+    () => submitAuthRequestOnce(apiBaseUrl, mode, payload),
+  );
+}
+
+async function submitAuthRequestOnce(
+  apiBaseUrl: string,
+  mode: AuthMode,
+  payload: AuthRequest,
+): Promise<AuthSubmitResponse> {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/${mode}`, {
     method: "POST",
     credentials: "include",
@@ -116,7 +135,16 @@ export async function submitAuthRequest(
     body: JSON.stringify(payload)
   });
 
-  return response.json() as Promise<ApiResponse<AuthSubmitPayload>>;
+  const body = await response.json() as ApiResponse<AuthSubmitPayload>;
+  const retryAfter = response.headers.get("retry-after");
+  const retryAfterSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
+
+  return Object.assign(body, {
+    httpStatus: response.status,
+    retryAfterSeconds: Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds
+      : null,
+  });
 }
 
 export async function verifyMfaLogin(
@@ -124,32 +152,14 @@ export async function verifyMfaLogin(
   challengeId: string,
   code: string
 ): Promise<ApiResponse<AuthPayload | LoginApprovalRequiredPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/mfa/verify`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ challengeId, code })
-  });
-
-  return response.json() as Promise<ApiResponse<AuthPayload | LoginApprovalRequiredPayload>>;
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/mfa/verify", { challengeId, code });
 }
 
 export async function completeLoginApproval(
   apiBaseUrl: string,
   approvalToken: string
 ): Promise<ApiResponse<LoginApprovalCompletePayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/login-approval/complete`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ approvalToken })
-  });
-
-  return response.json() as Promise<ApiResponse<LoginApprovalCompletePayload>>;
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/login-approval/complete", { approvalToken });
 }
 
 export async function fetchCurrentUser(apiBaseUrl: string): Promise<ApiResponse<AuthMe>> {
@@ -193,16 +203,7 @@ export async function requestPasswordReset(
   apiBaseUrl: string,
   email: string
 ): Promise<ApiResponse<PasswordResetRequestPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/password-reset/request`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ email })
-  });
-
-  return response.json() as Promise<ApiResponse<PasswordResetRequestPayload>>;
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/password-reset/request", { email });
 }
 
 export async function confirmPasswordReset(
@@ -210,16 +211,7 @@ export async function confirmPasswordReset(
   token: string,
   newPassword: string
 ): Promise<ApiResponse<PasswordResetConfirmPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/password-reset/confirm`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ token, newPassword })
-  });
-
-  return response.json() as Promise<ApiResponse<PasswordResetConfirmPayload>>;
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/password-reset/confirm", { token, newPassword });
 }
 
 export async function changePassword(
@@ -278,32 +270,71 @@ export async function requestEmailVerification(
   apiBaseUrl: string,
   email: string
 ): Promise<ApiResponse<EmailVerificationRequestPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/email-verification/request`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ email })
-  });
-
-  return response.json() as Promise<ApiResponse<EmailVerificationRequestPayload>>;
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/email-verification/request", { email });
 }
 
 export async function confirmEmailVerification(
   apiBaseUrl: string,
   token: string
 ): Promise<ApiResponse<EmailVerificationConfirmPayload>> {
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/email-verification/confirm`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ token })
-  });
+  return postAuthJsonSingleFlight(apiBaseUrl, "/api/v1/auth/email-verification/confirm", { token });
+}
 
-  return response.json() as Promise<ApiResponse<EmailVerificationConfirmPayload>>;
+async function postAuthJsonSingleFlight<T>(
+  apiBaseUrl: string,
+  path: string,
+  payload: unknown,
+): Promise<ApiResponse<T>> {
+  const url = `${apiBaseUrl}${path}`;
+  return runAuthMutationSingleFlight(url, payload, async () => {
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    return response.json() as Promise<ApiResponse<T>>;
+  });
+}
+
+async function runAuthMutationSingleFlight<T>(
+  url: string,
+  payload: unknown,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const flightKey = `${url}:${await fingerprintAuthPayload(payload)}`;
+  const existingFlight = authMutationFlights.get(flightKey) as Promise<T> | undefined;
+  if (existingFlight) return existingFlight;
+
+  const flight = operation().finally(() => {
+    authMutationFlights.delete(flightKey);
+  });
+  authMutationFlights.set(flightKey, flight);
+  return flight;
+}
+
+async function fingerprintAuthPayload(payload: unknown): Promise<string> {
+  const encoded = new TextEncoder().encode(stableJson(payload));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  }
+
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "null";
 }
 
 

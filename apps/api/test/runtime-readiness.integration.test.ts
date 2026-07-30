@@ -52,10 +52,19 @@ describe("runtime readiness and metrics", () => {
     expect(ready.json()).toMatchObject({
       ok: true,
       ready: true,
-      expectedDatabaseMigration: "0043_runtime_readiness_observability",
+      expectedDatabaseMigration: "0045_production_demo_marketplace",
       dependencies: {
         database: { status: "ready", required: true },
-        schema: { status: "ready", required: true },
+        schema: {
+          status: "ready",
+          required: true,
+          details: {
+            expectedMigration: "0045_production_demo_marketplace",
+            expectedMigrationHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+            actualMigrationHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+            verifiedTables: "legal_acceptances,listings,profiles,users",
+          },
+        },
         storage: { status: "ready", required: true },
         ragVectorStore: { status: "not_configured", required: false },
         ragRedis: { status: "not_configured", required: false },

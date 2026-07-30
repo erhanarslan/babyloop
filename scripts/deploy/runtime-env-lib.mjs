@@ -144,6 +144,8 @@ function checkValues(values, contract, context, errors, warnings) {
   }
   if (values.NODE_ENV !== "production") errors.push("NODE_ENV must be production.");
   if (values.ALLOW_AUTH_UNAVAILABLE !== "false") errors.push("ALLOW_AUTH_UNAVAILABLE must be false.");
+  if (values.API_DOCS_ENABLED !== "true") errors.push("API_DOCS_ENABLED must be true.");
+  if (values.API_DOCS_ACCESS_MODE !== "readonly") errors.push("API_DOCS_ACCESS_MODE must be readonly.");
   if (String(values.AUTH_SECRET || "").length < 32) errors.push("AUTH_SECRET must be at least 32 characters.");
   if (values.PUSH_TOKEN_ENCRYPTION_KEY && values.PUSH_TOKEN_ENCRYPTION_KEY.length < 32) {
     errors.push("PUSH_TOKEN_ENCRYPTION_KEY must be at least 32 characters.");

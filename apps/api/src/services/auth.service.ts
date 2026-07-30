@@ -97,6 +97,7 @@ export type AuthSessionRequestMeta = {
 
 type AuthPayload = {
   accessToken: string;
+  emailVerificationDelivery?: "sent" | "deferred";
   user: SafeAuthUser;
   profile: SafeAuthProfile;
 };
@@ -241,7 +242,12 @@ export async function registerUser(
   body: RegisterBody,
   options: RegisterOptions
 ): Promise<
-  | { status: "created"; response: AuthSuccess; devEmailVerificationToken: string }
+  | {
+      status: "created";
+      response: AuthSuccess;
+      devEmailVerificationToken: string;
+      emailVerificationDelivery: "sent" | "deferred";
+    }
   | { status: "duplicate"; response: ApiFailure }
 > {
   const existingUser = await findUserByEmail(app, body.email);
@@ -319,16 +325,31 @@ export async function registerUser(
       };
     });
 
-    await options.emailDelivery.sendEmailVerificationEmail({
-      displayName: created.profile.displayName,
-      expiresInSeconds: EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
-      recipientEmail: created.user.email,
-      verificationUrl: buildEmailVerificationUrl(options.webAppUrl, emailVerificationToken)
-    });
+    let emailVerificationDelivery: "sent" | "deferred" = "sent";
+
+    try {
+      await options.emailDelivery.sendEmailVerificationEmail({
+        displayName: created.profile.displayName,
+        expiresInSeconds: EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
+        recipientEmail: created.user.email,
+        verificationUrl: buildEmailVerificationUrl(options.webAppUrl, emailVerificationToken)
+      });
+    } catch (error) {
+      emailVerificationDelivery = "deferred";
+      app.log.error(
+        {
+          event: "registration_verification_delivery_deferred",
+          errorClass: error instanceof Error ? error.constructor.name : "UnknownError",
+          userId: created.user.id
+        },
+        "Registration committed but verification email delivery was deferred."
+      );
+    }
 
     return {
       status: "created",
       devEmailVerificationToken: emailVerificationToken,
+      emailVerificationDelivery,
       response: buildAuthResponse(created)
     };
   } catch (error) {

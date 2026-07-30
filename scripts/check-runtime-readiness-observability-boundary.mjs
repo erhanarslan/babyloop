@@ -57,7 +57,8 @@ if (problems.length === 0) {
   const readiness = read("apps/api/src/services/runtime-readiness.service.ts");
   for (const token of [
     "select 1 as ok",
-    "0043_runtime_readiness_observability",
+    "verifyDatabaseMigrationHead",
+    "expectedMigrationHash",
     "probeImageStorageReadiness",
     "QdrantVectorStore",
     "RagRedisClient",

@@ -2,7 +2,10 @@ import { API_PREFIX } from "@babyloop/config";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { readApiRuntimeConfig } from "../src/config/env.js";
-import type { OpenApiRuntimeConfig } from "../src/plugins/openapi.plugin.js";
+import {
+  readOpenApiRuntimeConfig,
+  type OpenApiRuntimeConfig,
+} from "../src/plugins/openapi.plugin.js";
 
 const apps: ReturnType<typeof createApp>[] = [];
 
@@ -11,6 +14,20 @@ afterEach(async () => {
 });
 
 describe("OpenAPI documentation", () => {
+  it("forces enabled production documentation into readonly mode", () => {
+    const config = readOpenApiRuntimeConfig({
+      NODE_ENV: "production",
+      API_DOCS_ENABLED: "true",
+      API_DOCS_ACCESS_MODE: "interactive",
+    });
+
+    expect(config).toEqual({
+      enabled: true,
+      accessMode: "readonly",
+      routePrefix: "/docs",
+    });
+  });
+
   it("serves Swagger UI and OpenAPI JSON when enabled", async () => {
     const app = createTestApp({
       enabled: true,

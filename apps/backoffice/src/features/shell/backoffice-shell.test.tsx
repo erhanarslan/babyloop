@@ -26,7 +26,7 @@ vi.mock("next/navigation", () => ({
 describe("BackofficeShell", () => {
   it("renders grouped active navigation without exposing secrets", () => {
     render(
-      <BackofficeShell>
+      <BackofficeShell role="admin">
         <h2>Email Ops</h2>
       </BackofficeShell>
     );
@@ -52,5 +52,21 @@ describe("BackofficeShell", () => {
     expect(screen.queryByText(/RESEND_API_KEY/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/SMTP_PASS/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/password/i)).not.toBeInTheDocument();
+  });
+
+  it("shows only read-only viewer navigation and no synthetic readiness status", () => {
+    render(
+      <BackofficeShell role="backoffice_viewer">
+        <h2>Viewer</h2>
+      </BackofficeShell>
+    );
+
+    const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
+    expect(within(navigation).getByRole("link", { name: "İlanlar" })).toBeVisible();
+    expect(within(navigation).getByRole("link", { name: "Profiller" })).toBeVisible();
+    expect(within(navigation).queryByRole("link", { name: "Audit Logları" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Storage" })).toBeNull();
+    expect(screen.getByText("Salt okunur")).toBeVisible();
+    expect(screen.queryByText("Hazır")).toBeNull();
   });
 });

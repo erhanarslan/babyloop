@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getApiBaseUrl } from "../../lib/api";
 import { loginBackoffice } from "../../lib/auth-client";
+import { resolveSafeBackofficeNextPath } from "../../lib/safe-next-path";
 
 export default function BackofficeLoginPage() {
   const router = useRouter();
@@ -13,26 +14,43 @@ export default function BackofficeLoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [retryAfterSeconds]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (submitInFlightRef.current || retryAfterSeconds > 0) {
+      return;
+    }
+
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const result = await loginBackoffice(getApiBaseUrl(), {
-      email,
-      password,
-    });
+    const result = await loginBackoffice(getApiBaseUrl(), { email, password });
 
+    submitInFlightRef.current = false;
     setIsSubmitting(false);
 
     if (!result.ok) {
       setErrorMessage(result.message);
+      setRetryAfterSeconds(result.retryAfterSeconds ?? 0);
       return;
     }
 
-    router.replace("/");
+    const nextPath = resolveSafeBackofficeNextPath(
+      new URLSearchParams(window.location.search).get("next"),
+    );
+    router.replace(nextPath);
   }
 
   return (
@@ -45,7 +63,7 @@ export default function BackofficeLoginPage() {
           audit, and AI-assisted operations.
         </p>
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form aria-busy={isSubmitting} className="login-form" onSubmit={handleSubmit}>
           <label>
             <span>Email</span>
             <input
@@ -76,7 +94,11 @@ export default function BackofficeLoginPage() {
             </p>
           ) : null}
 
-          <button className="primary-action" disabled={isSubmitting} type="submit">
+          {retryAfterSeconds > 0 ? (
+            <p role="status">Tekrar denemeden önce {retryAfterSeconds} saniye bekle.</p>
+          ) : null}
+
+          <button className="primary-action" disabled={isSubmitting || retryAfterSeconds > 0} type="submit">
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>

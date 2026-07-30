@@ -55,6 +55,11 @@ export type AdminListingImage = {
   createdAt: string;
 };
 
+export type ViewerListingImage = Pick<
+  AdminListingImage,
+  "id" | "url" | "sortOrder" | "reviewStatus" | "createdAt"
+>;
+
 export type AdminListingSummary = {
   id: string;
   title: string;
@@ -92,6 +97,30 @@ export type AdminListingSummary = {
   updatedAt: string;
 };
 
+export type ViewerListingSummary = Pick<
+  AdminListingSummary,
+  | "id"
+  | "title"
+  | "description"
+  | "price"
+  | "currency"
+  | "status"
+  | "publicationState"
+  | "publishAfter"
+  | "publishedAt"
+  | "listingType"
+  | "condition"
+  | "category"
+  | "seller"
+  | "imageCount"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  primaryImage: ViewerListingImage | null;
+};
+
+export type AdminListingResponseSummary = AdminListingSummary | ViewerListingSummary;
+
 export type AdminListingRelatedCase = {
   caseId: string;
   reportId: string | null;
@@ -128,6 +157,10 @@ export type AdminListingDetail = AdminListingSummary & {
   auditTrail: AdminListingAuditEvent[];
 };
 
+export type ViewerListingDetail = ViewerListingSummary & {
+  images: ViewerListingImage[];
+};
+
 export type ListAdminListingsParams = {
   status?: AdminListingStatus;
   imageReviewStatus?: AdminListingImageReviewStatus;
@@ -139,11 +172,11 @@ export type ListAdminListingsParams = {
 };
 
 export type ListAdminListingsResponse = {
-  listings: AdminListingSummary[];
+  listings: AdminListingResponseSummary[];
 };
 
 export type GetAdminListingResponse = {
-  listing: AdminListingDetail;
+  listing: AdminListingDetail | ViewerListingDetail;
 };
 
 export type ApplyAdminListingActionInput = {
@@ -260,6 +293,9 @@ export async function applyAdminListingAction(
   if (!refreshedListing.ok) {
     return refreshedListing;
   }
+  if (!isAdminListingDetail(refreshedListing.data.listing)) {
+    return readOnlyMutationFailure();
+  }
 
   return {
     ok: true,
@@ -292,6 +328,9 @@ export async function applyAdminListingImageAction(
   if (!refreshedListing.ok) {
     return refreshedListing;
   }
+  if (!isAdminListingDetail(refreshedListing.data.listing)) {
+    return readOnlyMutationFailure();
+  }
 
   return {
     ok: true,
@@ -299,6 +338,22 @@ export async function applyAdminListingImageAction(
       listing: refreshedListing.data.listing,
       image: response.data.image,
       auditEventId: response.data.auditEventId,
+    },
+  };
+}
+
+function isAdminListingDetail(
+  listing: AdminListingDetail | ViewerListingDetail,
+): listing is AdminListingDetail {
+  return "actionEligibility" in listing;
+}
+
+function readOnlyMutationFailure(): ApiResponse<never> {
+  return {
+    ok: false,
+    error: {
+      code: "FORBIDDEN",
+      message: "Read-only backoffice sessions cannot mutate listings.",
     },
   };
 }

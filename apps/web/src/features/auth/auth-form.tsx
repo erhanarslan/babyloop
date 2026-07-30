@@ -4,7 +4,7 @@ import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Button } from "../../components/ui";
 import { setAuthPayload } from "../../lib/auth-client";
 import { getApiErrorMessage } from "../../lib/api-error-message";
@@ -50,12 +50,27 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   const [approvalSecondsLeft, setApprovalSecondsLeft] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [registrationEmailDeferred, setRegistrationEmailDeferred] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+  const submitInFlightRef = useRef(false);
   const isRegister = mode === "register";
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [retryAfterSeconds]);
 
   useEffect(() => {
     if (!loginApproval) {
@@ -133,6 +148,10 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (submitInFlightRef.current || retryAfterSeconds > 0) {
+      return;
+    }
     setDevEmailVerificationToken(null);
     setErrorMessage(null);
     setLoginApproval(null);
@@ -151,12 +170,16 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       return;
     }
 
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
       const body = await submitAuthRequest(apiBaseUrl, mode, payload);
 
       if (!body.ok) {
+        if (body.httpStatus === 429) {
+          setRetryAfterSeconds(body.retryAfterSeconds ?? 60);
+        }
         setErrorMessage(getApiErrorMessage(body.error, dictionary));
         return;
       }
@@ -193,6 +216,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
 
       if (isRegister) {
         setDevEmailVerificationToken(stage.auth.devEmailVerificationToken ?? null);
+        setRegistrationEmailDeferred(stage.auth.emailVerificationDelivery === "deferred");
         setRegistrationComplete(true);
         router.refresh();
         return;
@@ -205,6 +229,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -269,7 +294,12 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
   }
 
   return (
-    <form className="listing-form auth-form-polished" method="post" onSubmit={handleSubmit}>
+    <form
+      aria-busy={isSubmitting}
+      className="listing-form auth-form-polished"
+      method="post"
+      onSubmit={handleSubmit}
+    >
       <div className="auth-form-intro">
         <p className="eyebrow">{isRegister ? "Create protected access" : "Protected sign in"}</p>
         <h2>{isRegister ? "Create your BabyLoop account" : "Continue to your BabyLoop workspace"}</h2>
@@ -420,6 +450,10 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         <Alert title={dictionary.auth.accountFailed} message={errorMessage} />
       ) : null}
 
+      {retryAfterSeconds > 0 ? (
+        <p role="status">Tekrar denemeden önce {retryAfterSeconds} saniye bekle.</p>
+      ) : null}
+
       {registrationComplete ? (
         <div className="dev-token-panel auth-success-panel">
           <h2>{dictionary.auth.registrationSuccess}</h2>
@@ -433,6 +467,11 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
           ) : (
             <p>{dictionary.auth.emailWillBeRequired}</p>
           )}
+          {registrationEmailDeferred ? (
+            <p role="status">
+              Hesabın oluşturuldu; doğrulama e-postası gecikti. Doğrulama ekranından güvenle yeniden isteyebilirsin.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -445,6 +484,7 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
           disabled={
             !isHydrated ||
             isSubmitting ||
+            retryAfterSeconds > 0 ||
             Boolean(loginApproval) ||
             (isRegister && !termsAccepted) ||
             (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))

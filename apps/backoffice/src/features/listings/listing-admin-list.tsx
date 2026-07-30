@@ -9,10 +9,11 @@ import {
   type AdminListingPublicationState,
   type AdminListingSort,
   type AdminListingStatus,
-  type AdminListingSummary,
+  type AdminListingResponseSummary,
   listAdminListings,
 } from "./api";
 import { ListingPublicationSettingsCard } from "./listing-publication-settings-card";
+import { useBackofficeAccess } from "../auth/backoffice-access";
 
 type StatusFilter = AdminListingStatus | "all";
 type ImageReviewStatusFilter = AdminListingImageReviewStatus | "all";
@@ -69,9 +70,10 @@ const defaultFilters: FilterState = {
 };
 
 export function ListingAdminList() {
+  const access = useBackofficeAccess();
   const [draftFilters, setDraftFilters] = useState<FilterState>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
-  const [listings, setListings] = useState<AdminListingSummary[]>([]);
+  const [listings, setListings] = useState<AdminListingResponseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -138,7 +140,7 @@ export function ListingAdminList() {
 
   return (
     <div className="admin-page-stack">
-      <ListingPublicationSettingsCard />
+      {access.can("mutate") ? <ListingPublicationSettingsCard /> : null}
 
       <section className="content-card">
         <div className="page-toolbar">
@@ -375,7 +377,9 @@ export function ListingAdminList() {
                       <div><dt>Satıcı</dt><dd>{listing.seller.displayName}</dd></div>
                       <div><dt>Görsel</dt><dd>{listing.imageCount}</dd></div>
                       <div><dt>AI / ana görsel</dt><dd>{formatPrimaryImageReview(listing)}</dd></div>
-                      <div><dt>Açık vaka</dt><dd>{listing.moderation.openRelatedCaseCount}</dd></div>
+                      {"moderation" in listing ? (
+                        <div><dt>Açık vaka</dt><dd>{listing.moderation.openRelatedCaseCount}</dd></div>
+                      ) : null}
                       <div><dt>Oluşturulma</dt><dd>{formatDateTime(listing.createdAt)}</dd></div>
                     </dl>
                   </div>
@@ -435,7 +439,7 @@ function getSortLabel(sort: AdminListingSort): string {
   }
 }
 
-function formatPrice(listing: AdminListingSummary): string {
+function formatPrice(listing: AdminListingResponseSummary): string {
   return listing.price ? `${listing.price.amount} ${listing.price.currency}` : "Belirtilmedi";
 }
 
@@ -448,17 +452,19 @@ function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): s
   return response.error?.message ?? fallback;
 }
 
-function isListingAwaitingImageReview(listing: AdminListingSummary): boolean {
+function isListingAwaitingImageReview(listing: AdminListingResponseSummary): boolean {
   return listing.primaryImage?.reviewStatus === "needs_review" || listing.primaryImage?.reviewStatus === "pending";
 }
 
-function isListingAwaitingPublicationReview(listing: AdminListingSummary): boolean {
+function isListingAwaitingPublicationReview(listing: AdminListingResponseSummary): boolean {
   return listing.publicationState === "admin_review" || listing.publicationState === "ai_review";
 }
 
-function formatPrimaryImageReview(listing: AdminListingSummary): string {
+function formatPrimaryImageReview(listing: AdminListingResponseSummary): string {
   if (!listing.primaryImage) return "Görsel yok";
   const reviewStatus = getImageReviewStatusLabel(listing.primaryImage.reviewStatus);
-  const aiDecision = listing.primaryImage.authenticity.decision;
+  const aiDecision = "authenticity" in listing.primaryImage
+    ? listing.primaryImage.authenticity.decision
+    : null;
   return aiDecision ? `${reviewStatus} · AI ${aiDecision}` : reviewStatus;
 }

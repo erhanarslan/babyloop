@@ -8,12 +8,15 @@ import { useEffect, useState } from "react";
 import {
   type AdminProfileDetail,
   type AdminProfileEnforcementAction,
+  type ViewerProfile,
   applyAdminProfileEnforcement,
   getAdminProfile,
 } from "./api";
+import { useBackofficeAccess } from "../auth/backoffice-access";
 
 export function ProfileAdminDetail({ profileId }: { profileId: string }) {
-  const [profile, setProfile] = useState<AdminProfileDetail | null>(null);
+  const access = useBackofficeAccess();
+  const [profile, setProfile] = useState<AdminProfileDetail | ViewerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -74,6 +77,7 @@ export function ProfileAdminDetail({ profileId }: { profileId: string }) {
 
       {profile ? (
         <ProfileDetailContent
+          canMutate={access.can("mutate")}
           onProfileUpdated={setProfile}
           profile={profile}
         />
@@ -83,12 +87,18 @@ export function ProfileAdminDetail({ profileId }: { profileId: string }) {
 }
 
 function ProfileDetailContent({
+  canMutate,
   onProfileUpdated,
   profile,
 }: {
-  onProfileUpdated: (profile: AdminProfileDetail) => void;
-  profile: AdminProfileDetail;
+  canMutate: boolean;
+  onProfileUpdated: (profile: AdminProfileDetail | ViewerProfile) => void;
+  profile: AdminProfileDetail | ViewerProfile;
 }) {
+  if (!("trustSnapshot" in profile)) {
+    return <ViewerProfileDetailContent profile={profile} />;
+  }
+
   const snapshot = profile.trustSnapshot;
   const riskLevel = snapshot?.riskLevel ?? "low";
 
@@ -123,10 +133,12 @@ function ProfileDetailContent({
         </dl>
       </section>
 
-      <ProfileEnforcementControls
-        onProfileUpdated={onProfileUpdated}
-        profile={profile}
-      />
+      {canMutate ? (
+        <ProfileEnforcementControls
+          onProfileUpdated={onProfileUpdated}
+          profile={profile}
+        />
+      ) : null}
 
       <section className="profile-detail-card">
         <h3>Trust snapshot</h3>
@@ -266,6 +278,35 @@ function ProfileDetailContent({
         ) : (
           <p className="muted">No enforcement actions found for related cases.</p>
         )}
+      </section>
+    </div>
+  );
+}
+
+function ViewerProfileDetailContent({ profile }: { profile: ViewerProfile }) {
+  return (
+    <div className="profile-detail-layout">
+      <section className="profile-detail-card">
+        <div className="profile-admin-card-header">
+          <div>
+            <strong>{profile.displayName}</strong>
+            <p>{profile.locationCity ?? "Location not provided"}</p>
+          </div>
+        </div>
+        <dl className="compact-details">
+          <div>
+            <dt>Profile ID</dt>
+            <dd>{profile.profileId}</dd>
+          </div>
+          <div>
+            <dt>Listings</dt>
+            <dd>{profile.listingCount}</dd>
+          </div>
+          <div>
+            <dt>Created</dt>
+            <dd>{formatDateTime(profile.createdAt)}</dd>
+          </div>
+        </dl>
       </section>
     </div>
   );

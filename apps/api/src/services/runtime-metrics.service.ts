@@ -12,6 +12,7 @@ export class RuntimeMetricsRegistry {
   private readinessFailures = 0;
   private errorReportsAttempted = 0;
   private errorReportsFailed = 0;
+  private rateLimitedResponses = 0;
 
   recordRequest(input: RuntimeRequestMetricInput): void {
     const method = sanitizeLabel(input.method.toUpperCase(), 16);
@@ -21,6 +22,7 @@ export class RuntimeMetricsRegistry {
     const durationKey = `${method}|${route}`;
 
     this.requestCounts.set(key, (this.requestCounts.get(key) ?? 0) + 1);
+    if (input.statusCode === 429) this.rateLimitedResponses += 1;
 
     const current = this.requestDurationMs.get(durationKey) ?? { count: 0, sum: 0, max: 0 };
     const durationMs = Number.isFinite(input.durationMs) && input.durationMs >= 0 ? input.durationMs : 0;
@@ -79,6 +81,9 @@ export class RuntimeMetricsRegistry {
       "# HELP babyloop_api_readiness_failures_total Total failed readiness checks.",
       "# TYPE babyloop_api_readiness_failures_total counter",
       `babyloop_api_readiness_failures_total ${this.readinessFailures}`,
+      "# HELP babyloop_api_rate_limited_responses_total Total HTTP 429 responses.",
+      "# TYPE babyloop_api_rate_limited_responses_total counter",
+      `babyloop_api_rate_limited_responses_total ${this.rateLimitedResponses}`,
       "# HELP babyloop_api_error_reports_total Total external error report attempts.",
       "# TYPE babyloop_api_error_reports_total counter",
       `babyloop_api_error_reports_total ${this.errorReportsAttempted}`,

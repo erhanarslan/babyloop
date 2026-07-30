@@ -16,12 +16,17 @@ import {
 } from "../services/admin-profiles.service.js";
 
 type AdminProfilesResponse = ApiResponse<{
-  profiles: AdminProfileSummary[];
+  profiles: Array<AdminProfileSummary | ViewerProfile>;
 }>;
 
 type AdminProfileDetailResponse = ApiResponse<{
-  profile: AdminProfileDetail;
+  profile: AdminProfileDetail | ViewerProfile;
 }>;
+
+type ViewerProfile = Pick<
+  AdminProfileSummary,
+  "profileId" | "displayName" | "locationCity" | "createdAt" | "listingCount"
+>;
 
 type AdminProfileEnforcementResponse = ApiResponse<{
   profile: AdminProfileDetail;
@@ -50,10 +55,14 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
         });
       }
 
+      const profiles = await listAdminProfiles(app, parsedQuery.data);
+
       return {
         ok: true,
         data: {
-          profiles: await listAdminProfiles(app, parsedQuery.data)
+          profiles: admin.role === "backoffice_viewer"
+            ? profiles.map(projectProfileForViewer)
+            : profiles
         }
       };
     }
@@ -95,7 +104,7 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          profile
+          profile: admin.role === "backoffice_viewer" ? projectProfileForViewer(profile) : profile
         }
       };
     }
@@ -180,4 +189,14 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
       };
     }
   );
+}
+
+function projectProfileForViewer(profile: AdminProfileSummary): ViewerProfile {
+  return {
+    profileId: profile.profileId,
+    displayName: profile.displayName,
+    locationCity: profile.locationCity,
+    createdAt: profile.createdAt,
+    listingCount: profile.listingCount,
+  };
 }

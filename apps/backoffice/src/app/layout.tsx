@@ -10,7 +10,12 @@ import "../styles/40-admin-pages.css";
 
 export const metadata: Metadata = {
   title: "BabyLoop Backoffice",
-  description: "BabyLoop operasyon ve yönetim konsolu.",
+  description: "BabyLoop operasyon ve yönetim konsolu",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 type RootLayoutProps = Readonly<{

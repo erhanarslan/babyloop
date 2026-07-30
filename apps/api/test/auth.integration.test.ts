@@ -115,6 +115,49 @@ describe("auth API", () => {
     }]);
   });
 
+  it("keeps a committed registration successful when verification delivery is deferred", async () => {
+    await app.close();
+    const deliveryError = new Error("provider unavailable");
+    app = await createTestApp({
+      emailDelivery: {
+        async sendAccountDeletionOtpEmail() {},
+        async sendEmailVerificationEmail() {
+          throw deliveryError;
+        },
+        async sendMfaOtpEmail() {},
+        async sendPasswordResetEmail() {},
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        displayName: "Deferred Verification",
+        email: "deferred-verification@example.com",
+        password: "Password123!",
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      data: {
+        emailVerificationDelivery: "deferred",
+        user: { email: "deferred-verification@example.com" },
+      },
+    });
+
+    const createdRows = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, "deferred-verification@example.com"));
+    expect(createdRows).toHaveLength(1);
+    expect(response.body).not.toContain("provider unavailable");
+  });
+
   it("rejects registration without explicit current terms acceptance", async () => {
     const response = await app.inject({
       method: "POST",
@@ -694,6 +737,30 @@ describe("auth API", () => {
 
     expect(accessCookie).toContain("HttpOnly");
     expect(accessCookie).toContain("Max-Age=0");
+  });
+
+  it("allows an explicitly assigned viewer to authenticate without changing public login behavior", async () => {
+    await createUser(app, {
+      email: "backoffice-viewer-login@example.com",
+      password: "Password123!",
+      role: "backoffice_viewer",
+    });
+
+    const backoffice = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/backoffice/login",
+      payload: { email: "backoffice-viewer-login@example.com", password: "Password123!" },
+    });
+    const publicLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: "backoffice-viewer-login@example.com", password: "Password123!" },
+    });
+
+    expect(backoffice.statusCode).toBe(200);
+    expect(backoffice.json().data.user.role).toBe("backoffice_viewer");
+    expect(publicLogin.statusCode).toBe(200);
+    expect(publicLogin.json().data.user.role).toBe("backoffice_viewer");
   });
 
   it("backoffice refresh rotates session cookies without returning an access token", async () => {
@@ -3889,12 +3956,51 @@ describe("auth API", () => {
 
     expect(first.statusCode).toBe(401);
     expect(limited.statusCode).toBe(429);
+    expect(limited.headers["retry-after"]).toBeDefined();
+    expect(limited.headers["ratelimit-limit"]).toBe("1");
+    expect(limited.headers["ratelimit-remaining"]).toBe("0");
     expect(limited.json()).toMatchObject({
       ok: false,
       error: {
         code: "RATE_LIMITED"
       }
     });
+  });
+
+  it("counts validation failures and keeps auth endpoint buckets separate", async () => {
+    await app.close();
+
+    app = await createTestApp({
+      authRateLimitMax: 1,
+      authRateLimitWindowSeconds: 60
+    });
+
+    const invalidLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "bucket@example.com"
+      }
+    });
+    const limitedLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: {
+        email: "bucket@example.com",
+        password: "Password123!"
+      }
+    });
+    const separateEndpoint = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/password-reset/request",
+      payload: {
+        email: "bucket@example.com"
+      }
+    });
+
+    expect(invalidLogin.statusCode).toBe(400);
+    expect(limitedLogin.statusCode).toBe(429);
+    expect(separateEndpoint.statusCode).toBe(200);
   });
   it("does not expose dev auth tokens outside test or explicitly enabled local dev", async () => {
     const previousNodeEnv = process.env.NODE_ENV;

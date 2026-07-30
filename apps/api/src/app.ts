@@ -164,10 +164,17 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     origin: config.corsOrigins,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-babyloop-csrf-token"],
-    exposedHeaders: ["Set-Cookie"]
+    exposedHeaders: [
+      "Set-Cookie",
+      "Retry-After",
+      "RateLimit-Limit",
+      "RateLimit-Remaining",
+      "RateLimit-Reset"
+    ]
   });
 
   app.register(rateLimit, {
+    enableDraftSpec: true,
     errorResponseBuilder: (_request, context) => {
       const error = new Error("Too many auth attempts. Try again later.") as Error & {
         statusCode: number;
@@ -178,7 +185,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
       return error;
     },
     global: false,
-    hook: "preHandler"
+    hook: "preValidation"
   });
 
   app.register(multipart, {
