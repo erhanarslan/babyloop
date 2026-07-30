@@ -73,7 +73,12 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Görüntüle" }));
+    const viewButton = await screen.findByRole("button", { name: "Görüntüle" });
+    await waitFor(() => {
+      expect(viewButton).toBeEnabled();
+    });
+    fireEvent.click(viewButton);
+
     expect(await screen.findByText("Mac tarayıcı")).toBeInTheDocument();
     expect(screen.getByText("Android cihaz")).toBeInTheDocument();
     expect(screen.getByText("Bu cihaz")).toBeInTheDocument();
@@ -121,7 +126,12 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Görüntüle" }));
+    const viewButton = await screen.findByRole("button", { name: "Görüntüle" });
+    await waitFor(() => {
+      expect(viewButton).toBeEnabled();
+    });
+    fireEvent.click(viewButton);
+
     const mobileCard = await screen.findByText("Android cihaz");
     const card = mobileCard.closest("article");
 
@@ -165,7 +175,12 @@ describe("SessionManagementPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Tümünü kapat" }));
+    const revokeAllButton = await screen.findByRole("button", { name: "Tümünü kapat" });
+    await waitFor(() => {
+      expect(revokeAllButton).toBeEnabled();
+    });
+    fireEvent.click(revokeAllButton);
+
     const dialog = await screen.findByRole("dialog", { name: "Tüm oturumları kapat" });
     fireEvent.change(within(dialog).getByLabelText("Mevcut şifre"), {
       target: { value: "Password123!" }

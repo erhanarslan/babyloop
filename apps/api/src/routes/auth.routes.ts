@@ -19,7 +19,8 @@ import {
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerBodySchema,
-  sessionRevokeAllSchema
+  sessionRevokeAllSchema,
+  summarizeAuthValidationIssues
 } from "../schemas/auth.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
@@ -240,6 +241,13 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       const parsedBody = registerBodySchema.safeParse(request.body);
 
       if (!parsedBody.success) {
+        request.log.info({
+          event: "auth_request_validation_failed",
+          issueCount: parsedBody.error.issues.length,
+          issues: summarizeAuthValidationIssues(parsedBody.error),
+          route: "/api/v1/auth/register",
+          validationStage: "register_body_schema"
+        }, "Auth request validation failed.");
         return reply.status(400).send(invalidAuthRequest());
       }
 

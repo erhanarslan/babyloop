@@ -301,13 +301,13 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
       onSubmit={handleSubmit}
     >
       <div className="auth-form-intro">
-        <p className="eyebrow">{isRegister ? "Create protected access" : "Protected sign in"}</p>
-        <h2>{isRegister ? "Create your BabyLoop account" : "Continue to your BabyLoop workspace"}</h2>
-        <p>
+        <p className="eyebrow">
           {isRegister
-            ? "İlan verme, mesajlar, kayıtlı aramalar, çocuk ihtiyaçları ve satıcı araçları için hesabını kullan."
-            : "Sign in to reach private marketplace tools without storing long-lived tokens in browser storage."}
+            ? dictionary.authPageShell.register.eyebrow
+            : dictionary.authPageShell.login.eyebrow}
         </p>
+        <h2>{isRegister ? dictionary.auth.registerTitle : dictionary.auth.loginTitle}</h2>
+        <p>{isRegister ? dictionary.auth.registerDescription : dictionary.auth.loginDescription}</p>
       </div>
 
       <div className="google-auth-actions google-auth-actions-polished">
@@ -412,16 +412,18 @@ export function AuthForm({ apiBaseUrl, mode }: AuthFormProps) {
         </section>
       ) : null}
 
-      <div className="auth-security-summary" aria-label="Auth security summary">
-        <div>
-          <strong>Session boundary</strong>
-          <span>Logout clears the client session and asks the API to end the cookie-backed session.</span>
+      {!isRegister ? (
+        <div className="auth-security-summary" aria-label={dictionary.authPageShell.assuranceLabel}>
+          <div>
+            <strong>{dictionary.authPageShell.login.badge}</strong>
+            <span>{dictionary.authPageShell.login.checks[0]}</span>
+          </div>
+          <div>
+            <strong>{dictionary.authPageShell.assuranceTitle}</strong>
+            <span>{dictionary.authPageShell.assuranceBody}</span>
+          </div>
         </div>
-        <div>
-          <strong>Private surfaces</strong>
-          <span>Mesajlar, favoriler, satıcı araçları ve hesap sayfaları yalnızca güvenli oturumla açılır.</span>
-        </div>
-      </div>
+      ) : null}
 
       {successMessage ? (
         <div className="dev-token-panel auth-success-panel" role="status">
@@ -540,9 +542,9 @@ function GoogleIcon() {
   );
 }
 
-function buildAuthPayload(formData: FormData, isRegister: boolean, termsAccepted: boolean) {
+export function buildAuthPayload(formData: FormData, isRegister: boolean, termsAccepted: boolean) {
   const email = getString(formData, "email");
-  const password = getString(formData, "password");
+  const password = getString(formData, "password", false);
   const displayName = getString(formData, "displayName");
   const locationCity = getString(formData, "locationCity");
 
@@ -564,7 +566,7 @@ function buildAuthPayload(formData: FormData, isRegister: boolean, termsAccepted
   };
 }
 
-function getString(formData: FormData, key: string): string {
+function getString(formData: FormData, key: string, trim = true): string {
   const value = formData.get(key);
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string" ? (trim ? value.trim() : value) : "";
 }
