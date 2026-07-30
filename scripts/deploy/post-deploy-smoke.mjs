@@ -73,6 +73,21 @@ const performanceProbes = [
       && body?.data?.pagination?.total === null
   },
   {
+    name: "api-docs",
+    url: `${apiUrl}/docs/`,
+    kind: "html",
+    requiredHeaders: ["content-security-policy", "x-content-type-options"],
+    validate: ({ text }) => text.includes("swagger-ui")
+  },
+  {
+    name: "api-openapi",
+    url: `${apiUrl}/docs/json`,
+    kind: "json",
+    validate: ({ body }) => typeof body?.openapi === "string"
+      && typeof body?.paths === "object"
+      && !Object.hasOwn(body.paths, "/internal/metrics")
+  },
+  {
     name: "web-home",
     url: webUrl,
     kind: "html",

@@ -13,7 +13,7 @@ type ApiResponse<TData> =
       };
     };
 
-type BackofficeAuthRole = "admin" | "user";
+type BackofficeAuthRole = "admin" | "backoffice_viewer" | "moderator" | "support" | "user";
 
 type BackofficeAuth = {
   user: {
@@ -129,6 +129,32 @@ const NON_ADMIN_AUTH: BackofficeAuth = {
   },
 };
 
+const VIEWER_AUTH: BackofficeAuth = {
+  user: {
+    id: "viewer-auth-shell-e2e",
+    email: "viewer-auth-shell-e2e@babyloop.test",
+    role: "backoffice_viewer",
+    emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+    profileId: "viewer-profile-auth-shell-e2e",
+    displayName: "Backoffice Auth Shell Viewer",
+    locationCity: "İstanbul",
+  },
+};
+
+function internalRoleAuth(role: "moderator" | "support"): BackofficeAuth {
+  return {
+    user: {
+      id: `${role}-auth-shell-e2e`,
+      email: `${role}-auth-shell-e2e@babyloop.test`,
+      role,
+      emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+      profileId: `${role}-profile-auth-shell-e2e`,
+      displayName: `Backoffice Auth Shell ${role}`,
+      locationCity: "İstanbul",
+    },
+  };
+}
+
 const NEGATIVE_UI_ERROR_MESSAGE = "Backoffice negative UI failure.";
 const RAW_EMAIL_SENTINEL = "raw-backoffice-negative-ui-parent@example.test";
 const RAW_PHONE_SENTINEL = "+905551112233";
@@ -136,30 +162,27 @@ const RAW_TOKEN_SENTINEL = "sk-backoffice-negative-ui-secret-token";
 const RAW_MESSAGE_SENTINEL = "RAW_BACKOFFICE_NEGATIVE_UI_MESSAGE_BODY";
 
 test.describe("backoffice protected auth shell", () => {
-  test("guest sees sign-in required state on protected backoffice routes", async ({ page }) => {
+  test("guest is redirected without rendering the protected shell", async ({ page }) => {
     const authRequests = await installBackofficeAuthMocks(page, null);
 
     for (const route of protectedRoutes) {
+      const requestsBeforeNavigation = { ...authRequests };
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
 
-      await expect(page.getByRole("heading", { name: "Giriş gerekli", exact: true })).toBeVisible({
-        timeout: 15_000,
-      });
-      await expect(page.getByText("Backoffice erişimi gerekli", { exact: true })).toBeVisible();
-      await expect(
-        page.getByText("BabyLoop Backoffice’e erişmeden önce giriş yapmalısın.", { exact: true }),
-      ).toBeVisible();
-      await expect(page.getByRole("link", { name: "Giriş yap", exact: true })).toHaveAttribute(
-        "href",
-        "/login",
-      );
+      await expect(page).toHaveURL(new RegExp(`/login\\?next=${encodeURIComponent(route.path).replace(/%/g, "%")}`));
+      await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+      await expect(page.getByText("Operasyon Konsolu", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
 
       await expect(page.getByRole("heading", { name: route.heading, exact: true })).toHaveCount(0);
+      expect(authRequests.me - requestsBeforeNavigation.me).toBe(1);
+      expect(authRequests.refresh - requestsBeforeNavigation.refresh).toBe(1);
+      expect(authRequests.csrf - requestsBeforeNavigation.csrf).toBe(0);
     }
 
     expect(authRequests.csrf).toBe(0);
-    expect(authRequests.me).toBeGreaterThan(0);
-    expect(authRequests.refresh).toBeLessThanOrEqual(authRequests.me);
+    expect(authRequests.me).toBe(protectedRoutes.length);
+    expect(authRequests.refresh).toBe(protectedRoutes.length);
   });
 
   test("non-admin user sees forbidden state on protected backoffice routes", async ({ page }) => {
@@ -182,6 +205,22 @@ test.describe("backoffice protected auth shell", () => {
     }
   });
 
+  for (const role of ["moderator", "support"] as const) {
+    test(`${role} keeps the pre-hotfix forbidden UI behavior`, async ({ page }) => {
+      await installBackofficeAuthMocks(page, internalRoleAuth(role));
+
+      await page.goto("/listings", { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByRole("heading", {
+        name: "Backoffice erişimin yok",
+        exact: true,
+      })).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator(".auth-state-card").getByText(role, { exact: true })).toBeVisible();
+      await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toHaveCount(0);
+    });
+  }
+
   test("auth check failure shows retry state and recovers to authorized shell", async ({ page }) => {
     await installBackofficeAuthRetryMocks(page);
     await installProtectedRouteDataMocks(page);
@@ -203,6 +242,24 @@ test.describe("backoffice protected auth shell", () => {
     await expect(page.getByRole("heading", { name: "Erişim kontrolü başarısız", exact: true })).toHaveCount(0);
   });
 
+  test("successful login returns to a safe protected deep link", async ({ page }) => {
+    await installBackofficeAuthMocks(page, ADMIN_AUTH);
+    await installProtectedRouteDataMocks(page);
+    await page.route("**/auth/backoffice/login", async (route) => {
+      await fulfillJson(route, { ok: true, data: ADMIN_AUTH });
+    });
+
+    await page.goto("/login?next=%2Flistings", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+    await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
+    await page.getByRole("textbox", { name: "Email", exact: true }).fill("admin-auth-shell-e2e@babyloop.test");
+    await page.getByLabel("Password", { exact: true }).fill("Password123!");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/listings$/u);
+    await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toBeVisible();
+  });
+
   test("admin can open protected backoffice route shells", async ({ page }) => {
     await installBackofficeAuthMocks(page, ADMIN_AUTH);
     await installProtectedRouteDataMocks(page);
@@ -222,6 +279,25 @@ test.describe("backoffice protected auth shell", () => {
         }),
       ).toHaveCount(0);
     }
+  });
+
+  test("viewer sees only read-only navigation and cannot open forbidden shells", async ({ page }) => {
+    await installBackofficeAuthMocks(page, VIEWER_AUTH);
+    await installProtectedRouteDataMocks(page);
+
+    await page.goto("/listings", { waitUntil: "domcontentloaded" });
+
+    const navigation = page.getByRole("complementary", { name: "Backoffice navigation" });
+    await expect(navigation).toBeVisible();
+    await expect(page.getByText("Salt okunur", { exact: true })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "İlanlar", exact: true })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Profiller", exact: true })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Moderasyon Vakaları", exact: true })).toHaveCount(0);
+    await expect(navigation.getByRole("link", { name: "Storage", exact: true })).toHaveCount(0);
+
+    await page.goto("/storage", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Bu bölüm için yetkin yok", exact: true })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
   });
 
   test("admin sees safe route-level API failure states without raw private data", async ({ page }) => {
@@ -258,7 +334,7 @@ test.describe("backoffice protected auth shell", () => {
 async function expectBackofficeShell(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Backoffice", exact: true })).toBeVisible();
   await expect(page.getByText("Operasyon Konsolu", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Backoffice status")).toHaveText("Hazır");
+  await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
 
   const navigation = page.getByRole("complementary", { name: "Backoffice navigation" });
 

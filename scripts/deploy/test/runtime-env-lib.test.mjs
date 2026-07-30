@@ -82,6 +82,24 @@ test("rejects mismatched public origins and local Redis transport", async () => 
   }
 });
 
+test("rejects production documentation that is disabled or interactive", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "babyloop-runtime-env-"));
+  try {
+    const envPath = join(directory, "staging.runtime.env");
+    const content = runtimeEnvFixture()
+      .replace("API_DOCS_ENABLED=true", "API_DOCS_ENABLED=false")
+      .replace("API_DOCS_ACCESS_MODE=readonly", "API_DOCS_ACCESS_MODE=interactive");
+    await writeFile(envPath, content, "utf8");
+    await chmod(envPath, 0o600);
+    await assert.rejects(
+      () => auditRuntimeEnv({ envFile: envPath, target: "staging" }),
+      /API_DOCS_ENABLED must be true|API_DOCS_ACCESS_MODE must be readonly/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 function runtimeEnvFixture() {
   return [
     "DEPLOY_ENVIRONMENT=staging",
@@ -89,6 +107,8 @@ function runtimeEnvFixture() {
     "DATABASE_URL=postgresql://user:password@db.staging.babyloop.test:5432/babyloop?sslmode=require",
     `AUTH_SECRET=${"s".repeat(48)}`,
     "ALLOW_AUTH_UNAVAILABLE=false",
+    "API_DOCS_ENABLED=true",
+    "API_DOCS_ACCESS_MODE=readonly",
     "WEB_APP_URL=https://staging.babyloop.test",
     "CORS_ORIGINS=https://staging.babyloop.test,https://admin.staging.babyloop.test",
     "NEXT_PUBLIC_API_BASE_URL=https://api.staging.babyloop.test",

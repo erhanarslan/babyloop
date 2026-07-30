@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Button, TextInput } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -17,9 +17,11 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitInFlightRef.current) return;
     setDevResetToken(null);
     setErrorMessage(null);
 
@@ -30,6 +32,7 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
       return;
     }
 
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -45,12 +48,13 @@ export function ForgotPasswordForm({ apiBaseUrl }: ForgotPasswordFormProps) {
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
+    <form aria-busy={isSubmitting} className="listing-form auth-recovery-form" onSubmit={handleSubmit}>
       <div className="auth-form-intro">
         <p className="eyebrow">{dictionary.auth.forgotFormEyebrow}</p>
         <h2>{dictionary.auth.forgotFormTitle}</h2>

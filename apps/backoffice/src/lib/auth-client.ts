@@ -4,14 +4,16 @@ export const BACKOFFICE_AUTH_CHANGED_EVENT = "babyloop-backoffice-auth-changed";
 
 const BACKOFFICE_CSRF_COOKIE_NAME = "babyloop_backoffice_csrf_token";
 const BACKOFFICE_CSRF_HEADER_NAME = "x-babyloop-csrf-token";
-const BACKOFFICE_UNAUTHENTICATED_COOLDOWN_MS = 3000;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+export type BackofficeAuthLifecycleState = "unknown" | "authenticated" | "anonymous";
 
 let cachedBackofficeCsrfToken: string | null = null;
 let backofficeCsrfTokenPromise: Promise<string | null> | null = null;
 let backofficeMePromise: Promise<BackofficeAuthMe | null> | null = null;
 let refreshSessionPromise: Promise<boolean> | null = null;
-let unauthenticatedCooldownUntil = 0;
+let authLifecycleState: BackofficeAuthLifecycleState = "unknown";
+const backofficeLoginFlights = new Map<string, Promise<BackofficeLoginResult>>();
 
 export type BackofficeAuthUser = {
   id: string;
@@ -32,13 +34,54 @@ type BackofficeCsrfResponse = {
   csrfToken: string;
 };
 
+type BackofficeLoginResult =
+  | { ok: true; auth: LoginResponse }
+  | { ok: false; message: string; retryAfterSeconds: number | null };
+
 export async function loginBackoffice(
   apiBaseUrl: string,
   input: {
     email: string;
     password: string;
   },
-): Promise<{ ok: true; auth: LoginResponse } | { ok: false; message: string }> {
+): Promise<BackofficeLoginResult> {
+  const endpoint = `${apiBaseUrl}/api/v1/auth/backoffice/login`;
+  const flightKey = `${endpoint}:${await fingerprintAuthPayload(input)}`;
+  const existingFlight = backofficeLoginFlights.get(flightKey);
+  if (existingFlight) return existingFlight;
+
+  const flight = loginBackofficeOnce(apiBaseUrl, input).finally(() => {
+    backofficeLoginFlights.delete(flightKey);
+  });
+  backofficeLoginFlights.set(flightKey, flight);
+  return flight;
+}
+
+async function fingerprintAuthPayload(payload: unknown): Promise<string> {
+  const encoded = new TextEncoder().encode(stableJson(payload));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  }
+
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "null";
+}
+
+async function loginBackofficeOnce(
+  apiBaseUrl: string,
+  input: { email: string; password: string },
+): Promise<BackofficeLoginResult> {
   try {
     clearBackofficeCsrfToken();
 
@@ -59,6 +102,7 @@ export async function loginBackoffice(
       return {
         ok: false,
         message: getApiErrorMessage(body, "Login failed."),
+        retryAfterSeconds: readRetryAfterSeconds(response),
       };
     }
 
@@ -66,10 +110,11 @@ export async function loginBackoffice(
       return {
         ok: false,
         message: "Additional verification is required before backoffice login.",
+        retryAfterSeconds: null,
       };
     }
 
-    clearBackofficeUnauthenticatedCooldown();
+    authLifecycleState = "authenticated";
     await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
     dispatchAuthChanged();
 
@@ -81,8 +126,14 @@ export async function loginBackoffice(
     return {
       ok: false,
       message: "Login request failed.",
+      retryAfterSeconds: null,
     };
   }
+}
+
+function readRetryAfterSeconds(response: Response): number | null {
+  const value = Number.parseInt(response.headers.get("retry-after") ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 export async function logoutBackoffice(apiBaseUrl: string): Promise<void> {
@@ -128,7 +179,7 @@ export async function authFetch(
 export async function fetchBackofficeMe(
   apiBaseUrl: string,
 ): Promise<BackofficeAuthMe | null> {
-  if (isBackofficeUnauthenticatedCooldownActive()) {
+  if (authLifecycleState === "anonymous") {
     return null;
   }
 
@@ -157,7 +208,7 @@ async function fetchBackofficeMeOnce(apiBaseUrl: string): Promise<BackofficeAuth
     return null;
   }
 
-  clearBackofficeUnauthenticatedCooldown();
+  authLifecycleState = "authenticated";
   return body.data;
 }
 
@@ -192,7 +243,7 @@ async function refreshSessionOnce(apiBaseUrl: string): Promise<boolean> {
       return false;
     }
 
-    clearBackofficeUnauthenticatedCooldown();
+    authLifecycleState = "authenticated";
     await ensureBackofficeCsrfToken(apiBaseUrl, { forceRefresh: true });
 
     return true;
@@ -315,23 +366,20 @@ function clearBackofficeAuthRequestState(): void {
   clearBackofficeCsrfToken();
   backofficeMePromise = null;
   refreshSessionPromise = null;
-  clearBackofficeUnauthenticatedCooldown();
+  authLifecycleState = "unknown";
 }
 
 function markBackofficeUnauthenticated(): void {
-  unauthenticatedCooldownUntil = Date.now() + BACKOFFICE_UNAUTHENTICATED_COOLDOWN_MS;
-}
-
-function clearBackofficeUnauthenticatedCooldown(): void {
-  unauthenticatedCooldownUntil = 0;
-}
-
-function isBackofficeUnauthenticatedCooldownActive(): boolean {
-  return Date.now() < unauthenticatedCooldownUntil;
+  authLifecycleState = "anonymous";
 }
 
 export function resetBackofficeAuthClientForTests(): void {
   clearBackofficeAuthRequestState();
+  backofficeLoginFlights.clear();
+}
+
+export function getBackofficeAuthLifecycleStateForTests(): BackofficeAuthLifecycleState {
+  return authLifecycleState;
 }
 
 function getApiErrorMessage(body: ApiResponse<unknown>, fallback: string): string {

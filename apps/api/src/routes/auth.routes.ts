@@ -126,6 +126,8 @@ import {
   serializeExpiredBackofficeCsrfCookie
 } from "../utils/backoffice-csrf.js";
 import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
+import { resolveTrustedClientIp } from "../utils/trusted-client-ip.js";
+import { buildAuthRateLimitKey } from "../utils/auth-rate-limit.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
@@ -258,6 +260,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         buildAuthSessionRequestMeta(request)
       );
       const response = attachAccessToken(result.response, options, session.id);
+      response.data.emailVerificationDelivery = result.emailVerificationDelivery;
       const responseWithDevVerificationToken =
         shouldExposeDevEmailVerificationToken() && result.devEmailVerificationToken
           ? {
@@ -1340,7 +1343,15 @@ function authRateLimitOptions(options: AuthTokenOptions): RouteShorthandOptions 
     config: {
       rateLimit: {
         max: options.authRateLimitMax,
-        timeWindow: options.authRateLimitWindowSeconds * 1000
+        timeWindow: options.authRateLimitWindowSeconds * 1000,
+        keyGenerator(request) {
+          return buildAuthRateLimitKey({
+            authSecret: options.authSecret,
+            body: request.body,
+            clientIp: resolveTrustedClientIp(request),
+            endpoint: request.routeOptions.url ?? request.url,
+          });
+        }
       }
     }
   };
@@ -1348,7 +1359,7 @@ function authRateLimitOptions(options: AuthTokenOptions): RouteShorthandOptions 
 
 function buildAuthSessionRequestMeta(request: FastifyRequest): AuthSessionRequestMeta {
   return {
-    ipAddress: request.ip ?? null,
+    ipAddress: resolveTrustedClientIp(request) ?? null,
     userAgent: normalizeHeaderValue(request.headers["user-agent"])
   };
 }

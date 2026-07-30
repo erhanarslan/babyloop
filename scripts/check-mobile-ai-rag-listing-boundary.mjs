@@ -124,8 +124,8 @@ assertNotContains(
 
 assertContains(
   "apps/backoffice/src/lib/auth-client.ts",
-  /backofficeMePromise[\s\S]*refreshSessionPromise[\s\S]*unauthenticatedCooldownUntil/,
-  "shared in-flight and cooldown auth bootstrap state"
+  /backofficeMePromise[\s\S]*refreshSessionPromise[\s\S]*authLifecycleState[\s\S]*markBackofficeUnauthenticated[\s\S]*authLifecycleState\s*=\s*"anonymous"/,
+  "shared in-flight and terminal auth lifecycle bootstrap state"
 );
 assertContains(
   "apps/backoffice/src/lib/auth-client.test.ts",

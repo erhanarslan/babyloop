@@ -30,6 +30,7 @@ const requiredFiles = [
   "scripts/check-gcp-cloud-run-boundary.mjs",
   "deploy/gcp/cloud-run.contract.json",
   "apps/api/src/scripts/migrate-database.ts",
+  "apps/api/src/services/database-migration-head.service.ts",
   "docs/85-staging-production-deployment.md"
 ];
 
@@ -124,12 +125,20 @@ if (problems.length === 0) {
   for (const token of [
     "pg_advisory_lock",
     "MIGRATION_CONFIRM",
-    "DATABASE_MIGRATIONS_DIR",
-    "fileURLToPath(import.meta.url)",
-    "../../packages/database/drizzle",
-    "../../../../packages/database/drizzle"
+    "resolveMigrationsFolder",
+    "verifyDatabaseMigrationHead"
   ]) {
     must("apps/api/src/scripts/migrate-database.ts", token);
+  }
+
+  for (const token of [
+    "DATABASE_MIGRATIONS_DIR",
+    "meta/_journal.json",
+    'resolve(process.cwd(), "migrations")',
+    "packages/database/drizzle",
+    "../../packages/database/drizzle",
+  ]) {
+    must("apps/api/src/services/database-migration-head.service.ts", token);
   }
 
   must("apps/api/src/server.ts", 'process.once("SIGTERM"');

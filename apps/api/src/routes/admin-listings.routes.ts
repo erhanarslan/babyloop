@@ -25,12 +25,43 @@ import {
 } from "../services/listing-publication.service.js";
 
 type AdminListingsResponse = ApiResponse<{
-  listings: AdminListingSummary[];
+  listings: Array<AdminListingSummary | ViewerListingSummary>;
 }>;
 
 type AdminListingDetailResponse = ApiResponse<{
-  listing: AdminListingDetail;
+  listing: AdminListingDetail | ViewerListingDetail;
 }>;
+
+type ViewerListingImage = Pick<
+  AdminListingImageReview,
+  "id" | "url" | "sortOrder" | "reviewStatus" | "createdAt"
+>;
+
+type ViewerListingSummary = Pick<
+  AdminListingSummary,
+  | "id"
+  | "title"
+  | "description"
+  | "price"
+  | "currency"
+  | "status"
+  | "publicationState"
+  | "publishAfter"
+  | "publishedAt"
+  | "listingType"
+  | "condition"
+  | "category"
+  | "seller"
+  | "imageCount"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  primaryImage: ViewerListingImage | null;
+};
+
+type ViewerListingDetail = ViewerListingSummary & {
+  images: ViewerListingImage[];
+};
 
 type AdminListingActionResponse = ApiResponse<{
   listingId: string;
@@ -55,7 +86,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: unknown; Reply: AdminListingsResponse }>(
     "/admin/listings",
     async (request, reply) => {
-      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
+      const admin = await requireBackofficePermission(app, request, reply, "listing_view");
 
       if (!admin) {
         return reply;
@@ -69,24 +100,28 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
           .send(invalidRequest("Admin listing filters are invalid."));
       }
 
+      const listings = await listAdminListings(app, {
+        ...(parsedQuery.data.status ? { status: parsedQuery.data.status } : {}),
+        ...(parsedQuery.data.imageReviewStatus
+          ? { imageReviewStatus: parsedQuery.data.imageReviewStatus }
+          : {}),
+        ...(parsedQuery.data.publicationState
+          ? { publicationState: parsedQuery.data.publicationState }
+          : {}),
+        ...(parsedQuery.data.q ? { q: parsedQuery.data.q } : {}),
+        ...(parsedQuery.data.categoryId
+          ? { categoryId: parsedQuery.data.categoryId }
+          : {}),
+        ...(parsedQuery.data.sort ? { sort: parsedQuery.data.sort } : {}),
+        ...(parsedQuery.data.limit ? { limit: parsedQuery.data.limit } : {})
+      });
+
       return {
         ok: true,
         data: {
-          listings: await listAdminListings(app, {
-            ...(parsedQuery.data.status ? { status: parsedQuery.data.status } : {}),
-            ...(parsedQuery.data.imageReviewStatus
-              ? { imageReviewStatus: parsedQuery.data.imageReviewStatus }
-              : {}),
-            ...(parsedQuery.data.publicationState
-              ? { publicationState: parsedQuery.data.publicationState }
-              : {}),
-            ...(parsedQuery.data.q ? { q: parsedQuery.data.q } : {}),
-            ...(parsedQuery.data.categoryId
-              ? { categoryId: parsedQuery.data.categoryId }
-              : {}),
-            ...(parsedQuery.data.sort ? { sort: parsedQuery.data.sort } : {}),
-            ...(parsedQuery.data.limit ? { limit: parsedQuery.data.limit } : {})
-          })
+          listings: admin.role === "backoffice_viewer"
+            ? listings.map(projectListingSummaryForViewer)
+            : listings
         }
       };
     }
@@ -143,7 +178,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
   app.get<{ Params: unknown; Reply: AdminListingDetailResponse }>(
     "/admin/listings/:listingId",
     async (request, reply) => {
-      const admin = await requireBackofficePermission(app, request, reply, "listing_review");
+      const admin = await requireBackofficePermission(app, request, reply, "listing_view");
 
       if (!admin) {
         return reply;
@@ -166,7 +201,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          listing
+          listing: admin.role === "backoffice_viewer" ? projectListingDetailForViewer(listing) : listing
         }
       };
     }
@@ -323,6 +358,47 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
       };
     }
   );
+}
+
+function projectListingImageForViewer(image: AdminListingImageReview): ViewerListingImage {
+  return {
+    id: image.id,
+    url: image.url,
+    sortOrder: image.sortOrder,
+    reviewStatus: image.reviewStatus,
+    createdAt: image.createdAt,
+  };
+}
+
+function projectListingSummaryForViewer(listing: AdminListingSummary): ViewerListingSummary {
+  return {
+    id: listing.id,
+    title: listing.title,
+    description: listing.description,
+    price: listing.price,
+    currency: listing.currency,
+    status: listing.status,
+    publicationState: listing.publicationState,
+    publishAfter: listing.publishAfter,
+    publishedAt: listing.publishedAt,
+    listingType: listing.listingType,
+    condition: listing.condition,
+    category: listing.category,
+    seller: listing.seller,
+    primaryImage: listing.primaryImage
+      ? projectListingImageForViewer(listing.primaryImage)
+      : null,
+    imageCount: listing.imageCount,
+    createdAt: listing.createdAt,
+    updatedAt: listing.updatedAt,
+  };
+}
+
+function projectListingDetailForViewer(listing: AdminListingDetail): ViewerListingDetail {
+  return {
+    ...projectListingSummaryForViewer(listing),
+    images: listing.images.map(projectListingImageForViewer),
+  };
 }
 
 function invalidRequest(message: string): ApiResponse<never> {

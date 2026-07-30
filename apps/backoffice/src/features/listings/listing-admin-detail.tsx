@@ -7,19 +7,22 @@ import { useEffect, useState } from "react";
 import {
   type AdminListingAuditEvent,
   type AdminListingDetail as AdminListingDetailType,
+  type ViewerListingDetail,
   getAdminListing,
 } from "./api";
 import { ListingImageReviewPanel } from "./listing-image-review-panel";
 import { ListingPublicationReviewPanel } from "./listing-publication-review-panel";
 import { ListingStatusActionForm } from "./listing-status-action-form";
 import { RelatedModerationCases } from "./related-moderation-cases";
+import { useBackofficeAccess } from "../auth/backoffice-access";
 
 type ListingAdminDetailProps = {
   listingId: string;
 };
 
 export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
-  const [listing, setListing] = useState<AdminListingDetailType | null>(null);
+  const access = useBackofficeAccess();
+  const [listing, setListing] = useState<AdminListingDetailType | ViewerListingDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -75,6 +78,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
   }
 
   const needsReviewImages = listing.images.filter((image) => image.reviewStatus === "needs_review");
+  const fullListing = "actionEligibility" in listing ? listing : null;
 
   return (
     <div className="detail-layout">
@@ -164,10 +168,10 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
           </div>
         </dl>
 
-        {listing.publicationReviewReason ? (
+        {fullListing?.publicationReviewReason ? (
           <section className="note-panel warning">
             <h3>Son düzeltme gerekçesi</h3>
-            <p>{listing.publicationReviewReason}</p>
+            <p>{fullListing.publicationReviewReason}</p>
           </section>
         ) : null}
 
@@ -199,17 +203,21 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
       </section>
 
       <section className="side-stack">
-        <ListingPublicationReviewPanel listing={listing} onApplied={setListing} />
-        <ListingStatusActionForm listing={listing} onApplied={setListing} />
-        <ListingImageReviewPanel
-          images={listing.images}
-          listingId={listing.id}
-          onReviewed={setListing}
-        />
-        <RelatedModerationCases cases={listing.relatedModerationCases} />
+        {access.can("mutate") && fullListing ? (
+          <>
+            <ListingPublicationReviewPanel listing={fullListing} onApplied={setListing} />
+            <ListingStatusActionForm listing={fullListing} onApplied={setListing} />
+            <ListingImageReviewPanel
+              images={fullListing.images}
+              listingId={fullListing.id}
+              onReviewed={setListing}
+            />
+            <RelatedModerationCases cases={fullListing.relatedModerationCases} />
+          </>
+        ) : null}
       </section>
 
-      <section className="content-card full-span">
+      {fullListing ? <section className="content-card full-span">
         <div className="page-toolbar">
           <div>
             <p className="eyebrow">Audit</p>
@@ -221,11 +229,11 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
           </div>
         </div>
 
-        {listing.auditTrail.length === 0 ? (
+        {fullListing.auditTrail.length === 0 ? (
           <div className="state-panel">No listing action audit events yet.</div>
         ) : (
           <div className="timeline">
-            {listing.auditTrail.map((event) => (
+            {fullListing.auditTrail.map((event) => (
               <article className="timeline-item audit_event" key={event.id}>
                 <div>
                   <strong>{getAuditEventLabel(event)}</strong>
@@ -255,7 +263,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
             ))}
           </div>
         )}
-      </section>
+      </section> : null}
     </div>
   );
 }
@@ -297,7 +305,7 @@ function getPublicationStateLabel(
   }
 }
 
-function formatPrice(listing: AdminListingDetailType): string {
+function formatPrice(listing: AdminListingDetailType | ViewerListingDetail): string {
   return listing.price
     ? `${listing.price.amount} ${listing.price.currency}`
     : "Not set";

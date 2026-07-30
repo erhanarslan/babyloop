@@ -1,16 +1,225 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { listingImages, listings, profileTrustSnapshots } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
 import { authHeader, createUser } from "./helpers/auth.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
+import { createListing } from "./helpers/fixtures.js";
 
 let app!: TestApp;
 
 const VALID_UUID = "99999999-9999-4999-8999-999999999999";
+const PROFILE_SENTINEL = "2099-12-31T23:59:58.000Z";
+const LISTING_REVIEW_SENTINEL = "VIEWER_INTERNAL_REVIEW_SENTINEL";
+const LISTING_AI_SENTINEL = "VIEWER_INTERNAL_AI_SENTINEL";
+
+const FORBIDDEN_VIEWER_PROFILE_KEYS = [
+  "trustSnapshot",
+  "trustScore",
+  "riskScore",
+  "riskLevel",
+  "openCaseCount",
+  "totalCaseCount",
+  "recentReportCount",
+  "recentEnforcementCount",
+  "sensitiveAccessCount",
+  "aiSummaryCount",
+  "lastReportAt",
+  "lastEnforcementAt",
+  "stats",
+  "relatedModerationCases",
+  "enforcementHistory",
+];
+
+const FORBIDDEN_VIEWER_LISTING_KEYS = [
+  "publicationReviewReason",
+  "moderation",
+  "auditTrail",
+  "relatedModerationCases",
+  "actionEligibility",
+  "authenticity",
+  "providerName",
+  "modelName",
+  "promptVersion",
+  "flags",
+  "reviewedByProfileId",
+  "reviewedAt",
+];
 
 describe("backoffice route permission matrix", () => {
   beforeEach(async () => {
     await resetTestDatabase();
     app = await createTestApp();
+  });
+
+  it("allows a viewer safe reads while rejecting listing and profile mutations", async () => {
+    const viewer = await createUser(app, {
+      email: "viewer-read-only@babyloop.test",
+      role: "backoffice_viewer",
+    });
+
+    for (const url of [
+      "/api/v1/admin/dashboard/summary",
+      "/api/v1/admin/listings",
+      "/api/v1/admin/profiles",
+    ]) {
+      const response = await app.inject({
+        headers: authHeader(viewer.accessToken),
+        method: "GET",
+        url,
+      });
+      expect(response.statusCode, url).toBe(200);
+      expectResponseToBeSecretSafe(response.body);
+    }
+
+    const listingMutation = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${VALID_UUID}/actions`,
+      payload: { action: "archive", reason: "viewer must not mutate listings" },
+    });
+    const profileMutation = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "POST",
+      url: `/api/v1/admin/profiles/${VALID_UUID}/enforcement`,
+      payload: { action: "profile_restrict", reason: "viewer must not mutate profiles" },
+    });
+    const audit = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/audit/events",
+    });
+    const publicationSettings = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/listings/publication-settings",
+    });
+
+    expect(listingMutation.statusCode).toBe(403);
+    expect(profileMutation.statusCode).toBe(403);
+    expect(audit.statusCode).toBe(403);
+    expect(publicationSettings.statusCode).toBe(403);
+  });
+
+  it("projects viewer profile list responses to basic safe identity fields", async () => {
+    const { viewer, subject } = await setupViewerProfileProjection();
+    const response = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/profiles?q=${encodeURIComponent(subject.profile.id)}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profiles).toContainEqual(expect.objectContaining({
+      profileId: subject.profile.id,
+      displayName: subject.profile.displayName,
+      listingCount: 0,
+    }));
+    expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_PROFILE_KEYS, [PROFILE_SENTINEL]);
+  });
+
+  it("projects viewer profile detail responses to basic safe identity fields", async () => {
+    const { viewer, subject } = await setupViewerProfileProjection();
+    const response = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/profiles/${subject.profile.id}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profile).toEqual({
+      profileId: subject.profile.id,
+      displayName: subject.profile.displayName,
+      locationCity: subject.profile.locationCity,
+      createdAt: expect.any(String),
+      listingCount: 0,
+    });
+    expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_PROFILE_KEYS, [PROFILE_SENTINEL]);
+  });
+
+  it("projects viewer listing list responses without review or AI metadata", async () => {
+    const { listing, viewer } = await setupViewerListingProjection();
+    const response = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings?q=${encodeURIComponent(listing.id)}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.listings).toContainEqual(expect.objectContaining({
+      id: listing.id,
+      title: listing.title,
+      primaryImage: expect.objectContaining({ url: expect.any(String) }),
+    }));
+    expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_LISTING_KEYS, [
+      LISTING_REVIEW_SENTINEL,
+      LISTING_AI_SENTINEL,
+    ]);
+  });
+
+  it("projects viewer listing detail responses without review or AI metadata", async () => {
+    const { listing, viewer } = await setupViewerListingProjection();
+    const response = await app.inject({
+      headers: authHeader(viewer.accessToken),
+      method: "GET",
+      url: `/api/v1/admin/listings/${listing.id}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.listing).toEqual(expect.objectContaining({
+      id: listing.id,
+      images: [expect.objectContaining({ url: expect.any(String) })],
+    }));
+    expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_LISTING_KEYS, [
+      LISTING_REVIEW_SENTINEL,
+      LISTING_AI_SENTINEL,
+    ]);
+  });
+
+  it("keeps a viewer account usable in public auth and product routes", async () => {
+    const email = "viewer-public-account@babyloop.test";
+    const viewer = await createUser(app, { email, role: "backoffice_viewer" });
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Password123!" },
+    });
+
+    expect(login.statusCode).toBe(200);
+    const accessToken = login.json().data.accessToken as string;
+    const me = await app.inject({
+      headers: authHeader(accessToken),
+      method: "GET",
+      url: "/api/v1/auth/me",
+    });
+    const publicRead = await app.inject({
+      headers: authHeader(accessToken),
+      method: "GET",
+      url: "/api/v1/notification-preferences",
+    });
+    const publicMutation = await app.inject({
+      headers: authHeader(accessToken),
+      method: "PATCH",
+      url: "/api/v1/notification-preferences",
+      payload: {
+        source: "messages",
+        channel: "in_app",
+        enabled: false,
+      },
+    });
+    const backofficeMutation = await app.inject({
+      headers: authHeader(accessToken),
+      method: "POST",
+      url: `/api/v1/admin/listings/${VALID_UUID}/actions`,
+      payload: { action: "archive", reason: "viewer remains read-only in backoffice" },
+    });
+
+    expect(me.statusCode).toBe(200);
+    expect(me.json().data.user.role).toBe("backoffice_viewer");
+    expect(publicRead.statusCode).toBe(200);
+    expect(publicMutation.statusCode).toBe(200);
+    expect(backofficeMutation.statusCode).toBe(403);
+    expect(viewer.user.role).toBe("backoffice_viewer");
   });
 
   afterEach(async () => {
@@ -378,4 +587,88 @@ function expectResponseToBeSecretSafe(body: string): void {
   ]) {
     expect(body).not.toContain(forbidden);
   }
+}
+
+async function setupViewerProfileProjection() {
+  const viewer = await createUser(app, {
+    email: "viewer-profile-projection@babyloop.test",
+    role: "backoffice_viewer",
+  });
+  const subject = await createUser(app, {
+    displayName: "Viewer Safe Profile Subject",
+    email: "viewer-profile-subject@babyloop.test",
+  });
+
+  await app.db.insert(profileTrustSnapshots).values({
+    profileId: subject.profile.id,
+    trustScore: 3,
+    riskScore: 97,
+    riskLevel: "critical",
+    openCaseCount: 11,
+    totalCaseCount: 22,
+    recentReportCount: 13,
+    recentEnforcementCount: 14,
+    sensitiveAccessCount: 15,
+    aiSummaryCount: 16,
+    lastReportAt: new Date(PROFILE_SENTINEL),
+    lastEnforcementAt: new Date(PROFILE_SENTINEL),
+  });
+
+  return { subject, viewer };
+}
+
+async function setupViewerListingProjection() {
+  const viewer = await createUser(app, {
+    email: "viewer-listing-projection@babyloop.test",
+    role: "backoffice_viewer",
+  });
+  const seller = await createUser(app, {
+    email: "viewer-listing-seller@babyloop.test",
+  });
+  const listing = await createListing(app, seller.accessToken, {
+    title: "Viewer Safe Listing",
+  });
+
+  await app.db
+    .update(listings)
+    .set({ publicationReviewReason: LISTING_REVIEW_SENTINEL })
+    .where(eq(listings.id, listing.id));
+  await app.db
+    .update(listingImages)
+    .set({
+      authenticityProvider: LISTING_AI_SENTINEL,
+      authenticityModel: `${LISTING_AI_SENTINEL}_MODEL`,
+      authenticityPromptVersion: `${LISTING_AI_SENTINEL}_PROMPT`,
+      authenticityFlags: { internal: LISTING_AI_SENTINEL },
+      reviewedByProfileId: viewer.profile.id,
+    })
+    .where(eq(listingImages.listingId, listing.id));
+
+  return { listing, viewer };
+}
+
+function expectViewerResponseToExclude(
+  body: string,
+  forbiddenKeys: string[],
+  sentinelValues: string[],
+): void {
+  const keys = collectJsonKeys(JSON.parse(body));
+
+  for (const forbiddenKey of forbiddenKeys) {
+    expect(keys).not.toContain(forbiddenKey);
+  }
+  for (const sentinelValue of sentinelValues) {
+    expect(body).not.toContain(sentinelValue);
+  }
+}
+
+function collectJsonKeys(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectJsonKeys);
+  }
+  if (value === null || typeof value !== "object") {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, item]) => [key, ...collectJsonKeys(item)]);
 }

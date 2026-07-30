@@ -127,6 +127,9 @@ async function grantSchedulerJobInvocation({
 async function upsertScheduler({ key, config, context, contract, environment }) {
   const name = `${config.name}-schedule`;
   const verb = await schedulerExists(name, contract, context.project) ? "update" : "create";
+  const headersFlag = verb === "create"
+    ? "--headers=Content-Type=application/json"
+    : "--update-headers=Content-Type=application/json";
   const uri = `https://run.googleapis.com/v2/projects/${context.project}/locations/${contract.region}/jobs/${config.name}:run`;
   await gcloud([
     "scheduler", "jobs", verb, "http", name,
@@ -138,7 +141,7 @@ async function upsertScheduler({ key, config, context, contract, environment }) 
     "--http-method=POST",
     `--oauth-service-account-email=${serviceAccountEmail(contract, "scheduler", context.project)}`,
     "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform",
-    "--headers=Content-Type=application/json",
+    headersFlag,
     "--message-body={}",
     "--attempt-deadline=320s",
     `--description=BabyLoop ${environment} ${key} Cloud Run Job trigger`

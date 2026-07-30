@@ -8,6 +8,7 @@ export const BACKOFFICE_PERMISSIONS = [
   "moderation_view",
   "moderation_enforce",
   "sensitive_access",
+  "listing_view",
   "listing_review",
   "profile_view",
   "profile_enforce",
@@ -27,6 +28,7 @@ const MODERATOR_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>([
   "dashboard_view",
   "moderation_view",
   "moderation_enforce",
+  "listing_view",
   "listing_review",
   "profile_view",
   "profile_enforce",
@@ -43,10 +45,17 @@ const SUPPORT_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>([
 
 const EMPTY_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>();
 
+const VIEWER_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>([
+  "dashboard_view",
+  "listing_view",
+  "profile_view",
+]);
+
 const ROLE_BACKOFFICE_PERMISSIONS: Record<string, ReadonlySet<BackofficePermission>> = {
   admin: ADMIN_BACKOFFICE_PERMISSIONS,
   moderator: MODERATOR_BACKOFFICE_PERMISSIONS,
-  support: SUPPORT_BACKOFFICE_PERMISSIONS
+  support: SUPPORT_BACKOFFICE_PERMISSIONS,
+  backoffice_viewer: VIEWER_BACKOFFICE_PERMISSIONS
 };
 
 export function getBackofficePermissionsForRole(

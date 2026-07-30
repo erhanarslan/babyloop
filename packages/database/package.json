@@ -14,6 +14,8 @@
     "demo:seed:production:plan": "pnpm build && node dist/production-demo-seed.js --plan",
     "demo:seed:production": "pnpm build && node dist/production-demo-seed.js --apply",
     "test:production-demo": "pnpm build && node --test test/production-demo-catalog.test.mjs",
+    "backoffice:viewer": "pnpm build && node dist/assign-backoffice-viewer.js",
+    "test:backoffice-viewer": "pnpm build && node --test test/backoffice-viewer-role.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "exports": {

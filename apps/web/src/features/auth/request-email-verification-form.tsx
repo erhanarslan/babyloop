@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Button, TextInput } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api-error-message";
 import { useI18n } from "../../lib/i18n/i18n-provider";
@@ -18,9 +18,11 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitInFlightRef.current) return;
     setDevEmailVerificationToken(null);
     setErrorMessage(null);
 
@@ -31,6 +33,7 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
       return;
     }
 
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -46,12 +49,13 @@ export function RequestEmailVerificationForm({ apiBaseUrl }: RequestEmailVerific
     } catch {
       setErrorMessage(dictionary.common.apiUnavailable);
     } finally {
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form className="email-verification-request-form" onSubmit={handleSubmit}>
+    <form aria-busy={isSubmitting} className="email-verification-request-form" onSubmit={handleSubmit}>
       <TextInput
         autoComplete="email"
         inputMode="email"

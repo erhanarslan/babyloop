@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -12,6 +11,8 @@ import {
   type BackofficeAuthMe,
 } from "../../lib/auth-client";
 import { BackofficeShell } from "../shell/backoffice-shell";
+import { resolveSafeBackofficeNextPath } from "../../lib/safe-next-path";
+import { BackofficeAccessProvider } from "./backoffice-access";
 
 type BackofficeAuthShellProps = {
   children: ReactNode;
@@ -40,6 +41,7 @@ const AUTH_CHECK_TIMEOUT_MS = 8000;
 
 export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const checkIdRef = useRef(0);
   const [authState, setAuthState] = useState<AuthState>({ status: "checking" });
 
@@ -61,6 +63,17 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
   useEffect(() => {
     void checkAccess();
   }, [checkAccess, pathname]);
+
+  useEffect(() => {
+    if (authState.status !== "unauthenticated") {
+      return;
+    }
+
+    const nextPath = resolveSafeBackofficeNextPath(
+      `${pathname}${window.location.search}`,
+    );
+    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+  }, [authState.status, pathname, router]);
 
   useEffect(() => {
     function handleAuthChange() {
@@ -85,34 +98,25 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
 
   if (authState.status === "checking") {
     return (
-      <BackofficeShell>
+      <main className="login-page">
         <section className="auth-state-card" aria-busy="true" aria-live="polite">
           <p className="eyebrow">Backoffice erişimi</p>
           <h2>Erişim kontrol ediliyor</h2>
           <p>Backoffice oturumun ve yetkilerin doğrulanıyor.</p>
         </section>
-      </BackofficeShell>
+      </main>
     );
   }
 
   if (authState.status === "unauthenticated") {
     return (
-      <BackofficeShell>
-        <section className="auth-state-card" role="status">
-          <p className="eyebrow">Backoffice erişimi gerekli</p>
-          <h2>Giriş gerekli</h2>
-          <p>BabyLoop Backoffice’e erişmeden önce giriş yapmalısın.</p>
-          <Link className="primary-action" href="/login">
-            Giriş yap
-          </Link>
-        </section>
-      </BackofficeShell>
+      <main className="login-page" aria-busy="true" aria-label="Backoffice giriş yönlendirmesi" />
     );
   }
 
   if (authState.status === "forbidden") {
     return (
-      <BackofficeShell>
+      <main className="login-page">
         <section className="auth-state-card" role="status">
           <p className="eyebrow">Erişim reddedildi</p>
           <h2>Backoffice erişimin yok</h2>
@@ -124,13 +128,13 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
             Güvenlik sınırı backend yetkilendirmesidir.
           </p>
         </section>
-      </BackofficeShell>
+      </main>
     );
   }
 
   if (authState.status === "error") {
     return (
-      <BackofficeShell>
+      <main className="login-page">
         <section className="auth-state-card" role="alert">
           <p className="eyebrow">Backoffice erişimi</p>
           <h2>Erişim kontrolü başarısız</h2>
@@ -143,11 +147,29 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
             Tekrar dene
           </button>
         </section>
-      </BackofficeShell>
+      </main>
     );
   }
 
-  return <BackofficeShell>{children}</BackofficeShell>;
+  if (
+    authState.auth.user.role === "backoffice_viewer" &&
+    !isViewerPathAllowed(pathname)
+  ) {
+    return (
+      <main className="login-page">
+        <section className="auth-state-card" role="alert">
+          <p className="eyebrow">Salt okunur erişim</p>
+          <h2>Bu bölüm için yetkin yok</h2>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <BackofficeAccessProvider role={authState.auth.user.role}>
+      <BackofficeShell role={authState.auth.user.role}>{children}</BackofficeShell>
+    </BackofficeAccessProvider>
+  );
 }
 
 async function getBackofficeAuthState(): Promise<AuthState> {
@@ -163,7 +185,7 @@ async function getBackofficeAuthState(): Promise<AuthState> {
       };
     }
 
-    if (auth.user.role !== "admin") {
+    if (!isBackofficeUiRole(auth.user.role)) {
       return {
         status: "forbidden",
         auth,
@@ -179,6 +201,15 @@ async function getBackofficeAuthState(): Promise<AuthState> {
       status: "error",
     };
   }
+}
+
+function isBackofficeUiRole(role: string): boolean {
+  return ["admin", "backoffice_viewer"].includes(role.toLowerCase());
+}
+
+function isViewerPathAllowed(pathname: string): boolean {
+  return pathname === "/" || pathname === "/listings" || pathname.startsWith("/listings/") ||
+    pathname === "/profiles" || pathname.startsWith("/profiles/");
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

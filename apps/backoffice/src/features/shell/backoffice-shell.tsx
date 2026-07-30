@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 type BackofficeShellProps = {
   children: ReactNode;
+  role: string;
 };
 
 type NavigationItem =
@@ -173,8 +174,15 @@ const navigationGroups: NavigationGroup[] = [
   }
 ];
 
-export function BackofficeShell({ children }: BackofficeShellProps) {
+export function BackofficeShell({ children, role }: BackofficeShellProps) {
   const pathname = usePathname();
+  const viewer = role.toLowerCase() === "backoffice_viewer";
+  const visibleNavigationGroups = viewer
+    ? navigationGroups.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.href === "/" || item.href === "/listings" || item.href === "/profiles"),
+      })).filter((group) => group.items.length > 0)
+    : navigationGroups;
 
   return (
     <div className="backoffice-shell">
@@ -185,7 +193,7 @@ export function BackofficeShell({ children }: BackofficeShellProps) {
         </div>
 
         <nav className="sidebar-nav">
-          {navigationGroups.map((group) => (
+          {visibleNavigationGroups.map((group) => (
             <section className="sidebar-nav-group" key={group.label}>
               <p>{group.label}</p>
               {group.items.map((item) => {
@@ -218,9 +226,8 @@ export function BackofficeShell({ children }: BackofficeShellProps) {
             <strong>Pazaryeri, güvenlik, analitik, AI ve sistem operasyonları</strong>
           </div>
 
-          <div className="topbar-status" aria-label="Backoffice status">
-            Hazır
-          </div>
+          {viewer ? <div className="topbar-status">Salt okunur</div> : null}
+
         </header>
 
         <main className="backoffice-content">{children}</main>

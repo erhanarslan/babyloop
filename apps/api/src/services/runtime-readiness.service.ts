@@ -12,8 +12,7 @@ import {
   getRuntimeWorkerHeartbeat,
   type RuntimeWorkerName
 } from "./runtime-worker-heartbeat.service.js";
-
-export const EXPECTED_DATABASE_MIGRATION = "0043_runtime_readiness_observability";
+import { verifyDatabaseMigrationHead } from "./database-migration-head.service.js";
 
 export type ReadinessDependencyStatus = "ready" | "degraded" | "failed" | "not_configured";
 
@@ -60,9 +59,13 @@ export async function evaluateRuntimeReadiness(
 
   const schemaPromise = runProbe("schema", true, timeoutMs, async () => {
     assertDatabaseAvailable(app);
-    await app.db.select({ claimToken: notificationDeliveryLogs.claimToken }).from(notificationDeliveryLogs).limit(0);
-    await app.db.select({ workerName: runtimeWorkerHeartbeats.workerName }).from(runtimeWorkerHeartbeats).limit(0);
-    return { expectedMigration: EXPECTED_DATABASE_MIGRATION };
+    const migration = await verifyDatabaseMigrationHead(app.db);
+    return {
+      actualMigrationHash: migration.actualMigrationHash,
+      expectedMigration: migration.tag,
+      expectedMigrationHash: migration.hash,
+      verifiedTables: migration.verifiedTables.join(","),
+    };
   });
 
   const storagePromise = runProbe("storage", true, timeoutMs, async () => {
@@ -172,7 +175,7 @@ export async function evaluateRuntimeReadiness(
   return {
     ready,
     checkedAt: now.toISOString(),
-    expectedDatabaseMigration: EXPECTED_DATABASE_MIGRATION,
+    expectedDatabaseMigration: schema.details?.expectedMigration?.toString() ?? "unverified",
     dependencies
   };
 }

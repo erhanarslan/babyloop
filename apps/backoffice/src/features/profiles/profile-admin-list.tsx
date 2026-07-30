@@ -9,7 +9,7 @@ import {
   type AdminProfileRiskLevel,
   type AdminProfileSafetyStatus,
   type AdminProfileSort,
-  type AdminProfileSummary,
+  type AdminProfileResponseSummary,
   listAdminProfiles,
 } from "./api";
 
@@ -47,7 +47,7 @@ const limitOptions = [25, 50, 100];
 export function ProfileAdminList() {
   const [draftFilters, setDraftFilters] = useState<ProfileFilters>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<ProfileFilters>(defaultFilters);
-  const [profiles, setProfiles] = useState<AdminProfileSummary[]>([]);
+  const [profiles, setProfiles] = useState<AdminProfileResponseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -248,8 +248,9 @@ export function ProfileAdminList() {
   );
 }
 
-function ProfileCard({ profile }: { profile: AdminProfileSummary }) {
-  const snapshot = profile.trustSnapshot;
+function ProfileCard({ profile }: { profile: AdminProfileResponseSummary }) {
+  const fullProfile = "trustSnapshot" in profile ? profile : null;
+  const snapshot = fullProfile?.trustSnapshot ?? null;
   const riskLevel = snapshot?.riskLevel ?? "low";
 
   return (
@@ -259,7 +260,9 @@ function ProfileCard({ profile }: { profile: AdminProfileSummary }) {
           <strong>{profile.displayName}</strong>
           <p>{profile.locationCity ?? "Location not provided"}</p>
         </div>
-        <span className={`risk-pill ${riskLevel}`}>{formatStatus(riskLevel)}</span>
+        {fullProfile ? (
+          <span className={`risk-pill ${riskLevel}`}>{formatStatus(riskLevel)}</span>
+        ) : null}
       </div>
 
       <dl className="compact-details">
@@ -267,10 +270,12 @@ function ProfileCard({ profile }: { profile: AdminProfileSummary }) {
           <dt>Profile ID</dt>
           <dd>{profile.profileId.slice(0, 8)}</dd>
         </div>
-        <div>
-          <dt>Safety status</dt>
-          <dd>{formatStatus(profile.safetyStatus)}</dd>
-        </div>
+        {fullProfile ? (
+          <div>
+            <dt>Safety status</dt>
+            <dd>{formatStatus(fullProfile.safetyStatus)}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Listings</dt>
           <dd>{profile.listingCount}</dd>

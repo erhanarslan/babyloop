@@ -22,6 +22,7 @@ export type AuthMe = {
 export type AuthPayload = AuthMe & {
   accessToken: string;
   devEmailVerificationToken?: string;
+  emailVerificationDelivery?: "sent" | "deferred";
 };
 
 let refreshSessionPromise: Promise<ApiResponse<AuthPayload>> | null = null;

@@ -47,6 +47,13 @@ export type AdminProfileSummary = {
   trustSnapshot: AdminProfileTrustSnapshot | null;
 };
 
+export type ViewerProfile = Pick<
+  AdminProfileSummary,
+  "profileId" | "displayName" | "locationCity" | "createdAt" | "listingCount"
+>;
+
+export type AdminProfileResponseSummary = AdminProfileSummary | ViewerProfile;
+
 export type AdminProfileListingSummary = {
   listingId: string;
   title: string;
@@ -111,11 +118,11 @@ export type ListAdminProfilesParams = {
 };
 
 export type ListAdminProfilesResponse = {
-  profiles: AdminProfileSummary[];
+  profiles: AdminProfileResponseSummary[];
 };
 
 export type GetAdminProfileResponse = {
-  profile: AdminProfileDetail;
+  profile: AdminProfileDetail | ViewerProfile;
 };
 
 export type AdminProfileEnforcementResult = {

@@ -28,3 +28,27 @@ test("deployment scripts never request service account keys or mutable images", 
     assert.doesNotMatch(source, /shell\s*:\s*true/u, file);
   }
 });
+
+test("migration receipts require exact journal and database head evidence", async () => {
+  const source = await readFile("scripts/gcp/execute-cloud-run-migration.mjs", "utf8");
+  for (const token of [
+    "readExpectedMigrationHead",
+    "migration_head_verified",
+    "expectedMigrationTag",
+    "expectedMigrationHash",
+    "actualMigrationHash",
+    "verifiedTables",
+    "verifiedAt",
+  ]) {
+    assert.ok(source.includes(token), token);
+  }
+});
+
+test("scheduler create and update use their exact header flags", async () => {
+  const source = await readFile("scripts/gcp/deploy-cloud-run.mjs", "utf8");
+
+  assert.ok(source.includes('verb === "create"'));
+  assert.ok(source.includes('"--headers=Content-Type=application/json"'));
+  assert.ok(source.includes('"--update-headers=Content-Type=application/json"'));
+  assert.ok(source.includes("headersFlag"));
+});

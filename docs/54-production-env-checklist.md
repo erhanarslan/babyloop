@@ -33,6 +33,8 @@ Use the variable names below as the source of truth for the current codebase. Ol
 | `AUTH_RATE_LIMIT_MAX` | Recommended | Auth endpoint rate limit max |
 | `AUTH_RATE_LIMIT_WINDOW_SECONDS` | Recommended | Auth endpoint rate limit window |
 | `ALLOW_AUTH_UNAVAILABLE=false` | Yes | Must not be true in staging/production |
+| `API_DOCS_ENABLED=true` | Yes | Production Swagger UI is intentionally enabled |
+| `API_DOCS_ACCESS_MODE=readonly` | Yes | Try-it-out and all submit methods remain disabled |
 | `WEB_APP_URL` | Yes | Public web origin for verification/reset links |
 | `CORS_ORIGINS` | Yes | Comma-separated web/backoffice origins only |
 | `UPLOAD_ROOT` | Local only | Local image upload root; not durable production storage |

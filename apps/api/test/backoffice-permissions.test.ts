@@ -70,8 +70,31 @@ describe("backoffice permissions", () => {
     expect(isBackofficeRole("admin")).toBe(true);
     expect(isBackofficeRole("moderator")).toBe(true);
     expect(isBackofficeRole("support")).toBe(true);
+    expect(isBackofficeRole("backoffice_viewer")).toBe(true);
     expect(isBackofficeRole("user")).toBe(false);
     expect(isBackofficeRole("unknown")).toBe(false);
+  });
+
+  it("grants viewers only the minimal read-only permission set", () => {
+    const viewer = currentUserWithRole("backoffice_viewer");
+
+    expect(hasBackofficePermission(viewer, "dashboard_view")).toBe(true);
+    expect(hasBackofficePermission(viewer, "listing_view")).toBe(true);
+    expect(hasBackofficePermission(viewer, "profile_view")).toBe(true);
+
+    for (const permission of [
+      "listing_review",
+      "profile_enforce",
+      "moderation_view",
+      "moderation_enforce",
+      "sensitive_access",
+      "conversation_view",
+      "audit_view",
+      "ai_ops_view",
+      "ai_generate",
+    ] as const) {
+      expect(hasBackofficePermission(viewer, permission)).toBe(false);
+    }
   });
 
   it("does not grant backoffice permissions to regular users", () => {
