@@ -13,9 +13,18 @@ export function AuthFields({ mode }: AuthFieldsProps) {
   return (
     <div className="auth-fields-stack">
       <div className="form-grid">
-        <TextInput label={dictionary.common.email} name="email" type="email" maxLength={320} required wide />
+        <TextInput
+          autoComplete="email"
+          label={dictionary.common.email}
+          name="email"
+          type="email"
+          maxLength={320}
+          required
+          wide
+        />
 
         <TextInput
+          autoComplete={isRegister ? "new-password" : "current-password"}
           label={dictionary.common.password}
           name="password"
           type="password"
@@ -28,27 +37,32 @@ export function AuthFields({ mode }: AuthFieldsProps) {
         {isRegister ? (
           <>
             <TextInput
+              autoComplete="name"
               label={dictionary.common.displayName}
               name="displayName"
               type="text"
               minLength={2}
               maxLength={120}
               required
-              wide
             />
-            <TextInput label={dictionary.common.city} name="locationCity" type="text" maxLength={120} wide />
+            <TextInput
+              autoComplete="address-level2"
+              label={dictionary.common.city}
+              maxLength={120}
+              name="locationCity"
+              placeholder={dictionary.auth.locationPlaceholder}
+              type="text"
+            />
           </>
         ) : null}
       </div>
 
-      <div className="auth-field-guidance">
-        <strong>{isRegister ? "Profile setup" : "Password guidance"}</strong>
-        <span>
-          {isRegister
-            ? "Use a recognizable display name, but avoid adding private phone numbers or addresses to profile fields."
-            : "Use a unique password and avoid sharing credentials through messages, listings, screenshots, or support notes."}
-        </span>
-      </div>
+      {!isRegister ? (
+        <div className="auth-field-guidance">
+          <strong>{dictionary.authPageShell.login.badge}</strong>
+          <span>{dictionary.authPageShell.login.checks[0]}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

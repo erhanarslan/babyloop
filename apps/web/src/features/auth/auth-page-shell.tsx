@@ -39,7 +39,9 @@ export function AuthPageShell({ ariaLabel, children, kind }: AuthPageShellProps)
 
   return (
     <>
-      <section className="auth-page-ux auth-hero auth-hero-polished">
+      <section
+        className={`auth-page-ux auth-hero auth-hero-polished auth-page-ux--${kind}`}
+      >
         <div>
           <p className="eyebrow">{context.eyebrow}</p>
           <h1>{dictionary.auth[titleKey]}</h1>
@@ -53,10 +55,19 @@ export function AuthPageShell({ ariaLabel, children, kind }: AuthPageShellProps)
         </aside>
       </section>
 
-      <PageContainer className="auth-page-layout-ux auth-layout auth-layout-polished" ariaLabel={ariaLabel}>
-        <Card className="form-panel auth-panel auth-panel-polished">{children}</Card>
+      <PageContainer
+        className={`auth-page-layout-ux auth-layout auth-layout-polished auth-page-layout-ux--${kind}`}
+        ariaLabel={ariaLabel}
+      >
+        <Card className={`form-panel auth-panel auth-panel-polished auth-panel--${kind}`}>
+          {children}
+        </Card>
 
-        <Card as="aside" className="auth-trust-rail" aria-label={dictionary.authPageShell.checklistLabel}>
+        <Card
+          as="aside"
+          className={`auth-trust-rail auth-trust-rail--${kind}`}
+          aria-label={dictionary.authPageShell.checklistLabel}
+        >
           <p className="eyebrow">{dictionary.authPageShell.checklistEyebrow}</p>
           <h2>{dictionary.authPageShell.checklistTitle}</h2>
           <ul className="question-list">

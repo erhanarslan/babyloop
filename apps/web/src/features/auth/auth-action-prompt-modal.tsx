@@ -1,5 +1,7 @@
 "use client";
 
+import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -59,6 +61,7 @@ export function AuthActionPromptModal({
   const [otpCode, setOtpCode] = useState("");
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isRegister = mode === "register";
 
@@ -149,11 +152,15 @@ export function AuthActionPromptModal({
     }
 
     const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
+    const submittedPassword = password;
     const trimmedDisplayName = displayName.trim();
     const trimmedLocationCity = locationCity.trim();
 
-    if (!trimmedEmail || !trimmedPassword || (isRegister && !trimmedDisplayName)) {
+    if (
+      !trimmedEmail ||
+      !submittedPassword ||
+      (isRegister && (!trimmedDisplayName || !termsAccepted))
+    ) {
       setErrorMessage(dictionary.auth.requiredFields);
       return;
     }
@@ -163,8 +170,14 @@ export function AuthActionPromptModal({
     try {
       const body = await submitAuthRequest(apiBaseUrl, mode, {
         email: trimmedEmail,
-        password: trimmedPassword,
-        ...(isRegister ? { displayName: trimmedDisplayName } : {}),
+        password: submittedPassword,
+        ...(isRegister
+          ? {
+              displayName: trimmedDisplayName,
+              termsAccepted: true,
+              termsVersion: CURRENT_TERMS_VERSION
+            }
+          : {}),
         ...(isRegister && trimmedLocationCity ? { locationCity: trimmedLocationCity } : {})
       });
 
@@ -259,6 +272,12 @@ export function AuthActionPromptModal({
 
   async function openGoogleLogin() {
     setErrorMessage(null);
+
+    if (isRegister && !termsAccepted) {
+      setErrorMessage(dictionary.auth.requiredFields);
+      return;
+    }
+
     setIsGoogleRedirecting(true);
 
     if (returnTo) {
@@ -266,7 +285,12 @@ export function AuthActionPromptModal({
     }
 
     try {
-      const response = await startGoogleLogin(apiBaseUrl);
+      const response = await startGoogleLogin(
+        apiBaseUrl,
+        isRegister
+          ? { termsAccepted: true, termsVersion: CURRENT_TERMS_VERSION }
+          : undefined
+      );
 
       if (!response.ok) {
         setErrorMessage(
@@ -277,7 +301,14 @@ export function AuthActionPromptModal({
         setIsGoogleRedirecting(false);
       }
     } catch {
-      window.location.assign(`${apiBaseUrl}/api/v1/auth/google/start`);
+      const fallback = new URL(`${apiBaseUrl}/api/v1/auth/google/start`);
+
+      if (isRegister) {
+        fallback.searchParams.set("termsAccepted", "true");
+        fallback.searchParams.set("termsVersion", CURRENT_TERMS_VERSION);
+      }
+
+      window.location.assign(fallback.toString());
     }
   }
 
@@ -317,6 +348,7 @@ export function AuthActionPromptModal({
               setErrorMessage(null);
               setMfaChallenge(null);
               setOtpCode("");
+              setTermsAccepted(false);
             }}
           >
             {dictionary.common.login}
@@ -330,6 +362,7 @@ export function AuthActionPromptModal({
               setErrorMessage(null);
               setMfaChallenge(null);
               setOtpCode("");
+              setTermsAccepted(false);
             }}
           >
             {dictionary.common.register}
@@ -339,7 +372,7 @@ export function AuthActionPromptModal({
         <button
           className="market-google-auth-button"
           type="button"
-          disabled={isSubmitting || isGoogleRedirecting}
+          disabled={isSubmitting || isGoogleRedirecting || (isRegister && !termsAccepted)}
           onClick={openGoogleLogin}
         >
           <span aria-hidden="true">G</span>
@@ -350,7 +383,7 @@ export function AuthActionPromptModal({
           <span>{dictionary.auth.divider}</span>
         </div>
 
-        <form className="market-auth-modal-form" onSubmit={handleSubmit}>
+        <form aria-busy={isSubmitting} className="market-auth-modal-form" onSubmit={handleSubmit}>
           {mfaChallenge ? (
             <>
               <div className="rounded-2xl border border-border bg-muted/30 p-4">
@@ -391,6 +424,9 @@ export function AuthActionPromptModal({
                   name="displayName"
                   value={displayName}
                   autoComplete="name"
+                  minLength={2}
+                  maxLength={120}
+                  required
                   onChange={(event) => setDisplayName(event.target.value)}
                 />
               </label>
@@ -401,6 +437,7 @@ export function AuthActionPromptModal({
                   name="locationCity"
                   value={locationCity}
                   autoComplete="address-level2"
+                  maxLength={120}
                   placeholder={dictionary.auth.locationPlaceholder}
                   onChange={(event) => setLocationCity(event.target.value)}
                 />
@@ -415,6 +452,8 @@ export function AuthActionPromptModal({
               type="email"
               value={email}
               autoComplete="email"
+              maxLength={320}
+              required
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
@@ -425,8 +464,36 @@ export function AuthActionPromptModal({
             name="password"
             type="password"
             value={password}
+            minLength={8}
+            maxLength={128}
+            required
             onChange={(event) => setPassword(event.target.value)}
           />
+
+          {isRegister ? (
+            <section
+              className="auth-legal-notice market-auth-legal-notice"
+              aria-label="Kayıt sözleşmesi ve KVKK bilgilendirmesi"
+            >
+              <p>
+                Hesap bilgilerin kayıt ve güvenlik amacıyla işlenir. Ayrıntılar için{" "}
+                <Link href="/legal/kvkk" target="_blank">KVKK Aydınlatma Metni</Link> ve{" "}
+                <Link href="/legal/privacy" target="_blank">Gizlilik Politikası</Link> sayfalarını inceleyebilirsin.
+              </p>
+              <label className="auth-terms-checkbox">
+                <input
+                  checked={termsAccepted}
+                  name="termsAccepted"
+                  type="checkbox"
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                />
+                <span>
+                  <Link href="/legal/terms" target="_blank">Kullanım Koşulları</Link>&apos;nı
+                  (sürüm {CURRENT_TERMS_VERSION}) okudum ve kabul ediyorum.
+                </span>
+              </label>
+            </section>
+          ) : null}
 
           {errorMessage ? (
             <p className="market-auth-modal-error" role="alert">
@@ -437,7 +504,12 @@ export function AuthActionPromptModal({
           <button
             className="market-sell-cta market-auth-submit-button"
             type="submit"
-            disabled={isSubmitting || Boolean(loginApproval) || (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))}
+            disabled={
+              isSubmitting ||
+              Boolean(loginApproval) ||
+              (isRegister && !termsAccepted) ||
+              (Boolean(mfaChallenge) && !canSubmitWebOtpCode(otpCode))
+            }
           >
             {mfaChallenge
               ? isSubmitting

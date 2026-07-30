@@ -116,6 +116,21 @@ export type LoginApprovalCompleteBody = z.infer<typeof loginApprovalCompleteSche
 export type AccountDeletionRequestBody = z.infer<typeof accountDeletionRequestSchema>;
 export type AccountDeletionConfirmBody = z.infer<typeof accountDeletionConfirmSchema>;
 
+export type SafeAuthValidationIssue = {
+  code: string;
+  path: string;
+};
+
+export function summarizeAuthValidationIssues(
+  error: z.ZodError,
+  limit = 8
+): SafeAuthValidationIssue[] {
+  return error.issues.slice(0, limit).map((issue) => ({
+    code: issue.code,
+    path: issue.path.map(String).join(".") || "$"
+  }));
+}
+
 function plainTextField(options: {
   maxLength: number;
   minLength: number;

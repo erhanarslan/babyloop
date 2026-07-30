@@ -966,8 +966,34 @@
 
 .auth-page-ux {
   width: min(calc(100% - 2rem), 1080px);
+  max-width: 1080px;
   margin: clamp(1rem, 3vw, 2rem) auto 0;
   border-radius: 1.6rem;
+}
+
+.auth-page-ux--register {
+  align-items: center;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+  min-height: 0;
+  padding: clamp(1.35rem, 3vw, 2.25rem);
+  text-align: left;
+}
+
+.auth-page-ux--register h1 {
+  max-width: 12ch;
+  font-size: clamp(2.4rem, 5vw, 4.35rem);
+  font-weight: 900;
+  line-height: 0.98;
+}
+
+.auth-page-ux--register p:not(.eyebrow) {
+  margin-inline: 0;
+}
+
+.auth-page-ux--register .auth-hero-assurance {
+  border-color: color-mix(in srgb, var(--primary) 18%, var(--border));
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  box-shadow: 0 18px 48px rgb(15 23 42 / 0.08);
 }
 
 .auth-page-layout-ux {
@@ -976,6 +1002,59 @@
   justify-content: center;
   gap: 1rem;
   padding-top: 1rem;
+}
+
+.auth-page-layout-ux--register {
+  width: min(calc(100% - 2rem), 1080px);
+  grid-template-columns: minmax(0, 680px) minmax(260px, 320px);
+  gap: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.auth-page-layout-ux--register .auth-panel--register {
+  max-width: none;
+  border-color: color-mix(in srgb, var(--primary) 18%, var(--border));
+  box-shadow: 0 24px 64px rgb(15 23 42 / 0.08);
+}
+
+.auth-panel--register .auth-form-intro {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 0.25rem;
+}
+
+.auth-panel--register .auth-form-intro h2 {
+  margin-bottom: 0.2rem;
+  font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+  letter-spacing: -0.03em;
+}
+
+.auth-panel--register .auth-form-intro p:not(.eyebrow) {
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+.auth-panel--register .auth-fields-stack,
+.auth-panel--register .form-grid {
+  gap: 0.85rem;
+}
+
+.auth-panel--register .auth-legal-notice {
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.auth-panel--register .auth-form-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.auth-trust-rail--register {
+  top: 7.5rem;
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--border));
+  background: color-mix(in srgb, var(--card) 92%, transparent);
 }
 
 .auth-page-layout-ux .auth-panel-polished,
@@ -1021,6 +1100,14 @@
   .auth-page-layout-ux .auth-trust-rail {
     order: 2;
   }
+
+  .auth-page-ux--register {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-page-ux--register h1 {
+    max-width: 16ch;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1036,6 +1123,15 @@
     margin-top: 0.5rem;
     padding: 1rem;
     border-radius: 1.2rem;
+  }
+
+  .auth-page-ux--register {
+    gap: 0.85rem;
+    padding: 1.15rem;
+  }
+
+  .auth-page-ux--register h1 {
+    font-size: clamp(2.15rem, 12vw, 3.1rem);
   }
 
   .auth-page-layout-ux {
@@ -2392,6 +2488,23 @@ form.my-listing-edit-modal .listing-card-actions {
   border-radius: 18px;
   background: color-mix(in srgb, var(--muted) 86%, var(--card));
   padding: 14px;
+}
+
+.market-auth-modal-card {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+.market-auth-legal-notice {
+  gap: 8px;
+  border-radius: 14px;
+  padding: 11px 12px;
+}
+
+.market-auth-modal-card .market-auth-legal-notice > p,
+.market-auth-modal-card .market-auth-legal-notice .auth-terms-checkbox {
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .auth-legal-notice > p {
