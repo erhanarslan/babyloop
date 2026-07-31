@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchBackofficeMe,
+  buildBackofficeGoogleStartUrl,
   getBackofficeAuthLifecycleStateForTests,
   loginBackoffice,
+  resolveBackofficeOAuthErrorMessage,
   resetBackofficeAuthClientForTests
 } from "./auth-client";
 
@@ -270,6 +272,23 @@ describe("backoffice auth client bootstrap", () => {
       { ok: false, message: "first login result", retryAfterSeconds: null },
       { ok: false, message: "second login result", retryAfterSeconds: null },
     ]);
+  });
+});
+
+describe("backoffice Google OAuth client contract", () => {
+  it("builds the dedicated start endpoint without token material", () => {
+    const url = buildBackofficeGoogleStartUrl(API_BASE_URL, "/listings?status=active");
+    expect(url).toBe(
+      "http://localhost:4000/api/v1/auth/backoffice/google/start?next=%2Flistings%3Fstatus%3Dactive"
+    );
+    expect(url).not.toMatch(/token|code|state/iu);
+  });
+
+  it("maps only allowlisted errors and never echoes an unknown provider value", () => {
+    expect(resolveBackofficeOAuthErrorMessage("google_account_not_found")).toContain(
+      "BabyLoop’ta kayıtlı değil"
+    );
+    expect(resolveBackofficeOAuthErrorMessage("raw-secret-provider-error")).toBeNull();
   });
 });
 

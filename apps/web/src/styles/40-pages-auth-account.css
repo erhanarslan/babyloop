@@ -1207,11 +1207,6 @@
     transform: translateX(0);
   }
 
-  html.mobile-market-nav-open,
-  html.mobile-market-nav-open body {
-    overflow: hidden;
-  }
-
   .mobile-market-drawer > * {
     padding-inline: 1rem;
   }

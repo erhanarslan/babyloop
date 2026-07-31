@@ -23,7 +23,8 @@ const expectedWebReleaseSpecs = [
   "e2e/sell-upload.smoke.spec.ts",
   "e2e/messaging.smoke.spec.ts",
   "e2e/messaging-safety.smoke.spec.ts",
-  "e2e/messaging-read-state.smoke.spec.ts"
+  "e2e/messaging-read-state.smoke.spec.ts",
+  "e2e/overlay-scroll.smoke.spec.ts"
 ];
 const expectedBackofficeReleaseSpecs = [
   "e2e/login.smoke.spec.ts",
@@ -47,7 +48,8 @@ const webMockModes = new Map([
   ["sell-upload.smoke.spec.ts", "hybrid"],
   ["messaging.smoke.spec.ts", "mock"],
   ["messaging-safety.smoke.spec.ts", "mock"],
-  ["messaging-read-state.smoke.spec.ts", "mock"]
+  ["messaging-read-state.smoke.spec.ts", "mock"],
+  ["overlay-scroll.smoke.spec.ts", "browser"]
 ]);
 
 test("release E2E runtime accepts only a matching local babyloop_test database", () => {

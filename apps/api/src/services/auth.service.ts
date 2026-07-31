@@ -105,6 +105,17 @@ type AuthPayload = {
 
 type AuthSuccess = ApiSuccess<AuthPayload>;
 
+export type ExistingBackofficeGoogleAuthResult =
+  | { status: "ok"; response: AuthSuccess; accessMode: BackofficeAccessMode }
+  | {
+      status:
+        | "google_account_not_found"
+        | "google_account_not_linked"
+        | "account_disabled"
+        | "google_auth_failed"
+        | "session_establishment_failed";
+    };
+
 export type AuthResponse = ApiResponse<AuthPayload>;
 
 export type MfaChallengeResponse = ApiSuccess<{
@@ -735,6 +746,97 @@ export async function authenticateGoogleUser(
   });
 
   return buildAuthResponse(createdOrLinked);
+}
+
+export async function authenticateExistingBackofficeGoogleUser(
+  app: FastifyInstance,
+  googleProfile: GoogleUserInfo
+): Promise<ExistingBackofficeGoogleAuthResult> {
+  let email: string;
+  try {
+    email = normalizeGoogleOAuthEmail(googleProfile);
+  } catch {
+    return { status: "google_auth_failed" };
+  }
+
+  const matchingUsers = await app.db
+    .select({
+      id: users.id,
+      email: users.email,
+      emailVerifiedAt: users.emailVerifiedAt,
+      loginDisabled: users.loginDisabled,
+      mfaEnabled: users.mfaEnabled,
+      mobileLoginApprovalEnabled: users.mobileLoginApprovalEnabled,
+      role: users.role,
+      profileId: profiles.id,
+      displayName: profiles.displayName,
+      locationCity: profiles.locationCity
+    })
+    .from(users)
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.email, email))
+    .limit(2);
+
+  if (matchingUsers.length === 0) return { status: "google_account_not_found" };
+  if (matchingUsers.length !== 1) return { status: "google_auth_failed" };
+
+  const [user] = matchingUsers;
+  if (!user) return { status: "google_auth_failed" };
+  if (user.loginDisabled) return { status: "account_disabled" };
+  if (!user.emailVerifiedAt) return { status: "google_account_not_linked" };
+
+  const normalizedRole = user.role.toLowerCase();
+  const accessMode: BackofficeAccessMode | null = normalizedRole === "user"
+    ? "preview"
+    : ["admin", "moderator", "support", "backoffice_viewer"].includes(normalizedRole)
+      ? "staff"
+      : null;
+  if (!accessMode) return { status: "google_auth_failed" };
+
+  // The current OAuth callback cannot complete the password-flow MFA/approval
+  // challenges. Fail closed instead of silently creating a weaker session.
+  if (user.mfaEnabled || user.mobileLoginApprovalEnabled) {
+    return { status: "session_establishment_failed" };
+  }
+
+  const googleAccounts = await app.db
+    .select({
+      email: authAccounts.email,
+      emailVerifiedAt: authAccounts.emailVerifiedAt,
+      providerAccountId: authAccounts.providerAccountId
+    })
+    .from(authAccounts)
+    .where(and(eq(authAccounts.userId, user.id), eq(authAccounts.provider, "google")))
+    .limit(2);
+
+  if (googleAccounts.length !== 1) return { status: "google_account_not_linked" };
+  const [googleAccount] = googleAccounts;
+  if (
+    !googleAccount ||
+    googleAccount.providerAccountId !== googleProfile.sub ||
+    googleAccount.email.trim().toLowerCase() !== email ||
+    !googleAccount.emailVerifiedAt
+  ) {
+    return { status: "google_account_not_linked" };
+  }
+
+  return {
+    status: "ok",
+    accessMode,
+    response: buildAuthResponse({
+      profile: {
+        id: user.profileId,
+        displayName: user.displayName,
+        locationCity: user.locationCity
+      },
+      user: {
+        id: user.id,
+        email: user.email,
+        emailVerifiedAt: serializeDate(user.emailVerifiedAt),
+        role: user.role
+      }
+    })
+  };
 }
 
 export async function requestPasswordReset(

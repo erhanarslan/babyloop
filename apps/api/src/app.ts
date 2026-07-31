@@ -354,6 +354,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
         webAppUrl: config.webAppUrl
       };
 
+      if (config.backofficeAppUrl) {
+        Object.assign(authRouteOptions, { backofficeAppUrl: config.backofficeAppUrl });
+      }
+
       app.register(registerAuthRoutes, {
         ...authRouteOptions,
         ...(config.googleOAuth ? { googleOAuth: config.googleOAuth } : {}),
@@ -664,7 +668,9 @@ function getSafeRequestRoute(request: FastifyRequest): string {
 }
 
 export function shouldDisableDefaultRequestLogging(requestUrl: string): boolean {
-  return requestUrl.split("?")[0] === `${API_PREFIX}/auth/google/callback`;
+  const path = requestUrl.split("?")[0];
+  return path === `${API_PREFIX}/auth/google/callback` ||
+    path === `${API_PREFIX}/auth/backoffice/google/start`;
 }
 
 function isLowNoiseRoute(route: string): boolean {

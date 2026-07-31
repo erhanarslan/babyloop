@@ -252,9 +252,9 @@ test.describe("backoffice protected auth shell", () => {
     await page.goto("/login?next=%2Flistings", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
     await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
-    await page.getByRole("textbox", { name: "Email", exact: true }).fill("admin-auth-shell-e2e@babyloop.test");
-    await page.getByLabel("Password", { exact: true }).fill("Password123!");
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page.getByRole("textbox", { name: "E-posta", exact: true }).fill("admin-auth-shell-e2e@babyloop.test");
+    await page.getByLabel("Şifre", { exact: true }).fill("Password123!");
+    await page.getByRole("button", { name: "Şifreyle giriş yap", exact: true }).click();
 
     await expect(page).toHaveURL(/\/listings$/u);
     await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toBeVisible();

@@ -119,16 +119,10 @@ function readRequestAccessToken(request: FastifyRequest): string | null {
   const cookieHeader = request.headers.cookie;
 
   if (isBackofficeRequest(request.url)) {
-    return (
-      readBackofficeAccessTokenCookie(cookieHeader) ??
-      readPublicAccessTokenCookie(cookieHeader)
-    );
+    return readBackofficeAccessTokenCookie(cookieHeader);
   }
 
-  return (
-    readPublicAccessTokenCookie(cookieHeader) ??
-    readBackofficeAccessTokenCookie(cookieHeader)
-  );
+  return readPublicAccessTokenCookie(cookieHeader);
 }
 
 function isBackofficeRequest(url: string): boolean {

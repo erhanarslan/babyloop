@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Button, TextInput } from "../../components/ui";
+import { useBodyScrollLock } from "../../lib/body-scroll-lock";
 
 type CurrentPasswordConfirmationModalProps = {
   description: string;
@@ -28,6 +29,7 @@ export function CurrentPasswordConfirmationModal({
   const [isMounted, setIsMounted] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  useBodyScrollLock(isOpen);
 
   useEffect(() => setIsMounted(true), []);
 
@@ -38,9 +40,7 @@ export function CurrentPasswordConfirmationModal({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.setTimeout(() => document.getElementById("current-password-confirmation-input")?.focus(), 0);
+    window.setTimeout(() => document.getElementById("current-password-confirmation-input")?.focus({ preventScroll: true }), 0);
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape" && !isSubmitting) {
@@ -51,7 +51,6 @@ export function CurrentPasswordConfirmationModal({
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen, isSubmitting, onClose]);

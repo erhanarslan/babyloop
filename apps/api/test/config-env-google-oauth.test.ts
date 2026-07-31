@@ -21,12 +21,27 @@ describe("Google OAuth environment activation", () => {
   });
 
   it("accepts the complete Google OAuth configuration", () => {
-    expect(readApiRuntimeConfig(completeGoogleConfig).googleOAuth).toEqual({
+    const config = readApiRuntimeConfig({
+      ...completeGoogleConfig,
+      NEXT_PUBLIC_BACKOFFICE_BASE_URL: "https://admin.example.test"
+    });
+    expect(config.googleOAuth).toEqual({
       clientId: completeGoogleConfig.GOOGLE_CLIENT_ID,
       clientSecret: completeGoogleConfig.GOOGLE_CLIENT_SECRET,
       redirectUri: completeGoogleConfig.GOOGLE_REDIRECT_URI,
       webAppUrl: completeGoogleConfig.WEB_APP_URL
     });
+    expect(config.backofficeAppUrl).toBe("https://admin.example.test");
+  });
+
+  it("rejects an unsafe production backoffice origin", () => {
+    expect(() => readApiRuntimeConfig({
+      ...completeGoogleConfig,
+      GEMINI_API_KEY: "test-gemini-key",
+      LISTING_IMAGE_AUTHENTICITY_PROVIDER: "gemini",
+      NEXT_PUBLIC_BACKOFFICE_BASE_URL: "http://admin.example.test",
+      NODE_ENV: "production"
+    })).toThrow("NEXT_PUBLIC_BACKOFFICE_BASE_URL must use HTTPS in production.");
   });
 
   it("rejects HTTP OAuth URLs in production", () => {

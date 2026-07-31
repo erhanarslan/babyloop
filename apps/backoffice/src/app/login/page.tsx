@@ -5,7 +5,11 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { getApiBaseUrl } from "../../lib/api";
-import { loginBackoffice } from "../../lib/auth-client";
+import {
+  buildBackofficeGoogleStartUrl,
+  loginBackoffice,
+  resolveBackofficeOAuthErrorMessage
+} from "../../lib/auth-client";
 import { resolveSafeBackofficeNextPath } from "../../lib/safe-next-path";
 
 export default function BackofficeLoginPage() {
@@ -16,6 +20,13 @@ export default function BackofficeLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submitInFlightRef = useRef(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
+  const googleRedirectInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("authError");
+    setErrorMessage(resolveBackofficeOAuthErrorMessage(error));
+  }, []);
 
   useEffect(() => {
     if (retryAfterSeconds <= 0) return;
@@ -53,19 +64,46 @@ export default function BackofficeLoginPage() {
     router.replace(nextPath);
   }
 
+  function handleGoogleLogin() {
+    if (googleRedirectInFlightRef.current) return;
+    googleRedirectInFlightRef.current = true;
+    setIsGoogleRedirecting(true);
+    setErrorMessage(null);
+
+    const nextPath = resolveSafeBackofficeNextPath(
+      new URLSearchParams(window.location.search).get("next"),
+    );
+    window.location.assign(buildBackofficeGoogleStartUrl(getApiBaseUrl(), nextPath));
+  }
+
   return (
     <main className="login-page">
       <section className="login-card">
         <p className="eyebrow">BabyLoop Backoffice</p>
-        <h1>Sign in</h1>
+        <h1>Giriş yap</h1>
         <p>
           BabyLoop hesabınla giriş yap. Normal hesaplar ürünü salt okunur tanıtım
           modunda inceler; yetkili ekip rolleri kendi operasyon alanlarına erişir.
         </p>
 
+        <button
+          aria-label="Google ile devam et"
+          className="google-auth-action"
+          disabled={isGoogleRedirecting || isSubmitting}
+          onClick={handleGoogleLogin}
+          type="button"
+        >
+          <span aria-hidden="true" className="google-auth-mark">G</span>
+          {isGoogleRedirecting ? "Google’a yönlendiriliyor…" : "Google ile devam et"}
+        </button>
+
+        <div aria-label="veya" className="login-divider" role="separator">
+          <span>veya</span>
+        </div>
+
         <form aria-busy={isSubmitting} className="login-form" onSubmit={handleSubmit}>
           <label>
-            <span>Email</span>
+            <span>E-posta</span>
             <input
               autoComplete="email"
               name="email"
@@ -77,7 +115,7 @@ export default function BackofficeLoginPage() {
           </label>
 
           <label>
-            <span>Password</span>
+            <span>Şifre</span>
             <input
               autoComplete="current-password"
               name="password"
@@ -98,8 +136,8 @@ export default function BackofficeLoginPage() {
             <p role="status">Tekrar denemeden önce {retryAfterSeconds} saniye bekle.</p>
           ) : null}
 
-          <button className="primary-action" disabled={isSubmitting || retryAfterSeconds > 0} type="submit">
-            {isSubmitting ? "Signing in..." : "Sign in"}
+          <button className="primary-action" disabled={isSubmitting || isGoogleRedirecting || retryAfterSeconds > 0} type="submit">
+            {isSubmitting ? "Giriş yapılıyor…" : "Şifreyle giriş yap"}
           </button>
         </form>
       </section>

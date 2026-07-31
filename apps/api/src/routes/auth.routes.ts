@@ -25,6 +25,7 @@ import {
 import { requireCurrentUser } from "../services/auth-context.service.js";
 import {
   attachAccessToken,
+  authenticateExistingBackofficeGoogleUser,
   authenticateGoogleUser,
   buildAuthMeResponse,
   buildLogoutAuthResponse,
@@ -90,8 +91,8 @@ import {
 import { adminForbidden, isBackofficeRole } from "../services/admin-context.service.js";
 import {
   buildGoogleAuthorizationUrl,
+  createGoogleOAuthState,
   defaultGoogleOAuthClient,
-  generateOAuthState,
   isGoogleOAuthConfigured,
   readGoogleOAuthStateCookie,
   readGoogleOAuthTermsCookie,
@@ -99,6 +100,7 @@ import {
   serializeExpiredGoogleOAuthTermsCookie,
   serializeGoogleOAuthStateCookie,
   serializeGoogleOAuthTermsCookie,
+  verifyGoogleOAuthState,
   type GoogleOAuthClient,
   type GoogleOAuthConfig
 } from "../services/google-oauth.service.js";
@@ -108,6 +110,11 @@ import {
   serializeExpiredRefreshTokenCookie,
   serializeRefreshTokenCookie
 } from "../utils/refresh-token.js";
+import {
+  readBackofficeRefreshTokenCookie,
+  serializeBackofficeRefreshTokenCookie,
+  serializeExpiredBackofficeRefreshTokenCookie
+} from "../utils/backoffice-refresh-token.js";
 import {
   serializeBackofficeAccessTokenCookie,
   serializeExpiredBackofficeAccessTokenCookie
@@ -132,6 +139,7 @@ import { buildAuthRateLimitKey } from "../utils/auth-rate-limit.js";
 import type { BackofficeAccessMode } from "../utils/access-token.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
+  backofficeAppUrl?: string;
   emailDelivery: EmailDeliveryService;
   googleOAuth?: GoogleOAuthConfig;
   googleOAuthClient?: GoogleOAuthClient;
@@ -1030,7 +1038,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     "/auth/backoffice/refresh",
     authRateLimitOptions(options),
     async (request, reply) => {
-      const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+      const refreshToken = readBackofficeRefreshTokenCookie(request.headers.cookie);
 
       if (!refreshToken) {
         clearBackofficeAccessCookie(reply);
@@ -1072,7 +1080,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
   );
 
   app.post<{ Reply: LogoutAuthResponse }>("/auth/backoffice/logout", async (request, reply) => {
-    const refreshToken = readRefreshTokenCookie(request.headers.cookie);
+    const refreshToken = readBackofficeRefreshTokenCookie(request.headers.cookie);
 
     if (refreshToken) {
       await revokeAuthSession(app, refreshToken);
@@ -1290,7 +1298,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       return reply.status(503).send(googleOAuthUnavailableResponse());
     }
 
-    const state = generateOAuthState();
+    const state = createGoogleOAuthState({
+      audience: "public_web",
+      authSecret: options.authSecret
+    });
     const authorizationUrl = buildGoogleAuthorizationUrl(options.googleOAuth, state);
     const termsAccepted = readQueryStringValue(request.query.termsAccepted) === "true";
     const termsVersion = readQueryStringValue(request.query.termsVersion);
@@ -1307,29 +1318,143 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     return redirect(reply, authorizationUrl);
   });
 
+  app.get<{ Querystring: Record<string, unknown> }>(
+    "/auth/backoffice/google/start",
+    async (request, reply) => {
+      if (!isGoogleOAuthConfigured(options.googleOAuth) || !options.backofficeAppUrl) {
+        if (options.backofficeAppUrl) {
+          return redirectToBackofficeOAuthError(
+            reply,
+            options.backofficeAppUrl,
+            "google_auth_unavailable"
+          );
+        }
+        return reply.status(503).send(googleOAuthUnavailableResponse());
+      }
+
+      const state = createGoogleOAuthState({
+        audience: "backoffice",
+        authSecret: options.authSecret,
+        next: readQueryStringValue(request.query.next)
+      });
+
+      reply.header("set-cookie", [
+        serializeGoogleOAuthStateCookie(state),
+        serializeExpiredGoogleOAuthTermsCookie()
+      ]);
+
+      return redirect(reply, buildGoogleAuthorizationUrl(options.googleOAuth, state));
+    }
+  );
+
   app.get<{ Querystring: Record<string, unknown> }>("/auth/google/callback", async (request, reply) => {
+    const cookieState = readGoogleOAuthStateCookie(request.headers.cookie);
+    const queryState = readQueryStringValue(request.query.state);
+    const parsedCookieState = cookieState
+      ? verifyGoogleOAuthState(cookieState, options.authSecret, { allowConsumed: true })
+      : null;
+    const failureAudience = parsedCookieState?.audience ?? "public_web";
+
     if (!isGoogleOAuthConfigured(options.googleOAuth)) {
+      if (failureAudience === "backoffice" && options.backofficeAppUrl) {
+        return redirectToBackofficeOAuthError(
+          reply,
+          options.backofficeAppUrl,
+          "google_auth_unavailable"
+        );
+      }
       return redirectToGoogleAuthUnavailable(reply, options.webAppUrl);
     }
 
-    const cookieState = readGoogleOAuthStateCookie(request.headers.cookie);
-    const queryState = readQueryStringValue(request.query.state);
     const code = readQueryStringValue(request.query.code);
+    const providerError = readQueryStringValue(request.query.error);
+    const parsedState = cookieState && queryState && cookieState === queryState
+      ? verifyGoogleOAuthState(queryState, options.authSecret, { consume: true }) ??
+        readLegacyPublicOAuthState(queryState)
+      : null;
 
-    if (!cookieState || !queryState || cookieState !== queryState || !code) {
+    if (!parsedState || (!code && providerError !== "access_denied")) {
+      if (failureAudience === "backoffice" && options.backofficeAppUrl) {
+        return redirectToBackofficeOAuthError(
+          reply,
+          options.backofficeAppUrl,
+          "google_auth_failed",
+          parsedCookieState?.next
+        );
+      }
+      return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
+    }
+
+    if (providerError === "access_denied") {
+      if (parsedState.audience === "backoffice" && options.backofficeAppUrl) {
+        return redirectToBackofficeOAuthError(
+          reply,
+          options.backofficeAppUrl,
+          "access_denied",
+          parsedState.next
+        );
+      }
       return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
     }
 
     try {
       const googleClient = options.googleOAuthClient ?? defaultGoogleOAuthClient;
-      const tokens = await googleClient.exchangeCodeForTokens(code, options.googleOAuth);
+      const tokens = await googleClient.exchangeCodeForTokens(code!, options.googleOAuth);
       const googleProfile = await googleClient.fetchUserInfo(tokens.accessToken);
 
       if (!googleProfile.email || googleProfile.email_verified === false) {
+        if (parsedState.audience === "backoffice" && options.backofficeAppUrl) {
+          return redirectToBackofficeOAuthError(
+            reply,
+            options.backofficeAppUrl,
+            "google_auth_failed",
+            parsedState.next
+          );
+        }
         return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
       }
 
-      const legalTermsCookie = readGoogleOAuthTermsCookie(request.headers.cookie, cookieState);
+      if (parsedState.audience === "backoffice") {
+        if (!options.backofficeAppUrl) {
+          return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
+        }
+
+        const result = await authenticateExistingBackofficeGoogleUser(app, googleProfile);
+        if (result.status !== "ok") {
+          return redirectToBackofficeOAuthError(
+            reply,
+            options.backofficeAppUrl,
+            result.status,
+            parsedState.next
+          );
+        }
+
+        const session = await createAuthSession(
+          app,
+          result.response.data.user.id,
+          buildAuthSessionRequestMeta(request)
+        );
+        const response = attachAccessToken(result.response, options, session.id, {
+          backofficeAccessMode: result.accessMode
+        });
+
+        setBackofficeAuthCookies(reply, {
+          accessToken: response.data.accessToken,
+          accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
+          refreshToken: session.refreshToken,
+          refreshTokenExpiresAt: session.expiresAt
+        }, [
+          serializeExpiredGoogleOAuthStateCookie(),
+          serializeExpiredGoogleOAuthTermsCookie()
+        ]);
+
+        return redirect(
+          reply,
+          buildBackofficeGoogleAuthSuccessRedirect(options.backofficeAppUrl, parsedState.next)
+        );
+      }
+
+      const legalTermsCookie = readGoogleOAuthTermsCookie(request.headers.cookie, cookieState!);
       const result = await authenticateGoogleUser(app, googleProfile, {
         ...(legalTermsCookie
           ? {
@@ -1361,6 +1486,15 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
       return redirect(reply, buildGoogleAuthSuccessRedirect(options.googleOAuth.webAppUrl));
     } catch (error) {
+      if (parsedState.audience === "backoffice" && options.backofficeAppUrl) {
+        request.log.warn("Backoffice Google OAuth callback failed.");
+        return redirectToBackofficeOAuthError(
+          reply,
+          options.backofficeAppUrl,
+          "google_auth_failed",
+          parsedState.next
+        );
+      }
       if (isGoogleLegalTermsRequiredError(error)) {
         return redirectToGoogleTermsRequired(reply, options.googleOAuth.webAppUrl);
       }
@@ -1463,16 +1597,18 @@ function setBackofficeAuthCookies(
     accessTokenMaxAgeSeconds: number;
     refreshToken: string;
     refreshTokenExpiresAt: Date;
-  }
+  },
+  additionalCookies: string[] = []
 ): void {
   reply.header("set-cookie", [
-    serializeRefreshTokenCookie(input.refreshToken, {
+    serializeBackofficeRefreshTokenCookie(input.refreshToken, {
       expiresAt: input.refreshTokenExpiresAt
     }),
     serializeBackofficeAccessTokenCookie(input.accessToken, {
       maxAgeSeconds: input.accessTokenMaxAgeSeconds
     }),
-    serializeBackofficeCsrfCookie(createBackofficeCsrfToken())
+    serializeBackofficeCsrfCookie(createBackofficeCsrfToken()),
+    ...additionalCookies
   ]);
 }
 
@@ -1485,7 +1621,7 @@ function clearBackofficeAccessCookie(reply: FastifyReply): void {
 
 function clearBackofficeAuthCookies(reply: FastifyReply): void {
   reply.header("set-cookie", [
-    serializeExpiredRefreshTokenCookie(),
+    serializeExpiredBackofficeRefreshTokenCookie(),
     serializeExpiredBackofficeAccessTokenCookie(),
     serializeExpiredBackofficeCsrfCookie()
   ]);
@@ -1519,6 +1655,18 @@ function readQueryStringValue(value: unknown): string | null {
   }
 
   return value;
+}
+
+function readLegacyPublicOAuthState(state: string) {
+  // A ten-minute compatibility bridge for public OAuth handshakes initiated
+  // before signed audience states were deployed. New starts never emit this form.
+  if (!state || state.includes(".") || state.length > 128) return null;
+  return {
+    audience: "public_web" as const,
+    issuedAt: Math.floor(Date.now() / 1000),
+    next: null,
+    nonce: state
+  };
 }
 
 function redirectToGoogleAuthFailure(reply: FastifyReply, webAppUrl: string): void {
@@ -1558,6 +1706,44 @@ function redirectToGoogleAuthUnavailable(reply: FastifyReply, webAppUrl: string)
 function buildGoogleAuthSuccessRedirect(webAppUrl: string): string {
   const redirectUrl = new URL("/auth/callback", webAppUrl);
   redirectUrl.searchParams.set("status", "success");
+  return redirectUrl.toString();
+}
+
+type BackofficeOAuthError =
+  | "google_auth_failed"
+  | "google_auth_unavailable"
+  | "google_account_not_found"
+  | "google_account_not_linked"
+  | "account_disabled"
+  | "access_denied"
+  | "session_establishment_failed";
+
+function redirectToBackofficeOAuthError(
+  reply: FastifyReply,
+  backofficeAppUrl: string,
+  error: BackofficeOAuthError,
+  next?: string | null
+): void {
+  reply.header("set-cookie", [
+    serializeExpiredGoogleOAuthStateCookie(),
+    serializeExpiredGoogleOAuthTermsCookie(),
+    serializeExpiredBackofficeAccessTokenCookie(),
+    serializeExpiredBackofficeRefreshTokenCookie(),
+    serializeExpiredBackofficeCsrfCookie()
+  ]);
+  const redirectUrl = new URL("/login", backofficeAppUrl);
+  redirectUrl.searchParams.set("authError", error);
+  if (next && next !== "/") redirectUrl.searchParams.set("next", next);
+  return redirect(reply, redirectUrl.toString());
+}
+
+function buildBackofficeGoogleAuthSuccessRedirect(
+  backofficeAppUrl: string,
+  next: string | null
+): string {
+  const redirectUrl = new URL("/auth/callback", backofficeAppUrl);
+  redirectUrl.searchParams.set("status", "success");
+  if (next && next !== "/") redirectUrl.searchParams.set("next", next);
   return redirectUrl.toString();
 }
 
