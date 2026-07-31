@@ -1,5 +1,5 @@
 import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
-import { randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "babyloop_google_oauth_state";
 export const GOOGLE_OAUTH_TERMS_COOKIE_NAME = "babyloop_google_oauth_terms";
@@ -17,6 +17,24 @@ export type GoogleOAuthConfig = {
   redirectUri: string;
   webAppUrl: string;
 };
+
+export type GoogleOAuthAudience = "public_web" | "backoffice";
+
+export type GoogleOAuthState = {
+  audience: GoogleOAuthAudience;
+  issuedAt: number;
+  next: string | null;
+  nonce: string;
+};
+
+type CreateGoogleOAuthStateOptions = {
+  audience: GoogleOAuthAudience;
+  authSecret: string;
+  next?: string | null;
+  now?: Date;
+};
+
+const consumedOAuthStateDigests = new Map<string, number>();
 
 export type GoogleTokenResponse = {
   accessToken: string;
@@ -48,6 +66,110 @@ export const defaultGoogleOAuthClient: GoogleOAuthClient = {
 
 export function generateOAuthState(): string {
   return randomBytes(32).toString("base64url");
+}
+
+export function createGoogleOAuthState(options: CreateGoogleOAuthStateOptions): string {
+  const payload: GoogleOAuthState = {
+    audience: options.audience,
+    issuedAt: Math.floor((options.now ?? new Date()).getTime() / 1000),
+    next: options.audience === "backoffice"
+      ? resolveSafeBackofficeOAuthNext(options.next)
+      : null,
+    nonce: generateOAuthState()
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = signOAuthState(encodedPayload, options.authSecret);
+  return `${encodedPayload}.${signature}`;
+}
+
+export function verifyGoogleOAuthState(
+  state: string,
+  authSecret: string,
+  options: { now?: Date; consume?: boolean; allowConsumed?: boolean } = {}
+): GoogleOAuthState | null {
+  const [encodedPayload, signature, ...extra] = state.split(".");
+  if (!encodedPayload || !signature || extra.length > 0) return null;
+
+  const expectedSignature = signOAuthState(encodedPayload, authSecret);
+  const actualBuffer = Buffer.from(signature, "utf8");
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+  if (
+    actualBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(actualBuffer, expectedBuffer)
+  ) {
+    return null;
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+
+  if (!isGoogleOAuthState(payload)) return null;
+
+  const nowSeconds = Math.floor((options.now ?? new Date()).getTime() / 1000);
+  if (
+    payload.issuedAt > nowSeconds + 30 ||
+    nowSeconds - payload.issuedAt > GOOGLE_OAUTH_STATE_TTL_SECONDS
+  ) {
+    return null;
+  }
+
+  cleanupConsumedOAuthStates(nowSeconds);
+  const digest = createHash("sha256").update(state, "utf8").digest("hex");
+  if (consumedOAuthStateDigests.has(digest) && !options.allowConsumed) return null;
+  if (options.consume) {
+    consumedOAuthStateDigests.set(digest, payload.issuedAt + GOOGLE_OAUTH_STATE_TTL_SECONDS);
+  }
+
+  return payload;
+}
+
+export function resolveSafeBackofficeOAuthNext(value: string | null | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return "/";
+  }
+
+  try {
+    const decoded = decodeURIComponent(value);
+    if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\")) {
+      return "/";
+    }
+
+    const parsed = new URL(decoded, "https://admin.babyloop.invalid");
+    if (parsed.origin !== "https://admin.babyloop.invalid") return "/";
+    if (parsed.pathname === "/login" || parsed.pathname === "/auth/callback") return "/";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
+export function resetGoogleOAuthReplayGuardForTests(): void {
+  consumedOAuthStateDigests.clear();
+}
+
+function signOAuthState(encodedPayload: string, authSecret: string): string {
+  return createHmac("sha256", authSecret).update(encodedPayload, "utf8").digest("base64url");
+}
+
+function isGoogleOAuthState(value: unknown): value is GoogleOAuthState {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<GoogleOAuthState>;
+  return (
+    (candidate.audience === "public_web" || candidate.audience === "backoffice") &&
+    Number.isInteger(candidate.issuedAt) &&
+    typeof candidate.nonce === "string" && candidate.nonce.length >= 32 &&
+    (candidate.next === null || typeof candidate.next === "string")
+  );
+}
+
+function cleanupConsumedOAuthStates(nowSeconds: number): void {
+  for (const [digest, expiresAt] of consumedOAuthStateDigests) {
+    if (expiresAt < nowSeconds) consumedOAuthStateDigests.delete(digest);
+  }
 }
 
 export function buildGoogleAuthorizationUrl(

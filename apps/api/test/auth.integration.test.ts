@@ -47,7 +47,7 @@ import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
 import { authHeader, createUser, loginUser } from "./helpers/auth.js";
 import { countEvents, createCategory, createConversation, createListing, getListingSellerProfileId } from "./helpers/fixtures.js";
-import { getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, getSetCookieHeaders, toCookieHeader } from "./helpers/cookies.js";
+import { getBackofficeRefreshSetCookie, getCookieValue, getDevResetToken, getGoogleOAuthStateSetCookie, getRefreshSetCookie, getSetCookieHeaders, toCookieHeader } from "./helpers/cookies.js";
 import { createRecordingEmailDeliveryService, type RecordingEmailDeliveryService } from "./helpers/email.js";
 import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
 import { connectRealtimeSocket, delay, expectUnauthenticatedSocketRejected, getListeningBaseUrl, onceSocketEvent, waitForConversationRoomSize } from "./helpers/realtime.js";
@@ -696,7 +696,7 @@ describe("auth API", () => {
     expect(response.body).not.toContain("accessToken");
 
     const accessCookie = getBackofficeAccessSetCookie(response);
-    const refreshCookie = getRefreshSetCookie(response);
+    const refreshCookie = getBackofficeRefreshSetCookie(response);
 
     expect(accessCookie).toContain("HttpOnly");
     expect(accessCookie).toContain("SameSite=Lax");
@@ -752,7 +752,7 @@ describe("auth API", () => {
     expect(response.body).not.toContain("accessToken");
 
     const accessCookie = getBackofficeAccessSetCookie(response);
-    const refreshCookie = getRefreshSetCookie(response);
+    const refreshCookie = getBackofficeRefreshSetCookie(response);
 
     expect(accessCookie).toContain("HttpOnly");
     expect(accessCookie).toContain("Max-Age=");
@@ -777,6 +777,15 @@ describe("auth API", () => {
       user: { role: "user" }
     });
     expect(storedUser?.role).toBe("user");
+
+    const publicCookieOnlyResponse = await app.inject({
+      headers: {
+        cookie: `${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(user.accessToken)}`
+      },
+      method: "GET",
+      url: "/api/v1/auth/backoffice/me"
+    });
+    expect(publicCookieOnlyResponse.statusCode).toBe(401);
 
     const refreshResponse = await app.inject({
       headers: {
@@ -833,7 +842,7 @@ describe("auth API", () => {
         password: "Password123!"
       }
     });
-    const refreshCookie = getRefreshSetCookie(loginResponse);
+    const refreshCookie = getBackofficeRefreshSetCookie(loginResponse);
 
     const refreshResponse = await app.inject({
       headers: {
@@ -856,7 +865,7 @@ describe("auth API", () => {
     expect(refreshResponse.json().data.accessToken).toBeUndefined();
     expect(refreshResponse.body).not.toContain("accessToken");
     expect(getBackofficeAccessSetCookie(refreshResponse)).toContain("HttpOnly");
-    expect(getRefreshSetCookie(refreshResponse)).toContain("HttpOnly");
+    expect(getBackofficeRefreshSetCookie(refreshResponse)).toContain("HttpOnly");
   });
 
   it("requires a CSRF token for cookie-authenticated backoffice mutations", async () => {

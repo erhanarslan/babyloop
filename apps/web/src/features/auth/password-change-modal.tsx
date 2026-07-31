@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { ChangePasswordForm } from "./change-password-form";
+import { useBodyScrollLock } from "../../lib/body-scroll-lock";
 
 const PASSWORD_CHANGE_PATH = "/account/password";
 const PASSWORD_CHANGE_QUERY_KEY = "changePassword";
@@ -28,6 +29,7 @@ export function PasswordChangeModalHost({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  useBodyScrollLock(isOpen);
 
   const openModal = useCallback(() => {
     previousFocusRef.current =
@@ -49,7 +51,7 @@ export function PasswordChangeModalHost({
     }
 
     window.setTimeout(() => {
-      previousFocusRef.current?.focus();
+      previousFocusRef.current?.focus({ preventScroll: true });
     }, 0);
   }, [router]);
 
@@ -123,10 +125,7 @@ export function PasswordChangeModalHost({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-    closeButtonRef.current?.focus();
+    closeButtonRef.current?.focus({ preventScroll: true });
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -137,7 +136,6 @@ export function PasswordChangeModalHost({
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleEscape);
     };
   }, [closeModal, isOpen]);

@@ -8,6 +8,29 @@ const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export type BackofficeAuthLifecycleState = "unknown" | "authenticated" | "anonymous";
 
+export function buildBackofficeGoogleStartUrl(
+  apiBaseUrl: string,
+  nextPath: string
+): string {
+  const url = new URL("/api/v1/auth/backoffice/google/start", apiBaseUrl);
+  if (nextPath !== "/") url.searchParams.set("next", nextPath);
+  return url.toString();
+}
+
+const BACKOFFICE_OAUTH_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  google_auth_failed: "Google ile giriş tamamlanamadı. Lütfen tekrar dene.",
+  google_auth_unavailable: "Google ile giriş şu anda kullanılamıyor.",
+  google_account_not_found: "Bu Google hesabı BabyLoop’ta kayıtlı değil. Önce BabyLoop üzerinden hesabını oluştur.",
+  google_account_not_linked: "Bu BabyLoop hesabında Google girişi bağlı değil. Önce BabyLoop hesabından Google ile giriş yap.",
+  account_disabled: "Bu hesabın girişi devre dışı bırakılmış.",
+  access_denied: "Google giriş isteği iptal edildi.",
+  session_establishment_failed: "Backoffice oturumu oluşturulamadı. Lütfen tekrar dene.",
+};
+
+export function resolveBackofficeOAuthErrorMessage(value: string | null): string | null {
+  return value ? BACKOFFICE_OAUTH_ERROR_MESSAGES[value] ?? null : null;
+}
+
 let cachedBackofficeCsrfToken: string | null = null;
 let backofficeCsrfTokenPromise: Promise<string | null> | null = null;
 let backofficeMePromise: Promise<BackofficeAuthMe | null> | null = null;

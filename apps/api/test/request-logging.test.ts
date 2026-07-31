@@ -16,4 +16,10 @@ describe("sensitive request logging boundary", () => {
     expect(shouldDisableDefaultRequestLogging("/api/v1/auth/google/callback-extra?code=value"))
       .toBe(false);
   });
+
+  it("suppresses backoffice OAuth start URLs that can carry a next query", () => {
+    expect(shouldDisableDefaultRequestLogging(
+      "/api/v1/auth/backoffice/google/start?next=%2Flistings%3Ftoken%3Dsecret"
+    )).toBe(true);
+  });
 });

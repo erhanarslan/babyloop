@@ -12,6 +12,8 @@ describe("resolveSafeBackofficeNextPath", () => {
     "//evil.example/storage",
     "%2F%2Fevil.example%2Fstorage",
     "%68%74%74%70%73%3A%2F%2Fevil.example",
+    "/login",
+    "/auth/callback",
   ])("rejects external next target %s", (value) => {
     expect(resolveSafeBackofficeNextPath(value)).toBe("/");
   });

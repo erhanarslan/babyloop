@@ -128,6 +128,7 @@ export type ApiRuntimeConfig = {
   authRateLimitWindowSeconds: number;
   authSecret?: string;
   authTokenTtlSeconds: number;
+  backofficeAppUrl?: string;
   corsOrigins: string[];
   databaseUrl?: string;
   emailDeliveryMode: "noop" | "provider";
@@ -163,6 +164,16 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   };
   const googleOAuth = readGoogleOAuthConfig(env);
 
+  const backofficeAppUrl = readOptionalAppUrl(
+    env.NEXT_PUBLIC_BACKOFFICE_BASE_URL,
+    "NEXT_PUBLIC_BACKOFFICE_BASE_URL",
+    env.NODE_ENV === "production"
+  );
+
+  if (backofficeAppUrl) {
+    config.backofficeAppUrl = backofficeAppUrl;
+  }
+
   if (googleOAuth) {
     config.googleOAuth = googleOAuth;
   }
@@ -188,6 +199,31 @@ export function readApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ApiR
   }
 
   return config;
+}
+
+function readOptionalAppUrl(
+  rawValue: string | undefined,
+  name: string,
+  production: boolean
+): string | undefined {
+  if (!rawValue?.trim()) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(rawValue.trim());
+  } catch {
+    throw new Error(`${name} must be an absolute URL.`);
+  }
+
+  if (url.pathname !== "/" || url.search || url.hash || url.username || url.password) {
+    throw new Error(`${name} must be an origin without path, query, credentials, or hash.`);
+  }
+
+  if (production && url.protocol !== "https:") {
+    throw new Error(`${name} must use HTTPS in production.`);
+  }
+
+  return url.toString().replace(/\/$/u, "");
 }
 
 function readAssistantConfig(env: NodeJS.ProcessEnv): AssistantRuntimeConfig {

@@ -31,6 +31,7 @@ import {
   type AuthModalErrorCode
 } from "./auth-modal-query";
 import { storeAuthReturnTo } from "./auth-return-to";
+import { useBodyScrollLock } from "../../lib/body-scroll-lock";
 
 type AuthActionPromptModalProps = {
   apiBaseUrl: string;
@@ -72,6 +73,7 @@ export function AuthActionPromptModal({
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isRegister = mode === "register";
+  useBodyScrollLock(isOpen && isMounted);
 
   useEffect(() => {
     setIsMounted(true);
@@ -93,7 +95,7 @@ export function AuthActionPromptModal({
 
   useEffect(() => {
     if (isOpen && isMounted) {
-      closeButtonRef.current?.focus();
+      closeButtonRef.current?.focus({ preventScroll: true });
     }
   }, [isMounted, isOpen]);
 

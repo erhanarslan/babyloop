@@ -14,6 +14,18 @@ export function getRefreshSetCookie(response: ResponseWithHeaders): string {
   return refreshCookie;
 }
 
+export function getBackofficeRefreshSetCookie(response: ResponseWithHeaders): string {
+  const refreshCookie = getSetCookieHeaders(response).find((header) =>
+    header.startsWith("babyloop_backoffice_refresh_token=")
+  );
+
+  if (!refreshCookie) {
+    throw new Error("Backoffice refresh cookie was not set.");
+  }
+
+  return refreshCookie;
+}
+
 export function getGoogleOAuthStateSetCookie(response: ResponseWithHeaders): string {
   const stateCookie = getSetCookieHeaders(response).find((header) =>
     header.startsWith("babyloop_google_oauth_state=")

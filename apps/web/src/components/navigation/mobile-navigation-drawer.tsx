@@ -12,6 +12,7 @@ import {
   locationOptions
 } from "./public-navigation-model";
 import { SearchOverlay } from "./search-overlay";
+import { useBodyScrollLock } from "../../lib/body-scroll-lock";
 
 const DRAWER_FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -51,6 +52,7 @@ export function MobileNavigationDrawer({
 }: MobileNavigationDrawerProps) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const [openCategoryId, setOpenCategoryId] = useState<string>(babyCategoryGroups[0]?.id ?? "travel");
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     document.documentElement.classList.toggle("mobile-market-nav-open", isOpen);
@@ -75,23 +77,23 @@ export function MobileNavigationDrawer({
 
       if (!firstElement || !lastElement) {
         event.preventDefault();
-        drawerRef.current?.focus();
+        drawerRef.current?.focus({ preventScroll: true });
         return;
       }
 
       if (event.shiftKey && document.activeElement === firstElement) {
         event.preventDefault();
-        lastElement.focus();
+        lastElement.focus({ preventScroll: true });
       } else if (!event.shiftKey && document.activeElement === lastElement) {
         event.preventDefault();
-        firstElement.focus();
+        firstElement.focus({ preventScroll: true });
       }
     }
 
     if (isOpen) {
       document.addEventListener("keydown", handleDrawerKeyDown);
       const firstElement = getDrawerFocusableElements(drawerRef.current)[0];
-      (firstElement ?? drawerRef.current)?.focus();
+      (firstElement ?? drawerRef.current)?.focus({ preventScroll: true });
     }
 
     return () => {
@@ -99,7 +101,7 @@ export function MobileNavigationDrawer({
       document.removeEventListener("keydown", handleDrawerKeyDown);
 
       if (isOpen && previouslyFocusedElement?.isConnected) {
-        previouslyFocusedElement.focus();
+        previouslyFocusedElement.focus({ preventScroll: true });
       }
     };
   }, [isOpen, onClose]);

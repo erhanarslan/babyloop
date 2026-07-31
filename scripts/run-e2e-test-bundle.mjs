@@ -8,6 +8,7 @@ const bundles = {
       "e2e/auth-session.smoke.spec.ts",
       "e2e/protected-routes.smoke.spec.ts",
       "e2e/account-ops.smoke.spec.ts",
+      "e2e/overlay-scroll.smoke.spec.ts",
     ],
     marketplace: [
       "e2e/home-discovery.smoke.spec.ts",
@@ -39,6 +40,7 @@ const bundles = {
       "e2e/messaging.smoke.spec.ts",
       "e2e/messaging-safety.smoke.spec.ts",
       "e2e/messaging-read-state.smoke.spec.ts",
+      "e2e/overlay-scroll.smoke.spec.ts",
     ],
   },
   backoffice: {

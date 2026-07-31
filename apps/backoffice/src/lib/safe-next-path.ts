@@ -19,6 +19,10 @@ export function resolveSafeBackofficeNextPath(
       return fallback;
     }
 
+    if (parsed.pathname === "/login" || parsed.pathname === "/auth/callback") {
+      return fallback;
+    }
+
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return fallback;
