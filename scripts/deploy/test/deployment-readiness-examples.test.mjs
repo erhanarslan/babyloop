@@ -68,7 +68,8 @@ for (const target of ["staging", "production"]) {
       RAG_REDIS_URL: "rediss://user:password@redis.babyloop.app:6380",
       GEMINI_API_KEY: "safe-fixture-gemini-key",
       OBSERVABILITY_METRICS_TOKEN: "m".repeat(48),
-      OBSERVABILITY_ERROR_WEBHOOK_URL: "https://errors.babyloop.app/hook",
+      OBSERVABILITY_ERROR_WEBHOOK_URL:
+        target === "production" ? "" : "https://errors.babyloop.app/hook",
       BACKUP_AGE_RECIPIENT: `age1${"q".repeat(58)}`,
       EMAIL_FROM: "no-reply@babyloop.app",
       RESEND_API_KEY: "safe-fixture-resend-key",

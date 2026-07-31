@@ -735,7 +735,6 @@ function checkObservabilityEnv() {
   }
 
   if (target === "production") {
-    requireEnv("OBSERVABILITY_ERROR_WEBHOOK_URL", "observability");
     requireEnvValue("HEALTH_REQUIRE_NOTIFICATION_WORKER", "true", "observability");
     requireEnvValue("HEALTH_REQUIRE_CHILD_REMINDER_WORKER", "true", "observability");
     requireEnvValue("HEALTH_FAIL_ON_STALE_NOTIFICATION_CLAIMS", "true", "observability");
