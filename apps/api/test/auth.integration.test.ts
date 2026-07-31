@@ -54,6 +54,19 @@ import { connectRealtimeSocket, delay, expectUnauthenticatedSocketRejected, getL
 
 let app!: TestApp;
 
+function expectGoogleOAuthBoundaryCookiesExpired(
+  response: Parameters<typeof getSetCookieHeaders>[0]
+): void {
+  const cookies = getSetCookieHeaders(response);
+
+  expect(cookies.find((cookie) => cookie.startsWith(`${GOOGLE_OAUTH_STATE_COOKIE_NAME}=`)))
+    .toContain("Max-Age=0");
+  expect(cookies.find((cookie) => cookie.startsWith(`${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=`)))
+    .toContain("Max-Age=0");
+  expect(cookies.some((cookie) => cookie.startsWith(`${REFRESH_TOKEN_COOKIE_NAME}=`))).toBe(false);
+  expect(cookies.some((cookie) => cookie.startsWith(`${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=`))).toBe(false);
+}
+
 beforeEach(async () => {
   await resetTestDatabase();
   app = await createTestApp();
@@ -2649,7 +2662,7 @@ describe("auth API", () => {
     });
   });
 
-  it("google callback redirects to login unavailable error when Google OAuth is not configured", async () => {
+  it("google callback redirects to the login modal when Google OAuth is not configured", async () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/v1/auth/google/callback?state=state-a&code=google-code"
@@ -2657,8 +2670,9 @@ describe("auth API", () => {
 
     expect(response.statusCode).toBe(302);
     expect(response.headers.location).toBe(
-      "http://localhost:3000/login?error=google_auth_unavailable"
+      "http://localhost:3000/?auth=login&authError=google_auth_unavailable"
     );
+    expectGoogleOAuthBoundaryCookiesExpired(response);
   });
 
   it("google callback rejects missing state", async () => {
@@ -2670,7 +2684,11 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
+    expect(String(response.headers.location)).not.toContain("google-code");
+    expectGoogleOAuthBoundaryCookiesExpired(response);
   });
 
   it("google callback rejects mismatched state", async () => {
@@ -2685,7 +2703,11 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
+    expect(String(response.headers.location)).not.toContain("query-state");
+    expectGoogleOAuthBoundaryCookiesExpired(response);
   });
 
   it("google callback rejects missing code", async () => {
@@ -2700,7 +2722,10 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
+    expectGoogleOAuthBoundaryCookiesExpired(response);
   });
 
   it("google callback creates a new verified Google user, profile, auth account, and session", async () => {
@@ -2726,9 +2751,14 @@ describe("auth API", () => {
 
     const refreshCookie = getRefreshSetCookie(response);
     const stateCookie = getGoogleOAuthStateSetCookie(response);
+    const responseCookies = getSetCookieHeaders(response);
 
     expect(refreshCookie).toContain("HttpOnly");
     expect(stateCookie).toContain("Max-Age=0");
+    expect(responseCookies.find((cookie) => cookie.startsWith(`${GOOGLE_OAUTH_TERMS_COOKIE_NAME}=`)))
+      .toContain("Max-Age=0");
+    expect(responseCookies.find((cookie) => cookie.startsWith(`${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=`)))
+      .toContain("HttpOnly");
 
     const [userRow] = await app.db
       .select({
@@ -2815,13 +2845,24 @@ describe("auth API", () => {
 
     expect(response.statusCode).toBe(302);
     expect(response.headers.location).toBe(
-      "http://localhost:3000/register?error=legal_terms_required"
+      "http://localhost:3000/?auth=register&authError=legal_terms_required&provider=google"
     );
+    expectGoogleOAuthBoundaryCookiesExpired(response);
     const userRows = await app.db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, "terms.required@example.com"));
+    const accountRows = await app.db
+      .select({ id: authAccounts.id })
+      .from(authAccounts)
+      .where(eq(authAccounts.providerAccountId, "google-sub-terms-required"));
+    const acceptanceRows = await app.db
+      .select({ id: legalAcceptances.id })
+      .from(legalAcceptances);
+
     expect(userRows).toHaveLength(0);
+    expect(accountRows).toHaveLength(0);
+    expect(acceptanceRows).toHaveLength(0);
   });
 
   it("google callback rejects unverified Google emails without creating a user", async () => {
@@ -2843,7 +2884,9 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
 
     const userRows = await app.db
       .select({ id: users.id })
@@ -2921,10 +2964,22 @@ describe("auth API", () => {
         email_verified: true,
         name: "Reuse Parent",
         sub: "google-sub-reuse"
+      },
+      "tenth-code": {
+        email: "reuse@example.com",
+        email_verified: true,
+        name: "Reuse Parent",
+        sub: "google-sub-reuse"
+      },
+      "seventieth-code": {
+        email: "reuse@example.com",
+        email_verified: true,
+        name: "Reuse Parent",
+        sub: "google-sub-reuse"
       }
     });
 
-    for (const code of ["first-code", "second-code"]) {
+    for (const code of ["first-code", "second-code", "tenth-code", "seventieth-code"]) {
       const response = await app.inject({
         headers: {
           cookie: `${GOOGLE_OAUTH_STATE_COOKIE_NAME}=state-${code}${
@@ -2965,7 +3020,7 @@ describe("auth API", () => {
 
     expect(accountRows).toHaveLength(1);
     expect(accountRows[0]!.userId).toBe(userRows[0]!.id);
-    expect(sessionRows).toHaveLength(2);
+    expect(sessionRows).toHaveLength(4);
   });
 
   it("google callback rejects unverified email without creating account state", async () => {
@@ -2987,7 +3042,9 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
 
     const userRows = await app.db
       .select({ id: users.id })
@@ -3025,7 +3082,9 @@ describe("auth API", () => {
     });
 
     expect(response.statusCode).toBe(302);
-    expect(response.headers.location).toBe("http://localhost:3000/login?error=google_auth_failed");
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/?auth=login&authError=google_auth_failed"
+    );
 
     const accountRows = await app.db
       .select({ id: authAccounts.id })

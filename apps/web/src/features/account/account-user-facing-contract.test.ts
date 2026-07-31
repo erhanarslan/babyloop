@@ -7,12 +7,14 @@ function read(relativePath: string): string {
 }
 
 describe("account user-facing contract", () => {
-  it("opens direct login URLs through the shared auth popup", () => {
+  it("opens direct login and register URLs through the shared auth popup", () => {
     const loginRoute = read("src/app/login/page.tsx");
+    const registerRoute = read("src/app/register/page.tsx");
 
-    expect(loginRoute).toContain('auth: "login"');
-    expect(loginRoute).toContain("redirect(`/?${params.toString()}`)");
+    expect(loginRoute).toContain('buildLegacyAuthRedirect("login", incoming)');
     expect(loginRoute).not.toContain("<AuthPageShell");
+    expect(registerRoute).toContain('buildLegacyAuthRedirect("register", incoming)');
+    expect(registerRoute).not.toContain("<AuthPageShell");
   });
 
   it("keeps security controls in profile and removes security-center links", () => {

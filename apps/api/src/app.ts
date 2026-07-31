@@ -152,6 +152,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
     });
 
   const app = Fastify({
+    disableRequestLogging: (request) => shouldDisableDefaultRequestLogging(request.url),
     logger: true
   });
 
@@ -660,6 +661,10 @@ function getSafeRequestRoute(request: FastifyRequest): string {
   }
 
   return request.url.split("?")[0] || "/";
+}
+
+export function shouldDisableDefaultRequestLogging(requestUrl: string): boolean {
+  return requestUrl.split("?")[0] === `${API_PREFIX}/auth/google/callback`;
 }
 
 function isLowNoiseRoute(route: string): boolean {

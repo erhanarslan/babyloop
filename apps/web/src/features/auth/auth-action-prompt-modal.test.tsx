@@ -46,7 +46,7 @@ describe("AuthActionPromptModal register contract", () => {
     });
     renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "Hesap oluştur" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Hesap oluştur" }));
 
     const termsCheckbox = screen.getByRole("checkbox", {
       name: /Kullanım Koşulları/
@@ -98,7 +98,7 @@ describe("AuthActionPromptModal register contract", () => {
     });
     renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "Hesap oluştur" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Hesap oluştur" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Kullanım Koşulları/ }));
     fireEvent.click(screen.getByRole("button", { name: "Google ile devam et" }));
 
