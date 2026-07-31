@@ -52,3 +52,11 @@ test("scheduler create and update use their exact header flags", async () => {
   assert.ok(source.includes('"--update-headers=Content-Type=application/json"'));
   assert.ok(source.includes("headersFlag"));
 });
+
+test("deployment normalizes service and job component label values", async () => {
+  const source = await readFile("scripts/gcp/deploy-cloud-run.mjs", "utf8");
+
+  assert.ok(source.includes("component=${normalizeGcpLabelValue(role)}"));
+  assert.ok(source.includes("component=${normalizeGcpLabelValue(key)}"));
+  assert.doesNotMatch(source, /component=\$\{(?:role|key)\}/u);
+});

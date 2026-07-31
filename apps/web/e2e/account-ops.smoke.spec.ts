@@ -358,8 +358,25 @@ test.describe("public account operations", () => {
       },
     ]);
 
-    await expect(page).toHaveURL(/\/$/, {
+    await expect.poll(() => {
+      const url = new URL(page.url());
+      const sensitiveQueryKeys = ["password", "currentPassword", "newPassword"];
+
+      return {
+        pathname: url.pathname,
+        auth: url.searchParams.get("auth"),
+        passwordChanged: url.searchParams.get("passwordChanged"),
+        authError: url.searchParams.get("authError"),
+        hasSensitiveQuery: sensitiveQueryKeys.some((key) => url.searchParams.has(key)),
+      };
+    }, {
       timeout: 15_000,
+    }).toEqual({
+      pathname: "/",
+      auth: "login",
+      passwordChanged: "1",
+      authError: null,
+      hasSensitiveQuery: false,
     });
     await expect(page.getByRole("dialog", { name: "Şifren değişti, yeniden giriş yap" })).toBeVisible();
 

@@ -127,7 +127,10 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
 
       <section className={styles.card} aria-label="Sorunu yaz">
         <form className={styles.composer} onSubmit={handleSubmit}>
-          <div className={styles.composerShell}>
+          <div
+            className={styles.composerInputWrap}
+            data-testid="assistant-composer-input-wrap"
+          >
             <Textarea
               className={styles.promptInput}
               label="Sorunu yaz"
@@ -137,20 +140,19 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
               value={inputValue}
               wide
             />
-            <div className={styles.actions}>
-              <Button
-                aria-label={isPending ? "Yanıt hazırlanıyor" : "Sor"}
-                type="submit"
-                disabled={isPending || inputValue.trim().length === 0}
-              >
-                {isPending ? (
-                  <span className={styles.pendingLabel}>
-                    <span aria-hidden="true" className={styles.spinner} />
-                    Hazırlanıyor
-                  </span>
-                ) : "Sor"}
-              </Button>
-            </div>
+            <Button
+              aria-label={isPending ? "Yanıt hazırlanıyor" : "Sor"}
+              className={styles.submitButton}
+              type="submit"
+              disabled={isPending || inputValue.trim().length === 0}
+            >
+              {isPending ? (
+                <span className={styles.pendingLabel}>
+                  <span aria-hidden="true" className={styles.spinner} />
+                  Hazırlanıyor
+                </span>
+              ) : "Sor"}
+            </Button>
           </div>
         </form>
 

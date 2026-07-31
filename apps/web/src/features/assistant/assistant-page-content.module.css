@@ -59,38 +59,26 @@
   display: grid;
 }
 
-.composerShell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
-  align-items: end;
-  gap: 0.75rem;
-  border: 1px solid rgba(107, 86, 73, 0.22);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
-  padding: 0.85rem;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.composerShell:focus-within {
-  border-color: rgba(80, 168, 150, 0.8);
-  box-shadow: 0 0 0 3px rgba(80, 168, 150, 0.14);
+.composerInputWrap {
+  position: relative;
+  width: 100%;
 }
 
 .promptInput {
+  width: 100%;
   min-height: 7.5rem;
+  padding-right: 10rem;
+  padding-bottom: 4.25rem;
   resize: vertical;
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 0.05rem;
-}
-
-.actions button {
+.submitButton {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+  width: auto;
+  max-width: calc(100% - 1.5rem);
   min-width: 8.5rem;
 }
 
@@ -266,19 +254,6 @@
   .assistantTitle span {
     border-left: 0;
     padding-left: 0;
-  }
-
-  .composerShell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .actions button {
-    width: 100%;
   }
 
   .message {

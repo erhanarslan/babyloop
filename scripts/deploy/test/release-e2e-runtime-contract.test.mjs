@@ -86,6 +86,7 @@ test("release E2E shell fixes CI-only auth controls and fails fast without leaki
     'export AUTH_RATE_LIMIT_WINDOW_SECONDS="60"',
     "node scripts/validate-release-e2e-runtime.mjs",
     'node scripts/check-release-e2e-ports.mjs "$API_PORT" "$WEB_PORT" "$BACKOFFICE_PORT"',
+    'rm -rf "$ROOT_DIR/apps/web/.next" "$ROOT_DIR/apps/backoffice/.next"',
     "kill -0 \"$process_id\"",
     "local release E2E: next dev"
   ]) {
@@ -97,6 +98,7 @@ test("release E2E shell fixes CI-only auth controls and fails fast without leaki
   assert.doesNotMatch(source, /BABYLOOP_SEED_KEEP_E2E_LISTINGS=1/u);
   assert.match(source, /validate-release-e2e-runtime\.mjs[\s\S]*db:migrate/u);
   assert.match(source, /check-release-e2e-ports\.mjs[\s\S]*mkdir -p \.e2e-results[\s\S]*db:migrate/u);
+  assert.match(source, /mkdir -p \.e2e-results[\s\S]*rm -rf[\s\S]*db:migrate/u);
   assert.doesNotMatch(source, /lsof/u);
 });
 
