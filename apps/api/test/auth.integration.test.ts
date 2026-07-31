@@ -672,6 +672,7 @@ describe("auth API", () => {
     expect(response.json()).toMatchObject({
       ok: true,
       data: {
+        accessMode: "staff",
         user: {
           email: "backoffice-admin-login@example.com",
           role: "admin"
@@ -709,8 +710,8 @@ describe("auth API", () => {
     });
   });
 
-  it("backoffice login rejects non-admin users without issuing an access cookie", async () => {
-    await createUser(app, {
+  it("gives a normal user a signed backoffice preview session without changing the database role", async () => {
+    const user = await createUser(app, {
       email: "backoffice-non-admin@example.com",
       password: "Password123!"
     });
@@ -724,19 +725,60 @@ describe("auth API", () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "FORBIDDEN"
+      ok: true,
+      data: {
+        accessMode: "preview",
+        user: {
+          email: "backoffice-non-admin@example.com",
+          role: "user"
+        }
       }
     });
     expect(response.body).not.toContain("accessToken");
 
     const accessCookie = getBackofficeAccessSetCookie(response);
+    const refreshCookie = getRefreshSetCookie(response);
 
     expect(accessCookie).toContain("HttpOnly");
-    expect(accessCookie).toContain("Max-Age=0");
+    expect(accessCookie).toContain("Max-Age=");
+    expect(accessCookie).not.toContain("Max-Age=0");
+
+    const meResponse = await app.inject({
+      headers: {
+        cookie: `${PUBLIC_ACCESS_TOKEN_COOKIE_NAME}=${encodeURIComponent(user.accessToken)}; ${toCookieHeader(accessCookie)}`
+      },
+      method: "GET",
+      url: "/api/v1/auth/backoffice/me"
+    });
+    const [storedUser] = await app.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, user.user.id))
+      .limit(1);
+
+    expect(meResponse.statusCode).toBe(200);
+    expect(meResponse.json().data).toMatchObject({
+      accessMode: "preview",
+      user: { role: "user" }
+    });
+    expect(storedUser?.role).toBe("user");
+
+    const refreshResponse = await app.inject({
+      headers: {
+        cookie: toCookieHeader(refreshCookie)
+      },
+      method: "POST",
+      url: "/api/v1/auth/backoffice/refresh"
+    });
+
+    expect(refreshResponse.statusCode).toBe(200);
+    expect(refreshResponse.json().data).toMatchObject({
+      accessMode: "preview",
+      user: { role: "user" }
+    });
+    expect(getBackofficeAccessSetCookie(refreshResponse)).toContain("HttpOnly");
   });
 
   it("allows an explicitly assigned viewer to authenticate without changing public login behavior", async () => {
@@ -758,6 +800,7 @@ describe("auth API", () => {
     });
 
     expect(backoffice.statusCode).toBe(200);
+    expect(backoffice.json().data.accessMode).toBe("staff");
     expect(backoffice.json().data.user.role).toBe("backoffice_viewer");
     expect(publicLogin.statusCode).toBe(200);
     expect(publicLogin.json().data.user.role).toBe("backoffice_viewer");

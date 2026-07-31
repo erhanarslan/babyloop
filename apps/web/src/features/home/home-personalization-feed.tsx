@@ -23,7 +23,7 @@ type HomePersonalizationFeedProps = {
 };
 
 export function HomePersonalizationFeed({ apiBaseUrl }: HomePersonalizationFeedProps) {
-  const { dictionary } = useI18n();
+  const { dictionary, locale } = useI18n();
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedListing[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [lifecycleGroups, setLifecycleGroups] = useState<LifecycleRecommendationGroup[]>([]);
@@ -67,7 +67,7 @@ export function HomePersonalizationFeed({ apiBaseUrl }: HomePersonalizationFeedP
 
       const [savedSearchesResponse, lifecycleResponse] = await Promise.all([
         fetchSavedSearches(apiBaseUrl),
-        fetchLifecycleRecommendations(apiBaseUrl)
+        fetchLifecycleRecommendations(apiBaseUrl, locale)
       ]);
 
       if (!isActive) {
@@ -84,7 +84,7 @@ export function HomePersonalizationFeed({ apiBaseUrl }: HomePersonalizationFeedP
     return () => {
       isActive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, locale]);
 
   const hasAnyPersonalSignal =
     recentlyViewed.length > 0 || savedSearches.length > 0 || hasLifecycleRecommendations(lifecycleGroups);

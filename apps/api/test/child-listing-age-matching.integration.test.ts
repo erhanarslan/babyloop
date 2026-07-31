@@ -264,6 +264,55 @@ describe("child listing age matching", () => {
 
     expect(ids).toEqual([independent.id]);
   });
+
+  it("returns fully localized Turkish lifecycle category copy", async () => {
+    const parent = await createUser(app, { email: "turkish-lifecycle@babyloop.test" });
+    await createCategory(app.db, {
+      name: "Montessori Oyuncakları",
+      slug: "montessori-toys"
+    });
+    await createCategory(app.db, {
+      name: "Oyuncaklar",
+      slug: "toys"
+    });
+    await app.inject({
+      headers: authHeader(parent.accessToken),
+      method: "POST",
+      url: "/api/v1/child-profiles",
+      payload: {
+        ageBand: "preschool_24_36",
+        ageMonths: 30,
+        label: "Deniz"
+      }
+    });
+
+    const response = await app.inject({
+      headers: authHeader(parent.accessToken),
+      method: "GET",
+      url: "/api/v1/child-profiles/lifecycle-recommendations?locale=tr"
+    });
+
+    expect(response.statusCode).toBe(200);
+    const recommendations = response.json().data.groups[0].recommendations as Array<{
+      categoryName: string;
+      reasonLabel: string;
+      whyNow: string;
+    }>;
+
+    expect(recommendations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        categoryName: "Montessori Oyuncakları",
+        whyNow: "24–36 ay dönemi; odaklanma, sınıflandırma, sembolik oyun ve kendi başına oynama becerilerinin gelişimini destekleyen güçlü bir dönemdir."
+      }),
+      expect.objectContaining({
+        categoryName: "Oyuncaklar",
+        whyNow: "Oyuncaklar; hayal gücünü, sosyal oyunu ve daha uzun süre bağımsız oynayabilme becerisini destekleyebilir."
+      })
+    ]));
+    expect(JSON.stringify(recommendations)).not.toMatch(
+      /24-36 month|focused play|pretend play|independent play|can support|relevant for|useful for/iu
+    );
+  });
 });
 
 async function setListingRange(

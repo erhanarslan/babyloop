@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 type AccessTokenPayload = {
+  backofficeAccessMode?: BackofficeAccessMode;
   exp: number;
   iat: number;
   profileId: string;
@@ -8,14 +9,19 @@ type AccessTokenPayload = {
   userId: string;
 };
 
+export type BackofficeAccessMode = "preview" | "staff";
+
 export type VerifiedAccessToken = {
+  backofficeAccessMode: BackofficeAccessMode | null;
   profileId: string;
   sessionId: string;
   userId: string;
 };
 
 export function signAccessToken(
-  input: VerifiedAccessToken,
+  input: Omit<VerifiedAccessToken, "backofficeAccessMode"> & {
+    backofficeAccessMode?: BackofficeAccessMode;
+  },
   options: {
     secret: string;
     ttlSeconds: number;
@@ -23,6 +29,9 @@ export function signAccessToken(
 ): string {
   const issuedAt = Math.floor(Date.now() / 1000);
   const payload: AccessTokenPayload = {
+    ...(input.backofficeAccessMode
+      ? { backofficeAccessMode: input.backofficeAccessMode }
+      : {}),
     exp: issuedAt + options.ttlSeconds,
     iat: issuedAt,
     profileId: input.profileId,
@@ -58,6 +67,7 @@ export function verifyAccessToken(
   }
 
   return {
+    backofficeAccessMode: payload.backofficeAccessMode ?? null,
     profileId: payload.profileId,
     sessionId: payload.sessionId,
     userId: payload.userId
@@ -101,7 +111,12 @@ function hasPayloadShape(value: object): value is AccessTokenPayload {
     typeof value.iat === "number" &&
     typeof value.profileId === "string" &&
     typeof value.sessionId === "string" &&
-    typeof value.userId === "string"
+    typeof value.userId === "string" &&
+    (
+      !("backofficeAccessMode" in value) ||
+      value.backofficeAccessMode === "preview" ||
+      value.backofficeAccessMode === "staff"
+    )
   );
 }
 

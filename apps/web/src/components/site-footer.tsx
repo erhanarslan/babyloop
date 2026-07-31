@@ -11,6 +11,17 @@ export function SiteFooter() {
   const footerGroups = [
     {
       links: [
+        { href: "/legal/kvkk", label: "KVKK Aydınlatma Metni" },
+        { href: "/legal/privacy", label: "Gizlilik Politikası" },
+        { href: "/legal/terms", label: "Kullanım Koşulları" },
+        { href: "/legal/cookies", label: "Çerez Politikası" },
+        { href: "/legal/ai-notice", label: "Yapay zekâ bildirimi" },
+        { href: "/legal/marketplace", label: "Pazaryeri güvenliği" }
+      ],
+      title: "Yasal ve güven"
+    },
+    {
+      links: [
         { href: "/browse", label: dictionary.footer.browse },
         { href: "/sell", label: dictionary.footer.sell },
         { href: "/favorites", label: dictionary.footer.favorites },
@@ -34,17 +45,6 @@ export function SiteFooter() {
         { href: "/legal/data-deletion", label: "Hesap ve veri silme" }
       ],
       title: dictionary.footer.support
-    },
-    {
-      links: [
-        { href: "/legal/kvkk", label: "KVKK Aydınlatma Metni" },
-        { href: "/legal/privacy", label: "Gizlilik Politikası" },
-        { href: "/legal/terms", label: "Kullanım Koşulları" },
-        { href: "/legal/cookies", label: "Çerez Politikası" },
-        { href: "/legal/ai-notice", label: "Yapay zekâ bildirimi" },
-        { href: "/legal/marketplace", label: "Pazaryeri güvenliği" }
-      ],
-      title: "Yasal ve güven"
     }
   ];
 

@@ -91,6 +91,7 @@ const YEAR_OPTIONS = Array.from({ length: 11 }, (_, index) => String(new Date().
 
 export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageContentProps) {
   const { isCheckingAuth, requireAuth } = useProtectedRoute({ apiBaseUrl });
+  const { locale } = useI18n();
   const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
   const [recommendationGroups, setRecommendationGroups] = useState<LifecycleRecommendationGroup[]>([]);
   const [recommendationsStatus, setRecommendationsStatus] = useState<RecommendationsLoadStatus>("loading");
@@ -131,7 +132,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     try {
       const [childProfilesResponse, lifecycleRecommendationsResponse] = await Promise.all([
         fetchChildProfiles(apiBaseUrl),
-        fetchLifecycleRecommendations(apiBaseUrl)
+        fetchLifecycleRecommendations(apiBaseUrl, locale)
       ]);
 
       if (!childProfilesResponse.ok) {
@@ -178,7 +179,7 @@ export function ChildProfilesPageContent({ apiBaseUrl }: ChildProfilesPageConten
     } finally {
       setIsLoading(false);
     }
-  }, [apiBaseUrl, requireAuth]);
+  }, [apiBaseUrl, locale, requireAuth]);
 
   useEffect(() => {
     if (isCheckingAuth) {

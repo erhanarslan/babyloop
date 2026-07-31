@@ -32,6 +32,7 @@ import type {
   SessionRevokeAllBody
 } from "../schemas/auth.schemas.js";
 import { signAccessToken } from "../utils/access-token.js";
+import type { BackofficeAccessMode } from "../utils/access-token.js";
 import {
   createRefreshToken,
   createRefreshTokenExpiresAt,
@@ -1485,7 +1486,12 @@ export function buildAuthMeResponse(currentUser: CurrentUser): AuthMeResponse {
   };
 }
 
-export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptions, sessionId: string): AuthSuccess {
+export function attachAccessToken(
+  response: AuthSuccess,
+  options: AuthTokenOptions,
+  sessionId: string,
+  tokenContext: { backofficeAccessMode?: BackofficeAccessMode } = {}
+): AuthSuccess {
   return {
     ok: true,
     data: {
@@ -1494,7 +1500,8 @@ export function attachAccessToken(response: AuthSuccess, options: AuthTokenOptio
         {
           userId: response.data.user.id,
           profileId: response.data.profile.id,
-          sessionId
+          sessionId,
+          ...tokenContext
         },
         {
           secret: options.authSecret,

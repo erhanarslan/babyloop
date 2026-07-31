@@ -59,8 +59,8 @@ export default function BackofficeLoginPage() {
         <p className="eyebrow">BabyLoop Backoffice</p>
         <h1>Sign in</h1>
         <p>
-          Use an admin account to access moderation, trust and safety, support,
-          audit, and AI-assisted operations.
+          BabyLoop hesabınla giriş yap. Normal hesaplar ürünü salt okunur tanıtım
+          modunda inceler; yetkili ekip rolleri kendi operasyon alanlarına erişir.
         </p>
 
         <form aria-busy={isSubmitting} className="login-form" onSubmit={handleSubmit}>

@@ -231,7 +231,7 @@ function registerCoreBodyContracts(): void {
       ["email", "password"],
       {
         description:
-          "Yalnız admin veya yetkili backoffice rolü için cookie tabanlı oturum açar."
+          "Yetkili ekip rollerine staff, normal kullanıcılara server-side salt okunur preview scope’lu cookie oturumu açar."
       }
     )
   );

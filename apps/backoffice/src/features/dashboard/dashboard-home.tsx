@@ -8,8 +8,65 @@ import {
   type AdminDashboardSummary,
   getAdminDashboardSummary,
 } from "./api";
+import { useBackofficeAccess } from "../auth/backoffice-access";
 
 export function DashboardHome() {
+  const access = useBackofficeAccess();
+
+  if (access.accessMode === "preview") {
+    return <PreviewDashboardHome />;
+  }
+
+  return <StaffDashboardHome />;
+}
+
+function PreviewDashboardHome() {
+  return (
+    <div className="admin-page-stack">
+      <section className="page-heading">
+        <p className="eyebrow">BabyLoop Backoffice</p>
+        <h2>Ürün tanıtım görünümü</h2>
+        <p>
+          BabyLoop pazaryeri deneyimini güvenli, salt okunur bilgilerle inceleyebilirsin.
+          İstatistikler, operasyon verileri ve yönetim işlemleri bu görünümde kapalıdır.
+        </p>
+      </section>
+
+      <section className="module-grid preview-module-grid" aria-label="Tanıtım bölümleri">
+        <PreviewModule
+          description="İlanların güvenli özetlerini ve herkese açık ürün bilgilerini incele."
+          href="/listings"
+          title="İlanları keşfet"
+        />
+        <PreviewModule
+          description="Hassas bilgiler olmadan temel profil kimliği, şehir ve ilan sayısını görüntüle."
+          href="/profiles"
+          title="Profil dizinini incele"
+        />
+      </section>
+    </div>
+  );
+}
+
+function PreviewModule({
+  description,
+  href,
+  title
+}: {
+  description: string;
+  href: string;
+  title: string;
+}) {
+  return (
+    <Link className="module-card preview-module-card" href={href}>
+      <h3>{title}</h3>
+      <p>{description}</p>
+      <span>Salt okunur görüntüle</span>
+    </Link>
+  );
+}
+
+function StaffDashboardHome() {
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

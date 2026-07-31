@@ -11,12 +11,29 @@
   gap: 0.35rem;
 }
 
-.heading h1 {
+.assistantTitle {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   color: var(--color-text-strong);
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-size: clamp(1.15rem, 2.6vw, 1.5rem);
   line-height: 1;
   letter-spacing: 0;
+}
+
+.brandLogo {
+  display: block;
+  width: clamp(13.75rem, 28vw, 18.75rem);
+  max-width: 72vw;
+  height: auto;
+  object-fit: contain;
+}
+
+.assistantTitle span {
+  border-left: 1px solid rgba(107, 86, 73, 0.2);
+  padding-left: 0.75rem;
+  font-weight: 850;
 }
 
 .heading p {
@@ -40,14 +57,64 @@
 
 .composer {
   display: grid;
-  gap: 0.85rem;
+}
+
+.composerShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
+  align-items: end;
+  gap: 0.75rem;
+  border: 1px solid rgba(107, 86, 73, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.85rem;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.composerShell:focus-within {
+  border-color: rgba(80, 168, 150, 0.8);
+  box-shadow: 0 0 0 3px rgba(80, 168, 150, 0.14);
+}
+
+.promptInput {
+  min-height: 7.5rem;
+  resize: vertical;
 }
 
 .actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 1rem;
+  padding-bottom: 0.05rem;
+}
+
+.actions button {
+  min-width: 8.5rem;
+}
+
+.pendingLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: assistant-spin 700ms linear infinite;
+}
+
+@keyframes assistant-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .answerArea {
@@ -190,9 +257,28 @@
 }
 
 @media (max-width: 640px) {
+  .assistantTitle {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .assistantTitle span {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .composerShell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
   }
 
   .message {
@@ -200,6 +286,11 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
 
 .assistant-suggested-actions {
   display: grid;

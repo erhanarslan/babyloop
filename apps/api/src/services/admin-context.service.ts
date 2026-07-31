@@ -51,6 +51,11 @@ const VIEWER_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>([
   "profile_view",
 ]);
 
+const PREVIEW_BACKOFFICE_PERMISSIONS = new Set<BackofficePermission>([
+  "listing_view",
+  "profile_view"
+]);
+
 const ROLE_BACKOFFICE_PERMISSIONS: Record<string, ReadonlySet<BackofficePermission>> = {
   admin: ADMIN_BACKOFFICE_PERMISSIONS,
   moderator: MODERATOR_BACKOFFICE_PERMISSIONS,
@@ -68,7 +73,22 @@ export function hasBackofficePermission(
   currentUser: CurrentUser,
   permission: BackofficePermission
 ): boolean {
+  if (currentUser.backofficeAccessMode === "preview") {
+    return PREVIEW_BACKOFFICE_PERMISSIONS.has(permission);
+  }
+
   return getBackofficePermissionsForRole(currentUser.role).has(permission);
+}
+
+export function isBackofficePreviewPrincipal(currentUser: CurrentUser): boolean {
+  return currentUser.backofficeAccessMode === "preview";
+}
+
+export function isBackofficeReadOnlyPrincipal(currentUser: CurrentUser): boolean {
+  return (
+    isBackofficePreviewPrincipal(currentUser) ||
+    currentUser.role.toLowerCase() === "backoffice_viewer"
+  );
 }
 
 export function isBackofficeRole(role: string): boolean {

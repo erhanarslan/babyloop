@@ -69,4 +69,35 @@ describe("BackofficeShell", () => {
     expect(screen.getByText("Salt okunur")).toBeVisible();
     expect(screen.queryByText("Hazır")).toBeNull();
   });
+
+  it("shows a clearly bounded preview shell without staff navigation", () => {
+    render(
+      <BackofficeShell accessMode="preview" role="user">
+        <h2>Preview</h2>
+      </BackofficeShell>
+    );
+
+    const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
+    expect(within(navigation).getByRole("link", { name: "İlanlar" })).toBeVisible();
+    expect(within(navigation).getByRole("link", { name: "Profiller" })).toBeVisible();
+    expect(within(navigation).queryByRole("link", { name: "Audit Logları" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "AI Operasyonları" })).toBeNull();
+    expect(screen.getByText("Tanıtım modu · Salt okunur")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Bu görünüm ürün tanıtımı içindir. Hassas veriler ve yönetim işlemleri kapalıdır."
+      )
+    ).toBeVisible();
+  });
+
+  it("does not show the preview banner to staff admins", () => {
+    render(
+      <BackofficeShell accessMode="staff" role="admin">
+        <h2>Admin</h2>
+      </BackofficeShell>
+    );
+
+    expect(screen.queryByText("Tanıtım modu · Salt okunur")).toBeNull();
+    expect(screen.getByRole("link", { name: "Audit Logları" })).toBeVisible();
+  });
 });

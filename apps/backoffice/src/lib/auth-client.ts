@@ -23,10 +23,12 @@ export type BackofficeAuthUser = {
 };
 
 export type BackofficeAuthMe = {
+  accessMode: "preview" | "staff";
   user: BackofficeAuthUser;
 };
 
 type LoginResponse = {
+  accessMode: "preview" | "staff";
   user: BackofficeAuthUser;
 };
 

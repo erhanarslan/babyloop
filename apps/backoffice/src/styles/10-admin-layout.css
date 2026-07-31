@@ -177,6 +177,35 @@
   padding: 0.55rem 0.85rem;
 }
 
+.preview-mode-banner {
+  display: grid;
+  gap: 0.2rem;
+  max-width: 34rem;
+  border: 1px solid rgba(26, 127, 113, 0.28);
+  border-radius: 14px;
+  background: rgba(224, 247, 242, 0.72);
+  padding: 0.65rem 0.85rem;
+  color: #124f47;
+}
+
+.preview-mode-banner strong {
+  color: inherit;
+  font-size: 0.84rem;
+}
+
+.preview-mode-banner span {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.preview-module-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-module-card {
+  gap: 0.65rem;
+}
+
 .backoffice-content {
   width: min(100%, 1180px);
   padding: 2rem;

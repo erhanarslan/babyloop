@@ -185,9 +185,13 @@ export async function deleteChildProfile(
 }
 
 export async function fetchLifecycleRecommendations(
-  apiBaseUrl: string
+  apiBaseUrl: string,
+  locale: "en" | "tr"
 ): Promise<ApiResponse<LifecycleRecommendationsPayload>> {
-  const response = await authFetch(apiBaseUrl, "/api/v1/child-profiles/lifecycle-recommendations");
+  const response = await authFetch(
+    apiBaseUrl,
+    `/api/v1/child-profiles/lifecycle-recommendations?locale=${encodeURIComponent(locale)}`
+  );
 
   return response.json() as Promise<ApiResponse<LifecycleRecommendationsPayload>>;
 }

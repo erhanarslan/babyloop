@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 type BackofficeShellProps = {
+  accessMode?: "preview" | "staff";
   children: ReactNode;
   role: string;
 };
@@ -174,10 +175,16 @@ const navigationGroups: NavigationGroup[] = [
   }
 ];
 
-export function BackofficeShell({ children, role }: BackofficeShellProps) {
+export function BackofficeShell({
+  accessMode = "staff",
+  children,
+  role
+}: BackofficeShellProps) {
   const pathname = usePathname();
   const viewer = role.toLowerCase() === "backoffice_viewer";
-  const visibleNavigationGroups = viewer
+  const preview = accessMode === "preview";
+  const readOnly = viewer || preview;
+  const visibleNavigationGroups = readOnly
     ? navigationGroups.map((group) => ({
         ...group,
         items: group.items.filter((item) => item.href === "/" || item.href === "/listings" || item.href === "/profiles"),
@@ -226,7 +233,16 @@ export function BackofficeShell({ children, role }: BackofficeShellProps) {
             <strong>Pazaryeri, güvenlik, analitik, AI ve sistem operasyonları</strong>
           </div>
 
-          {viewer ? <div className="topbar-status">Salt okunur</div> : null}
+          {preview ? (
+            <div className="preview-mode-banner" role="status">
+              <strong>Tanıtım modu · Salt okunur</strong>
+              <span>
+                Bu görünüm ürün tanıtımı içindir. Hassas veriler ve yönetim işlemleri kapalıdır.
+              </span>
+            </div>
+          ) : viewer ? (
+            <div className="topbar-status">Salt okunur</div>
+          ) : null}
 
         </header>
 
