@@ -17,9 +17,13 @@ test("Google login starts once with a safe relative next path", async ({ page })
   });
   await page.goto("/login?next=%2Flistings%3Fstatus%3Dactive");
 
-  await page.getByRole("button", { name: "Google ile devam et" }).evaluate((button) => {
-    button.click();
-    button.click();
+  await page.getByRole("button", { name: "Google ile devam et" }).evaluate((element) => {
+    if (!(element instanceof HTMLButtonElement)) {
+      throw new Error("Expected the Google login trigger to be a button.");
+    }
+
+    element.click();
+    element.click();
   });
 
   await expect.poll(() => startRequests.length).toBe(1);
