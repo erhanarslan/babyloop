@@ -1,22 +1,79 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requestAssistantMessage } from "./api";
+import { AssistantPageContent } from "./assistant-page-content";
 
 const source = readFileSync(join(process.cwd(), "src/features/assistant/assistant-page-content.tsx"), "utf8");
+const styles = readFileSync(join(process.cwd(), "src/features/assistant/assistant-page-content.module.css"), "utf8");
+
+vi.mock("./api", () => ({
+  requestAssistantMessage: vi.fn()
+}));
 
 describe("AssistantPageContent", () => {
-  it("uses the production logo and keeps the submit action inside the composer shell", () => {
+  beforeEach(() => {
+    vi.mocked(requestAssistantMessage).mockReset();
+    window.history.replaceState({}, "", "/assistant");
+  });
+
+  it("renders one submit button in the same visual wrapper as the labelled textarea", () => {
+    const { container } = render(<AssistantPageContent apiBaseUrl="http://api.test" />);
+    const textarea = screen.getByRole("textbox", { name: "Sorunu yaz" });
+    const submitButton = screen.getByRole("button", { name: "Sor" });
+    const inputWrap = screen.getByTestId("assistant-composer-input-wrap");
+
+    expect(inputWrap).toContainElement(textarea);
+    expect(inputWrap).toContainElement(submitButton);
+    expect(inputWrap.children).toHaveLength(2);
+    expect(inputWrap.lastElementChild).toBe(submitButton);
+    expect(submitButton).toHaveAttribute("type", "submit");
+    expect(submitButton).toBeDisabled();
+    expect(container.querySelectorAll('button[type="submit"]')).toHaveLength(1);
+
     expect(source).toContain('src="/brand/home/babyloop-logo-full-transparent.png"');
     expect(source).toContain('alt="BabyLoop"');
     expect(source).not.toContain("<h1>BabyLoop Asistan</h1>");
-    expect(source).toContain("<div className={styles.composerShell}>");
+    expect(source).not.toContain("styles.composerShell");
+    expect(source).not.toContain("styles.actions");
+  });
 
-    const composerStart = source.indexOf("<div className={styles.composerShell}>");
-    const composerEnd = source.indexOf("</form>", composerStart);
-    const composerSource = source.slice(composerStart, composerEnd);
-    expect(composerSource.match(/type="submit"/gu)).toHaveLength(1);
-    expect(composerSource).toContain("Hazırlanıyor");
-    expect(composerSource).toContain("disabled={isPending || inputValue.trim().length === 0}");
+  it("keeps pending and disabled submit semantics inside the textarea wrapper", async () => {
+    let resolveRequest: ((value: {
+      ok: true;
+      data: { answer: string };
+    }) => void) | undefined;
+    vi.mocked(requestAssistantMessage).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve;
+    }));
+
+    render(<AssistantPageContent apiBaseUrl="http://api.test" />);
+    const textarea = screen.getByRole("textbox", { name: "Sorunu yaz" });
+    const submitButton = screen.getByRole("button", { name: "Sor" });
+
+    fireEvent.change(textarea, { target: { value: "Güvenli ürün önerisi" } });
+    expect(submitButton).toBeEnabled();
+    fireEvent.click(submitButton);
+
+    const pendingButton = await screen.findByRole("button", { name: "Yanıt hazırlanıyor" });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveTextContent("Hazırlanıyor");
+    expect(screen.getByTestId("assistant-composer-input-wrap")).toContainElement(pendingButton);
+
+    resolveRequest?.({ ok: true, data: { answer: "Yanıt" } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Sor" })).toBeDisabled();
+    });
+  });
+
+  it("keeps the submit control overlaid inside padded textarea space on every viewport", () => {
+    expect(styles).toMatch(/\.composerInputWrap\s*\{[^}]*position:\s*relative;[^}]*width:\s*100%;/su);
+    expect(styles).toMatch(/\.submitButton\s*\{[^}]*position:\s*absolute;[^}]*right:\s*0\.75rem;[^}]*bottom:\s*0\.75rem;[^}]*z-index:\s*1;/su);
+    expect(styles).toMatch(/\.promptInput\s*\{[^}]*padding-right:\s*10rem;[^}]*padding-bottom:\s*4\.25rem;[^}]*resize:\s*vertical;/su);
+    expect(styles).not.toMatch(/@media[^]*\.submitButton\s*\{[^}]*width:\s*100%/u);
+    expect(styles).not.toContain(".actions");
+    expect(styles).not.toContain(".composerShell");
   });
 
   it("uses the normalized assistant response display model", () => {

@@ -76,6 +76,24 @@ export function secretId(contract, key) {
   return normalized;
 }
 
+export function normalizeGcpLabelValue(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/gu, "$1-$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/gu, "-")
+    .replace(/-+/gu, "-")
+    .replace(/^[-_]+|[-_]+$/gu, "")
+    .slice(0, 63)
+    .replace(/[-_]+$/gu, "");
+
+  if (!normalized) {
+    throw new Error("GCP label value must contain at least one lowercase letter or digit.");
+  }
+
+  return normalized;
+}
+
 export async function run(command, args, options = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(command, args, {

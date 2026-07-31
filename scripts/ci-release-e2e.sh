@@ -32,6 +32,10 @@ export API_HOST="${API_HOST:-0.0.0.0}"
 node scripts/check-release-e2e-ports.mjs "$API_PORT" "$WEB_PORT" "$BACKOFFICE_PORT"
 mkdir -p .e2e-results
 
+# Prevent a previous build/dev run from serving stale server-data cache entries
+# after this script has reseeded the isolated test database.
+rm -rf "$ROOT_DIR/apps/web/.next" "$ROOT_DIR/apps/backoffice/.next"
+
 export AUTH_SECRET="${AUTH_SECRET:-babyloop_ci_e2e_auth_secret_please_change_later_123456}"
 export ALLOW_AUTH_UNAVAILABLE="${ALLOW_AUTH_UNAVAILABLE:-false}"
 export BABYLOOP_EXPOSE_DEV_AUTH_TOKENS="1"

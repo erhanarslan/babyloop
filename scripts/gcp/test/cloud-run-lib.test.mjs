@@ -10,6 +10,7 @@ import {
   confirmationValue,
   expectedProject,
   loadCloudRunContract,
+  normalizeGcpLabelValue,
   secretId,
   serviceAccountEmail,
   writeEnvYaml
@@ -41,6 +42,16 @@ test("secret ids and service account identities are deterministic", async () => 
   const { contract } = await loadCloudRunContract();
   assert.equal(secretId(contract, "DATABASE_URL"), "babyloop-database-url");
   assert.equal(serviceAccountEmail(contract, "api", "babyloop-staging"), "babyloop-api-runtime@babyloop-staging.iam.gserviceaccount.com");
+});
+
+test("Cloud Run component labels normalize contract keys deterministically", () => {
+  assert.equal(normalizeGcpLabelValue("childReminder"), "child-reminder");
+  assert.equal(normalizeGcpLabelValue("notificationWorker"), "notification-worker");
+  assert.equal(normalizeGcpLabelValue("notification"), "notification");
+  assert.equal(normalizeGcpLabelValue("API Worker_v2!"), "api-worker_v2");
+  assert.doesNotMatch(normalizeGcpLabelValue("childReminder"), /[A-Z]/u);
+  assert.equal(normalizeGcpLabelValue("a".repeat(80)).length, 63);
+  assert.throws(() => normalizeGcpLabelValue("_-!?-_"), /must contain/);
 });
 
 test("digest and environment validation reject mutable or ambiguous inputs", () => {
