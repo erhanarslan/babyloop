@@ -12,8 +12,16 @@ import {
 } from "react";
 import type { AuthPayload } from "../../lib/auth-client";
 import { AuthActionPromptModal } from "./auth-action-prompt-modal";
+import {
+  readAuthModalQuery,
+  removeAuthModalQuery,
+  type AuthModalErrorCode
+} from "./auth-modal-query";
+import type { AuthMode } from "./api";
 
 type AuthPromptOptions = {
+  initialErrorCode?: AuthModalErrorCode | null;
+  initialMode?: AuthMode;
   title?: string;
   returnTo?: string | undefined;
   onAuthenticated?: (payload: AuthPayload) => void;
@@ -40,7 +48,18 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
 
   const closeAuthPrompt = useCallback(() => {
     setPromptOptions(null);
-  }, []);
+
+    const currentUrl = new URL(window.location.href);
+    const nextSearchParams = removeAuthModalQuery(currentUrl.searchParams);
+
+    if (nextSearchParams.toString() === currentUrl.searchParams.toString()) {
+      return;
+    }
+
+    const nextSearch = nextSearchParams.toString();
+    const nextUrl = `${currentUrl.pathname}${nextSearch ? `?${nextSearch}` : ""}${currentUrl.hash}`;
+    router.replace(nextUrl || "/", { scroll: false });
+  }, [router]);
 
   const openAuthPrompt = useCallback((options: AuthPromptOptions = {}) => {
     const nextOptions: AuthPromptOptions = {
@@ -49,6 +68,14 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
 
     if (options.returnTo) {
       nextOptions.returnTo = options.returnTo;
+    }
+
+    if (options.initialMode) {
+      nextOptions.initialMode = options.initialMode;
+    }
+
+    if (options.initialErrorCode) {
+      nextOptions.initialErrorCode = options.initialErrorCode;
     }
 
     if (options.onAuthenticated) {
@@ -69,29 +96,24 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
 
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
+    const authQuery = readAuthModalQuery(currentUrl.searchParams);
 
-    if (currentUrl.searchParams.get("auth") !== "login") {
+    if (!authQuery) {
       return;
     }
 
-    const returnTo = normalizeReturnTo(currentUrl.searchParams.get("returnTo"));
-    const title = currentUrl.searchParams.get("passwordChanged") === "1"
+    const title = authQuery.passwordChanged
       ? "Şifren değişti, yeniden giriş yap"
-      : currentUrl.searchParams.has("error")
+      : authQuery.errorCode
         ? "Giriş tamamlanamadı, tekrar dene"
         : DEFAULT_AUTH_TITLE;
 
     openAuthPrompt({
+      initialErrorCode: authQuery.errorCode,
+      initialMode: authQuery.mode,
       title,
-      ...(returnTo ? { returnTo } : {})
+      ...(authQuery.returnTo ? { returnTo: authQuery.returnTo } : {})
     });
-
-    for (const key of ["auth", "error", "passwordChanged", "returnTo"]) {
-      currentUrl.searchParams.delete(key);
-    }
-
-    const nextUrl = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
-    window.history.replaceState(window.history.state, "", nextUrl || "/");
   }, [openAuthPrompt]);
 
   return (
@@ -100,6 +122,12 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
 
       <AuthActionPromptModal
         apiBaseUrl={apiBaseUrl}
+        {...(promptOptions?.initialErrorCode !== undefined
+          ? { initialErrorCode: promptOptions.initialErrorCode }
+          : {})}
+        {...(promptOptions?.initialMode
+          ? { initialMode: promptOptions.initialMode }
+          : {})}
         isOpen={Boolean(promptOptions)}
         title={promptOptions?.title ?? DEFAULT_AUTH_TITLE}
         returnTo={promptOptions?.returnTo}
@@ -107,7 +135,6 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
           const onAuthenticated = promptOptions?.onAuthenticated;
           const returnTo = promptOptions?.returnTo;
 
-          closeAuthPrompt();
           if (onAuthenticated) {
             onAuthenticated(payload);
           } else if (returnTo) {
@@ -119,14 +146,6 @@ export function AuthPromptProvider({ apiBaseUrl, children }: AuthPromptProviderP
       />
     </AuthPromptContext.Provider>
   );
-}
-
-function normalizeReturnTo(value: string | null): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) {
-    return null;
-  }
-
-  return value;
 }
 
 export function useAuthPrompt(): AuthPromptContextValue {

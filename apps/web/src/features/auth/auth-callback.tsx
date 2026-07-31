@@ -8,7 +8,7 @@ import { useI18n } from "../../lib/i18n/i18n-provider";
 import {
   clearStoredAuthReturnTo,
   getStoredAuthReturnTo
-} from "./auth-action-prompt-modal";
+} from "./auth-return-to";
 
 type AuthCallbackProps = {
   apiBaseUrl: string;
@@ -36,7 +36,7 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
     async function completeGoogleLogin() {
       if (status !== "success") {
         clearAuthToken();
-        router.replace("/login?error=google_auth_failed");
+        router.replace("/?auth=login&authError=google_auth_failed");
         return;
       }
 
@@ -50,7 +50,7 @@ export function AuthCallback({ apiBaseUrl }: AuthCallbackProps) {
         }
 
         clearAuthToken();
-        router.replace("/login?error=google_auth_failed");
+        router.replace("/?auth=login&authError=google_auth_failed");
         return;
       }
 

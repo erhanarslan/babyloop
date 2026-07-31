@@ -1365,7 +1365,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return redirectToGoogleTermsRequired(reply, options.googleOAuth.webAppUrl);
       }
 
-      request.log.warn({ error }, "Google OAuth callback failed.");
+      request.log.warn("Google OAuth callback failed.");
       return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
     }
   });
@@ -1526,7 +1526,10 @@ function redirectToGoogleAuthFailure(reply: FastifyReply, webAppUrl: string): vo
     serializeExpiredGoogleOAuthStateCookie(),
     serializeExpiredGoogleOAuthTermsCookie()
   ]);
-  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_failed`);
+  return redirect(reply, buildWebAuthModalRedirect(webAppUrl, {
+    error: "google_auth_failed",
+    mode: "login"
+  }));
 }
 
 function redirectToGoogleTermsRequired(reply: FastifyReply, webAppUrl: string): void {
@@ -1534,7 +1537,11 @@ function redirectToGoogleTermsRequired(reply: FastifyReply, webAppUrl: string): 
     serializeExpiredGoogleOAuthStateCookie(),
     serializeExpiredGoogleOAuthTermsCookie()
   ]);
-  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/register?error=legal_terms_required`);
+  return redirect(reply, buildWebAuthModalRedirect(webAppUrl, {
+    error: "legal_terms_required",
+    mode: "register",
+    provider: "google"
+  }));
 }
 
 function redirectToGoogleAuthUnavailable(reply: FastifyReply, webAppUrl: string): void {
@@ -1542,11 +1549,32 @@ function redirectToGoogleAuthUnavailable(reply: FastifyReply, webAppUrl: string)
     serializeExpiredGoogleOAuthStateCookie(),
     serializeExpiredGoogleOAuthTermsCookie()
   ]);
-  return redirect(reply, `${webAppUrl.replace(/\/$/, "")}/login?error=google_auth_unavailable`);
+  return redirect(reply, buildWebAuthModalRedirect(webAppUrl, {
+    error: "google_auth_unavailable",
+    mode: "login"
+  }));
 }
 
 function buildGoogleAuthSuccessRedirect(webAppUrl: string): string {
-  return `${webAppUrl.replace(/\/$/, "")}/auth/callback?status=success`;
+  const redirectUrl = new URL("/auth/callback", webAppUrl);
+  redirectUrl.searchParams.set("status", "success");
+  return redirectUrl.toString();
+}
+
+function buildWebAuthModalRedirect(webAppUrl: string, input: {
+  error: "google_auth_failed" | "google_auth_unavailable" | "legal_terms_required";
+  mode: "login" | "register";
+  provider?: "google";
+}): string {
+  const redirectUrl = new URL("/", webAppUrl);
+  redirectUrl.searchParams.set("auth", input.mode);
+  redirectUrl.searchParams.set("authError", input.error);
+
+  if (input.provider) {
+    redirectUrl.searchParams.set("provider", input.provider);
+  }
+
+  return redirectUrl.toString();
 }
 
 function redirect(reply: FastifyReply, location: string): void {

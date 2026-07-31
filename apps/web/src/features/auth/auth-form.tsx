@@ -13,7 +13,7 @@ import { AuthFields } from "./auth-fields";
 import {
   clearStoredAuthReturnTo,
   getStoredAuthReturnTo
-} from "./auth-action-prompt-modal";
+} from "./auth-return-to";
 import {
   completeLoginApproval,
   isLoginApprovalCompletePendingPayload,

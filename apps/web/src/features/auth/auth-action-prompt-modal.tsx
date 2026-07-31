@@ -3,7 +3,7 @@
 import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import type { AuthPayload } from "../../lib/auth-client";
 import { setAuthPayload } from "../../lib/auth-client";
@@ -26,9 +26,16 @@ import {
   transitionWebLoginFlowFromMfaVerify,
   transitionWebLoginFlowFromSubmit
 } from "./web-login-flow-model";
+import {
+  getAuthModalErrorMessage,
+  type AuthModalErrorCode
+} from "./auth-modal-query";
+import { storeAuthReturnTo } from "./auth-return-to";
 
 type AuthActionPromptModalProps = {
   apiBaseUrl: string;
+  initialErrorCode?: AuthModalErrorCode | null;
+  initialMode?: AuthMode;
   isOpen: boolean;
   onAuthenticated?: (payload: AuthPayload) => void;
   onClose: () => void;
@@ -36,10 +43,10 @@ type AuthActionPromptModalProps = {
   title: string;
 };
 
-const AUTH_RETURN_TO_STORAGE_KEY = "babyloop_auth_return_to";
-
 export function AuthActionPromptModal({
   apiBaseUrl,
+  initialErrorCode = null,
+  initialMode = "login",
   isOpen,
   onAuthenticated,
   onClose,
@@ -48,6 +55,7 @@ export function AuthActionPromptModal({
 }: AuthActionPromptModalProps) {
   const { dictionary } = useI18n();
   const router = useRouter();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -68,6 +76,26 @@ export function AuthActionPromptModal({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setMode(initialMode);
+    setErrorMessage(getAuthModalErrorMessage(initialErrorCode));
+    setIsGoogleRedirecting(false);
+    setLoginApproval(null);
+    setMfaChallenge(null);
+    setOtpCode("");
+    setTermsAccepted(false);
+  }, [initialErrorCode, initialMode, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && isMounted) {
+      closeButtonRef.current?.focus();
+    }
+  }, [isMounted, isOpen]);
 
   useEffect(() => {
     if (!loginApproval) {
@@ -281,7 +309,7 @@ export function AuthActionPromptModal({
     setIsGoogleRedirecting(true);
 
     if (returnTo) {
-      sessionStorage.setItem(AUTH_RETURN_TO_STORAGE_KEY, returnTo);
+      storeAuthReturnTo(returnTo);
     }
 
     try {
@@ -326,6 +354,12 @@ export function AuthActionPromptModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-action-prompt-title"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
+        }}
       >
         <div className="market-modal-heading">
           <div>
@@ -333,13 +367,19 @@ export function AuthActionPromptModal({
             <h2 id="auth-action-prompt-title">{title}</h2>
           </div>
 
-          <button type="button" aria-label={dictionary.publicShell.header.close} onClick={onClose}>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label={dictionary.publicShell.header.close}
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
 
         <div className="market-auth-tabs" role="tablist" aria-label={dictionary.auth.authModalTabsLabel}>
           <button
+            role="tab"
             type="button"
             aria-selected={mode === "login"}
             className={mode === "login" ? "active" : ""}
@@ -354,6 +394,7 @@ export function AuthActionPromptModal({
             {dictionary.common.login}
           </button>
           <button
+            role="tab"
             type="button"
             aria-selected={mode === "register"}
             className={mode === "register" ? "active" : ""}
@@ -378,6 +419,12 @@ export function AuthActionPromptModal({
           <span aria-hidden="true">G</span>
           {isGoogleRedirecting ? dictionary.auth.openingGoogle : dictionary.auth.continueGoogle}
         </button>
+
+        {errorMessage ? (
+          <p className="market-auth-modal-error" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
 
         <div className="auth-divider" aria-hidden="true">
           <span>{dictionary.auth.divider}</span>
@@ -495,12 +542,6 @@ export function AuthActionPromptModal({
             </section>
           ) : null}
 
-          {errorMessage ? (
-            <p className="market-auth-modal-error" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
-
           <button
             className="market-sell-cta market-auth-submit-button"
             type="submit"
@@ -526,34 +567,4 @@ export function AuthActionPromptModal({
     </div>,
     document.body
   );
-}
-
-export function getStoredAuthReturnTo(fallback = "/"): string {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
-  const searchParams = new URLSearchParams(window.location.search);
-  const queryReturnTo = sanitizeReturnTo(searchParams.get("returnTo"));
-
-  if (queryReturnTo) {
-    sessionStorage.setItem(AUTH_RETURN_TO_STORAGE_KEY, queryReturnTo);
-    return queryReturnTo;
-  }
-
-  return sanitizeReturnTo(sessionStorage.getItem(AUTH_RETURN_TO_STORAGE_KEY)) ?? fallback;
-}
-
-export function clearStoredAuthReturnTo() {
-  if (typeof window !== "undefined") {
-    sessionStorage.removeItem(AUTH_RETURN_TO_STORAGE_KEY);
-  }
-}
-
-function sanitizeReturnTo(value: string | null): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
 }
