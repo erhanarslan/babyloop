@@ -2,6 +2,7 @@ import { profiles, sessions, users } from "@babyloop/database/schema";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { verifyAccessToken } from "../utils/access-token.js";
+import type { BackofficeAccessMode } from "../utils/access-token.js";
 import { readBackofficeAccessTokenCookie } from "../utils/backoffice-access-token-cookie.js";
 import { readPublicAccessTokenCookie } from "../utils/public-access-token-cookie.js";
 
@@ -10,6 +11,7 @@ type AuthPluginOptions = {
 };
 
 export type CurrentUser = {
+  backofficeAccessMode: BackofficeAccessMode | null;
   email: string;
   emailVerifiedAt: string | null;
   profile: {
@@ -26,10 +28,7 @@ export function registerAuthPlugin(app: FastifyInstance, options: AuthPluginOpti
   app.decorateRequest("currentUser", null);
 
   app.decorate("authenticate", async (request: FastifyRequest) => {
-    const token =
-      readBearerToken(request) ??
-      readPublicAccessTokenCookie(request.headers.cookie) ??
-      readBackofficeAccessTokenCookie(request.headers.cookie);
+    const token = readRequestAccessToken(request);
 
     if (!token) {
       return null;
@@ -96,6 +95,7 @@ export async function authenticateAccessToken(
   }
 
   return {
+    backofficeAccessMode: verifiedToken.backofficeAccessMode,
     email: row.email,
     emailVerifiedAt: row.emailVerifiedAt ? row.emailVerifiedAt.toISOString() : null,
     profile: {
@@ -107,6 +107,35 @@ export async function authenticateAccessToken(
     sessionId: row.sessionId,
     userId: row.userId
   };
+}
+
+function readRequestAccessToken(request: FastifyRequest): string | null {
+  const bearerToken = readBearerToken(request);
+
+  if (bearerToken) {
+    return bearerToken;
+  }
+
+  const cookieHeader = request.headers.cookie;
+
+  if (isBackofficeRequest(request.url)) {
+    return (
+      readBackofficeAccessTokenCookie(cookieHeader) ??
+      readPublicAccessTokenCookie(cookieHeader)
+    );
+  }
+
+  return (
+    readPublicAccessTokenCookie(cookieHeader) ??
+    readBackofficeAccessTokenCookie(cookieHeader)
+  );
+}
+
+function isBackofficeRequest(url: string): boolean {
+  return (
+    url.startsWith("/api/v1/admin/") ||
+    url.startsWith("/api/v1/auth/backoffice/")
+  );
 }
 
 function readBearerToken(request: FastifyRequest): string | null {

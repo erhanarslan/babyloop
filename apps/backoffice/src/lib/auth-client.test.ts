@@ -10,6 +10,7 @@ import {
 const API_BASE_URL = "http://localhost:4000";
 
 const adminAuth = {
+  accessMode: "staff" as const,
   user: {
     id: "admin-1",
     email: "admin@babyloop.test",

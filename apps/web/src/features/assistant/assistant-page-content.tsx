@@ -114,24 +114,43 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   return (
     <PageContainer className={styles.layout ?? ""} ariaLabel="BabyLoop Asistan">
       <header className={styles.heading}>
-        <h1>BabyLoop Asistan</h1>
+        <h1 className={styles.assistantTitle}>
+          <img
+            alt="BabyLoop"
+            className={styles.brandLogo}
+            src="/brand/home/babyloop-logo-full-transparent.png"
+          />
+          <span>Asistan</span>
+        </h1>
         <p>Ürün, ilan ve ebeveynlik sorularını kısa şekilde sorabilirsin.</p>
       </header>
 
       <section className={styles.card} aria-label="Sorunu yaz">
         <form className={styles.composer} onSubmit={handleSubmit}>
-          <Textarea
-            label="Sorunu yaz"
-            onChange={(event) => setInputValue(event.target.value)}
-            placeholder="Örn. 12 aylık bebeğim için dışarı çıkarken nelere dikkat etmeliyim?"
-            rows={4}
-            value={inputValue}
-            wide
-          />
-          <div className={styles.actions}>
-            <Button type="submit" disabled={isPending || inputValue.trim().length === 0}>
-              {isPending ? "Yanıt hazırlanıyor..." : "Sor"}
-            </Button>
+          <div className={styles.composerShell}>
+            <Textarea
+              className={styles.promptInput}
+              label="Sorunu yaz"
+              onChange={(event) => setInputValue(event.target.value)}
+              placeholder="Örn. 12 aylık bebeğim için dışarı çıkarken nelere dikkat etmeliyim?"
+              rows={4}
+              value={inputValue}
+              wide
+            />
+            <div className={styles.actions}>
+              <Button
+                aria-label={isPending ? "Yanıt hazırlanıyor" : "Sor"}
+                type="submit"
+                disabled={isPending || inputValue.trim().length === 0}
+              >
+                {isPending ? (
+                  <span className={styles.pendingLabel}>
+                    <span aria-hidden="true" className={styles.spinner} />
+                    Hazırlanıyor
+                  </span>
+                ) : "Sor"}
+              </Button>
+            </div>
           </div>
         </form>
 

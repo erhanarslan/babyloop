@@ -141,15 +141,15 @@
   }
 
   .site-footer {
-    @apply mt-16 border-t border-border bg-card/70 px-5 py-10 sm:px-8 lg:px-10;
+    @apply mt-12 border-t border-border bg-card/70 px-5 py-6 sm:px-8 lg:px-10;
   }
 
   .site-footer-inner {
-    @apply mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.2fr_1fr];
+    @apply mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(10rem,0.65fr)_minmax(0,2.35fr)] lg:items-start;
   }
 
   .footer-brand {
-    @apply grid max-w-xl gap-4;
+    @apply grid max-w-xs gap-2;
   }
 
   .footer-brand p {
@@ -157,11 +157,11 @@
   }
 
   .footer-links {
-    @apply grid gap-6 sm:grid-cols-3;
+    @apply grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2 lg:grid-cols-4;
   }
 
   .footer-links nav {
-    @apply grid content-start gap-2;
+    @apply grid min-w-0 content-start gap-1;
   }
 
   .footer-links h2 {
@@ -169,7 +169,7 @@
   }
 
   .footer-links a {
-    @apply text-sm text-muted-foreground transition-colors hover:text-primary;
+    @apply inline-flex min-h-9 items-center py-1 text-sm leading-5 text-muted-foreground transition-colors hover:text-primary;
   }
 
   .home-hero {

@@ -124,7 +124,7 @@ export const BABYLOOP_SWAGGER_AUTH_SCRIPT = String.raw`
     if (helper) {
       helper.textContent =
         mode === "backoffice"
-          ? "Admin veya yetkili backoffice hesabıyla HttpOnly cookie oturumu açar."
+          ? "Yetkili ekip hesabına staff, normal hesaba salt okunur tanıtım scope’u ile HttpOnly cookie oturumu açar."
           : "Public kullanıcı hesabıyla cookie oturumu açar. Swagger isteğinde clientType mobile kullanılır.";
     }
   }

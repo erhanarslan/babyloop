@@ -9,6 +9,7 @@ import type {
   ChildProfileGender,
   ChildProfileNotificationCadence,
   CreateChildProfileBody,
+  LifecycleRecommendationsQuery,
   UpdateChildProfileBody
 } from "../schemas/child-profiles.schemas.js";
 import {
@@ -274,7 +275,10 @@ export async function deleteChildProfile(
 export async function listLifecycleRecommendations(
   app: FastifyInstance,
   profileId: string,
-  options: { includeMatchedListings?: boolean } = {}
+  options: {
+    includeMatchedListings?: boolean;
+    locale?: LifecycleRecommendationsQuery["locale"];
+  } = {}
 ): Promise<LifecycleRecommendationResponse[]> {
   const childProfileRows = await app.db
     .select()
@@ -340,6 +344,7 @@ export async function listLifecycleRecommendations(
         const reasoning = buildLifecycleReasoning({
           ageBand: childProfile.ageBand,
           categoryName: category.name,
+          locale: options.locale ?? "tr",
           rule
         });
 
@@ -348,7 +353,11 @@ export async function listLifecycleRecommendations(
           categoryName: category.name,
           categorySlug: category.slug,
           reasonCode: rule.reasonCode,
-          reasonLabel: rule.reasonLabel,
+          reasonLabel: localizeLifecycleReasonLabel(
+            rule.reasonCode,
+            rule.reasonLabel,
+            options.locale ?? "tr"
+          ),
           whyNow: reasoning.whyNow,
           reasoningConfidenceScore: reasoning.confidenceScore,
           reasoningProviderName: reasoning.providerName,
@@ -386,10 +395,16 @@ function mapChildProfile(row: typeof childProfiles.$inferSelect): ChildProfileRe
 function buildLifecycleReasoning(input: {
   ageBand: ChildAgeBand;
   categoryName: string;
+  locale: LifecycleRecommendationsQuery["locale"];
   rule: LifecycleRule;
 }): LifecycleReasoning {
   return {
-    whyNow: buildWhyNow(input.ageBand, input.categoryName, input.rule.reasonCode),
+    whyNow: buildWhyNow(
+      input.ageBand,
+      input.categoryName,
+      input.rule.reasonCode,
+      input.locale
+    ),
     confidenceScore: calculateLifecycleConfidence(input.ageBand, input.rule.reasonCode),
     providerName: LIFECYCLE_REASONING_PROVIDER_NAME,
     promptVersion: LIFECYCLE_REASONING_PROMPT_VERSION
@@ -399,8 +414,13 @@ function buildLifecycleReasoning(input: {
 function buildWhyNow(
   ageBand: ChildAgeBand,
   categoryName: string,
-  reasonCode: string
+  reasonCode: string,
+  locale: LifecycleRecommendationsQuery["locale"]
 ): string {
+  if (locale === "tr") {
+    return buildTurkishWhyNow(ageBand, categoryName, reasonCode);
+  }
+
   const ageBandLabel = formatAgeBandForReasoning(ageBand);
   const categoryLabel = categoryName.trim() || "this category";
 
@@ -440,6 +460,80 @@ function buildWhyNow(
   }
 }
 
+function buildTurkishWhyNow(
+  ageBand: ChildAgeBand,
+  categoryName: string,
+  reasonCode: string
+): string {
+  const ageBandLabel = formatAgeBandForTurkishReasoning(ageBand);
+  const categoryLabel = categoryName.trim() || "Bu kategori";
+
+  switch (reasonCode) {
+    case "prepare_for_mobility":
+      return `${ageBandLabel}; ${categoryLabel} gibi hareketlilik ürünlerini planlamak için uygun bir zamandır.`;
+    case "prepare_for_safe_travel":
+      return `${ageBandLabel}; ilk yolculuklar başlamadan önce güvenli seyahat ürünlerini karşılaştırmak için uygun bir zamandır.`;
+    case "safe_travel":
+      return `${categoryLabel}, ilk aylardaki yolculuklarda yaşa uygun bir seyahat düzeni kurmaya yardımcı olabilir.`;
+    case "early_mobility":
+      return `${ageBandLabel}; kısa açık hava rutinleri başlayabildiği için hareketlilik ürünleri kullanışlı olabilir.`;
+    case "daily_mobility":
+      return `${ageBandLabel}; günlük gezintiler arttıkça pratik hareketlilik ürünleri daha kullanışlı olabilir.`;
+    case "early_play":
+      return `${ageBandLabel}; basit oyun ürünleri dikkat, uzanma ve keşfetme becerilerini destekleyebilir.`;
+    case "sensory_play":
+      return `${ageBandLabel}; doku, ses, kavrama ve duyusal keşif odaklı oyunlar için uygun bir dönemdir.`;
+    case "developmental_play":
+      return `${categoryLabel}; basit neden-sonuç ilişkilerini keşfetmeye yönelik oyunları destekleyebilir.`;
+    case "travel_review":
+      return `${ageBandLabel}; mevcut seyahat ürünlerinin hâlâ uygun olup olmadığını gözden geçirmek için iyi bir kontrol noktasıdır.`;
+    case "toddler_learning":
+      return `${ageBandLabel}; hareket, eşleştirme, üst üste dizme ve basit problem çözme oyunlarının öne çıktığı bir dönemdir.`;
+    case "active_play":
+      return `${ageBandLabel}; yürüme ve hareketli oyun arttığı için dayanıklı oyun ürünleri daha kullanışlı olabilir.`;
+    case "preschool_learning":
+      return "24–36 ay dönemi; odaklanma, sınıflandırma, sembolik oyun ve kendi başına oynama becerilerinin gelişimini destekleyen güçlü bir dönemdir.";
+    case "creative_play":
+      return `${categoryLabel}; hayal gücünü, sosyal oyunu ve daha uzun süre bağımsız oynayabilme becerisini destekleyebilir.`;
+    case "older_child_play":
+      return `${ageBandLabel}; uzun süre kullanılabilen ve farklı yaşlara uyarlanabilen oyun ürünlerinin öne çıktığı bir dönemdir.`;
+    case "skill_building":
+      return `${categoryLabel}; beceri geliştirmeye yönelik oyunlarda birkaç ay boyunca kullanılabilir.`;
+    default:
+      return `${categoryLabel}, seçilen yaş aralığı ve güncel gelişim dönemiyle uyumlu olduğu için önerilir.`;
+  }
+}
+
+function localizeLifecycleReasonLabel(
+  reasonCode: string,
+  fallback: string,
+  locale: LifecycleRecommendationsQuery["locale"]
+): string {
+  if (locale === "en") {
+    return fallback;
+  }
+
+  const labels: Record<string, string> = {
+    prepare_for_mobility: "Yenidoğan hareketlilik ihtiyaçlarına hazırlanırken yararlı olabilir.",
+    prepare_for_safe_travel: "İlk güvenli yolculukları planlamaya yardımcı olabilir.",
+    safe_travel: "İlk aylardaki güvenli yolculuklar için uygundur.",
+    early_mobility: "Erken dönem açık hava hareketliliğini destekleyebilir.",
+    daily_mobility: "Günlük gezintiler ve pratik hareketlilik için yararlı olabilir.",
+    early_play: "Yaşa uygun ilk oyun deneyimlerini destekleyebilir.",
+    sensory_play: "Duyusal oyun ve keşif için uygundur.",
+    developmental_play: "Basit gelişim odaklı oyunları destekleyebilir.",
+    travel_review: "Seyahat ürünlerinin uygunluğunu yeniden değerlendirmek için iyi bir dönemdir.",
+    toddler_learning: "Hareket ve öğrenme odaklı küçük çocuk oyunları için uygundur.",
+    active_play: "Hareketli oyunları destekleyebilir.",
+    preschool_learning: "Okul öncesi odaklanma ve oyun becerilerini destekleyebilir.",
+    creative_play: "Yaratıcı ve sosyal oyunları destekleyebilir.",
+    older_child_play: "Daha büyük çocukların oyun ve öğrenme ihtiyaçlarına uygundur.",
+    skill_building: "Beceri geliştirmeye yönelik etkinliklerde kullanılabilir."
+  };
+
+  return labels[reasonCode] ?? "Seçilen yaş aralığı için uygun bir kategori fikridir.";
+}
+
 function calculateLifecycleConfidence(ageBand: ChildAgeBand, reasonCode: string): number {
   const baseScoreByAgeBand: Record<ChildAgeBand, number> = {
     expecting: 0.72,
@@ -467,6 +561,20 @@ function formatAgeBandForReasoning(ageBand: ChildAgeBand): string {
     toddler_12_24: "The 12-24 month stage",
     preschool_24_36: "The 24-36 month stage",
     child_3_plus: "The 3+ year stage"
+  };
+
+  return labels[ageBand];
+}
+
+function formatAgeBandForTurkishReasoning(ageBand: ChildAgeBand): string {
+  const labels: Record<ChildAgeBand, string> = {
+    expecting: "Bebeği bekleme dönemi",
+    newborn_0_3: "0–3 ay dönemi",
+    infant_3_6: "3–6 ay dönemi",
+    infant_6_12: "6–12 ay dönemi",
+    toddler_12_24: "12–24 ay dönemi",
+    preschool_24_36: "24–36 ay dönemi",
+    child_3_plus: "3 yaş ve üzeri dönem"
   };
 
   return labels[ageBand];

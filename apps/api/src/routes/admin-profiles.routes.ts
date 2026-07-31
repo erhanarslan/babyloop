@@ -5,7 +5,10 @@ import {
   adminProfileParamsSchema,
   adminProfilesQuerySchema
 } from "../schemas/admin-profiles.schemas.js";
-import { requireBackofficePermission } from "../services/admin-context.service.js";
+import {
+  isBackofficeReadOnlyPrincipal,
+  requireBackofficePermission
+} from "../services/admin-context.service.js";
 import {
   applyAdminProfileEnforcement,
   getAdminProfileDetail,
@@ -60,7 +63,7 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          profiles: admin.role === "backoffice_viewer"
+          profiles: isBackofficeReadOnlyPrincipal(admin)
             ? profiles.map(projectProfileForViewer)
             : profiles
         }
@@ -104,7 +107,9 @@ export function registerAdminProfileRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          profile: admin.role === "backoffice_viewer" ? projectProfileForViewer(profile) : profile
+          profile: isBackofficeReadOnlyPrincipal(admin)
+            ? projectProfileForViewer(profile)
+            : profile
         }
       };
     }

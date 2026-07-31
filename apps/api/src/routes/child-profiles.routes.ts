@@ -11,6 +11,7 @@ import {
 import {
   childProfileParamsSchema,
   createChildProfileBodySchema,
+  lifecycleRecommendationsQuerySchema,
   updateChildProfileBodySchema
 } from "../schemas/child-profiles.schemas.js";
 import { requireCurrentUser } from "../services/auth-context.service.js";
@@ -129,7 +130,7 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
     }
   );
 
-  app.get<{ Reply: LifecycleRecommendationsResponse | ApiFailure }>(
+  app.get<{ Querystring: unknown; Reply: LifecycleRecommendationsResponse | ApiFailure }>(
     "/child-profiles/lifecycle-recommendations",
     async (request, reply) => {
       const currentUser = await requireCurrentUser(app, request, reply);
@@ -138,11 +139,18 @@ export function registerChildProfileRoutes(app: FastifyInstance): void {
         return reply;
       }
 
+      const parsedQuery = lifecycleRecommendationsQuerySchema.safeParse(request.query);
+
+      if (!parsedQuery.success) {
+        return reply.status(400).send(invalidChildProfileRequest());
+      }
+
       return {
         ok: true,
         data: {
           groups: await listLifecycleRecommendations(app, currentUser.profile.id, {
-            includeMatchedListings: true
+            includeMatchedListings: true,
+            locale: parsedQuery.data.locale
           })
         }
       };

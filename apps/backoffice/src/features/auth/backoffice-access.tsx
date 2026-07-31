@@ -3,18 +3,37 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 export type BackofficeUiPermission = "dashboard_view" | "listing_view" | "profile_view" | "mutate";
+export type BackofficeAccessMode = "preview" | "staff";
 
-const BackofficeAccessContext = createContext<{ role: string; can: (permission: BackofficeUiPermission) => boolean } | null>(null);
+type BackofficeAccess = {
+  accessMode: BackofficeAccessMode;
+  can: (permission: BackofficeUiPermission) => boolean;
+  isReadOnly: boolean;
+  role: string;
+};
 
-export function BackofficeAccessProvider({ children, role }: { children: ReactNode; role: string }) {
+const BackofficeAccessContext = createContext<BackofficeAccess | null>(null);
+
+export function BackofficeAccessProvider({
+  accessMode,
+  children,
+  role
+}: {
+  accessMode: BackofficeAccessMode;
+  children: ReactNode;
+  role: string;
+}) {
   const normalizedRole = role.toLowerCase();
-  const viewer = normalizedRole === "backoffice_viewer";
+  const isReadOnly =
+    accessMode === "preview" || normalizedRole === "backoffice_viewer";
 
   return (
     <BackofficeAccessContext.Provider value={{
+      accessMode,
+      isReadOnly,
       role: normalizedRole,
       can(permission) {
-        if (!viewer) return true;
+        if (!isReadOnly) return true;
         return permission === "dashboard_view" || permission === "listing_view" || permission === "profile_view";
       },
     }}>

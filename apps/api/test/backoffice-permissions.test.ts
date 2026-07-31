@@ -3,12 +3,18 @@ import {
   BACKOFFICE_PERMISSIONS,
   getBackofficePermissionsForRole,
   hasBackofficePermission,
+  isBackofficePreviewPrincipal,
+  isBackofficeReadOnlyPrincipal,
   isBackofficeRole
 } from "../src/services/admin-context.service.js";
 import type { CurrentUser } from "../src/plugins/auth.plugin.js";
 
-function currentUserWithRole(role: string): CurrentUser {
+function currentUserWithRole(
+  role: string,
+  backofficeAccessMode: CurrentUser["backofficeAccessMode"] = null
+): CurrentUser {
   return {
+    backofficeAccessMode,
     userId: "00000000-0000-0000-0000-000000000001",
     email: "admin@example.com",
     emailVerifiedAt: null,
@@ -16,9 +22,9 @@ function currentUserWithRole(role: string): CurrentUser {
     profile: {
       id: "00000000-0000-0000-0000-000000000002",
       displayName: "Admin User",
-      city: null,
-      district: null
-    }
+      locationCity: null
+    },
+    sessionId: "00000000-0000-0000-0000-000000000003"
   };
 }
 
@@ -103,5 +109,30 @@ describe("backoffice permissions", () => {
     for (const permission of BACKOFFICE_PERMISSIONS) {
       expect(hasBackofficePermission(user, permission)).toBe(false);
     }
+  });
+
+  it("gives a signed preview principal only sanitized listing and profile reads", () => {
+    const preview = currentUserWithRole("user", "preview");
+
+    expect(isBackofficePreviewPrincipal(preview)).toBe(true);
+    expect(isBackofficeReadOnlyPrincipal(preview)).toBe(true);
+    expect(hasBackofficePermission(preview, "listing_view")).toBe(true);
+    expect(hasBackofficePermission(preview, "profile_view")).toBe(true);
+
+    for (const permission of BACKOFFICE_PERMISSIONS) {
+      if (permission === "listing_view" || permission === "profile_view") {
+        continue;
+      }
+
+      expect(hasBackofficePermission(preview, permission)).toBe(false);
+    }
+  });
+
+  it("does not accept a regular public principal as preview", () => {
+    const publicUser = currentUserWithRole("user");
+
+    expect(isBackofficePreviewPrincipal(publicUser)).toBe(false);
+    expect(isBackofficeReadOnlyPrincipal(publicUser)).toBe(false);
+    expect(hasBackofficePermission(publicUser, "listing_view")).toBe(false);
   });
 });

@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listingImages, listings, profileTrustSnapshots } from "@babyloop/database/schema";
+import {
+  listingImages,
+  listings,
+  profileTrustSnapshots,
+  users
+} from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
+import { BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-access-token-cookie.js";
+import {
+  BACKOFFICE_CSRF_COOKIE_NAME,
+  BACKOFFICE_CSRF_HEADER_NAME
+} from "../src/utils/backoffice-csrf.js";
 import { authHeader, createUser } from "./helpers/auth.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
 import { resetTestDatabase } from "./helpers/db.js";
@@ -220,6 +230,163 @@ describe("backoffice route permission matrix", () => {
     expect(publicMutation.statusCode).toBe(200);
     expect(backofficeMutation.statusCode).toBe(403);
     expect(viewer.user.role).toBe("backoffice_viewer");
+  });
+
+  it("keeps a normal-user preview principal read-only, sanitized, and separate from public auth", async () => {
+    const previewUser = await createUser(app, {
+      email: "normal-preview@babyloop.test"
+    });
+    const previewHeaders = await loginPreviewUser("normal-preview@babyloop.test");
+    const profileSubject = await createUser(app, {
+      displayName: "Preview Safe Profile",
+      email: "preview-profile-subject@babyloop.test"
+    });
+    const listingSeller = await createUser(app, {
+      email: "preview-listing-seller@babyloop.test"
+    });
+    const listing = await createListing(app, listingSeller.accessToken, {
+      title: "Preview Safe Listing"
+    });
+
+    await app.db.insert(profileTrustSnapshots).values({
+      profileId: profileSubject.profile.id,
+      trustScore: 2,
+      riskScore: 98,
+      riskLevel: "critical",
+      openCaseCount: 21,
+      totalCaseCount: 22,
+      recentReportCount: 23,
+      recentEnforcementCount: 24,
+      sensitiveAccessCount: 25,
+      aiSummaryCount: 26,
+      lastReportAt: new Date(PROFILE_SENTINEL),
+      lastEnforcementAt: new Date(PROFILE_SENTINEL)
+    });
+    await app.db
+      .update(listings)
+      .set({ publicationReviewReason: LISTING_REVIEW_SENTINEL })
+      .where(eq(listings.id, listing.id));
+    await app.db
+      .update(listingImages)
+      .set({
+        authenticityProvider: LISTING_AI_SENTINEL,
+        authenticityModel: `${LISTING_AI_SENTINEL}_MODEL`,
+        authenticityPromptVersion: `${LISTING_AI_SENTINEL}_PROMPT`,
+        authenticityFlags: { internal: LISTING_AI_SENTINEL },
+        reviewedByProfileId: previewUser.profile.id
+      })
+      .where(eq(listingImages.listingId, listing.id));
+
+    const allowedReads = await Promise.all([
+      app.inject({
+        headers: previewHeaders,
+        method: "GET",
+        url: `/api/v1/admin/listings?q=${encodeURIComponent(listing.id)}`
+      }),
+      app.inject({
+        headers: previewHeaders,
+        method: "GET",
+        url: `/api/v1/admin/listings/${listing.id}`
+      }),
+      app.inject({
+        headers: previewHeaders,
+        method: "GET",
+        url: `/api/v1/admin/profiles?q=${encodeURIComponent(profileSubject.profile.id)}`
+      }),
+      app.inject({
+        headers: previewHeaders,
+        method: "GET",
+        url: `/api/v1/admin/profiles/${profileSubject.profile.id}`
+      })
+    ]);
+
+    for (const response of allowedReads) {
+      expect(response.statusCode).toBe(200);
+      expectResponseToBeSecretSafe(response.body);
+    }
+    for (const response of allowedReads.slice(0, 2)) {
+      expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_LISTING_KEYS, [
+        LISTING_REVIEW_SENTINEL,
+        LISTING_AI_SENTINEL
+      ]);
+    }
+    for (const response of allowedReads.slice(2)) {
+      expectViewerResponseToExclude(response.body, FORBIDDEN_VIEWER_PROFILE_KEYS, [
+        PROFILE_SENTINEL
+      ]);
+    }
+
+    for (const url of [
+      "/api/v1/admin/dashboard/summary",
+      "/api/v1/admin/analytics/overview",
+      "/api/v1/admin/audit/events",
+      "/api/v1/admin/ai-ops/summary",
+      "/api/v1/admin/moderation/cases"
+    ]) {
+      const response = await app.inject({
+        headers: previewHeaders,
+        method: "GET",
+        url
+      });
+      expect(response.statusCode, url).toBe(403);
+      expectForbiddenBody(response.body);
+    }
+
+    for (const request of [
+      {
+        url: `/api/v1/admin/listings/${listing.id}/actions`,
+        payload: { action: "archive", reason: "preview cannot mutate listings" }
+      },
+      {
+        url: `/api/v1/admin/profiles/${profileSubject.profile.id}/enforcement`,
+        payload: { action: "profile_restrict", reason: "preview cannot mutate profiles" }
+      },
+      {
+        url: `/api/v1/admin/moderation/cases/${VALID_UUID}/actions`,
+        payload: { actionType: "review_started", note: "preview cannot moderate" }
+      }
+    ]) {
+      const response = await app.inject({
+        headers: previewHeaders,
+        method: "POST",
+        url: request.url,
+        payload: request.payload
+      });
+      expect(response.statusCode, request.url).toBe(403);
+      expectForbiddenBody(response.body);
+    }
+
+    const publicTokenAttempt = await app.inject({
+      headers: authHeader(previewUser.accessToken),
+      method: "GET",
+      url: "/api/v1/admin/listings"
+    });
+    const [storedUser] = await app.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, previewUser.user.id))
+      .limit(1);
+
+    expect(publicTokenAttempt.statusCode).toBe(403);
+    expect(storedUser?.role).toBe("user");
+  });
+
+  it("rejects client-supplied backoffice roles and access modes", async () => {
+    await createUser(app, { email: "preview-spoof@babyloop.test" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/backoffice/login",
+      payload: {
+        email: "preview-spoof@babyloop.test",
+        password: "Password123!",
+        role: "admin",
+        accessMode: "staff"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
   afterEach(async () => {
@@ -671,4 +838,43 @@ function collectJsonKeys(value: unknown): string[] {
   }
 
   return Object.entries(value).flatMap(([key, item]) => [key, ...collectJsonKeys(item)]);
+}
+
+async function loginPreviewUser(email: string): Promise<{
+  cookie: string;
+  [BACKOFFICE_CSRF_HEADER_NAME]: string;
+}> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/backoffice/login",
+    payload: {
+      email,
+      password: "Password123!"
+    }
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.json().data).toMatchObject({
+    accessMode: "preview",
+    user: { role: "user" }
+  });
+
+  const setCookie = response.headers["set-cookie"];
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const accessCookie = cookies.find((cookie) =>
+    cookie?.startsWith(`${BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME}=`)
+  );
+  const csrfCookie = cookies.find((cookie) =>
+    cookie?.startsWith(`${BACKOFFICE_CSRF_COOKIE_NAME}=`)
+  );
+
+  expect(accessCookie).toBeDefined();
+  expect(csrfCookie).toBeDefined();
+  const csrfCookiePair = csrfCookie!.split(";")[0]!;
+  const csrfToken = decodeURIComponent(csrfCookiePair.split("=")[1]!);
+
+  return {
+    cookie: `${accessCookie!.split(";")[0]!}; ${csrfCookiePair}`,
+    [BACKOFFICE_CSRF_HEADER_NAME]: csrfToken
+  };
 }

@@ -8,7 +8,10 @@ import {
   adminListingPublicationSettingsBodySchema,
   adminListingsQuerySchema
 } from "../schemas/admin-listings.schemas.js";
-import { requireBackofficePermission } from "../services/admin-context.service.js";
+import {
+  isBackofficeReadOnlyPrincipal,
+  requireBackofficePermission
+} from "../services/admin-context.service.js";
 import {
   applyAdminListingAction,
   applyAdminListingImageAction,
@@ -119,7 +122,7 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          listings: admin.role === "backoffice_viewer"
+          listings: isBackofficeReadOnlyPrincipal(admin)
             ? listings.map(projectListingSummaryForViewer)
             : listings
         }
@@ -201,7 +204,9 @@ export function registerAdminListingRoutes(app: FastifyInstance): void {
       return {
         ok: true,
         data: {
-          listing: admin.role === "backoffice_viewer" ? projectListingDetailForViewer(listing) : listing
+          listing: isBackofficeReadOnlyPrincipal(admin)
+            ? projectListingDetailForViewer(listing)
+            : listing
         }
       };
     }

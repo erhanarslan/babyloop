@@ -5,6 +5,12 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(join(process.cwd(), "src/features/child-profiles/child-profiles-page-content.tsx"), "utf8");
 
 describe("ChildProfilesPageContent", () => {
+  it("requests lifecycle recommendation copy for the active locale", () => {
+    expect(source).toContain("const { locale } = useI18n()");
+    expect(source).toContain("fetchLifecycleRecommendations(apiBaseUrl, locale)");
+    expect(source).toContain("{recommendation.whyNow || recommendation.reasonLabel}");
+  });
+
   it("does not render fake notebook preview records as production data", () => {
     expect(source).not.toContain("buildNotebookPreviewItems");
     expect(source).not.toContain("2 saatte bir");

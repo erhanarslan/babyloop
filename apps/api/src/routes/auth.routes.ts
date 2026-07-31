@@ -129,6 +129,7 @@ import {
 import { trackServerAnalyticsEvent } from "../services/product-analytics.service.js";
 import { resolveTrustedClientIp } from "../utils/trusted-client-ip.js";
 import { buildAuthRateLimitKey } from "../utils/auth-rate-limit.js";
+import type { BackofficeAccessMode } from "../utils/access-token.js";
 
 type AuthRouteOptions = AuthTokenOptions & {
   emailDelivery: EmailDeliveryService;
@@ -144,7 +145,19 @@ type PasswordResetRequestRouteResponse =
 
 type LoginRouteResponse = AuthResponse | MfaChallengeResponse | LoginApprovalRequiredResponse;
 
-type BackofficeAuthRouteResponse = AuthMeResponse | MfaChallengeResponse | ReturnType<typeof adminForbidden>;
+type BackofficeAuthSuccess = {
+  ok: true;
+  data: {
+    accessMode: BackofficeAccessMode;
+    profile: SafeAuthProfile;
+    user: SafeAuthUser;
+  };
+};
+
+type BackofficeAuthRouteResponse =
+  | BackofficeAuthSuccess
+  | MfaChallengeResponse
+  | ReturnType<typeof adminForbidden>;
 
 type BackofficeCsrfRouteResponse =
   | { ok: true; data: { csrfToken: string } }
@@ -986,7 +999,9 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(403).send(adminForbidden());
       }
 
-      if (!isBackofficeRole(result.response.data.user.role)) {
+      const accessMode = resolveBackofficeAccessMode(result.response.data.user.role);
+
+      if (!accessMode) {
         clearBackofficeAuthCookies(reply);
         return reply.status(403).send(adminForbidden());
       }
@@ -996,7 +1011,9 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         result.response.data.user.id,
         buildAuthSessionRequestMeta(request)
       );
-      const response = attachAccessToken(result.response, options, session.id);
+      const response = attachAccessToken(result.response, options, session.id, {
+        backofficeAccessMode: accessMode
+      });
 
       setBackofficeAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -1005,11 +1022,11 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         refreshTokenExpiresAt: session.expiresAt
       });
 
-      return reply.status(200).send(buildBackofficeAuthResponse(response.data));
+      return reply.status(200).send(buildBackofficeAuthResponse(response.data, accessMode));
     }
   );
 
-  app.post<{ Reply: AuthMeResponse | ReturnType<typeof unauthorizedAuthRequest> | ReturnType<typeof adminForbidden> }>(
+  app.post<{ Reply: BackofficeAuthSuccess | ReturnType<typeof unauthorizedAuthRequest> | ReturnType<typeof adminForbidden> }>(
     "/auth/backoffice/refresh",
     authRateLimitOptions(options),
     async (request, reply) => {
@@ -1031,13 +1048,17 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply.status(401).send(result.response);
       }
 
-      if (!isBackofficeRole(result.response.data.user.role)) {
+      const accessMode = resolveBackofficeAccessMode(result.response.data.user.role);
+
+      if (!accessMode) {
         await revokeAuthSession(app, result.refreshToken);
         clearBackofficeAuthCookies(reply);
         return reply.status(403).send(adminForbidden());
       }
 
-      const response = attachAccessToken(result.response, options, result.sessionId);
+      const response = attachAccessToken(result.response, options, result.sessionId, {
+        backofficeAccessMode: accessMode
+      });
 
       setBackofficeAuthCookies(reply, {
         accessToken: response.data.accessToken,
@@ -1046,7 +1067,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         refreshTokenExpiresAt: result.expiresAt
       });
 
-      return reply.status(200).send(buildBackofficeAuthResponse(response.data));
+      return reply.status(200).send(buildBackofficeAuthResponse(response.data, accessMode));
     }
   );
 
@@ -1062,7 +1083,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
     return reply.status(200).send(buildLogoutAuthResponse());
   });
 
-  app.get<{ Reply: AuthMeResponse | ReturnType<typeof adminForbidden> }>(
+  app.get<{ Reply: BackofficeAuthSuccess | ReturnType<typeof adminForbidden> }>(
     "/auth/backoffice/me",
     async (request, reply) => {
       const currentUser = await requireCurrentUser(app, request, reply);
@@ -1071,11 +1092,22 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply;
       }
 
-      if (!isBackofficeRole(currentUser.role)) {
+      const accessMode = currentUser.backofficeAccessMode ??
+        (isBackofficeRole(currentUser.role) ? "staff" : null);
+
+      if (!accessMode) {
         return reply.status(403).send(adminForbidden());
       }
 
-      return buildAuthMeResponse(currentUser);
+      return buildBackofficeAuthResponse({
+        profile: currentUser.profile,
+        user: {
+          id: currentUser.userId,
+          email: currentUser.email,
+          emailVerifiedAt: currentUser.emailVerifiedAt,
+          role: currentUser.role
+        }
+      }, accessMode);
     }
   );
 
@@ -1088,7 +1120,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         return reply;
       }
 
-      if (!isBackofficeRole(currentUser.role)) {
+      const accessMode = currentUser.backofficeAccessMode ??
+        (isBackofficeRole(currentUser.role) ? "staff" : null);
+
+      if (!accessMode) {
         return reply.status(403).send(adminForbidden());
       }
 
@@ -1459,14 +1494,23 @@ function clearBackofficeAuthCookies(reply: FastifyReply): void {
 function buildBackofficeAuthResponse(input: {
   profile: SafeAuthProfile;
   user: SafeAuthUser;
-}): AuthMeResponse {
+}, accessMode: BackofficeAccessMode): BackofficeAuthSuccess {
   return {
     ok: true,
     data: {
+      accessMode,
       profile: input.profile,
       user: input.user
     }
   };
+}
+
+function resolveBackofficeAccessMode(role: string): BackofficeAccessMode | null {
+  if (role.toLowerCase() === "user") {
+    return "preview";
+  }
+
+  return isBackofficeRole(role) ? "staff" : null;
 }
 
 function readQueryStringValue(value: unknown): string | null {

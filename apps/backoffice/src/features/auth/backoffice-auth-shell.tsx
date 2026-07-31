@@ -13,6 +13,7 @@ import {
 import { BackofficeShell } from "../shell/backoffice-shell";
 import { resolveSafeBackofficeNextPath } from "../../lib/safe-next-path";
 import { BackofficeAccessProvider } from "./backoffice-access";
+import type { BackofficeAccessMode } from "./backoffice-access";
 
 type BackofficeAuthShellProps = {
   children: ReactNode;
@@ -151,23 +152,33 @@ export function BackofficeAuthShell({ children }: BackofficeAuthShellProps) {
     );
   }
 
-  if (
-    authState.auth.user.role === "backoffice_viewer" &&
-    !isViewerPathAllowed(pathname)
-  ) {
+  const accessMode = resolveBackofficeUiAccessMode(authState.auth);
+  const readOnly =
+    accessMode === "preview" ||
+    authState.auth.user.role.toLowerCase() === "backoffice_viewer";
+
+  if (readOnly && !isReadOnlyPathAllowed(pathname)) {
     return (
       <main className="login-page">
         <section className="auth-state-card" role="alert">
-          <p className="eyebrow">Salt okunur erişim</p>
+          <p className="eyebrow">
+            {accessMode === "preview" ? "Tanıtım modu" : "Salt okunur erişim"}
+          </p>
           <h2>Bu bölüm için yetkin yok</h2>
+          <p>Bu rota salt okunur erişim kapsamının dışındadır.</p>
         </section>
       </main>
     );
   }
 
   return (
-    <BackofficeAccessProvider role={authState.auth.user.role}>
-      <BackofficeShell role={authState.auth.user.role}>{children}</BackofficeShell>
+    <BackofficeAccessProvider
+      accessMode={accessMode}
+      role={authState.auth.user.role}
+    >
+      <BackofficeShell accessMode={accessMode} role={authState.auth.user.role}>
+        {children}
+      </BackofficeShell>
     </BackofficeAccessProvider>
   );
 }
@@ -185,7 +196,7 @@ async function getBackofficeAuthState(): Promise<AuthState> {
       };
     }
 
-    if (!isBackofficeUiRole(auth.user.role)) {
+    if (!isBackofficeUiPrincipal(auth)) {
       return {
         status: "forbidden",
         auth,
@@ -203,13 +214,25 @@ async function getBackofficeAuthState(): Promise<AuthState> {
   }
 }
 
-function isBackofficeUiRole(role: string): boolean {
-  return ["admin", "backoffice_viewer"].includes(role.toLowerCase());
+export function isBackofficeUiPrincipal(auth: BackofficeAuthMe): boolean {
+  const role = auth.user.role.toLowerCase();
+
+  if (auth.accessMode === "preview") {
+    return role === "user";
+  }
+
+  return ["admin", "backoffice_viewer"].includes(role);
 }
 
-function isViewerPathAllowed(pathname: string): boolean {
+export function isReadOnlyPathAllowed(pathname: string): boolean {
   return pathname === "/" || pathname === "/listings" || pathname.startsWith("/listings/") ||
     pathname === "/profiles" || pathname.startsWith("/profiles/");
+}
+
+function resolveBackofficeUiAccessMode(
+  auth: BackofficeAuthMe
+): BackofficeAccessMode {
+  return auth.accessMode === "preview" ? "preview" : "staff";
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

@@ -23,6 +23,12 @@ export const childProfileNotificationCadenceSchema = z.enum([
   "yearly"
 ]);
 
+export const lifecycleRecommendationsQuerySchema = z
+  .object({
+    locale: z.enum(["en", "tr"]).optional().default("tr")
+  })
+  .strict();
+
 const nullableOptionalIntSchema = (min: number, max: number) =>
   z.preprocess(
     (value) => (value === "" ? null : value),
@@ -85,6 +91,7 @@ export type ChildProfileGender = z.infer<typeof childProfileGenderSchema>;
 export type ChildProfileNotificationCadence = z.infer<typeof childProfileNotificationCadenceSchema>;
 export type ChildProfileParams = z.infer<typeof childProfileParamsSchema>;
 export type CreateChildProfileBody = z.infer<typeof createChildProfileBodySchema>;
+export type LifecycleRecommendationsQuery = z.infer<typeof lifecycleRecommendationsQuerySchema>;
 export type UpdateChildProfileBody = z.infer<typeof updateChildProfileBodySchema>;
 
 function hasCompleteBirthMonthYear(value: {
