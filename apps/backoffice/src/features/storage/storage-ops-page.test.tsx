@@ -26,24 +26,23 @@ describe("StorageOpsPage", () => {
           uploadRoute: {
             localRouteEnabled: true,
             routePrefix: "/api/v1/uploads/listings",
-            note: "Local driver için API dosya stream route'u aktif kalır."
+            note: "Yerel sürücü için API dosya akışı rotası etkin kalır."
           },
           warning:
-            "Bu endpoint credential veya secret döndürmez. Sadece hangi storage driver'ın aktif olduğunu gösterir."
+            "Bu uç nokta kimlik bilgisi veya gizli değer döndürmez. Yalnız etkin depolama sürücüsünü gösterir."
         }
       })
     });
 
     render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
 
-    expect(await screen.findByText("Storage Ops Preview")).toBeInTheDocument();
-    expect(document.body.textContent).toContain("External storage provider disabled");
-    expect(document.body.textContent).toContain("S3/R2, signed upload, bucket delete");
-    expect(screen.getAllByText("Local").length).toBeGreaterThan(0);
-    expect(screen.getByText("Dış bucket/provider alanları eksik veya kapalı.")).toBeInTheDocument();
+    expect(await screen.findByText("Depolama durum görünümü")).toBeInTheDocument();
+    expect(document.body.textContent).toContain("Yerel yedek sürücü aktif");
+    expect(screen.getAllByText("Yerel").length).toBeGreaterThan(0);
+    expect(screen.getByText("Dış kova veya sağlayıcı alanları eksik ya da kapalı.")).toBeInTheDocument();
     expect(screen.getByText("/api/v1/uploads/listings")).toBeInTheDocument();
-    expect(screen.getAllByText("Bu endpoint’te gösterilmez")).toHaveLength(2);
-    expect(screen.getByText(/Bucket delete, object copy, CDN purge/iu)).toBeInTheDocument();
+    expect(screen.getAllByText("Bu uç noktada gösterilmez")).toHaveLength(2);
+    expect(screen.getByText(/Kova silme, nesne kopyalama, CDN/iu)).toBeInTheDocument();
     expect(document.body.textContent).toContain("queue_worker");
     expect(document.body.textContent).not.toMatch(/AWS_SECRET_ACCESS_KEY_VALUE|S3_BUCKET_NAME_SECRET|R2_ACCESS_KEY_SECRET|signed-url-secret-value|presigned-post-secret-value|raw-upload-body-secret-value|gps-location-secret-value/iu);
 
@@ -65,7 +64,7 @@ describe("StorageOpsPage", () => {
     render(<StorageOpsPage apiBaseUrl="http://localhost:4000" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Storage ops preview failed: 403")).toBeInTheDocument();
+      expect(screen.getByText("Depolama operasyon durumu yüklenemedi. Yetkiyi ve API erişimini kontrol et.")).toBeInTheDocument();
     });
   });
 });

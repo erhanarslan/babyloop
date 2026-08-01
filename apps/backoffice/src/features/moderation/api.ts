@@ -2,6 +2,7 @@ import type { ApiResponse } from "@babyloop/shared";
 
 import { getApiBaseUrl } from "../../lib/api";
 import { authFetch } from "../../lib/auth-client";
+import { formatEnumLabel } from "../../lib/presentation";
 
 export type AdminModerationCaseStatus =
   | "pending"
@@ -641,14 +642,14 @@ function getTargetPreviewText(preview: RawAdminTargetPreview | null): string | n
   }
 
   if (preview.type === "listing") {
-    return `Listing: ${preview.title} (${preview.status})`;
+    return `İlan: ${preview.title} (${formatEnumLabel(preview.status)})`;
   }
 
   if (preview.type === "profile") {
-    return `Profile: ${preview.displayName} (${preview.safetyStatus})`;
+    return `Profil: ${preview.displayName} (${formatEnumLabel(preview.safetyStatus)})`;
   }
 
-  return `Message preview: ${preview.bodyPreview}`;
+  return `Mesaj önizlemesi: ${preview.bodyPreview}`;
 }
 
 function toActionType(value: string): AdminModerationActionType {

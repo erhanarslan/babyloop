@@ -3,6 +3,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { formatDateTimeTr } from "../../lib/presentation";
 
 import {
   type AdminModerationCaseDetail,
@@ -24,13 +25,13 @@ const fieldOptions: Array<{
 }> = [
   {
     field: "reporter",
-    label: "Reporter identity",
-    help: "Profile id, display name, and email when the case has a report.",
+    label: "Şikâyetçi kimliği",
+    help: "Vakada şikâyet varsa profil kimliği, görünen ad ve e-posta.",
   },
   {
     field: "message",
-    label: "Raw message body",
-    help: "Only returned for message-target moderation cases.",
+    label: "Ham ileti gövdesi",
+    help: "Yalnız ileti hedefli moderasyon vakalarında döndürülür.",
   },
 ];
 
@@ -56,12 +57,12 @@ export function SensitiveAccessPanel({
     setSensitiveResult(null);
 
     if (!reasonIsValid) {
-      setErrorMessage("Enter a reason with at least 10 characters.");
+      setErrorMessage("En az 10 karakterlik bir erişim nedeni gir.");
       return;
     }
 
     if (!fieldsAreValid) {
-      setErrorMessage("Select at least one sensitive field.");
+      setErrorMessage("En az bir hassas alan seç.");
       return;
     }
 
@@ -76,7 +77,7 @@ export function SensitiveAccessPanel({
 
     if (!response.ok) {
       setErrorMessage(
-        getApiErrorMessage(response, "Sensitive access request failed."),
+        getApiErrorMessage(response, "Hassas erişim isteği tamamlanamadı."),
       );
       return;
     }
@@ -105,12 +106,11 @@ export function SensitiveAccessPanel({
   return (
     <section className="form-card sensitive-access-card">
       <div>
-        <p className="eyebrow">Sensitive access</p>
-        <h3>Sensitive access</h3>
+        <p className="eyebrow">Hassas erişim</p>
+        <h3>Hassas erişim</h3>
         <p>
-          Raw sensitive data is hidden by default. Request access only when it
-          is necessary for moderation review. Your reason and requested fields
-          will be audited.
+          Ham hassas veri varsayılan olarak gizlidir. Yalnız moderasyon incelemesi
+          için zorunlu olduğunda erişim iste. Neden ve istenen alanlar denetlenir.
         </p>
       </div>
 
@@ -120,30 +120,30 @@ export function SensitiveAccessPanel({
           onClick={() => setIsExpanded(true)}
           type="button"
         >
-          Request sensitive access
+          Hassas erişim iste
         </button>
       ) : (
         <form className="sensitive-access-form" onSubmit={handleSubmit}>
           <div className="state-panel warning">
-            This reveals raw sensitive data after a server-side permission check.
-            Do not copy it into notes unless strictly required.
+            Bu işlem sunucu tarafı yetki kontrolünden sonra ham hassas veriyi açar.
+            Kesinlikle gerekli olmadıkça bu veriyi notlara kopyalama.
           </div>
 
           <label className="form-field">
-            <span>Access reason</span>
+            <span>Erişim nedeni</span>
             <textarea
               onChange={(event) => {
                 setSensitiveResult(null);
                 setReason(event.target.value);
               }}
-              placeholder="Explain why raw access is needed for this moderation decision."
+              placeholder="Bu moderasyon kararı için ham erişimin neden gerekli olduğunu açıkla."
               rows={4}
               value={reason}
             />
           </label>
 
           <fieldset className="checkbox-group">
-            <legend>Sensitive fields</legend>
+            <legend>Hassas alanlar</legend>
             {fieldOptions.map((option) => (
               <label className="checkbox-option" key={option.field}>
                 <input
@@ -162,13 +162,13 @@ export function SensitiveAccessPanel({
 
           {!reasonIsValid && reason.length > 0 ? (
             <p className="form-error" role="alert">
-              Enter a reason with at least 10 characters.
+              En az 10 karakterlik bir erişim nedeni gir.
             </p>
           ) : null}
 
           {!fieldsAreValid && reasonIsValid ? (
             <p className="form-error" role="alert">
-              Select at least one sensitive field.
+              En az bir hassas alan seç.
             </p>
           ) : null}
 
@@ -180,8 +180,8 @@ export function SensitiveAccessPanel({
 
           <button className="primary-action" disabled={!canSubmit} type="submit">
             {isSubmitting
-              ? "Requesting..."
-              : "Submit sensitive access request"}
+              ? "İsteniyor…"
+              : "Hassas erişim isteğini gönder"}
           </button>
         </form>
       )}
@@ -204,30 +204,30 @@ function SensitiveAccessResult({
   result: RequestAdminSensitiveAccessResponse;
 }) {
   return (
-    <section className="sensitive-result" aria-label="Sensitive access result">
+    <section className="sensitive-result" aria-label="Hassas erişim sonucu">
       <div className="page-toolbar">
         <div>
-          <h3>Sensitive data granted</h3>
-          <p>Audit event id: {result.auditEventId}</p>
+          <h3>Hassas erişim verildi</h3>
+          <p>Denetim olayı: {result.auditEventId}</p>
         </div>
         <button className="secondary-action" onClick={onClear} type="button">
-          Clear sensitive data
+          Hassas veriyi temizle
         </button>
       </div>
 
       {result.sensitive.reporter ? (
         <dl className="details-grid sensitive-details">
           <div>
-            <dt>Reporter profile ID</dt>
+            <dt>Şikâyetçi profil kimliği</dt>
             <dd>{result.sensitive.reporter.profileId}</dd>
           </div>
           <div>
-            <dt>Reporter display name</dt>
-            <dd>{result.sensitive.reporter.displayName ?? "Not available"}</dd>
+            <dt>Şikâyetçi görünen adı</dt>
+            <dd>{result.sensitive.reporter.displayName ?? "Bulunmuyor"}</dd>
           </div>
           <div>
-            <dt>Reporter email</dt>
-            <dd>{result.sensitive.reporter.email ?? "Not available"}</dd>
+            <dt>Şikâyetçi e-postası</dt>
+            <dd>{result.sensitive.reporter.email ?? "Bulunmuyor"}</dd>
           </div>
         </dl>
       ) : null}
@@ -235,19 +235,19 @@ function SensitiveAccessResult({
       {result.sensitive.message ? (
         <dl className="details-grid sensitive-details">
           <div>
-            <dt>Message ID</dt>
+            <dt>İleti kimliği</dt>
             <dd>{result.sensitive.message.id}</dd>
           </div>
           <div>
-            <dt>Sender profile ID</dt>
+            <dt>Gönderen profil kimliği</dt>
             <dd>{result.sensitive.message.senderProfileId}</dd>
           </div>
           <div>
-            <dt>Created</dt>
-            <dd>{formatDateTime(result.sensitive.message.createdAt)}</dd>
+            <dt>Oluşturulma</dt>
+            <dd>{formatDateTimeTr(result.sensitive.message.createdAt)}</dd>
           </div>
           <div className="full-field">
-            <dt>Raw message body</dt>
+            <dt>Ham ileti gövdesi</dt>
             <dd className="sensitive-text">{result.sensitive.message.body}</dd>
           </div>
         </dl>
@@ -255,15 +255,11 @@ function SensitiveAccessResult({
 
       {!result.sensitive.reporter && !result.sensitive.message ? (
         <div className="state-panel">
-          No sensitive data was returned for the selected fields.
+          Seçilen alanlar için hassas veri dönmedi.
         </div>
       ) : null}
     </section>
   );
-}
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
 }
 
 function getApiErrorMessage(
@@ -275,16 +271,16 @@ function getApiErrorMessage(
   }
 
   if (response.error?.code === "FORBIDDEN") {
-    return "Sensitive access denied. This request may be audited.";
+    return "Hassas erişim reddedildi. Bu istek denetlenebilir.";
   }
 
   if (response.error?.code === "INVALID_REQUEST") {
-    return "Sensitive access request is invalid. Check the reason and selected fields.";
+    return "Hassas erişim isteği geçersiz. Nedeni ve seçilen alanları kontrol et.";
   }
 
   if (response.error?.code === "NOT_FOUND") {
-    return "Moderation case was not found.";
+    return "Moderasyon vakası bulunamadı.";
   }
 
-  return response.error?.message ?? fallback;
+  return fallback;
 }

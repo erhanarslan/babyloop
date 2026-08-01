@@ -3,6 +3,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatDateTimeTr } from "../../lib/presentation";
 
 import {
   type AdminListingImageReviewStatus,
@@ -298,7 +299,7 @@ export function ListingAdminList() {
             </label>
 
             <label className="form-field">
-              <span>Limit</span>
+              <span>Sayfa boyutu</span>
               <select
                 onChange={(event) =>
                   setDraftFilters((current) => ({ ...current, limit: Number(event.target.value) }))
@@ -444,12 +445,14 @@ function formatPrice(listing: AdminListingResponseSummary): string {
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("tr-TR");
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
   if (response.ok) return fallback;
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "İlanları görüntüleme yetkin yok."
+    : fallback;
 }
 
 function isListingAwaitingImageReview(listing: AdminListingResponseSummary): boolean {

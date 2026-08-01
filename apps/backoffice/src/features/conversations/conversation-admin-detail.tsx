@@ -3,6 +3,7 @@
 import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 import {
   type AdminConversationDetail,
@@ -72,7 +73,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
           <p className="eyebrow">Mesaj inceleme</p>
           <h2>{conversation.participants.map((item) => item.displayName).join(" ↔ ")}</h2>
           <p>
-            Redacted konuşma incelemesi. Ham mesaj gövdesi, raporlayan kimliği, e-posta ve iletişim
+            Maskeli konuşma incelemesi. Ham mesaj gövdesi, raporlayan kimliği, e-posta ve iletişim
             verileri bu görünümde özellikle yer almaz.
           </p>
         </div>
@@ -86,12 +87,12 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
           <h3>Konuşma özeti</h3>
           <dl className="details-grid">
             <div>
-              <dt>Konuşma ID</dt>
+              <dt>Konuşma kimliği</dt>
               <dd>{conversation.conversationId}</dd>
             </div>
             <div>
               <dt>Durum</dt>
-              <dd>{conversation.status}</dd>
+              <dd>{formatEnumLabel(conversation.status)}</dd>
             </div>
             <div>
               <dt>Mesaj sayısı</dt>
@@ -122,7 +123,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                   <p className="muted">{participant.profileId}</p>
                 </div>
                 <span className={`status-badge ${participant.safetyStatus}`}>
-                  {participant.safetyStatus}
+                  {formatEnumLabel(participant.safetyStatus)}
                 </span>
               </div>
             ))}
@@ -139,10 +140,10 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
               </div>
               <div>
                 <dt>Durum</dt>
-                <dd>{conversation.contextListing.status}</dd>
+                <dd>{formatEnumLabel(conversation.contextListing.status)}</dd>
               </div>
               <div>
-                <dt>İlan ID</dt>
+                <dt>İlan kimliği</dt>
                 <dd>{conversation.contextListing.listingId}</dd>
               </div>
             </dl>
@@ -152,7 +153,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
         </article>
 
         <article className="profile-detail-card wide">
-          <h3>Redacted mesajlar</h3>
+          <h3>Maskeli mesajlar</h3>
           {conversation.messages.length === 0 ? (
             <div className="state-panel">Mesaj bulunamadı.</div>
           ) : (
@@ -161,7 +162,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                 <div className="table-list-row" key={message.messageId}>
                   <div>
                     <strong>{message.sender.displayName}</strong>
-                    <p>{message.bodyPreview || "[empty preview]"}</p>
+                    <p>{message.bodyPreview || "[boş önizleme]"}</p>
                     <p className="muted">
                       {message.messageId} · {formatDate(message.createdAt)}
                     </p>
@@ -194,7 +195,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
                       {item.reason ?? "Gerekçe yok"} · mesaj {item.targetId}
                     </p>
                   </div>
-                  <span className={`status-badge ${item.status}`}>{item.status}</span>
+                  <span className={`status-badge ${item.status}`}>{formatEnumLabel(item.status)}</span>
                 </div>
               ))}
             </div>
@@ -210,7 +211,7 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
               {conversation.enforcementHistory.map((item) => (
                 <div className="table-list-row" key={item.actionId}>
                   <div>
-                    <strong>{item.actionType}</strong>
+                    <strong>{formatEnumLabel(item.actionType)}</strong>
                     <p className="muted">
                       {item.messageId ?? "bilinmeyen mesaj"} · {formatDate(item.createdAt)}
                     </p>
@@ -227,9 +228,11 @@ export function ConversationAdminDetail({ conversationId }: ConversationAdminDet
 }
 
 function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
-  return response.ok ? fallback : response.error.message || fallback;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "Bu konuşmayı görüntüleme yetkin yok.";
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }

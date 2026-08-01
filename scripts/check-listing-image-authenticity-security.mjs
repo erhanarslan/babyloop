@@ -219,10 +219,10 @@ function checkBackofficeSafeVisibilityBoundary() {
     mustNotContain(source, file, "sessionStorage");
   }
 
-  mustContain(aiOpsDashboard, aiOpsDashboardFile, "without");
-  mustContain(aiOpsDashboard, aiOpsDashboardFile, "raw prompts");
-  mustContain(aiOpsDashboard, aiOpsDashboardFile, "raw outputs");
-  mustContain(aiOpsDashboard, aiOpsDashboardFile, "image payloads");
+  mustContain(aiOpsDashboard, aiOpsDashboardFile, "olmadan");
+  mustContain(aiOpsDashboard, aiOpsDashboardFile, "ham istem");
+  mustContain(aiOpsDashboard, aiOpsDashboardFile, "ham çıktı");
+  mustContain(aiOpsDashboard, aiOpsDashboardFile, "görsel içeriği");
 
   mustContain(listingsApi, listingsApiFile, "authenticity");
   mustContain(listingsApi, listingsApiFile, "decision");
@@ -236,7 +236,7 @@ function checkBackofficeSafeVisibilityBoundary() {
   mustContain(imageReviewPanel, imageReviewPanelFile, "sanitizeImageReviewMetadata");
   mustContain(imageReviewPanel, imageReviewPanelFile, "access_token");
   mustContain(imageReviewPanel, imageReviewPanelFile, "refresh_token");
-  mustContain(imageReviewPanel, imageReviewPanelFile, "No safe AI flags recorded.");
+  mustContain(imageReviewPanel, imageReviewPanelFile, "Güvenli AI işareti kaydedilmedi.");
 }
 
 function checkDatabaseBoundary() {

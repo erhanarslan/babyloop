@@ -49,24 +49,24 @@ export function ModerationStatusForm({
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not update status."));
+      setErrorMessage(getApiErrorMessage(response, "Durum güncellenemedi."));
       return;
     }
 
     onUpdated(response.data.case);
     setNote("");
-    setFeedback("Status updated.");
+    setFeedback("Durum güncellendi.");
   }
 
   return (
     <form className="form-card" onSubmit={handleSubmit}>
       <div>
-        <h3>Update status</h3>
-        <p>Change the moderation workflow state for this case.</p>
+        <h3>Durumu güncelle</h3>
+        <p>Bu vakanın moderasyon iş akışı durumunu değiştir.</p>
       </div>
 
       <label className="form-field">
-        <span>Status</span>
+        <span>Durum</span>
         <select
           onChange={(event) =>
             setSelectedStatus(event.target.value as AdminModerationCaseStatus)
@@ -82,11 +82,11 @@ export function ModerationStatusForm({
       </label>
 
       <label className="form-field">
-        <span>Status note</span>
+        <span>Durum notu</span>
         <textarea
           maxLength={1000}
           onChange={(event) => setNote(event.target.value)}
-          placeholder="Optional workflow note. Avoid unnecessary personal data."
+          placeholder="İsteğe bağlı iş akışı notu; gereksiz kişisel veri ekleme."
           rows={3}
           value={note}
         />
@@ -107,7 +107,7 @@ export function ModerationStatusForm({
         }
         type="submit"
       >
-        {isSubmitting ? "Updating..." : "Update status"}
+        {isSubmitting ? "Güncelleniyor…" : "Durumu güncelle"}
       </button>
     </form>
   );
@@ -116,13 +116,13 @@ export function ModerationStatusForm({
 function getStatusLabel(status: AdminModerationCaseStatus): string {
   switch (status) {
     case "pending":
-      return "Pending";
+      return "Bekliyor";
     case "in_review":
-      return "In review";
+      return "İncelemede";
     case "resolved":
-      return "Resolved";
+      return "Çözüldü";
     case "dismissed":
-      return "Dismissed";
+      return "Kapatıldı";
   }
 }
 
@@ -134,5 +134,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Vaka durumunu değiştirme yetkin yok."
+    : fallback;
 }

@@ -5,16 +5,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requestAssistantMessage } from "./api";
 import { AssistantPageContent } from "./assistant-page-content";
 
+const analytics = vi.hoisted(() => ({
+  track: vi.fn(),
+  trackAssistantAnswer: vi.fn(),
+  trackAssistantOpened: vi.fn()
+}));
+
 const source = readFileSync(join(process.cwd(), "src/features/assistant/assistant-page-content.tsx"), "utf8");
 const styles = readFileSync(join(process.cwd(), "src/features/assistant/assistant-page-content.module.css"), "utf8");
 
 vi.mock("./api", () => ({
   requestAssistantMessage: vi.fn()
 }));
+vi.mock("../analytics/use-analytics", () => ({
+  useAnalytics: () => analytics
+}));
 
 describe("AssistantPageContent", () => {
   beforeEach(() => {
     vi.mocked(requestAssistantMessage).mockReset();
+    analytics.track.mockReset();
+    analytics.trackAssistantAnswer.mockReset();
+    analytics.trackAssistantOpened.mockReset();
     window.history.replaceState({}, "", "/assistant");
   });
 
@@ -81,6 +93,36 @@ describe("AssistantPageContent", () => {
     expect(source).toContain("modeLabel");
     expect(source).toContain("response.sourceCards");
     expect(source).toContain("response.actionCards");
+  });
+
+  it("tracks assistant open, question and canonical answer events", async () => {
+    vi.mocked(requestAssistantMessage).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        answer: "Kaynaklı yanıt",
+        grounded: true,
+        mode: "rag",
+        sources: [{ title: "Güvenli alışveriş", sourcePath: "internal.md" }]
+      }
+    });
+    render(<AssistantPageContent apiBaseUrl="http://api.test" />);
+
+    expect(analytics.trackAssistantOpened).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByRole("textbox", { name: "Sorunu yaz" }), {
+      target: { value: "Güvenli ürün nasıl seçilir?" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sor" }));
+
+    await screen.findByText("Kaynaklı yanıt", { selector: "p" });
+    expect(analytics.track).toHaveBeenCalledWith({
+      eventName: "assistant_question_submitted",
+      properties: { domain: "general", sourceSurface: "assistant" }
+    });
+    expect(analytics.trackAssistantAnswer).toHaveBeenCalledWith({
+      grounded: true,
+      mode: "rag",
+      sourceCount: 1
+    });
   });
 
   it("renders suggested actions through safe internal Next links only", () => {

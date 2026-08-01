@@ -2,6 +2,8 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState, type FormEvent } from "react";
+import { LoadingState, RecoverableError } from "../shared/async-state";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 import {
   clearAdminRagCache,
@@ -44,6 +46,9 @@ type LoadState = {
   usage: RagUsage | null;
 };
 
+type PanelError = { code: string; title: string };
+type PanelErrors = Partial<Record<keyof LoadState, PanelError>>;
+
 export function RagManagementPage() {
   const [state, setState] = useState<LoadState>({
     health: null,
@@ -59,6 +64,8 @@ export function RagManagementPage() {
   const [evalSummary, setEvalSummary] = useState<RagEvalRunSummary | null>(null);
   const [evalHistoryDetail, setEvalHistoryDetail] = useState<RagEvalHistoryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [panelErrors, setPanelErrors] = useState<PanelErrors>({});
   const [playgroundQuery, setPlaygroundQuery] = useState("Bebek arabası alırken nelere dikkat etmeliyim?");
   const [playgroundMode, setPlaygroundMode] = useState<"search" | "answer">("search");
   const [playgroundLimit, setPlaygroundLimit] = useState(5);
@@ -77,7 +84,7 @@ export function RagManagementPage() {
 
     async function loadRag() {
       setIsLoading(true);
-      setErrorMessage(null);
+      setPanelErrors({});
 
       const [
         healthResponse,
@@ -103,19 +110,16 @@ export function RagManagementPage() {
         return;
       }
 
-      const error =
-        getError(healthResponse) ??
-        getError(documentsResponse) ??
-        getError(cacheResponse) ??
-        getError(casesResponse) ??
-        getError(metricsResponse) ??
-        getError(usageResponse) ??
-        getError(reindexResponse) ??
-        getError(evalHistoryResponse);
-
-      if (error) {
-        setErrorMessage(error);
-      }
+      setPanelErrors({
+        ...(healthResponse.ok ? {} : { health: getPanelError(healthResponse, "RAG durumu alınamadı") }),
+        ...(documentsResponse.ok ? {} : { documents: getPanelError(documentsResponse, "Dokümanlar alınamadı") }),
+        ...(cacheResponse.ok ? {} : { cache: getPanelError(cacheResponse, "Önbellek durumu alınamadı") }),
+        ...(casesResponse.ok ? {} : { cases: getPanelError(casesResponse, "Değerlendirme vakaları alınamadı") }),
+        ...(evalHistoryResponse.ok ? {} : { evalHistory: getPanelError(evalHistoryResponse, "Değerlendirme geçmişi alınamadı") }),
+        ...(reindexResponse.ok ? {} : { reindex: getPanelError(reindexResponse, "Dizin durumu alınamadı") }),
+        ...(metricsResponse.ok ? {} : { metrics: getPanelError(metricsResponse, "RAG metrikleri alınamadı") }),
+        ...(usageResponse.ok ? {} : { usage: getPanelError(usageResponse, "Kullanım limitleri alınamadı") })
+      });
 
       setState({
         health: healthResponse.ok ? healthResponse.data.health : null,
@@ -135,7 +139,7 @@ export function RagManagementPage() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [reloadVersion]);
 
   async function handleEval(mode: "mock" | "live") {
     setIsRunningEval(true);
@@ -147,7 +151,7 @@ export function RagManagementPage() {
       setEvalSummary(response.data);
       await refreshEvalHistory();
     } else {
-      setErrorMessage(response.error.message);
+      setErrorMessage(getSafeOperationError(response.error.code));
       await refreshEvalHistory();
     }
 
@@ -165,7 +169,7 @@ export function RagManagementPage() {
       return;
     }
 
-    setErrorMessage(response.error.message);
+    setErrorMessage(getSafeOperationError(response.error.code));
   }
 
   async function handlePlaygroundSubmit(event: FormEvent<HTMLFormElement>) {
@@ -183,7 +187,7 @@ export function RagManagementPage() {
     if (response.ok) {
       setPlaygroundResult(response.data);
     } else {
-      setErrorMessage(response.error.message);
+      setErrorMessage(getSafeOperationError(response.error.code));
     }
 
     setIsRunningPlayground(false);
@@ -203,7 +207,7 @@ export function RagManagementPage() {
     if (response.ok) {
       setChunkPreview(response.data);
     } else {
-      setErrorMessage(response.error.message);
+      setErrorMessage(getSafeOperationError(response.error.code));
     }
 
     setLoadingChunkDocumentId(null);
@@ -234,7 +238,7 @@ export function RagManagementPage() {
     if (response.ok) {
       setEvalHistoryDetail(response.data.run);
     } else {
-      setErrorMessage(response.error.message);
+      setErrorMessage(getSafeOperationError(response.error.code));
     }
 
     setLoadingEvalRunId(null);
@@ -256,7 +260,7 @@ export function RagManagementPage() {
         reindex: response.data.check,
       }));
     } else {
-      setErrorMessage(response.error.message);
+      setErrorMessage(getSafeOperationError(response.error.code));
     }
 
     setIsRunningReindex(false);
@@ -268,26 +272,30 @@ export function RagManagementPage() {
         <div>
           <p className="eyebrow">RAG</p>
           <h2>RAG Yönetimi</h2>
-          <p>Bilgi tabanı, Qdrant durumu, cache ve eval sonuçlarını buradan izleyebilirsin.</p>
+          <p>Bilgi tabanı, Qdrant durumu, önbellek ve değerlendirme sonuçlarını buradan izleyebilirsin.</p>
         </div>
       </div>
 
       <nav className="admin-secondary-nav" aria-label="RAG bölümleri">
         <a href="#rag-overview">Genel durum</a>
-        <a href="#rag-retrieval">Retrieval testi</a>
+        <a href="#rag-retrieval">Getirme testi</a>
         <a href="#rag-documents">Dokümanlar</a>
-        <a href="#rag-cache-limits">Cache ve limitler</a>
-        <a href="#rag-index">Index / reindex</a>
-        <a href="#rag-technical">Teknik konfigürasyon</a>
+        <a href="#rag-cache-limits">Önbellek ve sınırlar</a>
+        <a href="#rag-index">Dizin yönetimi</a>
+        <a href="#rag-technical">Teknik yapılandırma</a>
       </nav>
 
-      {isLoading ? <div className="state-panel">RAG bilgileri yükleniyor...</div> : null}
+      {isLoading ? <LoadingState title="RAG bilgileri yükleniyor…" /> : null}
 
-      {errorMessage ? (
-        <div className="state-panel danger" role="alert">
-          {errorMessage}
-        </div>
+      {panelErrors.health ? (
+        <RecoverableError
+          title={panelErrors.health.title}
+          description={`Güvenli hata kodu: ${panelErrors.health.code}`}
+          onRetry={() => setReloadVersion((value) => value + 1)}
+        />
       ) : null}
+
+      {errorMessage ? <RecoverableError title="İşlem tamamlanamadı" description={errorMessage} /> : null}
 
       {state.health ? (
         <>
@@ -295,86 +303,87 @@ export function RagManagementPage() {
             <SummaryCard label="RAG" value={state.health.enabled ? "Açık" : "Kapalı"} />
             <SummaryCard label="Qdrant" value={state.health.qdrant.status} />
             <SummaryCard label="Koleksiyon" value={state.health.collection ?? "-"} />
-            <SummaryCard label="Point" value={state.health.qdrant.pointsCount} />
+            <SummaryCard label="Vektör kaydı" value={state.health.qdrant.pointsCount} />
             <SummaryCard label="Vektör boyutu" value={state.health.qdrant.vectorSize} />
             <SummaryCard label="Doküman" value={state.health.docs.documentCount} />
-            <SummaryCard label="Chunk" value={state.health.docs.chunkCountEstimate} />
-            <SummaryCard label="Metadata eksik" value={state.health.docs.missingMetadataCount} />
-            <SummaryCard label="Stale" value={state.health.docs.staleDocumentCount} />
-            <SummaryCard label="Reindex" value={state.health.docs.reindexRequiredCount} />
-            <SummaryCard label="Cache" value={state.health.config.cacheEnabled ? "Açık" : "Kapalı"} />
+            <SummaryCard label="Parça" value={state.health.docs.chunkCountEstimate} />
+            <SummaryCard label="Üst veri eksik" value={state.health.docs.missingMetadataCount} />
+            <SummaryCard label="Güncel değil" value={state.health.docs.staleDocumentCount} />
+            <SummaryCard label="Yeniden dizinleme" value={state.health.docs.reindexRequiredCount} />
+            <SummaryCard label="Önbellek" value={state.health.config.cacheEnabled ? "Açık" : "Kapalı"} />
             <SummaryCard label="Redis" value={state.health.redis.enabled ? state.health.redis.backendEffective : "Kapalı"} />
           </section>
 
           <section className="module-grid" aria-label="RAG konfigürasyonu">
             <article id="rag-technical" className="module-card dashboard-module-card">
-              <h3>Konfigürasyon</h3>
+              <h3>Yapılandırma</h3>
               <dl className="compact-details">
-                <DetailRow label="Embedding" value={`${state.health.config.embeddingProvider} · ${state.health.config.embeddingModel}`} />
-                <DetailRow label="Chat" value={`${state.health.config.chatProvider} · ${state.health.config.chatModel}`} />
-                <DetailRow label="Min skor" value={state.health.config.minScore} />
-                <DetailRow label="Max chunk" value={state.health.config.maxChunks} />
-                <DetailRow label="Max kaynak/doküman" value={state.health.config.maxSourcesPerDocument} />
-                <DetailRow label="Cache arka uç" value={`${state.health.config.cacheBackend} → ${state.health.config.cacheBackendEffective}`} />
-                <DetailRow label="Kullanım arka uç" value={`${state.health.config.usageBackend} → ${state.health.config.usageBackendEffective}`} />
-                <DetailRow label="Metrik arka uç" value={`${state.health.config.metricsBackend} → ${state.health.config.metricsBackendEffective}`} />
+                <DetailRow label="Vektörleştirme" value={`${state.health.config.embeddingProvider} · ${state.health.config.embeddingModel}`} />
+                <DetailRow label="Sohbet" value={`${state.health.config.chatProvider} · ${state.health.config.chatModel}`} />
+                <DetailRow label="En düşük skor" value={state.health.config.minScore} />
+                <DetailRow label="En çok parça" value={state.health.config.maxChunks} />
+                <DetailRow label="Doküman başına en çok kaynak" value={state.health.config.maxSourcesPerDocument} />
+                <DetailRow label="Önbellek arka ucu" value={`${formatEnumLabel(state.health.config.cacheBackend)} → ${formatEnumLabel(state.health.config.cacheBackendEffective)}`} />
+                <DetailRow label="Kullanım arka ucu" value={`${formatEnumLabel(state.health.config.usageBackend)} → ${formatEnumLabel(state.health.config.usageBackendEffective)}`} />
+                <DetailRow label="Metrik arka ucu" value={`${formatEnumLabel(state.health.config.metricsBackend)} → ${formatEnumLabel(state.health.config.metricsBackendEffective)}`} />
               </dl>
             </article>
 
             <article id="rag-cache-limits" className="module-card dashboard-module-card">
-              <h3>Cache</h3>
+              <h3>Önbellek</h3>
+              {panelErrors.cache ? <PanelErrorState error={panelErrors.cache} /> : null}
               <dl className="compact-details">
                 <DetailRow label="Kayıt" value={state.cache?.entries ?? 0} />
                 <DetailRow label="İsabet" value={state.cache?.hits ?? 0} />
                 <DetailRow label="Kaçan" value={state.cache?.misses ?? 0} />
                 <DetailRow label="Yazım" value={state.cache?.sets ?? 0} />
                 <DetailRow label="Temizlik" value={state.cache?.clears ?? 0} />
-                <DetailRow label="Hit oranı" value={`${Math.round((state.cache?.hitRate ?? 0) * 100)}%`} />
-                <DetailRow label="Arka uç" value={`${state.cache?.backend ?? "disabled"} → ${state.cache?.backendEffective ?? "disabled"}`} />
+                <DetailRow label="İsabet oranı" value={`${Math.round((state.cache?.hitRate ?? 0) * 100)}%`} />
+                <DetailRow label="Arka uç" value={`${formatEnumLabel(state.cache?.backend ?? "disabled")} → ${formatEnumLabel(state.cache?.backendEffective ?? "disabled")}`} />
               </dl>
               <button className="secondary-action" onClick={handleClearCache} type="button">
-                Cache temizle
+                Önbelleği temizle
               </button>
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Kullanım limiti</h3>
+              <h3>Kullanım sınırı</h3>
               <dl className="compact-details">
                 <DetailRow label="Durum" value={state.usage?.enabled ? "Açık" : "Kapalı"} />
-                <DetailRow label="Arka uç" value={`${state.usage?.backend ?? "disabled"} → ${state.usage?.backendEffective ?? "disabled"}`} />
-                <DetailRow label="Guest saatlik" value={state.usage?.limits.hourlyGuest ?? 0} />
-                <DetailRow label="Guest günlük" value={state.usage?.limits.dailyGuest ?? 0} />
-                <DetailRow label="User saatlik" value={state.usage?.limits.hourlyUser ?? 0} />
-                <DetailRow label="User günlük" value={state.usage?.limits.dailyUser ?? 0} />
-                <DetailRow label="Admin muafiyeti" value={state.usage?.limits.adminBypass ? "Açık" : "Kapalı"} />
+                <DetailRow label="Arka uç" value={`${formatEnumLabel(state.usage?.backend ?? "disabled")} → ${formatEnumLabel(state.usage?.backendEffective ?? "disabled")}`} />
+                <DetailRow label="Misafir saatlik" value={state.usage?.limits.hourlyGuest ?? 0} />
+                <DetailRow label="Misafir günlük" value={state.usage?.limits.dailyGuest ?? 0} />
+                <DetailRow label="Kullanıcı saatlik" value={state.usage?.limits.hourlyUser ?? 0} />
+                <DetailRow label="Kullanıcı günlük" value={state.usage?.limits.dailyUser ?? 0} />
+                <DetailRow label="Yönetici muafiyeti" value={state.usage?.limits.adminBypass ? "Açık" : "Kapalı"} />
               </dl>
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Metrics</h3>
+              <h3>Metrikler</h3>
               <dl className="compact-details">
                 <DetailRow label="Tarih" value={state.metrics?.date ?? "-"} />
-                <DetailRow label="Arka uç" value={`${state.metrics?.backend ?? "disabled"} → ${state.metrics?.backendEffective ?? "disabled"}`} />
+                <DetailRow label="Arka uç" value={`${formatEnumLabel(state.metrics?.backend ?? "disabled")} → ${formatEnumLabel(state.metrics?.backendEffective ?? "disabled")}`} />
                 <DetailRow label="Toplam istek" value={metric(state.metrics, "totalRequests")} />
                 <DetailRow label="Asistan" value={metric(state.metrics, "assistantRequests")} />
                 <DetailRow label="Arama" value={metric(state.metrics, "searchRequests")} />
                 <DetailRow label="RAG cevap" value={metric(state.metrics, "ragResponses")} />
                 <DetailRow label="Sınır cevabı" value={metric(state.metrics, "boundaryResponses")} />
                 <DetailRow label="Kaynak yok" value={metric(state.metrics, "noSourceResponses")} />
-                <DetailRow label="Cache hit/miss" value={`${metric(state.metrics, "cacheHits")} / ${metric(state.metrics, "cacheMisses")}`} />
-                <DetailRow label="Limitlenen" value={metric(state.metrics, "rateLimitedRequests")} />
+                <DetailRow label="Önbellek isabet/kaçırma" value={`${metric(state.metrics, "cacheHits")} / ${metric(state.metrics, "cacheMisses")}`} />
+                <DetailRow label="Sınırlandırılan" value={metric(state.metrics, "rateLimitedRequests")} />
               </dl>
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Doküman kalite</h3>
+              <h3>Doküman kalitesi</h3>
               <dl className="compact-details">
                 <DetailRow label="Toplam" value={state.reindex?.totalDocuments ?? state.health.docs.documentCount} />
-                <DetailRow label="Reindex gerekli" value={state.reindex?.reindexRequired ?? state.health.docs.reindexRequiredCount} />
-                <DetailRow label="Stale" value={state.reindex?.stale ?? state.health.docs.staleDocumentCount} />
+                <DetailRow label="Yeniden dizinleme gerekli" value={state.reindex?.reindexRequired ?? state.health.docs.reindexRequiredCount} />
+                <DetailRow label="Güncel değil" value={state.reindex?.stale ?? state.health.docs.staleDocumentCount} />
                 <DetailRow label="Eksik" value={state.reindex?.missing ?? countStatus(state.health.docs.indexingStatusCounts, "missing")} />
                 <DetailRow label="Bilinmiyor" value={state.reindex?.unknown ?? countStatus(state.health.docs.indexingStatusCounts, "unknown")} />
-                <DetailRow label="Metadata eksik" value={state.health.docs.missingMetadataCount} />
+                <DetailRow label="Üst veri eksik" value={state.health.docs.missingMetadataCount} />
               </dl>
             </article>
           </section>
@@ -384,8 +393,8 @@ export function RagManagementPage() {
       <section id="rag-retrieval" className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
-            <h3>RAG Playground</h3>
-            <p>Bir test sorusu yazıp retrieval sonuçlarını, kaynakları ve isteğe bağlı cevap önizlemesini görebilirsin.</p>
+            <h3>RAG Deneme Alanı</h3>
+            <p>Bir test sorusu yazıp getirme sonuçlarını, kaynakları ve isteğe bağlı cevap önizlemesini görebilirsin.</p>
           </div>
         </div>
         <form className="stacked-form" onSubmit={handlePlaygroundSubmit}>
@@ -409,7 +418,7 @@ export function RagManagementPage() {
               </select>
             </label>
             <label>
-              <span>Limit</span>
+              <span>En çok sonuç</span>
               <select
                 onChange={(event) => setPlaygroundLimit(Number(event.target.value))}
                 value={playgroundLimit}
@@ -421,21 +430,21 @@ export function RagManagementPage() {
             </label>
           </div>
           <button className="primary-action" disabled={isRunningPlayground || playgroundQuery.trim().length < 2} type="submit">
-            {isRunningPlayground ? "Çalışıyor..." : "Playground çalıştır"}
+            {isRunningPlayground ? "Çalışıyor…" : "Denemeyi çalıştır"}
           </button>
         </form>
 
         {playgroundResult ? (
           <div className="state-panel">
-            <h4>Query analizi</h4>
+            <h4>Sorgu analizi</h4>
             <dl className="compact-details">
-              <DetailRow label="Normalized" value={playgroundResult.query.normalized || "-"} />
-              <DetailRow label="Retrieval query" value={playgroundResult.query.retrievalQuery || "-"} />
-              <DetailRow label="Tokens" value={joinList(playgroundResult.query.tokens)} />
+              <DetailRow label="Normalleştirilmiş" value={playgroundResult.query.normalized || "-"} />
+              <DetailRow label="Getirme sorgusu" value={playgroundResult.query.retrievalQuery || "-"} />
+              <DetailRow label="Sözcük parçaları" value={joinList(playgroundResult.query.tokens)} />
               <DetailRow label="Ürün sinyali" value={joinList(playgroundResult.query.productTerms)} />
               <DetailRow label="Yaş sinyali" value={joinList(playgroundResult.query.ageSignals)} />
               <DetailRow label="Konum sinyali" value={joinList(playgroundResult.query.locationSignals)} />
-              <DetailRow label="Topic hints" value={joinList(playgroundResult.query.topicHints)} />
+              <DetailRow label="Konu ipuçları" value={joinList(playgroundResult.query.topicHints)} />
             </dl>
             {playgroundResult.diagnostics.warnings.length > 0 ? (
               <div className="state-panel warning">
@@ -444,7 +453,7 @@ export function RagManagementPage() {
                 ))}
               </div>
             ) : null}
-            <h4>Retrieval sonuçları</h4>
+            <h4>Getirme sonuçları</h4>
             <div className="table-list">
               {playgroundResult.results.map((result) => (
                 <article className="table-list-row" key={`${result.rank}-${result.sourcePath}-${result.section ?? ""}`}>
@@ -466,10 +475,10 @@ export function RagManagementPage() {
                 <h4>Cevap önizlemesi</h4>
                 <p>{playgroundResult.answerPreview.answer}</p>
                 <p className="muted">
-                  {playgroundResult.answerPreview.mode} · kaynaklı {playgroundResult.answerPreview.grounded ? "evet" : "hayır"} · araçlar {joinList(playgroundResult.answerPreview.toolsUsed ?? [])}
+                  {formatEnumLabel(playgroundResult.answerPreview.mode)} · kaynaklı {playgroundResult.answerPreview.grounded ? "evet" : "hayır"} · araçlar {joinList(playgroundResult.answerPreview.toolsUsed ?? [])}
                 </p>
                 {playgroundResult.answerPreview.intent ? (
-                  <p className="muted">Intent: {playgroundResult.answerPreview.intent}</p>
+                  <p className="muted">Niyet: {formatEnumLabel(playgroundResult.answerPreview.intent)}</p>
                 ) : null}
                 {playgroundResult.answerPreview.toolResultsPreview?.length ? (
                   <div className="table-list">
@@ -510,34 +519,35 @@ export function RagManagementPage() {
       <section id="rag-index" className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
-            <h3>Reindex workflow</h3>
-            <p>Reindex durumunu kontrol et ve güvenli manuel reindex komutunu hazırla.</p>
+            <h3>Yeniden dizinleme akışı</h3>
+            <p>Dizin durumunu kontrol et ve güvenli manuel komutu hazırla.</p>
           </div>
           <div className="toolbar-actions">
             <button className="secondary-action" disabled={isRunningReindex} onClick={() => void handleReindex("check")} type="button">
-              Reindex check
+              Dizin durumunu kontrol et
             </button>
           </div>
         </div>
-        <section className="summary-grid dashboard-summary-grid" aria-label="Reindex özeti">
-          <SummaryCard label="Reindex gerekli" value={state.reindex?.reindexRequired ?? 0} />
-          <SummaryCard label="Stale" value={state.reindex?.stale ?? 0} />
-          <SummaryCard label="Missing" value={state.reindex?.missing ?? 0} />
-          <SummaryCard label="Unknown" value={state.reindex?.unknown ?? 0} />
+        {panelErrors.reindex ? <PanelErrorState error={panelErrors.reindex} /> : null}
+        <section className="summary-grid dashboard-summary-grid" aria-label="Dizin özeti">
+          <SummaryCard label="Yeniden dizinleme gerekli" value={state.reindex?.reindexRequired ?? 0} />
+          <SummaryCard label="Güncel değil" value={state.reindex?.stale ?? 0} />
+          <SummaryCard label="Eksik" value={state.reindex?.missing ?? 0} />
+          <SummaryCard label="Bilinmiyor" value={state.reindex?.unknown ?? 0} />
         </section>
         <div className="table-list">
           {(state.reindex?.documents ?? []).slice(0, 8).map((document) => (
             <div className="table-list-row" key={document.id}>
               <div>
                 <strong>{document.title}</strong>
-                <p className="muted">{document.indexingStatus} · {document.sourcePath} · checksum {document.checksumShort}</p>
+                <p className="muted">{formatEnumLabel(document.indexingStatus)} · {document.sourcePath} · sağlama özeti {document.checksumShort}</p>
               </div>
             </div>
           ))}
-          {(state.reindex?.documents ?? []).length === 0 ? <div className="state-panel">Reindex gereken doküman görünmüyor.</div> : null}
+          {(state.reindex?.documents ?? []).length === 0 ? <div className="state-panel">Yeniden dizinleme gereken doküman görünmüyor.</div> : null}
         </div>
         <div className="state-panel warning">
-          <p>Reindex Qdrant içeriğini güncelleyebilir. Production’da job queue ile yapılmalıdır.</p>
+          <p>Yeniden dizinleme Qdrant içeriğini güncelleyebilir. Üretimde ayrı bir iş kuyruğuyla yapılmalıdır.</p>
           <label>
             <span>Onay</span>
             <input
@@ -552,11 +562,11 @@ export function RagManagementPage() {
             onClick={() => void handleReindex("full")}
             type="button"
           >
-            Full reindex akışını hazırla
+            Tam yeniden dizinleme akışını hazırla
           </button>
           {reindexResult?.manualCommand ? (
             <p>
-              Güvenli reindex için terminalde çalıştır: <code>{reindexResult.manualCommand}</code>
+              Güvenli yeniden dizinleme için terminalde çalıştır: <code>{reindexResult.manualCommand}</code>
             </p>
           ) : null}
           {reindexResult?.warning ? <p className="muted">{reindexResult.warning}</p> : null}
@@ -567,9 +577,10 @@ export function RagManagementPage() {
         <div className="page-toolbar">
           <div>
             <h3>Dokümanlar</h3>
-            <p>RAG markdown kaynaklarının metadata ve chunk durumları.</p>
+            <p>RAG Markdown kaynaklarının üst veri ve parça durumları.</p>
           </div>
         </div>
+        {panelErrors.documents ? <PanelErrorState error={panelErrors.documents} /> : null}
         <div className="table-list">
           {state.documents.map((document) => (
             <article className="table-list-row" key={document.id}>
@@ -577,26 +588,26 @@ export function RagManagementPage() {
                 <strong>{document.title}</strong>
                 <p className="muted">{document.sourcePath}</p>
                 <p className="muted">
-                  {document.topic} · {document.sourceReliability} · v{document.version} · {document.chunkCountEstimate} chunk · checksum {document.checksumShort}
+                  {document.topic} · {document.sourceReliability} · v{document.version} · {document.chunkCountEstimate} parça · sağlama özeti {document.checksumShort}
                 </p>
                 <p className={document.reindexRequired ? "danger" : "muted"}>
-                  {statusLabel(document.indexingStatus)} · {document.reindexRequired ? "reindex gerekli" : "index güncel"} · {document.hasRequiredMetadata ? "metadata tamam" : `metadata eksik: ${document.missingMetadataFields.join(", ")}`}
+                  {statusLabel(document.indexingStatus)} · {document.reindexRequired ? "yeniden dizinleme gerekli" : "dizin güncel"} · {document.hasRequiredMetadata ? "üst veri tamam" : `üst veri eksik: ${document.missingMetadataFields.join(", ")}`}
                 </p>
               </div>
               <div className="toolbar-actions">
-                <small className="muted">{document.lastIndexedAt ? `Son index: ${document.lastIndexedAt}` : "Son index yok"}</small>
+                <small className="muted">{document.lastIndexedAt ? `Son dizinleme: ${formatDateTimeTr(document.lastIndexedAt)}` : "Son dizinleme yok"}</small>
                 <button
                   className="secondary-action"
                   disabled={loadingChunkDocumentId === document.id}
                   onClick={() => void handlePreviewChunks(document.id)}
                   type="button"
                 >
-                  {chunkPreview?.document.id === document.id ? "Önizlemeyi kapat" : "Chunk önizle"}
+                  {chunkPreview?.document.id === document.id ? "Önizlemeyi kapat" : "Parçaları önizle"}
                 </button>
               </div>
               {chunkPreview?.document.id === document.id ? (
                 <div className="state-panel">
-                  <strong>{chunkPreview.document.title} · chunk önizleme</strong>
+                  <strong>{chunkPreview.document.title} · parça önizlemesi</strong>
                   <div className="table-list">
                     {chunkPreview.chunks.map((chunk) => (
                       <div className="table-list-row" key={chunk.chunkId}>
@@ -618,16 +629,16 @@ export function RagManagementPage() {
       <section className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
-            <h3>Eval history</h3>
-            <p>Son eval run kayıtları ve başarısız case detayları.</p>
+            <h3>Değerlendirme geçmişi</h3>
+            <p>Son değerlendirme kayıtları ve başarısız vaka ayrıntıları.</p>
           </div>
         </div>
         <div className="table-list">
           {state.evalHistory.map((run) => (
             <article className="table-list-row" key={run.runId}>
               <div>
-                <strong>{run.runId.slice(0, 8)} · {run.mode}</strong>
-                <p className="muted">{run.startedAt} · {runStatusLabel(run.status)} · {run.passed}/{run.total} geçti · {run.failed} başarısız</p>
+                <strong>{run.runId.slice(0, 8)} · {formatEnumLabel(run.mode)}</strong>
+                <p className="muted">{formatDateTimeTr(run.startedAt)} · {runStatusLabel(run.status)} · {run.passed}/{run.total} geçti · {run.failed} başarısız</p>
               </div>
               <button
                 className="secondary-action"
@@ -639,7 +650,7 @@ export function RagManagementPage() {
               </button>
               {evalHistoryDetail?.runId === run.runId ? (
                 <div className="state-panel">
-                  <strong>Başarısız case'ler</strong>
+                  <strong>Başarısız vakalar</strong>
                   <div className="table-list">
                     {evalHistoryDetail.results.filter((result) => !result.passed).map((result) => (
                       <div className="table-list-row" key={result.id}>
@@ -647,26 +658,26 @@ export function RagManagementPage() {
                           <strong>{result.id}</strong>
                           <p className="muted">{result.expectedMode} → {result.actualMode} · skor {formatScore(result.score)}</p>
                           <p>{result.query}</p>
-                          <p className="danger">{result.issues.join(", ") || "Issue yok"}</p>
+                          <p className="danger">{result.issues.join(", ") || "Sorun yok"}</p>
                           <p className="muted">{result.sources.map((source) => source.topic ?? source.title).join(", ") || "Kaynak yok"}</p>
                         </div>
                       </div>
                     ))}
-                    {evalHistoryDetail.results.every((result) => result.passed) ? <div className="state-panel">Başarısız case yok.</div> : null}
+                    {evalHistoryDetail.results.every((result) => result.passed) ? <div className="state-panel">Başarısız vaka yok.</div> : null}
                   </div>
                 </div>
               ) : null}
             </article>
           ))}
-          {state.evalHistory.length === 0 ? <div className="state-panel">Henüz eval history yok.</div> : null}
+          {state.evalHistory.length === 0 ? <div className="state-panel">Henüz değerlendirme geçmişi yok.</div> : null}
         </div>
       </section>
 
       <section className="module-card dashboard-module-card">
         <div className="page-toolbar">
           <div>
-            <h3>Eval</h3>
-            <p>Mock eval dış servis çağırmaz. Live eval gerçek Gemini/Qdrant çağrısı yapar, kota kullanabilir.</p>
+            <h3>Değerlendirme</h3>
+            <p>Taklit değerlendirme dış servis çağırmaz. Canlı değerlendirme Gemini/Qdrant çağrısı yapar ve kota kullanabilir.</p>
           </div>
           <div className="toolbar-actions">
             <button
@@ -675,7 +686,7 @@ export function RagManagementPage() {
               onClick={() => void handleEval("mock")}
               type="button"
             >
-              Mock eval çalıştır
+              Taklit değerlendirmeyi çalıştır
             </button>
             <button
               className="secondary-action"
@@ -683,17 +694,17 @@ export function RagManagementPage() {
               onClick={() => void handleEval("live")}
               type="button"
             >
-              Live eval çalıştır
+              Canlı değerlendirmeyi çalıştır
             </button>
           </div>
         </div>
 
-        <p className="muted">{state.cases.length} eval case tanımlı.</p>
+        <p className="muted">{state.cases.length} değerlendirme vakası tanımlı.</p>
 
         {evalSummary ? (
           <>
-            <section className="summary-grid dashboard-summary-grid" aria-label="Eval sonucu">
-              <SummaryCard label="Mod" value={evalSummary.mode} />
+            <section className="summary-grid dashboard-summary-grid" aria-label="Değerlendirme sonucu">
+              <SummaryCard label="Mod" value={formatEnumLabel(evalSummary.mode)} />
               <SummaryCard label="Toplam" value={evalSummary.total} />
               <SummaryCard label="Geçen" value={evalSummary.passed} />
               <SummaryCard label="Kalan" value={evalSummary.failed} />
@@ -755,8 +766,8 @@ function countStatus(counts: Record<string, number>, key: string): number {
 
 function statusLabel(status: RagDocumentSummary["indexingStatus"]): string {
   const labels: Record<RagDocumentSummary["indexingStatus"], string> = {
-    indexed: "Index güncel",
-    stale: "Stale",
+    indexed: "Dizin güncel",
+    stale: "Güncel değil",
     missing: "Eksik",
     unknown: "Bilinmiyor"
   };
@@ -768,6 +779,22 @@ function runStatusLabel(status: RagEvalHistoryListItem["status"]): string {
   return status === "completed" ? "Tamamlandı" : "Başarısız";
 }
 
-function getError<T>(response: ApiResponse<T>): string | null {
-  return response.ok ? null : response.error.message;
+function getPanelError<T>(response: ApiResponse<T>, title: string): PanelError {
+  return response.ok ? { code: "UNKNOWN", title } : { code: response.error.code, title };
+}
+
+function getSafeOperationError(code: string): string {
+  const messages: Record<string, string> = {
+    FORBIDDEN: "Bu RAG işlemi için yetkin yok.",
+    INVALID_REQUEST: "RAG işlemi isteği geçersiz. Alanları kontrol et.",
+    RAG_DISABLED: "RAG bu ortamda kullanıma açık değil.",
+    RAG_LIVE_EVAL_DISABLED: "Canlı değerlendirme bu ortamda kullanıma açık değil.",
+    RAG_REINDEX_CONFIRMATION_REQUIRED: "Tam yeniden dizinleme için güvenlik onayı gerekli."
+  };
+
+  return messages[code] ?? "RAG işlemi güvenli biçimde tamamlanamadı. Tekrar dene.";
+}
+
+function PanelErrorState({ error }: { error: PanelError }) {
+  return <RecoverableError title={error.title} description={`Güvenli hata kodu: ${error.code}`} />;
 }

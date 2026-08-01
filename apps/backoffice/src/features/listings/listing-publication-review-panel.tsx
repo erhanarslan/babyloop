@@ -2,6 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useMemo, useState } from "react";
+import { formatDateTimeTr } from "../../lib/presentation";
 
 import {
   applyAdminListingAction,
@@ -72,8 +73,8 @@ export function ListingPublicationReviewPanel({
     setReason("");
     setSuccessMessage(
       action === "publish"
-        ? "İlan yayınlandı ve karar audit kaydına işlendi."
-        : "Düzeltme isteği kullanıcıya iletildi ve audit kaydına işlendi.",
+        ? "İlan yayınlandı ve karar denetim kaydına işlendi."
+        : "Düzeltme isteği kullanıcıya iletildi ve denetim kaydına işlendi.",
     );
     setIsSubmitting(false);
   }
@@ -194,7 +195,7 @@ function getPublicationStateLabel(state: AdminListingDetail["publicationState"])
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("tr-TR");
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
@@ -202,5 +203,7 @@ function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): s
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Yayın incelemesi yapma yetkin yok."
+    : fallback;
 }

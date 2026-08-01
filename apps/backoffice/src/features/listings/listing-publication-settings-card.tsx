@@ -184,5 +184,7 @@ function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): s
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Yayın politikasını değiştirme yetkin yok."
+    : fallback;
 }

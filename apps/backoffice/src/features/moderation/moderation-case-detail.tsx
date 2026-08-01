@@ -16,6 +16,7 @@ import { EnforcementActionPanel } from "./enforcement-action-panel";
 import { ModerationActionForm } from "./moderation-action-form";
 import { ModerationStatusForm } from "./moderation-status-form";
 import { SensitiveAccessPanel } from "./sensitive-access-panel";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type ModerationCaseDetailProps = {
   caseId: string;
@@ -53,7 +54,7 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
 
       if (!response.ok) {
         setModerationCase(null);
-        setErrorMessage(getApiErrorMessage(response, "Could not load case."));
+        setErrorMessage(getApiErrorMessage(response, "Moderasyon vakası yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -70,7 +71,7 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
   }, [caseId]);
 
   if (isLoading) {
-    return <div className="state-panel">Loading moderation case...</div>;
+    return <div className="state-panel">Moderasyon vakası yükleniyor…</div>;
   }
 
   if (errorMessage) {
@@ -84,7 +85,7 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
   if (!moderationCase) {
     return (
       <div className="state-panel">
-        <strong>Case not found</strong>
+        <strong>Vaka bulunamadı</strong>
       </div>
     );
   }
@@ -97,14 +98,14 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
     <div className="detail-layout">
       <section className="content-card">
         <Link className="secondary-action" href="/moderation">
-          Back to cases
+          Vakalara dön
         </Link>
 
         <div className="page-toolbar">
           <div>
-            <p className="eyebrow">Moderation case</p>
-            <h2>Case {shortId(moderationCase.id)}</h2>
-            <p>{moderationCase.reason}</p>
+            <p className="eyebrow">Moderasyon vakası</p>
+            <h2>Vaka {shortId(moderationCase.id)}</h2>
+            <p>{formatEnumLabel(moderationCase.reason)}</p>
           </div>
 
           <span className={`status-badge ${moderationCase.status}`}>
@@ -114,34 +115,34 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
 
         <dl className="details-grid">
           <div>
-            <dt>Case ID</dt>
+            <dt>Vaka kimliği</dt>
             <dd>{moderationCase.id}</dd>
           </div>
           <div>
-            <dt>Status</dt>
+            <dt>Durum</dt>
             <dd>{getStatusLabel(moderationCase.status)}</dd>
           </div>
           <div>
-            <dt>Subject type</dt>
-            <dd>{moderationCase.subjectType}</dd>
+            <dt>Hedef türü</dt>
+            <dd>{formatEnumLabel(moderationCase.subjectType)}</dd>
           </div>
           <div>
-            <dt>Subject ID</dt>
+            <dt>Hedef kimliği</dt>
             <dd>{moderationCase.subjectId}</dd>
           </div>
           <div>
-            <dt>Created</dt>
+            <dt>Oluşturulma</dt>
             <dd>{formatDateTime(moderationCase.createdAt)}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
+            <dt>Güncellenme</dt>
             <dd>{formatDateTime(moderationCase.updatedAt)}</dd>
           </div>
         </dl>
 
         <section className="note-panel">
-          <h3>Details</h3>
-          <p>{moderationCase.details || "No details were provided."}</p>
+          <h3>Ayrıntılar</h3>
+          <p>{moderationCase.details || "Ayrıntı belirtilmedi."}</p>
         </section>
       </section>
 
@@ -171,16 +172,16 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
       <section className="content-card full-span">
         <div className="page-toolbar">
           <div>
-            <p className="eyebrow">Audit timeline</p>
-            <h2>Case timeline</h2>
+            <p className="eyebrow">Denetim zaman çizelgesi</p>
+            <h2>Vaka zaman çizelgesi</h2>
             <p>
-              Redacted moderation history, actions, and sensitive-access audit
-              events for this case.
+              Bu vakanın hassas alanları çıkarılmış moderasyon geçmişi, işlemleri
+              ve hassas erişim denetim olayları gösterilir.
             </p>
           </div>
         </div>
 
-        <div className="filter-row" aria-label="Timeline filters">
+        <div className="filter-row" aria-label="Zaman çizelgesi filtreleri">
           {timelineFilters.map((filter) => (
             <button
               className={timelineFilter === filter ? "filter-pill active" : "filter-pill"}
@@ -195,24 +196,24 @@ export function ModerationCaseDetail({ caseId }: ModerationCaseDetailProps) {
 
         {visibleTimeline.length === 0 ? (
           <div className="state-panel">
-            No timeline events match this filter.
+            Bu filtreyle eşleşen zaman çizelgesi olayı yok.
           </div>
         ) : (
           <div className="timeline">
             {visibleTimeline.map((item) => (
               <article className={`timeline-item ${item.type}`} key={item.id}>
                 <div>
-                  <strong>{item.label}</strong>
+                  <strong>{formatTimelineLabel(item.label)}</strong>
                   {item.note ? <p>{item.note}</p> : null}
                 </div>
 
                 <dl className="compact-details">
                   <div>
-                    <dt>Actor</dt>
+                    <dt>İşlemi yapan</dt>
                     <dd>{getTimelineActorLabel(item)}</dd>
                   </div>
                   <div>
-                    <dt>Created</dt>
+                    <dt>Oluşturulma</dt>
                     <dd>{formatDateTime(item.createdAt)}</dd>
                   </div>
                 </dl>
@@ -260,28 +261,45 @@ function timelineItemMatchesFilter(
 function getTimelineFilterLabel(filter: TimelineFilter): string {
   switch (filter) {
     case "all":
-      return "All";
+      return "Tümü";
     case "actions":
-      return "Actions";
+      return "İşlemler";
     case "notes":
-      return "Notes";
+      return "Notlar";
     case "sensitive":
-      return "Sensitive access";
+      return "Hassas erişim";
     case "status":
-      return "Status";
+      return "Durum";
   }
+}
+
+function formatTimelineLabel(label: string): string {
+  const labels: Record<string, string> = {
+    "Case created": "Vaka oluşturuldu",
+    "Report received": "Şikâyet alındı"
+  };
+  return labels[label] ?? label;
 }
 
 function getTimelineActorLabel(item: AdminModerationTimelineItem): string {
   if (!item.actor) {
-    return "System";
+    return "Sistem";
   }
 
   return item.actor.displayName ?? item.actor.id;
 }
 
 function formatMetadataKey(key: string): string {
-  return key
+  const labels: Record<string, string> = {
+    action: "İşlem",
+    nextStatus: "Sonraki durum",
+    previousStatus: "Önceki durum",
+    reason: "Neden",
+    reportId: "Şikâyet kimliği",
+    targetId: "Hedef kimliği",
+    targetType: "Hedef türü"
+  };
+  return labels[key] ?? key
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -290,27 +308,18 @@ function formatMetadataValue(
   value: string | number | boolean | string[] | null,
 ): string {
   if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(", ") : "none";
+    return value.length > 0 ? value.join(", ") : "Yok";
   }
 
   if (value === null) {
-    return "none";
+    return "Yok";
   }
 
-  return String(value);
+  return typeof value === "string" ? formatEnumLabel(value) : String(value);
 }
 
 function getStatusLabel(status: AdminModerationCaseStatus): string {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "in_review":
-      return "In review";
-    case "resolved":
-      return "Resolved";
-    case "dismissed":
-      return "Dismissed";
-  }
+  return formatEnumLabel(status);
 }
 
 function shortId(id: string): string {
@@ -318,7 +327,7 @@ function shortId(id: string): string {
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
@@ -329,5 +338,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Bu moderasyon vakasını görüntüleme yetkin yok."
+    : fallback;
 }

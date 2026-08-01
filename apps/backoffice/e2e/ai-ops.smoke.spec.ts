@@ -94,7 +94,7 @@ test.describe("backoffice AI operations", () => {
     });
     await expect(page.getByLabel("AI operasyon özeti")).toBeVisible();
     await expect(page.getByText("Çalıştırma 24s", { exact: true })).toBeVisible();
-    await expect(page.getByText("Provider / model kırılımı", { exact: true })).toBeVisible();
+    await expect(page.getByText("Sağlayıcı ve model kırılımı", { exact: true })).toBeVisible();
 
     const recentRuns = page.locator("section.profile-detail-card.wide");
 

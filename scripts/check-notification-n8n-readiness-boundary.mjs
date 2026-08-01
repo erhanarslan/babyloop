@@ -122,21 +122,21 @@ function checkOpsPreviewAndUi() {
   }
 
   for (const token of [
-    "n8n workflow readiness",
+    "n8n iş akışı hazırlığı",
     "n8nReadinessPreview",
     "n8nWorkflowEnabled",
     "Webhook kapalı",
-    "Queue/worker kapalı",
-    "Gerçek n8n workflow tetiklemesi yok"
+    "Kuyruk ve işleyici kapalı",
+    "Gerçek n8n iş akışı tetiklemesi yok"
   ]) {
     mustContain(page, pageFile, token);
   }
 
   for (const token of [
-    "n8n workflow readiness",
+    "n8n iş akışı hazırlığı",
     "Webhook kapalı",
-    "Queue/worker kapalı",
-    "Gerçek n8n workflow tetiklemesi yok"
+    "Kuyruk ve işleyici kapalı",
+    "Gerçek n8n iş akışı tetiklemesi yok"
   ]) {
     mustContain(pageTest, pageTestFile, token);
   }

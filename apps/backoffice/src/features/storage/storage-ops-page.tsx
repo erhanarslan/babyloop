@@ -47,19 +47,15 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
         const payload = (await response.json()) as ApiResponse<AdminStorageOpsPreview>;
 
         if (!response.ok || payload.ok === false || !payload.data) {
-          throw new Error(payload.error?.message ?? `Storage ops preview failed: ${response.status}`);
+          throw new Error("Depolama operasyon durumu alınamadı.");
         }
 
         if (mounted) {
           setData(payload.data);
         }
-      } catch (caughtError) {
+      } catch {
         if (mounted) {
-          setError(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Storage operasyon durumu yüklenemedi. Yetkiyi, API erişimini ve storage ops endpoint’ini kontrol et."
-          );
+          setError("Depolama operasyon durumu yüklenemedi. Yetkiyi ve API erişimini kontrol et.");
           setData(null);
         }
       } finally {
@@ -80,83 +76,83 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
     <div className="dashboard-page">
       <section className="page-hero">
         <div>
-          <p className="eyebrow">Storage Operasyonları</p>
-          <h2>Storage Ops Preview</h2>
+          <p className="eyebrow">Depolama Operasyonları</p>
+          <h2>Depolama durum görünümü</h2>
           <p>
-            External storage provider disabled. S3/R2, signed upload, bucket delete ve dış storage
-            readiness durumunu secret, signed URL, object key veya raw upload gövdesi göstermeden izle.
+            S3/R2 ve imzalı yükleme hazırlığını gizli değer, imzalı URL, nesne anahtarı
+            veya ham yükleme gövdesi göstermeden izle.
           </p>
         </div>
       </section>
 
-      {isLoading ? <div className="state-panel">Storage operasyon durumu yükleniyor...</div> : null}
+      {isLoading ? <div className="state-panel">Depolama operasyon durumu yükleniyor…</div> : null}
       {error ? <div className="state-panel danger" role="alert">{error}</div> : null}
 
       {data ? (
         <>
-          <section className="summary-grid dashboard-summary-grid" aria-label="Storage operasyon özeti">
+          <section className="summary-grid dashboard-summary-grid" aria-label="Depolama operasyon özeti">
             <SummaryCard
-              label="Image storage"
+              label="Görsel depolama"
               value={formatDriver(data.imageStorage.driver)}
-              description={data.imageStorage.localFallback ? "Local fallback aktif." : "Dış object storage driver’ı seçili."}
+              description={data.imageStorage.localFallback ? "Yerel yedek sürücü aktif." : "Dış nesne depolama sürücüsü seçili."}
             />
             <SummaryCard
-              label="S3/R2 readiness"
+              label="S3/R2 hazırlığı"
               value={data.imageStorage.s3Configured ? "Hazır" : "Eksik"}
-              description={data.imageStorage.s3Configured ? "S3 uyumlu provider için gerekli alanlar tamam." : "Dış bucket/provider alanları eksik veya kapalı."}
+              description={data.imageStorage.s3Configured ? "S3 uyumlu sağlayıcı için gerekli alanlar tamam." : "Dış kova veya sağlayıcı alanları eksik ya da kapalı."}
             />
             <SummaryCard
-              label="Upload route"
+              label="Yükleme rotası"
               value={data.uploadRoute.localRouteEnabled ? "Açık" : "Kapalı"}
-              description={data.uploadRoute.localRouteEnabled ? "API upload route’u local driver için aktif." : "Local upload route’u kapalı."}
+              description={data.uploadRoute.localRouteEnabled ? "API yükleme rotası yerel sürücü için aktif." : "Yerel yükleme rotası kapalı."}
             />
             <SummaryCard
-              label="Public URL"
+              label="Herkese açık URL"
               value={data.imageStorage.publicBaseUrl ? "Tanımlı" : "Yok"}
-              description={data.imageStorage.publicBaseUrl ? "Base URL secret içermeyen değer olarak tanımlı." : "Local fallback veya eksik external config."}
+              description={data.imageStorage.publicBaseUrl ? "Temel URL gizli değer içermeden tanımlı." : "Yerel yedek etkin veya dış yapılandırma eksik."}
             />
           </section>
 
-          <section className="module-grid" aria-label="Storage operasyon detayları">
+          <section className="module-grid" aria-label="Depolama operasyon ayrıntıları">
             <article className="module-card">
               <div>
-                <p className="eyebrow">Image storage</p>
-                <h3>Aktif medya driver’ı</h3>
+                <p className="eyebrow">Görsel depolama</p>
+                <h3>Aktif medya sürücüsü</h3>
                 <p>{data.warning}</p>
               </div>
               <dl className="detail-list">
-                <DetailItem label="Driver" value={formatDriver(data.imageStorage.driver)} />
-                <DetailItem label="Local fallback" value={data.imageStorage.localFallback ? "Açık" : "Kapalı"} />
-                <DetailItem label="S3 configured" value={data.imageStorage.s3Configured ? "Tamam" : "Eksik"} />
-                <DetailItem label="Public base URL" value={data.imageStorage.publicBaseUrl ? safeHost(data.imageStorage.publicBaseUrl) : "Tanımlı değil"} />
+                <DetailItem label="Sürücü" value={formatDriver(data.imageStorage.driver)} />
+                <DetailItem label="Yerel yedek" value={data.imageStorage.localFallback ? "Açık" : "Kapalı"} />
+                <DetailItem label="S3 yapılandırması" value={data.imageStorage.s3Configured ? "Tamam" : "Eksik"} />
+                <DetailItem label="Herkese açık temel URL" value={data.imageStorage.publicBaseUrl ? safeHost(data.imageStorage.publicBaseUrl) : "Tanımlı değil"} />
               </dl>
             </article>
 
             <article className="module-card">
               <div>
-                <p className="eyebrow">Upload route</p>
-                <h3>Listing image upload</h3>
+                <p className="eyebrow">Yükleme rotası</p>
+                <h3>İlan görseli yükleme</h3>
                 <p>{data.uploadRoute.note}</p>
               </div>
               <dl className="detail-list">
-                <DetailItem label="Route" value={data.uploadRoute.routePrefix} />
+                <DetailItem label="Rota" value={data.uploadRoute.routePrefix} />
                 <DetailItem label="Durum" value={data.uploadRoute.localRouteEnabled ? "Aktif" : "Kapalı"} />
-                <DetailItem label="Signed URL" value="Bu endpoint’te gösterilmez" />
-                <DetailItem label="Object key" value="Bu endpoint’te gösterilmez" />
+                <DetailItem label="İmzalı URL" value="Bu uç noktada gösterilmez" />
+                <DetailItem label="Nesne anahtarı" value="Bu uç noktada gösterilmez" />
               </dl>
             </article>
 
             <article className="module-card">
               <div>
                 <p className="eyebrow">Güvenlik sınırı</p>
-                <h3>Privacy and blocked operations</h3>
+                <h3>Gizlilik ve engellenen işlemler</h3>
                 <p>
-                  Bu ekran bucket credential, access key, signed URL, object key, cookie, token, raw upload body
-                  veya kullanıcıya ait görsel içeriği render etmez.
+                  Bu ekran kova kimlik bilgisi, erişim anahtarı, imzalı URL, nesne anahtarı,
+                  çerez, token, ham yükleme gövdesi veya kullanıcı görselini göstermez.
                 </p>
               </div>
               <div className="metadata-chip-row">
-                {["secret yok", "signed URL yok", "object key yok", "raw upload yok", "token yok"].map((item) => (
+                {["gizli değer yok", "imzalı URL yok", "nesne anahtarı yok", "ham yükleme yok", "token yok"].map((item) => (
                   <span className="metadata-chip" key={item}>{item}</span>
                 ))}
               </div>
@@ -165,16 +161,16 @@ export function StorageOpsPage({ apiBaseUrl }: { apiBaseUrl: string }) {
             <article className="module-card">
               <div>
                 <p className="eyebrow">Operasyon</p>
-                <h3>Required before external storage</h3>
+                <h3>Dış depolama öncesi gerekenler</h3>
                 <p>
-                  Bu sayfa yalnızca görünürlük sağlar. Bucket delete, object copy, CDN purge, full Redis flush veya
-                  production migration aksiyonu başlatmaz.
+                  Bu sayfa yalnız görünürlük sağlar. Kova silme, nesne kopyalama, CDN
+                  temizleme, tam Redis temizliği veya production veri geçişi işlemi başlatmaz.
                 </p>
               </div>
               <div className="info-panel">
-                <strong>Dış storage geçişi</strong>
+                <strong>Dış depolamaya geçiş</strong>
                 <p>
-                  Provider config hazır olmadan dış storage’a geçiş yapılmaz. Gerekli kapılar:
+                  Sağlayıcı yapılandırması hazır olmadan dış depolamaya geçiş yapılmaz. Gerekli kapılar:
                   provider_selection, private_bucket_policy, signed_upload_contract,
                   object_lifecycle_cleanup, migration_replay_plan ve queue_worker.
                 </p>
@@ -215,7 +211,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 function formatDriver(driver: ImageStorageDriver): string {
-  return driver === "s3" ? "S3/R2 uyumlu" : "Local";
+  return driver === "s3" ? "S3/R2 uyumlu" : "Yerel";
 }
 
 function safeHost(url: string): string {

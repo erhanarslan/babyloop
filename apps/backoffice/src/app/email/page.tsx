@@ -2,7 +2,7 @@ import { BackofficeAuthShell } from "../../features/auth/backoffice-auth-shell";
 import { EmailOpsPage } from "../../features/email/email-ops-page";
 
 export const metadata = {
-  title: "Email Ops | BabyLoop Backoffice"
+  title: "E-posta Operasyonları | BabyLoop Backoffice"
 };
 
 export default function EmailPage() {

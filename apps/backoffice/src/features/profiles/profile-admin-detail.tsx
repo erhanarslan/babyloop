@@ -13,6 +13,7 @@ import {
   getAdminProfile,
 } from "./api";
 import { useBackofficeAccess } from "../auth/backoffice-access";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 export function ProfileAdminDetail({ profileId }: { profileId: string }) {
   const access = useBackofficeAccess();
@@ -35,7 +36,7 @@ export function ProfileAdminDetail({ profileId }: { profileId: string }) {
 
       if (!response.ok) {
         setProfile(null);
-        setErrorMessage(getApiErrorMessage(response, "Could not load profile."));
+        setErrorMessage(getApiErrorMessage(response, "Profil yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -55,19 +56,19 @@ export function ProfileAdminDetail({ profileId }: { profileId: string }) {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Trust & Safety</p>
-          <h2>Profile detail</h2>
+          <p className="eyebrow">Güven ve Emniyet</p>
+          <h2>Profil ayrıntısı</h2>
           <p>
-            Privacy-safe profile operations view. Email, phone, raw user records,
-            raw report details, and message bodies are not shown here.
+            Gizliliği koruyan profil operasyon görünümü. E-posta, telefon, ham kullanıcı
+            kayıtları, ham şikâyet ayrıntıları ve ileti gövdeleri burada gösterilmez.
           </p>
         </div>
         <Link className="secondary-action" href="/profiles">
-          Back to profiles
+          Profillere dön
         </Link>
       </div>
 
-      {isLoading ? <div className="state-panel">Loading profile...</div> : null}
+      {isLoading ? <div className="state-panel">Profil yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -108,26 +109,26 @@ function ProfileDetailContent({
         <div className="profile-admin-card-header">
           <div>
             <strong>{profile.displayName}</strong>
-            <p>{profile.locationCity ?? "Location not provided"}</p>
+            <p>{profile.locationCity ?? "Konum belirtilmedi"}</p>
           </div>
-          <span className={`risk-pill ${riskLevel}`}>{formatStatus(riskLevel)}</span>
+          <span className={`risk-pill ${riskLevel}`}>{formatEnumLabel(riskLevel)}</span>
         </div>
 
         <dl className="compact-details">
           <div>
-            <dt>Profile ID</dt>
+            <dt>Profil kimliği</dt>
             <dd>{profile.profileId}</dd>
           </div>
           <div>
-            <dt>Safety status</dt>
-            <dd>{formatStatus(profile.safetyStatus)}</dd>
+            <dt>Güvenlik durumu</dt>
+            <dd>{formatEnumLabel(profile.safetyStatus)}</dd>
           </div>
           <div>
-            <dt>Created</dt>
+            <dt>Oluşturulma</dt>
             <dd>{formatDateTime(profile.createdAt)}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
+            <dt>Güncellenme</dt>
             <dd>{formatDateTime(profile.updatedAt)}</dd>
           </div>
         </dl>
@@ -141,86 +142,86 @@ function ProfileDetailContent({
       ) : null}
 
       <section className="profile-detail-card">
-        <h3>Trust snapshot</h3>
+        <h3>Güven görünümü</h3>
         {snapshot ? (
           <>
             <dl className="compact-details">
               <div>
-                <dt>Trust score</dt>
+                <dt>Güven puanı</dt>
                 <dd>{snapshot.trustScore}</dd>
               </div>
               <div>
-                <dt>Risk score</dt>
+                <dt>Risk puanı</dt>
                 <dd>{snapshot.riskScore}</dd>
               </div>
               <div>
-                <dt>Risk level</dt>
-                <dd>{formatStatus(snapshot.riskLevel)}</dd>
+                <dt>Risk düzeyi</dt>
+                <dd>{formatEnumLabel(snapshot.riskLevel)}</dd>
               </div>
               <div>
-                <dt>Open cases</dt>
+                <dt>Açık vakalar</dt>
                 <dd>{snapshot.openCaseCount}</dd>
               </div>
               <div>
-                <dt>Recent reports</dt>
+                <dt>Yakın tarihli şikâyetler</dt>
                 <dd>{snapshot.recentReportCount}</dd>
               </div>
               <div>
-                <dt>Recent enforcement</dt>
+                <dt>Yakın tarihli yaptırımlar</dt>
                 <dd>{snapshot.recentEnforcementCount}</dd>
               </div>
               <div>
-                <dt>Sensitive access</dt>
+                <dt>Hassas erişim</dt>
                 <dd>{snapshot.sensitiveAccessCount}</dd>
               </div>
               <div>
-                <dt>AI summaries</dt>
+                <dt>AI özetleri</dt>
                 <dd>{snapshot.aiSummaryCount}</dd>
               </div>
             </dl>
-            <p className="muted">Computed {formatDateTime(snapshot.computedAt)}</p>
+            <p className="muted">Hesaplanma: {formatDateTime(snapshot.computedAt)}</p>
           </>
         ) : (
-          <p className="muted">No trust snapshot has been computed for this profile yet.</p>
+          <p className="muted">Bu profil için henüz güven görünümü hesaplanmadı.</p>
         )}
       </section>
 
       <section className="profile-detail-card">
-        <h3>Operational stats</h3>
+        <h3>Operasyon istatistikleri</h3>
         <dl className="compact-details">
           <div>
-            <dt>Total listings</dt>
+            <dt>Toplam ilan</dt>
             <dd>{profile.stats.totalListings}</dd>
           </div>
           <div>
-            <dt>Active listings</dt>
+            <dt>Aktif ilan</dt>
             <dd>{profile.stats.activeListings}</dd>
           </div>
           <div>
-            <dt>Archived listings</dt>
+            <dt>Arşivlenen ilan</dt>
             <dd>{profile.stats.archivedListings}</dd>
           </div>
           <div>
-            <dt>Sold listings</dt>
+            <dt>Satılan ilan</dt>
             <dd>{profile.stats.soldListings}</dd>
           </div>
           <div>
-            <dt>Related cases</dt>
+            <dt>İlişkili vakalar</dt>
             <dd>{profile.stats.totalCases}</dd>
           </div>
           <div>
-            <dt>Open cases</dt>
+            <dt>Açık vakalar</dt>
             <dd>{profile.stats.openCases}</dd>
           </div>
           <div>
-            <dt>Enforcement actions</dt>
+            <dt>Yaptırım işlemleri</dt>
             <dd>{profile.stats.enforcementActions}</dd>
           </div>
         </dl>
       </section>
 
       <section className="profile-detail-card wide">
-        <h3>Recent listings</h3>
+        <h3>Son ilanlar</h3>
         {profile.listings.length > 0 ? (
           <div className="table-list">
             {profile.listings.map((listing) => (
@@ -228,55 +229,55 @@ function ProfileDetailContent({
                 <div>
                   <Link href={`/listings/${listing.listingId}`}>{listing.title}</Link>
                   <p className="muted">
-                    {listing.category.name} · {formatStatus(listing.status)} · {formatStatus(listing.condition)}
+                    {listing.category.name} · {formatEnumLabel(listing.status)} · {formatEnumLabel(listing.condition)}
                   </p>
                 </div>
-                <span>{listing.price ? `${listing.price.amount} ${listing.price.currency}` : "No price"}</span>
+                <span>{listing.price ? `${listing.price.amount} ${listing.price.currency}` : "Fiyat belirtilmedi"}</span>
               </article>
             ))}
           </div>
         ) : (
-          <p className="muted">No listings found for this profile.</p>
+          <p className="muted">Bu profile ait ilan bulunamadı.</p>
         )}
       </section>
 
       <section className="profile-detail-card wide">
-        <h3>Related moderation cases</h3>
+        <h3>İlişkili moderasyon vakaları</h3>
         {profile.relatedModerationCases.length > 0 ? (
           <div className="table-list">
             {profile.relatedModerationCases.map((item) => (
               <article className="table-list-row" key={item.caseId}>
                 <div>
-                  <Link href={`/moderation/${item.caseId}`}>Case {item.caseId.slice(0, 8)}</Link>
+                  <Link href={`/moderation/${item.caseId}`}>Vaka {item.caseId.slice(0, 8)}</Link>
                   <p className="muted">
-                    {formatStatus(item.targetType)} · {formatStatus(item.status)} · {formatStatus(item.priority)}
+                    {formatEnumLabel(item.targetType)} · {formatEnumLabel(item.status)} · {formatEnumLabel(item.priority)}
                   </p>
                 </div>
-                <span>{item.reason ? formatStatus(item.reason) : "No report reason"}</span>
+                <span>{item.reason ? formatEnumLabel(item.reason) : "Şikâyet nedeni belirtilmedi"}</span>
               </article>
             ))}
           </div>
         ) : (
-          <p className="muted">No related moderation cases found.</p>
+          <p className="muted">İlişkili moderasyon vakası bulunamadı.</p>
         )}
       </section>
 
       <section className="profile-detail-card wide">
-        <h3>Enforcement history</h3>
+        <h3>Yaptırım geçmişi</h3>
         {profile.enforcementHistory.length > 0 ? (
           <div className="table-list">
             {profile.enforcementHistory.map((item) => (
               <article className="table-list-row" key={item.actionId}>
                 <div>
-                  <strong>{formatStatus(item.actionType)}</strong>
+                  <strong>{formatEnumLabel(item.actionType)}</strong>
                   <p className="muted">{formatDateTime(item.createdAt)}</p>
                 </div>
-                {item.caseId ? <Link href={`/moderation/${item.caseId}`}>Open case</Link> : <span>No case</span>}
+                {item.caseId ? <Link href={`/moderation/${item.caseId}`}>Vakayı aç</Link> : <span>İlişkili vaka yok</span>}
               </article>
             ))}
           </div>
         ) : (
-          <p className="muted">No enforcement actions found for related cases.</p>
+          <p className="muted">İlişkili vakalarda yaptırım işlemi bulunamadı.</p>
         )}
       </section>
     </div>
@@ -290,20 +291,20 @@ function ViewerProfileDetailContent({ profile }: { profile: ViewerProfile }) {
         <div className="profile-admin-card-header">
           <div>
             <strong>{profile.displayName}</strong>
-            <p>{profile.locationCity ?? "Location not provided"}</p>
+            <p>{profile.locationCity ?? "Konum belirtilmedi"}</p>
           </div>
         </div>
         <dl className="compact-details">
           <div>
-            <dt>Profile ID</dt>
+            <dt>Profil kimliği</dt>
             <dd>{profile.profileId}</dd>
           </div>
           <div>
-            <dt>Listings</dt>
+            <dt>İlanlar</dt>
             <dd>{profile.listingCount}</dd>
           </div>
           <div>
-            <dt>Created</dt>
+            <dt>Oluşturulma</dt>
             <dd>{formatDateTime(profile.createdAt)}</dd>
           </div>
         </dl>
@@ -321,23 +322,23 @@ type ProfileEnforcementOption = {
 const profileEnforcementOptions: ProfileEnforcementOption[] = [
   {
     action: "profile_warn",
-    label: "Warn profile",
-    description: "Record a warning without changing the profile safety status."
+    label: "Profili uyar",
+    description: "Profil güvenlik durumunu değiştirmeden bir uyarı kaydet."
   },
   {
     action: "profile_restrict",
-    label: "Restrict profile",
-    description: "Prevent listing creation and messaging while keeping profile records visible to admins."
+    label: "Profili kısıtla",
+    description: "Profil kayıtları yöneticilere görünürken ilan oluşturmayı ve mesajlaşmayı engelle."
   },
   {
     action: "profile_suspend",
-    label: "Suspend profile",
-    description: "Block marketplace activity and hide the seller's public listings."
+    label: "Profili askıya al",
+    description: "Pazar yeri hareketlerini engelle ve satıcının herkese açık ilanlarını gizle."
   },
   {
     action: "profile_restore",
-    label: "Restore profile",
-    description: "Return the profile to active marketplace status."
+    label: "Profili geri yükle",
+    description: "Profili aktif pazar yeri durumuna döndür."
   }
 ];
 
@@ -362,7 +363,7 @@ function ProfileEnforcementControls({
     const trimmedReason = reason.trim();
 
     if (trimmedReason.length < 10) {
-      setErrorMessage("Enter a reason with at least 10 characters.");
+      setErrorMessage("En az 10 karakterlik bir yaptırım nedeni gir.");
       return;
     }
 
@@ -378,30 +379,30 @@ function ProfileEnforcementControls({
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not apply profile enforcement."));
+      setErrorMessage(getApiErrorMessage(response, "Profil yaptırımı uygulanamadı."));
       return;
     }
 
     onProfileUpdated(response.data.profile);
     setReason("");
     setFeedback(
-      `Profile enforcement applied. Audit event id: ${response.data.enforcement.auditEventId}`
+      `Profil yaptırımı uygulandı. Denetim olayı: ${response.data.enforcement.auditEventId}`
     );
   }
 
   return (
     <form className="profile-detail-card enforcement-card" onSubmit={handleSubmit}>
       <div>
-        <h3>Profile enforcement</h3>
+        <h3>Profil yaptırımı</h3>
         <p className="muted">
-          Apply profile-level Trust & Safety actions directly from this detail page.
-          A reason is required. The action is audited and does not expose raw reports,
-          reporter identity, message bodies, email, or phone data.
+          Profil düzeyindeki güven ve emniyet işlemlerini bu ayrıntı sayfasından uygula.
+          Neden zorunludur. İşlem denetlenir ve ham şikâyetleri, şikâyetçi kimliğini,
+          ileti gövdelerini, e-posta veya telefon verisini açığa çıkarmaz.
         </p>
       </div>
 
       <fieldset className="checkbox-group">
-        <legend>Action</legend>
+        <legend>İşlem</legend>
         {profileEnforcementOptions.map((option) => (
           <label className="checkbox-option" key={option.action}>
             <input
@@ -421,19 +422,19 @@ function ProfileEnforcementControls({
       </fieldset>
 
       <label className="form-field">
-        <span>Enforcement reason</span>
+        <span>Yaptırım nedeni</span>
         <textarea
           disabled={isSubmitting}
           onChange={(event) => setReason(event.target.value)}
-          placeholder="Explain why this profile-level action is necessary. Avoid unnecessary personal data."
+          placeholder="Bu profil işleminin neden gerekli olduğunu, gereksiz kişisel veri kullanmadan açıkla."
           rows={4}
           value={reason}
         />
       </label>
 
       <div className="state-panel warning">
-        Current profile safety status: {formatStatus(profile.safetyStatus)}.
-        Repeating the same state transition is rejected by the API.
+        Mevcut profil güvenlik durumu: {formatEnumLabel(profile.safetyStatus)}.
+        Aynı durum geçişinin tekrarı API tarafından reddedilir.
       </div>
 
       {feedback ? <p className="form-success">{feedback}</p> : null}
@@ -448,23 +449,21 @@ function ProfileEnforcementControls({
         disabled={isSubmitting || reason.trim().length < 10}
         type="submit"
       >
-        {isSubmitting ? "Applying..." : "Apply profile enforcement"}
+        {isSubmitting ? "Uygulanıyor…" : "Profil yaptırımını uygula"}
       </button>
     </form>
   );
 }
 
-function formatStatus(value: string): string {
-  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
-}
-
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
   response: ApiResponse<unknown>,
   fallback: string,
 ): string {
-  return response.ok ? fallback : response.error.message;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "Bu profil işlemi için yetkin yok.";
 }

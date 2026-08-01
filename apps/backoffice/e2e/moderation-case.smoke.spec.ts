@@ -151,42 +151,42 @@ test.describe("backoffice moderation case review", () => {
 
     await page.goto("/moderation", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "Moderation cases", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Moderasyon vakaları", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByLabel("Moderation triage summary")).toBeVisible();
-    await expect(page.getByText("unsafe_message", { exact: true })).toBeVisible();
-    await expect(page.getByText(`Message preview: ${TARGET_MESSAGE_ID} preview`, { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Moderasyon öncelik özeti")).toBeVisible();
+    await expect(page.getByText("Güvensiz mesaj", { exact: true })).toBeVisible();
+    await expect(page.getByText(`Mesaj önizlemesi: ${TARGET_MESSAGE_ID} preview`, { exact: true })).toBeVisible();
 
     await expect(page.getByText(RAW_MESSAGE_BODY, { exact: true })).toHaveCount(0);
     await expect(page.getByText(REPORTER_EMAIL, { exact: true })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Open case", exact: true }).click();
+    await page.getByRole("link", { name: "Vakayı aç", exact: true }).click();
 
     await expect(page).toHaveURL(new RegExp(`/moderation/${CASE_ID}$`), {
       timeout: 15_000,
     });
-    await expect(page.getByRole("heading", { name: "Case mod-case", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Vaka mod-case", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Moderation case", { exact: true })).toBeVisible();
-    await expect(page.getByText("Subject type")).toBeVisible();
-    await expect(page.getByText("message", { exact: true })).toBeVisible();
-    await expect(page.getByText(`Message preview: ${TARGET_MESSAGE_ID} preview`, { exact: true })).toBeVisible();
+    await expect(page.getByText("Moderasyon vakası", { exact: true })).toBeVisible();
+    await expect(page.getByRole("term").filter({ hasText: "Hedef türü" })).toBeVisible();
+    await expect(page.getByText("Mesaj", { exact: true })).toBeVisible();
+    await expect(page.getByText(`Mesaj önizlemesi: ${TARGET_MESSAGE_ID} preview`, { exact: true })).toBeVisible();
 
-    await expect(page.getByRole("heading", { name: "Case timeline", exact: true })).toBeVisible();
-    await expect(page.getByText("Case created", { exact: true })).toBeVisible();
-    await expect(page.getByText("Report received", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Vaka zaman çizelgesi", exact: true })).toBeVisible();
+    await expect(page.getByText("Vaka oluşturuldu", { exact: true })).toBeVisible();
+    await expect(page.getByText("Şikâyet alındı", { exact: true })).toBeVisible();
 
     await expect(page.getByText(RAW_MESSAGE_BODY, { exact: true })).toHaveCount(0);
     await expect(page.getByText(REPORTER_EMAIL, { exact: true })).toHaveCount(0);
-    await expect(page.getByText("No AI summaries have been generated yet.", { exact: true })).toBeVisible({
+    await expect(page.getByText("Henüz AI özeti oluşturulmadı.", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
 
-    await page.getByLabel("Action type").selectOption("review_started");
+    await page.getByLabel("İşlem türü").selectOption("review_started");
     await page
-      .getByLabel("Admin note")
+      .getByLabel("Yönetici notu")
       .fill("Starting review from moderation E2E smoke flow.");
 
     const actionResponsePromise = page.waitForResponse((response) => {
@@ -196,7 +196,7 @@ test.describe("backoffice moderation case review", () => {
       );
     });
 
-    await page.getByRole("button", { name: "Add action", exact: true }).click();
+    await page.getByRole("button", { name: "İşlem ekle", exact: true }).click();
 
     const actionResponse = await actionResponsePromise;
     expect(actionResponse.ok(), await actionResponse.text()).toBe(true);
@@ -207,16 +207,16 @@ test.describe("backoffice moderation case review", () => {
       },
     ]);
 
-    await expect(page.getByText("Action added.", { exact: true })).toBeVisible({
+    await expect(page.getByText("İşlem eklendi.", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(
       page.getByText("Starting review from moderation E2E smoke flow.", { exact: true }),
     ).toBeVisible();
 
-    await page.getByLabel("Mark message reviewed").check();
+    await page.getByLabel("Mesajı incelendi olarak işaretle").check();
     await page
-      .getByLabel("Enforcement reason")
+      .getByLabel("Yaptırım nedeni")
       .fill("Message content has been reviewed by trust and safety.");
 
     const enforcementResponsePromise = page.waitForResponse((response) => {
@@ -226,7 +226,7 @@ test.describe("backoffice moderation case review", () => {
       );
     });
 
-    await page.getByRole("button", { name: "Apply enforcement action", exact: true }).click();
+    await page.getByRole("button", { name: "Yaptırım işlemini uygula", exact: true }).click();
 
     const enforcementResponse = await enforcementResponsePromise;
     expect(enforcementResponse.ok(), await enforcementResponse.text()).toBe(true);
@@ -238,7 +238,7 @@ test.describe("backoffice moderation case review", () => {
     ]);
 
     await expect(
-      page.getByText("Enforcement applied. Audit event id: audit-enforcement-e2e-1", {
+      page.getByText("Yaptırım uygulandı. Denetim olayı: audit-enforcement-e2e-1", {
         exact: true,
       }),
     ).toBeVisible({
@@ -248,12 +248,12 @@ test.describe("backoffice moderation case review", () => {
       page.getByText("Message content has been reviewed by trust and safety.", { exact: true }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Request sensitive access", exact: true }).click();
+    await page.getByRole("button", { name: "Hassas erişim iste", exact: true }).click();
     await page
-      .getByLabel("Access reason")
+      .getByLabel("Erişim nedeni")
       .fill("Need raw context to verify the reported message.");
-    await page.getByLabel("Reporter identity").check();
-    await page.getByLabel("Raw message body").check();
+    await page.getByLabel("Şikâyetçi kimliği").check();
+    await page.getByLabel("Ham ileti gövdesi").check();
 
     const sensitiveAccessResponsePromise = page.waitForResponse((response) => {
       return (
@@ -262,7 +262,7 @@ test.describe("backoffice moderation case review", () => {
       );
     });
 
-    await page.getByRole("button", { name: "Submit sensitive access request", exact: true }).click();
+    await page.getByRole("button", { name: "Hassas erişim isteğini gönder", exact: true }).click();
 
     const sensitiveAccessResponse = await sensitiveAccessResponsePromise;
     expect(sensitiveAccessResponse.ok(), await sensitiveAccessResponse.text()).toBe(true);
@@ -273,10 +273,10 @@ test.describe("backoffice moderation case review", () => {
       },
     ]);
 
-    await expect(page.getByRole("heading", { name: "Sensitive data granted", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Hassas erişim verildi", exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Audit event id: audit-sensitive-access-e2e-1", { exact: true })).toBeVisible();
+    await expect(page.getByText("Denetim olayı: audit-sensitive-access-e2e-1", { exact: true })).toBeVisible();
     await expect(page.getByText(REPORTER_EMAIL, { exact: true })).toBeVisible();
     await expect(page.getByText(RAW_MESSAGE_BODY, { exact: true })).toBeVisible();
   });

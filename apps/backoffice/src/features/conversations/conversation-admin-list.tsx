@@ -4,6 +4,7 @@ import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 import {
   type AdminConversationSort,
@@ -88,7 +89,7 @@ export function ConversationAdminList() {
           <p className="eyebrow">Güven ve güvenlik</p>
           <h2>Mesaj incelemeleri</h2>
           <p>
-            Redacted mesaj önizlemeleriyle konuşma güvenlik sinyallerini incele. Ham mesaj gövdesi,
+            Maskeli mesaj önizlemeleriyle konuşma güvenlik sinyallerini incele. Ham mesaj gövdesi,
             raporlayan kimliği, e-posta ve iletişim verileri bu admin görünümünde yer almaz.
           </p>
         </div>
@@ -131,7 +132,7 @@ export function ConversationAdminList() {
           </label>
 
           <label className="form-field">
-            <span>Limit</span>
+            <span>Sayfa boyutu</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -192,7 +193,7 @@ export function ConversationAdminList() {
               </div>
 
               <div className="profile-snapshot-summary">
-                <strong>Son redacted mesaj</strong>
+                <strong>Son maskeli mesaj</strong>
                 <p>{conversation.latestMessage?.bodyPreview ?? "Henüz mesaj yok."}</p>
               </div>
 
@@ -238,7 +239,9 @@ export function ConversationAdminList() {
 }
 
 function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
-  return response.ok ? fallback : response.error.message || fallback;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "Konuşmaları görüntüleme yetkin yok.";
 }
 
 function formatSort(sort: AdminConversationSort): string {
@@ -256,9 +259,9 @@ function formatSort(sort: AdminConversationSort): string {
 }
 
 function formatStatus(status: string): string {
-  return status === "active" ? "Aktif" : status.replaceAll("_", " ");
+  return formatEnumLabel(status);
 }
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : "—";
+  return formatDateTimeTr(value);
 }

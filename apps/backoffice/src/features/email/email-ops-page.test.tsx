@@ -1,9 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { BackofficeAccessProvider } from "../auth/backoffice-access";
 import { EmailOpsPage } from "./email-ops-page";
 
-const apiBaseUrl = "http://api.example.test";
+const { authFetchMock } = vi.hoisted(() => ({ authFetchMock: vi.fn() }));
+vi.mock("../../lib/auth-client", () => ({ authFetch: authFetchMock }));
 
+const apiBaseUrl = "http://api.example.test";
 const previewPayload = {
   ok: true,
   data: {
@@ -13,139 +17,131 @@ const previewPayload = {
       fromConfigured: true,
       providerConfigured: false,
       sandboxOnly: true,
-      missing: ["SMTP_HOST", "SMTP_PORT"],
-      warning: "Email provider sandbox modundadır."
+      missingConfigurationCount: 2,
+      senderDomainVerified: null
     },
-    supportedIntents: [
-      "email_verification",
-      "password_reset",
-      "notification_digest",
-      "security_alert"
-    ],
-    warning: "Email ops preview secret-safe."
+    recipientPolicyConfigured: true,
+    supportedIntents: ["email_verification", "password_reset", "notification_digest", "security_alert"],
+    warning: "Gönderim kapalı; kontrollü test isteği sağlayıcıya iletilmez."
   }
 };
 
 function jsonResponse(payload: unknown, ok = true) {
-  return {
-    ok,
-    json: async () => payload
-  } as Response;
+  return { ok, json: async () => payload } as Response;
+}
+
+function renderPage(role = "admin", accessMode: "preview" | "staff" = "staff") {
+  return render(
+    <BackofficeAccessProvider accessMode={accessMode} role={role}>
+      <EmailOpsPage apiBaseUrl={apiBaseUrl} />
+    </BackofficeAccessProvider>
+  );
 }
 
 describe("EmailOpsPage", () => {
   afterEach(() => {
+    authFetchMock.mockReset();
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
-  it("renders provider preview and missing env fields", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(previewPayload));
-    vi.stubGlobal("fetch", fetchMock);
+  it("renders safe provider readiness without environment key dumps", async () => {
+    authFetchMock.mockResolvedValue(jsonResponse(previewPayload));
+    renderPage();
 
-    render(<EmailOpsPage apiBaseUrl={apiBaseUrl} />);
-
-    expect(screen.getByText("Email operasyon durumu yükleniyor...")).toBeInTheDocument();
-
-    expect(await screen.findByText("Email gönderim sağlığı")).toBeInTheDocument();
+    expect(screen.getByText("E-posta operasyon durumu yükleniyor…")).toBeInTheDocument();
+    expect(await screen.findByText("E-posta gönderim sağlığı")).toBeInTheDocument();
     expect(screen.getAllByText("SMTP")).toHaveLength(2);
-    expect(screen.getByText("SMTP_HOST")).toBeInTheDocument();
-    expect(screen.getByText("SMTP_PORT")).toBeInTheDocument();
-    expect(screen.getByText("Email provider sandbox modundadır.")).toBeInTheDocument();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${apiBaseUrl}/api/v1/admin/email/ops-preview`,
-      {
-        credentials: "include"
-      }
-    );
+    expect(screen.getByText("2 yapılandırma alanı eksik.")).toBeInTheDocument();
+    expect(screen.queryByText(/SMTP_HOST|RESEND_API_KEY/u)).not.toBeInTheDocument();
+    expect(authFetchMock).toHaveBeenCalledWith(apiBaseUrl, "/api/v1/admin/email/ops-preview");
   });
 
-  it("submits a controlled test-send request and renders sandbox result", async () => {
-    const fetchMock = vi
-      .fn()
+  it("submits a CSRF-aware controlled request and renders safe delivery result", async () => {
+    authFetchMock
       .mockResolvedValueOnce(jsonResponse(previewPayload))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ok: true,
-          data: {
-            intent: "password_reset",
-            result: {
-              sent: false,
-              provider: "smtp",
-              sandboxOnly: true,
-              reason: "email_delivery_disabled"
-            },
-            warning: "Admin test email sandbox/disabled modda kaldı; gerçek mail gönderilmedi."
-          }
-        })
-      );
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<EmailOpsPage apiBaseUrl={apiBaseUrl} />);
-
-    await screen.findByText("Kontrollü test emaili");
-
-    fireEvent.change(screen.getByLabelText("Alıcı"), {
-      target: {
-        value: "ops@example.test"
-      }
-    });
-    fireEvent.change(screen.getByLabelText("Senaryo"), {
-      target: {
-        value: "password_reset"
-      }
-    });
-    fireEvent.change(screen.getByLabelText("Operasyon notu"), {
-      target: {
-        value: " SMTP smoke test "
-      }
-    });
-    fireEvent.click(screen.getByLabelText(/Kontrollü test gönderimini onaylıyorum/u));
-    fireEvent.click(screen.getByRole("button", { name: "Test email gönder" }));
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-    });
-
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      `${apiBaseUrl}/api/v1/admin/email/test-send`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          to: "ops@example.test",
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        data: {
           intent: "password_reset",
-          confirmation: "SEND_TEST_EMAIL",
-          note: "SMTP smoke test"
-        })
-      }
-    );
+          status: "not_sent",
+          provider: "smtp",
+          sandboxOnly: true,
+          deliveryReference: null,
+          recipientMasked: "o***@example.test",
+          occurredAt: "2026-07-31T10:00:00.000Z",
+          errorCategory: "delivery_disabled",
+          message: "Gerçek gönderim operasyon anahtarıyla kapalı."
+        }
+      }));
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("99999999-9999-4999-8999-999999999999");
+    renderPage();
 
-    expect(await screen.findByText("Email gönderimi kapalı")).toBeInTheDocument();
-    expect(screen.getByText("Admin test email sandbox/disabled modda kaldı; gerçek mail gönderilmedi.")).toBeInTheDocument();
+    await screen.findByText("Kontrollü test e-postası");
+    fireEvent.change(screen.getByLabelText("Alıcı"), { target: { value: "ops@example.test" } });
+    fireEvent.change(screen.getByLabelText("Senaryo"), { target: { value: "password_reset" } });
+    fireEvent.click(screen.getByLabelText(/Kontrollü test gönderimini onaylıyorum/u));
+    fireEvent.click(screen.getByRole("button", { name: "Test e-postası gönder" }));
+
+    await waitFor(() => expect(authFetchMock).toHaveBeenCalledTimes(2));
+    expect(authFetchMock.mock.calls[1]?.[0]).toBe(apiBaseUrl);
+    expect(authFetchMock.mock.calls[1]?.[1]).toBe("/api/v1/admin/email/test-send");
+    expect(JSON.parse(String(authFetchMock.mock.calls[1]?.[2]?.body))).toMatchObject({
+      confirmation: "SEND_TEST_EMAIL",
+      idempotencyKey: "99999999-9999-4999-8999-999999999999",
+      intent: "password_reset",
+      to: "ops@example.test"
+    });
+    expect(await screen.findByText("Gönderim kapalı")).toBeInTheDocument();
+    expect(screen.getByText("o***@example.test")).toBeInTheDocument();
   });
 
-  it("renders preview error when ops preview fails", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(
-        {
-          ok: false,
-          error: {
-            code: "FORBIDDEN",
-            message: "Forbidden"
-          }
-        },
-        false
-      )
-    );
-    vi.stubGlobal("fetch", fetchMock);
+  it("hides the mutation form for preview principals", async () => {
+    authFetchMock.mockResolvedValue(jsonResponse(previewPayload));
+    renderPage("user", "preview");
+    await screen.findByText("E-posta gönderim sağlığı");
+    expect(screen.queryByText("Kontrollü test e-postası")).not.toBeInTheDocument();
+  });
 
-    render(<EmailOpsPage apiBaseUrl={apiBaseUrl} />);
+  it("reuses the same idempotency key when a network result is retried", async () => {
+    authFetchMock
+      .mockResolvedValueOnce(jsonResponse(previewPayload))
+      .mockRejectedValueOnce(new Error("network unavailable"))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        data: {
+          intent: "security_alert",
+          status: "not_sent",
+          provider: "smtp",
+          sandboxOnly: true,
+          deliveryReference: null,
+          recipientMasked: "o***@example.test",
+          occurredAt: "2026-07-31T10:00:00.000Z",
+          errorCategory: "delivery_disabled",
+          message: "Gerçek gönderim operasyon anahtarıyla kapalı."
+        }
+      }));
+    const randomUuid = vi.spyOn(crypto, "randomUUID")
+      .mockReturnValue("12121212-1212-4212-8212-121212121212");
+    renderPage();
 
-    expect(await screen.findByText("Email ops preview yüklenemedi.")).toBeInTheDocument();
+    await screen.findByText("Kontrollü test e-postası");
+    fireEvent.change(screen.getByLabelText("Alıcı"), { target: { value: "ops@example.test" } });
+    fireEvent.click(screen.getByLabelText(/Kontrollü test gönderimini onaylıyorum/u));
+    fireEvent.click(screen.getByRole("button", { name: "Test e-postası gönder" }));
+    expect(await screen.findByText(/Ağ bağlantısını kontrol/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Test e-postası gönder" }));
+    expect(await screen.findByText("Gönderim kapalı")).toBeInTheDocument();
+
+    const firstBody = JSON.parse(String(authFetchMock.mock.calls[1]?.[2]?.body));
+    const secondBody = JSON.parse(String(authFetchMock.mock.calls[2]?.[2]?.body));
+    expect(secondBody.idempotencyKey).toBe(firstBody.idempotencyKey);
+    expect(randomUuid).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a safe preview error", async () => {
+    authFetchMock.mockResolvedValue(jsonResponse({ ok: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, false));
+    renderPage();
+    expect(await screen.findByText("E-posta operasyon durumu yüklenemedi.")).toBeInTheDocument();
+    expect(screen.queryByText("Forbidden")).not.toBeInTheDocument();
   });
 });

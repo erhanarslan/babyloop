@@ -12,7 +12,8 @@ export const adminEmailTestSendBodySchema = z
     to: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
     intent: adminEmailIntentSchema.optional().default("security_alert"),
     note: z.string().trim().max(240).optional(),
-    confirmation: z.literal("SEND_TEST_EMAIL")
+    confirmation: z.literal("SEND_TEST_EMAIL"),
+    idempotencyKey: z.string().uuid()
   })
   .strict();
 

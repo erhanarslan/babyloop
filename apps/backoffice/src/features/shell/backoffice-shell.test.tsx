@@ -31,9 +31,9 @@ describe("BackofficeShell", () => {
       </BackofficeShell>
     );
 
-    const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
+    const navigation = screen.getByRole("complementary", { name: "Yönetim paneli gezintisi" });
 
-    expect(within(navigation).getByRole("link", { name: "Email Operasyonları" })).toHaveAttribute(
+    expect(within(navigation).getByRole("link", { name: "E-posta Operasyonları" })).toHaveAttribute(
       "href",
       "/email"
     );
@@ -41,7 +41,7 @@ describe("BackofficeShell", () => {
       within(navigation).getByRole("link", { name: "RAG Yönetimi" })
     ).toHaveAttribute("aria-current", "page");
     expect(
-      within(navigation).getByRole("link", { name: "Storage" })
+      within(navigation).getByRole("link", { name: "Depolama" })
     ).toHaveAttribute("href", "/storage");
     expect(within(navigation).getByRole("link", { name: "Veri Kalitesi" })).toHaveAttribute(
       "href",
@@ -61,11 +61,11 @@ describe("BackofficeShell", () => {
       </BackofficeShell>
     );
 
-    const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
+    const navigation = screen.getByRole("complementary", { name: "Yönetim paneli gezintisi" });
     expect(within(navigation).getByRole("link", { name: "İlanlar" })).toBeVisible();
     expect(within(navigation).getByRole("link", { name: "Profiller" })).toBeVisible();
-    expect(within(navigation).queryByRole("link", { name: "Audit Logları" })).toBeNull();
-    expect(within(navigation).queryByRole("link", { name: "Storage" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Denetim Kayıtları" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Depolama" })).toBeNull();
     expect(screen.getByText("Salt okunur")).toBeVisible();
     expect(screen.queryByText("Hazır")).toBeNull();
   });
@@ -77,10 +77,10 @@ describe("BackofficeShell", () => {
       </BackofficeShell>
     );
 
-    const navigation = screen.getByRole("complementary", { name: "Backoffice navigation" });
+    const navigation = screen.getByRole("complementary", { name: "Yönetim paneli gezintisi" });
     expect(within(navigation).getByRole("link", { name: "İlanlar" })).toBeVisible();
     expect(within(navigation).getByRole("link", { name: "Profiller" })).toBeVisible();
-    expect(within(navigation).queryByRole("link", { name: "Audit Logları" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Denetim Kayıtları" })).toBeNull();
     expect(within(navigation).queryByRole("link", { name: "AI Operasyonları" })).toBeNull();
     expect(screen.getByText("Tanıtım modu · Salt okunur")).toBeVisible();
     expect(
@@ -98,6 +98,6 @@ describe("BackofficeShell", () => {
     );
 
     expect(screen.queryByText("Tanıtım modu · Salt okunur")).toBeNull();
-    expect(screen.getByRole("link", { name: "Audit Logları" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Denetim Kayıtları" })).toBeVisible();
   });
 });

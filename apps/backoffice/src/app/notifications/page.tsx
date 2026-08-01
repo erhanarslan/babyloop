@@ -2,7 +2,7 @@ import { BackofficeAuthShell } from "../../features/auth/backoffice-auth-shell";
 import { NotificationOpsPage } from "../../features/notifications/notification-ops-page";
 
 export const metadata = {
-  title: "Notification Ops | BabyLoop Backoffice"
+  title: "Bildirim Operasyonları | BabyLoop Backoffice"
 };
 
 export default function NotificationsPage() {

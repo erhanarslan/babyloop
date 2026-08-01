@@ -57,7 +57,7 @@ const navigationGroups: NavigationGroup[] = [
         description: "Konuşma güvenliği"
       },
       {
-        label: "Audit Logları",
+        label: "Denetim Kayıtları",
         href: "/audit",
         description: "Admin işlem geçmişi"
       }
@@ -79,12 +79,12 @@ const navigationGroups: NavigationGroup[] = [
       {
         label: "Bildirim Operasyonları",
         href: "/notifications",
-        description: "Push, in-app ve readiness"
+        description: "Anlık, uygulama içi ve sağlık durumu"
       },
       {
-        label: "Email Operasyonları",
+        label: "E-posta Operasyonları",
         href: "/email",
-        description: "Provider ve test gönderimi"
+        description: "Sağlayıcı ve test gönderimi"
       }
     ]
   },
@@ -102,7 +102,7 @@ const navigationGroups: NavigationGroup[] = [
         description: "Aktif ve yeni kullanıcılar"
       },
       {
-        label: "Auth",
+        label: "Kimlik Doğrulama",
         href: "/analytics/auth",
         description: "Doğrulama ve giriş metrikleri"
       },
@@ -139,12 +139,12 @@ const navigationGroups: NavigationGroup[] = [
       {
         label: "Veri Kalitesi",
         href: "/analytics/data-quality",
-        description: "Event ve rollup sağlığı"
+        description: "Olay ve toplama sağlığı"
       },
       {
         label: "Ürün Olayları",
         href: "/product-analytics",
-        description: "Aggregate product event görünümü"
+        description: "Toplu ürün olayı görünümü"
       }
     ]
   },
@@ -154,12 +154,12 @@ const navigationGroups: NavigationGroup[] = [
       {
         label: "AI Operasyonları",
         href: "/ai-ops",
-        description: "Provider ve run sağlığı"
+        description: "Sağlayıcı ve çalışma sağlığı"
       },
       {
         label: "RAG Yönetimi",
         href: "/rag",
-        description: "Retrieval ve index görünürlüğü"
+        description: "Getirme ve dizin görünürlüğü"
       }
     ]
   },
@@ -167,9 +167,9 @@ const navigationGroups: NavigationGroup[] = [
     label: "Sistem",
     items: [
       {
-        label: "Storage",
+        label: "Depolama",
         href: "/storage",
-        description: "DB, R2, Qdrant ve cache"
+        description: "DB, R2, Qdrant ve önbellek"
       }
     ]
   }
@@ -193,7 +193,7 @@ export function BackofficeShell({
 
   return (
     <div className="backoffice-shell">
-      <aside className="backoffice-sidebar" aria-label="Backoffice navigation">
+      <aside className="backoffice-sidebar" aria-label="Yönetim paneli gezintisi">
         <div className="brand-block">
           <p className="brand-eyebrow">BabyLoop</p>
           <h1>Backoffice</h1>

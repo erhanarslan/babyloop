@@ -79,7 +79,7 @@ mustContain(mobileProvider, "trackEngagement");
 mustContain(mobileRootLayout, "MobileAnalyticsProvider");
 mustContain(mobileJestConfig, "<rootDir>/../../packages/shared/src/index.ts");
 mustNotContain(mobileJestConfig, '"^@babyloop/shared$": "<rootDir>/../../packages/shared/src/analytics-events.ts"');
-mustContain(backofficeDashboard, "Raw messages");
+mustContain(backofficeDashboard, "Mesaj gövdesi");
 mustContain(backofficeSectionPage, "Veri Kalitesi");
 mustContain("apps/backoffice/src/app/analytics/users/page.tsx", "AnalyticsSectionPage");
 mustContain("apps/backoffice/src/app/analytics/auth/page.tsx", "AnalyticsSectionPage");

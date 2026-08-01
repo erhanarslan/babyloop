@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { AdminListingRelatedCase } from "./api";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type RelatedModerationCasesProps = {
   cases: AdminListingRelatedCase[];
@@ -10,16 +11,16 @@ export function RelatedModerationCases({ cases }: RelatedModerationCasesProps) {
   return (
     <section className="form-card">
       <div>
-        <p className="eyebrow">Moderation</p>
-        <h3>Related cases</h3>
+        <p className="eyebrow">Moderasyon</p>
+        <h3>İlişkili vakalar</h3>
         <p>
-          Safe summaries only. Reporter identity and raw message data stay
-          redacted in listing review.
+          Yalnızca güvenli özetler gösterilir. Şikâyetçi kimliği ve ham mesaj verisi
+          ilan incelemesine taşınmaz.
         </p>
       </div>
 
       {cases.length === 0 ? (
-        <div className="state-panel">No moderation cases are linked to this listing.</div>
+        <div className="state-panel">Bu ilanla ilişkili moderasyon vakası yok.</div>
       ) : (
         <div className="case-list">
           {cases.map((moderationCase) => (
@@ -29,16 +30,16 @@ export function RelatedModerationCases({ cases }: RelatedModerationCasesProps) {
                   <span className={`status-badge ${moderationCase.status}`}>
                     {getStatusLabel(moderationCase.status)}
                   </span>
-                  <span className="muted">{moderationCase.reason ?? "No reason"}</span>
+                  <span className="muted">{moderationCase.reason ?? "Neden belirtilmedi"}</span>
                 </div>
 
                 <dl className="compact-details">
                   <div>
-                    <dt>Case ID</dt>
+                    <dt>Vaka kimliği</dt>
                     <dd>{moderationCase.caseId}</dd>
                   </div>
                   <div>
-                    <dt>Created</dt>
+                    <dt>Oluşturulma</dt>
                     <dd>{formatDateTime(moderationCase.createdAt)}</dd>
                   </div>
                 </dl>
@@ -48,7 +49,7 @@ export function RelatedModerationCases({ cases }: RelatedModerationCasesProps) {
                 className="secondary-action"
                 href={`/moderation/${moderationCase.caseId}`}
               >
-                Open case
+                Vakayı aç
               </Link>
             </article>
           ))}
@@ -59,20 +60,9 @@ export function RelatedModerationCases({ cases }: RelatedModerationCasesProps) {
 }
 
 function getStatusLabel(status: string): string {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "in_review":
-      return "In review";
-    case "resolved":
-      return "Resolved";
-    case "dismissed":
-      return "Dismissed";
-    default:
-      return status;
-  }
+  return formatEnumLabel(status);
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }

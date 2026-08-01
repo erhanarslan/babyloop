@@ -39,7 +39,7 @@ export function ModerationActionForm({
     const trimmedNote = note.trim();
 
     if (!trimmedNote) {
-      setErrorMessage("Admin note is required.");
+      setErrorMessage("Yönetici notu zorunludur.");
       return;
     }
 
@@ -55,28 +55,28 @@ export function ModerationActionForm({
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not add action."));
+      setErrorMessage(getApiErrorMessage(response, "İşlem eklenemedi."));
       return;
     }
 
     onCreated(response.data.case);
     setNote("");
     setActionType("note");
-    setFeedback("Action added.");
+    setFeedback("İşlem eklendi.");
   }
 
   return (
     <form className="form-card" onSubmit={handleSubmit}>
       <div>
-        <h3>Add note/action</h3>
+        <h3>Not veya işlem ekle</h3>
         <p>
-          Add an internal moderation note or workflow action. Use the
-          enforcement panel for audited listing or message state changes.
+          İç moderasyon notu veya iş akışı işlemi ekle. Denetlenen ilan ya da ileti
+          durumu değişiklikleri için yaptırım panelini kullan.
         </p>
       </div>
 
       <label className="form-field">
-        <span>Action type</span>
+        <span>İşlem türü</span>
         <select
           onChange={(event) =>
             setActionType(event.target.value as AdminModerationActionType)
@@ -92,10 +92,10 @@ export function ModerationActionForm({
       </label>
 
       <label className="form-field">
-        <span>Admin note</span>
+        <span>Yönetici notu</span>
         <textarea
           onChange={(event) => setNote(event.target.value)}
-          placeholder="Write a clear moderation note. Do not include unnecessary personal data."
+          placeholder="Açık bir moderasyon notu yaz; gereksiz kişisel veri ekleme."
           rows={5}
           value={note}
         />
@@ -109,7 +109,7 @@ export function ModerationActionForm({
       ) : null}
 
       <button className="primary-action" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Adding..." : "Add action"}
+        {isSubmitting ? "Ekleniyor…" : "İşlem ekle"}
       </button>
     </form>
   );
@@ -118,15 +118,15 @@ export function ModerationActionForm({
 function getActionTypeLabel(type: AdminModerationActionType): string {
   switch (type) {
     case "note":
-      return "Note";
+      return "Not";
     case "review_started":
-      return "Review started";
+      return "İnceleme başlatıldı";
     case "dismissed":
-      return "Dismissed";
+      return "Kapatıldı";
     case "resolved":
-      return "Resolved";
+      return "Çözüldü";
     case "action_taken":
-      return "Action taken";
+      return "İşlem uygulandı";
   }
 }
 
@@ -138,5 +138,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Moderasyon işlemi ekleme yetkin yok."
+    : fallback;
 }

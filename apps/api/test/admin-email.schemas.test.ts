@@ -6,14 +6,16 @@ describe("admin email schemas", () => {
     const parsed = adminEmailTestSendBodySchema.parse({
       to: "  ADMIN@EXAMPLE.TEST ",
       note: " SMTP smoke test ",
-      confirmation: "SEND_TEST_EMAIL"
+      confirmation: "SEND_TEST_EMAIL",
+      idempotencyKey: "11111111-1111-4111-8111-111111111111"
     });
 
     expect(parsed).toEqual({
       to: "admin@example.test",
       intent: "security_alert",
       note: "SMTP smoke test",
-      confirmation: "SEND_TEST_EMAIL"
+      confirmation: "SEND_TEST_EMAIL",
+      idempotencyKey: "11111111-1111-4111-8111-111111111111"
     });
   });
 
@@ -22,7 +24,8 @@ describe("admin email schemas", () => {
       adminEmailTestSendBodySchema.parse({
         to: "admin@example.test",
         intent: "password_reset",
-        confirmation: "SEND_TEST_EMAIL"
+        confirmation: "SEND_TEST_EMAIL",
+        idempotencyKey: "22222222-2222-4222-8222-222222222222"
       }).intent
     ).toBe("password_reset");
   });

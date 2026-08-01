@@ -24,49 +24,49 @@ type EnforcementOption = {
 const listingOptions: EnforcementOption[] = [
   {
     action: "listing_hide",
-    label: "Hide listing",
-    description: "Archive the listing so it is no longer publicly browsable.",
+    label: "İlanı gizle",
+    description: "İlanı arşivleyerek herkese açık görünümden kaldır.",
   },
   {
     action: "listing_restore",
-    label: "Restore listing",
-    description: "Return the listing to active status when enforcement is reversed.",
+    label: "İlanı geri yükle",
+    description: "Yaptırım geri alındığında ilanı aktif duruma döndür.",
   },
 ];
 
 const messageOptions: EnforcementOption[] = [
   {
     action: "message_hide",
-    label: "Hide message",
-    description: "Mark the message hidden using the existing deleted-at state.",
+    label: "Mesajı gizle",
+    description: "Mevcut silinme zamanını kullanarak iletiyi gizli olarak işaretle.",
   },
   {
     action: "message_mark_reviewed",
-    label: "Mark message reviewed",
-    description: "Record a reviewed moderation action without changing message text.",
+    label: "Mesajı incelendi olarak işaretle",
+    description: "Mesaj metnini değiştirmeden moderasyon incelemesini kaydet.",
   },
 ];
 
 const profileOptions: EnforcementOption[] = [
   {
     action: "profile_warn",
-    label: "Warn profile",
-    description: "Record a warning without changing the profile safety status.",
+    label: "Profili uyar",
+    description: "Profil güvenlik durumunu değiştirmeden uyarı kaydet.",
   },
   {
     action: "profile_restrict",
-    label: "Restrict profile",
-    description: "Prevent the profile from creating listings or sending messages.",
+    label: "Profili kısıtla",
+    description: "Profilin ilan oluşturmasını veya mesaj göndermesini engelle.",
   },
   {
     action: "profile_suspend",
-    label: "Suspend profile",
-    description: "Prevent marketplace activity and hide the seller's public listings.",
+    label: "Profili askıya al",
+    description: "Pazar yeri hareketlerini engelle ve satıcının herkese açık ilanlarını gizle.",
   },
   {
     action: "profile_restore",
-    label: "Restore profile",
-    description: "Return the profile to active marketplace status.",
+    label: "Profili geri yükle",
+    description: "Profili aktif pazaryeri durumuna döndür.",
   },
 ];
 
@@ -100,12 +100,12 @@ export function EnforcementActionPanel({
     const trimmedReason = reason.trim();
 
     if (!selectedAction) {
-      setErrorMessage("No enforcement action is available for this case.");
+      setErrorMessage("Bu vaka için uygulanabilir yaptırım yok.");
       return;
     }
 
     if (trimmedReason.length < 10) {
-      setErrorMessage("Enter a reason with at least 10 characters.");
+      setErrorMessage("En az 10 karakterlik bir yaptırım nedeni gir.");
       return;
     }
 
@@ -121,35 +121,35 @@ export function EnforcementActionPanel({
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not apply enforcement."));
+      setErrorMessage(getApiErrorMessage(response, "Yaptırım uygulanamadı."));
       return;
     }
 
     onApplied(response.data.case);
     setReason("");
     setFeedback(
-      `Enforcement applied. Audit event id: ${response.data.enforcement.auditEventId}`,
+      `Yaptırım uygulandı. Denetim olayı: ${response.data.enforcement.auditEventId}`,
     );
   }
 
   return (
     <form className="form-card enforcement-card" onSubmit={handleSubmit}>
       <div>
-        <h3>Enforcement actions</h3>
+        <h3>Yaptırım işlemleri</h3>
         <p>
-          Use enforcement only when the case requires changing the target&apos;s
-          moderation state. A reason is required and the action will be audited.
+          Yaptırımı yalnız vaka hedefinin moderasyon durumunu değiştirmek gerektiğinde
+          kullan. Neden zorunludur ve işlem denetlenir.
         </p>
       </div>
 
       {options.length === 0 ? (
         <div className="state-panel">
-          No automated enforcement action is available for this target type yet.
+          Bu hedef türü için henüz otomatik yaptırım işlemi yok.
         </div>
       ) : (
         <>
           <fieldset className="checkbox-group">
-            <legend>Action</legend>
+            <legend>İşlem</legend>
             {options.map((option) => (
               <label className="checkbox-option" key={option.action}>
                 <input
@@ -169,18 +169,18 @@ export function EnforcementActionPanel({
           </fieldset>
 
           <label className="form-field">
-            <span>Enforcement reason</span>
+            <span>Yaptırım nedeni</span>
             <textarea
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Explain why this enforcement action is necessary. Avoid unnecessary personal data."
+              placeholder="Bu yaptırımın neden gerekli olduğunu açıkla; gereksiz kişisel veri ekleme."
               rows={4}
               value={reason}
             />
           </label>
 
           <div className="state-panel warning">
-            This action changes moderation state and creates an audit/timeline
-            event. It does not request or reveal sensitive raw data.
+            Bu işlem moderasyon durumunu değiştirir ve denetim zaman çizelgesine
+            kaydedilir. Hassas ham veri istemez veya göstermez.
           </div>
         </>
       )}
@@ -197,7 +197,7 @@ export function EnforcementActionPanel({
         disabled={isSubmitting || !selectedAction || reason.trim().length < 10}
         type="submit"
       >
-        {isSubmitting ? "Applying..." : "Apply enforcement action"}
+        {isSubmitting ? "Uygulanıyor…" : "Yaptırım işlemini uygula"}
       </button>
     </form>
   );
@@ -227,5 +227,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Bu yaptırımı uygulama yetkin yok."
+    : fallback;
 }

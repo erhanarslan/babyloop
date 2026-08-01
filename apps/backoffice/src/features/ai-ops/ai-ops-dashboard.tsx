@@ -4,6 +4,7 @@ import type { ApiResponse } from "@babyloop/shared";
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { formatDateTimeTr } from "../../lib/presentation";
 
 import {
   type AdminAiOpsFeature,
@@ -37,7 +38,7 @@ const featureOptions: AdminAiOpsFeature[] = [
 ];
 
 const AI_OPS_PRIVACY_NOTICE =
-  "Safe AI run metadata is shown without raw prompts, raw outputs, or image payloads.";
+  "Güvenli AI çalışma üst verisi ham istem, ham çıktı veya görsel içeriği olmadan gösterilir.";
 
 const statusOptions: Array<"all" | AdminAiOpsStatus> = [
   "all",
@@ -131,8 +132,8 @@ export function AiOpsDashboard() {
           <p className="eyebrow">AI Operasyonları</p>
           <h2>AI çalışma sağlığı</h2>
           <p>
-            Provider/model kullanımını, hataları ve son güvenli AI çalıştırmalarını raw prompt,
-            raw çıktı, görsel payload, mesaj gövdesi, raporlayan kimliği, email veya telefon göstermeden izle.
+            Sağlayıcı ve model kullanımını, hataları ve son güvenli AI çalışmalarını ham istem,
+            ham çıktı, görsel içeriği, mesaj gövdesi, şikâyetçi kimliği, e-posta veya telefon göstermeden izle.
           </p>
         </div>
         <Link className="secondary-action" href="/moderation">
@@ -140,7 +141,7 @@ export function AiOpsDashboard() {
         </Link>
       </div>
 
-      {isLoading ? <div className="state-panel">AI operasyon verisi yükleniyor...</div> : null}
+      {isLoading ? <div className="state-panel">AI operasyon verisi yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -155,8 +156,8 @@ export function AiOpsDashboard() {
             <SummaryCard label="Çalıştırma 7g" value={summary.totals.runsLast7Days} />
             <SummaryCard label="Başarılı 7g" value={summary.totals.successRunsLast7Days} />
             <SummaryCard label="Hata 7g" value={summary.totals.failedRunsLast7Days} />
-            <SummaryCard label="Provider hatası" value={summary.totals.providerFailuresLast7Days} />
-            <SummaryCard label="Validation hatası" value={summary.totals.validationFailuresLast7Days} />
+            <SummaryCard label="Sağlayıcı hatası" value={summary.totals.providerFailuresLast7Days} />
+            <SummaryCard label="Doğrulama hatası" value={summary.totals.validationFailuresLast7Days} />
             <SummaryCard label="Atlanan 7g" value={summary.totals.skippedRunsLast7Days} />
             <SummaryCard label="Toplam çalışma" value={summary.totals.totalRuns} />
           </section>
@@ -176,8 +177,8 @@ export function AiOpsDashboard() {
             </article>
 
             <article className="module-card dashboard-module-card">
-              <h3>Provider / model kırılımı</h3>
-              <p>Çalıştırma sayısına göre provider ve model kombinasyonları.</p>
+              <h3>Sağlayıcı ve model kırılımı</h3>
+              <p>Çalıştırma sayısına göre sağlayıcı ve model birleşimleri.</p>
               <div className="table-list">
                 {summary.providerModelCounts.length === 0 ? (
                   <div className="state-panel">Henüz AI model çalıştırması yok.</div>
@@ -230,7 +231,7 @@ export function AiOpsDashboard() {
               onChange={(event) =>
                 setDraftFilters((current) => ({ ...current, q: event.target.value }))
               }
-              placeholder="Run id, case id, listing id, provider, model veya prompt version"
+              placeholder="Çalışma, vaka veya ilan kimliği; sağlayıcı, model ya da istem sürümü"
               type="search"
               value={draftFilters.q}
             />
@@ -272,7 +273,7 @@ export function AiOpsDashboard() {
           </label>
 
           <label className="form-field">
-            <span>Limit</span>
+            <span>Sayfa boyutu</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -326,7 +327,7 @@ export function AiOpsDashboard() {
                   {run.caseId ? (
                     <Link href={`/moderation/${run.caseId}`}>İlgili vakaya git</Link>
                   ) : null}
-                  {run.errorSummary ? <p>{run.errorSummary}</p> : null}
+                  {run.errorSummary ? <p>{formatRunError(run.status)}</p> : null}
                 </div>
                 <div className="side-stack">
                   <span className={`status-badge ${run.status}`}>{formatStatus(run.status)}</span>
@@ -353,11 +354,13 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
 }
 
 function getApiErrorMessage(response: ApiResponse<unknown>, fallback: string): string {
-  return response.ok ? fallback : response.error.message || fallback;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "AI operasyonlarını görüntüleme yetkin yok.";
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString("tr-TR");
+  return formatDateTimeTr(value);
 }
 
 function formatScore(value: number | null): string {
@@ -367,13 +370,19 @@ function formatScore(value: number | null): string {
 function formatStatus(status: string): string {
   const labels: Record<string, string> = {
     error: "Hata",
-    provider_failed: "Provider hatası",
+    provider_failed: "Sağlayıcı hatası",
     skipped: "Atlandı",
     success: "Başarılı",
-    validation_failed: "Validation hatası"
+    validation_failed: "Doğrulama hatası"
   };
 
   return labels[status] ?? status.replaceAll("_", " ");
+}
+
+function formatRunError(status: string): string {
+  return status === "provider_failed"
+    ? "Sağlayıcı çalışması güvenli biçimde tamamlanamadı."
+    : "AI çalışması güvenli biçimde tamamlanamadı.";
 }
 
 function formatFeature(feature: AdminAiOpsFeature): string {

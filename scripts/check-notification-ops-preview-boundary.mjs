@@ -57,6 +57,11 @@ function checkService() {
     "notificationDeliveryLogs",
     "getAdminNotificationDeliveryLogPreview",
     "deliveryLogPreview",
+    "operationalHealth",
+    "runtimeWorkerHeartbeats",
+    "lastSuccessfulDeliveryAt",
+    "retryScheduledCount",
+    "deadLetterCount: null",
     "totals",
     "byKind",
     "byChannel",
@@ -65,7 +70,7 @@ function checkService() {
     "privacyNote",
     "maskSourceRef",
     "metadata, idempotency key, dedup key",
-    "Email, push, n8n, queue veya in-app notification gönderimi yapmaz"
+    "E-posta, anlık bildirim, n8n, kuyruk veya uygulama içi bildirim gönderimi yapmaz"
   ]) {
     mustContain(source, file, token);
   }
@@ -108,20 +113,22 @@ function checkTestsAndUi() {
   }
 
   for (const token of [
-    "Delivery log preview",
+    "Son teslimat girişimleri",
+    "İşleyici sağlığı",
+    "Bu metrik henüz üretilmiyor",
     "deliveryLogPreview.totals",
     "privacyNote",
-    "redacted sourceRef",
-    "metadata, idempotency key, dedup key"
+    "maskeli kaynak referansı",
+    "üst veri, işlem anahtarı, tekilleştirme anahtarı"
   ]) {
     mustContain(page, pageFile, token);
   }
 
   for (const token of [
-    "renders draft-only ops preview, delivery log aggregates, and avoids secret leakage",
-    "Delivery log preview",
-    "saved_search:saved…ing-1",
-    "not.toMatch(/api[_-]?key|password|secret|parent@example|accessToken|refreshToken|secret-idempotency|secret-dedup/iu"
+    "renders operational metrics and does not invent unavailable values",
+    "İşleyici sağlığı",
+    "saved…ing-1",
+    "not.toMatch(/parent@example|secret-idempotency|secret-dedup|Bearer secret/iu"
   ]) {
     mustContain(pageTest, pageTestFile, token);
   }

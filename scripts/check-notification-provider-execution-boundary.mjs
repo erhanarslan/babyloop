@@ -129,6 +129,15 @@ if (problems.length === 0) {
     "provider secret"
   ]) {
     mustContain(adminOps, "apps/api/src/services/admin-notification-ops.service.ts", token);
+  }
+
+  for (const token of [
+    "provider",
+    "providerStatus",
+    "attemptCount",
+    "lastErrorMessageRedacted",
+    "sağlayıcı sırrı"
+  ]) {
     mustContain(backofficePage, "apps/backoffice/src/features/notifications/notification-ops-page.tsx", token);
   }
 

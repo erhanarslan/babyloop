@@ -69,7 +69,7 @@ export function ListingStatusActionForm({
 
     if (!response.ok) {
       setErrorMessage(
-        getApiErrorMessage(response, "Could not apply listing action."),
+        getApiErrorMessage(response, "İlan işlemi uygulanamadı."),
       );
       setIsSubmitting(false);
       return;
@@ -77,29 +77,29 @@ export function ListingStatusActionForm({
 
     onApplied(response.data.listing);
     setReason("");
-    setSuccessMessage(`Action audited: ${response.data.action.auditEventId}`);
+    setSuccessMessage(`İşlem audit kaydına alındı: ${response.data.action.auditEventId}`);
     setIsSubmitting(false);
   }
 
   return (
     <section className="form-card">
       <div>
-        <p className="eyebrow">Listing status</p>
-        <h3>Status controls</h3>
+        <p className="eyebrow">İlan durumu</p>
+        <h3>Durum kontrolleri</h3>
         <p>
-          Listing-scoped actions are separate from moderation case enforcement.
-          A reason is required and every change is audited.
+          İlan kapsamındaki işlemler moderasyon vakası yaptırımlarından ayrıdır.
+          Neden zorunludur ve her değişiklik denetlenir.
         </p>
       </div>
 
       {supportedActions.length === 0 ? (
         <div className="state-panel">
-          No supported listing actions are available for this status.
+          Bu durum için desteklenen ilan işlemi yok.
         </div>
       ) : (
         <form className="sensitive-access-form" onSubmit={handleSubmit}>
           <label className="form-field">
-            <span>Action</span>
+            <span>İşlem</span>
             <select
               onChange={(event) =>
                 setAction(event.target.value as ListingStatusAction)
@@ -115,19 +115,19 @@ export function ListingStatusActionForm({
           </label>
 
           <label className="form-field">
-            <span>Action reason</span>
+            <span>İşlem nedeni</span>
             <textarea
               minLength={MIN_REASON_LENGTH}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Explain why this listing action is necessary."
+              placeholder="Bu ilan işleminin neden gerekli olduğunu açıkla."
               rows={4}
               value={reason}
             />
           </label>
 
           <div className="state-panel warning">
-            This changes the marketplace listing status. Use moderation case
-            enforcement for case-scoped decisions.
+            Bu işlem pazar yeri ilan durumunu değiştirir. Vaka kapsamındaki kararlar
+            için moderasyon vakası yaptırımını kullan.
           </div>
 
           {errorMessage ? (
@@ -139,7 +139,7 @@ export function ListingStatusActionForm({
           {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
           <button className="primary-action" disabled={!canSubmit} type="submit">
-            {isSubmitting ? "Applying..." : "Apply listing action"}
+            {isSubmitting ? "Uygulanıyor…" : "İlan işlemini uygula"}
           </button>
         </form>
       )}
@@ -150,9 +150,9 @@ export function ListingStatusActionForm({
 function getActionLabel(action: ListingStatusAction): string {
   switch (action) {
     case "archive":
-      return "Archive listing";
+      return "İlanı arşivle";
     case "restore":
-      return "Restore listing";
+      return "İlanı geri yükle";
   }
 }
 
@@ -164,5 +164,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "İlan durumunu değiştirme yetkin yok."
+    : fallback;
 }

@@ -1,246 +1,120 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { BackofficeAccessProvider } from "../auth/backoffice-access";
 import { NotificationOpsPage } from "./notification-ops-page";
 
-const apiBaseUrl = "http://api.test";
+const { authFetchMock } = vi.hoisted(() => ({ authFetchMock: vi.fn() }));
+vi.mock("../../lib/auth-client", () => ({ authFetch: authFetchMock }));
+
+const data = {
+  operationalHealth: {
+    worker: { status: "idle", lastHeartbeatAt: "2026-07-31T10:00:00.000Z", lastCompletedAt: "2026-07-31T09:59:00.000Z", lastErrorCode: null },
+    providers: { email: true, push: false, n8n: false },
+    lastSuccessfulDeliveryAt: "2026-07-31T09:58:00.000Z",
+    lastFailedDeliveryAt: null,
+    retryScheduledCount: 1,
+    deadLetterCount: null
+  },
+  channels: [
+    { key: "in_app", label: "In-app", status: "draft_only", note: "Uygulama içi adaylar güvenli kayıtta izlenir." },
+    { key: "n8n_future", label: "n8n", status: "future", note: "Desteklenmiyor" }
+  ],
+  deliveryPolicy: {
+    sendEnabled: false,
+    queueEnabled: false,
+    emailEnabled: false,
+    pushEnabled: false,
+    n8nEnabled: false
+  },
+  deliveryLogPreview: {
+    totals: { all: 3, candidate: 1, processing: 1, blocked: 0, sent: 1, failed: 0, skipped: 0 },
+    recent: [{
+      kind: "saved_search", sourceType: "saved_search", sourceRef: "saved…ing-1", channel: "in_app", status: "candidate",
+      provider: "none", providerStatus: null, attemptCount: 0, nextAttemptAt: null,
+      claimedAt: null, claimExpiresAt: null, workerId: null, lastErrorCode: null,
+      lastErrorMessageRedacted: null,
+      skippedReason: null, createdAt: "2026-07-31T09:57:00.000Z"
+    }],
+    privacyNote: "Yalnız toplu sayaç ve maskeli kaynak referansı gösterilir."
+  },
+  transitionPreview: {
+    deliveryAllowed: false,
+    draftOnly: true,
+    allowedDraftOnlyTransitions: [
+      { from: "candidate", to: "blocked", reason: "draft_only_block" },
+      { from: "candidate", to: "skipped", reason: "draft_only_skip" }
+    ],
+    futureSenderTransitions: [
+      { from: "candidate", to: "sent", blockedUntil: ["provider sandbox", "admin audit"] },
+      { from: "candidate", to: "failed", blockedUntil: ["provider attempt record"] }
+    ],
+    privacyNote: "Geçiş özeti hassas veri içermez."
+  },
+  pushReadinessPreview: {
+    pushSenderEnabled: false,
+    providerConfigured: false,
+    tokenRegistryEnabled: true,
+    warning: "Anlık bildirim sağlayıcısı çağrılmaz."
+  },
+  n8nReadinessPreview: {
+    n8nWorkflowEnabled: false,
+    webhookConfigured: false,
+    queueEnabled: false,
+    warning: "n8n çağrısı yapılmaz."
+  },
+  warning: "Bu görünüm gönderim yapmaz."
+};
+
+function response(body: unknown, ok = true) {
+  return { ok, json: async () => body } as Response;
+}
+
+function renderPage(accessMode: "preview" | "staff" = "staff") {
+  render(
+    <BackofficeAccessProvider accessMode={accessMode} role={accessMode === "staff" ? "admin" : "user"}>
+      <NotificationOpsPage apiBaseUrl="http://api.test" />
+    </BackofficeAccessProvider>
+  );
+}
 
 describe("NotificationOpsPage", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
-  });
+  afterEach(() => authFetchMock.mockReset());
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("renders draft-only ops preview, delivery log aggregates, and avoids secret leakage", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          data: {
-            summary: {
-              status: "draft_only",
-              draftOnly: true
-            },
-            deliveryPolicy: {
-              sendEnabled: false,
-              queueEnabled: false,
-              emailEnabled: false,
-              pushEnabled: false,
-              n8nEnabled: false,
-              dedupRequired: true,
-              frequencyLimitRequired: true
-            },
-            channels: [
-              {
-                key: "in_app",
-                label: "In-app",
-                status: "draft_only",
-                note: "Preview only"
-              }
-            ],
-            nextSteps: ["Add sender transitions"],
-            policyPreview: {
-              sendEnabled: false,
-              draftOnly: true,
-              defaultFrequencyWindowHours: 24,
-              childLifecycleFrequencyWindowHours: 720,
-              savedSearchFrequencyWindowHours: 24,
-              requiredBeforeSend: ["Dedup"]
-            },
-            transitionPreview: {
-              draftOnly: true,
-              deliveryAllowed: false,
-              allowedDraftOnlyTransitions: [
-                { from: "candidate", to: "skipped", reason: "draft_only_skip" }
-              ],
-              futureSenderTransitions: [
-                { from: "candidate", to: "sent", blockedUntil: ["provider sandbox"] }
-              ],
-              terminalStatuses: ["sent", "failed", "skipped"],
-              privacyNote:
-                "Transition preview aggregate/policy bilgisidir; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
-            },
-            pushReadinessPreview: {
-              status: "blocked",
-              deliveryAllowed: false,
-              draftOnly: true,
-              pushSenderEnabled: false,
-              providerConfigured: false,
-              tokenRegistryEnabled: true,
-              tokenCollectionAllowed: false,
-              consentRequired: true,
-              auditRequired: true,
-              idempotencyRequired: true,
-              rateLimitRequired: true,
-              requirements: [
-                { key: "native_device_token_registry", label: "Native device token registry", status: "complete", requiredBeforeSend: true }
-              ],
-              blockedReasons: ["push_sender_disabled"],
-              rolloutStages: [
-                { stage: "registry", status: "planned", note: "Token registry plan" }
-              ],
-              warning:
-                "Native push readiness preview yalnızca planlama/ops görünürlüğüdür; Expo, Firebase, APNs, push provider, queue, n8n veya webhook çağrısı yapmaz."
-            },
-            n8nReadinessPreview: {
-              status: "blocked",
-              deliveryAllowed: false,
-              draftOnly: true,
-              n8nWorkflowEnabled: false,
-              webhookConfigured: false,
-              webhookCallsAllowed: false,
-              queueEnabled: false,
-              retryEnabled: false,
-              idempotencyRequired: true,
-              auditRequired: true,
-              rateLimitRequired: true,
-              consentRequired: true,
-              requirements: [
-                { key: "webhook_contract", label: "Versioned webhook contract", status: "missing", requiredBeforeWebhook: true }
-              ],
-              workflowCandidates: [
-                { key: "child_reminder", label: "Child reminders", status: "candidate_ready", note: "n8n workflow gönderimi yoktur" }
-              ],
-              blockedReasons: ["n8n_workflow_disabled"],
-              rolloutStages: [
-                { stage: "contract", status: "planned", note: "Contract plan" }
-              ],
-              warning:
-                "n8n readiness preview yalnızca planlama/ops görünürlüğüdür; webhook, queue, worker, provider call, email, push veya gerçek n8n workflow tetiklemesi yapmaz."
-            },
-            deliveryLogPreview: {
-              enabled: true,
-              draftOnly: true,
-              totals: {
-                all: 3,
-                candidate: 1,
-                processing: 1,
-                blocked: 1,
-                sent: 0,
-                failed: 0,
-                skipped: 0
-              },
-              byKind: [{ kind: "saved_search", count: 1 }],
-              byChannel: [{ channel: "in_app", count: 1 }],
-              byStatus: [
-                { status: "candidate", count: 1 },
-                { status: "processing", count: 1 }
-              ],
-              recent: [
-                {
-                  kind: "saved_search",
-                  sourceType: "saved_search",
-                  sourceRef: "saved…ing-1",
-                  channel: "in_app",
-                  status: "candidate",
-                  provider: "none",
-                  providerStatus: null,
-                  providerMessageRef: null,
-                  attemptCount: 0,
-                  lastAttemptAt: null,
-                  nextAttemptAt: null,
-                  claimedAt: null,
-                  claimExpiresAt: null,
-                  workerId: null,
-                  lastErrorCode: null,
-                  lastErrorMessageRedacted: null,
-                  skippedReason: null,
-                  sentAt: null,
-                  deliveredAt: null,
-                  failedAt: null,
-                  deliveryAllowed: false,
-                  draftOnly: true,
-                  blockedReasons: ["delivery_disabled"],
-                  frequencyWindowHours: 24,
-                  createdAt: "2026-07-05T00:00:00.000Z"
-                },
-                {
-                  kind: "security",
-                  sourceType: "login_approval",
-                  sourceRef: "login…oval-1",
-                  channel: "push",
-                  status: "processing",
-                  provider: "expo",
-                  providerStatus: "processing",
-                  providerMessageRef: null,
-                  attemptCount: 0,
-                  lastAttemptAt: null,
-                  nextAttemptAt: null,
-                  claimedAt: "2026-07-05T00:01:00.000Z",
-                  claimExpiresAt: "2026-07-05T00:06:00.000Z",
-                  workerId: "notification-worker-1",
-                  lastErrorCode: null,
-                  lastErrorMessageRedacted: null,
-                  skippedReason: null,
-                  sentAt: null,
-                  deliveredAt: null,
-                  failedAt: null,
-                  deliveryAllowed: true,
-                  draftOnly: false,
-                  blockedReasons: [],
-                  frequencyWindowHours: 1,
-                  createdAt: "2026-07-05T00:01:00.000Z"
-                }
-              ],
-              privacyNote:
-                "Preview yalnızca aggregate count ve redacted sourceRef döndürür; metadata, idempotency key, dedup key, e-mail, token, cookie, authorization veya raw body göstermez."
-            },
-            warning:
-              "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."
-          }
-        }),
-        { status: 200 }
-      )
-    );
-
-    render(<NotificationOpsPage apiBaseUrl={apiBaseUrl} />);
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(`${apiBaseUrl}/api/v1/admin/notifications/ops-preview`, {
-        credentials: "include"
-      });
-    });
+  it("renders operational metrics and does not invent unavailable values", async () => {
+    authFetchMock.mockResolvedValue(response({ ok: true, data }));
+    renderPage();
 
     expect(await screen.findByText("Bildirim gönderim sağlığı")).toBeInTheDocument();
-    expect(screen.getAllByText("Taslak mod").length).toBeGreaterThan(0);
-    expect(screen.getByText("Delivery log preview")).toBeInTheDocument();
-    expect(screen.getByText("Transition model")).toBeInTheDocument();
-    expect(
-      screen.getByText("sent/failed future sender gerektirir", { exact: false })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Native push readiness")).toBeInTheDocument();
-    expect(screen.getByText("n8n workflow readiness")).toBeInTheDocument();
-    expect(screen.getByText(/n8n webhook ve worker durumu readiness değerlerine bağlıdır/iu)).toBeInTheDocument();
-    expect(document.body.textContent).toContain("Webhook kapalı");
-    expect(document.body.textContent).toContain("Queue/worker kapalı");
-    expect(document.body.textContent).toContain("Gerçek n8n workflow tetiklemesi yok");
-    expect(document.body.textContent).toContain("provider env gate’leri açıkken");
-    expect(document.body.textContent).toContain("processor üzerinden yapılır");
-    expect(screen.getByText(/Push sender kapalı/iu)).toBeInTheDocument();
-    expect(screen.getByText(/Expo\/Firebase\/APNs çağrısı yok/iu)).toBeInTheDocument();
-    expect(document.body.textContent).toContain("Push sender kapalı");
-    expect(document.body.textContent).toContain("Expo/Firebase/APNs çağrısı yok");
-    expect(document.body.textContent).toContain("gerçek Expo gönderimleri notification processor üzerinden yapılır");
-    expect(screen.getByText("candidate → skipped")).toBeInTheDocument();
-    expect(screen.getByText(/sent\/failed future sender gerektirir/iu)).toBeInTheDocument();
-    expect(document.body.textContent).toContain("sent/failed future sender gerektirir");
-    expect(screen.getByText("Toplam")).toBeInTheDocument();
-    expect(screen.getByText("Processing")).toBeInTheDocument();
-    expect(document.body.textContent).toContain("worker notification-worker-1");
-    expect(document.body.textContent).toContain("lease 2026-07-05T00:06:00.000Z");
-    expect(screen.getAllByText("saved_search").length).toBeGreaterThan(0);
-    expect(screen.getByText("saved_search:saved…ing-1")).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/api[_-]?key|password|secret|parent@example|accessToken|refreshToken|secret-idempotency|secret-dedup/iu);
+    expect(screen.getByText("İşleyici sağlığı")).toBeInTheDocument();
+    expect(screen.getByText("31 Tem 2026 13:00")).toBeInTheDocument();
+    expect(screen.getByText("Ölçülmüyor")).toBeInTheDocument();
+    expect(screen.getByText("Bu metrik henüz üretilmiyor")).toBeInTheDocument();
+    expect(screen.getByText("Kayıtlı arama · Bekliyor")).toBeInTheDocument();
+    expect(screen.getByText("Teslimat geçiş güvenliği")).toBeInTheDocument();
+    expect(screen.getByText("Bekliyor → Atlandı")).toBeInTheDocument();
+    expect(screen.getByText("Gönderildi/Başarısız için sağlayıcı güvenlik katmanları zorunludur.")).toBeInTheDocument();
+    expect(screen.getByText("Anlık bildirim hazırlığı")).toBeInTheDocument();
+    expect(screen.getByText("Anlık bildirim göndericisi kapalı. Expo, Firebase veya APNs çağrısı yapılmıyor.")).toBeInTheDocument();
+    expect(screen.getByText("n8n iş akışı hazırlığı")).toBeInTheDocument();
+    expect(screen.getByText("Webhook kapalı. Kuyruk ve işleyici kapalı. Gerçek n8n iş akışı tetiklemesi yok.")).toBeInTheDocument();
+    expect(screen.queryByText("Desteklenmiyor")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sent|candidate|retry/iu })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/parent@example|secret-idempotency|secret-dedup|Bearer secret/iu);
   });
 
-  it("renders controlled fetch failures", async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("network"));
+  it("does not render management actions for preview principals", async () => {
+    authFetchMock.mockResolvedValue(response({ ok: true, data }));
+    renderPage("preview");
+    await screen.findByText("Bildirim gönderim sağlığı");
+    expect(screen.queryByText("Güvenli yönetim aksiyonları")).not.toBeInTheDocument();
+  });
 
-    render(<NotificationOpsPage apiBaseUrl={apiBaseUrl} />);
-
-    expect(await screen.findByText("Bildirim operasyon durumu yüklenemedi.")).toBeInTheDocument();
+  it("renders a retryable safe error", async () => {
+    authFetchMock.mockRejectedValue(new Error("network"));
+    renderPage();
+    expect(await screen.findByText("Bildirim operasyon durumu alınamadı")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
   });
 });

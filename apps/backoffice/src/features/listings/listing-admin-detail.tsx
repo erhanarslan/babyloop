@@ -13,6 +13,7 @@ import {
 import { ListingImageReviewPanel } from "./listing-image-review-panel";
 import { ListingPublicationReviewPanel } from "./listing-publication-review-panel";
 import { ListingStatusActionForm } from "./listing-status-action-form";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 import { RelatedModerationCases } from "./related-moderation-cases";
 import { useBackofficeAccess } from "../auth/backoffice-access";
 
@@ -41,7 +42,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
 
       if (!response.ok) {
         setListing(null);
-        setErrorMessage(getApiErrorMessage(response, "Could not load listing."));
+        setErrorMessage(getApiErrorMessage(response, "İlan yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -58,7 +59,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
   }, [listingId]);
 
   if (isLoading) {
-    return <div className="state-panel">Loading listing...</div>;
+    return <div className="state-panel">İlan yükleniyor…</div>;
   }
 
   if (errorMessage) {
@@ -72,7 +73,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
   if (!listing) {
     return (
       <div className="state-panel">
-        <strong>Listing not found</strong>
+        <strong>İlan bulunamadı</strong>
       </div>
     );
   }
@@ -84,7 +85,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
     <div className="detail-layout">
       <section className="content-card">
         <Link className="secondary-action" href="/listings">
-          Back to listings
+          İlanlara dön
         </Link>
 
         {needsReviewImages.length > 0 ? (
@@ -92,19 +93,19 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
             className="state-panel"
             data-admin-images-awaiting-review-panel={listing.id}
           >
-            <strong>Images awaiting review</strong>
+            <strong>İnceleme bekleyen görseller</strong>
             <p>
-              {needsReviewImages.length} image{needsReviewImages.length === 1 ? "" : "s"} are hidden
-              from public listing responses until approved.
+              {needsReviewImages.length} görsel onaylanana kadar herkese açık ilan
+              yanıtlarında gizlenir.
             </p>
           </div>
         ) : null}
 
         <div className="page-toolbar">
           <div>
-            <p className="eyebrow">Listing review</p>
+            <p className="eyebrow">İlan incelemesi</p>
             <h2>{listing.title}</h2>
-            <p>{listing.description ?? "No description provided."}</p>
+            <p>{listing.description ?? "Açıklama belirtilmedi."}</p>
           </div>
 
           <div className="case-card-header">
@@ -119,11 +120,11 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
 
         <dl className="details-grid">
           <div>
-            <dt>Listing ID</dt>
+            <dt>İlan kimliği</dt>
             <dd>{listing.id}</dd>
           </div>
           <div>
-            <dt>Status</dt>
+            <dt>Durum</dt>
             <dd>{getStatusLabel(listing.status)}</dd>
           </div>
           <div>
@@ -139,31 +140,31 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
             <dd>{listing.publishedAt ? formatDateTime(listing.publishedAt) : "—"}</dd>
           </div>
           <div>
-            <dt>Price</dt>
+            <dt>Fiyat</dt>
             <dd>{formatPrice(listing)}</dd>
           </div>
           <div>
-            <dt>Type</dt>
-            <dd>{listing.listingType}</dd>
+            <dt>Tür</dt>
+            <dd>{formatEnumLabel(listing.listingType)}</dd>
           </div>
           <div>
-            <dt>Condition</dt>
-            <dd>{listing.condition}</dd>
+            <dt>Durum</dt>
+            <dd>{formatEnumLabel(listing.condition)}</dd>
           </div>
           <div>
-            <dt>Category</dt>
+            <dt>Kategori</dt>
             <dd>{listing.category.name}</dd>
           </div>
           <div>
-            <dt>Created</dt>
+            <dt>Oluşturulma</dt>
             <dd>{formatDateTime(listing.createdAt)}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
+            <dt>Güncellenme</dt>
             <dd>{formatDateTime(listing.updatedAt)}</dd>
           </div>
           <div>
-            <dt>Images awaiting review</dt>
+            <dt>İnceleme bekleyen görseller</dt>
             <dd>{needsReviewImages.length}</dd>
           </div>
         </dl>
@@ -176,26 +177,26 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
         ) : null}
 
         <section className="note-panel">
-          <h3>Seller summary</h3>
+          <h3>Satıcı özeti</h3>
           <p>
-            Privacy-safe profile summary only. Seller email, phone, and raw user
-            records are not included in this review view.
+            Yalnız gizliliği koruyan profil özeti gösterilir. Satıcı e-postası,
+            telefonu ve ham kullanıcı kayıtları bu inceleme görünümüne eklenmez.
           </p>
           <dl className="details-grid">
             <div>
-              <dt>Profile ID</dt>
+              <dt>Profil kimliği</dt>
               <dd>{listing.seller.profileId}</dd>
             </div>
             <div>
-              <dt>Display name</dt>
+              <dt>Görünen ad</dt>
               <dd>{listing.seller.displayName}</dd>
             </div>
             <div>
-              <dt>City</dt>
-              <dd>{listing.seller.locationCity ?? "Not set"}</dd>
+              <dt>Şehir</dt>
+              <dd>{listing.seller.locationCity ?? "Belirtilmedi"}</dd>
             </div>
             <div>
-              <dt>Profile created</dt>
+              <dt>Profil oluşturulma</dt>
               <dd>{formatDateTime(listing.seller.createdAt)}</dd>
             </div>
           </dl>
@@ -220,17 +221,17 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
       {fullListing ? <section className="content-card full-span">
         <div className="page-toolbar">
           <div>
-            <p className="eyebrow">Audit</p>
-            <h2>Listing action audit</h2>
+            <p className="eyebrow">Denetim</p>
+            <h2>İlan işlemleri denetimi</h2>
             <p>
-              Safe listing-scoped admin activity, image review actions, and
-              related moderation enforcement events. Sensitive access remains separate.
+              İlan kapsamındaki güvenli yönetici hareketleri, görsel incelemeleri ve
+              ilgili moderasyon yaptırımları gösterilir. Hassas erişim ayrı tutulur.
             </p>
           </div>
         </div>
 
         {fullListing.auditTrail.length === 0 ? (
-          <div className="state-panel">No listing action audit events yet.</div>
+          <div className="state-panel">Henüz ilan işlemi denetim kaydı yok.</div>
         ) : (
           <div className="timeline">
             {fullListing.auditTrail.map((event) => (
@@ -242,11 +243,11 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
 
                 <dl className="compact-details">
                   <div>
-                    <dt>Actor</dt>
-                    <dd>{event.actor?.displayName ?? event.actor?.id ?? "System"}</dd>
+                    <dt>İşlemi yapan</dt>
+                    <dd>{event.actor?.displayName ?? event.actor?.id ?? "Sistem"}</dd>
                   </div>
                   <div>
-                    <dt>Created</dt>
+                    <dt>Oluşturulma</dt>
                     <dd>{formatDateTime(event.createdAt)}</dd>
                   </div>
                 </dl>
@@ -269,20 +270,7 @@ export function ListingAdminDetail({ listingId }: ListingAdminDetailProps) {
 }
 
 function getStatusLabel(status: string): string {
-  switch (status) {
-    case "draft":
-      return "Draft";
-    case "active":
-      return "Active";
-    case "reserved":
-      return "Reserved";
-    case "sold":
-      return "Sold";
-    case "archived":
-      return "Archived";
-    default:
-      return status;
-  }
+  return formatEnumLabel(status);
 }
 
 
@@ -308,11 +296,11 @@ function getPublicationStateLabel(
 function formatPrice(listing: AdminListingDetailType | ViewerListingDetail): string {
   return listing.price
     ? `${listing.price.amount} ${listing.price.currency}`
-    : "Not set";
+    : "Belirtilmedi";
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("tr-TR");
+  return formatDateTimeTr(value);
 }
 
 function getAuditEventLabel(event: AdminListingAuditEvent): string {
@@ -320,11 +308,11 @@ function getAuditEventLabel(event: AdminListingAuditEvent): string {
     const action = event.metadata.action;
 
     if (action === "archive") {
-      return "Listing archived";
+      return "İlan arşivlendi";
     }
 
     if (action === "restore") {
-      return "Listing restored";
+      return "İlan geri yüklendi";
     }
   }
 
@@ -348,19 +336,19 @@ function getAuditEventLabel(event: AdminListingAuditEvent): string {
     const action = event.metadata.action;
 
     if (action === "approve") {
-      return "Image approved";
+      return "Görsel onaylandı";
     }
 
     if (action === "reject") {
-      return "Image rejected";
+      return "Görsel reddedildi";
     }
   }
 
   if (event.eventType === "admin_moderation_enforcement") {
-    return "Moderation enforcement applied";
+    return "Moderasyon yaptırımı uygulandı";
   }
 
-  return "Listing audit event";
+  return "İlan denetim kaydı";
 }
 
 const SAFE_ADMIN_LISTING_AUDIT_METADATA_KEYS = [
@@ -408,7 +396,17 @@ function sanitizeAdminListingAuditMetadata(
 }
 
 function formatMetadataKey(key: string): string {
-  return key
+  const labels: Record<string, string> = {
+    action: "İşlem",
+    authenticityDecision: "Özgünlük kararı",
+    authenticityProvider: "Özgünlük sağlayıcısı",
+    imageId: "Görsel kimliği",
+    listingId: "İlan kimliği",
+    nextReviewStatus: "Sonraki inceleme durumu",
+    previousReviewStatus: "Önceki inceleme durumu",
+    reasonLength: "Neden uzunluğu"
+  };
+  return labels[key] ?? key
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -417,14 +415,14 @@ function formatMetadataValue(
   value: string | number | boolean | string[] | null,
 ): string {
   if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(", ") : "none";
+    return value.length > 0 ? value.map((item) => formatEnumLabel(item)).join(", ") : "Yok";
   }
 
   if (value === null) {
-    return "none";
+    return "Yok";
   }
 
-  return String(value);
+  return typeof value === "string" ? formatEnumLabel(value) : String(value);
 }
 
 function getApiErrorMessage(
@@ -435,5 +433,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Bu ilanı görüntüleme yetkin yok."
+    : fallback;
 }

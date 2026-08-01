@@ -2,6 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import { useEffect, useState } from "react";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 import {
   type AdminModerationCaseDetail,
@@ -33,7 +34,7 @@ export function CaseInsightsPanel({ moderationCase }: CaseInsightsPanelProps) {
 
       if (!response.ok) {
         setInsights(null);
-        setErrorMessage(getApiErrorMessage(response, "Could not load case insights."));
+        setErrorMessage(getApiErrorMessage(response, "Vaka içgörüleri yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -50,17 +51,17 @@ export function CaseInsightsPanel({ moderationCase }: CaseInsightsPanelProps) {
   }, [moderationCase.id, moderationCase.updatedAt]);
 
   return (
-    <section className="content-card insight-card">
+    <section aria-label="Moderasyon ön değerlendirme özeti" className="content-card insight-card">
       <div>
-        <p className="eyebrow">Case insights</p>
-        <h3>Decision support</h3>
+        <p className="eyebrow">Vaka içgörüleri</p>
+        <h3>Karar desteği</h3>
         <p className="muted">
-          Safe operational signals for this case. No reporter identity, raw message body,
-          raw reason, or raw AI prompt is shown here.
+          Bu vaka için güvenli operasyon sinyalleri gösterilir. Şikâyetçi kimliği, ham mesaj
+          gövdesi, ham neden veya ham AI istemi burada gösterilmez.
         </p>
       </div>
 
-      {isLoading ? <div className="state-panel">Loading case insights...</div> : null}
+      {isLoading ? <div className="state-panel">Vaka içgörüleri yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -74,63 +75,63 @@ export function CaseInsightsPanel({ moderationCase }: CaseInsightsPanelProps) {
             <div>
               <span className={`risk-dot ${insights.risk.level}`} />
               <strong>{formatRiskLevel(insights.risk.level)}</strong>
-              <p className="muted">Rules-based risk score</p>
+              <p className="muted">Kural tabanlı risk puanı</p>
             </div>
             <span className="risk-score-value">{insights.risk.score}</span>
           </div>
 
           <div className="metadata-chip-row">
             {insights.risk.signals.map((signal) => (
-              <span className="metadata-chip" key={signal}>{signal}</span>
+              <span className="metadata-chip" key={signal}>{formatEnumLabel(signal)}</span>
             ))}
           </div>
 
           <div className="note-panel compact-note-panel">
-            <strong>Suggested next step</strong>
-            <p>{insights.recommendedNextStep.label}</p>
+            <strong>Önerilen sonraki adım</strong>
+            <p>{formatRecommendation(insights.recommendedNextStep.code)}</p>
           </div>
 
           {insights.targetProfile ? (
             <dl className="compact-details">
               <div>
-                <dt>Profile</dt>
+                <dt>Profil</dt>
                 <dd>{insights.targetProfile.displayName}</dd>
               </div>
               <div>
-                <dt>Safety status</dt>
+                <dt>Güvenlik durumu</dt>
                 <dd>{formatSafetyStatus(insights.targetProfile.safetyStatus)}</dd>
               </div>
               <div>
-                <dt>Profile source</dt>
+                <dt>Profil kaynağı</dt>
                 <dd>{formatProfileSource(insights.targetProfile.source)}</dd>
               </div>
             </dl>
           ) : (
-            <p className="muted">No safe target profile signal is available.</p>
+            <p className="muted">Güvenli hedef profil sinyali bulunmuyor.</p>
           )}
 
           {insights.profileTrustSnapshot ? (
             <div className="trust-snapshot-card">
               <div>
-                <p className="eyebrow">Profile trust snapshot</p>
-                <strong>{formatRiskLevel(insights.profileTrustSnapshot.riskLevel)} profile risk</strong>
-                <p className="muted">Computed {formatDateTime(insights.profileTrustSnapshot.computedAt)}</p>
+                <p className="eyebrow">Profil güven görünümü</p>
+                <strong>{formatRiskLevel(insights.profileTrustSnapshot.riskLevel)} profil riski</strong>
+                <p className="muted">Hesaplanma: {formatDateTime(insights.profileTrustSnapshot.computedAt)}</p>
               </div>
               <dl className="compact-details">
                 <div>
-                  <dt>Trust score</dt>
+                  <dt>Güven puanı</dt>
                   <dd>{insights.profileTrustSnapshot.trustScore}</dd>
                 </div>
                 <div>
-                  <dt>Risk score</dt>
+                  <dt>Risk puanı</dt>
                   <dd>{insights.profileTrustSnapshot.riskScore}</dd>
                 </div>
                 <div>
-                  <dt>Open profile cases</dt>
+                  <dt>Açık profil vakaları</dt>
                   <dd>{insights.profileTrustSnapshot.openCaseCount}</dd>
                 </div>
                 <div>
-                  <dt>Recent reports</dt>
+                  <dt>Yakın tarihli şikâyetler</dt>
                   <dd>{insights.profileTrustSnapshot.recentReportCount}</dd>
                 </div>
               </dl>
@@ -138,34 +139,34 @@ export function CaseInsightsPanel({ moderationCase }: CaseInsightsPanelProps) {
           ) : null}
 
           <div className="insight-metric-grid">
-            <InsightMetric label="Open cases" value={insights.counts.openCasesForTarget} />
-            <InsightMetric label="Total cases" value={insights.counts.totalCasesForTarget} />
-            <InsightMetric label="Reports 7d" value={insights.counts.reportsLast7Days} />
-            <InsightMetric label="Reports 30d" value={insights.counts.reportsLast30Days} />
-            <InsightMetric label="Enforcement" value={insights.counts.priorEnforcementActions} />
-            <InsightMetric label="Enforcement 30d" value={insights.counts.enforcementActionsLast30Days} />
-            <InsightMetric label="Sensitive access" value={insights.counts.sensitiveAccessEvents} />
-            <InsightMetric label="AI runs" value={insights.counts.aiSummaryRuns} />
+            <InsightMetric label="Açık vakalar" value={insights.counts.openCasesForTarget} />
+            <InsightMetric label="Toplam vakalar" value={insights.counts.totalCasesForTarget} />
+            <InsightMetric label="Son 7 gün şikâyetleri" value={insights.counts.reportsLast7Days} />
+            <InsightMetric label="Son 30 gün şikâyetleri" value={insights.counts.reportsLast30Days} />
+            <InsightMetric label="Yaptırım" value={insights.counts.priorEnforcementActions} />
+            <InsightMetric label="Son 30 gün yaptırımları" value={insights.counts.enforcementActionsLast30Days} />
+            <InsightMetric label="Hassas erişim" value={insights.counts.sensitiveAccessEvents} />
+            <InsightMetric label="AI çalışmaları" value={insights.counts.aiSummaryRuns} />
           </div>
 
           {insights.latestAiSummary ? (
             <div className="note-panel compact-note-panel">
-              <strong>Latest AI signal</strong>
+              <strong>Son AI sinyali</strong>
               <p>
                 {insights.latestAiSummary.riskLevel
                   ? `${formatRiskLevel(insights.latestAiSummary.riskLevel)} risk`
-                  : "Risk not available"}
+                  : "Risk verisi yok"}
                 {insights.latestAiSummary.recommendedAction
                   ? ` · ${formatAction(insights.latestAiSummary.recommendedAction)}`
                   : ""}
                 {typeof insights.latestAiSummary.confidenceScore === "number"
-                  ? ` · ${Math.round(insights.latestAiSummary.confidenceScore * 100)}% confidence`
+                  ? ` · %${Math.round(insights.latestAiSummary.confidenceScore * 100)} güven`
                   : ""}
               </p>
               <p className="muted">{formatDateTime(insights.latestAiSummary.createdAt)}</p>
             </div>
           ) : (
-            <p className="muted">No successful AI summary has been generated yet.</p>
+            <p className="muted">Henüz başarılı AI özeti üretilmedi.</p>
           )}
         </div>
       ) : null}
@@ -183,35 +184,52 @@ function InsightMetric({ label, value }: { label: string; value: number }) {
 }
 
 function formatRiskLevel(level: AdminModerationCaseInsights["risk"]["level"]): string {
-  return level.charAt(0).toUpperCase() + level.slice(1);
+  return formatEnumLabel(level);
 }
 
 function formatSafetyStatus(status: NonNullable<AdminModerationCaseInsights["targetProfile"]>["safetyStatus"]): string {
-  return status.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+  return formatEnumLabel(status);
 }
 
 function formatProfileSource(source: NonNullable<AdminModerationCaseInsights["targetProfile"]>["source"]): string {
   switch (source) {
     case "target_profile":
-      return "Reported profile";
+      return "Şikâyet edilen profil";
     case "listing_seller":
-      return "Listing seller";
+      return "İlan satıcısı";
     case "message_sender":
-      return "Message sender";
+      return "Mesaj gönderen";
   }
 }
 
 function formatAction(action: string): string {
-  return action.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+  return formatEnumLabel(action);
+}
+
+function formatRecommendation(code: string): string {
+  switch (code) {
+    case "consider_enforcement":
+      return "Vakayı kapatmadan önce yaptırım seçeneklerini ve geçmiş işlemleri incele.";
+    case "review_sensitive_context":
+      return "Yaptırım uygulamadan önce hassas bağlama erişimin gerekli olup olmadığını değerlendir.";
+    case "monitor_only":
+      return "Mevcut profil yaptırımı etkin; yalnız izlemenin yeterli olup olmadığını doğrula.";
+    case "continue_review":
+      return "Zaman çizelgesi, AI geçmişi ve yaptırım bağlamıyla incelemeye devam et.";
+    default:
+      return "Vaka ayrıntılarını inceleyerek güvenli sonraki adımı belirle.";
+  }
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
   response: ApiResponse<unknown>,
   fallback: string,
 ): string {
-  return response.ok ? fallback : response.error.message;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "Vaka içgörülerini görüntüleme yetkin yok.";
 }

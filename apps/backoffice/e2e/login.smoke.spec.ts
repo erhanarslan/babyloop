@@ -50,7 +50,7 @@ test("Google callback verifies a staff session without exposing callback materia
   await page.goto("/auth/callback?status=success&next=%2Flistings&code=not-a-real-code&token=not-a-real-token");
 
   await expect(page).toHaveURL(/\/listings$/u);
-  await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Yönetim paneli gezintisi" })).toBeVisible();
   await expect(page.getByText("not-a-real-code")).toHaveCount(0);
   await expect(page.getByText("not-a-real-token")).toHaveCount(0);
   expect(page.url()).not.toMatch(/code=|token=/u);

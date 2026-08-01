@@ -4,6 +4,8 @@ import { adminEmailTestSendBodySchema } from "../schemas/admin-email.schemas.js"
 import { requireAdminUser } from "../services/admin-context.service.js";
 import {
   getAdminEmailOpsPreview,
+  AdminEmailOpsError,
+  createAdminEmailOpsState,
   sendAdminTestEmail,
   type AdminEmailOpsPreview,
   type AdminEmailTestSendResult
@@ -11,6 +13,7 @@ import {
 
 type AdminEmailOpsPreviewResponse = ApiResponse<AdminEmailOpsPreview>;
 type AdminEmailTestSendResponse = ApiResponse<AdminEmailTestSendResult>;
+const emailOpsState = createAdminEmailOpsState();
 
 export function registerAdminEmailRoutes(app: FastifyInstance): void {
   app.get<{ Reply: AdminEmailOpsPreviewResponse | ApiFailure }>(
@@ -47,16 +50,21 @@ export function registerAdminEmailRoutes(app: FastifyInstance): void {
       try {
         return {
           ok: true,
-          data: await sendAdminTestEmail(app, parsedBody.data)
+          data: await sendAdminTestEmail(app, parsedBody.data, {
+            actorProfileId: adminUser.profile.id,
+            state: emailOpsState
+          })
         };
-      } catch {
-        request.log.warn({ scope: "admin_email_test_send" }, "admin email test send failed");
+      } catch (error) {
+        const category = error instanceof AdminEmailOpsError ? error.category : "unknown";
+        const statusCode = error instanceof AdminEmailOpsError ? error.statusCode : 503;
+        request.log.warn({ category, scope: "admin_email_test_send" }, "admin email test send failed");
 
-        return reply.status(503).send({
+        return reply.status(statusCode).send({
           ok: false,
           error: {
-            code: "EMAIL_TEST_SEND_FAILED",
-            message: "Admin email test send failed. Check provider configuration and retry."
+            code: `EMAIL_TEST_${category.toUpperCase()}`,
+            message: safeEmailErrorMessage(category)
           }
         });
       }
@@ -68,8 +76,19 @@ function invalidAdminEmailTestSendRequest(): ApiFailure {
   return {
     ok: false,
     error: {
-      code: "INVALID_REQUEST",
-      message: "Admin email test send request body is invalid."
+      code: "EMAIL_TEST_INVALID_RECIPIENT",
+      message: "Kontrollü e-posta test isteği geçersiz."
     }
   };
+}
+
+function safeEmailErrorMessage(category: string): string {
+  const messages: Record<string, string> = {
+    configuration_missing: "Kontrollü test yapılandırması eksik.",
+    invalid_recipient: "Alıcı adresi geçersiz.",
+    rate_limited: "Kısa sürede çok fazla test istendi.",
+    recipient_not_allowed: "Alıcı kontrollü test listesinde değil.",
+    timeout: "E-posta sağlayıcısı zamanında yanıt vermedi."
+  };
+  return messages[category] ?? "Kontrollü e-posta testi tamamlanamadı.";
 }

@@ -106,11 +106,11 @@ function checkBackofficePage() {
   const tests = read(testFile);
 
   for (const token of [
-    "Storage Ops Preview",
-    "External storage provider disabled",
-    "S3/R2, signed upload, bucket delete",
-    "Required before external storage",
-    "Privacy and blocked operations",
+    "Depolama durum görünümü",
+    "Dış kova veya sağlayıcı alanları eksik ya da kapalı.",
+    "S3/R2 ve imzalı yükleme",
+    "Dış depolama öncesi gerekenler",
+    "Gizlilik ve engellenen işlemler",
     "api/v1/admin/storage/ops-preview"
   ]) {
     mustContain(page, pageFile, token);
@@ -118,11 +118,11 @@ function checkBackofficePage() {
 
   for (const token of [
     "renders local-only storage ops preview without enabling external storage",
-    "Storage Ops Preview",
-    "External storage provider disabled",
-    "S3/R2, signed upload, bucket delete",
+    "Depolama durum görünümü",
+    "Dış kova veya sağlayıcı alanları eksik ya da kapalı.",
+    "Kova silme, nesne kopyalama, CDN",
     "queue_worker",
-    "Storage ops preview failed: 403"
+    "Depolama operasyon durumu yüklenemedi. Yetkiyi ve API erişimini kontrol et."
   ]) {
     mustContain(tests, testFile, token);
   }

@@ -1,6 +1,7 @@
 import { CURRENT_TERMS_VERSION } from "@babyloop/shared";
 import {
   aiModelRuns,
+  analyticsEvents,
   authAccounts,
   conversations,
   emailVerificationTokens,
@@ -2832,6 +2833,21 @@ describe("auth API", () => {
       documentVersion: CURRENT_TERMS_VERSION,
       source: "google_oauth"
     }]);
+    await vi.waitFor(async () => {
+      const analyticsRows = await app.db
+        .select({
+          authProvider: analyticsEvents.authProvider,
+          eventName: analyticsEvents.eventName,
+          userId: analyticsEvents.userId
+        })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.userId, userRow!.id));
+
+      expect(analyticsRows).toEqual(expect.arrayContaining([
+        { authProvider: "google", eventName: "registration_completed", userId: userRow!.id },
+        { authProvider: "google", eventName: "login_completed", userId: userRow!.id }
+      ]));
+    });
   });
 
   it("google callback refuses a new Google account without current terms acceptance", async () => {
@@ -2958,6 +2974,14 @@ describe("auth API", () => {
         userId: existingUser.user.id
       }
     ]);
+    await vi.waitFor(async () => {
+      const analyticsRows = await app.db
+        .select({ authProvider: analyticsEvents.authProvider, eventName: analyticsEvents.eventName })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.userId, existingUser.user.id));
+      expect(analyticsRows.filter((row) => row.eventName === "login_completed" && row.authProvider === "google")).toHaveLength(1);
+      expect(analyticsRows.filter((row) => row.eventName === "registration_completed" && row.authProvider === "google")).toHaveLength(0);
+    });
   });
 
   it("google callback reuses an existing Google auth account", async () => {

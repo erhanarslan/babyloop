@@ -34,12 +34,13 @@ type ProtectedRoute = {
 
 type FailureRoute = ProtectedRoute & {
   failingPathname: string;
+  safeErrorText: string;
 };
 
 const protectedRoutes: ProtectedRoute[] = [
   {
     path: "/",
-    heading: "Trust & Safety monitoring dashboard",
+    heading: "Güven ve emniyet izleme paneli",
   },
   {
     path: "/listings",
@@ -47,15 +48,15 @@ const protectedRoutes: ProtectedRoute[] = [
   },
   {
     path: "/moderation",
-    heading: "Moderation cases",
+    heading: "Moderasyon vakaları",
   },
   {
     path: "/profiles",
-    heading: "Profiles",
+    heading: "Profiller",
   },
   {
     path: "/audit",
-    heading: "Audit events",
+    heading: "Denetim kayıtları",
   },
   {
     path: "/ai-ops",
@@ -70,38 +71,45 @@ const protectedRoutes: ProtectedRoute[] = [
 const failureRoutes: FailureRoute[] = [
   {
     path: "/",
-    heading: "Trust & Safety monitoring dashboard",
+    heading: "Güven ve emniyet izleme paneli",
     failingPathname: "/admin/dashboard/summary",
+    safeErrorText: "Yönetim paneli özeti yüklenemedi.",
   },
   {
     path: "/listings",
     heading: "İlan inceleme",
     failingPathname: "/admin/listings",
+    safeErrorText: "İlanlar yüklenemedi.",
   },
   {
     path: "/moderation",
-    heading: "Moderation cases",
+    heading: "Moderasyon vakaları",
     failingPathname: "/admin/moderation/cases",
+    safeErrorText: "Moderasyon vakaları yüklenemedi.",
   },
   {
     path: "/profiles",
-    heading: "Profiles",
+    heading: "Profiller",
     failingPathname: "/admin/profiles",
+    safeErrorText: "Profiller yüklenemedi.",
   },
   {
     path: "/audit",
-    heading: "Audit events",
+    heading: "Denetim kayıtları",
     failingPathname: "/admin/audit/events",
+    safeErrorText: "Denetim kayıtları yüklenemedi.",
   },
   {
     path: "/ai-ops",
     heading: "AI çalışma sağlığı",
     failingPathname: "/admin/ai-ops/summary",
+    safeErrorText: "AI operasyon özeti yüklenemedi.",
   },
   {
     path: "/conversations",
     heading: "Mesaj incelemeleri",
     failingPathname: "/admin/conversations",
+    safeErrorText: "Konuşmalar yüklenemedi.",
   },
 ];
 
@@ -170,7 +178,7 @@ test.describe("backoffice protected auth shell", () => {
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
 
       await expect(page).toHaveURL(new RegExp(`/login\\?next=${encodeURIComponent(route.path).replace(/%/g, "%")}`));
-      await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+      await expect(page.getByRole("complementary", { name: "Yönetim paneli gezintisi" })).toHaveCount(0);
       await expect(page.getByText("Operasyon Konsolu", { exact: true })).toHaveCount(0);
       await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
 
@@ -216,7 +224,7 @@ test.describe("backoffice protected auth shell", () => {
         exact: true,
       })).toBeVisible({ timeout: 15_000 });
       await expect(page.locator(".auth-state-card").getByText(role, { exact: true })).toBeVisible();
-      await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+      await expect(page.getByRole("complementary", { name: "Yönetim paneli gezintisi" })).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "İlan inceleme", exact: true })).toHaveCount(0);
     });
   }
@@ -250,7 +258,7 @@ test.describe("backoffice protected auth shell", () => {
     });
 
     await page.goto("/login?next=%2Flistings", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "Yönetim paneli gezintisi" })).toHaveCount(0);
     await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
     await page.getByRole("textbox", { name: "E-posta", exact: true }).fill("admin-auth-shell-e2e@babyloop.test");
     await page.getByLabel("Şifre", { exact: true }).fill("Password123!");
@@ -287,17 +295,17 @@ test.describe("backoffice protected auth shell", () => {
 
     await page.goto("/listings", { waitUntil: "domcontentloaded" });
 
-    const navigation = page.getByRole("complementary", { name: "Backoffice navigation" });
+    const navigation = page.getByRole("complementary", { name: "Yönetim paneli gezintisi" });
     await expect(navigation).toBeVisible();
     await expect(page.getByText("Salt okunur", { exact: true })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "İlanlar", exact: true })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Profiller", exact: true })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Moderasyon Vakaları", exact: true })).toHaveCount(0);
-    await expect(navigation.getByRole("link", { name: "Storage", exact: true })).toHaveCount(0);
+    await expect(navigation.getByRole("link", { name: "Depolama", exact: true })).toHaveCount(0);
 
     await page.goto("/storage", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Bu bölüm için yetkin yok", exact: true })).toBeVisible();
-    await expect(page.getByRole("complementary", { name: "Backoffice navigation" })).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "Yönetim paneli gezintisi" })).toHaveCount(0);
   });
 
   test("admin sees safe route-level API failure states without raw private data", async ({ page }) => {
@@ -321,10 +329,11 @@ test.describe("backoffice protected auth shell", () => {
       });
 
       const alert = page.getByRole("alert").filter({
-        hasText: NEGATIVE_UI_ERROR_MESSAGE,
+        hasText: route.safeErrorText,
       });
       await expect(alert).toBeVisible({ timeout: 15_000 });
-      await expect(alert).toContainText(NEGATIVE_UI_ERROR_MESSAGE);
+      await expect(alert).toContainText(route.safeErrorText);
+      await expect(alert).not.toContainText(NEGATIVE_UI_ERROR_MESSAGE);
 
       await expectNoNegativeUiPrivateLeak(page);
     }
@@ -336,7 +345,7 @@ async function expectBackofficeShell(page: Page): Promise<void> {
   await expect(page.getByText("Operasyon Konsolu", { exact: true })).toBeVisible();
   await expect(page.getByText("Hazır", { exact: true })).toHaveCount(0);
 
-  const navigation = page.getByRole("complementary", { name: "Backoffice navigation" });
+  const navigation = page.getByRole("complementary", { name: "Yönetim paneli gezintisi" });
 
   await expect(navigation).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Genel Bakış", exact: true }).first()).toHaveAttribute("href", "/");

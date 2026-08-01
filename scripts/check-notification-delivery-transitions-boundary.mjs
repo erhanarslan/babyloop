@@ -116,19 +116,19 @@ function checkOpsPreviewAndUi() {
   }
 
   for (const token of [
-    "Transition model",
+    "Teslimat geçiş güvenliği",
     "allowedDraftOnlyTransitions",
     "futureSenderTransitions",
-    "candidate → skipped",
-    "sent/failed future sender gerektirir"
+    "Bekliyor → Atlandı",
+    "Gönderildi/Başarısız için sağlayıcı güvenlik katmanları zorunludur."
   ]) {
     mustContain(page, pageFile, token);
   }
 
   for (const token of [
-    "Transition model",
-    "candidate → skipped",
-    "sent/failed future sender gerektirir"
+    "Teslimat geçiş güvenliği",
+    "Bekliyor → Atlandı",
+    "Gönderildi/Başarısız için sağlayıcı güvenlik katmanları zorunludur."
   ]) {
     mustContain(pageTest, pageTestFile, token);
   }
