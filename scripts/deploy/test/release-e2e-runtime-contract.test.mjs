@@ -32,7 +32,8 @@ const expectedBackofficeReleaseSpecs = [
   "e2e/moderation-case.smoke.spec.ts",
   "e2e/trust-ops.smoke.spec.ts",
   "e2e/listing-image-review.smoke.spec.ts",
-  "e2e/ai-ops.smoke.spec.ts"
+  "e2e/ai-ops.smoke.spec.ts",
+  "e2e/ops-observability.smoke.spec.ts"
 ];
 const webMockModes = new Map([
   ["auth-session.smoke.spec.ts", "real"],
