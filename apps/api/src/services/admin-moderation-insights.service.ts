@@ -499,27 +499,27 @@ function getRecommendedNextStep(input: {
   if (input.riskLevel === "critical" || input.riskLevel === "high") {
     return {
       code: "consider_enforcement",
-      label: "Review enforcement options and prior history before closing this case."
+      label: "Vakayı kapatmadan önce yaptırım seçeneklerini ve geçmiş işlemleri incele."
     };
   }
 
   if (input.counts.sensitiveAccessEvents === 0 && input.riskLevel === "medium") {
     return {
       code: "review_sensitive_context",
-      label: "Consider whether sensitive context is necessary before applying enforcement."
+      label: "Yaptırım uygulamadan önce hassas bağlama erişimin gerekli olup olmadığını değerlendir."
     };
   }
 
   if (input.targetProfileSafetyStatus === "restricted" || input.targetProfileSafetyStatus === "suspended") {
     return {
       code: "monitor_only",
-      label: "Existing profile enforcement is already active; verify whether monitoring is enough."
+      label: "Mevcut profil yaptırımı etkin; yalnız izlemenin yeterli olup olmadığını doğrula."
     };
   }
 
   return {
     code: "continue_review",
-    label: "Continue review using timeline, AI history, and enforcement context."
+    label: "Zaman çizelgesi, AI geçmişi ve yaptırım bağlamıyla incelemeye devam et."
   };
 }
 

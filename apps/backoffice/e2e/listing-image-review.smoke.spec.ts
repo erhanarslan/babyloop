@@ -152,10 +152,10 @@ test.describe("backoffice listing image review", () => {
       timeout: 15_000,
     });
     await expect(imageCard.locator('[data-admin-image-review-status-label="approved"]')).toBeVisible();
-    await expect(page.getByText("Image review audited: audit-image-review-e2e-1")).toBeVisible({
+    await expect(page.getByText("Görsel incelemesi denetlendi: audit-image-review-e2e-1")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Image approved", { exact: true })).toBeVisible({
+    await expect(page.getByText("Görsel onaylandı", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
 
@@ -202,10 +202,10 @@ test.describe("backoffice listing image review", () => {
       timeout: 15_000,
     });
     await expect(imageCard.locator('[data-admin-image-review-status-label="rejected"]')).toBeVisible();
-    await expect(page.getByText("Image rejected", { exact: true })).toBeVisible({
+    await expect(page.getByText("Görsel reddedildi", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Image review audited: audit-image-review-e2e-1")).toBeVisible({
+    await expect(page.getByText("Görsel incelemesi denetlendi: audit-image-review-e2e-1")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -267,9 +267,10 @@ test.describe("backoffice listing image review", () => {
     expect(reviewResponse.ok()).toBe(false);
     expect(state.imageActionRequests).toEqual([]);
 
-    await expect(imageCard.getByRole("alert").filter({ hasText: IMAGE_ACTION_FAILURE_MESSAGE })).toBeVisible({
+    await expect(imageCard.getByRole("alert").filter({ hasText: "Görsel incelenemedi." })).toBeVisible({
       timeout: 15_000,
     });
+    await expect(imageCard.getByText(IMAGE_ACTION_FAILURE_MESSAGE, { exact: true })).toHaveCount(0);
     await expect(imageCard).toHaveAttribute("data-admin-image-review-status", "needs_review");
     await expectNoImageReviewPrivateLeak(page);
   });
@@ -284,7 +285,7 @@ test.describe("backoffice listing image review", () => {
     await page.goto(`/listings/${state.listing.id}`, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { name: "Backoffice", exact: true })).toBeVisible();
-    await expect(page.getByRole("alert").filter({ hasText: "Listing was not found." })).toBeVisible({
+    await expect(page.getByRole("alert").filter({ hasText: "İlan yüklenemedi." })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByRole("heading", { name: state.listing.title, exact: true })).toHaveCount(0);
@@ -346,8 +347,8 @@ async function openListingImageReview(page: Page, state: MockState) {
   );
 
   await expect(awaitingReviewPanel).toBeVisible();
-  await expect(awaitingReviewPanel.getByText("Images awaiting review", { exact: true })).toBeVisible();
-  await expect(page.getByText("Hidden publicly until approved", { exact: true })).toBeVisible();
+  await expect(awaitingReviewPanel.getByText("İnceleme bekleyen görseller", { exact: true })).toBeVisible();
+  await expect(page.getByText("Onaylanana kadar herkese açık görünmez", { exact: true })).toBeVisible();
 
   const imageId = state.listing.images[0]!.id;
   const imageCard = page.locator(`[data-admin-image-id="${imageId}"]`);
@@ -356,8 +357,8 @@ async function openListingImageReview(page: Page, state: MockState) {
   await expect(imageCard).toHaveAttribute("data-admin-image-review-status", "needs_review");
   await expect(imageCard.locator('[data-admin-image-review-status-label="needs_review"]')).toBeVisible();
 
-  await expect(imageCard.getByText("AI decision")).toBeVisible();
-  await expect(imageCard.getByText("needs_review", { exact: true })).toBeVisible();
+  await expect(imageCard.getByText("AI kararı")).toBeVisible();
+  await expect(imageCard.locator('[data-admin-image-review-status-label="needs_review"]')).toHaveText("İnceleme gerekli");
   await expect(imageCard.getByText("gemini", { exact: true })).toBeVisible();
   await expect(imageCard.getByText("gemini-2.5-flash", { exact: true })).toBeVisible();
   await expect(

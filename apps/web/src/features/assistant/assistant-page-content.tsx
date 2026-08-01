@@ -16,6 +16,7 @@ import {
   type WebAssistantResponse
 } from "./assistant-response-model";
 import styles from "./assistant-page-content.module.css";
+import { useAnalytics } from "../analytics/use-analytics";
 
 type AssistantMessage = {
   id: string;
@@ -29,6 +30,7 @@ type AssistantPageContentProps = {
 };
 
 export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) {
+  const analytics = useAnalytics();
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [isPending, setIsPending] = useState(false);
@@ -37,13 +39,14 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
   const requestIdRef = useRef(0);
 
   useEffect(() => {
+    analytics.trackAssistantOpened();
     const params = new URLSearchParams(window.location.search);
     const prompt = params.get("prompt")?.trim();
 
     if (prompt) {
       setInputValue(prompt);
     }
-  }, []);
+  }, [analytics]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,6 +72,10 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
     setIsPending(true);
     setErrorMessage(null);
     setLastFailedPrompt(null);
+    analytics.track({
+      eventName: "assistant_question_submitted",
+      properties: { domain: "general", sourceSurface: "assistant" }
+    });
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
@@ -87,6 +94,10 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
       try {
         normalizedResponse = normalizeWebAssistantResponse(response.data);
       } catch {
+        analytics.track({
+          eventName: "assistant_error",
+          properties: { reasonBucket: "invalid_response", sourceSurface: "assistant" }
+        });
         setLastFailedPrompt(normalizedInput);
         setErrorMessage("Asistan yanıtı okunamadı. Tekrar deneyebilirsin.");
         setIsPending(false);
@@ -102,11 +113,20 @@ export function AssistantPageContent({ apiBaseUrl }: AssistantPageContentProps) 
           response: normalizedResponse
         }
       ]);
+      analytics.trackAssistantAnswer({
+        grounded: normalizedResponse.grounded,
+        mode: normalizedResponse.mode,
+        sourceCount: normalizedResponse.sourceCards.length
+      });
       setIsPending(false);
       return;
     }
 
     setLastFailedPrompt(normalizedInput);
+    analytics.track({
+      eventName: "assistant_error",
+      properties: { reasonBucket: response.error.code, sourceSurface: "assistant" }
+    });
     setErrorMessage(getAssistantErrorMessage(response.error.code));
     setIsPending(false);
   }

@@ -10,6 +10,7 @@ import {
   type AdminListingImageAction,
   applyAdminListingImageAction,
 } from "./api";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type ListingImageReviewPanelProps = {
   listingId: string;
@@ -34,23 +35,23 @@ export function ListingImageReviewPanel({
   return (
     <section className="form-card">
       <div>
-        <p className="eyebrow">Images</p>
-        <h3>Image review</h3>
+        <p className="eyebrow">Görseller</p>
+        <h3>Görsel incelemesi</h3>
         <p>
-          Approve or reject individual listing images. Images marked needs review
-          stay visible to admins but are hidden from public listing responses until approved.
+          İlan görsellerini tek tek onayla veya reddet. İnceleme gereken görseller
+          yöneticilere görünür, onaylanana kadar herkese açık ilan yanıtlarında gizlenir.
         </p>
       </div>
 
       {needsReviewCount > 0 ? (
         <div className="state-panel">
-          <strong>{needsReviewCount} images awaiting review in this listing</strong>
-          <p>Review queue images are hidden publicly until approved.</p>
+          <strong>Bu ilanda {needsReviewCount} görsel inceleme bekliyor</strong>
+          <p>İnceleme kuyruğundaki görseller onaylanana kadar herkese açık görünmez.</p>
         </div>
       ) : null}
 
       {images.length === 0 ? (
-        <div className="state-panel">This listing has no uploaded images.</div>
+        <div className="state-panel">Bu ilana yüklenmiş görsel yok.</div>
       ) : (
         <div className="image-review-grid">
           {sortedImages.map((image) => (
@@ -128,14 +129,14 @@ function ImageReviewCard({
     });
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not review image."));
+      setErrorMessage(getApiErrorMessage(response, "Görsel incelenemedi."));
       setIsSubmitting(false);
       return;
     }
 
     onReviewed(response.data.listing);
     setReason("");
-    setSuccessMessage(`Image review audited: ${response.data.auditEventId}`);
+    setSuccessMessage(`Görsel incelemesi denetlendi: ${response.data.auditEventId}`);
     setIsSubmitting(false);
   }
 
@@ -155,63 +156,63 @@ function ImageReviewCard({
         </span>
         {image.reviewStatus === "needs_review" ? (
           <div className="state-panel">
-            <strong>Hidden publicly until approved</strong>
-            <p>This image is visible to admins only while it is awaiting review.</p>
+            <strong>Onaylanana kadar herkese açık görünmez</strong>
+            <p>Bu görsel inceleme beklerken yalnız yöneticilere görünür.</p>
           </div>
         ) : null}
       </div>
 
       <dl className="compact-details">
         <div>
-          <dt>Sort order</dt>
+          <dt>Sıralama</dt>
           <dd>{image.sortOrder}</dd>
         </div>
         <div>
-          <dt>Created</dt>
+          <dt>Oluşturulma</dt>
           <dd>{formatDateTime(image.createdAt)}</dd>
         </div>
         <div>
-          <dt>Reviewed</dt>
-          <dd>{image.reviewedAt ? formatDateTime(image.reviewedAt) : "Not reviewed"}</dd>
+          <dt>İncelenme</dt>
+          <dd>{image.reviewedAt ? formatDateTime(image.reviewedAt) : "İncelenmedi"}</dd>
         </div>
         <div>
-          <dt>Reviewer</dt>
-          <dd>{image.reviewedByProfileId ?? "Not set"}</dd>
+          <dt>İnceleyen</dt>
+          <dd>{image.reviewedByProfileId ?? "Belirtilmedi"}</dd>
         </div>
         <div>
-          <dt>AI decision</dt>
-          <dd>{image.authenticity.decision ?? "Not checked"}</dd>
+          <dt>AI kararı</dt>
+          <dd>{formatEnumLabel(image.authenticity.decision ?? "unknown")}</dd>
         </div>
         <div>
-          <dt>AI confidence</dt>
-          <dd>{image.authenticity.confidence === null ? "Not set" : image.authenticity.confidence.toFixed(2)}</dd>
+          <dt>AI güveni</dt>
+          <dd>{image.authenticity.confidence === null ? "Belirtilmedi" : image.authenticity.confidence.toFixed(2)}</dd>
         </div>
         <div>
-          <dt>AI provider</dt>
-          <dd>{image.authenticity.providerName ?? "Not set"}</dd>
+          <dt>AI sağlayıcısı</dt>
+          <dd>{image.authenticity.providerName ?? "Belirtilmedi"}</dd>
         </div>
         <div>
           <dt>AI model</dt>
-          <dd>{image.authenticity.modelName ?? "Not set"}</dd>
+          <dd>{image.authenticity.modelName ?? "Belirtilmedi"}</dd>
         </div>
         <div>
-          <dt>Prompt version</dt>
-          <dd>{image.authenticity.promptVersion ?? "Not set"}</dd>
+          <dt>İstem sürümü</dt>
+          <dd>{image.authenticity.promptVersion ?? "Belirtilmedi"}</dd>
         </div>
         <div>
-          <dt>AI checked</dt>
-          <dd>{image.authenticity.checkedAt ? formatDateTime(image.authenticity.checkedAt) : "Not checked"}</dd>
+          <dt>AI kontrol zamanı</dt>
+          <dd>{image.authenticity.checkedAt ? formatDateTime(image.authenticity.checkedAt) : "Kontrol edilmedi"}</dd>
         </div>
         <div className="full-field">
-          <dt>AI reasons</dt>
-          <dd>{image.authenticity.reasons.length > 0 ? image.authenticity.reasons.join(" / ") : "No AI reason recorded."}</dd>
+          <dt>AI nedenleri</dt>
+          <dd>{image.authenticity.reasons.length > 0 ? image.authenticity.reasons.join(" / ") : "AI nedeni kaydedilmedi."}</dd>
         </div>
         <div className="full-field">
-          <dt>AI flags</dt>
+          <dt>AI işaretleri</dt>
           <dd>{formatAuthenticityFlags(image.authenticity.flags)}</dd>
         </div>
         <div className="full-field">
-          <dt>Image ID</dt>
+          <dt>Görsel kimliği</dt>
           <dd>{image.id}</dd>
         </div>
       </dl>
@@ -222,7 +223,7 @@ function ImageReviewCard({
         onSubmit={handleSubmit}
       >
         <label className="form-field">
-          <span>Review action</span>
+          <span>İnceleme işlemi</span>
           <select
             data-admin-image-review-action={image.id}
             onChange={(event) =>
@@ -239,12 +240,12 @@ function ImageReviewCard({
         </label>
 
         <label className="form-field">
-          <span>Review reason</span>
+          <span>İnceleme nedeni</span>
           <textarea
             data-admin-image-review-reason={image.id}
             minLength={MIN_REASON_LENGTH}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Explain why this image review action is needed."
+            placeholder="Bu görsel inceleme işleminin neden gerekli olduğunu açıkla."
             rows={3}
             value={reason}
           />
@@ -264,7 +265,7 @@ function ImageReviewCard({
           disabled={!canSubmit}
           type="submit"
         >
-          {isSubmitting ? "Applying..." : "Apply image review"}
+          {isSubmitting ? "Uygulanıyor…" : "Görsel incelemesini uygula"}
         </button>
       </form>
     </article>
@@ -274,27 +275,27 @@ function ImageReviewCard({
 function getReviewActionLabel(action: AdminListingImageAction): string {
   switch (action) {
     case "approve":
-      return "Approve image";
+      return "Görseli onayla";
     case "reject":
-      return "Reject image";
+      return "Görseli reddet";
   }
 }
 
 function getReviewStatusLabel(status: AdminListingImage["reviewStatus"]): string {
   switch (status) {
     case "pending":
-      return "Pending";
+      return "Bekliyor";
     case "approved":
-      return "Approved";
+      return "Onaylandı";
     case "needs_review":
-      return "Needs review";
+      return "İnceleme gerekli";
     case "rejected":
-      return "Rejected";
+      return "Reddedildi";
   }
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
@@ -305,7 +306,9 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Görsel incelemesi yapma yetkin yok."
+    : fallback;
 }
 
 function getImageReviewPriority(status: AdminListingImage["reviewStatus"]): number {
@@ -343,7 +346,7 @@ function formatAuthenticityFlags(flags: Record<string, unknown>): string {
 
   return Object.keys(safeFlags).length > 0
     ? JSON.stringify(safeFlags)
-    : "No safe AI flags recorded.";
+    : "Güvenli AI işareti kaydedilmedi.";
 }
 
 function sanitizeImageReviewMetadata(value: unknown): Record<string, unknown> {

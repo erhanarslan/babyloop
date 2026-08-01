@@ -1,4 +1,4 @@
-import { notificationDeliveryLogs } from "@babyloop/database/schema";
+import { notificationDeliveryLogs, runtimeWorkerHeartbeats } from "@babyloop/database/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createUser } from "./api-helpers.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
@@ -23,6 +23,14 @@ describe("admin notification ops service", () => {
 
   it("returns aggregate delivery log preview without leaking sensitive keys", async () => {
     const user = await createUser(app, { email: "ops-preview-user@example.test" });
+
+    await app.db.insert(runtimeWorkerHeartbeats).values({
+      workerName: "notification_delivery",
+      workerId: "notification-worker-test",
+      status: "idle",
+      lastCompletedAt: new Date("2030-01-01T10:03:00.000Z"),
+      lastHeartbeatAt: new Date("2030-01-01T10:04:00.000Z")
+    });
 
     await app.db.insert(notificationDeliveryLogs).values([
       {
@@ -94,6 +102,39 @@ describe("admin notification ops service", () => {
         metadata: {
           token: "secret-device-token"
         }
+      },
+      {
+        profileId: user.profile.id,
+        kind: "child_lifecycle",
+        sourceType: "child_profile",
+        sourceId: "child-lifecycle-sent-1",
+        channel: "in_app",
+        status: "sent",
+        provider: "none",
+        sentAt: new Date("2030-01-01T10:02:00.000Z"),
+        idempotencyKey: sensitiveFixture("secret", "idempotency", "key", "4"),
+        dedupKey: "secret-dedup-key-4",
+        frequencyWindowHours: 24,
+        deliveryAllowed: true,
+        draftOnly: false,
+        blockedReasons: []
+      },
+      {
+        profileId: user.profile.id,
+        kind: "saved_search",
+        sourceType: "saved_search",
+        sourceId: "saved-search-failed-1",
+        channel: "push",
+        status: "failed",
+        provider: "expo",
+        failedAt: new Date("2030-01-01T10:03:00.000Z"),
+        nextAttemptAt: new Date("2030-01-01T10:08:00.000Z"),
+        idempotencyKey: sensitiveFixture("secret", "idempotency", "key", "5"),
+        dedupKey: "secret-dedup-key-5",
+        frequencyWindowHours: 24,
+        deliveryAllowed: true,
+        draftOnly: false,
+        blockedReasons: []
       }
     ]);
 
@@ -137,24 +178,26 @@ describe("admin notification ops service", () => {
     );
 
     expect(preview.deliveryLogPreview.totals).toMatchObject({
-      all: 3,
+      all: 5,
       candidate: 1,
       processing: 1,
-      blocked: 1
+      blocked: 1,
+      failed: 1,
+      sent: 1
     });
     expect(preview.deliveryLogPreview.byKind).toEqual(
       expect.arrayContaining([
-        { kind: "saved_search", count: 1 },
+        { kind: "saved_search", count: 2 },
         { kind: "child_reminder", count: 1 }
       ])
     );
     expect(preview.deliveryLogPreview.byChannel).toEqual(
       expect.arrayContaining([
-        { channel: "in_app", count: 1 },
+        { channel: "in_app", count: 2 },
         { channel: "email_draft", count: 1 }
       ])
     );
-    expect(preview.deliveryLogPreview.recent).toHaveLength(3);
+    expect(preview.deliveryLogPreview.recent).toHaveLength(5);
     expect(preview.deliveryLogPreview.recent).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -175,8 +218,19 @@ describe("admin notification ops service", () => {
         })
       ])
     );
+    expect(preview.operationalHealth).toMatchObject({
+      deadLetterCount: null,
+      lastFailedDeliveryAt: "2030-01-01T10:03:00.000Z",
+      lastSuccessfulDeliveryAt: "2030-01-01T10:02:00.000Z",
+      retryScheduledCount: 1,
+      worker: {
+        lastCompletedAt: "2030-01-01T10:03:00.000Z",
+        lastHeartbeatAt: "2030-01-01T10:04:00.000Z",
+        status: "idle"
+      }
+    });
     expect(serialized).not.toMatch(/parent@example|ops-preview-user@example|secret-idempotency|secret-dedup|secret-token|session-cookie|Bearer secret|raw-sensitive-payload-from-metadata/iu);
     expect(serialized).not.toMatch(/secret-claim-token|secret-device-token/iu);
-    expect(preview.warning).toContain("Email, push, n8n, queue veya in-app notification gönderimi yapmaz");
+    expect(preview.warning).toContain("E-posta, anlık bildirim, n8n, kuyruk veya uygulama içi bildirim gönderimi yapmaz");
   });
 });

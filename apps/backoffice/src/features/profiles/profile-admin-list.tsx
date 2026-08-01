@@ -12,6 +12,7 @@ import {
   type AdminProfileResponseSummary,
   listAdminProfiles,
 } from "./api";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type SafetyStatusFilter = "" | AdminProfileSafetyStatus;
 type RiskLevelFilter = "" | AdminProfileRiskLevel;
@@ -74,7 +75,7 @@ export function ProfileAdminList() {
 
       if (!response.ok) {
         setProfiles([]);
-        setErrorMessage(getApiErrorMessage(response, "Could not load profiles."));
+        setErrorMessage(getApiErrorMessage(response, "Profiller yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -107,11 +108,11 @@ export function ProfileAdminList() {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Trust & Safety</p>
-          <h2>Profiles</h2>
+          <p className="eyebrow">Güven ve Emniyet</p>
+          <h2>Profiller</h2>
           <p>
-            Search profiles by safety status and trust-risk signals. This directory
-            intentionally excludes email, phone, raw user records, and raw report content.
+            Profilleri güvenlik durumu ve güven-risk sinyalleriyle ara. Bu dizinde e-posta,
+            telefon, ham kullanıcı kaydı veya ham şikâyet içeriği gösterilmez.
           </p>
         </div>
       </div>
@@ -119,7 +120,7 @@ export function ProfileAdminList() {
       <form className="filter-panel" onSubmit={handleSubmit}>
         <div className="filter-grid">
           <label className="form-field">
-            <span>Safety status</span>
+            <span>Güvenlik durumu</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -131,14 +132,14 @@ export function ProfileAdminList() {
             >
               {safetyStatuses.map((status) => (
                 <option key={status || "all"} value={status}>
-                  {status ? formatStatus(status) : "All statuses"}
+                  {status ? formatEnumLabel(status) : "Tüm durumlar"}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="form-field">
-            <span>Risk level</span>
+            <span>Risk düzeyi</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -150,14 +151,14 @@ export function ProfileAdminList() {
             >
               {riskLevels.map((level) => (
                 <option key={level || "all"} value={level}>
-                  {level ? formatStatus(level) : "All risk levels"}
+                  {level ? formatEnumLabel(level) : "Tüm risk düzeyleri"}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="form-field">
-            <span>Search</span>
+            <span>Arama</span>
             <input
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -165,14 +166,14 @@ export function ProfileAdminList() {
                   q: event.target.value,
                 }))
               }
-              placeholder="Profile display name, city, or profile id"
+              placeholder="Görünen ad, şehir veya profil kimliği"
               type="search"
               value={draftFilters.q}
             />
           </label>
 
           <label className="form-field">
-            <span>Sort</span>
+            <span>Sıralama</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -191,7 +192,7 @@ export function ProfileAdminList() {
           </label>
 
           <label className="form-field">
-            <span>Limit</span>
+            <span>Sayfa boyutu</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -212,7 +213,7 @@ export function ProfileAdminList() {
 
         <div className="filter-actions">
           <button className="primary-action" disabled={isLoading} type="submit">
-            Apply filters
+            Filtreleri uygula
           </button>
           <button
             className="secondary-action"
@@ -220,12 +221,12 @@ export function ProfileAdminList() {
             onClick={resetFilters}
             type="button"
           >
-            Reset
+            Sıfırla
           </button>
         </div>
       </form>
 
-      {isLoading ? <div className="state-panel">Loading profiles...</div> : null}
+      {isLoading ? <div className="state-panel">Profiller yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -234,11 +235,11 @@ export function ProfileAdminList() {
       ) : null}
 
       {!isLoading && !errorMessage && profiles.length === 0 ? (
-        <div className="state-panel">No profiles match these filters.</div>
+        <div className="state-panel">Bu filtrelerle eşleşen profil yok.</div>
       ) : null}
 
       {profiles.length > 0 ? (
-        <div className="profile-admin-grid" aria-label="Profiles">
+        <div className="profile-admin-grid" aria-label="Profiller">
           {profiles.map((profile) => (
             <ProfileCard key={profile.profileId} profile={profile} />
           ))}
@@ -258,30 +259,30 @@ function ProfileCard({ profile }: { profile: AdminProfileResponseSummary }) {
       <div className="profile-admin-card-header">
         <div>
           <strong>{profile.displayName}</strong>
-          <p>{profile.locationCity ?? "Location not provided"}</p>
+          <p>{profile.locationCity ?? "Konum belirtilmedi"}</p>
         </div>
         {fullProfile ? (
-          <span className={`risk-pill ${riskLevel}`}>{formatStatus(riskLevel)}</span>
+          <span className={`risk-pill ${riskLevel}`}>{formatEnumLabel(riskLevel)}</span>
         ) : null}
       </div>
 
       <dl className="compact-details">
         <div>
-          <dt>Profile ID</dt>
+          <dt>Profil kimliği</dt>
           <dd>{profile.profileId.slice(0, 8)}</dd>
         </div>
         {fullProfile ? (
           <div>
-            <dt>Safety status</dt>
-            <dd>{formatStatus(fullProfile.safetyStatus)}</dd>
+            <dt>Güvenlik durumu</dt>
+            <dd>{formatEnumLabel(fullProfile.safetyStatus)}</dd>
           </div>
         ) : null}
         <div>
-          <dt>Listings</dt>
+          <dt>İlanlar</dt>
           <dd>{profile.listingCount}</dd>
         </div>
         <div>
-          <dt>Created</dt>
+          <dt>Oluşturulma</dt>
           <dd>{formatDateTime(profile.createdAt)}</dd>
         </div>
       </dl>
@@ -290,71 +291,69 @@ function ProfileCard({ profile }: { profile: AdminProfileResponseSummary }) {
         <div className="profile-snapshot-summary">
           <dl className="compact-details">
             <div>
-              <dt>Trust score</dt>
+              <dt>Güven puanı</dt>
               <dd>{snapshot.trustScore}</dd>
             </div>
             <div>
-              <dt>Risk score</dt>
+              <dt>Risk puanı</dt>
               <dd>{snapshot.riskScore}</dd>
             </div>
             <div>
-              <dt>Open cases</dt>
+              <dt>Açık vakalar</dt>
               <dd>{snapshot.openCaseCount}</dd>
             </div>
             <div>
-              <dt>Recent reports</dt>
+              <dt>Yakın tarihli şikâyetler</dt>
               <dd>{snapshot.recentReportCount}</dd>
             </div>
             <div>
-              <dt>Enforcement 30d</dt>
+              <dt>30 günlük yaptırım</dt>
               <dd>{snapshot.recentEnforcementCount}</dd>
             </div>
             <div>
-              <dt>AI summaries</dt>
+              <dt>AI özetleri</dt>
               <dd>{snapshot.aiSummaryCount}</dd>
             </div>
           </dl>
-          <p className="muted">Computed {formatDateTime(snapshot.computedAt)}</p>
+          <p className="muted">Hesaplanma: {formatDateTime(snapshot.computedAt)}</p>
         </div>
       ) : (
-        <p className="muted">No trust snapshot has been computed for this profile yet.</p>
+        <p className="muted">Bu profil için henüz güven görünümü hesaplanmadı.</p>
       )}
 
       <Link className="secondary-action profile-detail-link" href={`/profiles/${profile.profileId}`}>
-        View profile detail
+        Profil ayrıntısını görüntüle
       </Link>
     </article>
   );
 }
 
-function formatStatus(value: string): string {
-  return value.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
-}
-
 function formatSort(sort: AdminProfileSort): string {
   switch (sort) {
     case "risk_desc":
-      return "Highest risk first";
+      return "Önce en yüksek risk";
     case "risk_asc":
-      return "Lowest risk first";
+      return "Önce en düşük risk";
     case "trust_desc":
-      return "Highest trust first";
+      return "Önce en yüksek güven";
     case "trust_asc":
-      return "Lowest trust first";
+      return "Önce en düşük güven";
     case "newest":
-      return "Newest profiles";
+      return "En yeni profiller";
     case "oldest":
-      return "Oldest profiles";
+      return "En eski profiller";
   }
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
   response: ApiResponse<unknown>,
   fallback: string,
 ): string {
-  return response.ok ? fallback : response.error.message;
+  return response.ok || response.error.code !== "FORBIDDEN"
+    ? fallback
+    : "Profilleri görüntüleme yetkin yok.";
 }

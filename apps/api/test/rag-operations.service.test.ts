@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { RagOperationsService } from "../src/services/rag-operations.service.js";
@@ -57,6 +58,24 @@ const config: RagRuntimeConfig = {
 };
 
 describe("rag operations service", () => {
+  it("resolves the packaged documentation contract without source-relative paths", async () => {
+    const service = new RagOperationsService({ config });
+
+    const documents = await service.listDocuments();
+
+    expect(documents.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it("packages the RAG corpus into the API runtime image", async () => {
+    const dockerfile = await readFile(
+      path.resolve(process.cwd(), "../../deploy/docker/Dockerfile"),
+      "utf8"
+    );
+
+    expect(dockerfile).toContain("mkdir -p /out/api/docs/rag");
+    expect(dockerfile).toContain("cp -R docs/rag/. /out/api/docs/rag/");
+  });
+
   it("summarizes docs and config without secrets", async () => {
     const service = new RagOperationsService({
       config,

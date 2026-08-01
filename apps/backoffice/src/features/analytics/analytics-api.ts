@@ -5,6 +5,8 @@ import { authFetch } from "../../lib/auth-client";
 
 export type BackofficeAnalyticsOverview = {
   totalRegisteredUsers: number;
+  demoSystemAccounts: number;
+  loginDisabledAccounts: number;
   verifiedUsers: number;
   verifiedRate: number;
   googleLinkedUsers: number;
@@ -12,6 +14,7 @@ export type BackofficeAnalyticsOverview = {
   passwordUsers: number;
   dau: number;
   activeUsers: number;
+  activeCustomerUsers: number;
   sessions: number;
   averageSessionEngagementMs: number;
   pageViews: number;
@@ -23,8 +26,31 @@ export type BackofficeAnalyticsOverview = {
   messageSenders: number;
   conversationsStarted: number;
   assistantUsers: number;
+  assistantQuestions: number;
+  assistantAnswers: number;
+  assistantErrors: number;
+  assistantGroundedAnswers: number;
+  assistantGroundedRate: number;
+  registrations: number;
+  successfulLogins: number;
+  failedLogins: number;
+  googleSuccessfulLogins: number;
+  emailVerifications: number;
+  mfaCompletions: number;
   checkoutUsers: number;
+  searches: number;
+  contactIntents: number;
+  messagesSent: number;
+  messagesRead: number;
+  activeMessagingParticipants: number;
+  childProfilesCreated: number;
+  childNotesCreated: number;
+  childRemindersCreated: number;
+  rawEventsInRange: number;
+  lastRawEventAt: string | null;
   lastRollupAt: string | null;
+  aggregationStatus: "current" | "pending" | "empty";
+  dataSource: "raw_recent";
 };
 
 export type BackofficeAnalyticsPageRow = {
@@ -151,7 +177,7 @@ async function getAnalyticsApiResponse<T>(path: string): Promise<ApiResponse<T>>
       ok: false,
       error: {
         code: "BACKOFFICE_REQUEST_FAILED",
-        message: "Backoffice request failed."
+        message: "Analitik isteği tamamlanamadı."
       }
     };
   }

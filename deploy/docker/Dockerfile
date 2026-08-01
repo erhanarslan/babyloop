@@ -25,7 +25,8 @@ RUN pnpm --filter @babyloop/api build \
     && pnpm --filter @babyloop/api deploy --prod --legacy /out/api \
     && rm -rf /out/api/dist \
     && cp -R apps/api/dist /out/api/dist \
-    && mkdir -p /out/api/migrations /out/api/scripts/deploy \
+    && mkdir -p /out/api/docs/rag /out/api/migrations /out/api/scripts/deploy \
+    && cp -R docs/rag/. /out/api/docs/rag/ \
     && cp -R packages/database/drizzle/. /out/api/migrations/ \
     && cp scripts/deploy/worker-loop.mjs /out/api/scripts/deploy/worker-loop.mjs
 

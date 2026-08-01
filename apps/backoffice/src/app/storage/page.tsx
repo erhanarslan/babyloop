@@ -2,7 +2,7 @@ import { BackofficeAuthShell } from "../../features/auth/backoffice-auth-shell";
 import { StorageOpsPage } from "../../features/storage/storage-ops-page";
 
 export const metadata = {
-  title: "Storage Ops | BabyLoop Backoffice"
+  title: "Depolama Operasyonları | BabyLoop Backoffice"
 };
 
 export default function StoragePage() {

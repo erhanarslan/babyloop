@@ -87,7 +87,7 @@ function StaffDashboardHome() {
       if (!response.ok) {
         setSummary(null);
         setErrorMessage(
-          getApiErrorMessage(response, "Could not load dashboard summary."),
+          getApiErrorMessage(response, "Yönetim paneli özeti yüklenemedi."),
         );
         setIsLoading(false);
         return;
@@ -107,16 +107,16 @@ function StaffDashboardHome() {
   return (
     <>
       <section className="page-heading">
-        <p className="eyebrow">BabyLoop Operations</p>
-        <h2>Trust & Safety monitoring dashboard</h2>
+        <p className="eyebrow">BabyLoop Operasyonları</p>
+        <h2>Güven ve emniyet izleme paneli</h2>
         <p>
-          Aggregate-only operational snapshot for moderation, marketplace review,
-          conversations, profiles, audit, and AI health. No seller, reporter,
-          message body, email, phone, or raw AI payload is shown.
+          Moderasyon, pazar yeri, konuşmalar, profiller, denetim ve AI sağlığı için
+          yalnız toplu operasyon görünümü sunulur. Satıcı, şikâyetçi, ileti gövdesi,
+          e-posta, telefon veya ham AI verisi gösterilmez.
         </p>
       </section>
 
-      {isLoading ? <div className="state-panel">Loading dashboard...</div> : null}
+      {isLoading ? <div className="state-panel">Panel yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -126,102 +126,102 @@ function StaffDashboardHome() {
 
       {summary ? (
         <>
-          <section className="summary-grid dashboard-summary-grid" aria-label="Dashboard summary">
-            <SummaryCard label="Open cases" value={summary.moderation.openModerationCases} />
-            <SummaryCard label="High priority" value={summary.moderation.openHighPriorityCases} />
-            <SummaryCard label="Pending reports" value={summary.moderation.pendingReports} />
-            <SummaryCard label="Profiles to review" value={summary.profiles.profilesNeedingReview} />
-            <SummaryCard label="Open message cases" value={summary.conversations.openMessageCases} />
-            <SummaryCard label="AI failures 7d" value={summary.ai.moderationSummaryFailuresLast7Days} />
-            <SummaryCard label="Images to review" value={summary.images.needsReviewListingImages} />
-            <SummaryCard label="Audit events 7d" value={summary.actions.auditEventsLast7Days} />
+          <section className="summary-grid dashboard-summary-grid" aria-label="Panel özeti">
+            <SummaryCard label="Açık vakalar" value={summary.moderation.openModerationCases} />
+            <SummaryCard label="Yüksek öncelik" value={summary.moderation.openHighPriorityCases} />
+            <SummaryCard label="Bekleyen şikâyetler" value={summary.moderation.pendingReports} />
+            <SummaryCard label="İncelenecek profiller" value={summary.profiles.profilesNeedingReview} />
+            <SummaryCard label="Açık mesaj vakaları" value={summary.conversations.openMessageCases} />
+            <SummaryCard label="7 günlük AI hatası" value={summary.ai.moderationSummaryFailuresLast7Days} />
+            <SummaryCard label="İncelenecek görseller" value={summary.images.needsReviewListingImages} />
+            <SummaryCard label="7 günlük denetim kaydı" value={summary.actions.auditEventsLast7Days} />
           </section>
 
-          <section className="module-grid" aria-label="Backoffice modules">
+          <section className="module-grid" aria-label="Yönetim paneli modülleri">
             <DashboardModule
               href="/moderation"
-              title="Moderation queue"
-              description="Track open cases, priority mix, incoming reports, and sensitive-access activity."
+              title="Moderasyon kuyruğu"
+              description="Açık vakaları, öncelik dağılımını, gelen şikâyetleri ve hassas erişim hareketlerini izle."
               stats={[
-                ["Open cases", summary.moderation.openModerationCases],
-                ["High priority", summary.moderation.openHighPriorityCases],
-                ["Normal priority", summary.moderation.openNormalPriorityCases],
-                ["Low priority", summary.moderation.openLowPriorityCases],
-                ["New cases 7d", summary.moderation.casesCreatedLast7Days],
-                ["Reports 7d", summary.moderation.reportsCreatedLast7Days],
+                ["Açık vakalar", summary.moderation.openModerationCases],
+                ["Yüksek öncelik", summary.moderation.openHighPriorityCases],
+                ["Normal öncelik", summary.moderation.openNormalPriorityCases],
+                ["Düşük öncelik", summary.moderation.openLowPriorityCases],
+                ["7 günlük yeni vaka", summary.moderation.casesCreatedLast7Days],
+                ["7 günlük şikâyet", summary.moderation.reportsCreatedLast7Days],
               ]}
             />
             <DashboardModule
               href="/profiles"
-              title="Profile risk queue"
-              description="Monitor restricted, suspended, high-risk, and critical-risk profiles."
+              title="Profil risk kuyruğu"
+              description="Kısıtlı, askıya alınmış, yüksek ve kritik riskli profilleri izle."
               stats={[
-                ["Needs review", summary.profiles.profilesNeedingReview],
-                ["Restricted", summary.profiles.restrictedProfiles],
-                ["Suspended", summary.profiles.suspendedProfiles],
-                ["High risk", summary.profiles.highRiskProfiles],
-                ["Critical risk", summary.profiles.criticalRiskProfiles],
+                ["İnceleme gerekli", summary.profiles.profilesNeedingReview],
+                ["Kısıtlı", summary.profiles.restrictedProfiles],
+                ["Askıya alınmış", summary.profiles.suspendedProfiles],
+                ["Yüksek risk", summary.profiles.highRiskProfiles],
+                ["Kritik risk", summary.profiles.criticalRiskProfiles],
               ]}
             />
             <DashboardModule
               href="/conversations"
-              title="Message safety"
-              description="Review aggregate conversation and message risk without exposing raw message bodies."
+              title="Mesaj güvenliği"
+              description="Ham ileti gövdelerini göstermeden toplu konuşma ve mesaj riskini incele."
               stats={[
-                ["Total conversations", summary.conversations.totalConversations],
-                ["New conversations 7d", summary.conversations.conversationsCreatedLast7Days],
-                ["Messages 7d", summary.conversations.messagesCreatedLast7Days],
-                ["Reported messages", summary.conversations.reportedMessageCount],
-                ["Open message cases", summary.conversations.openMessageCases],
-                ["Message actions 7d", summary.actions.messageEnforcementActionsLast7Days],
+                ["Toplam konuşma", summary.conversations.totalConversations],
+                ["7 günlük yeni konuşma", summary.conversations.conversationsCreatedLast7Days],
+                ["7 günlük mesaj", summary.conversations.messagesCreatedLast7Days],
+                ["Şikâyet edilen mesajlar", summary.conversations.reportedMessageCount],
+                ["Açık mesaj vakaları", summary.conversations.openMessageCases],
+                ["7 günlük mesaj işlemi", summary.actions.messageEnforcementActionsLast7Days],
               ]}
             />
             <DashboardModule
               href="/listings"
-              title="Marketplace review"
-              description="Track listing volume, lifecycle state, and image-review backlog signals."
+              title="Pazar yeri incelemesi"
+              description="İlan hacmini, yaşam döngüsü durumunu ve görsel inceleme kuyruğunu izle."
               stats={[
-                ["Total listings", summary.listings.totalListings],
-                ["Active listings", summary.listings.activeListings],
-                ["Created 7d", summary.listings.listingsCreatedLast7Days],
-                ["Updated 7d", summary.listings.listingsUpdatedLast7Days],
-                ["With rejected images", summary.listings.listingsWithRejectedImages],
-                ["Listing actions 7d", summary.actions.listingActionsLast7Days],
+                ["Toplam ilan", summary.listings.totalListings],
+                ["Aktif ilanlar", summary.listings.activeListings],
+                ["7 günde oluşturulan", summary.listings.listingsCreatedLast7Days],
+                ["7 günde güncellenen", summary.listings.listingsUpdatedLast7Days],
+                ["Reddedilen görselli", summary.listings.listingsWithRejectedImages],
+                ["7 günlük ilan işlemi", summary.actions.listingActionsLast7Days],
               ]}
             />
             <DashboardModule
               href="/listings"
-              title="Image review"
-              description="Track approved, pending-review, and rejected listing images plus recent review action volume."
+              title="Görsel incelemesi"
+              description="Onaylanan, inceleme bekleyen ve reddedilen ilan görselleriyle son işlem hacmini izle."
               stats={[
-                ["Total images", summary.images.totalListingImages],
-                ["Approved", summary.images.approvedListingImages],
-                ["Needs review", summary.images.needsReviewListingImages],
-                ["Rejected", summary.images.rejectedListingImages],
-                ["Reviewed 7d", summary.images.imagesReviewedLast7Days],
-                ["Image actions 7d", summary.actions.imageReviewActionsLast7Days],
+                ["Toplam görsel", summary.images.totalListingImages],
+                ["Onaylandı", summary.images.approvedListingImages],
+                ["İnceleme gerekli", summary.images.needsReviewListingImages],
+                ["Reddedildi", summary.images.rejectedListingImages],
+                ["7 günde incelenen", summary.images.imagesReviewedLast7Days],
+                ["7 günlük görsel işlemi", summary.actions.imageReviewActionsLast7Days],
               ]}
             />
             <DashboardModule
               href="/audit"
-              title="Audit and sensitive access"
-              description="Monitor audited admin activity at an aggregate level only."
+              title="Denetim ve hassas erişim"
+              description="Denetlenen yönetici hareketlerini yalnız toplu düzeyde izle."
               stats={[
-                ["Audit events 7d", summary.actions.auditEventsLast7Days],
-                ["Sensitive grants 7d", summary.moderation.sensitiveAccessGrantedLast7Days],
-                ["Sensitive denials 7d", summary.moderation.sensitiveAccessDeniedLast7Days],
-                ["Profile actions 7d", summary.actions.profileEnforcementActionsLast7Days],
+                ["7 günlük denetim kaydı", summary.actions.auditEventsLast7Days],
+                ["7 günlük hassas erişim izni", summary.moderation.sensitiveAccessGrantedLast7Days],
+                ["7 günlük hassas erişim reddi", summary.moderation.sensitiveAccessDeniedLast7Days],
+                ["7 günlük profil işlemi", summary.actions.profileEnforcementActionsLast7Days],
               ]}
             />
             <DashboardModule
               href="/ai-ops"
-              title="AI moderation health"
-              description="Monitor AI moderation summary usage and failure signals without showing raw prompts or outputs."
+              title="AI moderasyon sağlığı"
+              description="Ham istem veya çıktıları göstermeden AI moderasyon özeti kullanımını ve hata sinyallerini izle."
               stats={[
-                ["Summary runs 7d", summary.ai.moderationSummaryRunsLast7Days],
-                ["Failures 7d", summary.ai.moderationSummaryFailuresLast7Days],
-                ["Provider failures 7d", summary.ai.providerFailuresLast7Days],
-                ["Validation failures 7d", summary.ai.validationFailuresLast7Days],
+                ["7 günlük özet çalışması", summary.ai.moderationSummaryRunsLast7Days],
+                ["7 günlük hata", summary.ai.moderationSummaryFailuresLast7Days],
+                ["7 günlük sağlayıcı hatası", summary.ai.providerFailuresLast7Days],
+                ["7 günlük doğrulama hatası", summary.ai.validationFailuresLast7Days],
               ]}
             />
           </section>
@@ -277,5 +277,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Bu yönetim panelini görüntüleme yetkin yok."
+    : fallback;
 }

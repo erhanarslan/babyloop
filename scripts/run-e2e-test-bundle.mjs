@@ -53,6 +53,7 @@ const bundles = {
     ops: [
       "e2e/login.smoke.spec.ts",
       "e2e/ai-ops.smoke.spec.ts",
+      "e2e/ops-observability.smoke.spec.ts",
     ],
     release: [
       "e2e/login.smoke.spec.ts",
@@ -61,6 +62,7 @@ const bundles = {
       "e2e/trust-ops.smoke.spec.ts",
       "e2e/listing-image-review.smoke.spec.ts",
       "e2e/ai-ops.smoke.spec.ts",
+      "e2e/ops-observability.smoke.spec.ts",
     ],
   },
 };

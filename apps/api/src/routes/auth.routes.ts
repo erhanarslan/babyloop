@@ -5,6 +5,8 @@ import type {
   RouteShorthandOptions
 } from "fastify";
 import { CURRENT_TERMS_VERSION, type ApiFailure } from "@babyloop/shared";
+import { users } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
 import {
   accountDeletionConfirmSchema,
   accountDeletionRequestSchema,
@@ -1455,6 +1457,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       }
 
       const legalTermsCookie = readGoogleOAuthTermsCookie(request.headers.cookie, cookieState!);
+      const normalizedGoogleEmail = googleProfile.email.trim().toLowerCase();
+      const [existingPublicUser] = await app.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, normalizedGoogleEmail))
+        .limit(1);
       const result = await authenticateGoogleUser(app, googleProfile, {
         ...(legalTermsCookie
           ? {
@@ -1483,6 +1491,32 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
         serializeExpiredGoogleOAuthStateCookie(),
         serializeExpiredGoogleOAuthTermsCookie()
       ]);
+      if (!existingPublicUser) {
+        void trackServerAnalyticsEvent(app, {
+          eventName: "registration_completed",
+          platform: "web",
+          profileId: response.data.profile.id,
+          properties: {
+            authProvider: "google",
+            newSession: true
+          },
+          sessionId: session.id,
+          userId: response.data.user.id
+        });
+      }
+      void trackServerAnalyticsEvent(app, {
+        eventName: "login_completed",
+        platform: "web",
+        profileId: response.data.profile.id,
+        properties: {
+          authProvider: "google",
+          mfaUsed: false,
+          mobileApprovalUsed: false,
+          newSession: true
+        },
+        sessionId: session.id,
+        userId: response.data.user.id
+      });
 
       return redirect(reply, buildGoogleAuthSuccessRedirect(options.googleOAuth.webAppUrl));
     } catch (error) {

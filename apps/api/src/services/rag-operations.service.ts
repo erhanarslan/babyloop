@@ -1,5 +1,5 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { RagRuntimeConfig } from "../config/env.js";
 import type { QdrantVectorStore } from "./rag-qdrant-vector-store.service.js";
 import type { RagCacheService } from "./rag-cache.service.js";
@@ -17,7 +17,9 @@ import type {
   RagDocumentGovernanceSummary
 } from "./rag.types.js";
 
-const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+// Production starts in /app, while filtered workspace commands start in apps/api.
+// Never derive this from import.meta.url: compiled dist depth differs from source depth.
+const DEFAULT_DOCS_ROOT = resolveDefaultDocsRoot();
 
 export type RagDocumentOperationSummary = RagDocumentGovernanceSummary;
 
@@ -89,7 +91,7 @@ export class RagOperationsService {
   constructor(options: RagOperationsServiceOptions) {
     this.config = options.config;
     this.cacheService = options.cacheService ?? null;
-    this.docsRoot = options.docsRoot ?? path.join(REPO_ROOT, "docs", "rag");
+    this.docsRoot = options.docsRoot ?? DEFAULT_DOCS_ROOT;
     this.metricsService = options.metricsService ?? null;
     this.redisClient = options.redisClient ?? null;
     this.usageLimitService = options.usageLimitService ?? null;
@@ -230,6 +232,15 @@ export class RagOperationsService {
       return fallback;
     }
   }
+}
+
+function resolveDefaultDocsRoot(): string {
+  const candidates = [
+    path.join(process.cwd(), "docs", "rag"),
+    path.resolve(process.cwd(), "..", "..", "docs", "rag")
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
 }
 
 function countBy(values: string[]): Record<string, number> {

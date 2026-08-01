@@ -1,3 +1,5 @@
+import { events } from "@babyloop/database/schema";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authHeader, createUser } from "./api-helpers.js";
 import { createTestApp, type TestApp } from "./helpers/app.js";
@@ -11,6 +13,7 @@ describe("admin email routes", () => {
   beforeEach(async () => {
     vi.stubEnv("EMAIL_PROVIDER", "mock");
     vi.stubEnv("EMAIL_SEND_ENABLED", "false");
+    vi.stubEnv("NOTIFICATION_SMOKE_RECIPIENT_EMAIL", "admin@example.test");
 
     app = await createTestApp();
   });
@@ -56,7 +59,7 @@ describe("admin email routes", () => {
     expect(response.json()).toMatchObject({
       ok: false,
       error: {
-        code: "INVALID_REQUEST"
+        code: "EMAIL_TEST_INVALID_RECIPIENT"
       }
     });
     expect(JSON.stringify(response.json())).not.toContain("secret-token");
@@ -76,7 +79,8 @@ describe("admin email routes", () => {
         to: "ADMIN@EXAMPLE.TEST",
         intent: "security_alert",
         note: "SMTP smoke test",
-        confirmation: "SEND_TEST_EMAIL"
+        confirmation: "SEND_TEST_EMAIL",
+        idempotencyKey: "33333333-3333-4333-8333-333333333333"
       }
     });
 
@@ -85,17 +89,27 @@ describe("admin email routes", () => {
       ok: true,
       data: {
         intent: "security_alert",
-        result: {
-          sent: false,
-          provider: "mock",
-          sandboxOnly: true,
-          reason: "email_delivery_disabled"
-        }
+        status: "not_sent",
+        provider: "mock",
+        sandboxOnly: true,
+        errorCategory: "delivery_disabled",
+        recipientMasked: "a***@example.test"
       }
     });
     expect(JSON.stringify(response.json())).not.toContain("SMTP_PASS");
     expect(JSON.stringify(response.json())).not.toContain("secret");
     expect(JSON.stringify(response.json())).not.toContain("token");
+    const auditRows = await app.db
+      .select({ eventType: events.eventType, metadata: events.metadata })
+      .from(events)
+      .where(eq(events.eventType, "admin_email_test_send_completed"));
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]?.metadata).toMatchObject({
+      category: "delivery_disabled",
+      intent: "security_alert",
+      provider: "mock"
+    });
+    expect(JSON.stringify(auditRows)).not.toContain("admin@example.test");
   });
 
   it("returns admin email ops preview safely", async () => {

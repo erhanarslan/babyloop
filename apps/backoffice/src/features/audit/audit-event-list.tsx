@@ -10,6 +10,7 @@ import {
   type AdminAuditSort,
   listAdminAuditEvents,
 } from "./api";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type AuditFilters = {
   eventType: string;
@@ -56,7 +57,7 @@ export function AuditEventList() {
 
       if (!response.ok) {
         setEvents([]);
-        setErrorMessage(getApiErrorMessage(response, "Could not load audit events."));
+        setErrorMessage(getApiErrorMessage(response, "Denetim kayıtları yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -90,18 +91,18 @@ export function AuditEventList() {
   return (
     <>
       <section className="page-heading">
-        <p className="eyebrow">Trust & Safety</p>
-        <h2>Audit events</h2>
+        <p className="eyebrow">Güven ve Emniyet</p>
+        <h2>Denetim kayıtları</h2>
         <p>
-          Safe audit visibility for admin actions. Metadata is allowlisted and
-          excludes raw reasons, emails, message bodies, tokens, and private objects.
+          Yönetici işlemleri için güvenli görünürlük sağlar. Üst veri izin listelidir;
+          ham neden, e-posta, mesaj gövdesi, token veya özel nesne içermez.
         </p>
       </section>
 
       <form className="filter-panel" onSubmit={handleSubmit}>
         <div className="filter-grid">
           <label className="form-field">
-            <span>Event type</span>
+            <span>Olay türü</span>
             <input
               onChange={(event) =>
                 setFilters((current) => ({
@@ -115,7 +116,7 @@ export function AuditEventList() {
           </label>
 
           <label className="form-field">
-            <span>Entity type</span>
+            <span>Varlık türü</span>
             <input
               onChange={(event) =>
                 setFilters((current) => ({
@@ -129,7 +130,7 @@ export function AuditEventList() {
           </label>
 
           <label className="form-field">
-            <span>Safe search</span>
+            <span>Güvenli arama</span>
             <input
               onChange={(event) =>
                 setFilters((current) => ({
@@ -137,13 +138,13 @@ export function AuditEventList() {
                   q: event.target.value,
                 }))
               }
-              placeholder="ID or event type"
+              placeholder="Kimlik veya olay türü"
               value={filters.q}
             />
           </label>
 
           <label className="form-field">
-            <span>Sort</span>
+            <span>Sıralama</span>
             <select
               onChange={(event) =>
                 setFilters((current) => ({
@@ -153,13 +154,13 @@ export function AuditEventList() {
               }
               value={filters.sort}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
+              <option value="newest">Önce en yeni</option>
+              <option value="oldest">Önce en eski</option>
             </select>
           </label>
 
           <label className="form-field">
-            <span>Limit</span>
+            <span>Sayfa boyutu</span>
             <select
               onChange={(event) =>
                 setFilters((current) => ({
@@ -178,15 +179,15 @@ export function AuditEventList() {
 
         <div className="filter-actions">
           <button className="primary-action" type="submit">
-            Apply filters
+            Filtreleri uygula
           </button>
           <button className="secondary-action" onClick={handleReset} type="button">
-            Reset
+            Sıfırla
           </button>
         </div>
       </form>
 
-      {isLoading ? <div className="state-panel">Loading audit events...</div> : null}
+      {isLoading ? <div className="state-panel">Denetim kayıtları yükleniyor…</div> : null}
 
       {errorMessage ? (
         <div className="state-panel danger" role="alert">
@@ -195,27 +196,27 @@ export function AuditEventList() {
       ) : null}
 
       {!isLoading && !errorMessage && events.length === 0 ? (
-        <div className="state-panel">No audit events match these filters.</div>
+        <div className="state-panel">Bu filtrelerle eşleşen denetim kaydı yok.</div>
       ) : null}
 
       {events.length > 0 ? (
-        <section className="timeline" aria-label="Audit events">
+        <section className="timeline" aria-label="Denetim kayıtları">
           {events.map((event) => (
             <article className="timeline-item audit_event" key={event.id}>
               <div>
                 <strong>{formatEventType(event.eventType)}</strong>
                 <p>
-                  {event.entityType} · {event.entityId}
+                  {formatEnumLabel(event.entityType)} · {event.entityId}
                 </p>
               </div>
 
               <dl className="compact-details">
                 <div>
-                  <dt>Actor profile</dt>
-                  <dd>{event.actorProfileId ?? "System"}</dd>
+                  <dt>İşlemi yapan profil</dt>
+                  <dd>{event.actorProfileId ?? "Sistem"}</dd>
                 </div>
                 <div>
-                  <dt>Created</dt>
+                  <dt>Oluşturulma</dt>
                   <dd>{formatDateTime(event.createdAt)}</dd>
                 </div>
               </dl>
@@ -230,7 +231,7 @@ export function AuditEventList() {
                   ))}
                 </div>
               ) : (
-                <p className="muted">No safe metadata for this event.</p>
+                <p className="muted">Bu olay için gösterilebilir güvenli üst veri yok.</p>
               )}
 
               <div className="filter-actions">
@@ -256,28 +257,28 @@ function getSafeResourceLinks(event: AdminAuditEvent): Array<{ href: string; lab
   if (event.entityType === "moderation_case") {
     links.push({
       href: `/moderation/${event.entityId}`,
-      label: "Open case",
+      label: "Vakayı aç",
     });
   }
 
   if (caseId && event.entityType !== "moderation_case") {
     links.push({
       href: `/moderation/${caseId}`,
-      label: "Open case",
+      label: "Vakayı aç",
     });
   }
 
   if (event.entityType === "listing") {
     links.push({
       href: `/listings/${event.entityId}`,
-      label: "Open listing",
+      label: "İlanı aç",
     });
   }
 
   if (listingId && event.entityType !== "listing") {
     links.push({
       href: `/listings/${listingId}`,
-      label: "Open listing",
+      label: "İlanı aç",
     });
   }
 
@@ -291,14 +292,34 @@ function getStringMetadata(
 }
 
 function formatEventType(eventType: string): string {
+  const labels: Record<string, string> = {
+    admin_email_test_send_completed: "Kontrollü e-posta testi tamamlandı",
+    admin_email_test_send_failed: "Kontrollü e-posta testi başarısız",
+    admin_email_test_send_started: "Kontrollü e-posta testi başlatıldı",
+    admin_profile_enforcement_applied: "Yönetici profil yaptırımı uygulandı",
+    listing_auto_published: "İlan otomatik yayımlandı",
+    listing_status_changed: "İlan durumu değişti"
+  };
+  if (labels[eventType]) return labels[eventType];
   return eventType
     .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => formatEnumLabel(part))
     .join(" ");
 }
 
 function formatMetadataKey(key: string): string {
-  return key.replace(/([A-Z])/g, " $1").replace(/^./, (value) => value.toUpperCase());
+  const labels: Record<string, string> = {
+    action: "İşlem",
+    actorProfileId: "İşlemi yapan profil",
+    category: "Kategori",
+    intent: "Senaryo",
+    profileId: "Profil kimliği",
+    nextStatus: "Sonraki durum",
+    previousStatus: "Önceki durum",
+    provider: "Sağlayıcı",
+    reason: "Neden"
+  };
+  return labels[key] ?? key.replace(/([A-Z])/g, " $1").replace(/^./, (value) => value.toUpperCase());
 }
 
 function formatMetadataValue(
@@ -309,17 +330,14 @@ function formatMetadataValue(
   }
 
   if (value === null) {
-    return "none";
+    return "Yok";
   }
 
-  return String(value);
+  return typeof value === "string" ? formatEnumLabel(value) : String(value);
 }
 
 function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
@@ -330,5 +348,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Denetim kayıtlarını görüntüleme yetkin yok."
+    : fallback;
 }

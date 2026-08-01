@@ -1189,9 +1189,16 @@ function registerAdminBodyContracts(): void {
           example: "Backoffice provider bağlantı testi.",
           maxLength: 240,
           nullable: true
-        })
+        }),
+        confirmation: enumSchema(["SEND_TEST_EMAIL"], {
+          example: "SEND_TEST_EMAIL"
+        }),
+        idempotencyKey: uuidSchema(
+          "Kontrollü test isteği tekilleştirme anahtarı",
+          UUID_EXAMPLE
+        )
       },
-      ["to"]
+      ["to", "confirmation", "idempotencyKey"]
     )
   );
 
@@ -2266,7 +2273,15 @@ function registerExactResponseContracts(): void {
   setExactResponses("POST", "/admin/moderation/cases/:caseId/ai-summary", ["200", "400", "401", "403", "404", "429", "503"]);
   setExactResponses("POST", "/admin/moderation/cases/:caseId/enforcement", ["200", "400", "401", "403", "404", "500", "503"]);
   setExactResponses("POST", "/admin/moderation/cases/:caseId/actions", ["201", "400", "401", "403", "404", "503"]);
-  setExactResponses("POST", "/admin/email/test-send", ["200", "400", "401", "403", "503"]);
+  setExactResponses("POST", "/admin/email/test-send", [
+    "200",
+    "400",
+    "401",
+    "403",
+    "409",
+    "429",
+    "503"
+  ]);
   setExactResponsesForPaths("POST", [
     "/admin/rag/playground/query",
     "/admin/rag/reindex/run",

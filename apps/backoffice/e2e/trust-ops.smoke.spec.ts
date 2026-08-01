@@ -57,12 +57,12 @@ test.describe("backoffice trust operations", () => {
 
     await page.goto("/profiles", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { name: "Profiles", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Profiller", exact: true })).toBeVisible({
       timeout: 15_000,
     });
     const profileCard = page.locator("article").filter({ hasText: "Trust Ops Parent" });
     await expect(profileCard).toBeVisible();
-    await expect(profileCard.getByText("Critical", { exact: true })).toBeVisible();
+    await expect(profileCard.getByText("Kritik", { exact: true })).toBeVisible();
     await expect(profileCard.locator(`a[href="/profiles/${PROFILE_ID}"]`)).toBeVisible();
 
     await expectNoTrustOpsSensitiveLeak(page);
@@ -72,20 +72,20 @@ test.describe("backoffice trust operations", () => {
     await expect(page).toHaveURL(new RegExp(`/profiles/${PROFILE_ID}$`), {
       timeout: 15_000,
     });
-    await expect(page.getByRole("heading", { name: "Profile detail", exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Profil ayrıntısı", exact: true })).toBeVisible({
       timeout: 15_000,
     });
 
     const profileDetailMain = page.getByRole("main");
-    await expect(profileDetailMain).toContainText("Trust score", {
+    await expect(profileDetailMain).toContainText("Güven puanı", {
       timeout: 15_000,
     });
-    await expect(profileDetailMain).toContainText("Risk score");
-    await expect(profileDetailMain).toContainText("Current profile safety status: Active.");
-    await expect(profileDetailMain).toContainText("Profile enforcement");
+    await expect(profileDetailMain).toContainText("Risk puanı");
+    await expect(profileDetailMain).toContainText("Mevcut profil güvenlik durumu: Aktif.");
+    await expect(profileDetailMain).toContainText("Profil yaptırımı");
 
-    await page.getByLabel(/Restrict profile/).check();
-    await page.getByLabel("Enforcement reason").fill(
+    await page.getByLabel(/Profili kısıtla/).check();
+    await page.getByLabel("Yaptırım nedeni").fill(
       "E2E verified repeated unsafe marketplace behavior with safe admin-only context.",
     );
 
@@ -96,19 +96,19 @@ test.describe("backoffice trust operations", () => {
       );
     });
 
-    await page.getByRole("button", { name: "Apply profile enforcement", exact: true }).click();
+    await page.getByRole("button", { name: "Profil yaptırımını uygula", exact: true }).click();
 
     const enforcementResponse = await enforcementResponsePromise;
     expect(enforcementResponse.ok(), await enforcementResponse.text()).toBe(true);
 
     await expect(
-      page.getByText("Profile enforcement applied. Audit event id: audit-profile-enforcement-e2e", {
+      page.getByText("Profil yaptırımı uygulandı. Denetim olayı: audit-profile-enforcement-e2e", {
         exact: true,
       }),
     ).toBeVisible({
       timeout: 15_000,
     });
-    await expect(profileDetailMain).toContainText(/Current profile safety status: restricted\./i);
+    await expect(profileDetailMain).toContainText("Mevcut profil güvenlik durumu: Kısıtlı.");
 
     await expectNoTrustOpsSensitiveLeak(page);
   });
@@ -120,13 +120,13 @@ test.describe("backoffice trust operations", () => {
 
     await page.goto("/audit", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByText("Safe audit visibility for admin actions.")).toBeVisible({
+    await expect(page.getByText(/Yönetici işlemleri için güvenli görünürlük sağlar\./u)).toBeVisible({
       timeout: 15_000,
     });
-    const auditEvent = page.locator("article").filter({ hasText: "Admin Profile Enforcement Applied" });
+    const auditEvent = page.locator("article").filter({ hasText: "Yönetici profil yaptırımı uygulandı" });
     await expect(auditEvent).toBeVisible();
-    await expect(auditEvent).toContainText(`profile · ${PROFILE_ID}`);
-    await expect(auditEvent).toContainText("Profile Id");
+    await expect(auditEvent).toContainText(`Profil · ${PROFILE_ID}`);
+    await expect(auditEvent).toContainText("Profil kimliği");
     await expect(auditEvent).toContainText(PROFILE_ID);
 
     await expect(auditEvent.locator(`a[href="/moderation/${CASE_ID}"]`)).toBeVisible();

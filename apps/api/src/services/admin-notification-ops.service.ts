@@ -1,5 +1,5 @@
-import { notificationDeliveryLogs } from "@babyloop/database/schema";
-import { desc, sql } from "drizzle-orm";
+import { notificationDeliveryLogs, runtimeWorkerHeartbeats } from "@babyloop/database/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import {
   getNotificationDeliveryPolicyPreview,
@@ -23,10 +23,32 @@ import {
   getNotificationPreferenceSummary,
   type NotificationPreferencesSummary
 } from "./notification-preferences.service.js";
+import {
+  isNotificationEmailProviderConfigured,
+  isNotificationN8nProviderConfigured,
+  isNotificationPushProviderConfigured
+} from "./notification-email-config.service.js";
 // Notification delivery transition preview must expose allowedDraftOnlyTransitions and futureSenderTransitions
 // through admin ops without enabling provider senders.
 
 export type AdminNotificationOpsPreview = {
+  operationalHealth: {
+    worker: {
+      status: string;
+      lastHeartbeatAt: string;
+      lastCompletedAt: string | null;
+      lastErrorCode: string | null;
+    } | null;
+    providers: {
+      email: boolean;
+      push: boolean;
+      n8n: boolean;
+    };
+    lastSuccessfulDeliveryAt: string | null;
+    lastFailedDeliveryAt: string | null;
+    retryScheduledCount: number;
+    deadLetterCount: null;
+  };
   summary: {
     status: "draft_only";
     draftOnly: true;
@@ -121,7 +143,13 @@ type CountRow<T extends string> = {
 // Native push readiness is exposed as blocked/draft-only ops metadata.
 // Native push readiness source-token boundary: pushSenderEnabled stays false via pushReadinessPreview.
 export async function getAdminNotificationOpsPreview(app: FastifyInstance): Promise<AdminNotificationOpsPreview> {
+  const [operationalHealth, deliveryLogPreview] = await Promise.all([
+    getOperationalHealth(app),
+    getAdminNotificationDeliveryLogPreview(app)
+  ]);
+
   return {
+    operationalHealth,
     summary: {
       status: "draft_only",
       draftOnly: true
@@ -138,45 +166,85 @@ export async function getAdminNotificationOpsPreview(app: FastifyInstance): Prom
     channels: [
       {
         key: "in_app",
-        label: "In-app",
+        label: "Uygulama içi",
         status: "draft_only",
-        note: "Uygulama içi notification adayları delivery log ile izlenebilir; bu preview gönderim yapmaz."
+        note: "Uygulama içi bildirim adayları teslimat kayıtlarından izlenebilir; bu önizleme gönderim yapmaz."
       },
       {
         key: "email_draft",
-        label: "Email draft",
+        label: "E-posta taslağı",
         status: "draft_only",
-        note: "Email taslağı adayı üretilebilir; provider gönderimi kapalıdır."
+        note: "E-posta taslağı adayı üretilebilir; sağlayıcı gönderimi kapalıdır."
       },
       {
         key: "push_future",
         label: "Push",
         status: "future",
-        note: "Native push token, consent ve provider geçişleri ayrı paket olarak kalır."
+        note: "Anlık bildirim tokenı, izin ve sağlayıcı geçişleri ayrı bir çalışma olarak kalır."
       },
       {
         key: "n8n_future",
         label: "n8n hook",
         status: "future",
-        note: "Webhook yalnızca delivery log + retry + idempotency sonrası açılmalı. Admin audit ayrıca zorunludur."
+        note: "Webhook yalnızca teslimat kaydı, yeniden deneme ve tekilleştirme korumaları tamamlandıktan sonra açılmalıdır. Yönetici denetim kaydı ayrıca zorunludur."
       }
     ],
     nextSteps: [
-      "delivery log transition modeli: candidate/processing/blocked/sent/failed/skipped",
-      "notification_delivery_logs schema ve admin audit bağlantısı",
-      "sender provider sandbox",
-      "retry ve dead-letter policy",
-      "n8n webhook idempotency token"
+      "Teslimat kaydı durum geçiş modeli",
+      "Bildirim teslimat kayıtları ve yönetici denetim bağlantısı",
+      "Gönderici sağlayıcı deneme ortamı",
+      "Yeniden deneme ve dead-letter politikası",
+      "n8n webhook tekilleştirme anahtarı"
     ],
     policyPreview: getNotificationDeliveryPolicyPreview(),
     transitionPreview: getNotificationDeliveryTransitionPreview(),
     pushReadinessPreview: getNotificationPushReadinessPreview(),
     n8nReadinessPreview: getNotificationN8nReadinessPreview(),
     preferenceSummary: getNotificationPreferenceSummary(),
-    deliveryLogPreview: await getAdminNotificationDeliveryLogPreview(app),
+    deliveryLogPreview,
     warning:
-      "Bu endpoint operasyonel önizlemedir. Email, push, n8n, queue veya in-app notification gönderimi yapmaz."
+      "Bu uç nokta operasyonel önizlemedir. E-posta, anlık bildirim, n8n, kuyruk veya uygulama içi bildirim gönderimi yapmaz."
   };
+}
+
+async function getOperationalHealth(app: FastifyInstance): Promise<AdminNotificationOpsPreview["operationalHealth"]> {
+  const [[worker], [delivery]] = await Promise.all([
+    app.db.select({
+      status: runtimeWorkerHeartbeats.status,
+      lastHeartbeatAt: runtimeWorkerHeartbeats.lastHeartbeatAt,
+      lastCompletedAt: runtimeWorkerHeartbeats.lastCompletedAt,
+      lastErrorCode: runtimeWorkerHeartbeats.lastErrorCode
+    }).from(runtimeWorkerHeartbeats).where(eq(runtimeWorkerHeartbeats.workerName, "notification_delivery")).limit(1),
+    app.db.select({
+      lastFailedAt: sql<Date | string | null>`max(${notificationDeliveryLogs.failedAt})`,
+      lastSentAt: sql<Date | string | null>`max(${notificationDeliveryLogs.sentAt})`,
+      retryScheduledCount: sql<number>`count(*) filter (where ${notificationDeliveryLogs.nextAttemptAt} is not null and ${notificationDeliveryLogs.status} in ('candidate', 'failed'))::int`
+    }).from(notificationDeliveryLogs)
+  ]);
+
+  return {
+    deadLetterCount: null,
+    lastFailedDeliveryAt: formatDateLike(delivery?.lastFailedAt),
+    lastSuccessfulDeliveryAt: formatDateLike(delivery?.lastSentAt),
+    providers: {
+      email: isNotificationEmailProviderConfigured(),
+      n8n: isNotificationN8nProviderConfigured(),
+      push: isNotificationPushProviderConfigured()
+    },
+    retryScheduledCount: delivery?.retryScheduledCount ?? 0,
+    worker: worker ? {
+      lastCompletedAt: worker.lastCompletedAt?.toISOString() ?? null,
+      lastErrorCode: sanitizeShortText(worker.lastErrorCode),
+      lastHeartbeatAt: worker.lastHeartbeatAt.toISOString(),
+      status: worker.status
+    } : null
+  };
+}
+
+function formatDateLike(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 export async function getAdminNotificationDeliveryLogPreview(

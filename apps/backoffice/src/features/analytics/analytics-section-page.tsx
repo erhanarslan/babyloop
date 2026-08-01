@@ -15,6 +15,8 @@ import {
   type BackofficeAnalyticsSection
 } from "./analytics-api";
 import { formatDuration } from "./analytics-dashboard-model";
+import { formatEnumLabel } from "../../lib/presentation";
+import { EmptyState, LoadingState, RecoverableError } from "../shared/async-state";
 
 type AnalyticsSectionPageProps = {
   kind:
@@ -77,15 +79,15 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
         <div>
           <p className="eyebrow">Analitik</p>
           <h2>{title}</h2>
-          <p>Yalnız aggregate metrikler gösterilir. Hassas event property’leri ve serbest kullanıcı metni render edilmez.</p>
+          <p>Yalnız toplu metrikler gösterilir. Hassas olay alanları ve serbest kullanıcı metni ekrana taşınmaz.</p>
         </div>
       </div>
 
-      {loading ? <div className="state-panel">Analytics verisi yükleniyor...</div> : null}
-      {error ? <div className="state-panel danger" role="alert">{error}</div> : null}
+      {loading ? <LoadingState title="Analitik verileri yükleniyor…" /> : null}
+      {error ? <RecoverableError title="Analitik verileri alınamadı" description="İlgili veri kaynağına şu anda erişilemiyor." /> : null}
 
       {section ? (
-        <section className="summary-grid dashboard-summary-grid" aria-label={`${title} metrics`}>
+        <section className="summary-grid dashboard-summary-grid" aria-label={`${title} metrikleri`}>
           {section.metrics.map((metric) => (
             <div className="summary-card" key={metric.label}>
               <span>{metric.label}</span>
@@ -95,6 +97,10 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
         </section>
       ) : null}
 
+      {!loading && !error && section && section.metrics.every((metric) => metric.value === 0) ? (
+        <EmptyState title="Henüz olay oluşmadı" description="Seçili son 30 günlük dönemde bu alan için ölçülebilir olay bulunmuyor." />
+      ) : null}
+
       {pages.length > 0 ? (
         <article className="module-card dashboard-module-card">
           <h3>Sayfalar ve ekranlar</h3>
@@ -102,7 +108,7 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
             <div className="table-list-row" key={`${page.platform}-${page.surface}`}>
               <div>
                 <strong>{page.surface}</strong>
-                <p className="muted">{page.platform} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı</p>
+                <p className="muted">{formatEnumLabel(page.platform)} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı</p>
               </div>
               <small className="muted">ort. {formatDuration(page.averageEngagementMs)} · p90 {formatDuration(page.p90EngagementMs)}</small>
             </div>
@@ -117,9 +123,9 @@ export function AnalyticsSectionPage({ kind, title }: AnalyticsSectionPageProps)
             <div className="table-list-row" key={`${category.platform}-${category.categoryId}`}>
               <div>
                 <strong>{category.categoryName}</strong>
-                <p className="muted">{category.platform} · {category.listingViews} ilan görüntüleme · {category.favorites} favori</p>
+                <p className="muted">{formatEnumLabel(category.platform)} · {category.listingViews} ilan görüntüleme · {category.favorites} favori</p>
               </div>
-              <small className="muted">{category.conversationsStarted} sohbet · {category.checkoutCompleted} checkout</small>
+              <small className="muted">{category.conversationsStarted} sohbet · {category.checkoutCompleted} tamamlanan ödeme</small>
             </div>
           ))}
         </article>
@@ -158,28 +164,28 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
     const response = await getBackofficeAnalyticsEngagement();
     return response.ok
       ? { ok: true, pages: response.data.engagement.pages, section: response.data.engagement.summary }
-      : { ok: false, message: response.error.message };
+      : { ok: false, message: "Analitik verileri alınamadı." };
   }
 
   if (kind === "marketplace") {
     const response = await getBackofficeAnalyticsMarketplace();
     return response.ok
       ? { ok: true, categories: response.data.marketplace.categories, section: response.data.marketplace.summary }
-      : { ok: false, message: response.error.message };
+      : { ok: false, message: "Analitik verileri alınamadı." };
   }
 
   if (kind === "funnels") {
     const response = await getBackofficeAnalyticsFunnels();
     return response.ok
       ? { ok: true, funnels: response.data.funnels }
-      : { ok: false, message: response.error.message };
+      : { ok: false, message: "Analitik verileri alınamadı." };
   }
 
   if (kind === "auth") {
     const response = await getBackofficeAnalyticsAuth();
 
     if (!response.ok) {
-      return { ok: false, message: response.error.message };
+      return { ok: false, message: "Analitik verileri alınamadı." };
     }
 
     const totals = response.data.auth.reduce(
@@ -204,11 +210,11 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
     return {
       ok: true,
       section: {
-        title: "Auth & Doğrulama",
+        title: "Kimlik ve Doğrulama",
         metrics: [
           { label: "Kayıt", value: totals.registrations },
-          { label: "Başarılı login", value: totals.successfulLogins },
-          { label: "Başarısız login", value: totals.failedLogins },
+          { label: "Başarılı giriş", value: totals.successfulLogins },
+          { label: "Başarısız giriş", value: totals.failedLogins },
           { label: "E-posta doğrulama", value: totals.emailVerifications },
           { label: "MFA tamamlama", value: totals.mfaCompletions },
           { label: "Mobil onay", value: totals.approvalCompletions }
@@ -221,7 +227,7 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
     const response = await getBackofficeAnalyticsDataQuality();
 
     if (!response.ok) {
-      return { ok: false, message: response.error.message };
+      return { ok: false, message: "Analitik verileri alınamadı." };
     }
 
     return {
@@ -229,11 +235,11 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
       section: {
         title: "Veri Kalitesi",
         metrics: [
-          { label: "Raw event", value: response.data.dataQuality.rawEventsLast7Days },
-          { label: "Tekrarlı event", value: response.data.dataQuality.duplicateEventsLast7Days },
+          { label: "Ham olay", value: response.data.dataQuality.rawEventsLast7Days },
+          { label: "Tekrarlı olay", value: response.data.dataQuality.duplicateEventsLast7Days },
           { label: "Reddedilen", value: response.data.dataQuality.rejectedEventsLast7Days },
-          { label: "Session eksik", value: response.data.dataQuality.missingSessionIdsLast7Days },
-          { label: "Bilinmeyen versiyon", value: response.data.dataQuality.unknownEventVersionsLast7Days }
+          { label: "Oturum kimliği eksik", value: response.data.dataQuality.missingSessionIdsLast7Days },
+          { label: "Bilinmeyen sürüm", value: response.data.dataQuality.unknownEventVersionsLast7Days }
         ]
       }
     };
@@ -243,7 +249,7 @@ async function loadSection(kind: AnalyticsSectionPageProps["kind"]): Promise<{
 
   return response.ok
     ? { ok: true, section: response.data.section }
-    : { ok: false, message: response.error.message };
+    : { ok: false, message: "Analitik verileri alınamadı." };
 }
 
 function formatMetric(value: number, unit: BackofficeAnalyticsSection["metrics"][number]["unit"]): string {

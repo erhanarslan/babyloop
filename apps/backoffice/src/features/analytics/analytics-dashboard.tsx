@@ -11,6 +11,8 @@ import {
   getBackofficeAnalyticsPages
 } from "./analytics-api";
 import { buildAnalyticsOverviewKpis, formatDuration } from "./analytics-dashboard-model";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
+import { EmptyState, LoadingState, RecoverableError, StaleDataState } from "../shared/async-state";
 
 export function AnalyticsDashboard() {
   const [overview, setOverview] = useState<BackofficeAnalyticsOverview | null>(null);
@@ -61,23 +63,21 @@ export function AnalyticsDashboard() {
           <p className="eyebrow">Analitik</p>
           <h2>Genel Bakış</h2>
           <p>
-            First-party product analytics yalnızca aggregate görünürlük sağlar. Raw messages
-            (ham mesajlar), asistan prompt’u, çocuk notu, token, cookie, exact IP ve raw query string gösterilmez.
+            Birinci taraf ürün analitiği, son dönem ham olaylarını ve toplama güncelliğini birlikte gösterir.
+            Mesaj gövdesi, asistan sorusu, çocuk notu, token, çerez, tam IP ve ham sorgu metni gösterilmez.
           </p>
         </div>
       </div>
 
-      {isLoading ? <div className="state-panel">Analytics verisi yükleniyor...</div> : null}
+      {isLoading ? <LoadingState title="Analitik verileri yükleniyor…" /> : null}
 
       {errorMessage ? (
-        <div className="state-panel danger" role="alert">
-          {errorMessage}
-        </div>
+        <RecoverableError title="Analitik verileri alınamadı" description={errorMessage} />
       ) : null}
 
       {overview ? (
         <>
-          <nav className="module-grid" aria-label="Analytics bölümleri">
+          <nav className="module-grid" aria-label="Analitik bölümleri">
             {analyticsSectionLinks.map(({ href, label }) => (
               <Link className="module-card dashboard-module-card" href={href} key={href}>
                 <h3>{label}</h3>
@@ -85,26 +85,42 @@ export function AnalyticsDashboard() {
             ))}
           </nav>
 
-          <section className="summary-grid dashboard-summary-grid" aria-label="Analytics genel bakış">
+          <section className="summary-grid dashboard-summary-grid" aria-label="Analitik genel bakış">
             {buildAnalyticsOverviewKpis(overview).map((card) => (
               <div className="summary-card" key={card.label}>
                 <span>{card.label}</span>
                 <strong>{card.value}</strong>
+                <ul className="compact-list">
+                  {card.details.map((detail) => <li key={detail}>{detail}</li>)}
+                </ul>
+                <small className="muted">{card.period} · {card.source}</small>
               </div>
             ))}
           </section>
 
-          <section className="module-grid" aria-label="Analytics kırılımları">
+          {overview.aggregationStatus === "pending" ? (
+            <StaleDataState lastUpdated={overview.lastRollupAt ? formatDateTimeTr(overview.lastRollupAt) : null} />
+          ) : null}
+
+          <section className="module-grid" aria-label="Analitik kırılımları">
             <article className="module-card dashboard-module-card">
               <h3>Veri tazeliği</h3>
               <dl className="compact-details">
                 <div>
-                  <dt>Son rollup</dt>
-                  <dd>{overview.lastRollupAt ? new Date(overview.lastRollupAt).toLocaleString("tr-TR") : "Henüz yok"}</dd>
+                  <dt>Son toplama</dt>
+                  <dd>{overview.lastRollupAt ? formatDateTimeTr(overview.lastRollupAt) : "Henüz tamamlanmadı"}</dd>
                 </div>
                 <div>
-                  <dt>Zaman dilimi</dt>
-                  <dd>Europe/Istanbul gösterim, UTC saklama</dd>
+                  <dt>Son ham olay</dt>
+                  <dd>{overview.lastRawEventAt ? formatDateTimeTr(overview.lastRawEventAt) : "Henüz olay yok"}</dd>
+                </div>
+                <div>
+                  <dt>Ham olay sayısı</dt>
+                  <dd>{overview.rawEventsInRange}</dd>
+                </div>
+                <div>
+                  <dt>Veri kaynağı</dt>
+                  <dd>{overview.dataSource === "raw_recent" ? "Son dönem ham olayları" : formatEnumLabel(overview.dataSource)}</dd>
                 </div>
               </dl>
             </article>
@@ -113,14 +129,14 @@ export function AnalyticsDashboard() {
               <h3>Sayfalar ve ekranlar</h3>
               <div className="table-list">
                 {pages.length === 0 ? (
-                  <div className="state-panel">Henüz sayfa veya ekran aggregate verisi yok.</div>
+                  <EmptyState title="Henüz sayfa veya ekran olayı yok" description="Olay oluştuğunda görünür yüzeyler burada listelenir." />
                 ) : (
                   pages.map((page) => (
                     <div className="table-list-row" key={`${page.platform}-${page.surface}`}>
                       <div>
                         <strong>{page.surface}</strong>
                         <p className="muted">
-                          {page.platform} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı
+                          {formatEnumLabel(page.platform)} · {page.views} görüntüleme · {page.uniqueUsers} kullanıcı
                         </p>
                       </div>
                       <small className="muted">
@@ -140,12 +156,12 @@ export function AnalyticsDashboard() {
 
 const analyticsSectionLinks: Array<{ href: string; label: string }> = [
   { href: "/analytics/users", label: "Kullanıcılar" },
-  { href: "/analytics/auth", label: "Auth & Doğrulama" },
+  { href: "/analytics/auth", label: "Kimlik ve Doğrulama" },
   { href: "/analytics/engagement", label: "Etkileşim" },
   { href: "/analytics/marketplace", label: "Pazaryeri" },
   { href: "/analytics/messaging", label: "Mesajlaşma" },
-  { href: "/analytics/assistant", label: "Asistan & RAG" },
-  { href: "/analytics/child", label: "Çocuk & Hatırlatıcılar" },
+  { href: "/analytics/assistant", label: "Asistan ve RAG" },
+  { href: "/analytics/child", label: "Çocuk ve Hatırlatıcılar" },
   { href: "/analytics/funnels", label: "Dönüşüm Hunileri" },
   { href: "/analytics/data-quality", label: "Veri Kalitesi" }
 ];
@@ -158,5 +174,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Analitik genel bakışını görüntüleme yetkin yok."
+    : fallback;
 }

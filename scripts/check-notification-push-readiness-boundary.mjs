@@ -118,20 +118,20 @@ function checkOpsPreviewAndUi() {
   }
 
   for (const token of [
-    "Native push readiness",
+    "Anlık bildirim hazırlığı",
     "pushReadinessPreview",
     "pushSenderEnabled",
-    "Token registry",
-    "Push sender kapalı",
-    "Expo/Firebase/APNs çağrısı yok"
+    "Cihaz belirteci kaydı",
+    "Anlık bildirim göndericisi kapalı",
+    "Expo, Firebase veya APNs çağrısı yapılmıyor"
   ]) {
     mustContain(page, pageFile, token);
   }
 
   for (const token of [
-    "Native push readiness",
-    "Push sender kapalı",
-    "Expo/Firebase/APNs çağrısı yok"
+    "Anlık bildirim hazırlığı",
+    "Anlık bildirim göndericisi kapalı",
+    "Expo, Firebase veya APNs çağrısı yapılmıyor"
   ]) {
     mustContain(pageTest, pageTestFile, token);
   }

@@ -2,6 +2,7 @@
 
 import type { ApiResponse } from "@babyloop/shared";
 import { type FormEvent, useEffect, useState } from "react";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 import {
   type AdminModerationAiSummary,
@@ -47,7 +48,7 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
 
       if (!response.ok) {
         setHistoryErrorMessage(
-          getApiErrorMessage(response, "Could not load AI summary history."),
+          getApiErrorMessage(response, "AI özet geçmişi yüklenemedi."),
         );
         setIsLoadingHistory(false);
         return;
@@ -83,7 +84,7 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
     });
 
     if (!response.ok) {
-      setErrorMessage(getApiErrorMessage(response, "Could not generate AI summary."));
+      setErrorMessage(getApiErrorMessage(response, "AI özeti oluşturulamadı."));
       setIsGenerating(false);
       await refreshHistory();
       return;
@@ -101,22 +102,22 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
     <section className="content-card subtle-card">
       <div className="stack-sm">
         <div>
-          <p className="eyebrow">AI triage</p>
-          <h3>Redacted summary</h3>
+          <p className="eyebrow">AI ön değerlendirmesi</p>
+          <h3>Hassas alanları çıkarılmış özet</h3>
           <p className="muted">
-            Generates a triage-only summary from redacted case context. It does
-            not call sensitive-access or load reporter identity/raw message data.
+            Yalnızca hassas alanları çıkarılmış vaka bağlamından karar destek özeti
+            üretir; şikâyetçi kimliği veya ham ileti verisi yüklenmez.
           </p>
         </div>
 
         <form className="stack-sm" onSubmit={handleSubmit}>
           <label className="form-field">
-            <span>Generation reason</span>
+            <span>Oluşturma nedeni</span>
             <textarea
               maxLength={1000}
               minLength={10}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Explain why this redacted AI summary is needed."
+              placeholder="Bu güvenli AI özetinin neden gerekli olduğunu açıkla."
               required
               rows={3}
               value={reason}
@@ -124,7 +125,7 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
           </label>
 
           <button className="primary-action" disabled={isGenerating} type="submit">
-            {isGenerating ? "Generating..." : "Generate redacted summary"}
+            {isGenerating ? "Oluşturuluyor…" : "Güvenli özeti oluştur"}
           </button>
         </form>
 
@@ -138,11 +139,11 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
           <div className="note-panel ai-summary-result">
             <div className="page-toolbar compact-toolbar">
               <div>
-                <p className="eyebrow">Risk: {summary.riskLevel}</p>
+                <p className="eyebrow">Risk: {formatEnumLabel(summary.riskLevel)}</p>
                 <h4>{formatRecommendedAction(summary.recommendedAction)}</h4>
               </div>
               <span className="status-badge neutral">
-                Confidence {Math.round(summary.confidenceScore * 100)}%
+                Güven %{Math.round(summary.confidenceScore * 100)}
               </span>
             </div>
 
@@ -150,29 +151,29 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
 
             <div className="compact-details two-column-list">
               <div>
-                <dt>Provider</dt>
+                <dt>Sağlayıcı</dt>
                 <dd>{summary.providerName}</dd>
               </div>
               <div>
-                <dt>Prompt version</dt>
+                <dt>İstem sürümü</dt>
                 <dd>{summary.promptVersion}</dd>
               </div>
               <div>
                 <dt>Model</dt>
-                <dd>{summary.modelName ?? "Not disclosed"}</dd>
+                <dd>{summary.modelName ?? "Açıklanmadı"}</dd>
               </div>
               <div>
-                <dt>AI run</dt>
-                <dd>{aiModelRunId ? shortId(aiModelRunId) : "Not available"}</dd>
+                <dt>AI çalışması</dt>
+                <dd>{aiModelRunId ? shortId(aiModelRunId) : "Bulunmuyor"}</dd>
               </div>
               <div>
-                <dt>Audit event</dt>
-                <dd>{auditEventId ? shortId(auditEventId) : "Not available"}</dd>
+                <dt>Denetim olayı</dt>
+                <dd>{auditEventId ? shortId(auditEventId) : "Bulunmuyor"}</dd>
               </div>
             </div>
 
             <div>
-              <strong>Rationale</strong>
+              <strong>Gerekçe</strong>
               <ul className="plain-list">
                 {summary.rationale.map((item) => (
                   <li key={item}>{item}</li>
@@ -181,7 +182,7 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
             </div>
 
             <div>
-              <strong>Safety signals</strong>
+              <strong>Güvenlik sinyalleri</strong>
               <div className="metadata-chip-row">
                 {summary.safetySignals.map((signal) => (
                   <span className="metadata-chip" key={signal}>{signal}</span>
@@ -193,16 +194,16 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
 
         <div className="ai-summary-history">
           <div>
-            <p className="eyebrow">AI history</p>
-            <h4>Recent redacted runs</h4>
+            <p className="eyebrow">AI geçmişi</p>
+            <h4>Son güvenli çalışmalar</h4>
             <p className="muted">
-              Recent summaries are shown from safe AI model-run metadata. Raw prompts,
-              reporter identity, and raw message bodies are not displayed.
+              Son özetler güvenli AI çalışma üst verisinden gösterilir. Ham istemler,
+              şikâyetçi kimliği ve ham ileti gövdeleri gösterilmez.
             </p>
           </div>
 
           {isLoadingHistory ? (
-            <div className="state-panel">Loading AI summary history...</div>
+            <div className="state-panel">AI özet geçmişi yükleniyor…</div>
           ) : null}
 
           {historyErrorMessage ? (
@@ -212,7 +213,7 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
           ) : null}
 
           {!isLoadingHistory && !historyErrorMessage && history.length === 0 ? (
-            <div className="state-panel">No AI summaries have been generated yet.</div>
+            <div className="state-panel">Henüz AI özeti oluşturulmadı.</div>
           ) : null}
 
           {history.length > 0 ? (
@@ -222,9 +223,9 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
                   <div className="page-toolbar compact-toolbar">
                     <div>
                       <strong>{formatRunTitle(run)}</strong>
-                      <p className="muted">{formatDateTime(run.createdAt)}</p>
+                      <p className="muted">{formatDateTimeTr(run.createdAt)}</p>
                     </div>
-                    <span className="status-badge neutral">{run.status}</span>
+                    <span className="status-badge neutral">{formatEnumLabel(run.status)}</span>
                   </div>
 
                   {run.summary ? <p>{run.summary}</p> : null}
@@ -232,32 +233,32 @@ export function AiSummaryPanel({ moderationCase }: AiSummaryPanelProps) {
 
                   <div className="metadata-chip-row">
                     <span className="metadata-chip">
-                      <strong>Provider</strong>
+                      <strong>Sağlayıcı</strong>
                       {run.providerName}
                     </span>
                     <span className="metadata-chip">
                       <strong>Model</strong>
-                      {run.modelName ?? "Not disclosed"}
+                      {run.modelName ?? "Açıklanmadı"}
                     </span>
                     <span className="metadata-chip">
-                      <strong>Run</strong>
+                      <strong>Çalışma</strong>
                       {shortId(run.id)}
                     </span>
                     {run.riskLevel ? (
                       <span className="metadata-chip">
                         <strong>Risk</strong>
-                        {run.riskLevel}
+                        {formatEnumLabel(run.riskLevel)}
                       </span>
                     ) : null}
                     {run.recommendedAction ? (
                       <span className="metadata-chip">
-                        <strong>Action</strong>
+                        <strong>İşlem</strong>
                         {formatRecommendedAction(run.recommendedAction)}
                       </span>
                     ) : null}
                     {typeof run.confidenceScore === "number" ? (
                       <span className="metadata-chip">
-                        <strong>Confidence</strong>
+                        <strong>Güven</strong>
                         {Math.round(run.confidenceScore * 100)}%
                       </span>
                     ) : null}
@@ -277,21 +278,15 @@ function formatRunTitle(run: AdminModerationAiSummaryRun): string {
     return formatRecommendedAction(run.recommendedAction);
   }
 
-  return run.status === "success" ? "Generated summary" : "AI run did not complete";
+  return run.status === "success" ? "Özet oluşturuldu" : "AI çalışması tamamlanmadı";
 }
 
 function formatRecommendedAction(action: AdminModerationAiSummary["recommendedAction"]): string {
-  return action
-    .replace(/_/g, " ")
-    .replace(/^./, (letter) => letter.toUpperCase());
+  return formatEnumLabel(action);
 }
 
 function shortId(id: string): string {
   return id.slice(0, 8);
-}
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
 }
 
 function getApiErrorMessage(
@@ -302,5 +297,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Bu AI özet işlemi için yetkin yok."
+    : fallback;
 }

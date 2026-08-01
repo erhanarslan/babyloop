@@ -12,6 +12,7 @@ import {
   type AdminModerationTargetType,
   listAdminModerationCases,
 } from "./api";
+import { formatDateTimeTr, formatEnumLabel } from "../../lib/presentation";
 
 type StatusFilter = AdminModerationCaseStatus | "all";
 type TargetTypeFilter = AdminModerationTargetType | "all";
@@ -99,7 +100,7 @@ export function ModerationCaseList() {
       if (!response.ok) {
         setCases([]);
         setSummary(emptySummary);
-        setErrorMessage(getApiErrorMessage(response, "Could not load cases."));
+        setErrorMessage(getApiErrorMessage(response, "Moderasyon vakaları yüklenemedi."));
         setIsLoading(false);
         return;
       }
@@ -132,21 +133,20 @@ export function ModerationCaseList() {
     <section className="content-card">
       <div className="page-toolbar">
         <div>
-          <p className="eyebrow">Moderation</p>
-          <h2>Moderation cases</h2>
+          <p className="eyebrow">Moderasyon</p>
+          <h2>Moderasyon vakaları</h2>
           <p>
-            Review reported listings, messages, and profiles from the dedicated
-            backoffice application.
+            Şikâyet edilen ilanları, mesajları ve profilleri yönetim panelinden incele.
           </p>
         </div>
       </div>
 
-      <div className="summary-grid" aria-label="Moderation triage summary">
-        <SummaryCard label="Total" value={summary.total} />
-        <SummaryCard label="Pending" value={summary.byStatus.pending} />
-        <SummaryCard label="In review" value={summary.byStatus.inReview} />
-        <SummaryCard label="Messages" value={summary.byTargetType.message} />
-        <SummaryCard label="Listings" value={summary.byTargetType.listing} />
+      <div className="summary-grid" aria-label="Moderasyon öncelik özeti">
+        <SummaryCard label="Toplam" value={summary.total} />
+        <SummaryCard label="Bekliyor" value={summary.byStatus.pending} />
+        <SummaryCard label="İncelemede" value={summary.byStatus.inReview} />
+        <SummaryCard label="Mesajlar" value={summary.byTargetType.message} />
+        <SummaryCard label="İlanlar" value={summary.byTargetType.listing} />
       </div>
 
       <form
@@ -158,7 +158,7 @@ export function ModerationCaseList() {
       >
         <div className="filter-grid">
           <label className="form-field">
-            <span>Status</span>
+            <span>Durum</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -177,7 +177,7 @@ export function ModerationCaseList() {
           </label>
 
           <label className="form-field">
-            <span>Target type</span>
+            <span>Hedef türü</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -196,7 +196,7 @@ export function ModerationCaseList() {
           </label>
 
           <label className="form-field">
-            <span>Search</span>
+            <span>Arama</span>
             <input
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -204,14 +204,14 @@ export function ModerationCaseList() {
                   q: event.target.value,
                 }))
               }
-              placeholder="Case, report, target, status"
+              placeholder="Vaka, şikâyet, hedef veya durum"
               type="search"
               value={draftFilters.q}
             />
           </label>
 
           <label className="form-field">
-            <span>Sort</span>
+            <span>Sıralama</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -230,7 +230,7 @@ export function ModerationCaseList() {
           </label>
 
           <label className="form-field">
-            <span>Limit</span>
+            <span>Sayfa boyutu</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -251,7 +251,7 @@ export function ModerationCaseList() {
 
         <div className="filter-actions">
           <button className="primary-action" disabled={isLoading} type="submit">
-            Apply filters
+            Filtreleri uygula
           </button>
           <button
             className="secondary-action"
@@ -259,13 +259,13 @@ export function ModerationCaseList() {
             onClick={resetFilters}
             type="button"
           >
-            Reset
+            Sıfırla
           </button>
         </div>
       </form>
 
       {isLoading ? (
-        <div className="state-panel">Loading moderation cases...</div>
+        <div className="state-panel">Moderasyon vakaları yükleniyor…</div>
       ) : null}
 
       {errorMessage ? (
@@ -276,8 +276,8 @@ export function ModerationCaseList() {
 
       {!isLoading && !errorMessage && cases.length === 0 ? (
         <div className="state-panel">
-          <strong>No cases found</strong>
-          <p>There are no moderation cases matching this filter.</p>
+          <strong>Vaka bulunamadı</strong>
+          <p>Bu filtreyle eşleşen moderasyon vakası yok.</p>
         </div>
       ) : null}
 
@@ -290,11 +290,11 @@ export function ModerationCaseList() {
                   <span className={`status-badge ${moderationCase.status}`}>
                     {getStatusLabel(moderationCase.status)}
                   </span>
-                  <span className="muted">{moderationCase.subjectType}</span>
+                  <span className="muted">{formatEnumLabel(moderationCase.subjectType)}</span>
                 </div>
 
-                <h3>Case {shortId(moderationCase.id)}</h3>
-                <p>{moderationCase.reason}</p>
+                <h3>Vaka {shortId(moderationCase.id)}</h3>
+                <p>{formatEnumLabel(moderationCase.reason)}</p>
 
                 {moderationCase.details ? (
                   <p className="muted">{moderationCase.details}</p>
@@ -302,18 +302,18 @@ export function ModerationCaseList() {
 
                 <dl className="compact-details">
                   <div>
-                    <dt>Subject ID</dt>
+                    <dt>Hedef kimliği</dt>
                     <dd>{moderationCase.subjectId}</dd>
                   </div>
                   <div>
-                    <dt>Created</dt>
+                    <dt>Oluşturulma</dt>
                     <dd>{formatDateTime(moderationCase.createdAt)}</dd>
                   </div>
                 </dl>
               </div>
 
               <Link className="secondary-action" href={`/moderation/${moderationCase.id}`}>
-                Open case
+                Vakayı aç
               </Link>
             </article>
           ))}
@@ -335,41 +335,41 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
 function getStatusLabel(status: StatusFilter): string {
   switch (status) {
     case "all":
-      return "All";
+      return "Tümü";
     case "pending":
-      return "Pending";
+      return "Bekliyor";
     case "in_review":
-      return "In review";
+      return "İncelemede";
     case "resolved":
-      return "Resolved";
+      return "Çözüldü";
     case "dismissed":
-      return "Dismissed";
+      return "Kapatıldı";
   }
 }
 
 function getTargetTypeLabel(targetType: TargetTypeFilter): string {
   switch (targetType) {
     case "all":
-      return "All";
+      return "Tümü";
     case "listing":
-      return "Listing";
+      return "İlan";
     case "profile":
-      return "Profile";
+      return "Profil";
     case "message":
-      return "Message";
+      return "Mesaj";
   }
 }
 
 function getSortLabel(sort: AdminModerationSort): string {
   switch (sort) {
     case "newest":
-      return "Newest";
+      return "En yeni";
     case "oldest":
-      return "Oldest";
+      return "En eski";
     case "updated_desc":
-      return "Recently updated";
+      return "Son güncellenen";
     case "updated_asc":
-      return "Least recently updated";
+      return "En eski güncellenen";
   }
 }
 
@@ -378,7 +378,7 @@ function shortId(id: string): string {
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatDateTimeTr(value);
 }
 
 function getApiErrorMessage(
@@ -389,5 +389,7 @@ function getApiErrorMessage(
     return fallback;
   }
 
-  return response.error?.message ?? fallback;
+  return response.error?.code === "FORBIDDEN"
+    ? "Moderasyon vakalarını görüntüleme yetkin yok."
+    : fallback;
 }

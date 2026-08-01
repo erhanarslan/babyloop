@@ -17,9 +17,9 @@ export async function getAdminStorageOpsPreview(_app: FastifyInstance): Promise<
     uploadRoute: {
       localRouteEnabled: true,
       routePrefix: "/api/v1/uploads/listings",
-      note: "Local driver için API dosya stream route'u aktif kalır. S3/R2 driver absolute public URL döndürür."
+      note: "Yerel sürücü için API dosya akışı rotası etkin kalır. S3/R2 sürücüsü tam herkese açık URL döndürür."
     },
     warning:
-      "Bu endpoint credential veya secret döndürmez. Sadece hangi storage driver'ın aktif olduğunu gösterir."
+      "Bu uç nokta kimlik bilgisi veya gizli değer döndürmez. Yalnız etkin depolama sürücüsünü gösterir."
   };
 }
