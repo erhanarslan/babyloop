@@ -1,5 +1,5 @@
 import type { Database } from "@babyloop/database";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createApp } from "../../src/app.js";
@@ -26,6 +26,7 @@ type TestAppOptions = Partial<{
   emailDelivery: EmailDeliveryService;
   googleOAuth: GoogleOAuthConfig;
   googleOAuthClient: GoogleOAuthClient;
+  onRequest: (request: FastifyRequest) => void;
   uploadRoot: string;
 }>;
 
@@ -61,6 +62,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     ...(options.emailDelivery ? { emailDelivery: options.emailDelivery } : {}),
     ...(options.googleOAuthClient ? { googleOAuthClient: options.googleOAuthClient } : {})
   });
+
+  if (options.onRequest) {
+    app.addHook("onRequest", async (request) => options.onRequest?.(request));
+  }
 
   await app.ready();
 

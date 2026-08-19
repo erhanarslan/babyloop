@@ -1,6 +1,7 @@
 import { authAccounts, profiles, sessions, users } from "@babyloop/database/schema";
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyRequest } from "fastify";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BACKOFFICE_ACCESS_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-access-token-cookie.js";
 import { BACKOFFICE_REFRESH_TOKEN_COOKIE_NAME } from "../src/utils/backoffice-refresh-token.js";
@@ -12,6 +13,7 @@ import { createUser } from "./helpers/auth.js";
 import { getGoogleOAuthStateSetCookie, getSetCookieHeaders, toCookieHeader } from "./helpers/cookies.js";
 import { resetTestDatabase } from "./helpers/db.js";
 import { createFakeGoogleOAuthClient } from "./helpers/google-oauth.js";
+import type { GoogleOAuthClient } from "../src/services/google-oauth.service.js";
 
 let app!: TestApp;
 
@@ -214,6 +216,88 @@ describe("backoffice Google OAuth", () => {
     expect(String(response.headers.location)).not.toContain("unknown");
   });
 
+  it("logs exchange_token when the token exchange throws", async () => {
+    const diagnostics = captureOAuthDiagnostics();
+    app = await createTestApp({
+      googleOAuthClient: {
+        async exchangeCodeForTokens() {
+          throw createSensitiveDiagnosticError(SENSITIVE_DIAGNOSTIC_VALUES.secret);
+        },
+        async fetchUserInfo() {
+          throw new Error("fetchUserInfo must not run after exchange failure.");
+        }
+      },
+      onRequest: diagnostics.onRequest
+    });
+    const { state, cookie } = await startBackofficeOAuth();
+
+    await injectBackofficeCallback(state, cookie);
+
+    expectSafeOAuthDiagnostic(diagnostics.warnings, "exchange_token", null);
+  });
+
+  it("logs fetch_userinfo when the userinfo request throws", async () => {
+    const diagnostics = captureOAuthDiagnostics();
+    app = await createTestApp({
+      googleOAuthClient: {
+        async exchangeCodeForTokens() {
+          return { accessToken: SENSITIVE_DIAGNOSTIC_VALUES.token };
+        },
+        async fetchUserInfo() {
+          throw createSensitiveDiagnosticError();
+        }
+      },
+      onRequest: diagnostics.onRequest
+    });
+    const { state, cookie } = await startBackofficeOAuth();
+
+    await injectBackofficeCallback(state, cookie);
+
+    expectSafeOAuthDiagnostic(diagnostics.warnings, "fetch_userinfo");
+  });
+
+  it("logs authenticate_backoffice_user when the authentication query throws", async () => {
+    const diagnostics = captureOAuthDiagnostics();
+    app = await createTestApp({
+      googleOAuthClient: successfulDiagnosticGoogleClient(),
+      onRequest: diagnostics.onRequest
+    });
+    await createLinkedGoogleUser(
+      SENSITIVE_DIAGNOSTIC_VALUES.email,
+      "admin",
+      "diagnostic-google-subject"
+    );
+    const { state, cookie } = await startBackofficeOAuth();
+    vi.spyOn(app.db, "select").mockImplementation(() => {
+      throw createSensitiveDiagnosticError();
+    });
+
+    await injectBackofficeCallback(state, cookie);
+
+    expectSafeOAuthDiagnostic(diagnostics.warnings, "authenticate_backoffice_user");
+  });
+
+  it("logs create_backoffice_session when session persistence throws", async () => {
+    const diagnostics = captureOAuthDiagnostics();
+    app = await createTestApp({
+      googleOAuthClient: successfulDiagnosticGoogleClient(),
+      onRequest: diagnostics.onRequest
+    });
+    await createLinkedGoogleUser(
+      SENSITIVE_DIAGNOSTIC_VALUES.email,
+      "admin",
+      "diagnostic-google-subject"
+    );
+    const { state, cookie } = await startBackofficeOAuth();
+    vi.spyOn(app.db, "insert").mockImplementation(() => {
+      throw createSensitiveDiagnosticError();
+    });
+
+    await injectBackofficeCallback(state, cookie);
+
+    expectSafeOAuthDiagnostic(diagnostics.warnings, "create_backoffice_session");
+  });
+
   it("never turns a public OAuth audience into a backoffice session", async () => {
     app = await createTestApp({
       googleOAuthClient: createFakeGoogleOAuthClient({
@@ -283,6 +367,90 @@ async function startBackofficeOAuth(next?: string) {
   const stateCookie = getGoogleOAuthStateSetCookie(response);
   return { state: state!, cookie: `${stateCookie.split(";")[0]}` };
 }
+
+function captureOAuthDiagnostics() {
+  const warnings: unknown[][] = [];
+
+  return {
+    warnings,
+    onRequest(request: FastifyRequest) {
+      request.log.warn = ((...args: unknown[]) => {
+        warnings.push(args);
+      }) as typeof request.log.warn;
+    }
+  };
+}
+
+function successfulDiagnosticGoogleClient(): GoogleOAuthClient {
+  return {
+    async exchangeCodeForTokens() {
+      return { accessToken: SENSITIVE_DIAGNOSTIC_VALUES.token };
+    },
+    async fetchUserInfo() {
+      return {
+        sub: "diagnostic-google-subject",
+        email: SENSITIVE_DIAGNOSTIC_VALUES.email,
+        email_verified: true
+      };
+    }
+  };
+}
+
+function createSensitiveDiagnosticError(code = "ECONNRESET"): Error & { code: string } {
+  const error = new Error(Object.values(SENSITIVE_DIAGNOSTIC_VALUES).join(" ")) as Error & {
+    code: string;
+  };
+  error.name = SENSITIVE_DIAGNOSTIC_VALUES.email;
+  error.code = code;
+  Object.assign(error, SENSITIVE_DIAGNOSTIC_VALUES);
+  return error;
+}
+
+function expectSafeOAuthDiagnostic(
+  warnings: unknown[][],
+  oauthStage: string,
+  errorCode: string | null = "ECONNRESET"
+): void {
+  const warning = warnings.find((args) => args[1] === "Backoffice Google OAuth callback failed.");
+  expect(warning).toBeDefined();
+  expect(warning?.[0]).toEqual({
+    oauthStage,
+    errorName: "Error",
+    ...(errorCode ? { errorCode } : {})
+  });
+  expect(Object.keys(warning?.[0] as object).sort()).toEqual(
+    errorCode
+      ? ["errorCode", "errorName", "oauthStage"]
+      : ["errorName", "oauthStage"]
+  );
+
+  const serializedWarning = JSON.stringify(warning);
+  for (const sensitiveValue of Object.values(SENSITIVE_DIAGNOSTIC_VALUES)) {
+    expect(serializedWarning).not.toContain(sensitiveValue);
+  }
+}
+
+async function injectBackofficeCallback(state: string, cookie: string) {
+  const response = await app.inject({
+    method: "GET",
+    url: `/api/v1/auth/google/callback?state=${encodeURIComponent(state)}&code=${SENSITIVE_DIAGNOSTIC_VALUES.authorizationCode}`,
+    headers: { cookie }
+  });
+  expect(response.headers.location).toBe(
+    "http://localhost:3001/login?authError=google_auth_failed"
+  );
+  return response;
+}
+
+const SENSITIVE_DIAGNOSTIC_VALUES = {
+  authorizationCode: "diagnostic-authorization-code",
+  state: "diagnostic-oauth-state",
+  token: "diagnostic-access-token",
+  email: "private-person@example.test",
+  cookie: "diagnostic-cookie-value",
+  sessionId: "diagnostic-session-id",
+  secret: "diagnostic-client-secret"
+} as const;
 
 async function createLinkedGoogleUser(email: string, role: string, subject: string) {
   const user = await createUser(app, { email, role });
