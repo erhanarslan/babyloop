@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "BabyLoop Asistan"
+    timeout: 30000
+- tapOn: "Asistana soru yaz"
+- inputText: "İkinci el oto koltuğu alırken en önemli üç güvenlik kontrolünü kısa yaz."
+- hideKeyboard
+- tapOn: "Asistana gönder"
+- extendedWaitUntil:
+    visible: "Asistan cevabı"
+    timeout: 60000
+- assertVisible: "Kaynaklı yanıt"
+- assertVisible: "Kaynaklarla destekli"
+- scrollUntilVisible:
+    element:
+      text: "Kaynaklar"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: "Kaynaklar"
+- assertVisible: "Oto koltuğu ikinci el kontrol.*"
+- waitForAnimationToEnd

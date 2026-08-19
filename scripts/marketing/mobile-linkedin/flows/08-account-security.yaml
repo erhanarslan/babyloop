@@ -1,0 +1,15 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Çıkış yap"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "Güvenlik"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "Güvenlik"
+- extendedWaitUntil:
+    visible: "Aktif cihazlar"
+    timeout: 30000
+- waitForAnimationToEnd

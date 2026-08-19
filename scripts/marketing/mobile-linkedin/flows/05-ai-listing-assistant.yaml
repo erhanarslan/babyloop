@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Fotoğraf seçilmedi"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "Görsellerden ilan taslağı"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: "AI taslağı oluştur"
+- waitForAnimationToEnd

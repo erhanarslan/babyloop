@@ -359,3 +359,6 @@ service-account*.json
 .babyloop-gcp/
 
 apps/mobile/google-services.json
+
+# Generated local marketing captures and composed social media images
+/artifacts/linkedin/

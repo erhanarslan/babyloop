@@ -1,0 +1,7 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "İlanı paylaş"
+    timeout: 30000
+- assertVisible: "Satıcı"
+- waitForAnimationToEnd

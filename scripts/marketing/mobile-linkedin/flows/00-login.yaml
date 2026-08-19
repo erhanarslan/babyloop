@@ -1,0 +1,48 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Keşfet"
+    timeout: 60000
+- tapOn: "Hesabım"
+- extendedWaitUntil:
+    visible:
+      text: "Hesap gerekli|Hesabım"
+    timeout: 20000
+- runFlow:
+    when:
+      visible: "Çıkış yap"
+    commands:
+      - tapOn: "Çıkış yap"
+      - extendedWaitUntil:
+          visible: "Keşfet"
+          timeout: 20000
+      - tapOn: "Hesabım"
+      - extendedWaitUntil:
+          visible: "Giriş yap"
+          timeout: 20000
+- runFlow:
+    when:
+      visible: "Giriş yap"
+    commands:
+      - tapOn: "Giriş yap"
+      - extendedWaitUntil:
+          visible:
+            id: "mobile-login-email"
+          timeout: 20000
+      - tapOn:
+          id: "mobile-login-email"
+      - eraseText
+      - inputText: ${DEMO_EMAIL}
+      - tapOn:
+          id: "mobile-login-password"
+      - eraseText
+      - inputText: ${DEMO_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Giriş yap"
+      - extendedWaitUntil:
+          visible: "Çıkış yap"
+          timeout: 30000
+- tapOn: "Keşfet"
+- extendedWaitUntil:
+    visible: "Son eklenenler"
+    timeout: 30000

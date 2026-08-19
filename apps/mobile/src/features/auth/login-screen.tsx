@@ -210,6 +210,7 @@ export function LoginScreen() {
               placeholder="ornek@babyloop.local"
               placeholderTextColor={colors.subtle}
               style={styles.input}
+              testID="mobile-login-email"
               value={email}
             />
 
@@ -221,6 +222,7 @@ export function LoginScreen() {
               placeholderTextColor={colors.subtle}
               secureTextEntry
               style={styles.input}
+              testID="mobile-login-password"
               value={password}
             />
 
