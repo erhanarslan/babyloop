@@ -1,0 +1,6 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Son eklenenler"
+    timeout: 30000
+- waitForAnimationToEnd

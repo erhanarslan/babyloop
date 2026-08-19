@@ -1,0 +1,7 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Fotoğraf seçilmedi"
+    timeout: 30000
+- assertVisible: "Başlık"
+- waitForAnimationToEnd
