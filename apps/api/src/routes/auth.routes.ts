@@ -175,6 +175,37 @@ type BackofficeCsrfRouteResponse =
 
 type AuthClientType = "web" | "mobile" | "backoffice";
 
+type GoogleOAuthCallbackStage =
+  | "exchange_token"
+  | "fetch_userinfo"
+  | "validate_google_profile"
+  | "authenticate_backoffice_user"
+  | "create_backoffice_session"
+  | "attach_backoffice_token"
+  | "set_backoffice_cookies"
+  | "redirect_backoffice_success";
+
+const SAFE_GOOGLE_OAUTH_ERROR_CODES = new Set([
+  "ECONNABORTED",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENETUNREACH",
+  "ETIMEDOUT"
+]);
+const SAFE_GOOGLE_OAUTH_ERROR_NAMES = new Set([
+  "AbortError",
+  "AggregateError",
+  "Error",
+  "FetchError",
+  "PostgresError",
+  "RangeError",
+  "ReferenceError",
+  "SyntaxError",
+  "TimeoutError",
+  "TypeError",
+  "URIError"
+]);
+
 function resolveAuthClientType(
   request: { headers: Record<string, string | string[] | undefined> },
   bodyClientType?: AuthClientType
@@ -1350,6 +1381,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
   );
 
   app.get<{ Querystring: Record<string, unknown> }>("/auth/google/callback", async (request, reply) => {
+    let googleOAuthCallbackStage: GoogleOAuthCallbackStage = "exchange_token";
     const cookieState = readGoogleOAuthStateCookie(request.headers.cookie);
     const queryState = readQueryStringValue(request.query.state);
     const parsedCookieState = cookieState
@@ -1401,9 +1433,12 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
     try {
       const googleClient = options.googleOAuthClient ?? defaultGoogleOAuthClient;
+      googleOAuthCallbackStage = "exchange_token";
       const tokens = await googleClient.exchangeCodeForTokens(code!, options.googleOAuth);
+      googleOAuthCallbackStage = "fetch_userinfo";
       const googleProfile = await googleClient.fetchUserInfo(tokens.accessToken);
 
+      googleOAuthCallbackStage = "validate_google_profile";
       if (!googleProfile.email || googleProfile.email_verified === false) {
         if (parsedState.audience === "backoffice" && options.backofficeAppUrl) {
           return redirectToBackofficeOAuthError(
@@ -1421,6 +1456,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
           return redirectToGoogleAuthFailure(reply, options.googleOAuth.webAppUrl);
         }
 
+        googleOAuthCallbackStage = "authenticate_backoffice_user";
         const result = await authenticateExistingBackofficeGoogleUser(app, googleProfile);
         if (result.status !== "ok") {
           return redirectToBackofficeOAuthError(
@@ -1431,15 +1467,18 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
           );
         }
 
+        googleOAuthCallbackStage = "create_backoffice_session";
         const session = await createAuthSession(
           app,
           result.response.data.user.id,
           buildAuthSessionRequestMeta(request)
         );
+        googleOAuthCallbackStage = "attach_backoffice_token";
         const response = attachAccessToken(result.response, options, session.id, {
           backofficeAccessMode: result.accessMode
         });
 
+        googleOAuthCallbackStage = "set_backoffice_cookies";
         setBackofficeAuthCookies(reply, {
           accessToken: response.data.accessToken,
           accessTokenMaxAgeSeconds: options.authTokenTtlSeconds,
@@ -1450,6 +1489,7 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
           serializeExpiredGoogleOAuthTermsCookie()
         ]);
 
+        googleOAuthCallbackStage = "redirect_backoffice_success";
         return redirect(
           reply,
           buildBackofficeGoogleAuthSuccessRedirect(options.backofficeAppUrl, parsedState.next)
@@ -1521,7 +1561,10 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       return redirect(reply, buildGoogleAuthSuccessRedirect(options.googleOAuth.webAppUrl));
     } catch (error) {
       if (parsedState.audience === "backoffice" && options.backofficeAppUrl) {
-        request.log.warn("Backoffice Google OAuth callback failed.");
+        request.log.warn(
+          buildGoogleOAuthCallbackDiagnostic(googleOAuthCallbackStage, error),
+          "Backoffice Google OAuth callback failed."
+        );
         return redirectToBackofficeOAuthError(
           reply,
           options.backofficeAppUrl,
@@ -1547,6 +1590,53 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
 
     return buildAuthMeResponse(currentUser);
   });
+}
+
+function buildGoogleOAuthCallbackDiagnostic(
+  oauthStage: GoogleOAuthCallbackStage,
+  error: unknown
+): {
+  oauthStage: GoogleOAuthCallbackStage;
+  errorName: string;
+  errorCode?: string;
+} {
+  const errorCode = safeGoogleOAuthErrorCode(error);
+
+  return {
+    oauthStage,
+    errorName: safeGoogleOAuthErrorName(error),
+    ...(errorCode ? { errorCode } : {})
+  };
+}
+
+function safeGoogleOAuthErrorName(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "UnknownError";
+  }
+
+  return SAFE_GOOGLE_OAUTH_ERROR_NAMES.has(error.name) ? error.name : "Error";
+}
+
+function safeGoogleOAuthErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return undefined;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string") {
+    return undefined;
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  if (
+    SAFE_GOOGLE_OAUTH_ERROR_CODES.has(normalizedCode) ||
+    /^UND_ERR_[A-Z_]{1,64}$/u.test(normalizedCode) ||
+    /^[0-9A-Z]{5}$/u.test(normalizedCode)
+  ) {
+    return normalizedCode;
+  }
+
+  return undefined;
 }
 
 function authRateLimitOptions(options: AuthTokenOptions): RouteShorthandOptions {
